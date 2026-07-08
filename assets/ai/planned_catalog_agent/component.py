@@ -546,7 +546,11 @@ if _HAS_STATE_BACKED:
                 for _hk in hint_fields:
                     _hv = _hints.get(_hk)
                     if _hv:
-                        _hint_bits.append(f"{_hk}={str(_hv)[:180]}")
+                        # anti_uses is where authors document config shape +
+                        # enum values — allow more room. side_effects stays
+                        # tighter to keep total line length bounded.
+                        _cap = 400 if _hk == "anti_uses" else 200
+                        _hint_bits.append(f"{_hk}={str(_hv)[:_cap]}")
                 _hint_str = f"  [{' | '.join(_hint_bits)}]" if _hint_bits else ""
 
                 lines.append(f"  - {c['id']}: {c.get('description', '')[:description_max]}  ({_fs}){_hint_str}")
@@ -807,11 +811,19 @@ if _HAS_STATE_BACKED:
                 _prior_lines = []
                 for p in picks:
                     _lbl = "SUCCESS" if p.get("status") == "success" else "FAILED"
+                    _emitted = p.get("emitted_asset_names") or []
+                    # For multi-asset components (router, train_test_splitter, etc.)
+                    # show every emitted asset name so downstream picks can
+                    # reference them by their real key, not the placeholder.
+                    if len(_emitted) > 1:
+                        _produced = f"{p.get('asset_name')}  (multi-asset — emits: {_emitted})"
+                    else:
+                        _produced = str(p.get('asset_name'))
                     _lines_p = [
                         f"Step {p['iteration']}: [{_lbl}]",
                         f"  picked: {p['component_id']}",
                         f"  config: {p.get('config', '')}",
-                        f"  produced asset: {p.get('asset_name')}",
+                        f"  produced asset: {_produced}",
                         f"  columns: {p.get('output_columns')}",
                     ]
                     if p.get("status") != "success":
@@ -1072,19 +1084,32 @@ if _HAS_STATE_BACKED:
                     _defs = _inst.build_defs(None)
                     _assets = list(_defs.assets or [])
 
+                    # Wire upstream asset references. Matches the standard
+                    # naming (`upstream_asset_key`, `left_asset_key`, etc.)
+                    # but also opportunistically wires any string field whose
+                    # value happens to match a prior_df key (catches things
+                    # like `upstream_prior_key`, `baseline_asset`, etc.).
                     _extra_assets = []
                     _wired = set()
+                    def _wire_str(_v):
+                        if isinstance(_v, str) and _v in prior_dfs and _v not in _wired:
+                            _extra_assets.append(_make_source_asset(_v, prior_dfs[_v]))
+                            _wired.add(_v)
                     for _k, _v in cfg.items():
-                        if _k.endswith("_asset_key") or _k == "asset_key":
-                            if isinstance(_v, str) and _v in prior_dfs and _v not in _wired:
-                                _extra_assets.append(_make_source_asset(_v, prior_dfs[_v]))
-                                _wired.add(_v)
-                        elif _k.endswith("_asset_keys") or _k == "asset_keys":
+                        if _k.endswith("_asset_key") or _k == "asset_key" or _k.endswith("_key"):
+                            if isinstance(_v, str):
+                                _wire_str(_v)
+                            elif isinstance(_v, list):
+                                for _vv in _v:
+                                    _wire_str(_vv)
+                        elif _k.endswith("_asset_keys") or _k == "asset_keys" or _k.endswith("_keys"):
                             if isinstance(_v, list):
                                 for _vv in _v:
-                                    if isinstance(_vv, str) and _vv in prior_dfs and _vv not in _wired:
-                                        _extra_assets.append(_make_source_asset(_vv, prior_dfs[_vv]))
-                                        _wired.add(_vv)
+                                    _wire_str(_vv)
+                        elif isinstance(_v, str) and _v in prior_dfs:
+                            # Opportunistic: any string value that IS a prior
+                            # asset name gets wired. Covers custom naming.
+                            _wire_str(_v)
 
                     _mat_start = _time.time()
                     _mat = dg.materialize(_extra_assets + _assets, raise_on_error=False)
@@ -1110,25 +1135,38 @@ if _HAS_STATE_BACKED:
                                 break
                         raise RuntimeError(_err_msg or "materialize failed")
 
+                    # Capture ALL outputs. For single-asset components this is
+                    # just one value under the LLM's asset_name. For multi-asset
+                    # components (e.g. router with N routes, train_test_splitter
+                    # with 2 outputs), capture each under its actual asset key.
                     _val = None
+                    _cols = []
+                    _emitted_names: List[str] = []
                     for _a in _assets:
                         for _k in _a.keys:
                             try:
-                                _val = _mat.output_for_node(_k.to_user_string())
-                                break
+                                _v = _mat.output_for_node(_k.to_user_string())
                             except Exception:
                                 continue
-                        if _val is not None: break
+                            _name = _k.to_user_string()
+                            if _v is not None and _name:
+                                prior_dfs[_name] = _v
+                                _emitted_names.append(_name)
+                                if _val is None:
+                                    _val = _v
+                                    _cols = list(_v.columns) if hasattr(_v, "columns") else []
+                    # Preserve LLM-picked asset_name mapping too (for
+                    # single-asset picks where key doesn't match).
+                    if _val is not None and asset_name and asset_name not in prior_dfs:
+                        prior_dfs[asset_name] = _val
 
-                    _cols = list(_val.columns) if hasattr(_val, "columns") else []
                     picks.append({
                         "iteration": iteration, "done": False, "component_id": cid,
                         "component_type": ctype, "config": json.dumps(cfg), "reason": reason,
                         "asset_name": asset_name, "output_columns": _cols,
+                        "emitted_asset_names": _emitted_names,
                         "status": "success", "error": "",
                     })
-                    if _val is not None and asset_name:
-                        prior_dfs[asset_name] = _val
                 except Exception as e:  # noqa: BLE001
                     picks.append({
                         "iteration": iteration, "done": False, "component_id": cid,

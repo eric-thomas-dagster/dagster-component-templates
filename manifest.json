@@ -21315,6 +21315,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/router.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "One DataFrame via upstream_asset_key.",
+        "outputs": "MULTIPLE DataFrame assets \u2014 one per entry in `routes` (asset_name), plus optional `default_asset_name` catch-all. Each output DataFrame has the same columns as input, containing only rows matching its condition.",
+        "side_effects": "Emits N assets from ONE component config. Downstream sinks (dataframe_to_csv) each reference one route's asset_name as their upstream_asset_key.",
+        "anti_uses": "Config shape: upstream_asset_key, routes=[{asset_name: <name>, condition: <expr>}, ...], default_asset_name: <name>, exclusive: true|false. DO NOT set a top-level `asset_name` on router \u2014 asset names live inside each route entry AND in default_asset_name. Router is @multi_asset \u2014 one config emits N assets. Not for column-value filtering (use filter). Not for train/test split (use train_test_splitter)."
       }
     },
     {
@@ -27720,7 +27726,7 @@
         "inputs": "DataFrame with a numeric column + optional partition/order columns.",
         "outputs": "DataFrame + new column with the window function result (rolling mean, lag, lead, cumulative sum, etc.).",
         "side_effects": "Adds one new column. NaNs appear at partition boundaries depending on window function.",
-        "anti_uses": "For simple row-over-row percent change use pct_change. For group aggregations use summarize."
+        "anti_uses": "Config shape: order_by (list of columns), partition_by (optional list), operations=[...]. Each operation dict: {output: <new_col>, func: <one of row_number|rank|dense_rank|lag|lead|cumsum|cummax|cummin|moving_avg|moving_sum>, column: <SOURCE_col> (NOT 'col'), periods: N (lag/lead only), window: N (moving_* only)}. Key names are EXACT: `output`, `func`, `column`, `periods`, `window`. Do NOT abbreviate to `col` \u2014 schema requires `column`. For simple pct_change use pct_change instead. For groupwise aggregations use summarize."
       }
     },
     {

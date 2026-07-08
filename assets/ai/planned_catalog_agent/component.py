@@ -234,17 +234,29 @@ if _HAS_STATE_BACKED:
             context: dg.ComponentLoadContext,
             state_path: Optional[Path],
         ) -> dg.Definitions:
-            """Instantiate each cached pick and union its Definitions."""
+            """Instantiate each cached pick and union its Definitions.
+
+            If the trajectory produced NO successful picks, emit a soft-signal
+            placeholder asset instead of empty defs — so the user sees SOMETHING
+            in the graph with metadata explaining why the pipeline is empty.
+            """
             if state_path is None or not state_path.exists():
-                return dg.Definitions()
+                return dg.Definitions(assets=[self._make_placeholder(
+                    reason="No cached state file found. Refresh state via `dg utils refresh-defs-state` or `dagster dev` to run the LLM planner.",
+                    state=None,
+                )])
 
             state = json.loads(state_path.read_text())
             plan = state.get("plan") or []
             if not plan:
-                return dg.Definitions()
+                return dg.Definitions(assets=[self._make_placeholder(
+                    reason="Trajectory ran but produced no picks (empty plan). Check state file for errors.",
+                    state=state,
+                )])
 
             _dcc = importlib.import_module("dagster_community_components")
             all_assets = []
+            _built_asset_names: List[str] = []
             for pick in plan:
                 if pick.get("status") != "success":
                     continue
@@ -257,10 +269,100 @@ if _HAS_STATE_BACKED:
                     _inst = _cls(**_cfg)
                     _defs = _inst.build_defs(context)
                     all_assets.extend(_defs.assets or [])
+                    _built_asset_names.append(pick.get("asset_name") or "")
                 except Exception:  # noqa: BLE001
                     continue
 
+            # If nothing built (all picks failed OR every class instantiation
+            # errored), emit only the placeholder.
+            if not all_assets:
+                return dg.Definitions(assets=[self._make_placeholder(
+                    reason="Trajectory produced picks but zero assets built successfully. Every pick either failed or its class couldn't be instantiated.",
+                    state=state,
+                )])
+
+            # Partial success: include a companion diagnostics asset iff any
+            # picks failed. Real assets always ship.
+            _n_failed = sum(1 for p in plan if p.get("status") != "success")
+            if _n_failed:
+                all_assets.append(self._make_placeholder(
+                    reason=f"Partial success — {len(_built_asset_names)} of {len(plan)} picks succeeded. See `attempts` metadata for what failed.",
+                    state=state,
+                    partial=True,
+                ))
+
             return dg.Definitions(assets=all_assets)
+
+        def _make_placeholder(self, reason: str, state: Optional[Dict[str, Any]], partial: bool = False):
+            """Build a soft-signal placeholder asset that succeeds on materialize
+            but signals a problem by its very presence. All diagnostics live in
+            the asset's metadata."""
+            _task_hash = hashlib.sha256((self.task or "").encode()).hexdigest()[:12]
+            _key_suffix = "diagnostics" if partial else "no_plan"
+            _asset_key = dg.AssetKey(f"_planned_agent_{_key_suffix}_{_task_hash}")
+
+            _plan = (state or {}).get("plan") or []
+            _timing = (state or {}).get("timing") or {}
+            _picks_ok = sum(1 for p in _plan if p.get("status") == "success")
+            _picks_bad = len(_plan) - _picks_ok
+            _last_err = next(
+                (str(p.get("error"))[:400] for p in reversed(_plan) if p.get("error")),
+                "(no errors recorded)",
+            )
+            _attempts_md: List[str] = []
+            for i, p in enumerate(_plan, 1):
+                _lbl = "✓" if p.get("status") == "success" else "✗"
+                _row = f"{i:2d}. {_lbl} {(p.get('component_id') or '?'):30s} → {p.get('asset_name') or '(none)'}"
+                if p.get("status") != "success":
+                    _row += f"    ERR: {str(p.get('error') or '')[:200]}"
+                _attempts_md.append(_row)
+            _attempts_str = "\n".join(_attempts_md) or "(no picks)"
+
+            _next_steps = (
+                "1. Inspect the full state file: cat "
+                "`src/<project>/defs/.local_defs_state/PlannedCatalogAgent__*/state`\n"
+                "2. Narrow `include_ids` to the components your task actually needs.\n"
+                "3. Try `llm_model: gpt-4o` (gpt-4o-mini often fails multi-hop / branching reasoning).\n"
+                "4. Set `available_resources` to exclude components needing credentials you don't have.\n"
+                "5. Set `tpm_budget` if you're hitting OpenAI rate limits.\n"
+                "6. Enable `prefilter_llm: true` for wide catalogs.\n"
+                "7. Re-run `dg utils refresh-defs-state` after any config change."
+            )
+
+            _task_snip = (self.task or "")[:500] + ("..." if self.task and len(self.task) > 500 else "")
+            _reason = reason
+            _kinds = ["planner_diagnostics"]
+
+            @dg.asset(
+                key=_asset_key,
+                description=f"PlannedCatalogAgent diagnostics — {reason}",
+                kinds=_kinds,
+                group_name=(self.group_name or "planned_agent_diagnostics"),
+                metadata={
+                    "reason": dg.MetadataValue.text(_reason),
+                    "task": dg.MetadataValue.text(_task_snip),
+                    "picks_total": dg.MetadataValue.int(len(_plan)),
+                    "picks_succeeded": dg.MetadataValue.int(_picks_ok),
+                    "picks_failed": dg.MetadataValue.int(_picks_bad),
+                    "last_error": dg.MetadataValue.text(_last_err),
+                    "trajectory_total_s": dg.MetadataValue.float(float(_timing.get("trajectory_total_s") or 0)),
+                    "llm_total_s": dg.MetadataValue.float(float(_timing.get("llm_total_s") or 0)),
+                    "materialize_total_s": dg.MetadataValue.float(float(_timing.get("materialize_total_s") or 0)),
+                    "attempts": dg.MetadataValue.md(f"```\n{_attempts_str}\n```"),
+                    "next_steps": dg.MetadataValue.md(_next_steps),
+                },
+            )
+            def _placeholder():
+                # Soft signal: succeed on materialize. Its presence in the
+                # graph is the signal that something needs attention.
+                return dg.MaterializeResult(
+                    metadata={
+                        "reason": dg.MetadataValue.text(_reason),
+                        "last_error": dg.MetadataValue.text(_last_err),
+                    }
+                )
+
+            return _placeholder
 
         # ── Trajectory logic (adapted from CatalogAgentComponent) ───────
 

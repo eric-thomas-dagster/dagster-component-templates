@@ -149,6 +149,20 @@ if _HAS_STATE_BACKED:
         api_base_env_var: Optional[str] = None
         temperature: float = 0.1
         planner_max_tokens: int = 600
+
+        # OpenAI TPM (tokens-per-minute) budget for a single request. When set,
+        # the component trims the catalog line contents progressively (drops
+        # anti_uses hints → trims descriptions → cuts entries) until the estimated
+        # prompt fits `tpm_budget - 2000` (safety margin for planner output +
+        # prior_summary growth). Trade-offs:
+        #   • Lower budgets force smaller catalog / weaker hints → LLM has less
+        #     context → more picking errors → more iterations wasted → SLOWER
+        #     end-to-end despite fewer tokens per call. The right knob when your
+        #     Tier can't handle the full catalog is `include_ids` (narrow the
+        #     universe of picks); `tpm_budget` is a fallback safety net.
+        #   • OpenAI Tier reference: Tier1=30000, Tier2=500000, Tier3=5000000.
+        #   • None (default) = no trimming; trust the user's include_* filters.
+        tpm_budget: Optional[int] = None
         fail_on_execution_error: bool = False
 
         group_name: Optional[str] = None
@@ -265,7 +279,11 @@ if _HAS_STATE_BACKED:
                     resolved.append({**c, "component_type": f"dagster_community_components.{_cls_name}"})
             return resolved[: self.max_catalog_entries], _dcc
 
-        def _catalog_lines(self, catalog, dcc):
+        def _catalog_lines(self, catalog, dcc, hint_fields=("side_effects", "anti_uses"), description_max=300):
+            """Render catalog lines with configurable trim level.
+            hint_fields: which agent_hints keys to include per line (empty tuple = no hints).
+            description_max: char cap on component description.
+            """
             lines = []
             for c in catalog:
                 _cls_name = c["component_type"].rsplit(".", 1)[-1]
@@ -276,7 +294,6 @@ if _HAS_STATE_BACKED:
                         if _n in _SKIP_COMMON_FIELDS:
                             continue
                         _ts = _short_type(_f.annotation) if _f.annotation else "any"
-                        # Prefer Literal choices; fall back to description-scraped tokens.
                         _choices = _enum_values(_f.annotation)
                         if _choices is None:
                             _desc = getattr(_f, "description", "") or ""
@@ -292,20 +309,85 @@ if _HAS_STATE_BACKED:
                 else:
                     _fs = "fields=(unknown)"
 
-                # agent_hints structured metadata — only the two highest-signal
-                # fields (side_effects + anti_uses) make it into the catalog
-                # line. inputs/outputs/chains_with are useful but push prompts
-                # over gpt-4o's 30K TPM on wide filter sets.
                 _hints = c.get("agent_hints") or {}
                 _hint_bits = []
-                for _hk in ("side_effects", "anti_uses"):
+                for _hk in hint_fields:
                     _hv = _hints.get(_hk)
                     if _hv:
                         _hint_bits.append(f"{_hk}={str(_hv)[:180]}")
                 _hint_str = f"  [{' | '.join(_hint_bits)}]" if _hint_bits else ""
 
-                lines.append(f"  - {c['id']}: {c.get('description', '')[:300]}  ({_fs}){_hint_str}")
+                lines.append(f"  - {c['id']}: {c.get('description', '')[:description_max]}  ({_fs}){_hint_str}")
             return lines
+
+        def _fit_to_budget(self, catalog, dcc):
+            """Return (lines, catalog, trim_notes) fit to self.tpm_budget.
+
+            If tpm_budget is None → no trimming, return the full catalog + default hints.
+            Otherwise progressively trim in this order until we fit
+            `tpm_budget - 2000` (safety margin for planner output + prior_summary growth):
+              1. Drop anti_uses hints (keep side_effects only)
+              2. Trim description 300 → 150 chars
+              3. Drop all hints
+              4. Cut catalog entries from the tail
+            """
+            default_hints = ("side_effects", "anti_uses")
+            if self.tpm_budget is None:
+                return self._catalog_lines(catalog, dcc, default_hints, 300), catalog, []
+
+            _safety = 2000
+            _budget = max(self.tpm_budget - _safety, 1500)  # minimum sane floor
+            _trim_notes: List[str] = []
+
+            def _estimate(_lines):
+                # 4 chars ≈ 1 token (rough — good enough for budget decisions).
+                # +1250 tokens (5000 chars / 4) covers rules boilerplate.
+                _static = "\n".join(_lines) + (self.task or "")
+                return (len(_static) // 4) + 1250
+
+            # Level 1: full hints + full description
+            _lines = self._catalog_lines(catalog, dcc, default_hints, 300)
+            _est = _estimate(_lines)
+            if _est <= _budget:
+                _trim_notes.append(f"level=0 (full hints+desc); est={_est}; budget={_budget}")
+                return _lines, catalog, _trim_notes
+
+            # Level 2: drop anti_uses; keep side_effects; full description
+            _lines = self._catalog_lines(catalog, dcc, ("side_effects",), 300)
+            _est = _estimate(_lines)
+            _trim_notes.append(f"level=1 (dropped anti_uses); est={_est}")
+            if _est <= _budget:
+                return _lines, catalog, _trim_notes
+
+            # Level 3: still side_effects; trim description
+            _lines = self._catalog_lines(catalog, dcc, ("side_effects",), 150)
+            _est = _estimate(_lines)
+            _trim_notes.append(f"level=2 (desc→150); est={_est}")
+            if _est <= _budget:
+                return _lines, catalog, _trim_notes
+
+            # Level 4: drop hints entirely
+            _lines = self._catalog_lines(catalog, dcc, (), 150)
+            _est = _estimate(_lines)
+            _trim_notes.append(f"level=3 (dropped all hints); est={_est}")
+            if _est <= _budget:
+                return _lines, catalog, _trim_notes
+
+            # Level 5: cut entries from the tail until we fit
+            _trimmed = list(catalog)
+            while _trimmed and _est > _budget:
+                _trimmed.pop()
+                _lines = self._catalog_lines(_trimmed, dcc, (), 150)
+                _est = _estimate(_lines)
+            _trim_notes.append(
+                f"level=4 (dropped hints+desc→150+catalog {len(catalog)}→{len(_trimmed)}); est={_est}"
+            )
+            _trim_notes.append(
+                "WARNING: tpm_budget forced aggressive catalog trim. Consider "
+                "narrowing include_ids / include_tags — a smaller filter with rich hints "
+                "beats a huge filter with no hints for pick quality."
+            )
+            return _lines, _trimmed, _trim_notes
 
         def _run_full_trajectory(self) -> List[Dict[str, Any]]:
             """Iterate: planner LLM → materialize picked component → discover columns → repeat."""
@@ -318,7 +400,8 @@ if _HAS_STATE_BACKED:
                     "include_categories / include_tags."
                 )
 
-            lines = self._catalog_lines(catalog, _dcc)
+            # Trim catalog contents to fit `tpm_budget` (no-op if unset).
+            lines, catalog, _trim_notes = self._fit_to_budget(catalog, _dcc)
             valid_ids = ", ".join(f'"{c["id"]}"' for c in catalog)
 
             # STATIC prefix — identical across all iterations of THIS trajectory.
@@ -717,6 +800,9 @@ if _HAS_STATE_BACKED:
                 "llm_total_s": round(_total_llm_seconds, 2),
                 "materialize_total_s": round(_total_mat_seconds, 2),
                 "per_iteration": _iter_timings,
+                "tpm_budget": self.tpm_budget,
+                "catalog_trim_notes": _trim_notes,
+                "catalog_final_size": len(catalog),
             }
             return picks
 

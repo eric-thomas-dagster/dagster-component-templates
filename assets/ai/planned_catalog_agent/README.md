@@ -33,9 +33,23 @@
 
 ## Fields
 
-Same as `catalog_agent` — `task`, `include_ids` / `include_categories` / `include_tags`, `model`, `max_iterations`, etc. — with one addition:
+Same as `catalog_agent` — `task`, `include_ids` / `include_categories` / `include_tags`, `llm_model`, `max_iterations`, etc. — with two additions:
 
 - `defs_state: ResolvedDefsStateConfig` — where to store the plan cache. Default is `DefsStateConfigArgs.local_filesystem()`. State key is derived from a hash of the task string so different tasks get different state files.
+
+- `tpm_budget: Optional[int]` — OpenAI tokens-per-minute budget for a single request. When set, the component progressively trims catalog contents to fit `tpm_budget - 2000` (safety margin):
+  1. Drop `anti_uses` hints (keep `side_effects` only)
+  2. Trim descriptions from 300 → 150 chars
+  3. Drop all hints
+  4. Cut catalog entries from the tail
+
+  **Trade-offs to understand:**
+  - Lower budgets → less context per pick → **more hallucinations, more failed iterations** → often SLOWER end-to-end despite fewer tokens per call.
+  - The correct primary knob for Tier-1 OpenAI accounts is `include_ids` (narrow the universe of picks); `tpm_budget` is a fallback safety net that keeps the trajectory from getting 429s.
+  - OpenAI Tier reference: Tier1=30000, Tier2=500000, Tier3=5000000.
+  - Default `None` = no trimming; trust the user's `include_*` filters.
+
+  Trim decisions are persisted in the state file under `state.timing.catalog_trim_notes` so you can see what got dropped and why.
 
 ## Refreshing state
 

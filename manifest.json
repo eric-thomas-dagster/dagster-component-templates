@@ -1380,6 +1380,12 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame.",
+        "outputs": "Same columns + audit columns (typically created_at, updated_at, source, etc.).",
+        "side_effects": "Adds columns; does not remove.",
+        "anti_uses": "Not for pure timestamp derivation (use formula). Not for cleansing (use data_cleansing)."
       }
     },
     {
@@ -1652,6 +1658,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/transformations.md",
         "last_validated": "2026-05-14"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame.",
+        "outputs": "Same rows; column dtypes optimized (numeric strings \u2192 numeric, dates \u2192 datetime, etc.).",
+        "side_effects": "Modifies dtypes IN PLACE; column names unchanged.",
+        "anti_uses": "For explicit typed conversion prefer type_coercer. auto_field guesses \u2014 not always right."
       }
     },
     {
@@ -4179,6 +4191,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/wine_ml_pipeline.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame.",
+        "outputs": "DataFrame with N sampled rows (random or stratified).",
+        "side_effects": "Reduces row count. For stratified samples, column set unchanged.",
+        "anti_uses": "For train/test split use train_test_splitter. For top-N use top_n_per_group."
       }
     },
     {
@@ -4296,6 +4314,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/transformations.md",
         "last_validated": "2026-05-14"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with categorical columns.",
+        "outputs": "DataFrame in wide crosstab shape \u2014 row keys \u00d7 column values with counts/aggregations.",
+        "side_effects": "Reshapes rows and columns significantly. Downstream must reference new pivoted names.",
+        "anti_uses": "For groupby aggregation use summarize. For long \u2192 wide with values use pivot."
       }
     },
     {
@@ -5151,6 +5175,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/warehouse_migration.md",
         "last_validated": "2026-05-15"
+      },
+      "agent_hints": {
+        "inputs": "None (root ingestion) \u2014 reads from a source DB, writes to a target DB.",
+        "outputs": "None (sink-like \u2014 Sling handles both ends). Emits materialization events with row counts.",
+        "side_effects": "Copies data from source_connection_env_var to target. Mode: full_refresh / incremental / truncate.",
+        "anti_uses": "For one-time migration inventory use database_schema_inventory. For DDL migration use database_tables_migration. For DataFrame in-memory analytics use dataframe_from_sql.",
+        "requires_resources": [
+          "database_connection"
+        ]
       }
     },
     {
@@ -6018,6 +6051,15 @@
         "level": "live",
         "last_validated": "2026-05-28",
         "evidence": "examples/clickhouse.md \u2014 Docker container + Dagster scaffold validated end-to-end"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame to write.",
+        "outputs": "None (sink \u2014 writes to a ClickHouse table).",
+        "side_effects": "Writes via clickhouse-connect. Fast bulk insert.",
+        "anti_uses": "For general SQL DB use dataframe_to_table. For Snowflake use dataframe_to_snowflake.",
+        "requires_resources": [
+          "clickhouse_resource"
+        ]
       }
     },
     {
@@ -6281,6 +6323,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/google_calendar.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame to write.",
+        "outputs": "None (sink \u2014 writes to GCS at gs://bucket/key).",
+        "side_effects": "Writes to GCS. Format per config. Requires GCP credentials.",
+        "anti_uses": "For BigQuery table writes use dataframe_to_bigquery. For local files use dataframe_to_parquet/csv/json.",
+        "requires_resources": [
+          "gcp_credentials"
+        ]
       }
     },
     {
@@ -6346,6 +6397,15 @@
         "level": "live",
         "last_validated": "2026-05-27",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/influxdb.md"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with time + tag + field columns.",
+        "outputs": "None (sink \u2014 writes time-series points to InfluxDB).",
+        "side_effects": "Requires influxdb_resource. Line-protocol write.",
+        "anti_uses": "For Prometheus use dataframe_to_prometheus. For general time-series analytics use dataframe_to_snowflake.",
+        "requires_resources": [
+          "influxdb_resource"
+        ]
       }
     },
     {
@@ -6592,6 +6652,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/prometheus_demo.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with metric columns + timestamp column.",
+        "outputs": "None (sink \u2014 pushes metrics to Prometheus).",
+        "side_effects": "Requires pushgateway URL. Metric names normalized per Prometheus conventions.",
+        "anti_uses": "For querying Prometheus use dataframe_from_prometheus. For high-cardinality events use dataframe_to_influxdb."
       }
     },
     {
@@ -6615,7 +6681,16 @@
         "level": "live",
         "last_validated": "2026-05-11"
       },
-      "vendor": "AWS"
+      "vendor": "AWS",
+      "agent_hints": {
+        "inputs": "Any DataFrame to write.",
+        "outputs": "None (sink \u2014 writes to a Redshift table).",
+        "side_effects": "Writes to Redshift via COPY (fast, batch). Requires redshift_resource + S3 staging.",
+        "anti_uses": "For BigQuery use dataframe_to_bigquery. For Snowflake use dataframe_to_snowflake.",
+        "requires_resources": [
+          "redshift_resource"
+        ]
+      }
     },
     {
       "id": "dataframe_to_s3",
@@ -6636,6 +6711,15 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame to write.",
+        "outputs": "None (sink \u2014 writes to S3 at s3://bucket/key).",
+        "side_effects": "Writes to S3. Format per config (parquet/csv/json). Requires AWS credentials.",
+        "anti_uses": "For local files use dataframe_to_parquet/csv/json. For ADLS use dataframe_to_adls.",
+        "requires_resources": [
+          "aws_credentials"
+        ]
       }
     },
     {
@@ -6764,7 +6848,16 @@
       "validation": {
         "level": "code"
       },
-      "vendor": "Snowflake"
+      "vendor": "Snowflake",
+      "agent_hints": {
+        "inputs": "Any DataFrame to write.",
+        "outputs": "None (sink \u2014 writes to a Snowflake table via bulk COPY).",
+        "side_effects": "Faster than dataframe_to_snowflake for large volumes. Requires stage + snowflake_resource.",
+        "anti_uses": "For small tables (<100K rows) use dataframe_to_snowflake (simpler).",
+        "requires_resources": [
+          "snowflake_resource"
+        ]
+      }
     },
     {
       "id": "dataframe_to_starrocks",
@@ -6997,6 +7090,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/cars_sql.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a string column containing datetime-like values.",
+        "outputs": "Same DataFrame with the parsed column converted to datetime dtype (or a NEW datetime column added).",
+        "side_effects": "May modify existing column dtype OR add new column, per config. Failed parses become NaT.",
+        "anti_uses": "For type coercion of multiple columns use type_coercer. Not for date arithmetic (use formula)."
       }
     },
     {
@@ -7335,6 +7434,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/detect_changes.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "TWO DataFrames \u2014 before + after \u2014 via left/right upstream keys.",
+        "outputs": "DataFrame with change-detection results: added/removed/modified rows flagged.",
+        "side_effects": "Row set is derived; column set includes change_type column.",
+        "anti_uses": "For SCD Type-2 history tracking use scd_type_2. For simple joins use dataframe_join."
       }
     },
     {
@@ -7390,6 +7495,12 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame to write.",
+        "outputs": "None (sink \u2014 writes via dlt (Data Load Tool) to a configured destination).",
+        "side_effects": "Automatically manages schema evolution. Requires dlt destination configured.",
+        "anti_uses": "For direct writes without dlt abstractions, use the destination-specific component (e.g. dataframe_to_snowflake)."
       }
     },
     {
@@ -8053,6 +8164,12 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/local_io.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame to write.",
+        "outputs": "None (sink \u2014 writes to a DuckDB table).",
+        "side_effects": "Writes to a local DuckDB file (`db_path` config). Fast columnar analytical store.",
+        "anti_uses": "For cloud warehouses use dataframe_to_snowflake/bigquery. For SQLite use dataframe_to_table with sqlite URL."
       }
     },
     {
@@ -8165,7 +8282,16 @@
         "level": "code",
         "last_validated": "2026-05-11"
       },
-      "vendor": "AWS"
+      "vendor": "AWS",
+      "agent_hints": {
+        "inputs": "Any DataFrame to write.",
+        "outputs": "None (sink \u2014 writes items to DynamoDB).",
+        "side_effects": "Batch write. Requires aws_credentials + dynamodb table pre-created.",
+        "anti_uses": "For relational data use dataframe_to_table. For time-series use dataframe_to_influxdb.",
+        "requires_resources": [
+          "aws_credentials"
+        ]
+      }
     },
     {
       "id": "dynatrace_metrics_query",
@@ -9818,6 +9944,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/iris_unsupervised.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with numeric feature columns.",
+        "outputs": "Same DataFrame with scaled features (StandardScaler / MinMaxScaler / RobustScaler).",
+        "side_effects": "Modifies values IN PLACE. Requires sklearn.",
+        "anti_uses": "For outlier clipping use outlier_clipper. Not for imputation."
       }
     },
     {
@@ -9872,6 +10004,12 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame + a source\u2192target column mapping config.",
+        "outputs": "DataFrame with a new schema (columns renamed / dropped / transformed per map).",
+        "side_effects": "Column set changes. Downstream references must use TARGET names.",
+        "anti_uses": "For simple renames use dynamic_rename. For value transforms use formula."
       }
     },
     {
@@ -10030,6 +10168,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/transformations.md",
         "last_validated": "2026-05-14"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with string columns containing values to substitute.",
+        "outputs": "Same DataFrame; values substituted per rules.",
+        "side_effects": "Modifies values IN PLACE. Regex- or literal-mode per config.",
+        "anti_uses": "For column dtype changes use type_coercer. For missing values use imputation."
       }
     },
     {
@@ -10575,6 +10719,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/transformations.md",
         "last_validated": "2026-05-14"
+      },
+      "agent_hints": {
+        "inputs": "TWO DataFrames + a column to match approximately.",
+        "outputs": "DataFrame with match candidates + similarity scores.",
+        "side_effects": "Row expansion (each left row may have multiple candidate matches). Requires rapidfuzz.",
+        "anti_uses": "For exact joins use dataframe_join. Cross-join semantics \u2014 expensive on large inputs."
       }
     },
     {
@@ -10867,7 +11017,16 @@
         "level": "live",
         "last_validated": "2026-05-11"
       },
-      "vendor": "Google"
+      "vendor": "Google",
+      "agent_hints": {
+        "inputs": "None (root ingestion) \u2014 reads GCS objects, writes to DB.",
+        "outputs": "None (sink-like).",
+        "side_effects": "Requires gcp_credentials + database_connection.",
+        "requires_resources": [
+          "gcp_credentials",
+          "database_connection"
+        ]
+      }
     },
     {
       "id": "gemini_image_generation",
@@ -11028,6 +11187,12 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame (or none, if generating from scratch per config).",
+        "outputs": "DataFrame with N synthetic rows appended (or replacing).",
+        "side_effects": "Row count increases. For test-data generation.",
+        "anti_uses": "For realistic synthetic data (customer/orders schemas) use synthetic_data_generator instead."
       }
     },
     {
@@ -11147,6 +11312,14 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "None (root ingestion) \u2014 reads GitHub data (repos, issues, PRs, commits) via API.",
+        "outputs": "DataFrame with columns per entity type.",
+        "side_effects": "Requires GITHUB_TOKEN env var. Rate-limited (5000 req/hour).",
+        "requires_resources": [
+          "github_token"
+        ]
       }
     },
     {
@@ -11700,6 +11873,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/google_sheets.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "None (root ingestion) \u2014 reads a Google Sheet.",
+        "outputs": "DataFrame with columns from the sheet's header row.",
+        "side_effects": "Requires gcp_credentials with Sheets API scope. Read-only.",
+        "requires_resources": [
+          "gcp_credentials"
+        ]
       }
     },
     {
@@ -11813,6 +11994,12 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "None (root ingestion) \u2014 hits a GraphQL endpoint.",
+        "outputs": "DataFrame from the query result (flattened per config).",
+        "side_effects": "Requires endpoint URL + auth headers.",
+        "anti_uses": "For REST APIs use rest_api_fetcher. For OpenAPI use openapi_asset."
       }
     },
     {
@@ -11910,6 +12097,12 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with columns to hash.",
+        "outputs": "Same DataFrame + a NEW hash column (or replacing per config).",
+        "side_effects": "Adds column with a stable hash of the referenced columns. Useful for surrogate keys / dedup identity.",
+        "anti_uses": "For unique constraints use surrogate_key (more explicit). For hashing PII use data_masking."
       }
     },
     {
@@ -12076,6 +12269,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/books_scraper.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with an HTML string column.",
+        "outputs": "DataFrame + parsed elements (text, tables, links, meta) as new columns.",
+        "side_effects": "Adds columns. Requires beautifulsoup4 / lxml.",
+        "anti_uses": "For plain-text extraction use markdown_stripper. For document ingestion use document_ingestion."
       }
     },
     {
@@ -12239,6 +12438,14 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "None (root ingestion) \u2014 reads HubSpot CRM objects (contacts, deals, companies).",
+        "outputs": "DataFrame with columns from HubSpot API.",
+        "side_effects": "Requires hubspot_api_key.",
+        "requires_resources": [
+          "hubspot_resource"
+        ]
       }
     },
     {
@@ -13254,6 +13461,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/earthquakes.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a JSON string or dict column.",
+        "outputs": "DataFrame with nested JSON expanded into columns (dot-notation for nesting).",
+        "side_effects": "Column count grows. Original JSON column may be dropped.",
+        "anti_uses": "For dataframe-native nested columns use dataframe_flatten_nested_columns. For array elements use array_exploder."
       }
     },
     {
@@ -13280,6 +13493,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/github_jsonpath.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a JSON string column + a JSONPath expression.",
+        "outputs": "DataFrame + a NEW column containing the JSONPath result per row.",
+        "side_effects": "Adds one column. Original JSON preserved.",
+        "anti_uses": "For full flattening use json_flatten. For dict access on already-parsed dicts use dataframe_extract_field."
       }
     },
     {
@@ -13519,6 +13738,16 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/kafka.md",
         "last_validated": "2026-05-14"
+      },
+      "agent_hints": {
+        "inputs": "None (root ingestion) \u2014 consumes from Kafka topic, writes to DB.",
+        "outputs": "None (sink-like \u2014 writes to configured DB).",
+        "side_effects": "Continuous consumer or batch per run. Requires kafka_resource + database_connection.",
+        "anti_uses": "For DataFrame return use a kafka_reader (if available). For file-based ingest use file_ingestion.",
+        "requires_resources": [
+          "kafka_resource",
+          "database_connection"
+        ]
       }
     },
     {
@@ -13657,7 +13886,17 @@
         "level": "code",
         "last_validated": "2026-05-11"
       },
-      "vendor": "AWS"
+      "vendor": "AWS",
+      "agent_hints": {
+        "inputs": "None (root ingestion) \u2014 consumes from Kinesis stream, writes to DB.",
+        "outputs": "None (sink-like).",
+        "side_effects": "Requires aws_credentials + database_connection.",
+        "anti_uses": "For Kafka use kafka_to_database_asset. For Pub/Sub use pubsub_to_database_asset.",
+        "requires_resources": [
+          "aws_credentials",
+          "database_connection"
+        ]
+      }
     },
     {
       "id": "label_encoder",
@@ -13682,6 +13921,12 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/ml_features.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with categorical string columns.",
+        "outputs": "Same DataFrame with the encoded columns replaced by integer codes (0..N-1).",
+        "side_effects": "REPLACES source column values with integers. Original strings LOST unless preserved separately.",
+        "anti_uses": "For binary or few-value categoricals with a natural ordering only. For nominal categoricals use one_hot_encoding."
       }
     },
     {
@@ -14961,6 +15206,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/transformations.md",
         "last_validated": "2026-05-14"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame + a lookup source (via upstream key or config table) + join key.",
+        "outputs": "DataFrame with looked-up value columns appended.",
+        "side_effects": "Adds columns. Left-join semantics \u2014 no row count change unless multiple matches.",
+        "anti_uses": "For multi-key joins use dataframe_join. For fuzzy matching use fuzzy_match."
       }
     },
     {
@@ -15013,6 +15264,12 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame.",
+        "outputs": "Same rows + N new columns per config.",
+        "side_effects": "Adds columns. Doesn't remove existing.",
+        "anti_uses": "For pandas-eval expressions use formula. For type conversion use type_coercer."
       }
     },
     {
@@ -15105,6 +15362,12 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a column to remap.",
+        "outputs": "Same DataFrame with values in the column replaced per mapping.",
+        "side_effects": "Modifies values IN PLACE. Unmapped values become NaN (or kept per config).",
+        "anti_uses": "For string substitutions use find_replace. For categorical \u2192 int use label_encoder."
       }
     },
     {
@@ -15131,6 +15394,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/transformations.md",
         "last_validated": "2026-05-14"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a markdown-formatted string column.",
+        "outputs": "Same DataFrame with the column's markdown syntax stripped to plain text.",
+        "side_effects": "Modifies values IN PLACE.",
+        "anti_uses": "For HTML use html_parser. For source truth preservation, add as a new column via formula."
       }
     },
     {
@@ -15640,6 +15909,14 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/mongodb.md",
         "last_validated": "2026-05-14"
+      },
+      "agent_hints": {
+        "inputs": "None (root ingestion) \u2014 reads a MongoDB collection.",
+        "outputs": "DataFrame with columns from the documents' fields (flattened per config).",
+        "side_effects": "Read-only. Nested docs may need dataframe_flatten_nested_columns downstream.",
+        "requires_resources": [
+          "mongodb_resource"
+        ]
       }
     },
     {
@@ -15753,6 +16030,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/mongodb.md",
         "last_validated": "2026-05-14"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame to write.",
+        "outputs": "None (sink \u2014 writes documents to MongoDB).",
+        "side_effects": "Inserts one document per row. `mode` controls upsert/append/replace behavior.",
+        "anti_uses": "For SQL DBs use dataframe_to_table.",
+        "requires_resources": [
+          "mongodb_resource"
+        ]
       }
     },
     {
@@ -16061,6 +16347,12 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with columns referenced in `expressions`.",
+        "outputs": "DataFrame + N new columns from N expressions (all evaluated on the same row).",
+        "side_effects": "Adds columns; doesn't remove.",
+        "anti_uses": "For single-column formula use formula. For row-window calculations use multi_row_formula."
       }
     },
     {
@@ -16085,6 +16377,12 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame sorted by an order column.",
+        "outputs": "DataFrame + a NEW column derived from adjacent-row values (running sum, diff, lag, lead, etc.).",
+        "side_effects": "Adds column. Order-sensitive \u2014 needs sorted input.",
+        "anti_uses": "For per-row formula use formula. For simple pct change use pct_change. For general window ops use window_calculation."
       }
     },
     {
@@ -16434,6 +16732,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/neo4j.md",
         "last_validated": "2026-05-14"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame representing nodes OR relationships.",
+        "outputs": "None (sink \u2014 writes nodes/relationships to Neo4j).",
+        "side_effects": "Uses MERGE (idempotent) or CREATE (may duplicate). Requires neo4j_resource.",
+        "anti_uses": "For simple key-value use redis_writer. For SQL DBs use dataframe_to_table.",
+        "requires_resources": [
+          "neo4j_resource"
+        ]
       }
     },
     {
@@ -16595,6 +16902,14 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "None (root ingestion) \u2014 reads Notion pages/databases via API.",
+        "outputs": "DataFrame with columns from Notion database properties.",
+        "side_effects": "Requires notion_api_key.",
+        "requires_resources": [
+          "notion_resource"
+        ]
       }
     },
     {
@@ -17121,6 +17436,12 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "None (root ingestion) \u2014 hits an OpenAPI-spec'd REST endpoint.",
+        "outputs": "DataFrame from the response, typed per the OpenAPI schema.",
+        "side_effects": "Type safety from the spec. Requires openapi_spec_url + auth.",
+        "anti_uses": "For generic REST use rest_api_fetcher."
       }
     },
     {
@@ -17666,6 +17987,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/arxiv_pdf.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a PDF file path or bytes column.",
+        "outputs": "DataFrame with extracted text (per page or per document).",
+        "side_effects": "Requires pypdf / pdfplumber. Adds text columns; row count may grow (per page).",
+        "anti_uses": "For OCR use a dedicated OCR component. For DOCX use document_ingestion."
       }
     },
     {
@@ -18886,7 +19213,16 @@
         "level": "code",
         "last_validated": "2026-05-11"
       },
-      "vendor": "Google"
+      "vendor": "Google",
+      "agent_hints": {
+        "inputs": "None (root ingestion) \u2014 consumes from Google Pub/Sub, writes to DB.",
+        "outputs": "None (sink-like).",
+        "side_effects": "Requires gcp_credentials + database_connection.",
+        "requires_resources": [
+          "gcp_credentials",
+          "database_connection"
+        ]
+      }
     },
     {
       "id": "pulsar_monitor",
@@ -19322,6 +19658,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/kitchen_sink.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a numeric column to rank.",
+        "outputs": "DataFrame + a NEW rank column (per group if group_by set).",
+        "side_effects": "Adds one column. Ties handled per config (dense/min/max/first).",
+        "anti_uses": "For top-N filtering use top_n_per_group. For sort-only use arrange."
       }
     },
     {
@@ -19549,6 +19891,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_eventhubs.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame to write.",
+        "outputs": "None (sink \u2014 writes keys/values to Redis).",
+        "side_effects": "Writes per config (STRING / HASH / SET / SORTED_SET / STREAM).",
+        "anti_uses": "For general key-value with schema use a SQL DB. For pub/sub use redis_streams_to_database_asset upstream.",
+        "requires_resources": [
+          "redis_resource"
+        ]
       }
     },
     {
@@ -19641,6 +19992,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/arxiv_pdf.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a string column + a regex pattern with named groups.",
+        "outputs": "DataFrame + N new columns (one per named group).",
+        "side_effects": "Adds columns. Non-matching rows get NaN in extracted columns.",
+        "anti_uses": "For structured JSON use json_flatten/json_path_extractor. For delimited splits use text_to_columns."
       }
     },
     {
@@ -19973,6 +20330,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/retail_analytics.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame sorted by an order column.",
+        "outputs": "DataFrame + a NEW running-total column (per group if group_by set).",
+        "side_effects": "Adds column. Order-sensitive.",
+        "anti_uses": "For non-cumulative aggregations use summarize."
       }
     },
     {
@@ -20164,7 +20527,17 @@
         "level": "code",
         "last_validated": "2026-05-11"
       },
-      "vendor": "AWS"
+      "vendor": "AWS",
+      "agent_hints": {
+        "inputs": "None (root ingestion) \u2014 reads S3 objects, writes to DB.",
+        "outputs": "None (sink-like).",
+        "side_effects": "Requires aws_credentials + database_connection.",
+        "anti_uses": "For DataFrame return use file_ingestion with s3:// URL. For GCS use gcs_to_database_asset.",
+        "requires_resources": [
+          "aws_credentials",
+          "database_connection"
+        ]
+      }
     },
     {
       "id": "salesforce_event_log_ingestion",
@@ -20226,6 +20599,14 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "None (root ingestion) \u2014 reads Salesforce objects via SOQL.",
+        "outputs": "DataFrame with columns from the SObject fields.",
+        "side_effects": "Requires salesforce_resource (OAuth or username/password). API-call rate-limited.",
+        "requires_resources": [
+          "salesforce_resource"
+        ]
       }
     },
     {
@@ -20281,6 +20662,12 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame.",
+        "outputs": "DataFrame with random N rows (or fraction).",
+        "side_effects": "Reduces row count. Not deterministic unless random_state set.",
+        "anti_uses": "For stratified samples use create_samples. For train/test split use train_test_splitter."
       }
     },
     {
@@ -20467,6 +20854,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/transformations.md",
         "last_validated": "2026-05-14"
+      },
+      "agent_hints": {
+        "inputs": "TWO DataFrames \u2014 current + incoming \u2014 via upstream keys.",
+        "outputs": "DataFrame representing merged current state (overwrites on match).",
+        "side_effects": "Overwrites existing rows for keys present in incoming; adds new keys.",
+        "anti_uses": "For history-tracking use scd_type_2. Not for simple joins (use dataframe_join)."
       }
     },
     {
@@ -20498,6 +20891,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/scd_type_2.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "TWO DataFrames \u2014 current + incoming.",
+        "outputs": "DataFrame with history: existing rows may get end_date + is_current=false; new rows added with is_current=true.",
+        "side_effects": "Adds effective_from / effective_to / is_current columns. Row count grows over time.",
+        "anti_uses": "For overwrite-on-change use scd_type_1. Requires configured business/natural keys."
       }
     },
     {
@@ -20548,6 +20947,12 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame + expected schema config.",
+        "outputs": "Same DataFrame (or raises on validation failure per config).",
+        "side_effects": "Read-only \u2014 pass-through if valid; raises otherwise. Adds no columns.",
+        "anti_uses": "For type coercion use type_coercer. For null checks use imputation."
       }
     },
     {
@@ -21368,6 +21773,14 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "None (root ingestion) \u2014 reads Slack messages / users / channels via API.",
+        "outputs": "DataFrame with columns per entity.",
+        "side_effects": "Requires slack_api_token. Rate-limited.",
+        "requires_resources": [
+          "slack_resource"
+        ]
       }
     },
     {
@@ -21580,6 +21993,15 @@
         "level": "live",
         "last_validated": "2026-05-19",
         "evidence": "email_roundtrip.md"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with recipient columns (email, name) + optional subject/body/attachments.",
+        "outputs": "None (sink \u2014 sends emails via SMTP).",
+        "side_effects": "Sends N emails (one per row). Requires smtp_resource. Rate-limited.",
+        "anti_uses": "For transactional emails at scale use a dedicated service (SendGrid / SES). Not for storing data (use dataframe_to_csv/etc.).",
+        "requires_resources": [
+          "smtp_resource"
+        ]
       }
     },
     {
@@ -22404,6 +22826,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/cities_distance.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame.",
+        "outputs": "Same DataFrame; rows sorted per config.",
+        "side_effects": "Row order changes; no data loss.",
+        "anti_uses": "For top-N use top_n_per_group. Same as `arrange` \u2014 pick one."
       }
     },
     {
@@ -23022,6 +23450,14 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "None (root ingestion) \u2014 reads Stripe API objects (charges, customers, subscriptions, etc.).",
+        "outputs": "DataFrame with columns from Stripe API responses.",
+        "side_effects": "Requires stripe_api_key. Rate-limited.",
+        "requires_resources": [
+          "stripe_resource"
+        ]
       }
     },
     {
@@ -23375,6 +23811,12 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame.",
+        "outputs": "DataFrame + a NEW surrogate key column (deterministic hash or sequential integer).",
+        "side_effects": "Adds column. Hash-based is stable; sequential is deterministic given input order.",
+        "anti_uses": "For arbitrary hashing use hash. For natural key concatenation use formula."
       }
     },
     {
@@ -24248,6 +24690,12 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a delimited string column.",
+        "outputs": "DataFrame with the source column REPLACED by N new columns (one per delimited field).",
+        "side_effects": "Removes source column and adds N new ones per delimiter. Downstream references to source will KeyError.",
+        "anti_uses": "For JSON extraction use json_flatten. For extracting one field use dataframe_extract_field."
       }
     },
     {
@@ -24513,6 +24961,12 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame + a target/label column (optional for stratification).",
+        "outputs": "Emits TWO assets \u2014 train_df and test_df \u2014 via multi-output.",
+        "side_effects": "Splits rows randomly (or stratified). Downstream picks one output.",
+        "anti_uses": "For a single held-out sample use sample. For k-fold use cross_validation."
       }
     },
     {
@@ -24570,6 +25024,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/pivot_unpivot.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame.",
+        "outputs": "DataFrame with rows and columns SWAPPED \u2014 row count becomes column count and vice versa.",
+        "side_effects": "Drastic reshape. Downstream cannot reference old column/row semantics.",
+        "anti_uses": "Rarely useful in analytical pipelines. For wide\u2194long use pivot/unpivot. For crosstab use cross_tab."
       }
     },
     {
@@ -24718,6 +25178,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/forecast_comparison.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a datetime column + optional value columns.",
+        "outputs": "DataFrame with gap rows filled at a consistent frequency (values = 0/NaN/interpolated per config).",
+        "side_effects": "Row count grows to cover full time range. Requires sorted datetime.",
+        "anti_uses": "For simple imputation of missing values use imputation. For forecasting use arima_forecast."
       }
     },
     {
@@ -25919,6 +26385,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/transformations.md",
         "last_validated": "2026-05-14"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a value column + weight column + optional group_by.",
+        "outputs": "DataFrame with weighted-avg per group.",
+        "side_effects": "Reduces to one row per group. Column set changes.",
+        "anti_uses": "For unweighted mean use summarize with agg=mean."
       }
     },
     {
@@ -26116,6 +26588,14 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "None (root ingestion) \u2014 reads Zendesk tickets/users/orgs via API.",
+        "outputs": "DataFrame with columns from Zendesk API.",
+        "side_effects": "Requires zendesk_resource. Rate-limited.",
+        "requires_resources": [
+          "zendesk_resource"
+        ]
       }
     },
     {
@@ -26453,6 +26933,12 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-06-06"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame (or multiple, via config).",
+        "outputs": "None (sink \u2014 writes PDF file with formatted report).",
+        "side_effects": "Requires reportlab/weasyprint. Writes to `file_path` on disk.",
+        "anti_uses": "For structured data output use dataframe_to_csv/parquet. For emails use smtp_send_asset."
       }
     },
     {
@@ -26497,6 +26983,12 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-06-06"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame + a mapping (or rule) for column renaming.",
+        "outputs": "Same rows; some column NAMES changed per mapping.",
+        "side_effects": "Renames columns IN PLACE \u2014 downstream referencing OLD names will KeyError.",
+        "anti_uses": "For column drop use select_columns. For value transformation use formula."
       }
     },
     {
@@ -26545,6 +27037,12 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-06-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a raw address column.",
+        "outputs": "Same rows + parsed components (street, city, state, postal, country) OR standardized address string.",
+        "side_effects": "Adds columns. Requires libpostal or an external service.",
+        "anti_uses": "For verified/validated addresses use precisely_address_verify (paid). Not for geocoding (use points_from_latlon after geocoding)."
       }
     },
     {

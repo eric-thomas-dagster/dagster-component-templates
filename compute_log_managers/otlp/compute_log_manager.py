@@ -295,14 +295,27 @@ class OtlpComputeLogManager(TruncatingCloudStorageComputeLogManager, Configurabl
             _otlp_attr("dagster.io_type", io_name),
             _otlp_attr("dagster.partial", "true" if partial else "false"),
         ]
-        # Enrich with step timing (start_time, end_time, duration_ms, status)
-        # so downstream Splunk/Datadog/Honeycomb dashboards can filter and
-        # chart on step performance. Belt-and-suspenders try/except so
-        # enrichment CANNOT break log delivery.
+        # Enrich with step timing (start_time, end_time, duration_ms, status).
+        # Belt-and-suspenders try/except so enrichment CANNOT break log delivery.
         try:
-            attrs.extend(_step_timing_attrs(getattr(self, "_instance", None), run_id, step_key))
+            _timing_attrs = _step_timing_attrs(getattr(self, "_instance", None), run_id, step_key)
+            attrs.extend(_timing_attrs)
+            # INFO-level so it's visible without --log-level=DEBUG. Comment out
+            # once you've confirmed enrichment is landing.
+            if _timing_attrs:
+                _logger.info(
+                    f"OTLP CLM: enriched with {len(_timing_attrs)} step-timing attrs "
+                    f"for run={run_id[:8]} step={step_key} — keys="
+                    f"{[a['key'] for a in _timing_attrs]}"
+                )
+            else:
+                _logger.info(
+                    f"OTLP CLM: step-timing enrichment returned no attrs for "
+                    f"run={run_id[:8] if run_id else '?'} step={step_key} — "
+                    f"instance={type(getattr(self, '_instance', None)).__name__ if getattr(self, '_instance', None) else 'None'}"
+                )
         except Exception as _e:  # noqa: BLE001
-            _logger.debug(f"OTLP CLM: step-timing enrichment skipped: {_e}")
+            _logger.warning(f"OTLP CLM: step-timing enrichment skipped: {_e}")
 
         sent = 0
         for batch in _chunked(_iter_log_lines(path), self._batch_size):

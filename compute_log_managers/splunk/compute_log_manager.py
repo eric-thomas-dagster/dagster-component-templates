@@ -296,15 +296,24 @@ class SplunkComputeLogManager(TruncatingCloudStorageComputeLogManager, Configura
             "dagster_io_type": io_name,
             "dagster_partial": "true" if partial else "false",
         }
-        # Enrich with step-level timing when the step is finished. Splunk
-        # customers use these to filter slow steps, chart p95 durations,
-        # and correlate with app-side traces. Belt-and-suspenders try/except
-        # so enrichment CANNOT break log delivery.
+        # Enrich with step-level timing when the step is finished.
+        # Belt-and-suspenders try/except so enrichment CANNOT break log delivery.
         try:
             _timing = _step_timing(getattr(self, "_instance", None), run_id, step_key)
             _fields.update(_timing)
+            if _timing:
+                _logger.info(
+                    f"Splunk CLM: enriched with {len(_timing)} step-timing fields "
+                    f"for run={run_id[:8]} step={step_key} — keys={list(_timing.keys())}"
+                )
+            else:
+                _logger.info(
+                    f"Splunk CLM: step-timing enrichment returned no fields for "
+                    f"run={run_id[:8] if run_id else '?'} step={step_key} — "
+                    f"instance={type(getattr(self, '_instance', None)).__name__ if getattr(self, '_instance', None) else 'None'}"
+                )
         except Exception as _e:  # noqa: BLE001
-            _logger.debug(f"Splunk CLM: step-timing enrichment skipped: {_e}")
+            _logger.warning(f"Splunk CLM: step-timing enrichment skipped: {_e}")
 
         events_iter = _iter_hec_events(
             path,

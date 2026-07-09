@@ -1,0 +1,2 @@
+dagster
+sentry-sdk>=1.30.0

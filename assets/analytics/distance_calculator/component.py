@@ -474,7 +474,7 @@ group_name=group_name,
                 (lat1_column, "_y", "y"), (lng1_column, "_x", "x"),
                 (lat2_column, "_y", "y"), (lng2_column, "_x", "x"),
             ):
-                if _src in df.columns:
+                if _src is None or _src in df.columns:
                     continue
                 if _src.endswith(_suffix):
                     base = _src[: -len(_suffix)]

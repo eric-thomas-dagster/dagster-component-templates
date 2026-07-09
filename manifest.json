@@ -6599,7 +6599,7 @@
         "inputs": "DataFrame with columns containing dicts or lists (e.g. from JSON APIs).",
         "outputs": "DataFrame with nested columns expanded \u2014 dict keys become new columns (dot-notation for nesting).",
         "side_effects": "Column count grows significantly. Original nested column may be dropped or retained per config.",
-        "anti_uses": "Config: columns (optional list \u2014 auto-detects nested dict cols if omitted), expand: true|false (default true \u2014 real json_normalize expand into new columns), separator: '.' (or '_'), strip_prefix: true|false (default false \u2014 set true to drop the parent column name from expanded columns; e.g. properties.mag \u2192 mag). For flattening ALL nested keys use this component. For extracting a SINGLE field use dataframe_extract_field. For array elements use array_exploder."
+        "anti_uses": "Config: columns (auto-detects nested dict cols if omitted), expand: true|false (default true \u2014 real json_normalize expand), separator: '.' or '_', strip_prefix: true|false (drop parent name), expand_arrays: true|false (also split lists-of-primitives into indexed cols \u2014 e.g. coordinates:[lon,lat,depth] \u2192 coordinates.0/.1/.2 or lon/lat/depth via array_label_map={coordinates:[lon,lat,depth]}). For flattening use this; for SINGLE-field extract use dataframe_extract_field; for row-per-element use array_exploder."
       }
     },
     {
@@ -25411,6 +25411,52 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sentry_issues_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sentry_issues_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sentry_issues_ingestion/requirements.txt"
+    },
+    {
+      "id": "sentry_monitor_checkin_job",
+      "name": "Sentry Monitor Check-in Job",
+      "category": "jobs",
+      "description": "Register a Dagster scheduled job as a Sentry Cron Monitor. On each run, fires an in_progress check-in at start and an ok check-in at end. If Sentry doesn't see the expected check-in within the schedule window + checkin_margin, it alerts on-call. Optional monitor_config auto-creates the monitor on first check-in. Matches the pattern of http_webhook_job / observability_heartbeat_job. Complements sentry_alert_job (which fires arbitrary events on schedule).",
+      "path": "jobs/sentry_monitor_checkin_job",
+      "tags": [
+        "jobs",
+        "sentry",
+        "observability",
+        "cron-monitoring",
+        "heartbeat"
+      ],
+      "icon": "Clock",
+      "type": "dagster_community_components.SentryMonitorCheckinJobComponent",
+      "component_type": "dagster_community_components.SentryMonitorCheckinJobComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/sentry_monitor_checkin_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/sentry_monitor_checkin_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/sentry_monitor_checkin_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/sentry_monitor_checkin_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/sentry_monitor_checkin_job/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "sentry-sdk>=1.30.0"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "None \u2014 schedule-triggered or on-demand.",
+        "outputs": "None (op job \u2014 sends one Sentry cron check-in per run: in_progress at start, ok at end).",
+        "side_effects": "Requires SENTRY_DSN env var + sentry-sdk>=1.30. If monitor_config is set, auto-creates/updates the monitor on first check-in. Default fail_on_error=False so a Sentry outage doesn't break the scheduler.",
+        "anti_uses": "For an ARBITRARY Sentry event (message) on schedule use sentry_alert_job \u2014 different concept (alerts inbox, not cron monitor). For generic webhook pings use http_webhook_job. For per-row events from a DataFrame use dataframe_to_sentry.",
+        "requires_pip": [
+          "sentry_sdk"
+        ],
+        "requires_resources": [
+          "sentry_dsn"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-08"
+      }
     },
     {
       "id": "servicebus_monitor",

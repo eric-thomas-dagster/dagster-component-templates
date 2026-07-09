@@ -64,6 +64,27 @@ class DataframeFlattenNestedColumnsComponent(Component, Model, Resolvable):
             "only care about the innermost fields."
         ),
     )
+    expand_arrays: bool = Field(
+        default=False,
+        description=(
+            "When expand=True, ALSO split lists-of-primitives into indexed "
+            "columns. E.g. `coordinates: [lon, lat, depth]` becomes columns "
+            "`coordinates.0`, `coordinates.1`, `coordinates.2` (or without "
+            "prefix if strip_prefix=True). Handy for GeoJSON coordinate arrays. "
+            "Only splits when every non-null value in the column is a list AND "
+            "the elements are primitives (not dicts)."
+        ),
+    )
+    array_label_map: Optional[Dict[str, List[str]]] = Field(
+        default=None,
+        description=(
+            "Optional per-column labels for the indexed array columns. "
+            "E.g. `{coordinates: [lon, lat, depth]}` names them "
+            "`coordinates.lon`, `coordinates.lat`, `coordinates.depth` (or "
+            "just `lon`/`lat`/`depth` with strip_prefix=True). If missing, "
+            "positional integer indices are used."
+        ),
+    )
 
     columns: Optional[List[Union[str, int]]] = Field(
         default=None,
@@ -210,13 +231,50 @@ class DataframeFlattenNestedColumnsComponent(Component, Model, Resolvable):
                 # Real flatten via pd.json_normalize on each nested column.
                 # Rows without a dict value in that column keep NaN.
                 sep = self.separator or "."
+                _label_map = self.array_label_map or {}
                 for col in target_cols:
                     if col in exclude:
                         continue
                     _series = df[col]
                     _dict_mask = _series.apply(lambda v: isinstance(v, dict))
+                    _list_mask = _series.apply(lambda v: isinstance(v, list))
+
                     if not bool(_dict_mask.any()):
-                        # Column is nested lists — serialize instead.
+                        # No dict values in this column. Two options:
+                        #  1. expand_arrays=True + list-of-primitives → split
+                        #     into indexed columns (coordinates → .0/.1/.2 or
+                        #     .lon/.lat/.depth via array_label_map).
+                        #  2. otherwise → JSON-serialize (legacy behavior).
+                        _is_primitives = (
+                            self.expand_arrays and bool(_list_mask.any())
+                            and _series.where(_list_mask, [])
+                                .apply(lambda lst: all(
+                                    not isinstance(x, (dict, list)) for x in (lst or [])
+                                ))
+                                .all()
+                        )
+                        if _is_primitives:
+                            _lists = _series.where(_list_mask, []).tolist()
+                            _max_len = max((len(x) for x in _lists), default=0)
+                            _labels = _label_map.get(col) or []
+                            _cols_to_add = {}
+                            for _i in range(_max_len):
+                                _key = _labels[_i] if _i < len(_labels) else str(_i)
+                                _name = _key if self.strip_prefix else f"{col}{sep}{_key}"
+                                _cols_to_add[_name] = [
+                                    (lst[_i] if isinstance(lst, list) and _i < len(lst) else None)
+                                    for lst in _lists
+                                ]
+                            df = df.drop(columns=[col])
+                            for _name, _vals in _cols_to_add.items():
+                                if _name in df.columns:
+                                    df = df.drop(columns=[_name])
+                                df[_name] = _vals
+                            flattened.append(col)
+                            new_columns.extend(_cols_to_add.keys())
+                            continue
+
+                        # Fallback: JSON-serialize lists in place.
                         df[col] = _series.apply(
                             lambda v: json.dumps(v, default=str) if isinstance(v, list) else v
                         )
@@ -241,6 +299,53 @@ class DataframeFlattenNestedColumnsComponent(Component, Model, Resolvable):
                     df = pd.concat([df, _normalized], axis=1)
                     flattened.append(col)
                     new_columns.extend(_normalized.columns.tolist())
+
+                # Second pass: after json_normalize creates NEW nested columns
+                # (e.g. `geometry.coordinates` from expanding `geometry`), those
+                # may still be lists-of-primitives. Re-scan and split them if
+                # expand_arrays=True.
+                if self.expand_arrays:
+                    _pending = [
+                        _c for _c in list(df.columns)
+                        if _c not in exclude
+                        and df[_c].dtype == object
+                        and bool(df[_c].apply(lambda v: isinstance(v, list)).any())
+                    ]
+                    for col in _pending:
+                        _series = df[col]
+                        _list_mask = _series.apply(lambda v: isinstance(v, list))
+                        _is_primitives = (
+                            _series.where(_list_mask, [])
+                            .apply(lambda lst: all(
+                                not isinstance(x, (dict, list)) for x in (lst or [])
+                            ))
+                            .all()
+                        )
+                        if not _is_primitives:
+                            continue
+                        _lists = _series.where(_list_mask, []).tolist()
+                        _max_len = max((len(x) for x in _lists), default=0)
+                        if _max_len == 0:
+                            continue
+                        # array_label_map lookup — try the FULL column name first
+                        # (e.g. "geometry.coordinates") AND the trailing suffix
+                        # ("coordinates") for convenience.
+                        _labels = _label_map.get(col) or _label_map.get(col.rsplit(sep, 1)[-1]) or []
+                        _cols_to_add = {}
+                        for _i in range(_max_len):
+                            _key = _labels[_i] if _i < len(_labels) else str(_i)
+                            _name = _key if self.strip_prefix else f"{col}{sep}{_key}"
+                            _cols_to_add[_name] = [
+                                (lst[_i] if isinstance(lst, list) and _i < len(lst) else None)
+                                for lst in _lists
+                            ]
+                        df = df.drop(columns=[col])
+                        for _name, _vals in _cols_to_add.items():
+                            if _name in df.columns:
+                                df = df.drop(columns=[_name])
+                            df[_name] = _vals
+                        flattened.append(col)
+                        new_columns.extend(_cols_to_add.keys())
             else:
                 for col in target_cols:
                     if col in exclude:

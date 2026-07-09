@@ -803,6 +803,7 @@ _CLASS_PATHS: dict[str, str] = {
     "ServiceBusToDatabaseAssetComponent": "assets/ingestion/servicebus_to_database_asset/component.py",
     "SentryAlertJobComponent": "jobs/sentry_alert_job/component.py",
     "SentryIssuesIngestionComponent": "assets/ingestion/sentry_issues_ingestion/component.py",
+    "SentryMonitorCheckinJobComponent": "jobs/sentry_monitor_checkin_job/component.py",
     "ServiceNowIngestionComponent": "assets/ingestion/servicenow_ingestion/component.py",
     "ServiceNowResource": "resources/servicenow_resource/component.py",
     "ServiceNowResourceComponent": "resources/servicenow_resource/component.py",

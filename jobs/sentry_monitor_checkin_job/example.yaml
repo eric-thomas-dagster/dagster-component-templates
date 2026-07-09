@@ -1,0 +1,22 @@
+type: dagster_community_components.SentryMonitorCheckinJobComponent
+attributes:
+  job_name: nightly_etl_cron_checkin
+  schedule: "0 3 * * *"       # every day at 03:00 UTC
+  default_status: RUNNING
+  tags: { purpose: cron_monitor }
+
+  dsn_env_var: SENTRY_DSN
+  monitor_slug: nightly-etl
+  environment: prod
+  release: dagster-etl-v1.4.2
+
+  # Auto-create/update the monitor on first check-in with these policies.
+  monitor_config:
+    schedule:
+      type: crontab
+      value: "0 3 * * *"
+    checkin_margin: 5       # minutes late before Sentry alerts
+    max_runtime: 15         # minutes — considered failed if longer
+    timezone: America/New_York
+
+  fail_on_error: false

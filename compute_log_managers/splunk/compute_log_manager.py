@@ -299,7 +299,8 @@ class SplunkComputeLogManager(TruncatingCloudStorageComputeLogManager, Configura
         # Enrich with step-level timing when the step is finished.
         # Belt-and-suspenders try/except so enrichment CANNOT break log delivery.
         try:
-            _timing = _step_timing(getattr(self, "_instance", None), run_id, step_key)
+            _instance = _resolve_instance(self)
+            _timing = _step_timing(_instance, run_id, step_key)
             _fields.update(_timing)
             if _timing:
                 _logger.info(
@@ -463,6 +464,32 @@ def _chunked(it, n):
             buf = []
     if buf:
         yield buf
+
+
+def _resolve_instance(manager):
+    """Return a live DagsterInstance or None.
+
+    Compute log managers hold a WEAKREF to DagsterInstance. In multiprocess
+    execution the subprocess-side manager often has an unset weakref, so
+    accessing `manager._instance` raises DagsterInvariantViolationError.
+
+    Order of resolution:
+      1. `manager._instance` if `has_instance` (works in process where
+         `register_instance` was called — usually the daemon / webserver).
+      2. `DagsterInstance.get()` — resolves the current-context instance
+         if one has been established (e.g. by the step subprocess).
+      3. None — enrichment silently skipped upstream.
+    """
+    try:
+        if getattr(manager, "has_instance", False):
+            return manager._instance
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from dagster import DagsterInstance
+        return DagsterInstance.get()
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def _step_timing(instance, run_id: Optional[str], step_key: Optional[str]) -> dict:

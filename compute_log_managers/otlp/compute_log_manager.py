@@ -298,7 +298,8 @@ class OtlpComputeLogManager(TruncatingCloudStorageComputeLogManager, Configurabl
         # Enrich with step timing (start_time, end_time, duration_ms, status).
         # Belt-and-suspenders try/except so enrichment CANNOT break log delivery.
         try:
-            _timing_attrs = _step_timing_attrs(getattr(self, "_instance", None), run_id, step_key)
+            _instance = _resolve_instance(self)
+            _timing_attrs = _step_timing_attrs(_instance, run_id, step_key)
             attrs.extend(_timing_attrs)
             # INFO-level so it's visible without --log-level=DEBUG. Comment out
             # once you've confirmed enrichment is landing.
@@ -467,6 +468,21 @@ def _otlp_attr(key: str, value) -> dict:
     if isinstance(value, float):
         return {"key": key, "value": {"doubleValue": float(value)}}
     return {"key": key, "value": {"stringValue": str(value)}}
+
+
+def _resolve_instance(manager):
+    """See splunk sibling — safe DagsterInstance resolution across
+    multiprocess execution contexts. Returns None on any failure."""
+    try:
+        if getattr(manager, "has_instance", False):
+            return manager._instance
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from dagster import DagsterInstance
+        return DagsterInstance.get()
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def _step_timing_attrs(instance, run_id, step_key):

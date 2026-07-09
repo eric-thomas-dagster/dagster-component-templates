@@ -284,6 +284,8 @@ class OtlpComputeLogManager(TruncatingCloudStorageComputeLogManager, Configurabl
 
         run_id, step_key = _split_log_key(log_key)
         io_name = _IO_TYPE_NAMES[io_type]
+        # DIAG: dump the raw log_key so we can see its real structure.
+        print(f"OTLP CLM: log_key={list(log_key)!r} → run_id={run_id!r} step_key={step_key!r}", file=sys.stderr, flush=True)
         severity = (
             self._severity_stdout if io_type == ComputeIOType.STDOUT else self._severity_stderr
         )

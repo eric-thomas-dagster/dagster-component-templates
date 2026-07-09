@@ -291,6 +291,8 @@ class SplunkComputeLogManager(TruncatingCloudStorageComputeLogManager, Configura
 
         run_id, step_key = _split_log_key(log_key)
         io_name = _IO_TYPE_NAMES[io_type]
+        # DIAG: dump the raw log_key so we can see its real structure.
+        print(f"Splunk CLM: log_key={list(log_key)!r} → run_id={run_id!r} step_key={step_key!r}", file=sys.stderr, flush=True)
         _fields = {
             "dagster_run_id": run_id,
             "dagster_step_key": step_key or "",

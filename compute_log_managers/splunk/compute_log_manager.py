@@ -296,30 +296,15 @@ class SplunkComputeLogManager(TruncatingCloudStorageComputeLogManager, Configura
             "dagster_io_type": io_name,
             "dagster_partial": "true" if partial else "false",
         }
-        # Enrich with step-level timing when the step is finished.
+        # Resolve the real step_key and enrich with step-level timing.
         # Belt-and-suspenders try/except so enrichment CANNOT break log delivery.
-        # Prints to stderr so diagnostics show up in `dg dev` output — the
-        # `dagster_community_components.*` logger namespace isn't wired to a handler.
         try:
             _instance = _resolve_instance(self)
             step_key = _resolve_step_key(_instance, run_id, log_key, hint_step_key)
             _fields["dagster_step_key"] = step_key or ""
-            _timing = _step_timing(_instance, run_id, step_key)
-            _fields.update(_timing)
-            if _timing:
-                print(
-                    f"Splunk CLM: enriched with {len(_timing)} step-timing fields "
-                    f"for run={run_id[:8]} step={step_key} — keys={list(_timing.keys())}",
-                    file=sys.stderr, flush=True,
-                )
-            else:
-                print(
-                    f"Splunk CLM: step-timing enrichment returned no fields for "
-                    f"run={run_id[:8] if run_id else '?'} step={step_key!r} "
-                    f"(hint={hint_step_key!r}) — instance_resolved={_instance is not None}",
-                    file=sys.stderr, flush=True,
-                )
+            _fields.update(_step_timing(_instance, run_id, step_key))
         except Exception as _e:  # noqa: BLE001
+            _fields.setdefault("dagster_step_key", hint_step_key or "")
             print(f"Splunk CLM: step-timing enrichment skipped: {_e}", file=sys.stderr, flush=True)
 
         events_iter = _iter_hec_events(

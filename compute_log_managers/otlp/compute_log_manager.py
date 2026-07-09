@@ -297,29 +297,13 @@ class OtlpComputeLogManager(TruncatingCloudStorageComputeLogManager, Configurabl
         ]
         # Enrich with step timing (start_time, end_time, duration_ms, status).
         # Belt-and-suspenders try/except so enrichment CANNOT break log delivery.
-        # Prints to stderr so diagnostics show up in `dg dev` output — the
-        # `dagster_community_components.*` logger namespace isn't wired to a handler.
         try:
             _instance = _resolve_instance(self)
             step_key = _resolve_step_key(_instance, run_id, log_key, hint_step_key)
             attrs.append(_otlp_attr("dagster.step_key", step_key or ""))
-            _timing_attrs = _step_timing_attrs(_instance, run_id, step_key)
-            attrs.extend(_timing_attrs)
-            if _timing_attrs:
-                print(
-                    f"OTLP CLM: enriched with {len(_timing_attrs)} step-timing attrs "
-                    f"for run={run_id[:8]} step={step_key} — keys="
-                    f"{[a['key'] for a in _timing_attrs]}",
-                    file=sys.stderr, flush=True,
-                )
-            else:
-                print(
-                    f"OTLP CLM: step-timing enrichment returned no attrs for "
-                    f"run={run_id[:8] if run_id else '?'} step={step_key!r} "
-                    f"(hint={hint_step_key!r}) — instance_resolved={_instance is not None}",
-                    file=sys.stderr, flush=True,
-                )
+            attrs.extend(_step_timing_attrs(_instance, run_id, step_key))
         except Exception as _e:  # noqa: BLE001
+            attrs.append(_otlp_attr("dagster.step_key", hint_step_key or ""))
             print(f"OTLP CLM: step-timing enrichment skipped: {_e}", file=sys.stderr, flush=True)
 
         sent = 0

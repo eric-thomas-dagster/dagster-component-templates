@@ -313,7 +313,7 @@ class OtlpComputeLogManager(TruncatingCloudStorageComputeLogManager, Configurabl
                 _logger.info(
                     f"OTLP CLM: step-timing enrichment returned no attrs for "
                     f"run={run_id[:8] if run_id else '?'} step={step_key} — "
-                    f"instance={type(getattr(self, '_instance', None)).__name__ if getattr(self, '_instance', None) else 'None'}"
+                    f"instance_resolved={_instance is not None}"
                 )
         except Exception as _e:  # noqa: BLE001
             _logger.warning(f"OTLP CLM: step-timing enrichment skipped: {_e}")

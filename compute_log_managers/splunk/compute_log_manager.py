@@ -289,13 +289,10 @@ class SplunkComputeLogManager(TruncatingCloudStorageComputeLogManager, Configura
         if (self._skip_empty_files or partial) and os.stat(path).st_size == 0:
             return
 
-        run_id, step_key = _split_log_key(log_key)
+        run_id, hint_step_key = _split_log_key(log_key)
         io_name = _IO_TYPE_NAMES[io_type]
-        # DIAG: dump the raw log_key so we can see its real structure.
-        print(f"Splunk CLM: log_key={list(log_key)!r} → run_id={run_id!r} step_key={step_key!r}", file=sys.stderr, flush=True)
         _fields = {
             "dagster_run_id": run_id,
-            "dagster_step_key": step_key or "",
             "dagster_io_type": io_name,
             "dagster_partial": "true" if partial else "false",
         }
@@ -305,6 +302,8 @@ class SplunkComputeLogManager(TruncatingCloudStorageComputeLogManager, Configura
         # `dagster_community_components.*` logger namespace isn't wired to a handler.
         try:
             _instance = _resolve_instance(self)
+            step_key = _resolve_step_key(_instance, run_id, log_key, hint_step_key)
+            _fields["dagster_step_key"] = step_key or ""
             _timing = _step_timing(_instance, run_id, step_key)
             _fields.update(_timing)
             if _timing:
@@ -316,8 +315,8 @@ class SplunkComputeLogManager(TruncatingCloudStorageComputeLogManager, Configura
             else:
                 print(
                     f"Splunk CLM: step-timing enrichment returned no fields for "
-                    f"run={run_id[:8] if run_id else '?'} step={step_key} — "
-                    f"instance_resolved={_instance is not None}",
+                    f"run={run_id[:8] if run_id else '?'} step={step_key!r} "
+                    f"(hint={hint_step_key!r}) — instance_resolved={_instance is not None}",
                     file=sys.stderr, flush=True,
                 )
         except Exception as _e:  # noqa: BLE001
@@ -497,6 +496,47 @@ def _resolve_instance(manager):
         return DagsterInstance.get()
     except Exception:  # noqa: BLE001
         return None
+
+
+def _resolve_step_key(
+    instance, run_id: Optional[str], log_key: Sequence[str], hint: Optional[str]
+) -> Optional[str]:
+    """Map a Dagster log_key to its step_key.
+
+    Newer Dagster versions structure log_key as [run_id, "compute_logs", <capture_id>],
+    where <capture_id> is a random ULID — NOT the step_key. The actual step_key
+    is stored in the LOGS_CAPTURED event's `step_keys` field. Fall back to
+    single-step-in-run (covers all asset materialization jobs), then finally
+    fall back to whatever the caller passed as hint.
+    """
+    if instance is None or not run_id:
+        return hint or None
+    # 1) LOGS_CAPTURED event log lookup.
+    try:
+        from dagster import DagsterEventType
+        target = list(log_key) if log_key else None
+        events = instance.all_logs(run_id, of_type={DagsterEventType.LOGS_CAPTURED})
+        for entry in events:
+            de = getattr(entry, "dagster_event", None)
+            data = getattr(de, "event_specific_data", None) if de else None
+            if data is None:
+                continue
+            event_log_key = getattr(data, "log_key", None)
+            if event_log_key is None or (target is not None and list(event_log_key) != target):
+                continue
+            step_keys = getattr(data, "step_keys", None)
+            if step_keys and len(step_keys) >= 1:
+                return step_keys[0]
+    except Exception:  # noqa: BLE001
+        pass
+    # 2) Single-step-in-run fallback.
+    try:
+        all_stats = instance.get_run_step_stats(run_id)
+        if all_stats and len(all_stats) == 1:
+            return all_stats[0].step_key
+    except Exception:  # noqa: BLE001
+        pass
+    return hint or None
 
 
 def _step_timing(instance, run_id: Optional[str], step_key: Optional[str]) -> dict:

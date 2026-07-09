@@ -297,9 +297,12 @@ class OtlpComputeLogManager(TruncatingCloudStorageComputeLogManager, Configurabl
         ]
         # Enrich with step timing (start_time, end_time, duration_ms, status)
         # so downstream Splunk/Datadog/Honeycomb dashboards can filter and
-        # chart on step performance.
-        _timing = _step_timing_attrs(getattr(self, "_instance", None), run_id, step_key)
-        attrs.extend(_timing)
+        # chart on step performance. Belt-and-suspenders try/except so
+        # enrichment CANNOT break log delivery.
+        try:
+            attrs.extend(_step_timing_attrs(getattr(self, "_instance", None), run_id, step_key))
+        except Exception as _e:  # noqa: BLE001
+            _logger.debug(f"OTLP CLM: step-timing enrichment skipped: {_e}")
 
         sent = 0
         for batch in _chunked(_iter_log_lines(path), self._batch_size):
@@ -456,44 +459,63 @@ def _otlp_attr(key: str, value) -> dict:
 def _step_timing_attrs(instance, run_id, step_key):
     """Return a list of OTLP attributes for step start/end/duration/status.
 
-    Empty list on any error or missing data — this enrichment is best-effort.
+    Best-effort — any exception silently returns an empty list so log
+    delivery never fails because of enrichment.
     """
-    if instance is None or not run_id or not step_key:
-        return []
     try:
-        _stats = instance.get_run_step_stats(run_id, step_keys=[step_key])
-    except Exception:  # noqa: BLE001
-        return []
-    if not _stats:
-        return []
-    _s = _stats[0]
-    _start = getattr(_s, "start_time", None)
-    _end = getattr(_s, "end_time", None)
-    _status = getattr(_s, "status", None)
+        if instance is None or not run_id or not step_key:
+            return []
+        try:
+            _stats = instance.get_run_step_stats(run_id, step_keys=[step_key])
+        except Exception:  # noqa: BLE001
+            return []
+        if not _stats:
+            return []
+        _s = _stats[0]
+        _start = _coerce_epoch(getattr(_s, "start_time", None))
+        _end = _coerce_epoch(getattr(_s, "end_time", None))
+        _status = getattr(_s, "status", None)
 
-    out = []
-    if _start is not None:
-        out.append(_otlp_attr("dagster.step_start_epoch", float(_start)))
+        out = []
+        if _start is not None:
+            out.append(_otlp_attr("dagster.step_start_epoch", _start))
+            _iso = _epoch_iso(_start)
+            if _iso:
+                out.append(_otlp_attr("dagster.step_start_iso", _iso))
+        if _end is not None:
+            out.append(_otlp_attr("dagster.step_end_epoch", _end))
+            _iso = _epoch_iso(_end)
+            if _iso:
+                out.append(_otlp_attr("dagster.step_end_iso", _iso))
+        if _start is not None and _end is not None:
+            out.append(_otlp_attr("dagster.step_duration_ms", int(round((_end - _start) * 1000))))
+        if _status is not None:
+            out.append(_otlp_attr("dagster.step_status", getattr(_status, "value", str(_status))))
+        return out
+    except Exception:  # noqa: BLE001 — outer guard, never break upload
+        return []
+
+
+def _coerce_epoch(v):
+    """Coerce a start_time/end_time to unix-epoch float or None."""
+    if v is None:
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    if hasattr(v, "timestamp"):  # datetime.datetime
         try:
-            from datetime import datetime, timezone
-            out.append(_otlp_attr(
-                "dagster.step_start_iso",
-                datetime.fromtimestamp(_start, tz=timezone.utc).isoformat(),
-            ))
+            return float(v.timestamp())
         except Exception:  # noqa: BLE001
-            pass
-    if _end is not None:
-        out.append(_otlp_attr("dagster.step_end_epoch", float(_end)))
-        try:
-            from datetime import datetime, timezone
-            out.append(_otlp_attr(
-                "dagster.step_end_iso",
-                datetime.fromtimestamp(_end, tz=timezone.utc).isoformat(),
-            ))
-        except Exception:  # noqa: BLE001
-            pass
-    if _start is not None and _end is not None:
-        out.append(_otlp_attr("dagster.step_duration_ms", int(round((_end - _start) * 1000))))
-    if _status is not None:
-        out.append(_otlp_attr("dagster.step_status", getattr(_status, "value", str(_status))))
-    return out
+            return None
+    try:
+        return float(v)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _epoch_iso(epoch):
+    try:
+        from datetime import datetime, timezone
+        return datetime.fromtimestamp(epoch, tz=timezone.utc).isoformat()
+    except Exception:  # noqa: BLE001
+        return None

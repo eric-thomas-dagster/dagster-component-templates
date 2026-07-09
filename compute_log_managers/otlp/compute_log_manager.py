@@ -295,6 +295,11 @@ class OtlpComputeLogManager(TruncatingCloudStorageComputeLogManager, Configurabl
             _otlp_attr("dagster.io_type", io_name),
             _otlp_attr("dagster.partial", "true" if partial else "false"),
         ]
+        # Enrich with step timing (start_time, end_time, duration_ms, status)
+        # so downstream Splunk/Datadog/Honeycomb dashboards can filter and
+        # chart on step performance.
+        _timing = _step_timing_attrs(getattr(self, "_instance", None), run_id, step_key)
+        attrs.extend(_timing)
 
         sent = 0
         for batch in _chunked(_iter_log_lines(path), self._batch_size):
@@ -436,7 +441,59 @@ def _chunked(it, n):
         yield buf
 
 
-def _otlp_attr(key: str, value: str) -> dict:
-    """Build one OTLP KeyValue attribute — string values only (sufficient
-    for the dagster.* + service.* attributes this manager emits)."""
+def _otlp_attr(key: str, value) -> dict:
+    """Build one OTLP KeyValue attribute — string, int, or double supported."""
+    if isinstance(value, bool):
+        # bool is a subclass of int in Python; special-case it.
+        return {"key": key, "value": {"boolValue": value}}
+    if isinstance(value, int):
+        return {"key": key, "value": {"intValue": int(value)}}
+    if isinstance(value, float):
+        return {"key": key, "value": {"doubleValue": float(value)}}
     return {"key": key, "value": {"stringValue": str(value)}}
+
+
+def _step_timing_attrs(instance, run_id, step_key):
+    """Return a list of OTLP attributes for step start/end/duration/status.
+
+    Empty list on any error or missing data — this enrichment is best-effort.
+    """
+    if instance is None or not run_id or not step_key:
+        return []
+    try:
+        _stats = instance.get_run_step_stats(run_id, step_keys=[step_key])
+    except Exception:  # noqa: BLE001
+        return []
+    if not _stats:
+        return []
+    _s = _stats[0]
+    _start = getattr(_s, "start_time", None)
+    _end = getattr(_s, "end_time", None)
+    _status = getattr(_s, "status", None)
+
+    out = []
+    if _start is not None:
+        out.append(_otlp_attr("dagster.step_start_epoch", float(_start)))
+        try:
+            from datetime import datetime, timezone
+            out.append(_otlp_attr(
+                "dagster.step_start_iso",
+                datetime.fromtimestamp(_start, tz=timezone.utc).isoformat(),
+            ))
+        except Exception:  # noqa: BLE001
+            pass
+    if _end is not None:
+        out.append(_otlp_attr("dagster.step_end_epoch", float(_end)))
+        try:
+            from datetime import datetime, timezone
+            out.append(_otlp_attr(
+                "dagster.step_end_iso",
+                datetime.fromtimestamp(_end, tz=timezone.utc).isoformat(),
+            ))
+        except Exception:  # noqa: BLE001
+            pass
+    if _start is not None and _end is not None:
+        out.append(_otlp_attr("dagster.step_duration_ms", int(round((_end - _start) * 1000))))
+    if _status is not None:
+        out.append(_otlp_attr("dagster.step_status", getattr(_status, "value", str(_status))))
+    return out

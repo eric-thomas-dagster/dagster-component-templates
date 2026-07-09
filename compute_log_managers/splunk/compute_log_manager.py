@@ -290,18 +290,25 @@ class SplunkComputeLogManager(TruncatingCloudStorageComputeLogManager, Configura
 
         run_id, step_key = _split_log_key(log_key)
         io_name = _IO_TYPE_NAMES[io_type]
+        _fields = {
+            "dagster_run_id": run_id,
+            "dagster_step_key": step_key or "",
+            "dagster_io_type": io_name,
+            "dagster_partial": "true" if partial else "false",
+        }
+        # Enrich with step-level timing when the step is finished. Splunk
+        # customers use these to filter slow steps, chart p95 durations,
+        # and correlate with app-side traces.
+        _timing = _step_timing(getattr(self, "_instance", None), run_id, step_key)
+        _fields.update(_timing)
+
         events_iter = _iter_hec_events(
             path,
             index=self._index,
             sourcetype=self._sourcetype,
             source=self._source,
             host=self._host,
-            fields={
-                "dagster_run_id": run_id,
-                "dagster_step_key": step_key or "",
-                "dagster_io_type": io_name,
-                "dagster_partial": "true" if partial else "false",
-            },
+            fields=_fields,
         )
 
         # Batch into HEC POSTs.
@@ -443,3 +450,54 @@ def _chunked(it, n):
             buf = []
     if buf:
         yield buf
+
+
+def _step_timing(instance, run_id: Optional[str], step_key: Optional[str]) -> dict:
+    """Return step start/end/duration as HEC-friendly fields.
+
+    Returns a dict of {dagster_step_start_epoch, dagster_step_end_epoch,
+    dagster_step_start_iso, dagster_step_end_iso, dagster_step_duration_ms,
+    dagster_step_status} — always all keys or none (empty dict on error).
+
+    Called at upload_to_cloud_storage time, i.e. AFTER the step has finished.
+    We use instance.get_run_step_stats() which returns start/end times +
+    status per step in one query.
+    """
+    if instance is None or not run_id or not step_key:
+        return {}
+    try:
+        _stats = instance.get_run_step_stats(run_id, step_keys=[step_key])
+    except Exception:  # noqa: BLE001
+        return {}
+    if not _stats:
+        return {}
+    _s = _stats[0]
+
+    _out: dict = {}
+    _start = getattr(_s, "start_time", None)
+    _end = getattr(_s, "end_time", None)
+    _status = getattr(_s, "status", None)
+
+    if _start is not None:
+        _out["dagster_step_start_epoch"] = float(_start)
+        try:
+            from datetime import datetime, timezone
+            _out["dagster_step_start_iso"] = (
+                datetime.fromtimestamp(_start, tz=timezone.utc).isoformat()
+            )
+        except Exception:  # noqa: BLE001
+            pass
+    if _end is not None:
+        _out["dagster_step_end_epoch"] = float(_end)
+        try:
+            from datetime import datetime, timezone
+            _out["dagster_step_end_iso"] = (
+                datetime.fromtimestamp(_end, tz=timezone.utc).isoformat()
+            )
+        except Exception:  # noqa: BLE001
+            pass
+    if _start is not None and _end is not None:
+        _out["dagster_step_duration_ms"] = int(round((_end - _start) * 1000))
+    if _status is not None:
+        _out["dagster_step_status"] = getattr(_status, "value", str(_status))
+    return _out

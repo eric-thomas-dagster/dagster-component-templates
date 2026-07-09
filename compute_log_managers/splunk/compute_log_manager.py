@@ -42,6 +42,7 @@ in ``TeeComputeLogManager`` — see the tee/ sibling.
 import json
 import logging
 import os
+import sys
 import urllib.parse
 from typing import IO, Optional, Sequence
 
@@ -298,23 +299,27 @@ class SplunkComputeLogManager(TruncatingCloudStorageComputeLogManager, Configura
         }
         # Enrich with step-level timing when the step is finished.
         # Belt-and-suspenders try/except so enrichment CANNOT break log delivery.
+        # Prints to stderr so diagnostics show up in `dg dev` output — the
+        # `dagster_community_components.*` logger namespace isn't wired to a handler.
         try:
             _instance = _resolve_instance(self)
             _timing = _step_timing(_instance, run_id, step_key)
             _fields.update(_timing)
             if _timing:
-                _logger.info(
+                print(
                     f"Splunk CLM: enriched with {len(_timing)} step-timing fields "
-                    f"for run={run_id[:8]} step={step_key} — keys={list(_timing.keys())}"
+                    f"for run={run_id[:8]} step={step_key} — keys={list(_timing.keys())}",
+                    file=sys.stderr, flush=True,
                 )
             else:
-                _logger.info(
+                print(
                     f"Splunk CLM: step-timing enrichment returned no fields for "
                     f"run={run_id[:8] if run_id else '?'} step={step_key} — "
-                    f"instance_resolved={_instance is not None}"
+                    f"instance_resolved={_instance is not None}",
+                    file=sys.stderr, flush=True,
                 )
         except Exception as _e:  # noqa: BLE001
-            _logger.warning(f"Splunk CLM: step-timing enrichment skipped: {_e}")
+            print(f"Splunk CLM: step-timing enrichment skipped: {_e}", file=sys.stderr, flush=True)
 
         events_iter = _iter_hec_events(
             path,

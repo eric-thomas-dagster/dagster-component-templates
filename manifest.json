@@ -4801,7 +4801,7 @@
         "inputs": "Any DataFrame.",
         "outputs": "Single-row DataFrame with a count column (or emits metadata).",
         "side_effects": "Reduces to 1 row.",
-        "anti_uses": "For group-by counts use summarize with agg='count'. For per-column non-null counts use dataframe_describe."
+        "anti_uses": "Returns a SINGLE row count (grand total). NOT for grouped counts \u2014 for 'count per X' use `summarize` with `aggregations: {count: {col: <any>, agg: 'count'}}`. For non-null column counts use dataframe_describe."
       },
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -8926,11 +8926,12 @@
       },
       "agent_hints": {
         "inputs": "DataFrame with two point columns (lat/lon pairs).",
-        "outputs": "DataFrame + `distance` column (haversine or geodesic).",
+        "outputs": "DataFrame + a NEW column (default name `distance_km`, override via `output_column`) with haversine/geodesic distance between the two point columns.",
         "side_effects": "Adds column. Requires shapely / pyproj / geopy depending on config.",
         "requires_pip": [
           "shapely"
-        ]
+        ],
+        "anti_uses": "Two modes: (a) column-to-column: set lat2_column + lng2_column to column names in the DataFrame. (b) fixed reference point: OMIT lat2_column / lng2_column and instead set scalar `lat2` / `lng2` (e.g. lat2: 35.68, lng2: 139.65 for Tokyo). Output column defaults to `distance_km` \u2014 NOT `distance`. Downstream sort/filter must reference the actual output_column name. For nearest polygon use spatial_join."
       },
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -12571,7 +12572,7 @@
         "inputs": "DataFrame with columns referenced in `expressions`.",
         "outputs": "DataFrame with NEW columns added per `expressions` mapping. Existing columns unchanged.",
         "side_effects": "Adds N new columns (one per expression key). Does NOT rename or remove source columns.",
-        "anti_uses": "expressions is Dict[str, str] where each value is a pandas eval expression (e.g. `{month: order_date.dt.month}`). Column names in the expression must exist in upstream. For type conversion, use type_coercer.",
+        "anti_uses": "expressions is Dict[str, str] where each value is a pandas eval expression (e.g. `{month: order_date.dt.month}`, `{is_high: (total > 500).astype(int)}`). For conditionals use `np.where(cond, x, y)` OR `.astype(int)` on a boolean \u2014 NOT Python's `if/else` ternary (pandas.eval does not support it \u2014 it silently produces NaN). For type conversion use type_coercer.",
         "chains_with": "Common predecessor to summarize when a group_by key needs to be derived (month from timestamp, quarter from month, etc.)."
       },
       "version": "1.0.0",

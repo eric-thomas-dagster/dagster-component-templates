@@ -153,8 +153,28 @@ class DistanceCalculatorComponent(Component, Model, Resolvable):
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     lat1_column: str = Field(description="Column name containing the origin latitude")
     lng1_column: str = Field(description="Column name containing the origin longitude")
-    lat2_column: str = Field(description="Column name containing the destination latitude")
-    lng2_column: str = Field(description="Column name containing the destination longitude")
+    lat2_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "Column name containing the destination latitude. When None, uses "
+            "the scalar `lat2` field as a fixed reference point applied to every row."
+        ),
+    )
+    lng2_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "Column name containing the destination longitude. When None, uses "
+            "the scalar `lng2` field as a fixed reference point applied to every row."
+        ),
+    )
+    lat2: Optional[float] = Field(
+        default=None,
+        description="Scalar destination latitude (used when lat2_column is None). E.g. 35.68 for Tokyo.",
+    )
+    lng2: Optional[float] = Field(
+        default=None,
+        description="Scalar destination longitude (used when lng2_column is None). E.g. 139.65 for Tokyo.",
+    )
     output_column: Union[str, int] = Field(default="distance_km", description="Column name for the computed distance")
     unit: str = Field(default="km", description="Distance unit: 'km', 'miles', or 'meters'")
     formula: str = Field(
@@ -291,6 +311,13 @@ class DistanceCalculatorComponent(Component, Model, Resolvable):
         lng1_column = self.lng1_column
         lat2_column = self.lat2_column
         lng2_column = self.lng2_column
+        lat2_scalar = self.lat2
+        lng2_scalar = self.lng2
+        # Validate: either column names or scalars, not neither, not "column without a matching scalar for the other axis"
+        if lat2_column is None and lat2_scalar is None:
+            raise ValueError("distance_calculator: set either `lat2_column` or `lat2` (scalar).")
+        if lng2_column is None and lng2_scalar is None:
+            raise ValueError("distance_calculator: set either `lng2_column` or `lng2` (scalar).")
         output_column = self.output_column
         unit = self.unit
         formula = self.formula
@@ -454,7 +481,14 @@ group_name=group_name,
                     if base in df.columns:
                         df[_src] = df[base].apply(lambda g, _a=_axis: _coord(g, _a))
 
-            _missing = [c for c in (lat1_column, lng1_column, lat2_column, lng2_column) if c not in df.columns]
+            # Only require columns that are actually supplied — scalar
+            # lat2/lng2 short-circuit the column lookup for fixed-point mode.
+            _required_cols = [lat1_column, lng1_column]
+            if lat2_column is not None:
+                _required_cols.append(lat2_column)
+            if lng2_column is not None:
+                _required_cols.append(lng2_column)
+            _missing = [c for c in _required_cols if c not in df.columns]
             if _missing:
                 context.log.warning(
                     f"distance_calculator: lat/lng columns {_missing} not present in upstream "
@@ -462,12 +496,17 @@ group_name=group_name,
                 )
                 return df
 
-            # Coerce object-dtype lat/lng cols to numeric — common when
-            # upstream came from a CSV without dtype hints; the math functions
-            # below crash with 'must be real number, not str' otherwise.
-            for _c in (lat1_column, lng1_column, lat2_column, lng2_column):
+            # Coerce object-dtype lat/lng cols to numeric.
+            for _c in _required_cols:
                 if _c in df.columns and df[_c].dtype == "object":
                     df[_c] = pd.to_numeric(df[_c], errors="coerce")
+
+            # Row-level accessors that fall through to scalars when in fixed-point mode.
+            def _lat2(r):
+                return r[lat2_column] if lat2_column is not None else lat2_scalar
+
+            def _lng2(r):
+                return r[lng2_column] if lng2_column is not None else lng2_scalar
 
             if formula == "vincenty":
                 try:
@@ -477,13 +516,13 @@ group_name=group_name,
                 distances = df.apply(
                     lambda r: geodesic(
                         (r[lat1_column], r[lng1_column]),
-                        (r[lat2_column], r[lng2_column])
+                        (_lat2(r), _lng2(r))
                     ).km,
                     axis=1,
                 )
             else:
                 distances = df.apply(
-                    lambda r: haversine(r[lat1_column], r[lng1_column], r[lat2_column], r[lng2_column]),
+                    lambda r: haversine(r[lat1_column], r[lng1_column], _lat2(r), _lng2(r)),
                     axis=1,
                 )
 

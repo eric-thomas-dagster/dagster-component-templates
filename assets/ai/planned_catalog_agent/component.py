@@ -1112,6 +1112,29 @@ if _HAS_STATE_BACKED:
                     })
                     continue
 
+                # Duplicate-asset-key guard: if the LLM re-uses an asset_name
+                # that a prior successful pick already produced, dg.materialize
+                # will fail with "Duplicate asset key". Reject early with a
+                # clear message so the LLM renames.
+                _existing_names = {
+                    p.get("asset_name") for p in picks
+                    if p.get("status") == "success" and p.get("asset_name")
+                }
+                if asset_name in _existing_names:
+                    picks.append({
+                        "iteration": iteration, "done": False, "component_id": cid,
+                        "component_type": ctype, "config": json.dumps(cfg), "reason": reason,
+                        "asset_name": asset_name, "output_columns": [],
+                        "status": "failed",
+                        "error": (
+                            f"Duplicate asset_name {asset_name!r}: a prior successful pick "
+                            f"already produced that asset. Choose a UNIQUE asset_name "
+                            f"(e.g. add a suffix like _v2 / _final / _clean). Prior successful "
+                            f"asset_names: {sorted(_existing_names)[:10]}"
+                        ),
+                    })
+                    continue
+
                 # Materialize this pick in-process to discover its output columns.
                 try:
                     _mod_name, _cls_name = ctype.rsplit(".", 1)

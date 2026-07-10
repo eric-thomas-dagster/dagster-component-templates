@@ -1,0 +1,15 @@
+{
+  "component_type": "dagster_community_components.CognosReportStatusSensorComponent",
+  "description": "Poll a Cognos report's last-run status; trigger a Dagster job on transitions into target statuses (COMPLETED / SUCCEEDED / FAILED / ERROR / CANCELLED). Cursor-deduped on (status, run_id).",
+  "category": "sensor",
+  "icon": "Bolt",
+  "attributes": {
+    "sensor_name": {"type": "string", "label": "Sensor Name", "required": true},
+    "report_id": {"type": "string", "label": "Report ID", "required": true},
+    "target_statuses": {"type": "array", "label": "Target Statuses", "required": false, "default": ["COMPLETED", "SUCCEEDED"]},
+    "job_name": {"type": "string", "label": "Job Name", "required": true},
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "cognos_resource"},
+    "minimum_interval_seconds": {"type": "integer", "label": "Poll Interval (s)", "required": false, "default": 60},
+    "default_status": {"type": "string", "label": "Default Sensor Status", "required": false, "default": "running", "enum": ["running", "stopped"], "ui:widget": "select"}
+  }
+}

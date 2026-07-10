@@ -1,0 +1,12 @@
+type: dagster_community_components.CognosReportRunJobComponent
+attributes:
+  job_name: daily_finance_report
+  report_id: i8B1A56A56789ABCDEF01234567890AB    # Cognos Store ID
+  output_format: PDF                              # PDF | HTML | CSV | XLSX | XML | JSON
+  parameters:
+    AsOfDate: "2026-07-10"
+    Region: "Americas"
+  resource_key: cognos_resource
+  wait_for_completion: true
+  timeout_seconds: 600
+  # schedule: "0 6 * * *"

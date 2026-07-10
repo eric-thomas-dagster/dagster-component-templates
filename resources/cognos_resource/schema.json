@@ -1,0 +1,14 @@
+{
+  "component_type": "dagster_community_components.CognosResourceComponent",
+  "description": "Shared IBM Cognos Analytics REST API connection. Session-based auth via /api/v1/session with a security namespace (LDAP / CognosEx / etc.). Pairs with cognos_report_run_job / cognos_report_status_sensor / cognos_report_data_ingestion / cognos_workspace.",
+  "category": "resource",
+  "icon": "Server",
+  "attributes": {
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "cognos_resource"},
+    "base_url_env_var": {"type": "string", "label": "Base URL Env Var", "required": true, "description": "Env var with Cognos Analytics base URL (no /api path)."},
+    "username_env_var": {"type": "string", "label": "Username Env Var", "required": true},
+    "password_env_var": {"type": "string", "label": "Password Env Var", "required": true},
+    "namespace_env_var": {"type": "string", "label": "Namespace Env Var", "required": true, "description": "Env var with the Cognos security namespace (e.g. LDAP, CognosEx)."},
+    "verify_ssl": {"type": "boolean", "label": "Verify SSL", "required": false, "default": true, "ui:widget": "checkbox"}
+  }
+}

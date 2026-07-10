@@ -1025,6 +1025,12 @@ _CLASS_PATHS: dict[str, str] = {
     "JDEOrchestrationStatusSensorComponent": "sensors/jde_orchestration_status_sensor/component.py",
     "JDEOrchestrationOutputIngestionComponent": "assets/ingestion/jde_orchestration_output_ingestion/component.py",
     "JDEOrchestratorWorkspaceComponent": "integrations/jde_orchestrator_workspace/component.py",
+    "CognosResource": "resources/cognos_resource/component.py",
+    "CognosResourceComponent": "resources/cognos_resource/component.py",
+    "CognosReportRunJobComponent": "jobs/cognos_report_run_job/component.py",
+    "CognosReportStatusSensorComponent": "sensors/cognos_report_status_sensor/component.py",
+    "CognosReportDataIngestionComponent": "assets/ingestion/cognos_report_data_ingestion/component.py",
+    "CognosWorkspaceComponent": "integrations/cognos_workspace/component.py",
 }
 
 _loaded: dict[str, object] = {}

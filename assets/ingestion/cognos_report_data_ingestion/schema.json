@@ -1,0 +1,15 @@
+{
+  "component_type": "dagster_community_components.CognosReportDataIngestionComponent",
+  "description": "Run a Cognos report in CSV or JSON output format and materialize the result as a Dagster DataFrame. Foundation for Cognos → warehouse / dbt pipelines. Parameter overrides supported.",
+  "category": "ingestion",
+  "icon": "TableChart",
+  "attributes": {
+    "asset_key": {"type": "string", "label": "Asset Key", "required": true},
+    "report_id": {"type": "string", "label": "Report ID", "required": true, "description": "Cognos Store ID for the report."},
+    "output_format": {"type": "string", "label": "Output Format", "required": false, "default": "CSV", "description": "Report output format. Only CSV and JSON are parseable to DataFrames.", "enum": ["CSV", "JSON"], "ui:widget": "select"},
+    "parameters": {"type": "object", "label": "Report Parameters", "required": false},
+    "timeout_seconds": {"type": "integer", "label": "Timeout (s)", "required": false, "default": 600},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "cognos_resource"}
+  }
+}

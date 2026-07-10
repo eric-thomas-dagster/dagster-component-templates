@@ -1,0 +1,22 @@
+{
+  "component_type": "dagster_community_components.CognosWorkspaceComponent",
+  "description": "Auto-emit one Dagster asset per Cognos report by enumerating reports in the specified folders via the Cognos Analytics REST API. StateBackedComponent — discovery cached to disk. Materializing an asset runs the underlying report. The workspace-shape peer of the cognos_* low-level components.",
+  "category": "integration",
+  "icon": "AccountTree",
+  "attributes": {
+    "base_url_env_var": {"type": "string", "label": "Base URL Env Var", "required": true},
+    "username_env_var": {"type": "string", "label": "Username Env Var", "required": true},
+    "password_env_var": {"type": "string", "label": "Password Env Var", "required": true},
+    "namespace_env_var": {"type": "string", "label": "Namespace Env Var", "required": true},
+    "verify_ssl": {"type": "boolean", "label": "Verify SSL", "required": false, "default": true, "ui:widget": "checkbox"},
+    "folder_ids": {"type": "array", "label": "Folder IDs (searchPaths)", "required": false, "description": "Cognos folder searchPaths to enumerate. Omit for root."},
+    "report_selector": {"type": "object", "label": "Report Selector", "required": false, "description": "Fivetran-shape selector: by_name / by_pattern / exclude_by_name / exclude_by_pattern."},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "asset_key_prefix": {"type": "array", "label": "Asset Key Prefix", "required": false, "default": ["cognos", "report"]},
+    "compute_kind": {"type": "string", "label": "Compute Kind", "required": false, "default": "cognos"},
+    "output_format": {"type": "string", "label": "Output Format", "required": false, "default": "CSV", "description": "Report output format when materialized.", "enum": ["PDF", "HTML", "CSV", "XLSX", "XML", "JSON"], "ui:widget": "select"},
+    "wait_for_completion": {"type": "boolean", "label": "Wait for Completion", "required": false, "default": true, "ui:widget": "checkbox"},
+    "timeout_seconds": {"type": "integer", "label": "Timeout (s)", "required": false, "default": 600},
+    "defs_state": {"type": "object", "label": "Defs State Config", "required": false}
+  }
+}

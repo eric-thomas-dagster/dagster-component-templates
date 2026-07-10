@@ -1,0 +1,9 @@
+type: dagster_community_components.CognosReportDataIngestionComponent
+attributes:
+  asset_key: monthly_pnl_report
+  report_id: i8B1A56A56789ABCDEF01234567890AB
+  output_format: CSV                            # CSV | JSON
+  parameters:
+    Month: "2026-07"
+  resource_key: cognos_resource
+  group_name: cognos_finance

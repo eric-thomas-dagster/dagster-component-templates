@@ -1,0 +1,8 @@
+type: dagster_community_components.CognosResourceComponent
+attributes:
+  resource_key: cognos_resource
+  base_url_env_var: COGNOS_URL             # e.g. https://cognos.acme.com
+  username_env_var: COGNOS_USER
+  password_env_var: COGNOS_PASSWORD
+  namespace_env_var: COGNOS_NAMESPACE      # e.g. LDAP or CognosEx
+  # verify_ssl: false

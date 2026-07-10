@@ -1,0 +1,19 @@
+{
+  "component_type": "dagster_community_components.CognosReportRunJobComponent",
+  "description": "Trigger a Cognos Analytics report run via REST. Supports parameter overrides and multiple output formats (PDF / HTML / CSV / XLSX / XML / JSON). Optional wait_for_completion polls the job to terminal state.",
+  "category": "job",
+  "icon": "PlayArrow",
+  "attributes": {
+    "job_name": {"type": "string", "label": "Job Name", "required": true},
+    "report_id": {"type": "string", "label": "Report ID", "required": true, "description": "Cognos report ID (Store ID from the report URL)."},
+    "output_format": {"type": "string", "label": "Output Format", "required": false, "default": "PDF", "description": "Report output format.", "enum": ["PDF", "HTML", "CSV", "XLSX", "XML", "JSON"], "ui:widget": "select"},
+    "parameters": {"type": "object", "label": "Report Parameters", "required": false, "description": "Report parameter overrides."},
+    "wait_for_completion": {"type": "boolean", "label": "Wait for Completion", "required": false, "default": true, "ui:widget": "checkbox"},
+    "poll_interval_seconds": {"type": "integer", "label": "Poll Interval (s)", "required": false, "default": 15},
+    "timeout_seconds": {"type": "integer", "label": "Timeout (s)", "required": false, "default": 600},
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "cognos_resource"},
+    "schedule": {"type": "string", "label": "Cron Schedule", "required": false, "x-dagster-widget": "cron"},
+    "default_status": {"type": "string", "label": "Schedule Default Status", "required": false, "default": "STOPPED", "enum": ["STOPPED", "RUNNING"], "ui:widget": "select"},
+    "tags": {"type": "object", "label": "Job Tags", "required": false}
+  }
+}

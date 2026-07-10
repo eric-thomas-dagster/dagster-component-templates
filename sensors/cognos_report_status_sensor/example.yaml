@@ -1,0 +1,9 @@
+type: dagster_community_components.CognosReportStatusSensorComponent
+attributes:
+  sensor_name: finance_report_done
+  report_id: i8B1A56A56789ABCDEF01234567890AB
+  target_statuses: [COMPLETED, SUCCEEDED]
+  job_name: notify_finance_team
+  resource_key: cognos_resource
+  minimum_interval_seconds: 60
+  default_status: running

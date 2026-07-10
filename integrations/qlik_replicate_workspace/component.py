@@ -17,12 +17,11 @@ per-task YAML.
 import hashlib
 import json
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, List, Optional
 
 import dagster as dg
-from pydantic import Field
 
 try:
     from dagster.components.component.state_backed_component import StateBackedComponent
@@ -147,7 +146,7 @@ if _HAS_STATE_BACKED:
         exclude_task_patterns: Optional[List[str]] = None  # glob exclude
 
         group_name: Optional[str] = None
-        asset_key_prefix: List[str] = Field(default_factory=lambda: ["qlik_replicate"])
+        asset_key_prefix: List[str] = field(default_factory=lambda: ["qlik_replicate"])
         compute_kind: str = "qlik_replicate"
 
         # What each asset does when materialized.

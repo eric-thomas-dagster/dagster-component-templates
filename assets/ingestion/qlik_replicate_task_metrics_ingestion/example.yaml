@@ -1,0 +1,11 @@
+type: dagster_community_components.QlikReplicateTaskMetricsIngestionComponent
+attributes:
+  asset_key: qlik_task_metrics
+  servers: [prod-replicate-01, prod-replicate-02]
+  group_name: qlik_observability
+  resource_key: qlik_replicate_resource
+
+  # Scope to specific tasks (optional — omit for "all tasks on all servers")
+  # tasks:
+  #   - orders_sqlserver_to_snowflake
+  #   - customers_db2_to_snowflake

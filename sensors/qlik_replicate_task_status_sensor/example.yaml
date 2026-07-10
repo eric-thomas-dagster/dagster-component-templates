@@ -1,0 +1,10 @@
+type: dagster_community_components.QlikReplicateTaskStatusSensorComponent
+attributes:
+  sensor_name: orders_migration_done
+  server: prod-replicate-01
+  task: orders_sqlserver_to_snowflake
+  target_states: [STOPPED]                # trigger when task cleanly stops (e.g. after a reload)
+  job_name: validate_orders_target        # your downstream Dagster job
+  resource_key: qlik_replicate_resource
+  minimum_interval_seconds: 60
+  default_status: running

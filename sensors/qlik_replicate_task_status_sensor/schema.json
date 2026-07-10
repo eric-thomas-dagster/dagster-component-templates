@@ -1,0 +1,16 @@
+{
+  "component_type": "dagster_community_components.QlikReplicateTaskStatusSensorComponent",
+  "description": "Poll a Qlik Replicate task's state via the Enterprise Manager REST API; trigger a Dagster job on any transition into a target state (default STOPPED). Event-driven pattern for chaining downstream Dagster work off Replicate task completion or failure.",
+  "category": "sensor",
+  "icon": "Bolt",
+  "attributes": {
+    "sensor_name": {"type": "string", "label": "Sensor Name", "required": true, "description": "Unique sensor name."},
+    "server": {"type": "string", "label": "Replicate Server", "required": true, "description": "Server name as registered in Enterprise Manager."},
+    "task": {"type": "string", "label": "Task Name", "required": true, "description": "Replicate task name to watch."},
+    "target_states": {"type": "array", "label": "Target States", "required": false, "default": ["STOPPED"], "description": "Task states that should trigger the downstream job. Common values: STOPPED, RUNNING, ERROR, STARTING. Match is case-insensitive."},
+    "job_name": {"type": "string", "label": "Job Name", "required": true, "description": "Job to trigger on state match."},
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "qlik_replicate_resource", "description": "Resource key to look up."},
+    "minimum_interval_seconds": {"type": "integer", "label": "Poll Interval (s)", "required": false, "default": 60, "description": "Seconds between polls."},
+    "default_status": {"type": "string", "label": "Default Sensor Status", "required": false, "default": "running", "description": "running | stopped", "ui:widget": "select", "enum": ["running", "stopped"]}
+  }
+}

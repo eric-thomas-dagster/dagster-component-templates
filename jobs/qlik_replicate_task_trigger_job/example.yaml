@@ -1,0 +1,18 @@
+type: dagster_community_components.QlikReplicateTaskTriggerJobComponent
+attributes:
+  job_name: reload_orders_cdc
+  server: prod-replicate-01                  # server name as registered in Enterprise Manager
+  task: orders_sqlserver_to_snowflake        # task name in Replicate
+  action: reload                             # run | stop | reload
+  run_option: RELOAD_TARGET                  # only relevant when action=run
+
+  # Wait for completion (right for one-shot migrations, wrong for continuous CDC)
+  wait_for_completion: true
+  poll_interval_seconds: 30
+  timeout_seconds: 1800
+
+  resource_key: qlik_replicate_resource
+
+  # Optional: run on a schedule
+  # schedule: "0 3 * * *"                     # nightly at 03:00 local
+  # default_status: STOPPED                    # or RUNNING

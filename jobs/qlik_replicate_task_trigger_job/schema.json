@@ -1,0 +1,20 @@
+{
+  "component_type": "dagster_community_components.QlikReplicateTaskTriggerJobComponent",
+  "description": "Trigger a Qlik Replicate task (run/stop/reload) via the Enterprise Manager REST API. Wraps a Dagster job around a single Replicate control-plane call. Pairs with qlik_replicate_resource for auth. For continuous CDC use wait_for_completion=false; for one-shot migrations set true so the job waits for terminal state.",
+  "category": "job",
+  "icon": "PlayArrow",
+  "attributes": {
+    "job_name": {"type": "string", "label": "Job Name", "required": true, "description": "Dagster job name."},
+    "server": {"type": "string", "label": "Replicate Server", "required": true, "description": "Server name as registered in Enterprise Manager (not a hostname — the display name shown in EM's servers list)."},
+    "task": {"type": "string", "label": "Task Name", "required": true, "description": "Replicate task name to control."},
+    "action": {"type": "string", "label": "Action", "required": false, "default": "run", "description": "run | stop | reload", "ui:widget": "select", "enum": ["run", "stop", "reload"]},
+    "run_option": {"type": "string", "label": "Run Option", "required": false, "default": "RESUME_PROCESSING", "description": "For action=run: RESUME_PROCESSING | RELOAD_TARGET | RECOVER | RESUME_PROCESSING_FROM_TIMESTAMP"},
+    "wait_for_completion": {"type": "boolean", "label": "Wait for Completion", "required": false, "default": false, "description": "Poll until the task reaches a terminal state (STOPPED / ERROR). Right for one-shot migrations; leave false for continuous CDC.", "ui:widget": "checkbox"},
+    "poll_interval_seconds": {"type": "integer", "label": "Poll Interval (s)", "required": false, "default": 30, "description": "Seconds between status polls when wait_for_completion=true."},
+    "timeout_seconds": {"type": "integer", "label": "Timeout (s)", "required": false, "default": 1800, "description": "Give up polling after this many seconds. Raises on timeout."},
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "qlik_replicate_resource", "description": "Resource key to look up (must match a qlik_replicate_resource registration)."},
+    "schedule": {"type": "string", "label": "Cron Schedule", "required": false, "description": "Optional cron expression. Leave empty for no schedule."},
+    "default_status": {"type": "string", "label": "Schedule Default Status", "required": false, "default": "STOPPED", "description": "STOPPED | RUNNING — initial state of the schedule at Dagster startup.", "ui:widget": "select", "enum": ["STOPPED", "RUNNING"]},
+    "tags": {"type": "object", "label": "Job Tags", "required": false, "description": "Optional Dagster job tags."}
+  }
+}

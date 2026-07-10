@@ -32046,9 +32046,127 @@
           "torch"
         ]
       }
+    },
+    {
+      "id": "qlik_replicate_resource",
+      "name": "Qlik Replicate Resource",
+      "component_type": "dagster_community_components.QlikReplicateResourceComponent",
+      "path": "resources/qlik_replicate_resource",
+      "category": "resource",
+      "icon": "Server",
+      "description": "Shared Qlik Enterprise Manager REST API connection (base URL + auth). Supports session-based (username/password) auth for dev and API-token auth for production. Pairs with qlik_replicate_task_trigger_job (control), qlik_replicate_task_status_sensor (event-drive), and qlik_replicate_task_metrics_ingestion (observability).",
+      "tags": ["resource", "qlik", "replicate", "cdc", "rest-api"],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/qlik_replicate_resource/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/qlik_replicate_resource/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/qlik_replicate_resource/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/qlik_replicate_resource/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/qlik_replicate_resource/schema.json",
+      "dependencies": {"pip": ["requests>=2.28.0"]},
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/qlik_replicate.md",
+        "last_validated": "2026-07-10"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": ["qlik_replicate_resource_key"],
+        "chains_with": ["qlik_replicate_task_trigger_job", "qlik_replicate_task_status_sensor", "qlik_replicate_task_metrics_ingestion"],
+        "requires_pip": ["requests"],
+        "anti_uses": "Do not use for Fivetran, Airbyte, or dagster-native replication — those have dedicated components. Use only when the customer already runs Qlik Enterprise Manager as their Replicate control plane."
+      }
+    },
+    {
+      "id": "qlik_replicate_task_trigger_job",
+      "name": "Qlik Replicate Task Trigger Job",
+      "component_type": "dagster_community_components.QlikReplicateTaskTriggerJobComponent",
+      "path": "jobs/qlik_replicate_task_trigger_job",
+      "category": "job",
+      "icon": "PlayArrow",
+      "description": "Trigger a Qlik Replicate task (run/stop/reload) via the Enterprise Manager REST API. Wraps a Dagster job around a single Replicate control-plane call. For continuous CDC use wait_for_completion=false; for one-shot migrations set true so the job waits for terminal state.",
+      "tags": ["job", "qlik", "replicate", "cdc", "trigger"],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/qlik_replicate_task_trigger_job/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/qlik_replicate_task_trigger_job/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/qlik_replicate_task_trigger_job/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/qlik_replicate_task_trigger_job/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/qlik_replicate_task_trigger_job/schema.json",
+      "dependencies": {"pip": ["requests>=2.28.0"]},
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/qlik_replicate.md",
+        "last_validated": "2026-07-10"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "inputs": ["qlik_replicate_resource_key"],
+        "outputs": ["qlik_replicate_job_name"],
+        "requires_resources": ["qlik_replicate_resource"],
+        "requires_pip": ["requests"],
+        "chains_with": ["qlik_replicate_task_status_sensor"]
+      }
+    },
+    {
+      "id": "qlik_replicate_task_status_sensor",
+      "name": "Qlik Replicate Task Status Sensor",
+      "component_type": "dagster_community_components.QlikReplicateTaskStatusSensorComponent",
+      "path": "sensors/qlik_replicate_task_status_sensor",
+      "category": "sensor",
+      "icon": "Bolt",
+      "description": "Poll a Qlik Replicate task's state via Enterprise Manager REST API; trigger a Dagster job on any transition into a target state (default STOPPED). Event-driven pattern for chaining downstream work off Replicate task completion or failure.",
+      "tags": ["sensor", "qlik", "replicate", "cdc", "event-driven"],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/qlik_replicate_task_status_sensor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/qlik_replicate_task_status_sensor/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/qlik_replicate_task_status_sensor/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/qlik_replicate_task_status_sensor/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/qlik_replicate_task_status_sensor/schema.json",
+      "dependencies": {"pip": ["requests>=2.28.0"]},
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/qlik_replicate.md",
+        "last_validated": "2026-07-10"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "inputs": ["qlik_replicate_resource_key", "downstream_job_name"],
+        "requires_resources": ["qlik_replicate_resource"],
+        "requires_pip": ["requests"],
+        "chains_with": ["qlik_replicate_task_trigger_job"]
+      }
+    },
+    {
+      "id": "qlik_replicate_task_metrics_ingestion",
+      "name": "Qlik Replicate Task Metrics Ingestion",
+      "component_type": "dagster_community_components.QlikReplicateTaskMetricsIngestionComponent",
+      "path": "assets/ingestion/qlik_replicate_task_metrics_ingestion",
+      "category": "ingestion",
+      "icon": "TableChart",
+      "description": "Poll Qlik Enterprise Manager for per-task metrics (state, latency, throughput, error count) and emit a DataFrame asset. One row per task per materialization. Foundation for CDC observability dashboards and alert-input assets.",
+      "tags": ["ingestion", "qlik", "replicate", "cdc", "observability", "metrics"],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/qlik_replicate_task_metrics_ingestion/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/qlik_replicate_task_metrics_ingestion/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/qlik_replicate_task_metrics_ingestion/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/qlik_replicate_task_metrics_ingestion/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/qlik_replicate_task_metrics_ingestion/schema.json",
+      "dependencies": {"pip": ["pandas>=2.0.0", "requests>=2.28.0"]},
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/qlik_replicate.md",
+        "last_validated": "2026-07-10"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "inputs": ["qlik_replicate_resource_key"],
+        "outputs": ["qlik_task_metrics_dataframe"],
+        "requires_resources": ["qlik_replicate_resource"],
+        "requires_pip": ["pandas", "requests"],
+        "chains_with": ["dataframe_to_pagerduty", "dataframe_to_snowflake", "dataframe_to_prometheus"]
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 884
+  "total": 888
 }

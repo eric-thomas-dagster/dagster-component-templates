@@ -32055,13 +32055,23 @@
       "category": "resource",
       "icon": "Server",
       "description": "Shared Qlik Enterprise Manager REST API connection (base URL + auth). Supports session-based (username/password) auth for dev and API-token auth for production. Pairs with qlik_replicate_task_trigger_job (control), qlik_replicate_task_status_sensor (event-drive), and qlik_replicate_task_metrics_ingestion (observability).",
-      "tags": ["resource", "qlik", "replicate", "cdc", "rest-api"],
+      "tags": [
+        "resource",
+        "qlik",
+        "replicate",
+        "cdc",
+        "rest-api"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/qlik_replicate_resource/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/qlik_replicate_resource/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/qlik_replicate_resource/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/qlik_replicate_resource/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/qlik_replicate_resource/schema.json",
-      "dependencies": {"pip": ["requests>=2.28.0"]},
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
       "validation": {
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/qlik_replicate.md",
@@ -32070,10 +32080,18 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "outputs": ["qlik_replicate_resource_key"],
-        "chains_with": ["qlik_replicate_task_trigger_job", "qlik_replicate_task_status_sensor", "qlik_replicate_task_metrics_ingestion"],
-        "requires_pip": ["requests"],
-        "anti_uses": "Do not use for Fivetran, Airbyte, or dagster-native replication — those have dedicated components. Use only when the customer already runs Qlik Enterprise Manager as their Replicate control plane."
+        "outputs": [
+          "qlik_replicate_resource_key"
+        ],
+        "chains_with": [
+          "qlik_replicate_task_trigger_job",
+          "qlik_replicate_task_status_sensor",
+          "qlik_replicate_task_metrics_ingestion"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "anti_uses": "Do not use for Fivetran, Airbyte, or dagster-native replication \u2014 those have dedicated components. Use only when the customer already runs Qlik Enterprise Manager as their Replicate control plane."
       }
     },
     {
@@ -32084,13 +32102,23 @@
       "category": "job",
       "icon": "PlayArrow",
       "description": "Trigger a Qlik Replicate task (run/stop/reload) via the Enterprise Manager REST API. Wraps a Dagster job around a single Replicate control-plane call. For continuous CDC use wait_for_completion=false; for one-shot migrations set true so the job waits for terminal state.",
-      "tags": ["job", "qlik", "replicate", "cdc", "trigger"],
+      "tags": [
+        "job",
+        "qlik",
+        "replicate",
+        "cdc",
+        "trigger"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/qlik_replicate_task_trigger_job/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/qlik_replicate_task_trigger_job/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/qlik_replicate_task_trigger_job/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/qlik_replicate_task_trigger_job/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/qlik_replicate_task_trigger_job/schema.json",
-      "dependencies": {"pip": ["requests>=2.28.0"]},
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
       "validation": {
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/qlik_replicate.md",
@@ -32099,11 +32127,21 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "inputs": ["qlik_replicate_resource_key"],
-        "outputs": ["qlik_replicate_job_name"],
-        "requires_resources": ["qlik_replicate_resource"],
-        "requires_pip": ["requests"],
-        "chains_with": ["qlik_replicate_task_status_sensor"]
+        "inputs": [
+          "qlik_replicate_resource_key"
+        ],
+        "outputs": [
+          "qlik_replicate_job_name"
+        ],
+        "requires_resources": [
+          "qlik_replicate_resource"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "qlik_replicate_task_status_sensor"
+        ]
       }
     },
     {
@@ -32114,13 +32152,23 @@
       "category": "sensor",
       "icon": "Bolt",
       "description": "Poll a Qlik Replicate task's state via Enterprise Manager REST API; trigger a Dagster job on any transition into a target state (default STOPPED). Event-driven pattern for chaining downstream work off Replicate task completion or failure.",
-      "tags": ["sensor", "qlik", "replicate", "cdc", "event-driven"],
+      "tags": [
+        "sensor",
+        "qlik",
+        "replicate",
+        "cdc",
+        "event-driven"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/qlik_replicate_task_status_sensor/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/qlik_replicate_task_status_sensor/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/qlik_replicate_task_status_sensor/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/qlik_replicate_task_status_sensor/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/qlik_replicate_task_status_sensor/schema.json",
-      "dependencies": {"pip": ["requests>=2.28.0"]},
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
       "validation": {
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/qlik_replicate.md",
@@ -32129,10 +32177,19 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "inputs": ["qlik_replicate_resource_key", "downstream_job_name"],
-        "requires_resources": ["qlik_replicate_resource"],
-        "requires_pip": ["requests"],
-        "chains_with": ["qlik_replicate_task_trigger_job"]
+        "inputs": [
+          "qlik_replicate_resource_key",
+          "downstream_job_name"
+        ],
+        "requires_resources": [
+          "qlik_replicate_resource"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "qlik_replicate_task_trigger_job"
+        ]
       }
     },
     {
@@ -32143,13 +32200,25 @@
       "category": "ingestion",
       "icon": "TableChart",
       "description": "Poll Qlik Enterprise Manager for per-task metrics (state, latency, throughput, error count) and emit a DataFrame asset. One row per task per materialization. Foundation for CDC observability dashboards and alert-input assets.",
-      "tags": ["ingestion", "qlik", "replicate", "cdc", "observability", "metrics"],
+      "tags": [
+        "ingestion",
+        "qlik",
+        "replicate",
+        "cdc",
+        "observability",
+        "metrics"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/qlik_replicate_task_metrics_ingestion/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/qlik_replicate_task_metrics_ingestion/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/qlik_replicate_task_metrics_ingestion/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/qlik_replicate_task_metrics_ingestion/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/qlik_replicate_task_metrics_ingestion/schema.json",
-      "dependencies": {"pip": ["pandas>=2.0.0", "requests>=2.28.0"]},
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28.0"
+        ]
+      },
       "validation": {
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/qlik_replicate.md",
@@ -32158,11 +32227,24 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "inputs": ["qlik_replicate_resource_key"],
-        "outputs": ["qlik_task_metrics_dataframe"],
-        "requires_resources": ["qlik_replicate_resource"],
-        "requires_pip": ["pandas", "requests"],
-        "chains_with": ["dataframe_to_pagerduty", "dataframe_to_snowflake", "dataframe_to_prometheus"]
+        "inputs": [
+          "qlik_replicate_resource_key"
+        ],
+        "outputs": [
+          "qlik_task_metrics_dataframe"
+        ],
+        "requires_resources": [
+          "qlik_replicate_resource"
+        ],
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ],
+        "chains_with": [
+          "dataframe_to_pagerduty",
+          "dataframe_to_snowflake",
+          "dataframe_to_prometheus"
+        ]
       }
     },
     {
@@ -32172,14 +32254,26 @@
       "path": "integrations/qlik_replicate_workspace",
       "category": "integration",
       "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per Qlik Replicate task by enumerating the workspace via the Qlik Enterprise Manager REST API. StateBackedComponent — discovery is cached to disk and refreshed on explicit trigger. Materializing an asset triggers the underlying task (run / reload / stop) and polls to completion. The workspace-shape peer of the four low-level qlik_replicate_* components — use this when you want one YAML instead of one-per-task.",
-      "tags": ["integration", "qlik", "replicate", "cdc", "workspace", "auto-discovery", "state-backed"],
+      "description": "Auto-emit one Dagster asset per Qlik Replicate task by enumerating the workspace via the Qlik Enterprise Manager REST API. StateBackedComponent \u2014 discovery is cached to disk and refreshed on explicit trigger. Materializing an asset triggers the underlying task (run / reload / stop) and polls to completion. The workspace-shape peer of the four low-level qlik_replicate_* components \u2014 use this when you want one YAML instead of one-per-task.",
+      "tags": [
+        "integration",
+        "qlik",
+        "replicate",
+        "cdc",
+        "workspace",
+        "auto-discovery",
+        "state-backed"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_replicate_workspace/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_replicate_workspace/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_replicate_workspace/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_replicate_workspace/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_replicate_workspace/schema.json",
-      "dependencies": {"pip": ["requests>=2.28.0"]},
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
       "validation": {
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/qlik_replicate.md",
@@ -32188,9 +32282,15 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "outputs": ["one_asset_per_qlik_replicate_task"],
-        "requires_pip": ["requests"],
-        "chains_with": ["qlik_replicate_task_status_sensor"],
+        "outputs": [
+          "one_asset_per_qlik_replicate_task"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "qlik_replicate_task_status_sensor"
+        ],
         "anti_uses": "Do not use alongside per-task qlik_replicate_task_trigger_job unless a specific task needs bespoke config outside the workspace defaults. This workspace already emits per-task assets."
       }
     },
@@ -32202,20 +32302,44 @@
       "category": "resource",
       "icon": "Server",
       "description": "Shared IBM Planning Analytics (TM1) REST API connection (base URL + auth). Supports basic auth for native TM1 users and CAM auth for Cognos-backed enterprise deployments. Pairs with tm1_process_trigger_job / tm1_process_status_sensor / tm1_cube_data_ingestion / tm1_workspace.",
-      "tags": ["resource", "tm1", "ibm", "planning-analytics", "cognos", "rest-api"],
+      "tags": [
+        "resource",
+        "tm1",
+        "ibm",
+        "planning-analytics",
+        "cognos",
+        "rest-api"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/tm1_resource/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/tm1_resource/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/tm1_resource/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/tm1_resource/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/tm1_resource/schema.json",
-      "dependencies": {"pip": ["requests>=2.28.0"]},
-      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/tm1.md", "last_validated": "2026-07-10"},
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/tm1.md",
+        "last_validated": "2026-07-10"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "outputs": ["tm1_resource_key"],
-        "chains_with": ["tm1_process_trigger_job", "tm1_process_status_sensor", "tm1_cube_data_ingestion", "tm1_workspace"],
-        "requires_pip": ["requests"],
+        "outputs": [
+          "tm1_resource_key"
+        ],
+        "chains_with": [
+          "tm1_process_trigger_job",
+          "tm1_process_status_sensor",
+          "tm1_cube_data_ingestion",
+          "tm1_workspace"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
         "anti_uses": "Do not use for Cognos Analytics BI (dashboards / reports). Use cognos_resource for that. TM1 is the planning-cube side."
       }
     },
@@ -32227,22 +32351,46 @@
       "category": "job",
       "icon": "PlayArrow",
       "description": "Trigger a TM1 TI process or chore via the TM1 REST API. Wraps a Dagster job around ExecuteProcess with optional parameter overrides. Use for scheduled data loads, mid-DAG process invocation, and one-off admin runs.",
-      "tags": ["job", "tm1", "ibm", "planning-analytics", "trigger"],
+      "tags": [
+        "job",
+        "tm1",
+        "ibm",
+        "planning-analytics",
+        "trigger"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/tm1_process_trigger_job/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/tm1_process_trigger_job/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/tm1_process_trigger_job/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/tm1_process_trigger_job/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/tm1_process_trigger_job/schema.json",
-      "dependencies": {"pip": ["requests>=2.28.0"]},
-      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/tm1.md", "last_validated": "2026-07-10"},
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/tm1.md",
+        "last_validated": "2026-07-10"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "inputs": ["tm1_resource_key"],
-        "outputs": ["tm1_job_name"],
-        "requires_resources": ["tm1_resource"],
-        "requires_pip": ["requests"],
-        "chains_with": ["tm1_process_status_sensor"]
+        "inputs": [
+          "tm1_resource_key"
+        ],
+        "outputs": [
+          "tm1_job_name"
+        ],
+        "requires_resources": [
+          "tm1_resource"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "tm1_process_status_sensor"
+        ]
       }
     },
     {
@@ -32253,21 +32401,44 @@
       "category": "sensor",
       "icon": "Bolt",
       "description": "Poll a TM1 TI process's execution status via REST; trigger a Dagster job on transitions into target statuses (CompletedSuccessfully / HasMinorErrors / Aborted / QuitCalled). Event-driven pattern; cursor-deduped so downstream fires once per execution.",
-      "tags": ["sensor", "tm1", "ibm", "planning-analytics", "event-driven"],
+      "tags": [
+        "sensor",
+        "tm1",
+        "ibm",
+        "planning-analytics",
+        "event-driven"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/tm1_process_status_sensor/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/tm1_process_status_sensor/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/tm1_process_status_sensor/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/tm1_process_status_sensor/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/tm1_process_status_sensor/schema.json",
-      "dependencies": {"pip": ["requests>=2.28.0"]},
-      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/tm1.md", "last_validated": "2026-07-10"},
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/tm1.md",
+        "last_validated": "2026-07-10"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "inputs": ["tm1_resource_key", "downstream_job_name"],
-        "requires_resources": ["tm1_resource"],
-        "requires_pip": ["requests"],
-        "chains_with": ["tm1_process_trigger_job"]
+        "inputs": [
+          "tm1_resource_key",
+          "downstream_job_name"
+        ],
+        "requires_resources": [
+          "tm1_resource"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "tm1_process_trigger_job"
+        ]
       }
     },
     {
@@ -32277,23 +32448,53 @@
       "path": "assets/ingestion/tm1_cube_data_ingestion",
       "category": "ingestion",
       "icon": "TableChart",
-      "description": "Materialize a TM1 cube slice via MDX as a Dagster DataFrame. Two modes: explicit MDX or simplified cube + row/column dimensions + filters. Foundation for TM1 → warehouse / dbt / dashboards pipelines.",
-      "tags": ["ingestion", "tm1", "ibm", "planning-analytics", "mdx", "cube"],
+      "description": "Materialize a TM1 cube slice via MDX as a Dagster DataFrame. Two modes: explicit MDX or simplified cube + row/column dimensions + filters. Foundation for TM1 \u2192 warehouse / dbt / dashboards pipelines.",
+      "tags": [
+        "ingestion",
+        "tm1",
+        "ibm",
+        "planning-analytics",
+        "mdx",
+        "cube"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/tm1_cube_data_ingestion/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/tm1_cube_data_ingestion/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/tm1_cube_data_ingestion/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/tm1_cube_data_ingestion/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/tm1_cube_data_ingestion/schema.json",
-      "dependencies": {"pip": ["pandas>=2.0.0", "requests>=2.28.0"]},
-      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/tm1.md", "last_validated": "2026-07-10"},
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/tm1.md",
+        "last_validated": "2026-07-10"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "inputs": ["tm1_resource_key"],
-        "outputs": ["tm1_cube_dataframe"],
-        "requires_resources": ["tm1_resource"],
-        "requires_pip": ["pandas", "requests"],
-        "chains_with": ["dataframe_to_snowflake", "dataframe_to_bigquery", "pct_change", "top_n_per_group"]
+        "inputs": [
+          "tm1_resource_key"
+        ],
+        "outputs": [
+          "tm1_cube_dataframe"
+        ],
+        "requires_resources": [
+          "tm1_resource"
+        ],
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ],
+        "chains_with": [
+          "dataframe_to_snowflake",
+          "dataframe_to_bigquery",
+          "pct_change",
+          "top_n_per_group"
+        ]
       }
     },
     {
@@ -32301,23 +32502,46 @@
       "name": "TM1 Workspace",
       "component_type": "dagster_community_components.TM1WorkspaceComponent",
       "path": "integrations/tm1_workspace",
-      "category": "integration",
+      "category": "ingestion",
       "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per TM1 Cube / Process / Chore by enumerating via the TM1 REST API. StateBackedComponent — discovery cached to disk, refreshed on explicit trigger. Materializing Process/Chore assets executes them; Cube assets are observational (use tm1_cube_data_ingestion for actual data). The workspace-shape peer of tm1_process_trigger_job / tm1_process_status_sensor / tm1_cube_data_ingestion.",
-      "tags": ["integration", "tm1", "ibm", "planning-analytics", "workspace", "auto-discovery", "state-backed"],
+      "description": "Auto-emit one Dagster asset per TM1 Cube / Process / Chore by enumerating via the TM1 REST API. StateBackedComponent \u2014 discovery cached to disk, refreshed on explicit trigger. Materializing Process/Chore assets executes them; Cube assets are observational (use tm1_cube_data_ingestion for actual data). The workspace-shape peer of tm1_process_trigger_job / tm1_process_status_sensor / tm1_cube_data_ingestion.",
+      "tags": [
+        "integration",
+        "tm1",
+        "ibm",
+        "planning-analytics",
+        "workspace",
+        "auto-discovery",
+        "state-backed"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/tm1_workspace/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/tm1_workspace/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/tm1_workspace/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/tm1_workspace/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/tm1_workspace/schema.json",
-      "dependencies": {"pip": ["requests>=2.28.0"]},
-      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/tm1.md", "last_validated": "2026-07-10"},
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/tm1.md",
+        "last_validated": "2026-07-10"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "outputs": ["one_asset_per_tm1_object"],
-        "requires_pip": ["requests"],
-        "chains_with": ["tm1_cube_data_ingestion", "tm1_process_status_sensor"],
+        "outputs": [
+          "one_asset_per_tm1_object"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "tm1_cube_data_ingestion",
+          "tm1_process_status_sensor"
+        ],
         "anti_uses": "Do not use alongside per-object tm1_process_trigger_job unless a specific object needs bespoke config outside the workspace defaults."
       }
     },
@@ -32329,21 +32553,44 @@
       "category": "resource",
       "icon": "Server",
       "description": "Shared Qlik Compose REST API connection. Qlik Compose is the data-warehouse automation tool in the Qlik Data Integration platform. Pairs with qlik_compose_workflow_trigger_job / qlik_compose_workflow_status_sensor / qlik_compose_workflow_metrics_ingestion / qlik_compose_workspace.",
-      "tags": ["resource", "qlik", "compose", "data-warehouse-automation", "rest-api"],
+      "tags": [
+        "resource",
+        "qlik",
+        "compose",
+        "data-warehouse-automation",
+        "rest-api"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/qlik_compose_resource/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/qlik_compose_resource/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/qlik_compose_resource/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/qlik_compose_resource/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/qlik_compose_resource/schema.json",
-      "dependencies": {"pip": ["requests>=2.28.0"]},
-      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/qlik_compose.md", "last_validated": "2026-07-10"},
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/qlik_compose.md",
+        "last_validated": "2026-07-10"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "outputs": ["qlik_compose_resource_key"],
-        "chains_with": ["qlik_compose_workflow_trigger_job", "qlik_compose_workflow_status_sensor", "qlik_compose_workflow_metrics_ingestion", "qlik_compose_workspace"],
-        "requires_pip": ["requests"],
-        "anti_uses": "Do not use for Qlik Replicate — that's a separate integration (qlik_replicate_resource). Compose is the DW automation on top of what Replicate lands."
+        "outputs": [
+          "qlik_compose_resource_key"
+        ],
+        "chains_with": [
+          "qlik_compose_workflow_trigger_job",
+          "qlik_compose_workflow_status_sensor",
+          "qlik_compose_workflow_metrics_ingestion",
+          "qlik_compose_workspace"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "anti_uses": "Do not use for Qlik Replicate \u2014 that's a separate integration (qlik_replicate_resource). Compose is the DW automation on top of what Replicate lands."
       }
     },
     {
@@ -32354,22 +32601,46 @@
       "category": "job",
       "icon": "PlayArrow",
       "description": "Trigger a Qlik Compose workflow via the Compose REST API. Wraps a Dagster job around a run/stop action with optional wait_for_completion polling to terminal state (COMPLETED / STOPPED / ERROR / FAILED).",
-      "tags": ["job", "qlik", "compose", "data-warehouse-automation", "trigger"],
+      "tags": [
+        "job",
+        "qlik",
+        "compose",
+        "data-warehouse-automation",
+        "trigger"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/qlik_compose_workflow_trigger_job/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/qlik_compose_workflow_trigger_job/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/qlik_compose_workflow_trigger_job/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/qlik_compose_workflow_trigger_job/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/qlik_compose_workflow_trigger_job/schema.json",
-      "dependencies": {"pip": ["requests>=2.28.0"]},
-      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/qlik_compose.md", "last_validated": "2026-07-10"},
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/qlik_compose.md",
+        "last_validated": "2026-07-10"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "inputs": ["qlik_compose_resource_key"],
-        "outputs": ["qlik_compose_job_name"],
-        "requires_resources": ["qlik_compose_resource"],
-        "requires_pip": ["requests"],
-        "chains_with": ["qlik_compose_workflow_status_sensor"]
+        "inputs": [
+          "qlik_compose_resource_key"
+        ],
+        "outputs": [
+          "qlik_compose_job_name"
+        ],
+        "requires_resources": [
+          "qlik_compose_resource"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "qlik_compose_workflow_status_sensor"
+        ]
       }
     },
     {
@@ -32380,21 +32651,43 @@
       "category": "sensor",
       "icon": "Bolt",
       "description": "Poll a Qlik Compose workflow's state; trigger a Dagster job on transitions into target states (COMPLETED / ERROR / FAILED / STOPPED). Cursor-deduped so downstream fires once per completion.",
-      "tags": ["sensor", "qlik", "compose", "event-driven"],
+      "tags": [
+        "sensor",
+        "qlik",
+        "compose",
+        "event-driven"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/qlik_compose_workflow_status_sensor/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/qlik_compose_workflow_status_sensor/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/qlik_compose_workflow_status_sensor/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/qlik_compose_workflow_status_sensor/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/qlik_compose_workflow_status_sensor/schema.json",
-      "dependencies": {"pip": ["requests>=2.28.0"]},
-      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/qlik_compose.md", "last_validated": "2026-07-10"},
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/qlik_compose.md",
+        "last_validated": "2026-07-10"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "inputs": ["qlik_compose_resource_key", "downstream_job_name"],
-        "requires_resources": ["qlik_compose_resource"],
-        "requires_pip": ["requests"],
-        "chains_with": ["qlik_compose_workflow_trigger_job"]
+        "inputs": [
+          "qlik_compose_resource_key",
+          "downstream_job_name"
+        ],
+        "requires_resources": [
+          "qlik_compose_resource"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "qlik_compose_workflow_trigger_job"
+        ]
       }
     },
     {
@@ -32405,22 +32698,50 @@
       "category": "ingestion",
       "icon": "TableChart",
       "description": "Emit a DataFrame with per-workflow metrics from Qlik Compose (state, last-run duration, rows loaded, error count). One row per workflow per materialization. Foundation for DW-build observability dashboards.",
-      "tags": ["ingestion", "qlik", "compose", "observability", "metrics"],
+      "tags": [
+        "ingestion",
+        "qlik",
+        "compose",
+        "observability",
+        "metrics"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/qlik_compose_workflow_metrics_ingestion/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/qlik_compose_workflow_metrics_ingestion/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/qlik_compose_workflow_metrics_ingestion/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/qlik_compose_workflow_metrics_ingestion/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/qlik_compose_workflow_metrics_ingestion/schema.json",
-      "dependencies": {"pip": ["pandas>=2.0.0", "requests>=2.28.0"]},
-      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/qlik_compose.md", "last_validated": "2026-07-10"},
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/qlik_compose.md",
+        "last_validated": "2026-07-10"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "inputs": ["qlik_compose_resource_key"],
-        "outputs": ["qlik_compose_metrics_dataframe"],
-        "requires_resources": ["qlik_compose_resource"],
-        "requires_pip": ["pandas", "requests"],
-        "chains_with": ["dataframe_to_snowflake", "dataframe_to_prometheus", "dataframe_to_pagerduty"]
+        "inputs": [
+          "qlik_compose_resource_key"
+        ],
+        "outputs": [
+          "qlik_compose_metrics_dataframe"
+        ],
+        "requires_resources": [
+          "qlik_compose_resource"
+        ],
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ],
+        "chains_with": [
+          "dataframe_to_snowflake",
+          "dataframe_to_prometheus",
+          "dataframe_to_pagerduty"
+        ]
       }
     },
     {
@@ -32430,21 +32751,42 @@
       "path": "integrations/qlik_compose_workspace",
       "category": "integration",
       "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per Qlik Compose Workflow / Data Mart across every Project (Data Warehouse). StateBackedComponent — discovery cached to disk. Materializing a Workflow asset runs the workflow to terminal state; Data Mart assets are observational. The workspace-shape peer of the qlik_compose_* low-level components.",
-      "tags": ["integration", "qlik", "compose", "workspace", "auto-discovery", "state-backed"],
+      "description": "Auto-emit one Dagster asset per Qlik Compose Workflow / Data Mart across every Project (Data Warehouse). StateBackedComponent \u2014 discovery cached to disk. Materializing a Workflow asset runs the workflow to terminal state; Data Mart assets are observational. The workspace-shape peer of the qlik_compose_* low-level components.",
+      "tags": [
+        "integration",
+        "qlik",
+        "compose",
+        "workspace",
+        "auto-discovery",
+        "state-backed"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_compose_workspace/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_compose_workspace/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_compose_workspace/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_compose_workspace/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_compose_workspace/schema.json",
-      "dependencies": {"pip": ["requests>=2.28.0"]},
-      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/qlik_compose.md", "last_validated": "2026-07-10"},
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/qlik_compose.md",
+        "last_validated": "2026-07-10"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "outputs": ["one_asset_per_qlik_compose_workflow_and_data_mart"],
-        "requires_pip": ["requests"],
-        "chains_with": ["qlik_compose_workflow_status_sensor"],
+        "outputs": [
+          "one_asset_per_qlik_compose_workflow_and_data_mart"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "qlik_compose_workflow_status_sensor"
+        ],
         "anti_uses": "Do not use alongside per-workflow qlik_compose_workflow_trigger_job unless a specific workflow needs bespoke config outside the workspace defaults."
       }
     },
@@ -32455,22 +32797,46 @@
       "path": "resources/jde_orchestrator_resource",
       "category": "resource",
       "icon": "Server",
-      "description": "Shared JD Edwards EnterpriseOne Orchestrator REST API connection. Orchestrator is Oracle's low-code automation for JDE — composes Business Functions, Data Services, and Interop Services into REST-triggerable orchestrations. Pairs with jde_orchestration_trigger_job / jde_orchestration_status_sensor / jde_orchestration_output_ingestion / jde_orchestrator_workspace.",
-      "tags": ["resource", "jde", "jd-edwards", "orchestrator", "erp", "rest-api"],
+      "description": "Shared JD Edwards EnterpriseOne Orchestrator REST API connection. Orchestrator is Oracle's low-code automation for JDE \u2014 composes Business Functions, Data Services, and Interop Services into REST-triggerable orchestrations. Pairs with jde_orchestration_trigger_job / jde_orchestration_status_sensor / jde_orchestration_output_ingestion / jde_orchestrator_workspace.",
+      "tags": [
+        "resource",
+        "jde",
+        "jd-edwards",
+        "orchestrator",
+        "erp",
+        "rest-api"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/jde_orchestrator_resource/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/jde_orchestrator_resource/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/jde_orchestrator_resource/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/jde_orchestrator_resource/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/jde_orchestrator_resource/schema.json",
-      "dependencies": {"pip": ["requests>=2.28.0"]},
-      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/jde.md", "last_validated": "2026-07-10"},
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/jde.md",
+        "last_validated": "2026-07-10"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "outputs": ["jde_orchestrator_resource_key"],
-        "chains_with": ["jde_orchestration_trigger_job", "jde_orchestration_status_sensor", "jde_orchestration_output_ingestion", "jde_orchestrator_workspace"],
-        "requires_pip": ["requests"],
-        "anti_uses": "Do not use for Oracle EBS, PeopleSoft, or Fusion Apps — those are separate ERPs. JDE = JD Edwards EnterpriseOne."
+        "outputs": [
+          "jde_orchestrator_resource_key"
+        ],
+        "chains_with": [
+          "jde_orchestration_trigger_job",
+          "jde_orchestration_status_sensor",
+          "jde_orchestration_output_ingestion",
+          "jde_orchestrator_workspace"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "anti_uses": "Do not use for Oracle EBS, PeopleSoft, or Fusion Apps \u2014 those are separate ERPs. JDE = JD Edwards EnterpriseOne."
       }
     },
     {
@@ -32481,22 +32847,46 @@
       "category": "job",
       "icon": "PlayArrow",
       "description": "Trigger a JDE Orchestrator orchestration via REST. Supports sync + async modes with input parameter overrides; async_mode polls the jobId to terminal state (SUCCESS / COMPLETED / FAILED / ERROR / CANCELED).",
-      "tags": ["job", "jde", "jd-edwards", "orchestrator", "trigger"],
+      "tags": [
+        "job",
+        "jde",
+        "jd-edwards",
+        "orchestrator",
+        "trigger"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/jde_orchestration_trigger_job/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/jde_orchestration_trigger_job/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/jde_orchestration_trigger_job/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/jde_orchestration_trigger_job/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/jde_orchestration_trigger_job/schema.json",
-      "dependencies": {"pip": ["requests>=2.28.0"]},
-      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/jde.md", "last_validated": "2026-07-10"},
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/jde.md",
+        "last_validated": "2026-07-10"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "inputs": ["jde_orchestrator_resource_key"],
-        "outputs": ["jde_job_name"],
-        "requires_resources": ["jde_orchestrator_resource"],
-        "requires_pip": ["requests"],
-        "chains_with": ["jde_orchestration_status_sensor"]
+        "inputs": [
+          "jde_orchestrator_resource_key"
+        ],
+        "outputs": [
+          "jde_job_name"
+        ],
+        "requires_resources": [
+          "jde_orchestrator_resource"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "jde_orchestration_status_sensor"
+        ]
       }
     },
     {
@@ -32507,21 +32897,44 @@
       "category": "sensor",
       "icon": "Bolt",
       "description": "Poll a JDE orchestration's last-run status via /history?limit=1; trigger a Dagster job on transitions into target states (SUCCESS / COMPLETED / FAILED / ERROR / CANCELED). Cursor-deduped on (state, jobId).",
-      "tags": ["sensor", "jde", "jd-edwards", "orchestrator", "event-driven"],
+      "tags": [
+        "sensor",
+        "jde",
+        "jd-edwards",
+        "orchestrator",
+        "event-driven"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/jde_orchestration_status_sensor/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/jde_orchestration_status_sensor/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/jde_orchestration_status_sensor/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/jde_orchestration_status_sensor/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/jde_orchestration_status_sensor/schema.json",
-      "dependencies": {"pip": ["requests>=2.28.0"]},
-      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/jde.md", "last_validated": "2026-07-10"},
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/jde.md",
+        "last_validated": "2026-07-10"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "inputs": ["jde_orchestrator_resource_key", "downstream_job_name"],
-        "requires_resources": ["jde_orchestrator_resource"],
-        "requires_pip": ["requests"],
-        "chains_with": ["jde_orchestration_trigger_job"]
+        "inputs": [
+          "jde_orchestrator_resource_key",
+          "downstream_job_name"
+        ],
+        "requires_resources": [
+          "jde_orchestrator_resource"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "jde_orchestration_trigger_job"
+        ]
       }
     },
     {
@@ -32531,23 +32944,51 @@
       "path": "assets/ingestion/jde_orchestration_output_ingestion",
       "category": "ingestion",
       "icon": "TableChart",
-      "description": "Execute a JDE orchestration and emit its row-list output as a Dagster DataFrame. Foundation for JDE → warehouse pipelines. Handles both flat-list and nested (ServiceRequest1.RowSet) response shapes via output_field.",
-      "tags": ["ingestion", "jde", "jd-edwards", "orchestrator"],
+      "description": "Execute a JDE orchestration and emit its row-list output as a Dagster DataFrame. Foundation for JDE \u2192 warehouse pipelines. Handles both flat-list and nested (ServiceRequest1.RowSet) response shapes via output_field.",
+      "tags": [
+        "ingestion",
+        "jde",
+        "jd-edwards",
+        "orchestrator"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/jde_orchestration_output_ingestion/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/jde_orchestration_output_ingestion/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/jde_orchestration_output_ingestion/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/jde_orchestration_output_ingestion/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/jde_orchestration_output_ingestion/schema.json",
-      "dependencies": {"pip": ["pandas>=2.0.0", "requests>=2.28.0"]},
-      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/jde.md", "last_validated": "2026-07-10"},
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/jde.md",
+        "last_validated": "2026-07-10"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "inputs": ["jde_orchestrator_resource_key"],
-        "outputs": ["jde_orchestration_output_dataframe"],
-        "requires_resources": ["jde_orchestrator_resource"],
-        "requires_pip": ["pandas", "requests"],
-        "chains_with": ["dataframe_to_snowflake", "dataframe_to_bigquery", "filter", "summarize"]
+        "inputs": [
+          "jde_orchestrator_resource_key"
+        ],
+        "outputs": [
+          "jde_orchestration_output_dataframe"
+        ],
+        "requires_resources": [
+          "jde_orchestrator_resource"
+        ],
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ],
+        "chains_with": [
+          "dataframe_to_snowflake",
+          "dataframe_to_bigquery",
+          "filter",
+          "summarize"
+        ]
       }
     },
     {
@@ -32557,21 +32998,43 @@
       "path": "integrations/jde_orchestrator_workspace",
       "category": "integration",
       "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per JDE orchestration via the Orchestrator REST API. StateBackedComponent — discovery cached to disk, refreshed on explicit trigger. Materializing an asset executes the orchestration (sync or async) and polls to terminal state. The workspace-shape peer of the jde_orchestrator_* low-level components.",
-      "tags": ["integration", "jde", "jd-edwards", "orchestrator", "workspace", "auto-discovery", "state-backed"],
+      "description": "Auto-emit one Dagster asset per JDE orchestration via the Orchestrator REST API. StateBackedComponent \u2014 discovery cached to disk, refreshed on explicit trigger. Materializing an asset executes the orchestration (sync or async) and polls to terminal state. The workspace-shape peer of the jde_orchestrator_* low-level components.",
+      "tags": [
+        "integration",
+        "jde",
+        "jd-edwards",
+        "orchestrator",
+        "workspace",
+        "auto-discovery",
+        "state-backed"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jde_orchestrator_workspace/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jde_orchestrator_workspace/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jde_orchestrator_workspace/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jde_orchestrator_workspace/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jde_orchestrator_workspace/schema.json",
-      "dependencies": {"pip": ["requests>=2.28.0"]},
-      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/jde.md", "last_validated": "2026-07-10"},
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/jde.md",
+        "last_validated": "2026-07-10"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "outputs": ["one_asset_per_jde_orchestration"],
-        "requires_pip": ["requests"],
-        "chains_with": ["jde_orchestration_status_sensor"],
+        "outputs": [
+          "one_asset_per_jde_orchestration"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "jde_orchestration_status_sensor"
+        ],
         "anti_uses": "Do not use alongside per-orchestration jde_orchestration_trigger_job unless a specific orchestration needs bespoke config outside the workspace defaults."
       }
     },
@@ -32583,20 +33046,44 @@
       "category": "resource",
       "icon": "Server",
       "description": "Shared IBM Cognos Analytics REST API connection. Session-based auth with a security namespace (LDAP / CognosEx). Pairs with cognos_report_run_job / cognos_report_status_sensor / cognos_report_data_ingestion / cognos_workspace.",
-      "tags": ["resource", "cognos", "ibm", "bi", "reports", "rest-api"],
+      "tags": [
+        "resource",
+        "cognos",
+        "ibm",
+        "bi",
+        "reports",
+        "rest-api"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/cognos_resource/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/cognos_resource/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/cognos_resource/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/cognos_resource/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/cognos_resource/schema.json",
-      "dependencies": {"pip": ["requests>=2.28.0"]},
-      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/cognos.md", "last_validated": "2026-07-10"},
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/cognos.md",
+        "last_validated": "2026-07-10"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "outputs": ["cognos_resource_key"],
-        "chains_with": ["cognos_report_run_job", "cognos_report_status_sensor", "cognos_report_data_ingestion", "cognos_workspace"],
-        "requires_pip": ["requests"],
+        "outputs": [
+          "cognos_resource_key"
+        ],
+        "chains_with": [
+          "cognos_report_run_job",
+          "cognos_report_status_sensor",
+          "cognos_report_data_ingestion",
+          "cognos_workspace"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
         "anti_uses": "Do not use for TM1 (Planning Analytics). TM1 is the planning-cube side; Cognos Analytics is BI reports."
       }
     },
@@ -32608,22 +33095,47 @@
       "category": "job",
       "icon": "PlayArrow",
       "description": "Trigger a Cognos Analytics report run via REST. Supports multiple output formats (PDF/HTML/CSV/XLSX/XML/JSON) and parameter overrides.",
-      "tags": ["job", "cognos", "ibm", "bi", "reports", "trigger"],
+      "tags": [
+        "job",
+        "cognos",
+        "ibm",
+        "bi",
+        "reports",
+        "trigger"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/cognos_report_run_job/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/cognos_report_run_job/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/cognos_report_run_job/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/cognos_report_run_job/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/cognos_report_run_job/schema.json",
-      "dependencies": {"pip": ["requests>=2.28.0"]},
-      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/cognos.md", "last_validated": "2026-07-10"},
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/cognos.md",
+        "last_validated": "2026-07-10"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "inputs": ["cognos_resource_key"],
-        "outputs": ["cognos_job_name"],
-        "requires_resources": ["cognos_resource"],
-        "requires_pip": ["requests"],
-        "chains_with": ["cognos_report_status_sensor"]
+        "inputs": [
+          "cognos_resource_key"
+        ],
+        "outputs": [
+          "cognos_job_name"
+        ],
+        "requires_resources": [
+          "cognos_resource"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "cognos_report_status_sensor"
+        ]
       }
     },
     {
@@ -32634,21 +33146,44 @@
       "category": "sensor",
       "icon": "Bolt",
       "description": "Poll a Cognos report's last-run status; trigger a Dagster job on transitions into target statuses (COMPLETED / SUCCEEDED / FAILED). Cursor-deduped on (status, run_id).",
-      "tags": ["sensor", "cognos", "ibm", "bi", "event-driven"],
+      "tags": [
+        "sensor",
+        "cognos",
+        "ibm",
+        "bi",
+        "event-driven"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/cognos_report_status_sensor/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/cognos_report_status_sensor/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/cognos_report_status_sensor/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/cognos_report_status_sensor/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/cognos_report_status_sensor/schema.json",
-      "dependencies": {"pip": ["requests>=2.28.0"]},
-      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/cognos.md", "last_validated": "2026-07-10"},
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/cognos.md",
+        "last_validated": "2026-07-10"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "inputs": ["cognos_resource_key", "downstream_job_name"],
-        "requires_resources": ["cognos_resource"],
-        "requires_pip": ["requests"],
-        "chains_with": ["cognos_report_run_job"]
+        "inputs": [
+          "cognos_resource_key",
+          "downstream_job_name"
+        ],
+        "requires_resources": [
+          "cognos_resource"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "cognos_report_run_job"
+        ]
       }
     },
     {
@@ -32658,23 +33193,52 @@
       "path": "assets/ingestion/cognos_report_data_ingestion",
       "category": "ingestion",
       "icon": "TableChart",
-      "description": "Run a Cognos report in CSV or JSON format and materialize the result as a Dagster DataFrame. Foundation for Cognos → warehouse / dbt pipelines.",
-      "tags": ["ingestion", "cognos", "ibm", "bi", "reports"],
+      "description": "Run a Cognos report in CSV or JSON format and materialize the result as a Dagster DataFrame. Foundation for Cognos \u2192 warehouse / dbt pipelines.",
+      "tags": [
+        "ingestion",
+        "cognos",
+        "ibm",
+        "bi",
+        "reports"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/cognos_report_data_ingestion/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/cognos_report_data_ingestion/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/cognos_report_data_ingestion/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/cognos_report_data_ingestion/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/cognos_report_data_ingestion/schema.json",
-      "dependencies": {"pip": ["pandas>=2.0.0", "requests>=2.28.0"]},
-      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/cognos.md", "last_validated": "2026-07-10"},
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/cognos.md",
+        "last_validated": "2026-07-10"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "inputs": ["cognos_resource_key"],
-        "outputs": ["cognos_report_dataframe"],
-        "requires_resources": ["cognos_resource"],
-        "requires_pip": ["pandas", "requests"],
-        "chains_with": ["dataframe_to_snowflake", "dataframe_to_bigquery", "filter", "summarize"]
+        "inputs": [
+          "cognos_resource_key"
+        ],
+        "outputs": [
+          "cognos_report_dataframe"
+        ],
+        "requires_resources": [
+          "cognos_resource"
+        ],
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ],
+        "chains_with": [
+          "dataframe_to_snowflake",
+          "dataframe_to_bigquery",
+          "filter",
+          "summarize"
+        ]
       }
     },
     {
@@ -32682,23 +33246,45 @@
       "name": "Cognos Workspace",
       "component_type": "dagster_community_components.CognosWorkspaceComponent",
       "path": "integrations/cognos_workspace",
-      "category": "integration",
+      "category": "ingestion",
       "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per Cognos Analytics report by enumerating reports in the specified folders via the Cognos REST API. StateBackedComponent — discovery cached to disk. Materializing an asset runs the underlying report. The workspace-shape peer of the cognos_* low-level components.",
-      "tags": ["integration", "cognos", "ibm", "bi", "workspace", "auto-discovery", "state-backed"],
+      "description": "Auto-emit one Dagster asset per Cognos Analytics report by enumerating reports in the specified folders via the Cognos REST API. StateBackedComponent \u2014 discovery cached to disk. Materializing an asset runs the underlying report. The workspace-shape peer of the cognos_* low-level components.",
+      "tags": [
+        "integration",
+        "cognos",
+        "ibm",
+        "bi",
+        "workspace",
+        "auto-discovery",
+        "state-backed"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/cognos_workspace/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/cognos_workspace/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/cognos_workspace/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/cognos_workspace/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/cognos_workspace/schema.json",
-      "dependencies": {"pip": ["requests>=2.28.0"]},
-      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/cognos.md", "last_validated": "2026-07-10"},
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/cognos.md",
+        "last_validated": "2026-07-10"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "outputs": ["one_asset_per_cognos_report"],
-        "requires_pip": ["requests"],
-        "chains_with": ["cognos_report_status_sensor"],
+        "outputs": [
+          "one_asset_per_cognos_report"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "cognos_report_status_sensor"
+        ],
         "anti_uses": "Do not use alongside per-report cognos_report_run_job unless a specific report needs bespoke parameter overrides."
       }
     },
@@ -32707,23 +33293,45 @@
       "name": "Salesforce Workspace",
       "component_type": "dagster_community_components.SalesforceWorkspaceComponent",
       "path": "integrations/salesforce_workspace",
-      "category": "integration",
+      "category": "ingestion",
       "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per Salesforce SObject by enumerating /sobjects. StateBackedComponent — discovery cached to disk. Materializing an asset runs a SOQL SELECT FIELDS(STANDARD) query and emits the result as a DataFrame. Workspace-shape peer of salesforce_ingestion.",
-      "tags": ["integration", "salesforce", "crm", "workspace", "auto-discovery", "state-backed"],
+      "description": "Auto-emit one Dagster asset per Salesforce SObject by enumerating /sobjects. StateBackedComponent \u2014 discovery cached to disk. Materializing an asset runs a SOQL SELECT FIELDS(STANDARD) query and emits the result as a DataFrame. Workspace-shape peer of salesforce_ingestion.",
+      "tags": [
+        "integration",
+        "salesforce",
+        "crm",
+        "workspace",
+        "auto-discovery",
+        "state-backed"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/salesforce_workspace/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/salesforce_workspace/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/salesforce_workspace/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/salesforce_workspace/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/salesforce_workspace/schema.json",
-      "dependencies": {"pip": ["pandas>=2.0.0", "requests>=2.28.0"]},
-      "validation": {"level": "code"},
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "code"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "outputs": ["one_asset_per_salesforce_sobject"],
-        "requires_pip": ["pandas", "requests"],
-        "chains_with": ["dataframe_to_snowflake", "dataframe_to_bigquery"]
+        "outputs": [
+          "one_asset_per_salesforce_sobject"
+        ],
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ],
+        "chains_with": [
+          "dataframe_to_snowflake",
+          "dataframe_to_bigquery"
+        ]
       }
     },
     {
@@ -32731,23 +33339,45 @@
       "name": "HubSpot Workspace",
       "component_type": "dagster_community_components.HubSpotWorkspaceComponent",
       "path": "integrations/hubspot_workspace",
-      "category": "integration",
+      "category": "ingestion",
       "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per HubSpot CRM object (contacts / companies / deals / tickets / products / line_items + custom objects). StateBackedComponent — discovery cached to disk. Materializing an asset fetches recent records via /crm/v3/objects/<obj>.",
-      "tags": ["integration", "hubspot", "crm", "workspace", "auto-discovery", "state-backed"],
+      "description": "Auto-emit one Dagster asset per HubSpot CRM object (contacts / companies / deals / tickets / products / line_items + custom objects). StateBackedComponent \u2014 discovery cached to disk. Materializing an asset fetches recent records via /crm/v3/objects/<obj>.",
+      "tags": [
+        "integration",
+        "hubspot",
+        "crm",
+        "workspace",
+        "auto-discovery",
+        "state-backed"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/hubspot_workspace/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/hubspot_workspace/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/hubspot_workspace/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/hubspot_workspace/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/hubspot_workspace/schema.json",
-      "dependencies": {"pip": ["pandas>=2.0.0", "requests>=2.28.0"]},
-      "validation": {"level": "code"},
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "code"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "outputs": ["one_asset_per_hubspot_object"],
-        "requires_pip": ["pandas", "requests"],
-        "chains_with": ["dataframe_to_snowflake", "dataframe_to_bigquery"]
+        "outputs": [
+          "one_asset_per_hubspot_object"
+        ],
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ],
+        "chains_with": [
+          "dataframe_to_snowflake",
+          "dataframe_to_bigquery"
+        ]
       }
     },
     {
@@ -32755,23 +33385,46 @@
       "name": "Jira Workspace",
       "component_type": "dagster_community_components.JiraWorkspaceComponent",
       "path": "integrations/jira_workspace",
-      "category": "integration",
+      "category": "ingestion",
       "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per Jira project. StateBackedComponent — discovery cached to disk. Materializing an asset runs a JQL query in that project and emits issues as a DataFrame. Configurable jql_template lets you scope by time / status / labels.",
-      "tags": ["integration", "jira", "atlassian", "workspace", "auto-discovery", "state-backed"],
+      "description": "Auto-emit one Dagster asset per Jira project. StateBackedComponent \u2014 discovery cached to disk. Materializing an asset runs a JQL query in that project and emits issues as a DataFrame. Configurable jql_template lets you scope by time / status / labels.",
+      "tags": [
+        "integration",
+        "jira",
+        "atlassian",
+        "workspace",
+        "auto-discovery",
+        "state-backed"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jira_workspace/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jira_workspace/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jira_workspace/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jira_workspace/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jira_workspace/schema.json",
-      "dependencies": {"pip": ["pandas>=2.0.0", "requests>=2.28.0"]},
-      "validation": {"level": "code"},
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "code"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "outputs": ["one_asset_per_jira_project"],
-        "requires_pip": ["pandas", "requests"],
-        "chains_with": ["dataframe_to_snowflake", "dataframe_to_bigquery", "jira_issue_sensor"]
+        "outputs": [
+          "one_asset_per_jira_project"
+        ],
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ],
+        "chains_with": [
+          "dataframe_to_snowflake",
+          "dataframe_to_bigquery",
+          "jira_issue_sensor"
+        ]
       }
     },
     {
@@ -32779,23 +33432,46 @@
       "name": "ServiceNow Workspace",
       "component_type": "dagster_community_components.ServiceNowWorkspaceComponent",
       "path": "integrations/servicenow_workspace",
-      "category": "integration",
+      "category": "ingestion",
       "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per ServiceNow table by enumerating sys_db_object. StateBackedComponent — discovery cached to disk. Materializing an asset reads recent records via the Table API. Workspace-shape peer of servicenow_ingestion.",
-      "tags": ["integration", "servicenow", "itsm", "workspace", "auto-discovery", "state-backed"],
+      "description": "Auto-emit one Dagster asset per ServiceNow table by enumerating sys_db_object. StateBackedComponent \u2014 discovery cached to disk. Materializing an asset reads recent records via the Table API. Workspace-shape peer of servicenow_ingestion.",
+      "tags": [
+        "integration",
+        "servicenow",
+        "itsm",
+        "workspace",
+        "auto-discovery",
+        "state-backed"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/servicenow_workspace/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/servicenow_workspace/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/servicenow_workspace/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/servicenow_workspace/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/servicenow_workspace/schema.json",
-      "dependencies": {"pip": ["pandas>=2.0.0", "requests>=2.28.0"]},
-      "validation": {"level": "code"},
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "code"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "outputs": ["one_asset_per_servicenow_table"],
-        "requires_pip": ["pandas", "requests"],
-        "chains_with": ["dataframe_to_snowflake", "dataframe_to_bigquery", "servicenow_sensor"]
+        "outputs": [
+          "one_asset_per_servicenow_table"
+        ],
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ],
+        "chains_with": [
+          "dataframe_to_snowflake",
+          "dataframe_to_bigquery",
+          "servicenow_sensor"
+        ]
       }
     },
     {
@@ -32803,23 +33479,45 @@
       "name": "Notion Workspace",
       "component_type": "dagster_community_components.NotionWorkspaceComponent",
       "path": "integrations/notion_workspace",
-      "category": "integration",
+      "category": "ingestion",
       "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per Notion database via the Search API. StateBackedComponent — discovery cached to disk. Materializing an asset queries the database and flattens property values (title/rich_text/select/multi_select/date/number/checkbox/people/url/email) into a DataFrame.",
-      "tags": ["integration", "notion", "workspace", "auto-discovery", "state-backed"],
+      "description": "Auto-emit one Dagster asset per Notion database via the Search API. StateBackedComponent \u2014 discovery cached to disk. Materializing an asset queries the database and flattens property values (title/rich_text/select/multi_select/date/number/checkbox/people/url/email) into a DataFrame.",
+      "tags": [
+        "integration",
+        "notion",
+        "workspace",
+        "auto-discovery",
+        "state-backed"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/notion_workspace/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/notion_workspace/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/notion_workspace/README.md",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/notion_workspace/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/notion_workspace/schema.json",
-      "dependencies": {"pip": ["pandas>=2.0.0", "requests>=2.28.0"]},
-      "validation": {"level": "code"},
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "code"
+      },
       "version": "1.0.0",
       "author": "Dagster Community",
       "agent_hints": {
-        "outputs": ["one_asset_per_notion_database"],
-        "requires_pip": ["pandas", "requests"],
-        "chains_with": ["dataframe_to_snowflake", "dataframe_to_bigquery", "notion_database_sensor"]
+        "outputs": [
+          "one_asset_per_notion_database"
+        ],
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ],
+        "chains_with": [
+          "dataframe_to_snowflake",
+          "dataframe_to_bigquery",
+          "notion_database_sensor"
+        ]
       }
     }
   ],

@@ -1,22 +1,100 @@
 {
   "component_type": "dagster_community_components.TM1WorkspaceComponent",
-  "description": "Auto-emit one Dagster asset per TM1 Cube / Process / Chore via the TM1 REST API. StateBackedComponent — discovery cached to disk, refreshed on explicit trigger. Materializing a Process/Chore asset executes it via ExecuteProcess. Materializing a Cube asset records its presence (use tm1_cube_data_ingestion for actual data). The workspace-shape peer of tm1_process_trigger_job / tm1_process_status_sensor / tm1_cube_data_ingestion.",
-  "category": "integration",
+  "description": "Auto-emit one Dagster asset per TM1 Cube / Process / Chore via the TM1 REST API. StateBackedComponent \u2014 discovery cached to disk, refreshed on explicit trigger. Materializing a Process/Chore asset executes it via ExecuteProcess. Materializing a Cube asset records its presence (use tm1_cube_data_ingestion for actual data). The workspace-shape peer of tm1_process_trigger_job / tm1_process_status_sensor / tm1_cube_data_ingestion.",
+  "category": "ingestion",
   "icon": "AccountTree",
   "attributes": {
-    "base_url_env_var": {"type": "string", "label": "Base URL Env Var", "required": true, "description": "Env var with TM1 server base URL (include port; no /api path)."},
-    "username_env_var": {"type": "string", "label": "Username Env Var", "required": true, "description": "Env var with TM1 username."},
-    "password_env_var": {"type": "string", "label": "Password Env Var", "required": true, "description": "Env var with TM1 password."},
-    "cam_namespace_env_var": {"type": "string", "label": "CAM Namespace Env Var", "required": false, "description": "Env var with CAM namespace for Cognos SSO."},
-    "verify_ssl": {"type": "boolean", "label": "Verify SSL", "required": false, "default": true, "description": "TLS verification.", "ui:widget": "checkbox"},
-    "cube_selector": {"type": "object", "label": "Cube Selector", "required": false, "description": "Filter cubes emitted as assets. Object with by_name / by_pattern / exclude_by_name / exclude_by_pattern. Mirrors Fivetran's connector_selector."},
-    "process_selector": {"type": "object", "label": "Process Selector", "required": false, "description": "Filter TI processes emitted as assets."},
-    "chore_selector": {"type": "object", "label": "Chore Selector", "required": false, "description": "Filter chores emitted as assets."},
-    "group_name": {"type": "string", "label": "Group Name", "required": false, "description": "Dagster asset group."},
-    "asset_key_prefix": {"type": "array", "label": "Asset Key Prefix", "required": false, "default": ["tm1"], "description": "Prefix segments prepended to every emitted asset key. Final key = [...prefix, cube|process|chore, name]."},
-    "compute_kind": {"type": "string", "label": "Compute Kind", "required": false, "default": "tm1"},
-    "wait_for_completion": {"type": "boolean", "label": "Wait for Completion", "required": false, "default": true, "description": "For Process/Chore assets: wait for TM1 to finish executing.", "ui:widget": "checkbox"},
-    "timeout_seconds": {"type": "integer", "label": "Timeout (s)", "required": false, "default": 1800, "description": "HTTP timeout for process/chore execution."},
-    "defs_state": {"type": "object", "label": "Defs State Config", "required": false, "description": "StateBackedComponent config. management_type: LOCAL_FILESYSTEM for dev, CLOUD_OBJECT_STORE for Dagster+."}
+    "base_url_env_var": {
+      "type": "string",
+      "label": "Base URL Env Var",
+      "required": true,
+      "description": "Env var with TM1 server base URL (include port; no /api path)."
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "required": true,
+      "description": "Env var with TM1 username."
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "required": true,
+      "description": "Env var with TM1 password."
+    },
+    "cam_namespace_env_var": {
+      "type": "string",
+      "label": "CAM Namespace Env Var",
+      "required": false,
+      "description": "Env var with CAM namespace for Cognos SSO."
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "label": "Verify SSL",
+      "required": false,
+      "default": true,
+      "description": "TLS verification.",
+      "ui:widget": "checkbox"
+    },
+    "cube_selector": {
+      "type": "object",
+      "label": "Cube Selector",
+      "required": false,
+      "description": "Filter cubes emitted as assets. Object with by_name / by_pattern / exclude_by_name / exclude_by_pattern. Mirrors Fivetran's connector_selector."
+    },
+    "process_selector": {
+      "type": "object",
+      "label": "Process Selector",
+      "required": false,
+      "description": "Filter TI processes emitted as assets."
+    },
+    "chore_selector": {
+      "type": "object",
+      "label": "Chore Selector",
+      "required": false,
+      "description": "Filter chores emitted as assets."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "description": "Dagster asset group."
+    },
+    "asset_key_prefix": {
+      "type": "array",
+      "label": "Asset Key Prefix",
+      "required": false,
+      "default": [
+        "tm1"
+      ],
+      "description": "Prefix segments prepended to every emitted asset key. Final key = [...prefix, cube|process|chore, name]."
+    },
+    "compute_kind": {
+      "type": "string",
+      "label": "Compute Kind",
+      "required": false,
+      "default": "tm1"
+    },
+    "wait_for_completion": {
+      "type": "boolean",
+      "label": "Wait for Completion",
+      "required": false,
+      "default": true,
+      "description": "For Process/Chore assets: wait for TM1 to finish executing.",
+      "ui:widget": "checkbox"
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout (s)",
+      "required": false,
+      "default": 1800,
+      "description": "HTTP timeout for process/chore execution."
+    },
+    "defs_state": {
+      "type": "object",
+      "label": "Defs State Config",
+      "required": false,
+      "description": "StateBackedComponent config. management_type: LOCAL_FILESYSTEM for dev, CLOUD_OBJECT_STORE for Dagster+."
+    }
   }
 }

@@ -1,16 +1,58 @@
 {
   "component_type": "dagster_community_components.HubSpotWorkspaceComponent",
-  "description": "Auto-emit one Dagster asset per HubSpot CRM object (contacts / companies / deals / tickets / products / line_items + custom objects). StateBackedComponent — discovery cached to disk. Materializing an asset fetches recent records via the CRM Objects API. Workspace-shape peer of hubspot_ingestion.",
-  "category": "integration",
+  "description": "Auto-emit one Dagster asset per HubSpot CRM object (contacts / companies / deals / tickets / products / line_items + custom objects). StateBackedComponent \u2014 discovery cached to disk. Materializing an asset fetches recent records via the CRM Objects API. Workspace-shape peer of hubspot_ingestion.",
+  "category": "ingestion",
   "icon": "AccountTree",
   "attributes": {
-    "access_token_env_var": {"type": "string", "label": "Access Token Env Var", "required": true, "description": "Env var with HubSpot private-app access token."},
-    "verify_ssl": {"type": "boolean", "label": "Verify SSL", "required": false, "default": true, "ui:widget": "checkbox"},
-    "object_selector": {"type": "object", "label": "Object Selector", "required": false, "description": "Fivetran-shape selector across standard + custom objects."},
-    "group_name": {"type": "string", "label": "Group Name", "required": false},
-    "asset_key_prefix": {"type": "array", "label": "Asset Key Prefix", "required": false, "default": ["hubspot"]},
-    "compute_kind": {"type": "string", "label": "Compute Kind", "required": false, "default": "hubspot"},
-    "page_limit": {"type": "integer", "label": "Page Limit", "required": false, "default": 100, "description": "Records per page for the initial fetch (HubSpot caps at 100)."},
-    "defs_state": {"type": "object", "label": "Defs State Config", "required": false}
+    "access_token_env_var": {
+      "type": "string",
+      "label": "Access Token Env Var",
+      "required": true,
+      "description": "Env var with HubSpot private-app access token."
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "label": "Verify SSL",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "object_selector": {
+      "type": "object",
+      "label": "Object Selector",
+      "required": false,
+      "description": "Fivetran-shape selector across standard + custom objects."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "asset_key_prefix": {
+      "type": "array",
+      "label": "Asset Key Prefix",
+      "required": false,
+      "default": [
+        "hubspot"
+      ]
+    },
+    "compute_kind": {
+      "type": "string",
+      "label": "Compute Kind",
+      "required": false,
+      "default": "hubspot"
+    },
+    "page_limit": {
+      "type": "integer",
+      "label": "Page Limit",
+      "required": false,
+      "default": 100,
+      "description": "Records per page for the initial fetch (HubSpot caps at 100)."
+    },
+    "defs_state": {
+      "type": "object",
+      "label": "Defs State Config",
+      "required": false
+    }
   }
 }

@@ -1,19 +1,77 @@
 {
   "component_type": "dagster_community_components.SalesforceWorkspaceComponent",
-  "description": "Auto-emit one Dagster asset per Salesforce SObject by enumerating /sobjects. StateBackedComponent — discovery cached to disk. Materializing an asset runs a SOQL SELECT FIELDS(STANDARD) query and emits the result as a DataFrame. Workspace-shape peer of salesforce_ingestion (single-SObject).",
-  "category": "integration",
+  "description": "Auto-emit one Dagster asset per Salesforce SObject by enumerating /sobjects. StateBackedComponent \u2014 discovery cached to disk. Materializing an asset runs a SOQL SELECT FIELDS(STANDARD) query and emits the result as a DataFrame. Workspace-shape peer of salesforce_ingestion (single-SObject).",
+  "category": "ingestion",
   "icon": "AccountTree",
   "attributes": {
-    "instance_url_env_var": {"type": "string", "label": "Instance URL Env Var", "required": true, "description": "Env var with the Salesforce instance URL (e.g. https://acme.my.salesforce.com)."},
-    "access_token_env_var": {"type": "string", "label": "Access Token Env Var", "required": true, "description": "Env var with a Salesforce OAuth access token."},
-    "api_version": {"type": "string", "label": "API Version", "required": false, "default": "58.0", "description": "Salesforce REST API version (e.g. 58.0)."},
-    "verify_ssl": {"type": "boolean", "label": "Verify SSL", "required": false, "default": true, "ui:widget": "checkbox"},
-    "sobject_selector": {"type": "object", "label": "SObject Selector", "required": false, "description": "Fivetran-shape selector plus include_custom_only for filtering to custom (__c) SObjects."},
-    "group_name": {"type": "string", "label": "Group Name", "required": false},
-    "asset_key_prefix": {"type": "array", "label": "Asset Key Prefix", "required": false, "default": ["salesforce"]},
-    "compute_kind": {"type": "string", "label": "Compute Kind", "required": false, "default": "salesforce"},
-    "query_limit": {"type": "integer", "label": "Query LIMIT", "required": false, "default": 1000, "description": "Row cap on the SOQL query for each SObject asset."},
-    "query_fields": {"type": "array", "label": "Query Fields", "required": false, "description": "Explicit field list. Omit to use FIELDS(STANDARD)."},
-    "defs_state": {"type": "object", "label": "Defs State Config", "required": false}
+    "instance_url_env_var": {
+      "type": "string",
+      "label": "Instance URL Env Var",
+      "required": true,
+      "description": "Env var with the Salesforce instance URL (e.g. https://acme.my.salesforce.com)."
+    },
+    "access_token_env_var": {
+      "type": "string",
+      "label": "Access Token Env Var",
+      "required": true,
+      "description": "Env var with a Salesforce OAuth access token."
+    },
+    "api_version": {
+      "type": "string",
+      "label": "API Version",
+      "required": false,
+      "default": "58.0",
+      "description": "Salesforce REST API version (e.g. 58.0)."
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "label": "Verify SSL",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "sobject_selector": {
+      "type": "object",
+      "label": "SObject Selector",
+      "required": false,
+      "description": "Fivetran-shape selector plus include_custom_only for filtering to custom (__c) SObjects."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "asset_key_prefix": {
+      "type": "array",
+      "label": "Asset Key Prefix",
+      "required": false,
+      "default": [
+        "salesforce"
+      ]
+    },
+    "compute_kind": {
+      "type": "string",
+      "label": "Compute Kind",
+      "required": false,
+      "default": "salesforce"
+    },
+    "query_limit": {
+      "type": "integer",
+      "label": "Query LIMIT",
+      "required": false,
+      "default": 1000,
+      "description": "Row cap on the SOQL query for each SObject asset."
+    },
+    "query_fields": {
+      "type": "array",
+      "label": "Query Fields",
+      "required": false,
+      "description": "Explicit field list. Omit to use FIELDS(STANDARD)."
+    },
+    "defs_state": {
+      "type": "object",
+      "label": "Defs State Config",
+      "required": false
+    }
   }
 }

@@ -1001,6 +1001,11 @@ _CLASS_PATHS: dict[str, str] = {
     "ZendeskResourceComponent": "resources/zendesk_resource/component.py",
     "ZendeskTicketSensorComponent": "sensors/zendesk_ticket_sensor/component.py",
     "ZeroShotClassifierComponent": "assets/ai/zero_shot_classifier/component.py",
+    "QlikReplicateResource": "resources/qlik_replicate_resource/component.py",
+    "QlikReplicateResourceComponent": "resources/qlik_replicate_resource/component.py",
+    "QlikReplicateTaskTriggerJobComponent": "jobs/qlik_replicate_task_trigger_job/component.py",
+    "QlikReplicateTaskStatusSensorComponent": "sensors/qlik_replicate_task_status_sensor/component.py",
+    "QlikReplicateTaskMetricsIngestionComponent": "assets/ingestion/qlik_replicate_task_metrics_ingestion/component.py",
 }
 
 _loaded: dict[str, object] = {}

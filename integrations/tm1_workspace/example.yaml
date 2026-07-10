@@ -1,0 +1,26 @@
+type: dagster_community_components.TM1WorkspaceComponent
+attributes:
+  base_url_env_var: TM1_URL
+  username_env_var: TM1_USER
+  password_env_var: TM1_PASSWORD
+  # cam_namespace_env_var: TM1_CAM_NS         # CAM SSO — omit for native auth
+
+  # Filter — object-per-kind selectors. Each mirrors Fivetran's connector_selector.
+  cube_selector:
+    by_name: [Sales, Finance]
+  process_selector:
+    by_pattern: ["Load_*"]
+  chore_selector:
+    exclude_by_pattern: ["*_deprecated"]
+
+  group_name: tm1_planning
+  asset_key_prefix: [tm1]
+  wait_for_completion: true
+  timeout_seconds: 1800
+
+  # State backing
+  defs_state:
+    management_type: LOCAL_FILESYSTEM
+    refresh_if_dev: true
+
+  # verify_ssl: false                           # only for self-signed dev

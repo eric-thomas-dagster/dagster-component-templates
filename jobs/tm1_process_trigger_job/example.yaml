@@ -1,0 +1,15 @@
+type: dagster_community_components.TM1ProcessTriggerJobComponent
+attributes:
+  job_name: nightly_gl_load
+  target_type: process               # process | chore
+  target_name: LoadActualsFromGL
+  parameters:                        # optional TI process parameter overrides
+    pYear: "2026"
+    pMonth: "07"
+  resource_key: tm1_resource
+  wait_for_completion: true
+  timeout_seconds: 1800
+
+  # Optional: run on a schedule
+  # schedule: "0 4 * * *"             # nightly at 04:00 local
+  # default_status: STOPPED           # or RUNNING

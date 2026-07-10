@@ -1,0 +1,14 @@
+{
+  "component_type": "dagster_community_components.TM1ResourceComponent",
+  "description": "Shared IBM Planning Analytics (TM1) REST API connection (base URL + auth). Supports basic auth for native TM1 users and CAM auth for Cognos-backed enterprise deployments. Pairs with tm1_process_trigger_job (control), tm1_process_status_sensor (event-drive), tm1_cube_data_ingestion (data), and tm1_workspace (auto-discovery).",
+  "category": "resource",
+  "icon": "Server",
+  "attributes": {
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "tm1_resource", "description": "Resource registration key."},
+    "base_url_env_var": {"type": "string", "label": "Base URL Env Var", "required": true, "description": "Env var with the TM1 server base URL (e.g. https://tm1.acme.com:5495). Include the port. No trailing slash, no API path."},
+    "username_env_var": {"type": "string", "label": "Username Env Var", "required": true, "description": "Env var with TM1 username."},
+    "password_env_var": {"type": "string", "label": "Password Env Var", "required": true, "description": "Env var with TM1 password."},
+    "cam_namespace_env_var": {"type": "string", "label": "CAM Namespace Env Var", "required": false, "description": "Env var with CAM namespace for Cognos SSO. Omit for native TM1 auth."},
+    "verify_ssl": {"type": "boolean", "label": "Verify SSL", "required": false, "default": true, "description": "Enable TLS verification. Set false only for self-signed dev servers.", "ui:widget": "checkbox"}
+  }
+}

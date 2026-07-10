@@ -1,0 +1,18 @@
+{
+  "component_type": "dagster_community_components.TM1ProcessTriggerJobComponent",
+  "description": "Trigger a TM1 TI process or chore via the TM1 REST API. Wraps a Dagster job around a single ExecuteProcess call, with optional per-parameter overrides for TI processes and wait_for_completion for synchronous chains. Pairs with tm1_resource for auth.",
+  "category": "job",
+  "icon": "PlayArrow",
+  "attributes": {
+    "job_name": {"type": "string", "label": "Job Name", "required": true, "description": "Dagster job name."},
+    "target_type": {"type": "string", "label": "Target Type", "required": false, "default": "process", "description": "process | chore", "ui:widget": "select", "enum": ["process", "chore"]},
+    "target_name": {"type": "string", "label": "Target Name", "required": true, "description": "Name of the TM1 process or chore to execute."},
+    "parameters": {"type": "object", "label": "Parameters", "required": false, "description": "Optional TI parameter overrides. Keys are parameter names (e.g. pYear)."},
+    "wait_for_completion": {"type": "boolean", "label": "Wait for Completion", "required": false, "default": true, "description": "Wait for the process/chore to finish (default TM1 behavior is synchronous).", "ui:widget": "checkbox"},
+    "timeout_seconds": {"type": "integer", "label": "Timeout (s)", "required": false, "default": 1800, "description": "HTTP timeout — TM1 processes can be long. Raises on timeout."},
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "tm1_resource", "description": "Resource key to look up."},
+    "schedule": {"type": "string", "label": "Cron Schedule", "required": false, "description": "Optional cron expression."},
+    "default_status": {"type": "string", "label": "Schedule Default Status", "required": false, "default": "STOPPED", "description": "STOPPED | RUNNING at Dagster startup.", "ui:widget": "select", "enum": ["STOPPED", "RUNNING"]},
+    "tags": {"type": "object", "label": "Job Tags", "required": false, "description": "Optional Dagster job tags."}
+  }
+}

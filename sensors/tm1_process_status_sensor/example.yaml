@@ -1,0 +1,9 @@
+type: dagster_community_components.TM1ProcessStatusSensorComponent
+attributes:
+  sensor_name: gl_load_done
+  process_name: LoadActualsFromGL
+  target_statuses: [CompletedSuccessfully]
+  job_name: refresh_downstream_dbt_models
+  resource_key: tm1_resource
+  minimum_interval_seconds: 60
+  default_status: running

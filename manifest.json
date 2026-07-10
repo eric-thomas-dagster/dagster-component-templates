@@ -32193,9 +32193,136 @@
         "chains_with": ["qlik_replicate_task_status_sensor"],
         "anti_uses": "Do not use alongside per-task qlik_replicate_task_trigger_job unless a specific task needs bespoke config outside the workspace defaults. This workspace already emits per-task assets."
       }
+    },
+    {
+      "id": "tm1_resource",
+      "name": "TM1 Resource",
+      "component_type": "dagster_community_components.TM1ResourceComponent",
+      "path": "resources/tm1_resource",
+      "category": "resource",
+      "icon": "Server",
+      "description": "Shared IBM Planning Analytics (TM1) REST API connection (base URL + auth). Supports basic auth for native TM1 users and CAM auth for Cognos-backed enterprise deployments. Pairs with tm1_process_trigger_job / tm1_process_status_sensor / tm1_cube_data_ingestion / tm1_workspace.",
+      "tags": ["resource", "tm1", "ibm", "planning-analytics", "cognos", "rest-api"],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/tm1_resource/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/tm1_resource/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/tm1_resource/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/tm1_resource/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/tm1_resource/schema.json",
+      "dependencies": {"pip": ["requests>=2.28.0"]},
+      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/tm1.md", "last_validated": "2026-07-10"},
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": ["tm1_resource_key"],
+        "chains_with": ["tm1_process_trigger_job", "tm1_process_status_sensor", "tm1_cube_data_ingestion", "tm1_workspace"],
+        "requires_pip": ["requests"],
+        "anti_uses": "Do not use for Cognos Analytics BI (dashboards / reports). Use cognos_resource for that. TM1 is the planning-cube side."
+      }
+    },
+    {
+      "id": "tm1_process_trigger_job",
+      "name": "TM1 Process Trigger Job",
+      "component_type": "dagster_community_components.TM1ProcessTriggerJobComponent",
+      "path": "jobs/tm1_process_trigger_job",
+      "category": "job",
+      "icon": "PlayArrow",
+      "description": "Trigger a TM1 TI process or chore via the TM1 REST API. Wraps a Dagster job around ExecuteProcess with optional parameter overrides. Use for scheduled data loads, mid-DAG process invocation, and one-off admin runs.",
+      "tags": ["job", "tm1", "ibm", "planning-analytics", "trigger"],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/tm1_process_trigger_job/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/tm1_process_trigger_job/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/tm1_process_trigger_job/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/tm1_process_trigger_job/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/tm1_process_trigger_job/schema.json",
+      "dependencies": {"pip": ["requests>=2.28.0"]},
+      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/tm1.md", "last_validated": "2026-07-10"},
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "inputs": ["tm1_resource_key"],
+        "outputs": ["tm1_job_name"],
+        "requires_resources": ["tm1_resource"],
+        "requires_pip": ["requests"],
+        "chains_with": ["tm1_process_status_sensor"]
+      }
+    },
+    {
+      "id": "tm1_process_status_sensor",
+      "name": "TM1 Process Status Sensor",
+      "component_type": "dagster_community_components.TM1ProcessStatusSensorComponent",
+      "path": "sensors/tm1_process_status_sensor",
+      "category": "sensor",
+      "icon": "Bolt",
+      "description": "Poll a TM1 TI process's execution status via REST; trigger a Dagster job on transitions into target statuses (CompletedSuccessfully / HasMinorErrors / Aborted / QuitCalled). Event-driven pattern; cursor-deduped so downstream fires once per execution.",
+      "tags": ["sensor", "tm1", "ibm", "planning-analytics", "event-driven"],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/tm1_process_status_sensor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/tm1_process_status_sensor/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/tm1_process_status_sensor/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/tm1_process_status_sensor/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/tm1_process_status_sensor/schema.json",
+      "dependencies": {"pip": ["requests>=2.28.0"]},
+      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/tm1.md", "last_validated": "2026-07-10"},
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "inputs": ["tm1_resource_key", "downstream_job_name"],
+        "requires_resources": ["tm1_resource"],
+        "requires_pip": ["requests"],
+        "chains_with": ["tm1_process_trigger_job"]
+      }
+    },
+    {
+      "id": "tm1_cube_data_ingestion",
+      "name": "TM1 Cube Data Ingestion",
+      "component_type": "dagster_community_components.TM1CubeDataIngestionComponent",
+      "path": "assets/ingestion/tm1_cube_data_ingestion",
+      "category": "ingestion",
+      "icon": "TableChart",
+      "description": "Materialize a TM1 cube slice via MDX as a Dagster DataFrame. Two modes: explicit MDX or simplified cube + row/column dimensions + filters. Foundation for TM1 → warehouse / dbt / dashboards pipelines.",
+      "tags": ["ingestion", "tm1", "ibm", "planning-analytics", "mdx", "cube"],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/tm1_cube_data_ingestion/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/tm1_cube_data_ingestion/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/tm1_cube_data_ingestion/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/tm1_cube_data_ingestion/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/tm1_cube_data_ingestion/schema.json",
+      "dependencies": {"pip": ["pandas>=2.0.0", "requests>=2.28.0"]},
+      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/tm1.md", "last_validated": "2026-07-10"},
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "inputs": ["tm1_resource_key"],
+        "outputs": ["tm1_cube_dataframe"],
+        "requires_resources": ["tm1_resource"],
+        "requires_pip": ["pandas", "requests"],
+        "chains_with": ["dataframe_to_snowflake", "dataframe_to_bigquery", "pct_change", "top_n_per_group"]
+      }
+    },
+    {
+      "id": "tm1_workspace",
+      "name": "TM1 Workspace",
+      "component_type": "dagster_community_components.TM1WorkspaceComponent",
+      "path": "integrations/tm1_workspace",
+      "category": "integration",
+      "icon": "AccountTree",
+      "description": "Auto-emit one Dagster asset per TM1 Cube / Process / Chore by enumerating via the TM1 REST API. StateBackedComponent — discovery cached to disk, refreshed on explicit trigger. Materializing Process/Chore assets executes them; Cube assets are observational (use tm1_cube_data_ingestion for actual data). The workspace-shape peer of tm1_process_trigger_job / tm1_process_status_sensor / tm1_cube_data_ingestion.",
+      "tags": ["integration", "tm1", "ibm", "planning-analytics", "workspace", "auto-discovery", "state-backed"],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/tm1_workspace/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/tm1_workspace/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/tm1_workspace/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/tm1_workspace/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/tm1_workspace/schema.json",
+      "dependencies": {"pip": ["requests>=2.28.0"]},
+      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/tm1.md", "last_validated": "2026-07-10"},
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": ["one_asset_per_tm1_object"],
+        "requires_pip": ["requests"],
+        "chains_with": ["tm1_cube_data_ingestion", "tm1_process_status_sensor"],
+        "anti_uses": "Do not use alongside per-object tm1_process_trigger_job unless a specific object needs bespoke config outside the workspace defaults."
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 889
+  "total": 894
 }

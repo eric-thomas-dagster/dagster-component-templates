@@ -1007,6 +1007,12 @@ _CLASS_PATHS: dict[str, str] = {
     "QlikReplicateTaskStatusSensorComponent": "sensors/qlik_replicate_task_status_sensor/component.py",
     "QlikReplicateTaskMetricsIngestionComponent": "assets/ingestion/qlik_replicate_task_metrics_ingestion/component.py",
     "QlikReplicateWorkspaceComponent": "integrations/qlik_replicate_workspace/component.py",
+    "TM1Resource": "resources/tm1_resource/component.py",
+    "TM1ResourceComponent": "resources/tm1_resource/component.py",
+    "TM1ProcessTriggerJobComponent": "jobs/tm1_process_trigger_job/component.py",
+    "TM1ProcessStatusSensorComponent": "sensors/tm1_process_status_sensor/component.py",
+    "TM1CubeDataIngestionComponent": "assets/ingestion/tm1_cube_data_ingestion/component.py",
+    "TM1WorkspaceComponent": "integrations/tm1_workspace/component.py",
 }
 
 _loaded: dict[str, object] = {}

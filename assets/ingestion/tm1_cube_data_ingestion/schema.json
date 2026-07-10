@@ -1,0 +1,16 @@
+{
+  "component_type": "dagster_community_components.TM1CubeDataIngestionComponent",
+  "description": "Materialize a slice of a TM1 cube via MDX as a Dagster DataFrame asset. Two modes: (1) explicit MDX statement executed via /ExecuteMDX, or (2) simplified cube + row_dimensions + column_dimensions + filters, from which an MDX is generated. Foundation for TM1 → warehouse / dbt / dashboards.",
+  "category": "ingestion",
+  "icon": "TableChart",
+  "attributes": {
+    "asset_key": {"type": "string", "label": "Asset Key", "required": true, "description": "Asset key for the emitted DataFrame."},
+    "cube": {"type": "string", "label": "Cube", "required": true, "description": "TM1 cube name."},
+    "mdx": {"type": "string", "label": "MDX", "required": false, "description": "Explicit MDX statement. If set, row/column/filter fields are ignored."},
+    "row_dimensions": {"type": "array", "label": "Row Dimensions", "required": false, "description": "Simplified mode: dimensions on the row axis."},
+    "column_dimensions": {"type": "array", "label": "Column Dimensions", "required": false, "description": "Simplified mode: dimensions on the column axis."},
+    "filters": {"type": "object", "label": "Filters", "required": false, "description": "Simplified mode: {dimension: member} WHERE clause."},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "description": "Dagster asset group name."},
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "tm1_resource", "description": "Resource key to look up."}
+  }
+}

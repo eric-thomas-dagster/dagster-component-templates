@@ -1,0 +1,20 @@
+type: dagster_community_components.TM1CubeDataIngestionComponent
+attributes:
+  asset_key: sales_by_product_period
+  cube: Sales
+
+  # Simplified mode — projects all leaf members of listed dims
+  row_dimensions: [Period]
+  column_dimensions: [Product]
+  filters: {Version: Actual, Year: "2026"}
+
+  group_name: tm1_actuals
+  resource_key: tm1_resource
+
+  # --- Explicit MDX mode (overrides row/column/filters) ---
+  # mdx: |
+  #   SELECT
+  #     NON EMPTY [Period].Members ON ROWS,
+  #     NON EMPTY [Account].Members ON COLUMNS
+  #   FROM [Finance]
+  #   WHERE ([Version].[Actual], [Year].[2026])

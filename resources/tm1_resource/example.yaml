@@ -1,0 +1,12 @@
+type: dagster_community_components.TM1ResourceComponent
+attributes:
+  resource_key: tm1_resource
+  base_url_env_var: TM1_URL              # e.g. https://tm1.acme.com:5495  (include port)
+  username_env_var: TM1_USER
+  password_env_var: TM1_PASSWORD
+
+  # --- CAM SSO (enterprise Cognos-backed TM1) ---
+  # cam_namespace_env_var: TM1_CAM_NS
+
+  # --- Self-signed dev server ---
+  # verify_ssl: false

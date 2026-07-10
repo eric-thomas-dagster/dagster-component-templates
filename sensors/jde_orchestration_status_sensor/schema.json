@@ -1,0 +1,15 @@
+{
+  "component_type": "dagster_community_components.JDEOrchestrationStatusSensorComponent",
+  "description": "Poll a JDE Orchestrator orchestration's last-run status via /history?limit=1; trigger a Dagster job on transitions into target states (SUCCESS / COMPLETED / FAILED / ERROR / CANCELED). Cursor-deduped on (state, jobId) so downstream fires once per run.",
+  "category": "sensor",
+  "icon": "Bolt",
+  "attributes": {
+    "sensor_name": {"type": "string", "label": "Sensor Name", "required": true},
+    "orchestration": {"type": "string", "label": "Orchestration", "required": true, "description": "Orchestration name."},
+    "target_states": {"type": "array", "label": "Target States", "required": false, "default": ["SUCCESS", "COMPLETED"], "description": "States that trigger the downstream job."},
+    "job_name": {"type": "string", "label": "Job Name", "required": true},
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "jde_orchestrator_resource"},
+    "minimum_interval_seconds": {"type": "integer", "label": "Poll Interval (s)", "required": false, "default": 60},
+    "default_status": {"type": "string", "label": "Default Sensor Status", "required": false, "default": "running", "enum": ["running", "stopped"], "ui:widget": "select"}
+  }
+}

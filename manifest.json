@@ -32447,9 +32447,136 @@
         "chains_with": ["qlik_compose_workflow_status_sensor"],
         "anti_uses": "Do not use alongside per-workflow qlik_compose_workflow_trigger_job unless a specific workflow needs bespoke config outside the workspace defaults."
       }
+    },
+    {
+      "id": "jde_orchestrator_resource",
+      "name": "JDE Orchestrator Resource",
+      "component_type": "dagster_community_components.JDEOrchestratorResourceComponent",
+      "path": "resources/jde_orchestrator_resource",
+      "category": "resource",
+      "icon": "Server",
+      "description": "Shared JD Edwards EnterpriseOne Orchestrator REST API connection. Orchestrator is Oracle's low-code automation for JDE — composes Business Functions, Data Services, and Interop Services into REST-triggerable orchestrations. Pairs with jde_orchestration_trigger_job / jde_orchestration_status_sensor / jde_orchestration_output_ingestion / jde_orchestrator_workspace.",
+      "tags": ["resource", "jde", "jd-edwards", "orchestrator", "erp", "rest-api"],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/jde_orchestrator_resource/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/jde_orchestrator_resource/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/jde_orchestrator_resource/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/jde_orchestrator_resource/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/jde_orchestrator_resource/schema.json",
+      "dependencies": {"pip": ["requests>=2.28.0"]},
+      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/jde.md", "last_validated": "2026-07-10"},
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": ["jde_orchestrator_resource_key"],
+        "chains_with": ["jde_orchestration_trigger_job", "jde_orchestration_status_sensor", "jde_orchestration_output_ingestion", "jde_orchestrator_workspace"],
+        "requires_pip": ["requests"],
+        "anti_uses": "Do not use for Oracle EBS, PeopleSoft, or Fusion Apps — those are separate ERPs. JDE = JD Edwards EnterpriseOne."
+      }
+    },
+    {
+      "id": "jde_orchestration_trigger_job",
+      "name": "JDE Orchestration Trigger Job",
+      "component_type": "dagster_community_components.JDEOrchestrationTriggerJobComponent",
+      "path": "jobs/jde_orchestration_trigger_job",
+      "category": "job",
+      "icon": "PlayArrow",
+      "description": "Trigger a JDE Orchestrator orchestration via REST. Supports sync + async modes with input parameter overrides; async_mode polls the jobId to terminal state (SUCCESS / COMPLETED / FAILED / ERROR / CANCELED).",
+      "tags": ["job", "jde", "jd-edwards", "orchestrator", "trigger"],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/jde_orchestration_trigger_job/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/jde_orchestration_trigger_job/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/jde_orchestration_trigger_job/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/jde_orchestration_trigger_job/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/jde_orchestration_trigger_job/schema.json",
+      "dependencies": {"pip": ["requests>=2.28.0"]},
+      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/jde.md", "last_validated": "2026-07-10"},
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "inputs": ["jde_orchestrator_resource_key"],
+        "outputs": ["jde_job_name"],
+        "requires_resources": ["jde_orchestrator_resource"],
+        "requires_pip": ["requests"],
+        "chains_with": ["jde_orchestration_status_sensor"]
+      }
+    },
+    {
+      "id": "jde_orchestration_status_sensor",
+      "name": "JDE Orchestration Status Sensor",
+      "component_type": "dagster_community_components.JDEOrchestrationStatusSensorComponent",
+      "path": "sensors/jde_orchestration_status_sensor",
+      "category": "sensor",
+      "icon": "Bolt",
+      "description": "Poll a JDE orchestration's last-run status via /history?limit=1; trigger a Dagster job on transitions into target states (SUCCESS / COMPLETED / FAILED / ERROR / CANCELED). Cursor-deduped on (state, jobId).",
+      "tags": ["sensor", "jde", "jd-edwards", "orchestrator", "event-driven"],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/jde_orchestration_status_sensor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/jde_orchestration_status_sensor/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/jde_orchestration_status_sensor/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/jde_orchestration_status_sensor/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/jde_orchestration_status_sensor/schema.json",
+      "dependencies": {"pip": ["requests>=2.28.0"]},
+      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/jde.md", "last_validated": "2026-07-10"},
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "inputs": ["jde_orchestrator_resource_key", "downstream_job_name"],
+        "requires_resources": ["jde_orchestrator_resource"],
+        "requires_pip": ["requests"],
+        "chains_with": ["jde_orchestration_trigger_job"]
+      }
+    },
+    {
+      "id": "jde_orchestration_output_ingestion",
+      "name": "JDE Orchestration Output Ingestion",
+      "component_type": "dagster_community_components.JDEOrchestrationOutputIngestionComponent",
+      "path": "assets/ingestion/jde_orchestration_output_ingestion",
+      "category": "ingestion",
+      "icon": "TableChart",
+      "description": "Execute a JDE orchestration and emit its row-list output as a Dagster DataFrame. Foundation for JDE → warehouse pipelines. Handles both flat-list and nested (ServiceRequest1.RowSet) response shapes via output_field.",
+      "tags": ["ingestion", "jde", "jd-edwards", "orchestrator"],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/jde_orchestration_output_ingestion/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/jde_orchestration_output_ingestion/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/jde_orchestration_output_ingestion/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/jde_orchestration_output_ingestion/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/jde_orchestration_output_ingestion/schema.json",
+      "dependencies": {"pip": ["pandas>=2.0.0", "requests>=2.28.0"]},
+      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/jde.md", "last_validated": "2026-07-10"},
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "inputs": ["jde_orchestrator_resource_key"],
+        "outputs": ["jde_orchestration_output_dataframe"],
+        "requires_resources": ["jde_orchestrator_resource"],
+        "requires_pip": ["pandas", "requests"],
+        "chains_with": ["dataframe_to_snowflake", "dataframe_to_bigquery", "filter", "summarize"]
+      }
+    },
+    {
+      "id": "jde_orchestrator_workspace",
+      "name": "JDE Orchestrator Workspace",
+      "component_type": "dagster_community_components.JDEOrchestratorWorkspaceComponent",
+      "path": "integrations/jde_orchestrator_workspace",
+      "category": "integration",
+      "icon": "AccountTree",
+      "description": "Auto-emit one Dagster asset per JDE orchestration via the Orchestrator REST API. StateBackedComponent — discovery cached to disk, refreshed on explicit trigger. Materializing an asset executes the orchestration (sync or async) and polls to terminal state. The workspace-shape peer of the jde_orchestrator_* low-level components.",
+      "tags": ["integration", "jde", "jd-edwards", "orchestrator", "workspace", "auto-discovery", "state-backed"],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jde_orchestrator_workspace/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jde_orchestrator_workspace/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jde_orchestrator_workspace/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jde_orchestrator_workspace/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jde_orchestrator_workspace/schema.json",
+      "dependencies": {"pip": ["requests>=2.28.0"]},
+      "validation": {"level": "live", "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/jde.md", "last_validated": "2026-07-10"},
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": ["one_asset_per_jde_orchestration"],
+        "requires_pip": ["requests"],
+        "chains_with": ["jde_orchestration_status_sensor"],
+        "anti_uses": "Do not use alongside per-orchestration jde_orchestration_trigger_job unless a specific orchestration needs bespoke config outside the workspace defaults."
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 899
+  "total": 904
 }

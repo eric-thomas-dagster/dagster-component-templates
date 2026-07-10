@@ -1,0 +1,19 @@
+{
+  "component_type": "dagster_community_components.JDEOrchestrationTriggerJobComponent",
+  "description": "Trigger a JDE Orchestrator orchestration via REST. Supports sync + async modes with input parameter overrides; async_mode polls the jobId to terminal state (SUCCESS / COMPLETED / FAILED / ERROR / CANCELED).",
+  "category": "job",
+  "icon": "PlayArrow",
+  "attributes": {
+    "job_name": {"type": "string", "label": "Job Name", "required": true},
+    "orchestration": {"type": "string", "label": "Orchestration Name", "required": true, "description": "Name as defined in JDE Orchestrator Studio."},
+    "inputs": {"type": "object", "label": "Input Parameters", "required": false, "description": "Orchestration input parameter overrides."},
+    "async_mode": {"type": "boolean", "label": "Async Mode", "required": false, "default": false, "description": "Submit async — get jobId back and poll. Right for long-running orchestrations.", "ui:widget": "checkbox"},
+    "wait_for_completion": {"type": "boolean", "label": "Wait for Completion", "required": false, "default": true, "ui:widget": "checkbox"},
+    "poll_interval_seconds": {"type": "integer", "label": "Poll Interval (s)", "required": false, "default": 15},
+    "timeout_seconds": {"type": "integer", "label": "Timeout (s)", "required": false, "default": 1800},
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "jde_orchestrator_resource"},
+    "schedule": {"type": "string", "label": "Cron Schedule", "required": false},
+    "default_status": {"type": "string", "label": "Schedule Default Status", "required": false, "default": "STOPPED", "ui:widget": "select", "enum": ["STOPPED", "RUNNING"]},
+    "tags": {"type": "object", "label": "Job Tags", "required": false}
+  }
+}

@@ -1,0 +1,9 @@
+type: dagster_community_components.JDEOrchestratorResourceComponent
+attributes:
+  resource_key: jde_orchestrator_resource
+  base_url_env_var: JDE_AIS_URL           # e.g. https://ais.acme.com (no /jderest path)
+  username_env_var: JDE_USER
+  password_env_var: JDE_PASSWORD
+
+  # api_path_prefix: /jderest/v2/orchestrator    # for older JDE Tools (pre-9.2.7)
+  # verify_ssl: false

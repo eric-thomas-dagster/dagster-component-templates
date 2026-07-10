@@ -1,0 +1,10 @@
+type: dagster_community_components.JDEOrchestrationOutputIngestionComponent
+attributes:
+  asset_key: open_ap_invoices
+  orchestration: JDE_Fetch_Open_APs
+  inputs:
+    CompanyCode: "00001"
+    AsOfDate: "2026-07-10"
+  output_field: "ServiceRequest1.RowSet"       # dotted path; omit for autodetect
+  group_name: jde_finance
+  resource_key: jde_orchestrator_resource

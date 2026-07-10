@@ -1,0 +1,13 @@
+type: dagster_community_components.JDEOrchestrationTriggerJobComponent
+attributes:
+  job_name: nightly_ar_reconciliation
+  orchestration: JDE_AR_Recon
+  inputs:
+    AsOfDate: "2026-07-10"
+    Currency: USD
+  resource_key: jde_orchestrator_resource
+  async_mode: false          # true for long-running orchestrations
+  wait_for_completion: true
+  poll_interval_seconds: 15
+  timeout_seconds: 1800
+  # schedule: "0 3 * * *"

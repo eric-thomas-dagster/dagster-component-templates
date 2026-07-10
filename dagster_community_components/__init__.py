@@ -1019,6 +1019,12 @@ _CLASS_PATHS: dict[str, str] = {
     "QlikComposeWorkflowStatusSensorComponent": "sensors/qlik_compose_workflow_status_sensor/component.py",
     "QlikComposeWorkflowMetricsIngestionComponent": "assets/ingestion/qlik_compose_workflow_metrics_ingestion/component.py",
     "QlikComposeWorkspaceComponent": "integrations/qlik_compose_workspace/component.py",
+    "JDEOrchestratorResource": "resources/jde_orchestrator_resource/component.py",
+    "JDEOrchestratorResourceComponent": "resources/jde_orchestrator_resource/component.py",
+    "JDEOrchestrationTriggerJobComponent": "jobs/jde_orchestration_trigger_job/component.py",
+    "JDEOrchestrationStatusSensorComponent": "sensors/jde_orchestration_status_sensor/component.py",
+    "JDEOrchestrationOutputIngestionComponent": "assets/ingestion/jde_orchestration_output_ingestion/component.py",
+    "JDEOrchestratorWorkspaceComponent": "integrations/jde_orchestrator_workspace/component.py",
 }
 
 _loaded: dict[str, object] = {}

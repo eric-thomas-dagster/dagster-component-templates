@@ -1,0 +1,14 @@
+{
+  "component_type": "dagster_community_components.JDEOrchestratorResourceComponent",
+  "description": "Shared JD Edwards EnterpriseOne Orchestrator REST API connection. Orchestrator is Oracle's low-code automation for JDE — composes Business Functions, Data Services, and Interop Services into REST-triggerable orchestrations. Pairs with jde_orchestration_trigger_job / jde_orchestration_status_sensor / jde_orchestration_output_ingestion / jde_orchestrator_workspace.",
+  "category": "resource",
+  "icon": "Server",
+  "attributes": {
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "jde_orchestrator_resource"},
+    "base_url_env_var": {"type": "string", "label": "Base URL Env Var", "required": true, "description": "Env var with the AIS Server base URL (e.g. https://ais.acme.com). No /jderest path."},
+    "username_env_var": {"type": "string", "label": "Username Env Var", "required": true},
+    "password_env_var": {"type": "string", "label": "Password Env Var", "required": true},
+    "api_path_prefix": {"type": "string", "label": "API Path Prefix", "required": false, "default": "/jderest/v3/orchestrator", "description": "v3 for JDE Tools 9.2.7+, v2 for older."},
+    "verify_ssl": {"type": "boolean", "label": "Verify SSL", "required": false, "default": true, "ui:widget": "checkbox"}
+  }
+}

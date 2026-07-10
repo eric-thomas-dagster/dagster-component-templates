@@ -1,0 +1,9 @@
+type: dagster_community_components.JDEOrchestrationStatusSensorComponent
+attributes:
+  sensor_name: ar_recon_done
+  orchestration: JDE_AR_Recon
+  target_states: [SUCCESS, COMPLETED]
+  job_name: refresh_finance_dashboards
+  resource_key: jde_orchestrator_resource
+  minimum_interval_seconds: 60
+  default_status: running

@@ -90,7 +90,8 @@
     "columns": {
       "type": "array",
       "required": false,
-      "description": "Optional explicit column declarations when sql is None, e.g. ['id INT', 'name STRING', 'created_at TIMESTAMP']."
+      "description": "Optional explicit column declarations when sql is None, e.g. ['id INT', 'name STRING', 'created_at TIMESTAMP'].",
+      "x-dagster-widget": "columns"
     },
     "cluster_by": {
       "type": "array",
@@ -134,7 +135,13 @@
     "retry_policy_backoff": {
       "type": "string",
       "required": false,
-      "description": "Backoff strategy: 'linear' or 'exponential'."
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
     }
   }
 }

@@ -4,37 +4,160 @@
   "category": "ai",
   "icon": "si:snowflake",
   "x-dagster-io": {
-    "inputs": {"type": "none"},
-    "outputs": {"type": "dict", "description": "{final_answer, iterations, tool_calls_made, tool_call_details, transcript, stopped_reason, model, mcp_servers}"},
+    "inputs": {
+      "type": "none"
+    },
+    "outputs": {
+      "type": "dict",
+      "description": "{final_answer, iterations, tool_calls_made, tool_call_details, transcript, stopped_reason, model, mcp_servers}"
+    },
     "supports_partitions": true
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "prompt": {"type": "string", "label": "User Prompt", "required": true},
-    "system_prompt": {"type": "string", "label": "System Prompt", "required": false},
-    "model": {"type": "string", "label": "Model", "description": "Cortex model id (claude-3-5-sonnet, llama3.1-70b, mistral-large2, etc.).", "default": "claude-3-5-sonnet", "required": false},
-    "account_url_env_var": {"type": "string", "label": "Account URL Env Var", "default": "SNOWFLAKE_ACCOUNT_URL", "required": false},
-    "auth_token_env_var": {"type": "string", "label": "PAT / OAuth Token Env Var", "default": "SNOWFLAKE_PAT", "required": false},
-    "temperature": {"type": "number", "label": "Temperature", "default": 0.0, "required": false},
-    "max_tokens": {"type": "integer", "label": "Max Tokens", "default": 2048, "required": false},
-    "max_iterations": {"type": "integer", "label": "Max Iterations", "default": 10, "required": false},
-    "request_timeout_seconds": {"type": "integer", "label": "Request Timeout (sec)", "default": 60, "required": false},
-    "mcp_servers": {"type": "array", "label": "MCP Servers", "required": false},
-    "group_name": {"type": "string", "required": false},
-    "description": {"type": "string", "required": false},
-    "owners": {"type": "array", "required": false},
-    "asset_tags": {"type": "object", "required": false},
-    "kinds": {"type": "array", "required": false},
-    "deps": {"type": "array", "required": false},
-    "partition_type": {"type": "string", "required": false},
-    "partition_start": {"type": "string", "required": false},
-    "partition_values": {"type": "string", "required": false},
-    "dynamic_partition_name": {"type": "string", "required": false},
-    "partition_dimensions": {"type": "array", "required": false},
-    "freshness_max_lag_minutes": {"type": "integer", "required": false},
-    "freshness_cron": {"type": "string", "required": false},
-    "retry_policy_max_retries": {"type": "integer", "required": false},
-    "retry_policy_delay_seconds": {"type": "integer", "required": false},
-    "retry_policy_backoff": {"type": "string", "enum": ["linear", "exponential"], "default": "exponential", "required": false}
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "prompt": {
+      "type": "string",
+      "label": "User Prompt",
+      "required": true
+    },
+    "system_prompt": {
+      "type": "string",
+      "label": "System Prompt",
+      "required": false
+    },
+    "model": {
+      "type": "string",
+      "label": "Model",
+      "description": "Cortex model id (claude-3-5-sonnet, llama3.1-70b, mistral-large2, etc.).",
+      "default": "claude-3-5-sonnet",
+      "required": false
+    },
+    "account_url_env_var": {
+      "type": "string",
+      "label": "Account URL Env Var",
+      "default": "SNOWFLAKE_ACCOUNT_URL",
+      "required": false
+    },
+    "auth_token_env_var": {
+      "type": "string",
+      "label": "PAT / OAuth Token Env Var",
+      "default": "SNOWFLAKE_PAT",
+      "required": false
+    },
+    "temperature": {
+      "type": "number",
+      "label": "Temperature",
+      "default": 0.0,
+      "required": false
+    },
+    "max_tokens": {
+      "type": "integer",
+      "label": "Max Tokens",
+      "default": 2048,
+      "required": false
+    },
+    "max_iterations": {
+      "type": "integer",
+      "label": "Max Iterations",
+      "default": 10,
+      "required": false
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout (sec)",
+      "default": 60,
+      "required": false
+    },
+    "mcp_servers": {
+      "type": "array",
+      "label": "MCP Servers",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "required": false
+    },
+    "partition_type": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "daily",
+        "hourly",
+        "weekly",
+        "monthly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "required": false
+    },
+    "partition_values": {
+      "type": "string",
+      "required": false
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "required": false
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "required": false
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "required": false
+    },
+    "freshness_cron": {
+      "type": "string",
+      "required": false,
+      "x-dagster-widget": "cron"
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "default": "exponential",
+      "required": false,
+      "description": "Retry backoff strategy: exponential (doubles the delay each time), linear (adds a fixed delay each time), or fixed (constant delay)."
+    }
   }
 }

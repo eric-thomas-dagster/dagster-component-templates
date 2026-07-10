@@ -38,7 +38,8 @@
       "description": "Columns whose string values are inspected. Each row's columns are joined with newlines.",
       "items": {
         "type": "string"
-      }
+      },
+      "x-dagster-widget": "columns"
     },
     "forbidden_info_types": {
       "type": "array",

@@ -14,14 +14,20 @@
       "type": "string",
       "label": "Schedule",
       "description": "Cron schedule",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "cron"
     },
     "default_status": {
       "type": "string",
       "label": "Default Status",
       "description": "Default Status",
       "required": false,
-      "default": "STOPPED"
+      "default": "STOPPED",
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ],
+      "ui:widget": "select"
     },
     "message": {
       "type": "string",

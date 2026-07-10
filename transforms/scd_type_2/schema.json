@@ -26,34 +26,39 @@
       "type": "array",
       "label": "Business Key Columns",
       "description": "Natural-key columns",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "columns"
     },
     "track_columns": {
       "type": "array",
       "label": "Track Columns",
       "description": "Columns whose changes trigger a new history row",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "columns"
     },
     "effective_from_column": {
       "type": "string",
       "label": "Effective From Column",
       "description": "Column for version start",
       "required": false,
-      "default": "effective_from"
+      "default": "effective_from",
+      "x-dagster-widget": "column"
     },
     "effective_to_column": {
       "type": "string",
       "label": "Effective To Column",
       "description": "Column for version end (NULL for current)",
       "required": false,
-      "default": "effective_to"
+      "default": "effective_to",
+      "x-dagster-widget": "column"
     },
     "is_current_column": {
       "type": "string",
       "label": "Is Current Column",
       "description": "Is Current Column",
       "required": false,
-      "default": "is_current"
+      "default": "is_current",
+      "x-dagster-widget": "column"
     },
     "as_of_timestamp": {
       "type": "string",

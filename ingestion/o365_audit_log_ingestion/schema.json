@@ -34,7 +34,15 @@
       "label": "Content Type",
       "description": "Audit.General | Audit.AzureActiveDirectory | Audit.Exchange | Audit.SharePoint | DLP.All",
       "required": false,
-      "default": "Audit.General"
+      "default": "Audit.General",
+      "enum": [
+        "Audit.General",
+        "Audit.AzureActiveDirectory",
+        "Audit.Exchange",
+        "Audit.SharePoint",
+        "DLP.All"
+      ],
+      "ui:widget": "select"
     },
     "lookback_hours": {
       "type": "integer",
@@ -90,7 +98,8 @@
       "type": "string",
       "label": "Freshness Cron",
       "description": "Freshness Cron",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "cron"
     },
     "retry_policy_max_retries": {
       "type": "integer",
@@ -109,7 +118,13 @@
       "label": "Retry Policy Backoff",
       "description": "Retry Policy Backoff",
       "required": false,
-      "default": "exponential"
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
     },
     "include_preview_metadata": {
       "type": "boolean",

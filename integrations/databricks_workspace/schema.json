@@ -135,7 +135,13 @@
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,
-      "default": "exponential"
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
     }
   },
   "tags": [

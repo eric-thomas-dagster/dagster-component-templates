@@ -20,14 +20,16 @@
       "type": "array",
       "label": "Business Key Columns",
       "description": "Columns that uniquely identify a record",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "columns"
     },
     "output_column": {
       "type": "string",
       "label": "Output Column",
       "description": "Name for the generated surrogate key column",
       "required": false,
-      "default": "sk_id"
+      "default": "sk_id",
+      "x-dagster-widget": "column"
     },
     "method": {
       "type": "string",

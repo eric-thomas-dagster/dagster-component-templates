@@ -39,7 +39,8 @@
       "label": "Watermark Column",
       "description": "Watermark Column",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "check_interval_seconds": {
       "type": "integer",

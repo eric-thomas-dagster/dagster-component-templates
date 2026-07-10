@@ -4,31 +4,122 @@
   "category": "transformation",
   "icon": "Calculator",
   "x-dagster-io": {
-    "inputs":  {"type": "table", "required": true},
-    "outputs": {"type": "table"}
+    "inputs": {
+      "type": "table",
+      "required": true
+    },
+    "outputs": {
+      "type": "table"
+    }
   },
   "attributes": {
-    "asset_name":           {"type": "string", "required": true},
-    "database_url":         {"type": "string"},
-    "database_url_env_var": {"type": "string"},
-    "dialect":              {"type": "string", "required": true,
-                             "enum": ["duckdb","postgres","postgresql","snowflake","bigquery","redshift","databricks","mssql","mysql"]},
-    "upstream_table":       {"type": "string", "required": true},
-    "output_table":         {"type": "string", "required": true},
-    "expression":           {"type": "string", "required": true,
-                             "description": "Formula template with {col} as the column-name placeholder. e.g. 'UPPER(TRIM({col}))'."},
-    "columns":              {"type": "array", "items": {"type": "string"}, "required": true},
-    "output_mode":          {"type": "string", "enum": ["replace","add_suffix","add_prefix"], "default": "add_suffix"},
-    "suffix":               {"type": "string", "default": "_calc"},
-    "prefix":               {"type": "string", "default": "calc_"},
-    "mode":                 {"type": "string", "enum": ["replace","create_if_not_exists"], "default": "replace"},
-    "group_name":           {"type": "string"},
-    "deps":                 {"type": "array", "items": {"type": "string"}},
-    "owners":               {"type": "array", "items": {"type": "string"}},
-    "description":          {"type": "string"},
-    "asset_tags":           {"type": "object"},
-    "kinds":                {"type": "array", "items": {"type": "string"}},
-    "include_preview_metadata": {"type": "boolean", "default": false},
-    "preview_rows":         {"type": "integer", "default": 25, "minimum": 1, "maximum": 200}
+    "asset_name": {
+      "type": "string",
+      "required": true
+    },
+    "database_url": {
+      "type": "string"
+    },
+    "database_url_env_var": {
+      "type": "string"
+    },
+    "dialect": {
+      "type": "string",
+      "required": true,
+      "enum": [
+        "duckdb",
+        "postgres",
+        "postgresql",
+        "snowflake",
+        "bigquery",
+        "redshift",
+        "databricks",
+        "mssql",
+        "mysql"
+      ]
+    },
+    "upstream_table": {
+      "type": "string",
+      "required": true
+    },
+    "output_table": {
+      "type": "string",
+      "required": true
+    },
+    "expression": {
+      "type": "string",
+      "required": true,
+      "description": "Formula template with {col} as the column-name placeholder. e.g. 'UPPER(TRIM({col}))'."
+    },
+    "columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "required": true,
+      "x-dagster-widget": "columns"
+    },
+    "output_mode": {
+      "type": "string",
+      "enum": [
+        "replace",
+        "add_suffix",
+        "add_prefix"
+      ],
+      "default": "add_suffix"
+    },
+    "suffix": {
+      "type": "string",
+      "default": "_calc"
+    },
+    "prefix": {
+      "type": "string",
+      "default": "calc_"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "replace",
+        "create_if_not_exists"
+      ],
+      "default": "replace"
+    },
+    "group_name": {
+      "type": "string"
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "description": {
+      "type": "string"
+    },
+    "asset_tags": {
+      "type": "object"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "default": 25,
+      "minimum": 1,
+      "maximum": 200
+    }
   }
 }

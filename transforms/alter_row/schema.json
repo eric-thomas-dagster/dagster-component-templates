@@ -34,7 +34,8 @@
       "label": "Operation Column",
       "description": "Output column holding the operation marker",
       "required": false,
-      "default": "cdc_op"
+      "default": "cdc_op",
+      "x-dagster-widget": "column"
     },
     "description": {
       "type": "string",

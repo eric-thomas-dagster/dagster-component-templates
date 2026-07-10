@@ -39,7 +39,8 @@
       "label": "Embedding Column",
       "description": "Vector column (pgvector type) on the target table.",
       "required": false,
-      "default": "embedding"
+      "default": "embedding",
+      "x-dagster-widget": "column"
     },
     "upstream_asset_key": {
       "type": "string",
@@ -53,7 +54,8 @@
       "label": "Query Embedding Column",
       "description": "Column on upstream DataFrame holding the query vector.",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "query_vector": {
       "type": "array",
@@ -75,14 +77,19 @@
       "description": "Distance metric: 'cosine' (<=>), 'l2' (<->), or 'inner' (<#>).",
       "required": false,
       "default": "cosine",
-      "enum": ["cosine", "l2", "inner"]
+      "enum": [
+        "cosine",
+        "l2",
+        "inner"
+      ]
     },
     "additional_columns": {
       "type": "array",
       "label": "Additional Columns",
       "description": "Extra columns to return alongside the match (defaults to all).",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "columns"
     },
     "rpc_name": {
       "type": "string",

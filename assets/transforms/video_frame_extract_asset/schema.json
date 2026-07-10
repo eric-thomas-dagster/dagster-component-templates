@@ -20,13 +20,15 @@
       "label": "Video Path Column",
       "required": false,
       "description": "Column of video file paths.",
-      "default": "file_path"
+      "default": "file_path",
+      "x-dagster-widget": "column"
     },
     "video_id_column": {
       "type": "string",
       "label": "Video Id Column",
       "required": false,
-      "description": "Optional column to carry forward as `video_id` on each frame row. Default: row index."
+      "description": "Optional column to carry forward as `video_id` on each frame row. Default: row index.",
+      "x-dagster-widget": "column"
     },
     "output_dir": {
       "type": "string",
@@ -59,7 +61,13 @@
       "label": "Mode",
       "required": false,
       "description": "How to choose frames.",
-      "default": "every_seconds"
+      "default": "every_seconds",
+      "enum": [
+        "append",
+        "overwrite",
+        "upsert"
+      ],
+      "ui:widget": "select"
     },
     "every_seconds": {
       "type": "string",

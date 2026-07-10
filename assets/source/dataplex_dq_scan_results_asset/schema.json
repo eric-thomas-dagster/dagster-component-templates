@@ -41,7 +41,13 @@
       "label": "Mode",
       "required": false,
       "description": "`latest`: most recent job only. `history`: all jobs since `since_iso`.",
-      "default": "latest"
+      "default": "latest",
+      "enum": [
+        "append",
+        "overwrite",
+        "upsert"
+      ],
+      "ui:widget": "select"
     },
     "since_iso": {
       "type": "string",

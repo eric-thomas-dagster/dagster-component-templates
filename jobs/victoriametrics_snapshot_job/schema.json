@@ -14,14 +14,20 @@
       "type": "string",
       "label": "Schedule",
       "description": "Cron schedule (None = no schedule)",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "cron"
     },
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "description": "STOPPED | RUNNING",
+      "description": "One of: STOPPED / RUNNING.",
       "required": false,
-      "default": "STOPPED"
+      "default": "STOPPED",
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ],
+      "ui:widget": "select"
     },
     "tags": {
       "type": "object",
@@ -39,7 +45,7 @@
     "snapshot_auth_key_env_var": {
       "type": "string",
       "label": "Snapshot Auth Key Env Var",
-      "description": "Env var with VM -snapshotAuthKey value (sent as ?authKey=…). Required when VM is started with -snapshotAuthKey.",
+      "description": "Env var with VM -snapshotAuthKey value (sent as ?authKey=\u2026). Required when VM is started with -snapshotAuthKey.",
       "required": false
     },
     "bearer_token_env_var": {
@@ -64,7 +70,7 @@
     "group_name": {
       "type": "string",
       "label": "Group Name",
-      "description": "Asset/op group name (op naming only — this is a job).",
+      "description": "Asset/op group name (op naming only \u2014 this is a job).",
       "required": false,
       "default": "victoriametrics"
     }

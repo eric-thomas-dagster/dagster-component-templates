@@ -20,13 +20,15 @@
       "type": "array",
       "label": "Id Columns",
       "description": "Columns to keep as identifiers (not melted)",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "columns"
     },
     "value_columns": {
       "type": "array",
       "label": "Value Columns",
       "description": "Columns to melt (None = all non-id columns)",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "columns"
     },
     "var_name": {
       "type": "string",

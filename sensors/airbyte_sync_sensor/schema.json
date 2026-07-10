@@ -60,9 +60,14 @@
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "description": "running or stopped",
+      "description": "One of: STOPPED / RUNNING.",
       "required": false,
-      "default": "running"
+      "default": "running",
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ],
+      "ui:widget": "select"
     },
     "resource_key": {
       "type": "string",

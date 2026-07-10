@@ -35,25 +35,29 @@
       "label": "Event Column",
       "description": "If set, treat this column as a JSON-encoded event payload and parse it into source columns before normalization.",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "timestamp_column": {
       "type": "string",
       "label": "Timestamp Column",
       "description": "Source column to map to event timestamp (auto-detect if None)",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "column"
     },
     "actor_column": {
       "type": "string",
       "label": "Actor Column",
       "description": "Source column for actor/user (auto-detect if None)",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "column"
     },
     "action_column": {
       "type": "string",
       "label": "Action Column",
       "description": "Source column for action/event name",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "column"
     },
     "drop_extras": {
       "type": "boolean",

@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.OAuthRestIngestionComponent",
-  "description": "OAuth2-backed REST GET → DataFrame with built-in pagination. Covers Concur, Ariba, and any other Bearer-token JSON API.",
+  "description": "OAuth2-backed REST GET \u2192 DataFrame with built-in pagination. Covers Concur, Ariba, and any other Bearer-token JSON API.",
   "category": "ingestion",
   "icon": "si:oauth",
   "x-dagster-io": {
@@ -10,43 +10,250 @@
     }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "api_url": {"type": "string", "label": "API URL", "required": true},
-    "query_params": {"type": "object", "label": "Query Params", "required": false, "ui:widget": "key-value"},
-    "oauth_token_resource_key": {"type": "string", "label": "OAuth Token Resource Key", "description": "Name of an oauth_token_resource — handles refresh + rotation.", "required": false},
-    "auth_token_env_var": {"type": "string", "label": "Auth Token Env Var", "description": "Pre-minted bearer token (use this for non-rotating tokens).", "required": false},
-    "extra_headers": {"type": "object", "label": "Extra Headers", "required": false, "ui:widget": "key-value"},
-    "pagination": {"type": "string", "label": "Pagination", "description": "'none' | 'next_url' | 'cursor' | 'page' | 'offset'", "required": false, "default": "none"},
-    "records_path": {"type": "string", "label": "Records Path", "description": "Dotted path to records array.", "required": false, "default": ""},
-    "next_url_path": {"type": "string", "label": "Next URL Path", "required": false, "default": "NextPage"},
-    "cursor_response_path": {"type": "string", "label": "Cursor Response Path", "required": false, "default": "nextPageToken"},
-    "cursor_param": {"type": "string", "label": "Cursor Param Name", "required": false, "default": "pageToken"},
-    "page_param": {"type": "string", "label": "Page Param Name", "required": false, "default": "page"},
-    "page_start": {"type": "integer", "label": "Page Start", "required": false, "default": 1},
-    "offset_param": {"type": "string", "label": "Offset Param Name", "required": false, "default": "offset"},
-    "limit_param": {"type": "string", "label": "Limit Param Name", "required": false, "default": "limit"},
-    "page_size": {"type": "integer", "label": "Page Size", "required": false, "default": 100},
-    "max_pages": {"type": "integer", "label": "Max Pages", "required": false, "default": 1000},
-    "timeout_seconds": {"type": "integer", "label": "Timeout (s)", "required": false, "default": 120},
-    "verify_ssl": {"type": "boolean", "label": "Verify SSL", "required": false, "default": true, "ui:widget": "checkbox"},
-    "description": {"type": "string", "label": "Description", "required": false, "ui:widget": "code"},
-    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "oauth_rest"},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "asset_tags": {"type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
-    "freshness_max_lag_minutes": {"type": "integer", "label": "Freshness Max Lag (minutes)", "required": false},
-    "freshness_cron": {"type": "string", "label": "Freshness Cron", "required": false},
-    "include_preview_metadata": {"type": "boolean", "label": "Include Preview Metadata", "required": false, "default": true, "ui:widget": "checkbox"},
-    "preview_rows": {"type": "integer", "label": "Preview Rows", "required": false, "default": 25},
-    "deps": {"type": "array", "items": {"type": "string"}, "label": "Deps", "required": false, "ui:widget": "list"},
-    "partition_type": {"type": "string", "label": "Partition Type", "required": false},
-    "partition_start": {"type": "string", "label": "Partition Start", "required": false},
-    "partition_values": {"type": "string", "label": "Partition Values", "required": false},
-    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "required": false},
-    "retry_policy_max_retries": {"type": "integer", "label": "Retry Policy Max Retries", "required": false},
-    "retry_policy_delay_seconds": {"type": "integer", "label": "Retry Policy Delay Seconds", "required": false},
-    "retry_policy_backoff": {"type": "string", "label": "Retry Policy Backoff", "required": false, "default": "exponential"}
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "api_url": {
+      "type": "string",
+      "label": "API URL",
+      "required": true
+    },
+    "query_params": {
+      "type": "object",
+      "label": "Query Params",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "oauth_token_resource_key": {
+      "type": "string",
+      "label": "OAuth Token Resource Key",
+      "description": "Name of an oauth_token_resource \u2014 handles refresh + rotation.",
+      "required": false
+    },
+    "auth_token_env_var": {
+      "type": "string",
+      "label": "Auth Token Env Var",
+      "description": "Pre-minted bearer token (use this for non-rotating tokens).",
+      "required": false
+    },
+    "extra_headers": {
+      "type": "object",
+      "label": "Extra Headers",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "pagination": {
+      "type": "string",
+      "label": "Pagination",
+      "description": "'none' | 'next_url' | 'cursor' | 'page' | 'offset'",
+      "required": false,
+      "default": "none"
+    },
+    "records_path": {
+      "type": "string",
+      "label": "Records Path",
+      "description": "Dotted path to records array.",
+      "required": false,
+      "default": ""
+    },
+    "next_url_path": {
+      "type": "string",
+      "label": "Next URL Path",
+      "required": false,
+      "default": "NextPage"
+    },
+    "cursor_response_path": {
+      "type": "string",
+      "label": "Cursor Response Path",
+      "required": false,
+      "default": "nextPageToken"
+    },
+    "cursor_param": {
+      "type": "string",
+      "label": "Cursor Param Name",
+      "required": false,
+      "default": "pageToken"
+    },
+    "page_param": {
+      "type": "string",
+      "label": "Page Param Name",
+      "required": false,
+      "default": "page"
+    },
+    "page_start": {
+      "type": "integer",
+      "label": "Page Start",
+      "required": false,
+      "default": 1
+    },
+    "offset_param": {
+      "type": "string",
+      "label": "Offset Param Name",
+      "required": false,
+      "default": "offset"
+    },
+    "limit_param": {
+      "type": "string",
+      "label": "Limit Param Name",
+      "required": false,
+      "default": "limit"
+    },
+    "page_size": {
+      "type": "integer",
+      "label": "Page Size",
+      "required": false,
+      "default": 100
+    },
+    "max_pages": {
+      "type": "integer",
+      "label": "Max Pages",
+      "required": false,
+      "default": 1000
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout (s)",
+      "required": false,
+      "default": 120
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "label": "Verify SSL",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "oauth_rest"
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag (minutes)",
+      "required": false
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "required": false,
+      "x-dagster-widget": "cron"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "required": false,
+      "default": 25
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "enum": [
+        "daily",
+        "hourly",
+        "weekly",
+        "monthly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "required": false
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "required": false
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
+    }
   },
-  "tags": ["ingestion", "oauth", "rest", "concur", "ariba", "sap"],
+  "tags": [
+    "ingestion",
+    "oauth",
+    "rest",
+    "concur",
+    "ariba",
+    "sap"
+  ],
   "name": "OAuth REST Ingestion"
 }

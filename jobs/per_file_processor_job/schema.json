@@ -14,20 +14,33 @@
       "type": "string",
       "label": "Schedule",
       "description": "Cron schedule",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "cron"
     },
     "default_status": {
       "type": "string",
       "label": "Default Status",
       "description": "Default Status",
       "required": false,
-      "default": "STOPPED"
+      "default": "STOPPED",
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ],
+      "ui:widget": "select"
     },
     "storage": {
       "type": "string",
       "label": "Storage",
-      "description": "local | s3 | gcs | adls",
-      "required": true
+      "description": "One of: local / s3 / gcs / adls.",
+      "required": true,
+      "enum": [
+        "local",
+        "s3",
+        "gcs",
+        "adls"
+      ],
+      "ui:widget": "select"
     },
     "local_directory": {
       "type": "string",

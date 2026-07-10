@@ -31,25 +31,29 @@
       "type": "string",
       "label": "Variable Column",
       "description": "Column with variable names",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "column"
     },
     "distribution_column": {
       "type": "string",
       "label": "Distribution Column",
       "description": "Column with distribution type: normal, uniform, triangular, lognormal, poisson, exponential, beta",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "column"
     },
     "param1_column": {
       "type": "string",
       "label": "Param1 Column",
       "description": "Param1 Column",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "column"
     },
     "param2_column": {
       "type": "string",
       "label": "Param2 Column",
       "description": "Param2 Column",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "column"
     },
     "n_simulations": {
       "type": "integer",
@@ -107,7 +111,8 @@
       "label": "Partition Date Column",
       "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "partition_values": {
       "type": "string",
@@ -121,14 +126,16 @@
       "label": "Static Dimension Name",
       "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "partition_static_column": {
       "type": "string",
       "label": "Static Partition Column",
       "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "owners": {
       "type": "array",
@@ -169,7 +176,8 @@
       "label": "Freshness Cron Schedule",
       "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "cron"
     },
     "column_lineage": {
       "type": "object",
@@ -204,7 +212,13 @@
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,
-      "default": "exponential"
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
     },
     "description": {
       "type": "string",

@@ -91,7 +91,12 @@
       "type": "string",
       "required": false,
       "description": "'running' or 'stopped'.",
-      "default": "running"
+      "default": "running",
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ],
+      "ui:widget": "select"
     },
     "lookback_minutes": {
       "type": "integer",

@@ -37,12 +37,14 @@
     "partition_key_column": {
       "type": "string",
       "label": "Partition Key Column",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "column"
     },
     "row_key_column": {
       "type": "string",
       "label": "Row Key Column",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "column"
     },
     "create_if_missing": {
       "type": "boolean",

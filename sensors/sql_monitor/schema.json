@@ -32,7 +32,8 @@
       "type": "string",
       "label": "Watermark Column",
       "description": "Column used to detect new/updated rows (e.g., ",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "column"
     },
     "job_name": {
       "type": "string",
@@ -45,7 +46,8 @@
       "label": "Id Column",
       "description": "Primary key column used as the run_key for deduplication. ",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "batch_size": {
       "type": "integer",
@@ -74,7 +76,12 @@
       "label": "Default Status",
       "description": "Default Status",
       "required": false,
-      "default": "running"
+      "default": "running",
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ],
+      "ui:widget": "select"
     }
   },
   "tags": [

@@ -20,7 +20,8 @@
       "label": "Audio Path Column",
       "required": false,
       "description": "Column containing local audio file paths.",
-      "default": "file_path"
+      "default": "file_path",
+      "x-dagster-widget": "column"
     },
     "output_dir": {
       "type": "string",
@@ -39,7 +40,8 @@
       "type": "string",
       "label": "Output Path Column",
       "required": false,
-      "default": "transformed_path"
+      "default": "transformed_path",
+      "x-dagster-widget": "column"
     },
     "target_format": {
       "type": "string",

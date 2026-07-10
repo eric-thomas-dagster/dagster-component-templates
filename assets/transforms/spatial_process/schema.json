@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.SpatialProcessComponent",
-  "description": "Apply a single geometry op (centroid, boundary, convex_hull, envelope, simplify, buffer, polygon↔points/lines, set_precision) to a column of Shapely geometries.",
+  "description": "Apply a single geometry op (centroid, boundary, convex_hull, envelope, simplify, buffer, polygon\u2194points/lines, set_precision) to a column of Shapely geometries.",
   "category": "transformation",
   "icon": "Compass",
   "x-dagster-io": {
@@ -15,20 +15,63 @@
     }
   },
   "attributes": {
-    "asset_name": { "type": "string", "label": "Asset Name", "required": true },
-    "upstream_asset_key": { "type": "string", "label": "Upstream Asset Key", "required": true },
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
     "method": {
       "type": "string",
-      "enum": ["centroid", "boundary", "polygon_to_lines", "polygon_to_points", "line_to_polygon", "convex_hull", "envelope", "simplify", "buffer", "set_precision"],
+      "enum": [
+        "centroid",
+        "boundary",
+        "polygon_to_lines",
+        "polygon_to_points",
+        "line_to_polygon",
+        "convex_hull",
+        "envelope",
+        "simplify",
+        "buffer",
+        "set_precision"
+      ],
       "default": "centroid",
       "label": "Method",
       "required": true
     },
-    "geometry_column": { "type": "string", "default": "geometry", "label": "Input Geometry Column" },
-    "output_column": { "type": "string", "label": "Output Column (defaults to in-place)" },
-    "tolerance": { "type": "number", "default": 0.0001, "label": "Simplify Tolerance" },
-    "buffer_distance": { "type": "number", "default": 0.0, "label": "Buffer Distance (CRS units)" },
-    "precision_decimals": { "type": "integer", "default": 6, "label": "Set-precision Decimals" },
-    "group_name": { "type": "string", "label": "Group Name" }
+    "geometry_column": {
+      "type": "string",
+      "default": "geometry",
+      "label": "Input Geometry Column",
+      "x-dagster-widget": "column"
+    },
+    "output_column": {
+      "type": "string",
+      "label": "Output Column (defaults to in-place)",
+      "x-dagster-widget": "column"
+    },
+    "tolerance": {
+      "type": "number",
+      "default": 0.0001,
+      "label": "Simplify Tolerance"
+    },
+    "buffer_distance": {
+      "type": "number",
+      "default": 0.0,
+      "label": "Buffer Distance (CRS units)"
+    },
+    "precision_decimals": {
+      "type": "integer",
+      "default": 6,
+      "label": "Set-precision Decimals"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name"
+    }
   }
 }

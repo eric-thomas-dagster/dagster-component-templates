@@ -1,27 +1,131 @@
 {
   "component_type": "dagster_component_templates.FirestoreWriterAssetComponent",
-  "description": "Write DataFrame rows to a Firestore collection — one document per row. Set / merge / create write modes; doc id from a column or auto-generated. Useful as a real-time-readable sink behind ML scoring, customer 360, dynamic config tables.",
+  "description": "Write DataFrame rows to a Firestore collection \u2014 one document per row. Set / merge / create write modes; doc id from a column or auto-generated. Useful as a real-time-readable sink behind ML scoring, customer 360, dynamic config tables.",
   "category": "sink",
   "icon": "si:firebase",
-  "x-dagster-io": {"outputs": {"type": "DataFrame", "description": "Upstream DataFrame with a `_firestore_written` column added."}},
-  "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": true},
-    "credentials": {"type": "object", "label": "Credentials (dict)", "required": false, "default": null},
-    "credentials_path": {"type": "string", "label": "Credentials Path", "required": false, "default": null},
-    "project_id": {"type": "string", "label": "Project ID", "required": false, "default": null},
-    "database": {"type": "string", "label": "Database", "required": false, "default": "(default)"},
-    "collection": {"type": "string", "label": "Collection", "required": true},
-    "id_column": {"type": "string", "label": "ID Column", "required": false, "default": null, "description": "Column whose value becomes each doc's id. If unset, Firestore auto-generates."},
-    "write_mode": {"type": "string", "label": "Write Mode", "required": false, "default": "merge", "description": "set | merge | create"},
-    "drop_id_column_from_body": {"type": "boolean", "label": "Drop ID Column from Body", "required": false, "default": true},
-    "batch_size": {"type": "integer", "label": "Batch Size", "required": false, "default": 500, "description": "Firestore commit batch size (max 500)."},
-    "description": {"type": "string", "label": "Description", "required": false, "default": null, "ui:widget": "textarea"},
-    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": null},
-    "deps": {"type": "array", "label": "Deps", "required": false, "items": {"type": "string"}},
-    "tags": {"type": "object", "label": "Tags", "required": false},
-    "owners": {"type": "array", "label": "Owners", "required": false, "items": {"type": "string"}}
+  "x-dagster-io": {
+    "outputs": {
+      "type": "DataFrame",
+      "description": "Upstream DataFrame with a `_firestore_written` column added."
+    }
   },
-  "tags": ["sink", "google", "firestore", "nosql", "document-db", "real-time"],
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
+    "credentials": {
+      "type": "object",
+      "label": "Credentials (dict)",
+      "required": false,
+      "default": null
+    },
+    "credentials_path": {
+      "type": "string",
+      "label": "Credentials Path",
+      "required": false,
+      "default": null
+    },
+    "project_id": {
+      "type": "string",
+      "label": "Project ID",
+      "required": false,
+      "default": null
+    },
+    "database": {
+      "type": "string",
+      "label": "Database",
+      "required": false,
+      "default": "(default)"
+    },
+    "collection": {
+      "type": "string",
+      "label": "Collection",
+      "required": true
+    },
+    "id_column": {
+      "type": "string",
+      "label": "ID Column",
+      "required": false,
+      "default": null,
+      "description": "Column whose value becomes each doc's id. If unset, Firestore auto-generates.",
+      "x-dagster-widget": "column"
+    },
+    "write_mode": {
+      "type": "string",
+      "label": "Write Mode",
+      "required": false,
+      "default": "merge",
+      "description": "One of: append / overwrite / upsert / merge.",
+      "enum": [
+        "append",
+        "overwrite",
+        "upsert",
+        "merge"
+      ],
+      "ui:widget": "select"
+    },
+    "drop_id_column_from_body": {
+      "type": "boolean",
+      "label": "Drop ID Column from Body",
+      "required": false,
+      "default": true
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 500,
+      "description": "Firestore commit batch size (max 500)."
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "sink",
+    "google",
+    "firestore",
+    "nosql",
+    "document-db",
+    "real-time"
+  ],
   "name": "Firestore Writer"
 }

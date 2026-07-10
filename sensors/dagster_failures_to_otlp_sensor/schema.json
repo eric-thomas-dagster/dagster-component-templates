@@ -4,13 +4,62 @@
   "category": "sensor",
   "icon": "Bell",
   "attributes": {
-    "sensor_name": {"type": "string", "label": "Sensor Name", "description": "Dagster sensor name.", "required": true},
-    "otlp_endpoint_env_var": {"type": "string", "label": "OTLP Endpoint Env Var", "description": "Env var with OTLP/HTTP endpoint base URL. /v1/logs is appended.", "required": true},
-    "otlp_headers_env_var": {"type": "string", "label": "OTLP Headers Env Var", "description": "Env var with comma-separated headers (OTel convention).", "required": false},
-    "service_name": {"type": "string", "label": "Service Name", "description": "OTLP resource attribute `service.name`.", "required": false, "default": "dagster"},
-    "location_label": {"type": "string", "label": "Location Label", "description": "OTLP `service.instance.id` — deployment / region.", "required": false, "default": "default"},
-    "monitor_jobs": {"type": "array", "label": "Monitor Jobs", "description": "Only emit OTLP records for these Dagster job names. None = all.", "required": false},
-    "default_status": {"type": "string", "label": "Default Status", "description": "STOPPED | RUNNING", "required": false, "default": "STOPPED"},
-    "request_timeout_seconds": {"type": "integer", "label": "Request Timeout Seconds", "description": "HTTP timeout per push.", "required": false, "default": 15}
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Dagster sensor name.",
+      "required": true
+    },
+    "otlp_endpoint_env_var": {
+      "type": "string",
+      "label": "OTLP Endpoint Env Var",
+      "description": "Env var with OTLP/HTTP endpoint base URL. /v1/logs is appended.",
+      "required": true
+    },
+    "otlp_headers_env_var": {
+      "type": "string",
+      "label": "OTLP Headers Env Var",
+      "description": "Env var with comma-separated headers (OTel convention).",
+      "required": false
+    },
+    "service_name": {
+      "type": "string",
+      "label": "Service Name",
+      "description": "OTLP resource attribute `service.name`.",
+      "required": false,
+      "default": "dagster"
+    },
+    "location_label": {
+      "type": "string",
+      "label": "Location Label",
+      "description": "OTLP `service.instance.id` \u2014 deployment / region.",
+      "required": false,
+      "default": "default"
+    },
+    "monitor_jobs": {
+      "type": "array",
+      "label": "Monitor Jobs",
+      "description": "Only emit OTLP records for these Dagster job names. None = all.",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "One of: STOPPED / RUNNING.",
+      "required": false,
+      "default": "STOPPED",
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ],
+      "ui:widget": "select"
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "description": "HTTP timeout per push.",
+      "required": false,
+      "default": 15
+    }
   }
 }

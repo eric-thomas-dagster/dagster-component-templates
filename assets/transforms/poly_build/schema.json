@@ -15,22 +15,75 @@
     }
   },
   "attributes": {
-    "asset_name": { "type": "string", "label": "Asset Name", "required": true },
-    "upstream_asset_key": { "type": "string", "label": "Upstream Asset Key", "required": true },
-    "group_column": { "type": "string", "label": "Group Column", "required": true, "description": "Column identifying which polygon each vertex belongs to" },
-    "sequence_column": { "type": "string", "label": "Sequence Column", "description": "Column ordering vertices within each polygon. Leave blank to use the upstream's natural row order within each group (matches Alteryx PolyBuild when SequenceField is empty)." },
-    "latitude_column": { "type": "string", "label": "Latitude Column", "description": "Vertex latitude (lat/lng mode). Pair with longitude_column." },
-    "longitude_column": { "type": "string", "label": "Longitude Column", "description": "Vertex longitude (lat/lng mode). Pair with latitude_column." },
-    "input_geometry_column": { "type": "string", "label": "Input Geometry Column", "description": "Column with existing Shapely Point geometries (geometry mode). Use this INSTEAD of latitude/longitude when the upstream already has points (e.g. from a CreatePoints component)." },
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
+    "group_column": {
+      "type": "string",
+      "label": "Group Column",
+      "required": true,
+      "description": "Column identifying which polygon each vertex belongs to",
+      "x-dagster-widget": "column"
+    },
+    "sequence_column": {
+      "type": "string",
+      "label": "Sequence Column",
+      "description": "Column ordering vertices within each polygon. Leave blank to use the upstream's natural row order within each group (matches Alteryx PolyBuild when SequenceField is empty).",
+      "x-dagster-widget": "column"
+    },
+    "latitude_column": {
+      "type": "string",
+      "label": "Latitude Column",
+      "description": "Vertex latitude (lat/lng mode). Pair with longitude_column.",
+      "x-dagster-widget": "column"
+    },
+    "longitude_column": {
+      "type": "string",
+      "label": "Longitude Column",
+      "description": "Vertex longitude (lat/lng mode). Pair with latitude_column.",
+      "x-dagster-widget": "column"
+    },
+    "input_geometry_column": {
+      "type": "string",
+      "label": "Input Geometry Column",
+      "description": "Column with existing Shapely Point geometries (geometry mode). Use this INSTEAD of latitude/longitude when the upstream already has points (e.g. from a CreatePoints component).",
+      "x-dagster-widget": "column"
+    },
     "output_type": {
       "type": "string",
-      "enum": ["polygon", "line"],
+      "enum": [
+        "polygon",
+        "line"
+      ],
       "default": "polygon",
       "label": "Output Type"
     },
-    "geometry_column": { "type": "string", "default": "geometry", "label": "Output Geometry Column" },
-    "crs": { "type": "string", "default": "EPSG:4326", "label": "CRS" },
-    "keep_first_attributes": { "type": "boolean", "default": true, "label": "Keep First Attributes" },
-    "group_name": { "type": "string", "label": "Group Name" }
+    "geometry_column": {
+      "type": "string",
+      "default": "geometry",
+      "label": "Output Geometry Column",
+      "x-dagster-widget": "column"
+    },
+    "crs": {
+      "type": "string",
+      "default": "EPSG:4326",
+      "label": "CRS"
+    },
+    "keep_first_attributes": {
+      "type": "boolean",
+      "default": true,
+      "label": "Keep First Attributes"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name"
+    }
   }
 }

@@ -20,19 +20,22 @@
       "type": "array",
       "label": "Index Columns",
       "description": "Columns that stay as rows (group keys)",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "columns"
     },
     "pivot_column": {
       "type": "string",
       "label": "Pivot Column",
       "description": "Column whose values become new column headers",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "column"
     },
     "value_column": {
       "type": "string",
       "label": "Value Column",
       "description": "Column whose values fill the pivoted cells",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "column"
     },
     "agg_func": {
       "type": "string",

@@ -14,14 +14,20 @@
       "type": "string",
       "label": "Schedule",
       "description": "Cron schedule (None = no schedule)",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "cron"
     },
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "description": "STOPPED | RUNNING",
+      "description": "One of: STOPPED / RUNNING.",
       "required": false,
-      "default": "STOPPED"
+      "default": "STOPPED",
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ],
+      "ui:widget": "select"
     },
     "tags": {
       "type": "object",
@@ -53,9 +59,16 @@
     "severity": {
       "type": "string",
       "label": "Severity",
-      "description": "critical | error | warning | info",
+      "description": "One of: critical / error / warning / info.",
       "required": false,
-      "default": "info"
+      "default": "info",
+      "enum": [
+        "critical",
+        "error",
+        "warning",
+        "info"
+      ],
+      "ui:widget": "select"
     }
   }
 }

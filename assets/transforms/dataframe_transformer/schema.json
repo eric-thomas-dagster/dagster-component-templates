@@ -26,21 +26,24 @@
       "label": "Filter Columns",
       "description": "Comma-separated list of columns to keep",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "drop_columns": {
       "type": "string",
       "label": "Drop Columns",
       "description": "Comma-separated list of columns to drop",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "rename_columns": {
       "type": "string",
       "label": "Rename Columns",
       "description": "JSON mapping of column renames: ",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "drop_duplicates": {
       "type": "boolean",
@@ -78,7 +81,8 @@
       "label": "Sort By",
       "description": "Comma-separated columns to sort by",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "columns"
     },
     "sort_ascending": {
       "type": "boolean",
@@ -93,7 +97,8 @@
       "label": "Group By",
       "description": "Comma-separated columns to group by",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "columns"
     },
     "agg_functions": {
       "type": "string",
@@ -152,7 +157,8 @@
       "label": "Partition Date Column",
       "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "partition_values": {
       "type": "string",
@@ -166,14 +172,16 @@
       "label": "Static Dimension Name",
       "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "partition_static_column": {
       "type": "string",
       "label": "Static Partition Column",
       "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "owners": {
       "type": "array",
@@ -214,7 +222,8 @@
       "label": "Freshness Cron Schedule",
       "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "cron"
     },
     "column_lineage": {
       "type": "object",
@@ -242,7 +251,8 @@
       "label": "Calculated Columns",
       "description": "JSON mapping of calculated columns: {",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "pivot_config": {
       "type": "string",
@@ -286,7 +296,7 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "Rows to include in the preview metadata. For long DataFrames (>10x preview_rows), a random sample is used; otherwise head().",
+      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
       "required": false,
       "default": 25
     },

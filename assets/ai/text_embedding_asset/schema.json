@@ -1,26 +1,82 @@
 {
   "component_type": "dagster_community_components.TextEmbeddingAssetComponent",
-  "description": "Embed literal text strings from config into a DataFrame — one row per text with an embedding column. Ideal for RAG query embeddings and intent-label pre-embedding.",
+  "description": "Embed literal text strings from config into a DataFrame \u2014 one row per text with an embedding column. Ideal for RAG query embeddings and intent-label pre-embedding.",
   "category": "ai",
   "icon": "Sparkles",
   "x-dagster-io": {
-    "inputs": {"type": "none"},
-    "outputs": {"type": "dataframe", "description": "DataFrame with text_column + embedding_column"}
+    "inputs": {
+      "type": "none"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame with text_column + embedding_column"
+    }
   },
   "attributes": {
-    "asset_name": {"type": "string", "required": true},
-    "texts": {"type": "array", "required": true, "description": "List of literal strings to embed."},
-    "model": {"type": "string", "required": false, "default": "text-embedding-3-small"},
-    "api_key_env_var": {"type": "string", "required": false, "default": "OPENAI_API_KEY"},
-    "api_base_env_var": {"type": "string", "required": false, "description": "Custom base URL env var — e.g. for Vercel AI Gateway."},
-    "dimensions": {"type": "integer", "required": false, "description": "Only for text-embedding-3-* models."},
-    "text_column": {"type": "string", "required": false, "default": "text"},
-    "embedding_column": {"type": "string", "required": false, "default": "embedding"},
-    "group_name": {"type": "string", "required": false},
-    "description": {"type": "string", "required": false},
-    "owners": {"type": "array", "required": false},
-    "tags": {"type": "object", "required": false},
-    "kinds": {"type": "array", "required": false},
-    "deps": {"type": "array", "required": false}
+    "asset_name": {
+      "type": "string",
+      "required": true
+    },
+    "texts": {
+      "type": "array",
+      "required": true,
+      "description": "List of literal strings to embed."
+    },
+    "model": {
+      "type": "string",
+      "required": false,
+      "default": "text-embedding-3-small"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "required": false,
+      "default": "OPENAI_API_KEY"
+    },
+    "api_base_env_var": {
+      "type": "string",
+      "required": false,
+      "description": "Custom base URL env var \u2014 e.g. for Vercel AI Gateway."
+    },
+    "dimensions": {
+      "type": "integer",
+      "required": false,
+      "description": "Only for text-embedding-3-* models."
+    },
+    "text_column": {
+      "type": "string",
+      "required": false,
+      "default": "text",
+      "x-dagster-widget": "column"
+    },
+    "embedding_column": {
+      "type": "string",
+      "required": false,
+      "default": "embedding",
+      "x-dagster-widget": "column"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "required": false
+    },
+    "tags": {
+      "type": "object",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "required": false
+    }
   }
 }

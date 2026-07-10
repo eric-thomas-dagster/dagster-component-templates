@@ -1,36 +1,192 @@
 {
   "component_type": "dagster_component_templates.GroqLLMComponent",
-  "description": "Native Groq LLM inference via the OpenAI-compatible Groq API. Drop-in peer of openai_llm / anthropic_llm / gemini_llm. Groq is uniquely fast — 500+ tokens/sec on Llama-3.x / Mixtral / Gemma / DeepSeek-R1, generous free tier. For multi-vendor routing use litellm_inference_asset.",
+  "description": "Native Groq LLM inference via the OpenAI-compatible Groq API. Drop-in peer of openai_llm / anthropic_llm / gemini_llm. Groq is uniquely fast \u2014 500+ tokens/sec on Llama-3.x / Mixtral / Gemma / DeepSeek-R1, generous free tier. For multi-vendor routing use litellm_inference_asset.",
   "category": "ai",
   "icon": "lu:zap",
-  "x-dagster-io": {"outputs": {"type": "DataFrame", "description": "Upstream DataFrame with the LLM response column added (and optional _error column)."}},
-  "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": true},
-    "api_key_env_var": {"type": "string", "label": "API Key Env Var", "required": false, "default": "GROQ_API_KEY"},
-    "base_url": {"type": "string", "label": "Base URL", "required": false, "default": "https://api.groq.com/openai/v1"},
-    "text_model": {"type": "string", "label": "Text Model", "required": false, "default": "llama-3.3-70b-versatile", "description": "Common: llama-3.3-70b-versatile, llama-3.1-8b-instant, mixtral-8x7b-32768, gemma2-9b-it, deepseek-r1-distill-llama-70b"},
-    "system_prompt": {"type": "string", "label": "System Prompt", "required": false, "default": null, "ui:widget": "textarea"},
-    "user_prompt_template": {"type": "string", "label": "User Prompt Template", "required": false, "default": null, "ui:widget": "textarea"},
-    "input_column": {"type": "string", "label": "Input Column", "required": false, "default": null},
-    "output_column": {"type": "string", "label": "Output Column", "required": false, "default": "groq_response"},
-    "max_tokens": {"type": "integer", "label": "Max Tokens", "required": false, "default": 1024},
-    "temperature": {"type": "number", "label": "Temperature", "required": false, "default": 0.0},
-    "top_p": {"type": "number", "label": "Top-P", "required": false, "default": null},
-    "response_format": {"type": "string", "label": "Response Format", "required": false, "default": null, "description": "'json_object' for JSON-only output"},
-    "rate_limit_delay": {"type": "number", "label": "Rate Limit Delay", "required": false, "default": 0.0},
-    "max_retries": {"type": "integer", "label": "Max Retries", "required": false, "default": 3},
-    "description": {"type": "string", "label": "Description", "required": false, "default": null, "ui:widget": "textarea"},
-    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": null},
-    "deps": {"type": "array", "label": "Deps", "required": false, "items": {"type": "string"}},
-    "tags": {"type": "object", "label": "Tags", "required": false},
-    "owners": {"type": "array", "label": "Owners", "required": false, "items": {"type": "string"}},
-    "partition_type": {"type": "string", "label": "Partition Type", "required": false, "default": null},
-    "partition_start": {"type": "string", "label": "Partition Start", "required": false, "default": null},
-    "partition_values": {"type": "string", "label": "Partition Values", "required": false, "default": null},
-    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "required": false, "default": null},
-    "partition_dimensions": {"type": "array", "label": "Partition Dimensions", "required": false}
+  "x-dagster-io": {
+    "outputs": {
+      "type": "DataFrame",
+      "description": "Upstream DataFrame with the LLM response column added (and optional _error column)."
+    }
   },
-  "tags": ["ai", "llm", "groq", "fast-inference", "llama", "mixtral", "gemma", "deepseek"],
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "required": false,
+      "default": "GROQ_API_KEY"
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base URL",
+      "required": false,
+      "default": "https://api.groq.com/openai/v1"
+    },
+    "text_model": {
+      "type": "string",
+      "label": "Text Model",
+      "required": false,
+      "default": "llama-3.3-70b-versatile",
+      "description": "Common: llama-3.3-70b-versatile, llama-3.1-8b-instant, mixtral-8x7b-32768, gemma2-9b-it, deepseek-r1-distill-llama-70b"
+    },
+    "system_prompt": {
+      "type": "string",
+      "label": "System Prompt",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    },
+    "user_prompt_template": {
+      "type": "string",
+      "label": "User Prompt Template",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    },
+    "input_column": {
+      "type": "string",
+      "label": "Input Column",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "output_column": {
+      "type": "string",
+      "label": "Output Column",
+      "required": false,
+      "default": "groq_response",
+      "x-dagster-widget": "column"
+    },
+    "max_tokens": {
+      "type": "integer",
+      "label": "Max Tokens",
+      "required": false,
+      "default": 1024
+    },
+    "temperature": {
+      "type": "number",
+      "label": "Temperature",
+      "required": false,
+      "default": 0.0
+    },
+    "top_p": {
+      "type": "number",
+      "label": "Top-P",
+      "required": false,
+      "default": null
+    },
+    "response_format": {
+      "type": "string",
+      "label": "Response Format",
+      "required": false,
+      "default": null,
+      "description": "'json_object' for JSON-only output"
+    },
+    "rate_limit_delay": {
+      "type": "number",
+      "label": "Rate Limit Delay",
+      "required": false,
+      "default": 0.0
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "required": false,
+      "default": 3
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "hourly",
+        "weekly",
+        "monthly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "label": "Partition Dimensions",
+      "required": false
+    }
+  },
+  "tags": [
+    "ai",
+    "llm",
+    "groq",
+    "fast-inference",
+    "llama",
+    "mixtral",
+    "gemma",
+    "deepseek"
+  ],
   "name": "Groq LLM"
 }

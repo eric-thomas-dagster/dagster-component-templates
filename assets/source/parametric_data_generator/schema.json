@@ -26,7 +26,8 @@
       "type": "object",
       "label": "Columns",
       "required": false,
-      "description": "Dict of column-name \u2192 spec. Each spec has a `type` field (id / int / float / bool / choice / datetime / date / string / uuid / constant) and type-specific options. See the README for the full reference."
+      "description": "Dict of column-name \u2192 spec. Each spec has a `type` field (id / int / float / bool / choice / datetime / date / string / uuid / constant) and type-specific options. See the README for the full reference.",
+      "x-dagster-widget": "columns"
     },
     "description": {
       "type": "string",

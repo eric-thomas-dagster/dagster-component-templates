@@ -1,15 +1,49 @@
 {
   "component_type": "dagster_community_components.JDEOrchestrationOutputIngestionComponent",
-  "description": "Execute a JDE orchestration and emit its row-list output as a Dagster DataFrame. Common pattern: orchestrations that wrap JDE Data Services (table reads) or Business Function calls returning tabular results. Foundation for JDE → warehouse pipelines.",
+  "description": "Execute a JDE orchestration and emit its row-list output as a Dagster DataFrame. Common pattern: orchestrations that wrap JDE Data Services (table reads) or Business Function calls returning tabular results. Foundation for JDE \u2192 warehouse pipelines.",
   "category": "ingestion",
   "icon": "TableChart",
   "attributes": {
-    "asset_key": {"type": "string", "label": "Asset Key", "required": true},
-    "orchestration": {"type": "string", "label": "Orchestration", "required": true, "description": "Orchestration name."},
-    "inputs": {"type": "object", "label": "Input Parameters", "required": false, "description": "Orchestration input overrides."},
-    "output_field": {"type": "string", "label": "Output Field Path", "required": false, "description": "Dotted path to the row-list in the response (e.g. ServiceRequest1.RowSet). Autodetects flat top-level lists if unset."},
-    "timeout_seconds": {"type": "integer", "label": "Timeout (s)", "required": false, "default": 300},
-    "group_name": {"type": "string", "label": "Group Name", "required": false},
-    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "jde_orchestrator_resource"}
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "required": true
+    },
+    "orchestration": {
+      "type": "string",
+      "label": "Orchestration",
+      "required": true,
+      "description": "Orchestration name."
+    },
+    "inputs": {
+      "type": "object",
+      "label": "Input Parameters",
+      "required": false,
+      "description": "Orchestration input overrides."
+    },
+    "output_field": {
+      "type": "string",
+      "label": "Output Field Path",
+      "required": false,
+      "description": "Dotted path to the row-list in the response (e.g. ServiceRequest1.RowSet). Autodetects flat top-level lists if unset.",
+      "x-dagster-widget": "column"
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout (s)",
+      "required": false,
+      "default": 300
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "jde_orchestrator_resource"
+    }
   }
 }

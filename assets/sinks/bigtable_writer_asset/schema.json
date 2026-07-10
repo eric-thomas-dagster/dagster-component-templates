@@ -46,7 +46,8 @@
       "type": "string",
       "label": "Row Key Column",
       "required": false,
-      "description": "DataFrame column to use as the Bigtable row key."
+      "description": "DataFrame column to use as the Bigtable row key.",
+      "x-dagster-widget": "column"
     },
     "column_family": {
       "type": "string",
@@ -67,7 +68,8 @@
       "description": "Columns whose values should be json.dumps()'d before encoding.",
       "items": {
         "type": "string"
-      }
+      },
+      "x-dagster-widget": "columns"
     },
     "batch_size": {
       "type": "integer",

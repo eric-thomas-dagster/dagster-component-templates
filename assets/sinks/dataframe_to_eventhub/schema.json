@@ -44,7 +44,8 @@
       "label": "Partition Key Column",
       "description": "Optional column to use as the partition key. Events with the same partition key land in the same partition (preserves ordering).",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "batch_size": {
       "type": "integer",
@@ -69,7 +70,9 @@
     },
     "deps": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Deps",
       "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "required": false,
@@ -77,9 +80,11 @@
     },
     "owners": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Owners",
-      "description": "Asset owners — team names ('team:analytics') or email addresses.",
+      "description": "Asset owners \u2014 team names ('team:analytics') or email addresses.",
       "required": false,
       "default": null
     },
@@ -92,7 +97,9 @@
     },
     "kinds": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Kinds",
       "description": "Asset kinds for the catalog. Auto-includes 'azure' + 'eventhubs' if unset.",
       "required": false,

@@ -56,21 +56,24 @@
       "label": "Transcript Column",
       "description": "Name of the column containing the flattened transcript text",
       "required": false,
-      "default": "transcript"
+      "default": "transcript",
+      "x-dagster-widget": "column"
     },
     "summary_column": {
       "type": "string",
       "label": "Summary Column",
       "description": "Name of the output column to write the summary text into",
       "required": false,
-      "default": "call_summary"
+      "default": "call_summary",
+      "x-dagster-widget": "column"
     },
     "action_items_column": {
       "type": "string",
       "label": "Action Items Column",
       "description": "Name of the output column to write the action items list into",
       "required": false,
-      "default": "action_items"
+      "default": "action_items",
+      "x-dagster-widget": "column"
     },
     "max_tokens": {
       "type": "integer",

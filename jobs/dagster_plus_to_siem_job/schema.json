@@ -14,14 +14,20 @@
       "type": "string",
       "label": "Schedule",
       "description": "Cron (None = no schedule)",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "cron"
     },
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "description": "STOPPED | RUNNING",
+      "description": "One of: STOPPED / RUNNING.",
       "required": false,
-      "default": "STOPPED"
+      "default": "STOPPED",
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ],
+      "ui:widget": "select"
     },
     "endpoint_url": {
       "type": "string",
@@ -39,9 +45,15 @@
     "event_type": {
       "type": "string",
       "label": "Event Type",
-      "description": "audit_log | runs | asset_events",
+      "description": "One of: audit_log / runs / asset_events.",
       "required": false,
-      "default": "audit_log"
+      "default": "audit_log",
+      "enum": [
+        "audit_log",
+        "runs",
+        "asset_events"
+      ],
+      "ui:widget": "select"
     },
     "query": {
       "type": "string",
@@ -92,20 +104,35 @@
       "label": "Timestamp Field",
       "description": "Entry field used for the lookback cutoff",
       "required": false,
-      "default": "timestamp"
+      "default": "timestamp",
+      "x-dagster-widget": "column"
     },
     "normalize_to": {
       "type": "string",
       "label": "Normalize To",
-      "description": "ocsf | ecs | none",
+      "description": "One of: ocsf / ecs / none.",
       "required": false,
-      "default": "ocsf"
+      "default": "ocsf",
+      "enum": [
+        "ocsf",
+        "ecs",
+        "none"
+      ],
+      "ui:widget": "select"
     },
     "sink": {
       "type": "string",
       "label": "Sink",
-      "description": "splunk | sentinel | datadog_logs | sumo_logic | s3",
-      "required": true
+      "description": "One of: splunk / sentinel / datadog_logs / sumo_logic / s3.",
+      "required": true,
+      "enum": [
+        "splunk",
+        "sentinel",
+        "datadog_logs",
+        "sumo_logic",
+        "s3"
+      ],
+      "ui:widget": "select"
     },
     "sink_config": {
       "type": "object",

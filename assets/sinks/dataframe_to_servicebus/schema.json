@@ -45,19 +45,22 @@
       "type": "string",
       "label": "Session Id Column",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "message_id_column": {
       "type": "string",
       "label": "Message Id Column",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "correlation_id_column": {
       "type": "string",
       "label": "Correlation Id Column",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "batch_size": {
       "type": "integer",

@@ -4,32 +4,134 @@
   "category": "transformation",
   "icon": "GitMerge",
   "x-dagster-io": {
-    "inputs":  {"type": "table", "required": true},
-    "outputs": {"type": "table"}
+    "inputs": {
+      "type": "table",
+      "required": true
+    },
+    "outputs": {
+      "type": "table"
+    }
   },
   "attributes": {
-    "asset_name":           {"type": "string", "required": true},
-    "database_url":         {"type": "string"},
-    "database_url_env_var": {"type": "string"},
-    "dialect":              {"type": "string", "required": true,
-                             "enum": ["duckdb","postgres","postgresql","snowflake","bigquery","redshift","databricks","mssql","mysql"]},
-    "left_table":           {"type": "string", "required": true},
-    "right_table":          {"type": "string", "required": true},
-    "output_table":         {"type": "string", "required": true},
-    "how":                  {"type": "string", "enum": ["inner","left","right","outer","full","cross"], "default": "inner"},
-    "on_columns":           {"type": "array", "items": {"type": "string"},
-                             "description": "Join columns (same name on both sides). NB: not `on` — YAML 1.1 parses bare `on:` as a boolean."},
-    "left_on":              {"type": "array", "items": {"type": "string"}},
-    "right_on":             {"type": "array", "items": {"type": "string"}},
-    "select_cols":          {"type": "array", "items": {"type": "string"}},
-    "mode":                 {"type": "string", "enum": ["replace","create_if_not_exists"], "default": "replace"},
-    "group_name":           {"type": "string"},
-    "deps":                 {"type": "array", "items": {"type": "string"}},
-    "owners":               {"type": "array", "items": {"type": "string"}},
-    "description":          {"type": "string"},
-    "asset_tags":           {"type": "object"},
-    "kinds":                {"type": "array", "items": {"type": "string"}},
-    "include_preview_metadata": {"type": "boolean", "default": false},
-    "preview_rows":         {"type": "integer", "default": 25, "minimum": 1, "maximum": 200}
+    "asset_name": {
+      "type": "string",
+      "required": true
+    },
+    "database_url": {
+      "type": "string"
+    },
+    "database_url_env_var": {
+      "type": "string"
+    },
+    "dialect": {
+      "type": "string",
+      "required": true,
+      "enum": [
+        "duckdb",
+        "postgres",
+        "postgresql",
+        "snowflake",
+        "bigquery",
+        "redshift",
+        "databricks",
+        "mssql",
+        "mysql"
+      ]
+    },
+    "left_table": {
+      "type": "string",
+      "required": true
+    },
+    "right_table": {
+      "type": "string",
+      "required": true
+    },
+    "output_table": {
+      "type": "string",
+      "required": true
+    },
+    "how": {
+      "type": "string",
+      "enum": [
+        "inner",
+        "left",
+        "right",
+        "outer",
+        "full",
+        "cross"
+      ],
+      "default": "inner"
+    },
+    "on_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Join columns (same name on both sides). NB: not `on` \u2014 YAML 1.1 parses bare `on:` as a boolean.",
+      "x-dagster-widget": "columns"
+    },
+    "left_on": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "right_on": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "select_cols": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "replace",
+        "create_if_not_exists"
+      ],
+      "default": "replace"
+    },
+    "group_name": {
+      "type": "string"
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "description": {
+      "type": "string"
+    },
+    "asset_tags": {
+      "type": "object"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "default": 25,
+      "minimum": 1,
+      "maximum": 200
+    }
   }
 }

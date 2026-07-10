@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.GeoSimplifyComponent",
-  "description": "Douglas-Peucker simplification of a geometry column — reduce vertex count for plotting / tiling / faster joins. Drop-in for Alteryx's Generalize tool.",
+  "description": "Douglas-Peucker simplification of a geometry column \u2014 reduce vertex count for plotting / tiling / faster joins. Drop-in for Alteryx's Generalize tool.",
   "category": "transformation",
   "icon": "Minimize2",
   "x-dagster-io": {
@@ -43,7 +43,8 @@
       "type": "string",
       "default": "geometry",
       "label": "Geometry Column",
-      "description": "Input + output geometry column name"
+      "description": "Input + output geometry column name",
+      "x-dagster-widget": "column"
     },
     "group_name": {
       "type": "string",

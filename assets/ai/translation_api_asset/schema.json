@@ -3,28 +3,138 @@
   "description": "Translate a text column to one or more target languages via Cloud Translation v3 (Advanced). Returns the upstream DataFrame with one new column per target language. Supports html / plain-text mime types and per-row source-language auto-detection.",
   "category": "ai",
   "icon": "si:googlecloud",
-  "x-dagster-io": {"outputs": {"type": "DataFrame", "description": "Upstream DataFrame with text_<lang> columns added per target."}},
-  "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": true},
-    "credentials": {"type": "object", "label": "Credentials (dict)", "required": false, "default": null},
-    "credentials_path": {"type": "string", "label": "Credentials Path", "required": false, "default": null},
-    "project_id": {"type": "string", "label": "Project ID", "required": false, "default": null},
-    "location": {"type": "string", "label": "Location", "required": false, "default": "global"},
-    "text_column": {"type": "string", "label": "Text Column", "required": true},
-    "target_languages": {"type": "array", "label": "Target Languages", "required": true, "items": {"type": "string"}},
-    "source_language": {"type": "string", "label": "Source Language", "required": false, "default": null},
-    "output_prefix": {"type": "string", "label": "Output Prefix", "required": false, "default": "text_"},
-    "mime_type": {"type": "string", "label": "MIME Type", "required": false, "default": "text/plain"},
-    "batch_size": {"type": "integer", "label": "Batch Size", "required": false, "default": 64},
-    "rate_limit_delay": {"type": "number", "label": "Rate Limit Delay", "required": false, "default": 0.0},
-    "max_retries": {"type": "integer", "label": "Max Retries", "required": false, "default": 3},
-    "description": {"type": "string", "label": "Description", "required": false, "default": null, "ui:widget": "textarea"},
-    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": null},
-    "deps": {"type": "array", "label": "Deps", "required": false, "items": {"type": "string"}},
-    "tags": {"type": "object", "label": "Tags", "required": false},
-    "owners": {"type": "array", "label": "Owners", "required": false, "items": {"type": "string"}}
+  "x-dagster-io": {
+    "outputs": {
+      "type": "DataFrame",
+      "description": "Upstream DataFrame with text_<lang> columns added per target."
+    }
   },
-  "tags": ["ai", "translation", "google", "i18n", "localization"],
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
+    "credentials": {
+      "type": "object",
+      "label": "Credentials (dict)",
+      "required": false,
+      "default": null
+    },
+    "credentials_path": {
+      "type": "string",
+      "label": "Credentials Path",
+      "required": false,
+      "default": null
+    },
+    "project_id": {
+      "type": "string",
+      "label": "Project ID",
+      "required": false,
+      "default": null
+    },
+    "location": {
+      "type": "string",
+      "label": "Location",
+      "required": false,
+      "default": "global"
+    },
+    "text_column": {
+      "type": "string",
+      "label": "Text Column",
+      "required": true,
+      "x-dagster-widget": "column"
+    },
+    "target_languages": {
+      "type": "array",
+      "label": "Target Languages",
+      "required": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "source_language": {
+      "type": "string",
+      "label": "Source Language",
+      "required": false,
+      "default": null
+    },
+    "output_prefix": {
+      "type": "string",
+      "label": "Output Prefix",
+      "required": false,
+      "default": "text_"
+    },
+    "mime_type": {
+      "type": "string",
+      "label": "MIME Type",
+      "required": false,
+      "default": "text/plain"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 64
+    },
+    "rate_limit_delay": {
+      "type": "number",
+      "label": "Rate Limit Delay",
+      "required": false,
+      "default": 0.0
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "required": false,
+      "default": 3
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "ai",
+    "translation",
+    "google",
+    "i18n",
+    "localization"
+  ],
   "name": "Cloud Translation API"
 }

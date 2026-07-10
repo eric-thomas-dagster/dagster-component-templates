@@ -96,7 +96,13 @@
       "label": "Retry Policy Backoff",
       "description": "Retry Policy Backoff",
       "required": false,
-      "default": "exponential"
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
     }
   }
 }

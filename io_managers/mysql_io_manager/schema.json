@@ -29,7 +29,13 @@
     "if_exists": {
       "type": "string",
       "label": "If Exists",
-      "required": true
+      "required": true,
+      "enum": [
+        "fail",
+        "replace",
+        "append"
+      ],
+      "ui:widget": "select"
     }
   },
   "tags": [

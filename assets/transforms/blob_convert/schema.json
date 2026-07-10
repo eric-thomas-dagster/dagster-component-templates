@@ -4,22 +4,70 @@
   "category": "transformation",
   "icon": "Binary",
   "x-dagster-io": {
-    "inputs": { "type": "dataframe", "required": true, "description": "DataFrame containing input_column" },
-    "outputs": { "type": "dataframe", "description": "Same shape; output_column populated with converted values" }
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "DataFrame containing input_column"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Same shape; output_column populated with converted values"
+    }
   },
   "attributes": {
-    "asset_name": { "type": "string", "label": "Asset Name", "required": true },
-    "upstream_asset_key": { "type": "string", "label": "Upstream Asset Key", "required": true },
-    "input_column": { "type": "string", "label": "Input Column", "required": true },
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
+    "input_column": {
+      "type": "string",
+      "label": "Input Column",
+      "required": true,
+      "x-dagster-widget": "column"
+    },
     "operation": {
       "type": "string",
-      "enum": ["to_base64", "from_base64", "to_hex", "from_hex", "to_text", "to_bytes"],
+      "enum": [
+        "to_base64",
+        "from_base64",
+        "to_hex",
+        "from_hex",
+        "to_text",
+        "to_bytes"
+      ],
       "label": "Operation",
       "required": true
     },
-    "output_column": { "type": "string", "label": "Output Column", "description": "Defaults to overwriting input_column" },
-    "encoding": { "type": "string", "default": "utf-8", "label": "Encoding", "description": "For to_text / to_bytes ops" },
-    "error_handling": { "type": "string", "enum": ["coerce", "raise"], "default": "coerce", "label": "Error Handling" },
-    "group_name": { "type": "string", "label": "Group Name" }
+    "output_column": {
+      "type": "string",
+      "label": "Output Column",
+      "description": "Defaults to overwriting input_column",
+      "x-dagster-widget": "column"
+    },
+    "encoding": {
+      "type": "string",
+      "default": "utf-8",
+      "label": "Encoding",
+      "description": "For to_text / to_bytes ops"
+    },
+    "error_handling": {
+      "type": "string",
+      "enum": [
+        "coerce",
+        "raise"
+      ],
+      "default": "coerce",
+      "label": "Error Handling"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name"
+    }
   }
 }

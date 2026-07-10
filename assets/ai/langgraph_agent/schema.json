@@ -4,12 +4,26 @@
   "category": "ai",
   "icon": "Sparkles",
   "x-dagster-io": {
-    "inputs": {"type": "none"},
-    "outputs": {"type": "dict", "description": "{input, outputs, final, steps_run, stopped_by, model, provider}"}
+    "inputs": {
+      "type": "none"
+    },
+    "outputs": {
+      "type": "dict",
+      "description": "{input, outputs, final, steps_run, stopped_by, model, provider}"
+    }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "input_prompt": {"type": "string", "label": "Initial Input Prompt", "required": true, "description": "Seed prompt; available as {input} in every step. Supports {run_id}, {partition_key}, {partition_keys.<dim>}."},
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "input_prompt": {
+      "type": "string",
+      "label": "Initial Input Prompt",
+      "required": true,
+      "description": "Seed prompt; available as {input} in every step. Supports {run_id}, {partition_key}, {partition_keys.<dim>}."
+    },
     "steps": {
       "type": "array",
       "label": "Graph Steps",
@@ -18,33 +32,129 @@
       "items": {
         "type": "object",
         "properties": {
-          "name": {"type": "string"},
-          "prompt": {"type": "string", "description": "Uses {input} and {outputs.<name>} tokens."},
-          "system_message": {"type": "string"},
-          "model": {"type": "string"},
-          "temperature": {"type": "number"},
-          "max_tokens": {"type": "integer"},
-          "next": {"type": "string", "description": "Next step name, or 'END' to terminate."},
-          "condition_regex": {"type": "string", "description": "If set, route to `next` on match else to `condition_else`."},
-          "condition_else": {"type": "string"}
+          "name": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "Uses {input} and {outputs.<name>} tokens."
+          },
+          "system_message": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "temperature": {
+            "type": "number"
+          },
+          "max_tokens": {
+            "type": "integer"
+          },
+          "next": {
+            "type": "string",
+            "description": "Next step name, or 'END' to terminate."
+          },
+          "condition_regex": {
+            "type": "string",
+            "description": "If set, route to `next` on match else to `condition_else`."
+          },
+          "condition_else": {
+            "type": "string"
+          }
         }
       }
     },
-    "llm_provider": {"type": "string", "label": "Provider", "required": false, "default": "openai", "description": "openai, anthropic, azure_openai, google, or ollama."},
-    "model": {"type": "string", "label": "Model", "required": false, "default": "gpt-4o-mini"},
-    "api_key_env_var": {"type": "string", "label": "API Key Env Var", "required": false},
-    "api_base_env_var": {"type": "string", "label": "API Base URL Env Var", "required": false},
-    "system_message": {"type": "string", "label": "Default System Message", "required": false},
-    "temperature": {"type": "number", "label": "Temperature", "required": false, "default": 0.0},
-    "max_tokens": {"type": "integer", "label": "Max Tokens", "required": false, "default": 1024},
-    "group_name": {"type": "string", "required": false},
-    "description": {"type": "string", "required": false},
-    "owners": {"type": "array", "required": false},
-    "asset_tags": {"type": "object", "required": false},
-    "kinds": {"type": "array", "required": false},
-    "deps": {"type": "array", "required": false},
-    "retry_policy_max_retries": {"type": "integer", "required": false},
-    "retry_policy_delay_seconds": {"type": "integer", "required": false},
-    "retry_policy_backoff": {"type": "string", "required": false, "default": "exponential"}
+    "llm_provider": {
+      "type": "string",
+      "label": "Provider",
+      "required": false,
+      "default": "openai",
+      "description": "One of: openai / anthropic / azure_openai / google / ollama..",
+      "enum": [
+        "openai",
+        "anthropic",
+        "azure_openai",
+        "google",
+        "ollama."
+      ],
+      "ui:widget": "select"
+    },
+    "model": {
+      "type": "string",
+      "label": "Model",
+      "required": false,
+      "default": "gpt-4o-mini"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "required": false
+    },
+    "api_base_env_var": {
+      "type": "string",
+      "label": "API Base URL Env Var",
+      "required": false
+    },
+    "system_message": {
+      "type": "string",
+      "label": "Default System Message",
+      "required": false
+    },
+    "temperature": {
+      "type": "number",
+      "label": "Temperature",
+      "required": false,
+      "default": 0.0
+    },
+    "max_tokens": {
+      "type": "integer",
+      "label": "Max Tokens",
+      "required": false,
+      "default": 1024
+    },
+    "group_name": {
+      "type": "string",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "required": false,
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
+    }
   }
 }

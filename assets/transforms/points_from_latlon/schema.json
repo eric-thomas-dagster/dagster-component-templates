@@ -31,19 +31,22 @@
       "type": "string",
       "label": "Longitude Column",
       "description": "Column containing longitude (X / east-west) values",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "column"
     },
     "latitude_column": {
       "type": "string",
       "label": "Latitude Column",
       "description": "Column containing latitude (Y / north-south) values",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "column"
     },
     "geometry_column": {
       "type": "string",
       "default": "geometry",
       "label": "Geometry Column",
-      "description": "Output column name for the Shapely Point geometries"
+      "description": "Output column name for the Shapely Point geometries",
+      "x-dagster-widget": "column"
     },
     "crs": {
       "type": "string",

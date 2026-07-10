@@ -48,7 +48,8 @@
       "type": "object",
       "label": "Static Columns",
       "description": "Constant columns to add: {col: value} (e.g. {'source_system': 'salesforce'})",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "column"
     },
     "git_sha_env": {
       "type": "string",

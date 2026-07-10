@@ -35,7 +35,17 @@
       "type": "string",
       "label": "SQL Dialect",
       "description": "duckdb / postgres / snowflake / bigquery / redshift / databricks / mssql / mysql",
-      "enum": ["duckdb", "postgres", "postgresql", "snowflake", "bigquery", "redshift", "databricks", "mssql", "mysql"],
+      "enum": [
+        "duckdb",
+        "postgres",
+        "postgresql",
+        "snowflake",
+        "bigquery",
+        "redshift",
+        "databricks",
+        "mssql",
+        "mysql"
+      ],
       "required": true
     },
     "upstream_table": {
@@ -52,10 +62,13 @@
     },
     "group_by": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Group By",
       "description": "Columns to group by",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "columns"
     },
     "aggregations": {
       "type": "object",
@@ -67,7 +80,10 @@
       "type": "string",
       "label": "Mode",
       "description": "replace (CREATE OR REPLACE) or create_if_not_exists",
-      "enum": ["replace", "create_if_not_exists"],
+      "enum": [
+        "replace",
+        "create_if_not_exists"
+      ],
       "default": "replace"
     },
     "group_name": {
@@ -77,13 +93,17 @@
     },
     "deps": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Dependencies",
-      "description": "Upstream Dagster asset keys (lineage only — no data passed at runtime)"
+      "description": "Upstream Dagster asset keys (lineage only \u2014 no data passed at runtime)"
     },
     "owners": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Owners"
     },
     "description": {
@@ -96,13 +116,15 @@
     },
     "kinds": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Kinds"
     },
     "include_preview_metadata": {
       "type": "boolean",
       "label": "Include Preview Metadata",
-      "description": "Emit a SELECT … LIMIT N preview as asset metadata after CTAS",
+      "description": "Emit a SELECT \u2026 LIMIT N preview as asset metadata after CTAS",
       "default": false
     },
     "preview_rows": {

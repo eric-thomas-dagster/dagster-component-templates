@@ -4,35 +4,188 @@
   "category": "ingestion",
   "icon": "Server",
   "x-dagster-io": {
-    "outputs": {"type": "dataframe", "description": "One row per ServiceNow record"}
+    "outputs": {
+      "type": "dataframe",
+      "description": "One row per ServiceNow record"
+    }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true, "description": "Name of the asset to create"},
-    "instance_env_var": {"type": "string", "label": "Instance Env Var", "required": true, "description": "Env var with the ServiceNow instance subdomain (e.g. 'mycompany' or 'dev123456'). Subdomain only — no https:// or .service-now.com."},
-    "username_env_var": {"type": "string", "label": "Username Env Var", "required": false, "description": "Env var with ServiceNow username (basic auth). Required unless bearer_token_env_var is set."},
-    "password_env_var": {"type": "string", "label": "Password Env Var", "required": false, "description": "Env var with ServiceNow password (basic auth). Required unless bearer_token_env_var is set."},
-    "bearer_token_env_var": {"type": "string", "label": "Bearer Token Env Var", "required": false, "description": "Env var with ServiceNow OAuth bearer token. When set, basic-auth fields are ignored."},
-    "table": {"type": "string", "label": "Table", "required": true, "description": "ServiceNow table name (e.g. incident, change_request, sc_request, sys_user, cmdb_ci, or a custom table)."},
-    "sysparm_query": {"type": "string", "label": "Sysparm Query", "required": false, "description": "ServiceNow encoded query string filter (e.g. 'state=approved^priority=1'). See ServiceNow docs on encoded queries."},
-    "sysparm_fields": {"type": "string", "label": "Sysparm Fields", "required": false, "description": "Comma-separated list of fields to return. Defaults to all fields if unset."},
-    "sysparm_display_value": {"type": "string", "label": "Sysparm Display Value", "required": false, "default": "false", "description": "Reference-field display: 'false' = sys_id only (raw), 'true' = display value only, 'all' = both.", "enum": ["false", "true", "all"]},
-    "page_size": {"type": "integer", "label": "Page Size", "required": false, "default": 1000, "description": "Records fetched per API call (sysparm_limit). Default 1000."},
-    "max_records": {"type": "integer", "label": "Max Records", "required": false, "description": "Cap on total records returned. None = no cap."},
-    "verify_ssl": {"type": "boolean", "label": "Verify SSL", "required": false, "default": true, "description": "Enable TLS verification (disable only for self-signed dev instances).", "ui:widget": "checkbox"},
-    "group_name": {"type": "string", "label": "Group Name", "required": false, "description": "Dagster asset group name"},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "deps": {"type": "array", "items": {"type": "string"}, "label": "Deps", "required": false, "description": "Lineage-only upstream asset keys"},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false},
-    "asset_tags": {"type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false},
-    "freshness_max_lag_minutes": {"type": "integer", "label": "Freshness Max Lag (minutes)", "required": false},
-    "freshness_cron": {"type": "string", "label": "Freshness Cron", "required": false},
-    "retry_policy_max_retries": {"type": "integer", "label": "Retry Max Retries", "required": false},
-    "retry_policy_delay_seconds": {"type": "integer", "label": "Retry Delay (seconds)", "required": false},
-    "retry_policy_backoff": {"type": "string", "label": "Retry Backoff", "required": false, "default": "exponential"},
-    "include_preview_metadata": {"type": "boolean", "label": "Include Preview", "required": false, "default": false},
-    "preview_rows": {"type": "integer", "label": "Preview Rows", "required": false, "default": 25}
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Name of the asset to create"
+    },
+    "instance_env_var": {
+      "type": "string",
+      "label": "Instance Env Var",
+      "required": true,
+      "description": "Env var with the ServiceNow instance subdomain (e.g. 'mycompany' or 'dev123456'). Subdomain only \u2014 no https:// or .service-now.com."
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "required": false,
+      "description": "Env var with ServiceNow username (basic auth). Required unless bearer_token_env_var is set."
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "required": false,
+      "description": "Env var with ServiceNow password (basic auth). Required unless bearer_token_env_var is set."
+    },
+    "bearer_token_env_var": {
+      "type": "string",
+      "label": "Bearer Token Env Var",
+      "required": false,
+      "description": "Env var with ServiceNow OAuth bearer token. When set, basic-auth fields are ignored."
+    },
+    "table": {
+      "type": "string",
+      "label": "Table",
+      "required": true,
+      "description": "ServiceNow table name (e.g. incident, change_request, sc_request, sys_user, cmdb_ci, or a custom table)."
+    },
+    "sysparm_query": {
+      "type": "string",
+      "label": "Sysparm Query",
+      "required": false,
+      "description": "ServiceNow encoded query string filter (e.g. 'state=approved^priority=1'). See ServiceNow docs on encoded queries."
+    },
+    "sysparm_fields": {
+      "type": "string",
+      "label": "Sysparm Fields",
+      "required": false,
+      "description": "Comma-separated list of fields to return. Defaults to all fields if unset."
+    },
+    "sysparm_display_value": {
+      "type": "string",
+      "label": "Sysparm Display Value",
+      "required": false,
+      "default": "false",
+      "description": "Reference-field display: 'false' = sys_id only (raw), 'true' = display value only, 'all' = both.",
+      "enum": [
+        "false",
+        "true",
+        "all"
+      ]
+    },
+    "page_size": {
+      "type": "integer",
+      "label": "Page Size",
+      "required": false,
+      "default": 1000,
+      "description": "Records fetched per API call (sysparm_limit). Default 1000."
+    },
+    "max_records": {
+      "type": "integer",
+      "label": "Max Records",
+      "required": false,
+      "description": "Cap on total records returned. None = no cap."
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "label": "Verify SSL",
+      "required": false,
+      "default": true,
+      "description": "Enable TLS verification (disable only for self-signed dev instances).",
+      "ui:widget": "checkbox"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "description": "Dagster asset group name"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "description": "Lineage-only upstream asset keys"
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag (minutes)",
+      "required": false
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "required": false,
+      "x-dagster-widget": "cron"
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Delay (seconds)",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Backoff",
+      "required": false,
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview",
+      "required": false,
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "required": false,
+      "default": 25
+    }
   },
-  "tags": ["ingestion", "servicenow", "itsm", "incidents", "change-management", "rest-api"],
+  "tags": [
+    "ingestion",
+    "servicenow",
+    "itsm",
+    "incidents",
+    "change-management",
+    "rest-api"
+  ],
   "name": "ServiceNow Ingestion"
 }

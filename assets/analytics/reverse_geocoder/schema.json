@@ -32,14 +32,16 @@
       "label": "Lat Column",
       "description": "Column name containing latitude values",
       "required": false,
-      "default": "latitude"
+      "default": "latitude",
+      "x-dagster-widget": "column"
     },
     "lng_column": {
       "type": "string",
       "label": "Lng Column",
       "description": "Column name containing longitude values",
       "required": false,
-      "default": "longitude"
+      "default": "longitude",
+      "x-dagster-widget": "column"
     },
     "provider": {
       "type": "string",
@@ -67,21 +69,24 @@
       "label": "Output Address Column",
       "description": "Column name for the full resolved address",
       "required": false,
-      "default": "address"
+      "default": "address",
+      "x-dagster-widget": "column"
     },
     "output_city_column": {
       "type": "string",
       "label": "Output City Column",
       "description": "Optional column name for the city name",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "output_country_column": {
       "type": "string",
       "label": "Output Country Column",
       "description": "Optional column name for the country name",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "timeout": {
       "type": "integer",
@@ -132,7 +137,8 @@
       "label": "Partition Date Column",
       "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "partition_values": {
       "type": "string",
@@ -146,14 +152,16 @@
       "label": "Static Dimension Name",
       "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "partition_static_column": {
       "type": "string",
       "label": "Static Partition Column",
       "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "owners": {
       "type": "array",
@@ -194,7 +202,8 @@
       "label": "Freshness Cron Schedule",
       "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "cron"
     },
     "column_lineage": {
       "type": "object",
@@ -229,7 +238,13 @@
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,
-      "default": "exponential"
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
     },
     "description": {
       "type": "string",

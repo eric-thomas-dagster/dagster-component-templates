@@ -19,7 +19,13 @@
       "type": "string",
       "label": "Mode",
       "required": false,
-      "description": "`string`: convert a column of Python str values in place. `file`: read each file path's bytes, recode, write a new file."
+      "description": "`string`: convert a column of Python str values in place. `file`: read each file path's bytes, recode, write a new file.",
+      "enum": [
+        "append",
+        "overwrite",
+        "upsert"
+      ],
+      "ui:widget": "select"
     },
     "from_codec": {
       "type": "string",
@@ -44,19 +50,22 @@
       "type": "string",
       "label": "Source Column",
       "required": false,
-      "description": "mode='string': column of str values to convert. Required for string mode."
+      "description": "mode='string': column of str values to convert. Required for string mode.",
+      "x-dagster-widget": "column"
     },
     "target_column": {
       "type": "string",
       "label": "Target Column",
       "required": false,
-      "description": "mode='string': new column to write the result into. If equal to `source_column`, overwrites in place. Default: source_column."
+      "description": "mode='string': new column to write the result into. If equal to `source_column`, overwrites in place. Default: source_column.",
+      "x-dagster-widget": "column"
     },
     "source_path_column": {
       "type": "string",
       "label": "Source Path Column",
       "required": false,
-      "description": "mode='file': column of input file paths. Required for file mode."
+      "description": "mode='file': column of input file paths. Required for file mode.",
+      "x-dagster-widget": "column"
     },
     "output_dir": {
       "type": "string",
@@ -76,7 +85,8 @@
       "label": "Output Path Column",
       "required": false,
       "description": "mode='file': column to write the output file path into.",
-      "default": "converted_path"
+      "default": "converted_path",
+      "x-dagster-widget": "column"
     },
     "description": {
       "type": "string",

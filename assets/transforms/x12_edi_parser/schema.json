@@ -20,7 +20,8 @@
       "label": "Message Column",
       "required": false,
       "description": "Column holding the raw X12 message (segment-terminated text).",
-      "default": "message"
+      "default": "message",
+      "x-dagster-widget": "column"
     },
     "description": {
       "type": "string",

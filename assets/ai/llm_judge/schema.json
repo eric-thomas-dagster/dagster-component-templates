@@ -31,14 +31,16 @@
       "type": "string",
       "label": "Response Column",
       "description": "Column containing LLM responses to evaluate",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "column"
     },
     "reference_column": {
       "type": "string",
       "label": "Reference Column",
       "description": "Column containing reference/ground truth (if available)",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "criteria": {
       "type": "array",
@@ -52,14 +54,16 @@
       "label": "Score Column",
       "description": "Column to write numeric score (0-10)",
       "required": false,
-      "default": "judge_score"
+      "default": "judge_score",
+      "x-dagster-widget": "column"
     },
     "reason_column": {
       "type": "string",
       "label": "Reason Column",
       "description": "Column to write explanation",
       "required": false,
-      "default": "judge_reason"
+      "default": "judge_reason",
+      "x-dagster-widget": "column"
     },
     "model": {
       "type": "string",
@@ -119,7 +123,8 @@
       "label": "Partition Date Column",
       "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "partition_values": {
       "type": "string",
@@ -133,14 +138,16 @@
       "label": "Static Dimension Name",
       "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "partition_static_column": {
       "type": "string",
       "label": "Static Partition Column",
       "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "owners": {
       "type": "array",
@@ -181,7 +188,8 @@
       "label": "Freshness Cron Schedule",
       "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "cron"
     },
     "column_lineage": {
       "type": "object",
@@ -216,7 +224,13 @@
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,
-      "default": "exponential"
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
     },
     "description": {
       "type": "string",

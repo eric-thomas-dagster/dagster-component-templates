@@ -31,14 +31,16 @@
       "type": "string",
       "label": "Image Column",
       "description": "Column with image file paths",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "column"
     },
     "output_column": {
       "type": "string",
       "label": "Output Column",
       "description": "Column to write extracted text",
       "required": false,
-      "default": "ocr_text"
+      "default": "ocr_text",
+      "x-dagster-widget": "column"
     },
     "language": {
       "type": "string",
@@ -66,7 +68,8 @@
       "label": "Confidence Column",
       "description": "If set, write mean OCR confidence to this column",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "group_name": {
       "type": "string",
@@ -103,7 +106,8 @@
       "label": "Partition Date Column",
       "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "partition_values": {
       "type": "string",
@@ -117,14 +121,16 @@
       "label": "Static Dimension Name",
       "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "partition_static_column": {
       "type": "string",
       "label": "Static Partition Column",
       "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "owners": {
       "type": "array",
@@ -165,7 +171,8 @@
       "label": "Freshness Cron Schedule",
       "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "cron"
     },
     "column_lineage": {
       "type": "object",
@@ -200,7 +207,13 @@
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,
-      "default": "exponential"
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
     },
     "description": {
       "type": "string",

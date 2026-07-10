@@ -20,7 +20,8 @@
       "label": "Message Column",
       "required": false,
       "description": "Column holding the raw HL7 v2 message (\\r-delimited segments).",
-      "default": "message"
+      "default": "message",
+      "x-dagster-widget": "column"
     },
     "keep_segments": {
       "type": "array",

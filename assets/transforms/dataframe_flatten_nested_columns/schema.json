@@ -22,7 +22,8 @@
       "description": "Explicit columns to flatten. Default: every column with at least one dict/list value.",
       "items": {
         "type": "string"
-      }
+      },
+      "x-dagster-widget": "columns"
     },
     "exclude_columns": {
       "type": "array",
@@ -31,7 +32,8 @@
       "description": "Skip these columns even if they contain dicts/lists.",
       "items": {
         "type": "string"
-      }
+      },
+      "x-dagster-widget": "columns"
     },
     "description": {
       "type": "string",

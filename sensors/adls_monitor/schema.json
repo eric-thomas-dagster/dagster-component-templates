@@ -83,7 +83,12 @@
       "label": "Default Status",
       "description": "Default Status",
       "required": false,
-      "default": "running"
+      "default": "running",
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ],
+      "ui:widget": "select"
     },
     "partition_mode": {
       "type": "string",
@@ -91,7 +96,11 @@
       "description": "How detected ADLS files are surfaced. 'run_config' (default), 'dynamic_partition' (registers each new file path as a dynamic partition), or 'both'. Pair with file_ingestion's matching input mode.",
       "required": false,
       "default": "run_config",
-      "enum": ["run_config", "dynamic_partition", "both"]
+      "enum": [
+        "run_config",
+        "dynamic_partition",
+        "both"
+      ]
     },
     "dynamic_partitions_name": {
       "type": "string",

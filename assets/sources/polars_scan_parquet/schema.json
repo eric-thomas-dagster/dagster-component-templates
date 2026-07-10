@@ -10,25 +10,92 @@
     }
   },
   "attributes": {
-    "asset_name":   {"type": "string", "required": true, "label": "Asset Name"},
-    "path":         {"type": "string", "required": true, "label": "Path / Glob",
-                     "description": "Local path, glob, or cloud URI (s3:// / gs:// / az://)"},
-    "columns":      {"type": "array", "items": {"type": "string"}, "label": "Columns",
-                     "description": "Projection pushdown — only these columns are read off disk."},
-    "predicate":    {"type": "string", "label": "Predicate",
-                     "description": "SQL predicate pushed down to the parquet reader."},
-    "storage_options": {"type": "object", "label": "Storage Options",
-                        "description": "Cloud auth options for polars/object_store."},
-    "output_type":  {"type": "string", "label": "Output Type", "enum": ["polars", "pandas"], "default": "polars"},
-    "n_rows":       {"type": "integer", "label": "Max Rows", "description": "LIMIT — pushed down."},
-    "streaming":    {"type": "boolean", "label": "Streaming", "default": false},
-    "group_name":   {"type": "string", "label": "Asset Group"},
-    "description":  {"type": "string"},
-    "asset_tags":   {"type": "object"},
-    "kinds":        {"type": "array", "items": {"type": "string"}},
-    "owners":       {"type": "array", "items": {"type": "string"}},
-    "deps":         {"type": "array", "items": {"type": "string"}},
-    "include_preview_metadata": {"type": "boolean", "default": false},
-    "preview_rows": {"type": "integer", "default": 25, "minimum": 1, "maximum": 500}
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name"
+    },
+    "path": {
+      "type": "string",
+      "required": true,
+      "label": "Path / Glob",
+      "description": "Local path, glob, or cloud URI (s3:// / gs:// / az://)"
+    },
+    "columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Columns",
+      "description": "Projection pushdown \u2014 only these columns are read off disk.",
+      "x-dagster-widget": "columns"
+    },
+    "predicate": {
+      "type": "string",
+      "label": "Predicate",
+      "description": "SQL predicate pushed down to the parquet reader."
+    },
+    "storage_options": {
+      "type": "object",
+      "label": "Storage Options",
+      "description": "Cloud auth options for polars/object_store."
+    },
+    "output_type": {
+      "type": "string",
+      "label": "Output Type",
+      "enum": [
+        "polars",
+        "pandas"
+      ],
+      "default": "polars"
+    },
+    "n_rows": {
+      "type": "integer",
+      "label": "Max Rows",
+      "description": "LIMIT \u2014 pushed down."
+    },
+    "streaming": {
+      "type": "boolean",
+      "label": "Streaming",
+      "default": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Asset Group"
+    },
+    "description": {
+      "type": "string"
+    },
+    "asset_tags": {
+      "type": "object"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "default": 25,
+      "minimum": 1,
+      "maximum": 500
+    }
   }
 }

@@ -65,7 +65,13 @@
       "label": "Mode",
       "required": false,
       "description": "'per_row': one email per upstream row, using row fields in templates. 'summary': one email per run, with all rows rendered in the body via summary_template.",
-      "default": "per_row"
+      "default": "per_row",
+      "enum": [
+        "append",
+        "overwrite",
+        "upsert"
+      ],
+      "ui:widget": "select"
     },
     "to_template": {
       "type": "string",
@@ -118,7 +124,8 @@
       "description": "Columns whose values are local file paths to attach. Per row in per_row mode; in summary mode, deduplicated across all rows.",
       "items": {
         "type": "string"
-      }
+      },
+      "x-dagster-widget": "columns"
     },
     "dry_run": {
       "type": "boolean",

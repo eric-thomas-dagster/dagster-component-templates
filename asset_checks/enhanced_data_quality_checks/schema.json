@@ -15,7 +15,8 @@
       "label": "Group By",
       "description": "Column to group by for analysis",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "columns"
     },
     "allowed_failures": {
       "type": "integer",
@@ -68,7 +69,8 @@
       "label": "Columns",
       "description": "Columns to check for null values",
       "required": true,
-      "ui:widget": "list"
+      "ui:widget": "list",
+      "x-dagster-widget": "columns"
     },
     "metric": {
       "type": "string",
@@ -250,7 +252,8 @@
       "label": "Join Columns",
       "description": "Columns to join on between source and destination",
       "required": true,
-      "ui:widget": "list"
+      "ui:widget": "list",
+      "x-dagster-widget": "columns"
     },
     "validation_type": {
       "type": "string",
@@ -263,7 +266,8 @@
       "label": "Aggregate Column",
       "description": "Aggregate Column",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "aggregate_function": {
       "type": "string",
@@ -376,7 +380,8 @@
       "label": "Time Filter Column",
       "description": "Time Filter Column",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "hours_back": {
       "type": "integer",

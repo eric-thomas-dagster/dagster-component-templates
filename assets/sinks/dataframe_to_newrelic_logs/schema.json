@@ -42,13 +42,15 @@
       "type": "string",
       "label": "Timestamp Column",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "message_column": {
       "type": "string",
       "label": "Message Column",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "batch_size": {
       "type": "integer",

@@ -37,7 +37,8 @@
       "type": "string",
       "label": "Title Column",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "entity_selector": {
       "type": "string",
@@ -52,7 +53,8 @@
       "default": null,
       "items": {
         "type": "string"
-      }
+      },
+      "x-dagster-widget": "columns"
     },
     "group_name": {
       "type": "string",

@@ -56,7 +56,17 @@
       "label": "Partition Type",
       "description": "'daily'|'weekly'|'monthly'|'hourly'|'static'|'dynamic'|'multi', or None for unpartitioned.",
       "required": false,
-      "default": null
+      "default": null,
+      "enum": [
+        "daily",
+        "hourly",
+        "weekly",
+        "monthly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
+      "ui:widget": "select"
     },
     "partition_start": {
       "type": "string",

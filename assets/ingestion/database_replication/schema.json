@@ -40,9 +40,19 @@
       "description": "Source database type",
       "required": true,
       "enum": [
-        "postgres", "mysql", "mssql", "oracle", "db2",
-        "snowflake", "bigquery", "redshift", "databricks",
-        "duckdb", "clickhouse", "mariadb", "sqlite"
+        "postgres",
+        "mysql",
+        "mssql",
+        "oracle",
+        "db2",
+        "snowflake",
+        "bigquery",
+        "redshift",
+        "databricks",
+        "duckdb",
+        "clickhouse",
+        "mariadb",
+        "sqlite"
       ],
       "ui:widget": "select"
     },
@@ -52,22 +62,32 @@
       "description": "Target database type",
       "required": true,
       "enum": [
-        "postgres", "mysql", "mssql", "oracle", "db2",
-        "snowflake", "bigquery", "redshift", "databricks",
-        "duckdb", "clickhouse", "mariadb", "sqlite"
+        "postgres",
+        "mysql",
+        "mssql",
+        "oracle",
+        "db2",
+        "snowflake",
+        "bigquery",
+        "redshift",
+        "databricks",
+        "duckdb",
+        "clickhouse",
+        "mariadb",
+        "sqlite"
       ],
       "ui:widget": "select"
     },
     "source_table": {
       "type": "string",
       "label": "Source Table",
-      "description": "Source table — 'table' or 'schema.table'",
+      "description": "Source table \u2014 'table' or 'schema.table'",
       "required": true
     },
     "target_table": {
       "type": "string",
       "label": "Target Table",
-      "description": "Target table — 'table' or 'schema.table'",
+      "description": "Target table \u2014 'table' or 'schema.table'",
       "required": true
     },
     "mode": {
@@ -76,7 +96,12 @@
       "description": "full_refresh / incremental / snapshot / truncate",
       "required": false,
       "default": "full_refresh",
-      "enum": ["full_refresh", "incremental", "snapshot", "truncate"],
+      "enum": [
+        "full_refresh",
+        "incremental",
+        "snapshot",
+        "truncate"
+      ],
       "ui:widget": "select"
     },
     "incremental_column": {
@@ -84,21 +109,27 @@
       "label": "Incremental Column",
       "description": "Watermark column (required when mode='incremental')",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "primary_key": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Primary Key",
       "description": "Primary key for upserts in incremental mode",
       "required": false
     },
     "select_columns": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Select Columns",
       "description": "Subset of columns to replicate (default: all)",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "columns"
     },
     "where_clause": {
       "type": "string",
@@ -119,7 +150,9 @@
     },
     "owners": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Owners",
       "required": false,
       "ui:widget": "list"
@@ -132,18 +165,29 @@
     },
     "kinds": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Kinds",
       "required": false,
       "ui:widget": "list"
     },
     "deps": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Deps",
       "required": false
     }
   },
-  "tags": ["ingestion", "replication", "sling", "elt", "migration", "warehouse"],
+  "tags": [
+    "ingestion",
+    "replication",
+    "sling",
+    "elt",
+    "migration",
+    "warehouse"
+  ],
   "name": "Database Replication"
 }

@@ -35,7 +35,12 @@
     },
     "provider": {
       "type": "string",
-      "enum": ["openrouteservice", "google", "mapbox", "osrm"],
+      "enum": [
+        "openrouteservice",
+        "google",
+        "mapbox",
+        "osrm"
+      ],
       "default": "openrouteservice",
       "label": "Provider",
       "description": "Routing provider"
@@ -53,7 +58,11 @@
     },
     "profile": {
       "type": "string",
-      "enum": ["driving-car", "foot-walking", "cycling-regular"],
+      "enum": [
+        "driving-car",
+        "foot-walking",
+        "cycling-regular"
+      ],
       "default": "driving-car",
       "label": "Profile",
       "description": "Travel mode"
@@ -62,17 +71,20 @@
       "type": "string",
       "default": "geometry",
       "label": "Geometry Column",
-      "description": "Input + output geometry column name"
+      "description": "Input + output geometry column name",
+      "x-dagster-widget": "column"
     },
     "latitude_column": {
       "type": "string",
       "label": "Latitude Column",
-      "description": "If the input has no geometry column yet, name the lat column here + longitude_column"
+      "description": "If the input has no geometry column yet, name the lat column here + longitude_column",
+      "x-dagster-widget": "column"
     },
     "longitude_column": {
       "type": "string",
       "label": "Longitude Column",
-      "description": "Pair with latitude_column when input has no geometry"
+      "description": "Pair with latitude_column when input has no geometry",
+      "x-dagster-widget": "column"
     },
     "group_name": {
       "type": "string",

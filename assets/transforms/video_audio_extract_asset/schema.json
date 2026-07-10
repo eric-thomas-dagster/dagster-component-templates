@@ -19,7 +19,8 @@
       "type": "string",
       "label": "Video Path Column",
       "required": false,
-      "default": "file_path"
+      "default": "file_path",
+      "x-dagster-widget": "column"
     },
     "output_dir": {
       "type": "string",
@@ -37,7 +38,8 @@
       "type": "string",
       "label": "Output Path Column",
       "required": false,
-      "default": "audio_path"
+      "default": "audio_path",
+      "x-dagster-widget": "column"
     },
     "target_format": {
       "type": "string",

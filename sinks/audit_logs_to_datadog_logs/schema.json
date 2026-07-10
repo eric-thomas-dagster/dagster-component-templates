@@ -26,9 +26,16 @@
     "site": {
       "type": "string",
       "label": "Site",
-      "description": "datadoghq.com | datadoghq.eu | us3.datadoghq.com | ...",
+      "description": "One of: datadoghq.com / datadoghq.eu / us3.datadoghq.com / ....",
       "required": false,
-      "default": "datadoghq.com"
+      "default": "datadoghq.com",
+      "enum": [
+        "datadoghq.com",
+        "datadoghq.eu",
+        "us3.datadoghq.com",
+        "..."
+      ],
+      "ui:widget": "select"
     },
     "service": {
       "type": "string",
@@ -105,7 +112,13 @@
       "label": "Retry Policy Backoff",
       "description": "Retry Policy Backoff",
       "required": false,
-      "default": "exponential"
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
     }
   }
 }

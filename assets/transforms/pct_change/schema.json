@@ -31,7 +31,8 @@
       "type": "string",
       "label": "Value Column",
       "description": "Column to compute period-over-period change on.",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "column"
     },
     "order_by": {
       "type": "string",
@@ -41,12 +42,15 @@
     },
     "group_by": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Group By",
       "description": "Group columns. Change is computed *within* each group (e.g. growth per customer).",
       "required": false,
       "default": null,
-      "ui:widget": "list"
+      "ui:widget": "list",
+      "x-dagster-widget": "columns"
     },
     "periods": {
       "type": "integer",
@@ -59,13 +63,15 @@
       "type": "string",
       "label": "Diff Column",
       "description": "Override the output column name for absolute diff. Default: '<value_column>_diff'.",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "column"
     },
     "pct_column": {
       "type": "string",
       "label": "Pct Column",
       "description": "Override the output column name for percent change. Default: '<value_column>_pct'.",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "column"
     },
     "as_percent": {
       "type": "boolean",
@@ -118,7 +124,8 @@
       "label": "Partition Date Column",
       "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "partition_values": {
       "type": "string",
@@ -132,14 +139,16 @@
       "label": "Static Dimension Name",
       "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "partition_static_column": {
       "type": "string",
       "label": "Static Partition Column",
       "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "owners": {
       "type": "array",
@@ -180,7 +189,8 @@
       "label": "Freshness Cron Schedule",
       "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "cron"
     },
     "column_lineage": {
       "type": "object",
@@ -228,7 +238,13 @@
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,
-      "default": "exponential"
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
     },
     "dynamic_partition_name": {
       "type": "string",

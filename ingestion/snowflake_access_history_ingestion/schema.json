@@ -52,9 +52,15 @@
     "table": {
       "type": "string",
       "label": "Table",
-      "description": "ACCESS_HISTORY | LOGIN_HISTORY | QUERY_HISTORY",
+      "description": "One of: ACCESS_HISTORY / LOGIN_HISTORY / QUERY_HISTORY.",
       "required": false,
-      "default": "ACCESS_HISTORY"
+      "default": "ACCESS_HISTORY",
+      "enum": [
+        "ACCESS_HISTORY",
+        "LOGIN_HISTORY",
+        "QUERY_HISTORY"
+      ],
+      "ui:widget": "select"
     },
     "description": {
       "type": "string",
@@ -103,7 +109,8 @@
       "type": "string",
       "label": "Freshness Cron",
       "description": "Freshness Cron",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "cron"
     },
     "retry_policy_max_retries": {
       "type": "integer",
@@ -122,7 +129,13 @@
       "label": "Retry Policy Backoff",
       "description": "Retry Policy Backoff",
       "required": false,
-      "default": "exponential"
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
     },
     "include_preview_metadata": {
       "type": "boolean",

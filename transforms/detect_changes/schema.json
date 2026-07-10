@@ -26,13 +26,15 @@
       "type": "array",
       "label": "Business Key Columns",
       "description": "Natural-key columns",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "columns"
     },
     "compare_columns": {
       "type": "array",
       "label": "Compare Columns",
       "description": "Columns whose values are compared for 'update' (None = all non-key)",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "columns"
     },
     "include_unchanged": {
       "type": "boolean",
@@ -46,7 +48,8 @@
       "label": "Change Type Column",
       "description": "Change Type Column",
       "required": false,
-      "default": "change_type"
+      "default": "change_type",
+      "x-dagster-widget": "column"
     },
     "description": {
       "type": "string",

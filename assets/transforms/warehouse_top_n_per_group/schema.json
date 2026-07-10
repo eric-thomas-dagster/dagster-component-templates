@@ -4,30 +4,118 @@
   "category": "transformation",
   "icon": "BarChart",
   "x-dagster-io": {
-    "inputs":  {"type": "table", "required": true},
-    "outputs": {"type": "table"}
+    "inputs": {
+      "type": "table",
+      "required": true
+    },
+    "outputs": {
+      "type": "table"
+    }
   },
   "attributes": {
-    "asset_name":           {"type": "string", "required": true},
-    "database_url":         {"type": "string"},
-    "database_url_env_var": {"type": "string"},
-    "dialect":              {"type": "string", "required": true,
-                             "enum": ["duckdb","postgres","postgresql","snowflake","bigquery","redshift","databricks","mssql","mysql"]},
-    "upstream_table":       {"type": "string", "required": true},
-    "output_table":         {"type": "string", "required": true},
-    "group_by":             {"type": "array", "items": {"type": "string"}, "required": true},
-    "sort_by":              {"type": "string", "required": true},
-    "n":                    {"type": "integer", "default": 3, "minimum": 1},
-    "ascending":            {"type": "boolean", "default": false},
-    "rank_column":          {"type": "string"},
-    "mode":                 {"type": "string", "enum": ["replace","create_if_not_exists"], "default": "replace"},
-    "group_name":           {"type": "string"},
-    "deps":                 {"type": "array", "items": {"type": "string"}},
-    "owners":               {"type": "array", "items": {"type": "string"}},
-    "description":          {"type": "string"},
-    "asset_tags":           {"type": "object"},
-    "kinds":                {"type": "array", "items": {"type": "string"}},
-    "include_preview_metadata": {"type": "boolean", "default": false},
-    "preview_rows":         {"type": "integer", "default": 25, "minimum": 1, "maximum": 200}
+    "asset_name": {
+      "type": "string",
+      "required": true
+    },
+    "database_url": {
+      "type": "string"
+    },
+    "database_url_env_var": {
+      "type": "string"
+    },
+    "dialect": {
+      "type": "string",
+      "required": true,
+      "enum": [
+        "duckdb",
+        "postgres",
+        "postgresql",
+        "snowflake",
+        "bigquery",
+        "redshift",
+        "databricks",
+        "mssql",
+        "mysql"
+      ]
+    },
+    "upstream_table": {
+      "type": "string",
+      "required": true
+    },
+    "output_table": {
+      "type": "string",
+      "required": true
+    },
+    "group_by": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "required": true,
+      "x-dagster-widget": "columns"
+    },
+    "sort_by": {
+      "type": "string",
+      "required": true,
+      "x-dagster-widget": "columns"
+    },
+    "n": {
+      "type": "integer",
+      "default": 3,
+      "minimum": 1
+    },
+    "ascending": {
+      "type": "boolean",
+      "default": false
+    },
+    "rank_column": {
+      "type": "string",
+      "x-dagster-widget": "column"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "replace",
+        "create_if_not_exists"
+      ],
+      "default": "replace"
+    },
+    "group_name": {
+      "type": "string"
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "description": {
+      "type": "string"
+    },
+    "asset_tags": {
+      "type": "object"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "default": 25,
+      "minimum": 1,
+      "maximum": 200
+    }
   }
 }

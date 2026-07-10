@@ -28,12 +28,14 @@
     "value_column": {
       "type": "string",
       "label": "Value Column",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "column"
     },
     "group_column": {
       "type": "string",
       "label": "Group Column",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "column"
     },
     "group_a": {
       "type": "string",
@@ -119,7 +121,8 @@
     "freshness_cron": {
       "type": "string",
       "label": "Freshness Cron",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "cron"
     },
     "column_lineage": {
       "type": "array",
@@ -132,7 +135,17 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "required": false
+      "required": false,
+      "enum": [
+        "daily",
+        "hourly",
+        "weekly",
+        "monthly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
+      "ui:widget": "select"
     },
     "partition_start": {
       "type": "string",
@@ -142,7 +155,8 @@
     "partition_date_column": {
       "type": "string",
       "label": "Partition Date Column",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "column"
     },
     "partition_values": {
       "type": "string",
@@ -152,12 +166,14 @@
     "partition_static_dim": {
       "type": "string",
       "label": "Partition Static Dim",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "column"
     },
     "partition_static_column": {
       "type": "string",
       "label": "Partition Static Column",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "column"
     },
     "retry_policy_max_retries": {
       "type": "integer",
@@ -173,7 +189,13 @@
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,
-      "default": "exponential"
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
     },
     "dynamic_partition_name": {
       "type": "string",

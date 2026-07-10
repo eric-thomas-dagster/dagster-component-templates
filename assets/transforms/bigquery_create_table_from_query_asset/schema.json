@@ -1,28 +1,138 @@
 {
   "component_type": "dagster_component_templates.BigQueryCreateTableFromQueryAssetComponent",
-  "description": "CTAS as a Dagster asset — CREATE OR REPLACE TABLE / VIEW / MATERIALIZED VIEW from a SELECT statement. The transform layer of any BQ-native ELT pipeline.",
+  "description": "CTAS as a Dagster asset \u2014 CREATE OR REPLACE TABLE / VIEW / MATERIALIZED VIEW from a SELECT statement. The transform layer of any BQ-native ELT pipeline.",
   "category": "transformation",
   "icon": "si:googlebigquery",
-  "x-dagster-io": {"outputs": {"type": "DataFrame", "description": "One-row DataFrame with destination table metadata."}},
-  "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "credentials": {"type": "object", "label": "Credentials (dict)", "required": false, "default": null},
-    "credentials_path": {"type": "string", "label": "Credentials Path", "required": false, "default": null},
-    "project_id": {"type": "string", "label": "Project ID", "required": false, "default": null},
-    "location": {"type": "string", "label": "Location", "required": false, "default": null},
-    "destination_table_id": {"type": "string", "label": "Destination Table ID", "required": true, "description": "Fully-qualified, e.g. project.dataset.table"},
-    "materialization": {"type": "string", "label": "Materialization", "required": false, "default": "table", "description": "table | view | materialized_view"},
-    "query": {"type": "string", "label": "Query", "required": true, "ui:widget": "textarea"},
-    "query_params": {"type": "object", "label": "Query Params", "required": false, "default": {}},
-    "table_options": {"type": "object", "label": "Table Options", "required": false, "default": null},
-    "partition_field": {"type": "string", "label": "Partition Field", "required": false, "default": null},
-    "cluster_fields": {"type": "array", "label": "Cluster Fields", "required": false, "items": {"type": "string"}},
-    "deps": {"type": "array", "label": "Deps", "required": false, "items": {"type": "string"}},
-    "description": {"type": "string", "label": "Description", "required": false, "default": null, "ui:widget": "textarea"},
-    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": null},
-    "tags": {"type": "object", "label": "Tags", "required": false},
-    "owners": {"type": "array", "label": "Owners", "required": false, "items": {"type": "string"}}
+  "x-dagster-io": {
+    "outputs": {
+      "type": "DataFrame",
+      "description": "One-row DataFrame with destination table metadata."
+    }
   },
-  "tags": ["transformation", "google", "bigquery", "ctas", "etl", "warehouse"],
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "credentials": {
+      "type": "object",
+      "label": "Credentials (dict)",
+      "required": false,
+      "default": null
+    },
+    "credentials_path": {
+      "type": "string",
+      "label": "Credentials Path",
+      "required": false,
+      "default": null
+    },
+    "project_id": {
+      "type": "string",
+      "label": "Project ID",
+      "required": false,
+      "default": null
+    },
+    "location": {
+      "type": "string",
+      "label": "Location",
+      "required": false,
+      "default": null
+    },
+    "destination_table_id": {
+      "type": "string",
+      "label": "Destination Table ID",
+      "required": true,
+      "description": "Fully-qualified, e.g. project.dataset.table"
+    },
+    "materialization": {
+      "type": "string",
+      "label": "Materialization",
+      "required": false,
+      "default": "table",
+      "description": "One of: table / view / materialized_view.",
+      "enum": [
+        "table",
+        "view",
+        "materialized_view"
+      ],
+      "ui:widget": "select"
+    },
+    "query": {
+      "type": "string",
+      "label": "Query",
+      "required": true,
+      "ui:widget": "textarea"
+    },
+    "query_params": {
+      "type": "object",
+      "label": "Query Params",
+      "required": false,
+      "default": {}
+    },
+    "table_options": {
+      "type": "object",
+      "label": "Table Options",
+      "required": false,
+      "default": null
+    },
+    "partition_field": {
+      "type": "string",
+      "label": "Partition Field",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "cluster_fields": {
+      "type": "array",
+      "label": "Cluster Fields",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "transformation",
+    "google",
+    "bigquery",
+    "ctas",
+    "etl",
+    "warehouse"
+  ],
   "name": "BigQuery CTAS"
 }

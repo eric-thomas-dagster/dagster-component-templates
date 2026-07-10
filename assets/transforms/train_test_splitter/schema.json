@@ -66,21 +66,24 @@
       "label": "Stratify Column",
       "description": "Class column to stratify on (preserves class balance). Random strategy only. Mutually exclusive with group_column.",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "group_column": {
       "type": "string",
       "label": "Group Column",
       "description": "Column whose values define groups; all rows in a group land in the same split. Prevents leakage on related rows.",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "time_column": {
       "type": "string",
       "label": "Time Column",
       "description": "Required for strategy='time'. Column to sort by; oldest rows go to train.",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "group_name": {
       "type": "string",
@@ -128,7 +131,8 @@
       "label": "Freshness Cron Schedule",
       "description": "Cron schedule for the freshness policy.",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "cron"
     },
     "column_lineage": {
       "type": "object",
@@ -165,7 +169,17 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "required": false
+      "required": false,
+      "enum": [
+        "daily",
+        "hourly",
+        "weekly",
+        "monthly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
+      "ui:widget": "select"
     },
     "partition_start": {
       "type": "string",
@@ -175,7 +189,8 @@
     "partition_date_column": {
       "type": "string",
       "label": "Partition Date Column",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "column"
     },
     "partition_values": {
       "type": "string",
@@ -185,12 +200,14 @@
     "partition_static_dim": {
       "type": "string",
       "label": "Partition Static Dim",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "column"
     },
     "partition_static_column": {
       "type": "string",
       "label": "Partition Static Column",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "column"
     },
     "retry_policy_max_retries": {
       "type": "integer",
@@ -206,7 +223,13 @@
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,
-      "default": "exponential"
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
     },
     "dynamic_partition_name": {
       "type": "string",

@@ -14,14 +14,20 @@
       "type": "string",
       "label": "Schedule",
       "description": "Cron schedule (None = no schedule)",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "cron"
     },
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "description": "STOPPED | RUNNING",
+      "description": "One of: STOPPED / RUNNING.",
       "required": false,
-      "default": "STOPPED"
+      "default": "STOPPED",
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ],
+      "ui:widget": "select"
     },
     "job_tags": {
       "type": "object",
@@ -63,7 +69,8 @@
       "type": "string",
       "label": "Mapping Key Field",
       "description": "If items are dicts, use this field as the DynamicOutput mapping_key (stable per-item retries). None = use the index.",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "column"
     },
     "max_concurrent_tag_value": {
       "type": "string",

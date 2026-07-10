@@ -1,26 +1,91 @@
 {
   "component_type": "dagster_component_templates.DataframeFromYxdbComponent",
-  "description": "Read an Alteryx .yxdb file as a pandas DataFrame asset. Wraps the import-yxdb package (preferred — whole-file → DataFrame) with a fallback to the lower-level yxdb iterator.",
+  "description": "Read an Alteryx .yxdb file as a pandas DataFrame asset. Wraps the import-yxdb package (preferred \u2014 whole-file \u2192 DataFrame) with a fallback to the lower-level yxdb iterator.",
   "category": "source",
   "icon": "Database",
   "x-dagster-io": {
-    "outputs": {"type": "dataframe", "description": "Pandas DataFrame from the .yxdb file"},
+    "outputs": {
+      "type": "dataframe",
+      "description": "Pandas DataFrame from the .yxdb file"
+    },
     "supports_partitions": false
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "file_path": {"type": "string", "label": "yxdb File Path", "description": "Path to .yxdb file. Supports env-var substitution.", "required": true},
-    "nrows": {"type": "integer", "label": "Row Limit", "description": "Optional cap on rows; null = all.", "required": false},
-    "group_name": {"type": "string", "label": "Group", "required": false},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "label": "Owners", "required": false},
-    "asset_tags": {"type": "object", "label": "Tags", "required": false},
-    "kinds": {"type": "array", "label": "Kinds", "description": "Defaults to ['alteryx', 'yxdb'].", "required": false},
-    "deps": {"type": "array", "label": "Lineage-Only Deps", "required": false},
-    "freshness_max_lag_minutes": {"type": "integer", "required": false},
-    "freshness_cron": {"type": "string", "required": false},
-    "retry_policy_max_retries": {"type": "integer", "required": false},
-    "retry_policy_delay_seconds": {"type": "integer", "required": false},
-    "retry_policy_backoff": {"type": "string", "enum": ["linear", "exponential"], "default": "exponential", "required": false}
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "file_path": {
+      "type": "string",
+      "label": "yxdb File Path",
+      "description": "Path to .yxdb file. Supports env-var substitution.",
+      "required": true
+    },
+    "nrows": {
+      "type": "integer",
+      "label": "Row Limit",
+      "description": "Optional cap on rows; null = all.",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Defaults to ['alteryx', 'yxdb'].",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "label": "Lineage-Only Deps",
+      "required": false
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "required": false
+    },
+    "freshness_cron": {
+      "type": "string",
+      "required": false,
+      "x-dagster-widget": "cron"
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "default": "exponential",
+      "required": false,
+      "description": "Retry backoff strategy: exponential (doubles the delay each time), linear (adds a fixed delay each time), or fixed (constant delay)."
+    }
   }
 }

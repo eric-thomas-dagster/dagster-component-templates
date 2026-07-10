@@ -1,35 +1,193 @@
 {
   "component_type": "dagster_component_templates.BigQueryLoadFromGcsAssetComponent",
-  "description": "Load one or more GCS objects into a BigQuery table using BQ's native load-job API (data never round-trips through the executor — fast at scale). The lake → warehouse step at the start of an ELT pipeline. Supports parquet, CSV, JSONL, AVRO, ORC, optional explicit schema, partitioning, and clustering on the destination.",
+  "description": "Load one or more GCS objects into a BigQuery table using BQ's native load-job API (data never round-trips through the executor \u2014 fast at scale). The lake \u2192 warehouse step at the start of an ELT pipeline. Supports parquet, CSV, JSONL, AVRO, ORC, optional explicit schema, partitioning, and clustering on the destination.",
   "category": "ingestion",
   "icon": "si:googlebigquery",
-  "x-dagster-io": {"outputs": {"type": "DataFrame", "description": "One-row DataFrame describing the load (rows_loaded, table_size_bytes, input_files, bytes_loaded)."}},
-  "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "credentials": {"type": "object", "label": "Credentials (dict)", "required": false, "default": null},
-    "credentials_path": {"type": "string", "label": "Credentials Path", "required": false, "default": null},
-    "project_id": {"type": "string", "label": "Project ID", "required": false, "default": null},
-    "location": {"type": "string", "label": "Location", "required": false, "default": null},
-    "source_uris": {"type": "array", "label": "Source URIs", "required": true, "items": {"type": "string"}, "description": "GCS URIs (glob/wildcard supported)."},
-    "destination_table_id": {"type": "string", "label": "Destination Table ID", "required": true},
-    "format": {"type": "string", "label": "Format", "required": false, "default": "parquet"},
-    "write_disposition": {"type": "string", "label": "Write Disposition", "required": false, "default": "WRITE_TRUNCATE"},
-    "create_disposition": {"type": "string", "label": "Create Disposition", "required": false, "default": "CREATE_IF_NEEDED"},
-    "autodetect": {"type": "boolean", "label": "Autodetect", "required": false, "default": true},
-    "table_schema": {"type": "array", "label": "Schema", "required": false, "default": null, "description": "Explicit schema [{name, type, mode?}, ...]. Used when autodetect=false."},
-    "skip_leading_rows": {"type": "integer", "label": "Skip Leading Rows", "required": false, "default": null},
-    "csv_field_delimiter": {"type": "string", "label": "CSV Field Delimiter", "required": false, "default": null},
-    "csv_quote": {"type": "string", "label": "CSV Quote", "required": false, "default": null},
-    "csv_allow_quoted_newlines": {"type": "boolean", "label": "CSV Allow Quoted Newlines", "required": false, "default": false},
-    "partition_field": {"type": "string", "label": "Partition Field", "required": false, "default": null},
-    "partition_type": {"type": "string", "label": "Partition Type", "required": false, "default": null, "description": "DAY | HOUR | MONTH | YEAR"},
-    "cluster_fields": {"type": "array", "label": "Cluster Fields", "required": false, "items": {"type": "string"}},
-    "deps": {"type": "array", "label": "Deps", "required": false, "items": {"type": "string"}},
-    "description": {"type": "string", "label": "Description", "required": false, "default": null, "ui:widget": "textarea"},
-    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": null},
-    "tags": {"type": "object", "label": "Tags", "required": false},
-    "owners": {"type": "array", "label": "Owners", "required": false, "items": {"type": "string"}}
+  "x-dagster-io": {
+    "outputs": {
+      "type": "DataFrame",
+      "description": "One-row DataFrame describing the load (rows_loaded, table_size_bytes, input_files, bytes_loaded)."
+    }
   },
-  "tags": ["ingestion", "google", "bigquery", "gcs", "load", "lake-to-warehouse"],
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "credentials": {
+      "type": "object",
+      "label": "Credentials (dict)",
+      "required": false,
+      "default": null
+    },
+    "credentials_path": {
+      "type": "string",
+      "label": "Credentials Path",
+      "required": false,
+      "default": null
+    },
+    "project_id": {
+      "type": "string",
+      "label": "Project ID",
+      "required": false,
+      "default": null
+    },
+    "location": {
+      "type": "string",
+      "label": "Location",
+      "required": false,
+      "default": null
+    },
+    "source_uris": {
+      "type": "array",
+      "label": "Source URIs",
+      "required": true,
+      "items": {
+        "type": "string"
+      },
+      "description": "GCS URIs (glob/wildcard supported)."
+    },
+    "destination_table_id": {
+      "type": "string",
+      "label": "Destination Table ID",
+      "required": true
+    },
+    "format": {
+      "type": "string",
+      "label": "Format",
+      "required": false,
+      "default": "parquet"
+    },
+    "write_disposition": {
+      "type": "string",
+      "label": "Write Disposition",
+      "required": false,
+      "default": "WRITE_TRUNCATE",
+      "enum": [
+        "WRITE_TRUNCATE",
+        "WRITE_APPEND",
+        "WRITE_EMPTY"
+      ],
+      "ui:widget": "select"
+    },
+    "create_disposition": {
+      "type": "string",
+      "label": "Create Disposition",
+      "required": false,
+      "default": "CREATE_IF_NEEDED"
+    },
+    "autodetect": {
+      "type": "boolean",
+      "label": "Autodetect",
+      "required": false,
+      "default": true
+    },
+    "table_schema": {
+      "type": "array",
+      "label": "Schema",
+      "required": false,
+      "default": null,
+      "description": "Explicit schema [{name, type, mode?}, ...]. Used when autodetect=false."
+    },
+    "skip_leading_rows": {
+      "type": "integer",
+      "label": "Skip Leading Rows",
+      "required": false,
+      "default": null
+    },
+    "csv_field_delimiter": {
+      "type": "string",
+      "label": "CSV Field Delimiter",
+      "required": false,
+      "default": null
+    },
+    "csv_quote": {
+      "type": "string",
+      "label": "CSV Quote",
+      "required": false,
+      "default": null
+    },
+    "csv_allow_quoted_newlines": {
+      "type": "boolean",
+      "label": "CSV Allow Quoted Newlines",
+      "required": false,
+      "default": false
+    },
+    "partition_field": {
+      "type": "string",
+      "label": "Partition Field",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "default": null,
+      "description": "One of: daily / hourly / weekly / monthly / static / multi / dynamic.",
+      "enum": [
+        "daily",
+        "hourly",
+        "weekly",
+        "monthly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
+      "ui:widget": "select"
+    },
+    "cluster_fields": {
+      "type": "array",
+      "label": "Cluster Fields",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "ingestion",
+    "google",
+    "bigquery",
+    "gcs",
+    "load",
+    "lake-to-warehouse"
+  ],
   "name": "BigQuery Load from GCS"
 }

@@ -31,18 +31,27 @@
       "type": "string",
       "label": "URL Column",
       "description": "Column whose value is the URL to fetch for each row",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "column"
     },
     "method": {
       "type": "string",
-      "enum": ["GET", "POST", "PUT", "DELETE", "HEAD"],
+      "enum": [
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE",
+        "HEAD"
+      ],
       "default": "GET",
       "label": "Method",
       "description": "HTTP method"
     },
     "headers": {
       "type": "object",
-      "additionalProperties": { "type": "string" },
+      "additionalProperties": {
+        "type": "string"
+      },
       "label": "Headers",
       "description": "Static headers sent with every request (e.g. Authorization)"
     },

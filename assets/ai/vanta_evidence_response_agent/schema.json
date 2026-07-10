@@ -22,7 +22,10 @@
       "description": "'openai' or 'anthropic'",
       "required": false,
       "default": "openai",
-      "enum": ["openai", "anthropic"]
+      "enum": [
+        "openai",
+        "anthropic"
+      ]
     },
     "model": {
       "type": "string",
@@ -43,25 +46,29 @@
       "type": "string",
       "label": "Control ID Column",
       "required": false,
-      "default": "control_id"
+      "default": "control_id",
+      "x-dagster-widget": "column"
     },
     "control_description_column": {
       "type": "string",
       "label": "Control Description Column",
       "required": false,
-      "default": "description"
+      "default": "description",
+      "x-dagster-widget": "column"
     },
     "context_column": {
       "type": "string",
       "label": "Context Column",
       "description": "Optional column with internal context (runbooks, tool inventories).",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "column"
     },
     "response_column": {
       "type": "string",
       "label": "Response Column",
       "required": false,
-      "default": "draft_response"
+      "default": "draft_response",
+      "x-dagster-widget": "column"
     },
     "temperature": {
       "type": "number",

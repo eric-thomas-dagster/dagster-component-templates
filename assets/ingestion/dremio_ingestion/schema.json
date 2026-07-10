@@ -10,37 +10,212 @@
     }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "host": {"type": "string", "label": "Host", "description": "Coordinator URL incl. scheme (e.g. 'http://localhost:9047').", "required": true},
-    "query": {"type": "string", "label": "SQL Query", "description": "Supports {partition_key} substitution.", "required": true, "ui:widget": "code"},
-    "auth_type": {"type": "string", "label": "Auth Type", "description": "'pat' (default, Dremio 24.0+) or 'password'.", "required": false, "default": "pat"},
-    "auth_token_env_var": {"type": "string", "label": "Auth Token Env Var", "required": false},
-    "auth_username_env_var": {"type": "string", "label": "Auth Username Env Var", "required": false},
-    "auth_password_env_var": {"type": "string", "label": "Auth Password Env Var", "required": false},
-    "transport": {"type": "string", "label": "Transport", "description": "'rest' (default) or 'flight' (faster, needs pyarrow).", "required": false, "default": "rest"},
-    "flight_port": {"type": "integer", "label": "Flight Port", "required": false, "default": 32010},
-    "page_size": {"type": "integer", "label": "Page Size", "required": false, "default": 500},
-    "poll_interval_seconds": {"type": "number", "label": "Poll Interval (s)", "required": false, "default": 1.0},
-    "poll_timeout_seconds": {"type": "integer", "label": "Poll Timeout (s)", "required": false, "default": 600},
-    "verify_ssl": {"type": "boolean", "label": "Verify SSL", "required": false, "default": true, "ui:widget": "checkbox"},
-    "description": {"type": "string", "label": "Description", "required": false, "ui:widget": "code"},
-    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "dremio"},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "asset_tags": {"type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
-    "freshness_max_lag_minutes": {"type": "integer", "label": "Freshness Max Lag (minutes)", "required": false},
-    "freshness_cron": {"type": "string", "label": "Freshness Cron", "required": false},
-    "include_preview_metadata": {"type": "boolean", "label": "Include Preview Metadata", "required": false, "default": true, "ui:widget": "checkbox"},
-    "preview_rows": {"type": "integer", "label": "Preview Rows", "required": false, "default": 25},
-    "deps": {"type": "array", "items": {"type": "string"}, "label": "Deps", "required": false, "ui:widget": "list"},
-    "partition_type": {"type": "string", "label": "Partition Type", "required": false},
-    "partition_start": {"type": "string", "label": "Partition Start", "required": false},
-    "partition_values": {"type": "string", "label": "Partition Values", "required": false},
-    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "required": false},
-    "retry_policy_max_retries": {"type": "integer", "label": "Retry Policy Max Retries", "required": false},
-    "retry_policy_delay_seconds": {"type": "integer", "label": "Retry Policy Delay Seconds", "required": false},
-    "retry_policy_backoff": {"type": "string", "label": "Retry Policy Backoff", "required": false, "default": "exponential"}
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "host": {
+      "type": "string",
+      "label": "Host",
+      "description": "Coordinator URL incl. scheme (e.g. 'http://localhost:9047').",
+      "required": true
+    },
+    "query": {
+      "type": "string",
+      "label": "SQL Query",
+      "description": "Supports {partition_key} substitution.",
+      "required": true,
+      "ui:widget": "code"
+    },
+    "auth_type": {
+      "type": "string",
+      "label": "Auth Type",
+      "description": "'pat' (default, Dremio 24.0+) or 'password'.",
+      "required": false,
+      "default": "pat"
+    },
+    "auth_token_env_var": {
+      "type": "string",
+      "label": "Auth Token Env Var",
+      "required": false
+    },
+    "auth_username_env_var": {
+      "type": "string",
+      "label": "Auth Username Env Var",
+      "required": false
+    },
+    "auth_password_env_var": {
+      "type": "string",
+      "label": "Auth Password Env Var",
+      "required": false
+    },
+    "transport": {
+      "type": "string",
+      "label": "Transport",
+      "description": "'rest' (default) or 'flight' (faster, needs pyarrow).",
+      "required": false,
+      "default": "rest"
+    },
+    "flight_port": {
+      "type": "integer",
+      "label": "Flight Port",
+      "required": false,
+      "default": 32010
+    },
+    "page_size": {
+      "type": "integer",
+      "label": "Page Size",
+      "required": false,
+      "default": 500
+    },
+    "poll_interval_seconds": {
+      "type": "number",
+      "label": "Poll Interval (s)",
+      "required": false,
+      "default": 1.0
+    },
+    "poll_timeout_seconds": {
+      "type": "integer",
+      "label": "Poll Timeout (s)",
+      "required": false,
+      "default": 600
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "label": "Verify SSL",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "dremio"
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag (minutes)",
+      "required": false
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "required": false,
+      "x-dagster-widget": "cron"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "required": false,
+      "default": 25
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "enum": [
+        "daily",
+        "hourly",
+        "weekly",
+        "monthly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "required": false
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "required": false
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
+    }
   },
-  "tags": ["ingestion", "dremio", "sap", "sql", "lakehouse"],
+  "tags": [
+    "ingestion",
+    "dremio",
+    "sap",
+    "sql",
+    "lakehouse"
+  ],
   "name": "Dremio Ingestion"
 }

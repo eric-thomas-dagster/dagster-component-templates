@@ -4,16 +4,57 @@
   "category": "jobs",
   "icon": "Clock",
   "attributes": {
-    "job_name":        {"type": "string",  "required": true},
-    "schedule":        {"type": "string",  "required": false, "description": "Cron expression (None = no schedule)."},
-    "default_status":  {"type": "string",  "required": false, "default": "STOPPED"},
-    "tags":            {"type": "object",  "required": false},
-
-    "dsn_env_var":     {"type": "string",  "required": false, "default": "SENTRY_DSN"},
-    "monitor_slug":    {"type": "string",  "required": true, "description": "Stable slug identifying the Sentry monitor."},
-    "environment":     {"type": "string",  "required": false},
-    "release":         {"type": "string",  "required": false},
-    "monitor_config":  {"type": "object",  "required": false, "description": "Sentry monitor_config dict (schedule/checkin_margin/max_runtime/timezone). Auto-creates monitor on first check-in when set."},
-    "fail_on_error":   {"type": "boolean", "required": false, "default": false}
+    "job_name": {
+      "type": "string",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "required": false,
+      "description": "Cron expression (None = no schedule).",
+      "x-dagster-widget": "cron"
+    },
+    "default_status": {
+      "type": "string",
+      "required": false,
+      "default": "STOPPED",
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ],
+      "ui:widget": "select"
+    },
+    "tags": {
+      "type": "object",
+      "required": false
+    },
+    "dsn_env_var": {
+      "type": "string",
+      "required": false,
+      "default": "SENTRY_DSN"
+    },
+    "monitor_slug": {
+      "type": "string",
+      "required": true,
+      "description": "Stable slug identifying the Sentry monitor."
+    },
+    "environment": {
+      "type": "string",
+      "required": false
+    },
+    "release": {
+      "type": "string",
+      "required": false
+    },
+    "monitor_config": {
+      "type": "object",
+      "required": false,
+      "description": "Sentry monitor_config dict (schedule/checkin_margin/max_runtime/timezone). Auto-creates monitor on first check-in when set."
+    },
+    "fail_on_error": {
+      "type": "boolean",
+      "required": false,
+      "default": false
+    }
   }
 }

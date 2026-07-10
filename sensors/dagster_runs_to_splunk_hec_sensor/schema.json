@@ -4,16 +4,82 @@
   "category": "sensor",
   "icon": "Bell",
   "attributes": {
-    "sensor_name": {"type": "string", "label": "Sensor Name", "description": "Dagster sensor name.", "required": true},
-    "hec_url_env_var": {"type": "string", "label": "HEC URL Env Var", "description": "Env var with Splunk HEC endpoint.", "required": true},
-    "hec_token_env_var": {"type": "string", "label": "HEC Token Env Var", "description": "Env var with Splunk HEC token.", "required": true},
-    "index": {"type": "string", "label": "Index", "description": "Splunk index. Defaults to HEC token's default.", "required": false},
-    "sourcetype": {"type": "string", "label": "Sourcetype", "description": "Splunk sourcetype field.", "required": false, "default": "dagster:run_event"},
-    "source": {"type": "string", "label": "Source", "description": "Splunk source field.", "required": false, "default": "dagster"},
-    "location_label": {"type": "string", "label": "Location Label", "description": "Splunk host field — deployment / region.", "required": false, "default": "default"},
-    "monitor_jobs": {"type": "array", "label": "Monitor Jobs", "description": "Only emit for these Dagster job names. None = all.", "required": false},
-    "verify_ssl": {"type": "boolean", "label": "Verify SSL", "description": "Verify Splunk's TLS cert.", "required": false, "default": true},
-    "default_status": {"type": "string", "label": "Default Status", "description": "STOPPED | RUNNING", "required": false, "default": "STOPPED"},
-    "request_timeout_seconds": {"type": "integer", "label": "Request Timeout Seconds", "description": "HTTP timeout per push.", "required": false, "default": 15}
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Dagster sensor name.",
+      "required": true
+    },
+    "hec_url_env_var": {
+      "type": "string",
+      "label": "HEC URL Env Var",
+      "description": "Env var with Splunk HEC endpoint.",
+      "required": true
+    },
+    "hec_token_env_var": {
+      "type": "string",
+      "label": "HEC Token Env Var",
+      "description": "Env var with Splunk HEC token.",
+      "required": true
+    },
+    "index": {
+      "type": "string",
+      "label": "Index",
+      "description": "Splunk index. Defaults to HEC token's default.",
+      "required": false
+    },
+    "sourcetype": {
+      "type": "string",
+      "label": "Sourcetype",
+      "description": "Splunk sourcetype field.",
+      "required": false,
+      "default": "dagster:run_event"
+    },
+    "source": {
+      "type": "string",
+      "label": "Source",
+      "description": "Splunk source field.",
+      "required": false,
+      "default": "dagster"
+    },
+    "location_label": {
+      "type": "string",
+      "label": "Location Label",
+      "description": "Splunk host field \u2014 deployment / region.",
+      "required": false,
+      "default": "default"
+    },
+    "monitor_jobs": {
+      "type": "array",
+      "label": "Monitor Jobs",
+      "description": "Only emit for these Dagster job names. None = all.",
+      "required": false
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "label": "Verify SSL",
+      "description": "Verify Splunk's TLS cert.",
+      "required": false,
+      "default": true
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "One of: STOPPED / RUNNING.",
+      "required": false,
+      "default": "STOPPED",
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ],
+      "ui:widget": "select"
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "description": "HTTP timeout per push.",
+      "required": false,
+      "default": 15
+    }
   }
 }

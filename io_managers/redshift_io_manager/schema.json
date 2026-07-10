@@ -71,13 +71,20 @@
       "type": "string",
       "label": "If Exists",
       "required": false,
-      "default": "replace"
+      "default": "replace",
+      "enum": [
+        "fail",
+        "replace",
+        "append"
+      ],
+      "ui:widget": "select"
     },
     "partition_column": {
       "type": "string",
       "label": "Partition Column",
       "required": false,
-      "default": "partition_key"
+      "default": "partition_key",
+      "x-dagster-widget": "column"
     }
   },
   "tags": [

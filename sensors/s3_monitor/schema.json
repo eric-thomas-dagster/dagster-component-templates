@@ -69,7 +69,12 @@
       "label": "Default Status",
       "description": "Default Status",
       "required": false,
-      "default": "running"
+      "default": "running",
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ],
+      "ui:widget": "select"
     },
     "partition_mode": {
       "type": "string",
@@ -77,7 +82,11 @@
       "description": "How detected S3 objects are surfaced. 'run_config' (default): embed bucket/key/etag/etc in run_config (pair with file_ingestion.from_run_config). 'dynamic_partition': register each new key as a dynamic partition and yield RunRequest(partition_key=...). 'both': both.",
       "required": false,
       "default": "run_config",
-      "enum": ["run_config", "dynamic_partition", "both"]
+      "enum": [
+        "run_config",
+        "dynamic_partition",
+        "both"
+      ]
     },
     "dynamic_partitions_name": {
       "type": "string",
@@ -89,7 +98,7 @@
     "partition_key_template": {
       "type": "string",
       "label": "Partition Key Template",
-      "description": "Template for the partition key per detected object. Fields: {bucket}, {key}, {prefix}. Default {key} is the bare S3 key. Use s3://{bucket}/{key} for the full URI as the partition key (note: '://' breaks Dagster's filesystem IO manager — keep the bare key unless you're using a custom IO manager).",
+      "description": "Template for the partition key per detected object. Fields: {bucket}, {key}, {prefix}. Default {key} is the bare S3 key. Use s3://{bucket}/{key} for the full URI as the partition key (note: '://' breaks Dagster's filesystem IO manager \u2014 keep the bare key unless you're using a custom IO manager).",
       "required": false,
       "default": "{key}"
     }

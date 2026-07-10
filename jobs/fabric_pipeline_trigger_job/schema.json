@@ -3,21 +3,101 @@
   "description": "Op-job that triggers a Microsoft Fabric Data Pipeline / Notebook / Dataflow Gen2 run via the Fabric REST API. For workspace-wide imports use fabric_workspace; use this when you want one specific item run as a Dagster job (with optional schedule).",
   "category": "infrastructure",
   "icon": "Play",
-  "x-dagster-io": {"supports_partitions": false},
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
   "attributes": {
-    "job_name": {"type": "string", "label": "Job Name", "required": true},
-    "workspace_id": {"type": "string", "label": "Workspace ID", "required": true},
-    "item_id": {"type": "string", "label": "Item ID", "required": true, "description": "Fabric pipeline/notebook/dataflow GUID"},
-    "item_type": {"type": "string", "label": "Item Type", "required": false, "default": "DataPipeline", "enum": ["DataPipeline", "Notebook", "Dataflow"]},
-    "parameters": {"type": "object", "label": "Parameters", "required": false, "default": null},
-    "wait_for_completion": {"type": "boolean", "label": "Wait For Completion", "required": false, "default": true},
-    "max_wait_seconds": {"type": "integer", "label": "Max Wait Seconds", "required": false, "default": 1800},
-    "poll_interval_seconds": {"type": "integer", "label": "Poll Interval Seconds", "required": false, "default": 15},
-    "tenant_id_env_var": {"type": "string", "label": "Tenant ID Env Var", "required": false, "default": null},
-    "client_id_env_var": {"type": "string", "label": "Client ID Env Var", "required": false, "default": null},
-    "client_secret_env_var": {"type": "string", "label": "Client Secret Env Var", "required": false, "default": null},
-    "schedule": {"type": "string", "label": "Schedule", "required": false, "default": null},
-    "schedule_default_status": {"type": "string", "label": "Schedule Default Status", "required": false, "default": "STOPPED", "enum": ["STOPPED", "RUNNING"]},
-    "tags": {"type": "object", "label": "Tags", "required": false, "default": null}
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "required": true
+    },
+    "workspace_id": {
+      "type": "string",
+      "label": "Workspace ID",
+      "required": true
+    },
+    "item_id": {
+      "type": "string",
+      "label": "Item ID",
+      "required": true,
+      "description": "Fabric pipeline/notebook/dataflow GUID"
+    },
+    "item_type": {
+      "type": "string",
+      "label": "Item Type",
+      "required": false,
+      "default": "DataPipeline",
+      "enum": [
+        "DataPipeline",
+        "Notebook",
+        "Dataflow"
+      ]
+    },
+    "parameters": {
+      "type": "object",
+      "label": "Parameters",
+      "required": false,
+      "default": null
+    },
+    "wait_for_completion": {
+      "type": "boolean",
+      "label": "Wait For Completion",
+      "required": false,
+      "default": true
+    },
+    "max_wait_seconds": {
+      "type": "integer",
+      "label": "Max Wait Seconds",
+      "required": false,
+      "default": 1800
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "required": false,
+      "default": 15
+    },
+    "tenant_id_env_var": {
+      "type": "string",
+      "label": "Tenant ID Env Var",
+      "required": false,
+      "default": null
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client ID Env Var",
+      "required": false,
+      "default": null
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "required": false,
+      "default": null
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "cron"
+    },
+    "schedule_default_status": {
+      "type": "string",
+      "label": "Schedule Default Status",
+      "required": false,
+      "default": "STOPPED",
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ]
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "default": null
+    }
   }
 }

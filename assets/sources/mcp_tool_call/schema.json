@@ -1,52 +1,180 @@
 {
   "component_type": "dagster_component_templates.MCPToolCallComponent",
-  "description": "Deterministic single-shot call to one MCP tool — no LLM in the loop. Args templating supports {partition_key}, {partition_keys.<dim>}, {run_id}.",
+  "description": "Deterministic single-shot call to one MCP tool \u2014 no LLM in the loop. Args templating supports {partition_key}, {partition_keys.<dim>}, {run_id}.",
   "category": "source",
   "icon": "Network",
   "x-dagster-io": {
-    "inputs": {"type": "none"},
-    "outputs": {"type": "any", "description": "Parsed tool response (dict/list if JSON, else string)."},
+    "inputs": {
+      "type": "none"
+    },
+    "outputs": {
+      "type": "any",
+      "description": "Parsed tool response (dict/list if JSON, else string)."
+    },
     "supports_partitions": true
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
     "server": {
       "type": "object",
       "label": "MCP Server",
       "required": true,
       "properties": {
-        "name": {"type": "string"},
-        "type": {"type": "string", "enum": ["stdio", "http", "sse"], "default": "stdio"},
-        "command": {"type": "array", "items": {"type": "string"}},
-        "url": {"type": "string"},
-        "env": {"type": "object"},
-        "headers": {"type": "object"},
-        "headers_env": {"type": "object"}
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "stdio",
+            "http",
+            "sse"
+          ],
+          "default": "stdio"
+        },
+        "command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "url": {
+          "type": "string"
+        },
+        "env": {
+          "type": "object"
+        },
+        "headers": {
+          "type": "object"
+        },
+        "headers_env": {
+          "type": "object"
+        }
       }
     },
-    "tool_name": {"type": "string", "label": "Tool Name", "required": true},
-    "tool_args": {"type": "object", "label": "Tool Args", "description": "String leaves get template substitution.", "required": false},
-    "parse_as": {"type": "string", "label": "Parse As", "enum": ["json", "text", "auto"], "default": "auto", "required": false},
-
-    "group_name": {"type": "string", "label": "Group", "required": false},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "label": "Owners", "required": false},
-    "asset_tags": {"type": "object", "label": "Tags", "required": false},
-    "kinds": {"type": "array", "label": "Kinds", "description": "Defaults to ['mcp'].", "required": false},
-
-    "partition_type": {"type": "string", "label": "Partition Type", "enum": ["daily", "weekly", "monthly", "hourly", "static", "multi", "dynamic"], "required": false},
-    "partition_start": {"type": "string", "label": "Partition Start (ISO)", "required": false},
-    "partition_values": {"type": "string", "label": "Partition Values (CSV)", "required": false},
-    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "required": false},
-    "partition_dimensions": {"type": "array", "label": "Partition Dimensions (multi-axis)", "required": false},
-
-    "freshness_max_lag_minutes": {"type": "integer", "label": "Freshness Max Lag (min)", "required": false},
-    "freshness_cron": {"type": "string", "label": "Freshness Cron", "required": false},
-
-    "retry_policy_max_retries": {"type": "integer", "label": "Retry Max", "required": false},
-    "retry_policy_delay_seconds": {"type": "integer", "label": "Retry Delay (sec)", "required": false},
-    "retry_policy_backoff": {"type": "string", "label": "Retry Backoff", "enum": ["linear", "exponential"], "default": "exponential", "required": false},
-
-    "deps": {"type": "array", "label": "Lineage-Only Deps", "required": false}
+    "tool_name": {
+      "type": "string",
+      "label": "Tool Name",
+      "required": true
+    },
+    "tool_args": {
+      "type": "object",
+      "label": "Tool Args",
+      "description": "String leaves get template substitution.",
+      "required": false
+    },
+    "parse_as": {
+      "type": "string",
+      "label": "Parse As",
+      "enum": [
+        "json",
+        "text",
+        "auto"
+      ],
+      "default": "auto",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Defaults to ['mcp'].",
+      "required": false
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
+      "required": false
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start (ISO)",
+      "required": false
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values (CSV)",
+      "required": false
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "label": "Partition Dimensions (multi-axis)",
+      "required": false
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag (min)",
+      "required": false
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "required": false,
+      "x-dagster-widget": "cron"
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Max",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Delay (sec)",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Backoff",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "default": "exponential",
+      "required": false,
+      "description": "Retry backoff strategy: exponential (doubles the delay each time), linear (adds a fixed delay each time), or fixed (constant delay)."
+    },
+    "deps": {
+      "type": "array",
+      "label": "Lineage-Only Deps",
+      "required": false
+    }
   }
 }

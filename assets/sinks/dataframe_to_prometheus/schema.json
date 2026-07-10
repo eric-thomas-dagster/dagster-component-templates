@@ -51,7 +51,8 @@
     "value_column": {
       "type": "string",
       "label": "Value Column",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "column"
     },
     "label_columns": {
       "type": "array",
@@ -60,7 +61,8 @@
       "default": null,
       "items": {
         "type": "string"
-      }
+      },
+      "x-dagster-widget": "columns"
     },
     "grouping_key_columns": {
       "type": "array",
@@ -69,7 +71,8 @@
       "default": null,
       "items": {
         "type": "string"
-      }
+      },
+      "x-dagster-widget": "columns"
     },
     "extra_headers": {
       "type": "object",

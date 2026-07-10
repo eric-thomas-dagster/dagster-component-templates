@@ -1,27 +1,113 @@
 {
   "component_type": "dagster_component_templates.ODataCheckComponent",
-  "description": "Asset check — smoke-test that an OData service URL + entity set is reachable, returns N rows, and contains expected columns.",
+  "description": "Asset check \u2014 smoke-test that an OData service URL + entity set is reachable, returns N rows, and contains expected columns.",
   "category": "check",
   "icon": "si:odata",
   "attributes": {
-    "asset_key": {"type": "string", "label": "Asset Key", "required": true},
-    "check_name": {"type": "string", "label": "Check Name", "required": false},
-    "service_url": {"type": "string", "label": "Service URL", "required": true},
-    "entity_set": {"type": "string", "label": "Entity Set", "required": true},
-    "odata_version": {"type": "string", "label": "OData Version", "required": false, "default": "v2"},
-    "filter": {"type": "string", "label": "$filter", "required": false},
-    "min_rows": {"type": "integer", "label": "Min Rows", "required": false, "default": 1},
-    "max_rows": {"type": "integer", "label": "Max Rows", "required": false},
-    "expect_columns": {"type": "array", "items": {"type": "string"}, "label": "Expected Columns", "required": false, "ui:widget": "list"},
-    "auth_type": {"type": "string", "label": "Auth Type", "required": false, "default": "basic"},
-    "auth_username_env_var": {"type": "string", "label": "Auth Username Env Var", "required": false},
-    "auth_password_env_var": {"type": "string", "label": "Auth Password Env Var", "required": false},
-    "auth_token_env_var": {"type": "string", "label": "Auth Token Env Var", "required": false},
-    "extra_headers": {"type": "object", "label": "Extra Headers", "required": false, "ui:widget": "key-value"},
-    "verify_ssl": {"type": "boolean", "label": "Verify SSL", "required": false, "default": true, "ui:widget": "checkbox"},
-    "timeout_seconds": {"type": "integer", "label": "Timeout (s)", "required": false, "default": 60},
-    "severity": {"type": "string", "label": "Severity", "required": false, "default": "ERROR"}
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "required": true
+    },
+    "check_name": {
+      "type": "string",
+      "label": "Check Name",
+      "required": false
+    },
+    "service_url": {
+      "type": "string",
+      "label": "Service URL",
+      "required": true
+    },
+    "entity_set": {
+      "type": "string",
+      "label": "Entity Set",
+      "required": true
+    },
+    "odata_version": {
+      "type": "string",
+      "label": "OData Version",
+      "required": false,
+      "default": "v2"
+    },
+    "filter": {
+      "type": "string",
+      "label": "$filter",
+      "required": false
+    },
+    "min_rows": {
+      "type": "integer",
+      "label": "Min Rows",
+      "required": false,
+      "default": 1
+    },
+    "max_rows": {
+      "type": "integer",
+      "label": "Max Rows",
+      "required": false
+    },
+    "expect_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Expected Columns",
+      "required": false,
+      "ui:widget": "list",
+      "x-dagster-widget": "columns"
+    },
+    "auth_type": {
+      "type": "string",
+      "label": "Auth Type",
+      "required": false,
+      "default": "basic"
+    },
+    "auth_username_env_var": {
+      "type": "string",
+      "label": "Auth Username Env Var",
+      "required": false
+    },
+    "auth_password_env_var": {
+      "type": "string",
+      "label": "Auth Password Env Var",
+      "required": false
+    },
+    "auth_token_env_var": {
+      "type": "string",
+      "label": "Auth Token Env Var",
+      "required": false
+    },
+    "extra_headers": {
+      "type": "object",
+      "label": "Extra Headers",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "label": "Verify SSL",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout (s)",
+      "required": false,
+      "default": 60
+    },
+    "severity": {
+      "type": "string",
+      "label": "Severity",
+      "required": false,
+      "default": "ERROR"
+    }
   },
-  "tags": ["check", "odata", "sap", "data-quality"],
+  "tags": [
+    "check",
+    "odata",
+    "sap",
+    "data-quality"
+  ],
   "name": "OData Check"
 }

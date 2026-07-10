@@ -4,19 +4,80 @@
   "category": "sink",
   "icon": "FileText",
   "x-dagster-io": {
-    "inputs": { "type": "dataframe", "required": true, "description": "Source DataFrame" },
-    "outputs": { "type": "string", "description": "Path of the written PDF" }
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Source DataFrame"
+    },
+    "outputs": {
+      "type": "string",
+      "description": "Path of the written PDF"
+    }
   },
   "attributes": {
-    "asset_name": { "type": "string", "label": "Asset Name", "required": true },
-    "upstream_asset_key": { "type": "string", "label": "Upstream Asset Key", "required": true },
-    "file_path": { "type": "string", "label": "File Path", "required": true, "description": "Output PDF path (local or fsspec URL: s3://, gs://, abfs://)" },
-    "title": { "type": "string", "default": "Report", "label": "Title" },
-    "template": { "type": "string", "enum": ["table", "template_html"], "default": "table", "label": "Template Mode" },
-    "html_template": { "type": "string", "label": "HTML Template", "description": "File path or inline Jinja2 string (required for template=template_html)" },
-    "rows_per_page": { "type": "integer", "default": 40, "minimum": 1, "label": "Rows Per Page" },
-    "columns": { "type": "array", "items": { "type": "string" }, "label": "Columns" },
-    "page_size": { "type": "string", "enum": ["LETTER", "A4", "LEGAL", "TABLOID"], "default": "LETTER", "label": "Page Size" },
-    "group_name": { "type": "string", "label": "Group Name" }
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
+    "file_path": {
+      "type": "string",
+      "label": "File Path",
+      "required": true,
+      "description": "Output PDF path (local or fsspec URL: s3://, gs://, abfs://)"
+    },
+    "title": {
+      "type": "string",
+      "default": "Report",
+      "label": "Title"
+    },
+    "template": {
+      "type": "string",
+      "enum": [
+        "table",
+        "template_html"
+      ],
+      "default": "table",
+      "label": "Template Mode"
+    },
+    "html_template": {
+      "type": "string",
+      "label": "HTML Template",
+      "description": "File path or inline Jinja2 string (required for template=template_html)"
+    },
+    "rows_per_page": {
+      "type": "integer",
+      "default": 40,
+      "minimum": 1,
+      "label": "Rows Per Page"
+    },
+    "columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Columns",
+      "x-dagster-widget": "columns"
+    },
+    "page_size": {
+      "type": "string",
+      "enum": [
+        "LETTER",
+        "A4",
+        "LEGAL",
+        "TABLOID"
+      ],
+      "default": "LETTER",
+      "label": "Page Size"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name"
+    }
   }
 }

@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.DataframeDescribeComponent",
-  "description": "Profile every column in a DataFrame — pandas describe() exposed as an asset. Numeric columns get count/mean/std/min/quartiles/max; non-numeric get count/unique/top/freq.",
+  "description": "Profile every column in a DataFrame \u2014 pandas describe() exposed as an asset. Numeric columns get count/mean/std/min/quartiles/max; non-numeric get count/unique/top/freq.",
   "category": "transformation",
   "icon": "Activity",
   "x-dagster-io": {
@@ -33,11 +33,18 @@
       "description": "Which columns to profile: 'all', 'number', 'object', or 'datetime'. Mirrors pandas describe(include=...).",
       "required": false,
       "default": "all",
-      "enum": ["all", "number", "object", "datetime"]
+      "enum": [
+        "all",
+        "number",
+        "object",
+        "datetime"
+      ]
     },
     "percentiles": {
       "type": "array",
-      "items": {"type": "number"},
+      "items": {
+        "type": "number"
+      },
       "label": "Percentiles",
       "description": "Percentiles to compute (values between 0 and 1). Default [.25, .5, .75].",
       "required": false,
@@ -49,7 +56,8 @@
       "description": "Add a 'dtype' column to the output showing each source column's pandas dtype.",
       "required": false,
       "default": true,
-      "ui:widget": "checkbox"
+      "ui:widget": "checkbox",
+      "x-dagster-widget": "column"
     },
     "include_null_pct": {
       "type": "boolean",
@@ -94,7 +102,8 @@
       "label": "Partition Date Column",
       "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "partition_values": {
       "type": "string",
@@ -108,14 +117,16 @@
       "label": "Static Dimension Name",
       "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "partition_static_column": {
       "type": "string",
       "label": "Static Partition Column",
       "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "owners": {
       "type": "array",
@@ -156,7 +167,8 @@
       "label": "Freshness Cron Schedule",
       "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "cron"
     },
     "column_lineage": {
       "type": "object",
@@ -204,7 +216,13 @@
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,
-      "default": "exponential"
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
     },
     "dynamic_partition_name": {
       "type": "string",

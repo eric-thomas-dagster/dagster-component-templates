@@ -21,31 +21,45 @@
       "label": "Source Kind",
       "description": "dagster_plus | aws_cloudtrail | okta | github | azure_activity | slack | generic",
       "required": false,
-      "default": "generic"
+      "default": "generic",
+      "enum": [
+        "dagster_plus",
+        "aws_cloudtrail",
+        "okta",
+        "github",
+        "azure_activity",
+        "slack",
+        "generic"
+      ],
+      "ui:widget": "select"
     },
     "event_type_column": {
       "type": "string",
       "label": "Event Type Column",
       "description": "Source column holding the event type string (auto-detected when None)",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "column"
     },
     "timestamp_column": {
       "type": "string",
       "label": "Timestamp Column",
       "description": "Source column for the event timestamp (auto-detected when None)",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "column"
     },
     "actor_email_column": {
       "type": "string",
       "label": "Actor Email Column",
       "description": "Source column for actor email (auto-detected when None)",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "column"
     },
     "actor_name_column": {
       "type": "string",
       "label": "Actor Name Column",
       "description": "Source column for actor display name (auto-detected when None)",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "column"
     },
     "vendor_name": {
       "type": "string",

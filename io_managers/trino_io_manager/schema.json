@@ -68,7 +68,8 @@
       "type": "string",
       "label": "Partition Column",
       "required": false,
-      "default": "partition_key"
+      "default": "partition_key",
+      "x-dagster-widget": "column"
     }
   },
   "tags": [

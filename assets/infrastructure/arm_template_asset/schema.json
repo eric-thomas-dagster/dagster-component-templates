@@ -63,7 +63,13 @@
       "label": "Mode",
       "description": "Deployment mode: 'Incremental' or 'Complete'",
       "required": false,
-      "default": "Incremental"
+      "default": "Incremental",
+      "enum": [
+        "append",
+        "overwrite",
+        "upsert"
+      ],
+      "ui:widget": "select"
     },
     "what_if": {
       "type": "boolean",
@@ -126,7 +132,13 @@
       "label": "Retry Policy Backoff",
       "description": "Retry Policy Backoff",
       "required": false,
-      "default": "exponential"
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
     }
   }
 }

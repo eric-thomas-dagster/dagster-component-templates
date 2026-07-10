@@ -20,7 +20,8 @@
       "label": "Message Column",
       "required": false,
       "description": "Column holding the raw FIX message (tag=value pairs separated by SOH or `|`).",
-      "default": "message"
+      "default": "message",
+      "x-dagster-widget": "column"
     },
     "msg_type_filter": {
       "type": "integer",

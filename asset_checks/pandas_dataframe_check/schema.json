@@ -21,7 +21,8 @@
       "required": true,
       "items": {
         "type": "string"
-      }
+      },
+      "x-dagster-widget": "columns"
     },
     "column_types": {
       "type": "object",

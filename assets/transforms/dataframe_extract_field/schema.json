@@ -19,13 +19,15 @@
       "type": "string",
       "label": "Source Column",
       "required": false,
-      "description": "Column to read from (values are lists or dicts)."
+      "description": "Column to read from (values are lists or dicts).",
+      "x-dagster-widget": "column"
     },
     "target_column": {
       "type": "string",
       "label": "Target Column",
       "required": false,
-      "description": "New column to write the extracted scalar into."
+      "description": "New column to write the extracted scalar into.",
+      "x-dagster-widget": "column"
     },
     "index": {
       "type": "integer",

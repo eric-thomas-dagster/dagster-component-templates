@@ -29,21 +29,31 @@
     },
     "columns": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Columns",
       "description": "Numeric columns to correlate. If omitted, all numeric columns are used.",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "columns"
     },
     "output_shape": {
       "type": "string",
-      "enum": ["long", "wide"],
+      "enum": [
+        "long",
+        "wide"
+      ],
       "default": "long",
       "label": "Output Shape",
       "description": "'long' (one row per pair) or 'wide' (square matrix)"
     },
     "method": {
       "type": "string",
-      "enum": ["pearson", "spearman", "kendall"],
+      "enum": [
+        "pearson",
+        "spearman",
+        "kendall"
+      ],
       "default": "pearson",
       "label": "Method",
       "description": "Correlation method passed to pd.DataFrame.corr()"

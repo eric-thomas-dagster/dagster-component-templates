@@ -62,7 +62,8 @@
       "description": "Numeric columns to check. Empty = all numeric columns.",
       "required": false,
       "default": null,
-      "ui:widget": "list"
+      "ui:widget": "list",
+      "x-dagster-widget": "columns"
     },
     "iqr_multiplier": {
       "type": "number",
@@ -127,7 +128,8 @@
       "label": "Partition Date Column",
       "description": "Column used to filter rows to the current date partition key.",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "partition_values": {
       "type": "string",
@@ -141,14 +143,16 @@
       "label": "Static Dimension Name",
       "description": "Name for the static partition dimension in multi-partitioning.",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "partition_static_column": {
       "type": "string",
       "label": "Static Partition Column",
       "description": "Column used to filter rows to the current static partition value.",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "column"
     },
     "owners": {
       "type": "array",
@@ -189,7 +193,8 @@
       "label": "Freshness Cron Schedule",
       "description": "Cron schedule for the freshness policy.",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "cron"
     },
     "column_lineage": {
       "type": "object",
@@ -237,7 +242,13 @@
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,
-      "default": "exponential"
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
     },
     "dynamic_partition_name": {
       "type": "string",

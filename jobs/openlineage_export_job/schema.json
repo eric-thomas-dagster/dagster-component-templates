@@ -15,14 +15,20 @@
       "label": "Schedule",
       "description": "Cron schedule. None = manual / sensor-triggered.",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "cron"
     },
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "description": "STOPPED | RUNNING",
+      "description": "One of: STOPPED / RUNNING.",
       "required": false,
-      "default": "STOPPED"
+      "default": "STOPPED",
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ],
+      "ui:widget": "select"
     },
     "tags": {
       "type": "object",

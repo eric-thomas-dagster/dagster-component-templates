@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.FileIngestionComponent",
-  "description": "Unified tabular-file ingestion — reads CSV / TSV / JSON / JSONL / Parquet / Excel into a pandas DataFrame. Three mutually-exclusive input modes: file_path (fixed local or fsspec URI), from_upstream (resolve from upstream asset's dict), or from_run_config (sensor-injected RunConfig with optional {partition_key} interpolation for dynamic-partition flows).",
+  "description": "Unified tabular-file ingestion \u2014 reads CSV / TSV / JSON / JSONL / Parquet / Excel into a pandas DataFrame. Three mutually-exclusive input modes: file_path (fixed local or fsspec URI), from_upstream (resolve from upstream asset's dict), or from_run_config (sensor-injected RunConfig with optional {partition_key} interpolation for dynamic-partition flows).",
   "category": "ingestion",
   "icon": "ArrowUpFromLine",
   "x-dagster-io": {
@@ -22,7 +22,15 @@
       "description": "File format: auto | csv | tsv | json | jsonl | parquet | excel. Default 'auto' inspects the URI extension.",
       "required": false,
       "default": "auto",
-      "enum": ["auto", "csv", "tsv", "json", "jsonl", "parquet", "excel"]
+      "enum": [
+        "auto",
+        "csv",
+        "tsv",
+        "json",
+        "jsonl",
+        "parquet",
+        "excel"
+      ]
     },
     "file_path": {
       "type": "string",
@@ -41,7 +49,7 @@
     "from_run_config": {
       "type": "object",
       "label": "From Run Config",
-      "description": "Resolve URI from sensor-injected RunConfig. Shape: {uri_template: \"s3://{bucket}/{key}\"}. The Config class is built from {field} placeholders. {partition_key} is sourced from context.partition_key (not RunConfig) — pair with partition_type: dynamic for dynamic-partition flows.",
+      "description": "Resolve URI from sensor-injected RunConfig. Shape: {uri_template: \"s3://{bucket}/{key}\"}. The Config class is built from {field} placeholders. {partition_key} is sourced from context.partition_key (not RunConfig) \u2014 pair with partition_type: dynamic for dynamic-partition flows.",
       "required": false,
       "default": null
     },
@@ -139,7 +147,7 @@
     "owners": {
       "type": "array",
       "label": "Owners",
-      "description": "Asset owners — list of team:name or email addresses",
+      "description": "Asset owners \u2014 list of team:name or email addresses",
       "required": false,
       "default": null
     },
@@ -169,7 +177,8 @@
       "label": "Freshness Cron",
       "description": "Cron schedule for the freshness policy",
       "required": false,
-      "default": null
+      "default": null,
+      "x-dagster-widget": "cron"
     },
     "deps": {
       "type": "array",
@@ -183,7 +192,17 @@
       "label": "Partition Type",
       "description": "daily | weekly | monthly | hourly | static | multi | dynamic | None",
       "required": false,
-      "default": null
+      "default": null,
+      "enum": [
+        "daily",
+        "hourly",
+        "weekly",
+        "monthly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
+      "ui:widget": "select"
     },
     "partition_start": {
       "type": "string",
@@ -218,7 +237,13 @@
       "label": "Retry Policy Backoff",
       "description": "Backoff strategy: linear | exponential",
       "required": false,
-      "default": "exponential"
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
     }
   }
 }

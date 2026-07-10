@@ -77,7 +77,8 @@
     "result_columns": {
       "type": "array",
       "required": false,
-      "description": "Subset of the search service's source columns to return per result (e.g. ['CONTENT', 'TITLE', 'URL']). If unset, all columns the service exposes are returned."
+      "description": "Subset of the search service's source columns to return per result (e.g. ['CONTENT', 'TITLE', 'URL']). If unset, all columns the service exposes are returned.",
+      "x-dagster-widget": "columns"
     },
     "result_filter": {
       "type": "string",
@@ -119,7 +120,13 @@
     },
     "retry_policy_backoff": {
       "type": "string",
-      "required": false
+      "required": false,
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
     }
   }
 }

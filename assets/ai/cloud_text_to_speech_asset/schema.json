@@ -30,7 +30,8 @@
       "type": "string",
       "label": "Text Column",
       "required": false,
-      "description": "Column containing text to speak."
+      "description": "Column containing text to speak.",
+      "x-dagster-widget": "column"
     },
     "output_dir": {
       "type": "string",
@@ -51,7 +52,8 @@
       "label": "Output Path Column",
       "required": false,
       "description": "New column to write the file path into.",
-      "default": "audio_path"
+      "default": "audio_path",
+      "x-dagster-widget": "column"
     },
     "language_code": {
       "type": "string",

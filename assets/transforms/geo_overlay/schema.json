@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.GeoOverlayComponent",
-  "description": "Set-theoretic overlay of two (Geo)DataFrames — intersection / union / difference / symmetric_difference / identity. Drop-in for Alteryx's Spatial Process tool.",
+  "description": "Set-theoretic overlay of two (Geo)DataFrames \u2014 intersection / union / difference / symmetric_difference / identity. Drop-in for Alteryx's Spatial Process tool.",
   "category": "transformation",
   "icon": "Layers",
   "x-dagster-io": {
@@ -24,18 +24,24 @@
     "left_asset_key": {
       "type": "string",
       "label": "Left Asset Key",
-      "description": "Upstream asset key — first geometry source",
+      "description": "Upstream asset key \u2014 first geometry source",
       "required": true
     },
     "right_asset_key": {
       "type": "string",
       "label": "Right Asset Key",
-      "description": "Upstream asset key — second geometry source",
+      "description": "Upstream asset key \u2014 second geometry source",
       "required": true
     },
     "how": {
       "type": "string",
-      "enum": ["intersection", "union", "difference", "symmetric_difference", "identity"],
+      "enum": [
+        "intersection",
+        "union",
+        "difference",
+        "symmetric_difference",
+        "identity"
+      ],
       "default": "intersection",
       "label": "How",
       "description": "Set operation to apply"
@@ -50,7 +56,8 @@
       "type": "string",
       "default": "geometry",
       "label": "Geometry Column",
-      "description": "Geometry column name on both inputs"
+      "description": "Geometry column name on both inputs",
+      "x-dagster-widget": "column"
     },
     "group_name": {
       "type": "string",

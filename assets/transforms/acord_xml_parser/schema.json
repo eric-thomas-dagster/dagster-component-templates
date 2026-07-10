@@ -1,21 +1,75 @@
 {
   "component_type": "dagster_component_templates.AcordXmlParserComponent",
-  "description": "Parse ACORD insurance XML messages (P&C and Life) — flatten any ACORD envelope into one row per Policy / Claim / Application. Auto-detects namespaces; carries message-level metadata into every row.",
+  "description": "Parse ACORD insurance XML messages (P&C and Life) \u2014 flatten any ACORD envelope into one row per Policy / Claim / Application. Auto-detects namespaces; carries message-level metadata into every row.",
   "category": "transformation",
   "icon": "FileText",
   "x-dagster-io": {
-    "inputs": {"upstream": {"type": "pandas.DataFrame", "required": true}},
-    "outputs": {"type": "Output[DataFrame]"}
+    "inputs": {
+      "upstream": {
+        "type": "pandas.DataFrame",
+        "required": true
+      }
+    },
+    "outputs": {
+      "type": "Output[DataFrame]"
+    }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "description": "DataFrame asset with raw ACORD XML in one column", "required": true},
-    "xml_column": {"type": "string", "label": "XML Column", "description": "Name of the column containing ACORD XML strings (default 'xml').", "required": false, "default": "xml"},
-    "description": {"type": "string", "label": "Description", "required": false, "ui:widget": "code"},
-    "group_name": {"type": "string", "label": "Group Name", "required": false},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"}
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "DataFrame asset with raw ACORD XML in one column",
+      "required": true
+    },
+    "xml_column": {
+      "type": "string",
+      "label": "XML Column",
+      "description": "Name of the column containing ACORD XML strings (default 'xml').",
+      "required": false,
+      "default": "xml",
+      "x-dagster-widget": "column"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    }
   },
-  "tags": ["transformation", "acord", "xml", "insurance", "p&c", "life", "claims", "policy"],
+  "tags": [
+    "transformation",
+    "acord",
+    "xml",
+    "insurance",
+    "p&c",
+    "life",
+    "claims",
+    "policy"
+  ],
   "name": "ACORD XML Parser"
 }

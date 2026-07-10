@@ -20,7 +20,8 @@
       "label": "Resource Column",
       "required": false,
       "description": "Column holding the FHIR resource. Values may be dicts OR JSON strings.",
-      "default": "resource"
+      "default": "resource",
+      "x-dagster-widget": "column"
     },
     "resource_types": {
       "type": "array",

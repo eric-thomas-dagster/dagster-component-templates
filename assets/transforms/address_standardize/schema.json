@@ -15,22 +15,67 @@
     }
   },
   "attributes": {
-    "asset_name": { "type": "string", "label": "Asset Name", "required": true },
-    "upstream_asset_key": { "type": "string", "label": "Upstream Asset Key", "required": true },
-    "address_column": { "type": "string", "label": "Address Column", "required": true },
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
+    "address_column": {
+      "type": "string",
+      "label": "Address Column",
+      "required": true,
+      "x-dagster-widget": "column"
+    },
     "provider": {
       "type": "string",
-      "enum": ["libpostal", "geoapify", "nominatim", "regex"],
+      "enum": [
+        "libpostal",
+        "geoapify",
+        "nominatim",
+        "regex"
+      ],
       "default": "regex",
       "label": "Provider",
       "required": true
     },
-    "api_key_env_var": { "type": "string", "default": "GEOAPIFY_API_KEY", "label": "API Key Env Var (geoapify)" },
-    "user_agent": { "type": "string", "default": "dagster-address-standardize", "label": "User-Agent (nominatim)" },
-    "output_prefix": { "type": "string", "default": "addr_", "label": "Output Column Prefix" },
-    "keep_original": { "type": "boolean", "default": true, "label": "Keep Original Address Column" },
-    "rate_limit_seconds": { "type": "number", "default": 1.0, "label": "Per-Row Rate Limit (seconds)" },
-    "timeout_seconds": { "type": "integer", "default": 10, "label": "HTTP Timeout (seconds)" },
-    "group_name": { "type": "string", "label": "Group Name" }
+    "api_key_env_var": {
+      "type": "string",
+      "default": "GEOAPIFY_API_KEY",
+      "label": "API Key Env Var (geoapify)"
+    },
+    "user_agent": {
+      "type": "string",
+      "default": "dagster-address-standardize",
+      "label": "User-Agent (nominatim)"
+    },
+    "output_prefix": {
+      "type": "string",
+      "default": "addr_",
+      "label": "Output Column Prefix"
+    },
+    "keep_original": {
+      "type": "boolean",
+      "default": true,
+      "label": "Keep Original Address Column"
+    },
+    "rate_limit_seconds": {
+      "type": "number",
+      "default": 1.0,
+      "label": "Per-Row Rate Limit (seconds)"
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "default": 10,
+      "label": "HTTP Timeout (seconds)"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name"
+    }
   }
 }

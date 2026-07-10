@@ -82,12 +82,18 @@
       "description": "How to handle the target table",
       "required": false,
       "default": "replace",
-      "enum": ["replace", "append", "merge"],
+      "enum": [
+        "replace",
+        "append",
+        "merge"
+      ],
       "ui:widget": "select"
     },
     "primary_key": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Primary Key",
       "description": "Column(s) for upsert when mode='merge'",
       "required": false
@@ -102,9 +108,15 @@
     "on_error": {
       "type": "string",
       "label": "COPY On Error",
-      "description": "ABORT_STATEMENT | CONTINUE | SKIP_FILE",
+      "description": "One of: ABORT_STATEMENT / CONTINUE / SKIP_FILE.",
       "required": false,
-      "default": "ABORT_STATEMENT"
+      "default": "ABORT_STATEMENT",
+      "enum": [
+        "ABORT_STATEMENT",
+        "CONTINUE",
+        "SKIP_FILE"
+      ],
+      "ui:widget": "select"
     },
     "purge_stage": {
       "type": "boolean",
@@ -120,7 +132,9 @@
     },
     "owners": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Owners",
       "required": false,
       "ui:widget": "list"
@@ -133,7 +147,9 @@
     },
     "kinds": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Kinds",
       "required": false,
       "ui:widget": "list"
@@ -145,7 +161,9 @@
     },
     "deps": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Deps",
       "required": false
     },
@@ -163,9 +181,22 @@
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,
-      "default": "exponential"
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
     }
   },
-  "tags": ["sink", "dataframe", "snowflake", "bulk", "stage", "copy-into"],
+  "tags": [
+    "sink",
+    "dataframe",
+    "snowflake",
+    "bulk",
+    "stage",
+    "copy-into"
+  ],
   "name": "DataFrame to Snowflake (Bulk)"
 }

@@ -41,7 +41,12 @@
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "required": true
+      "required": true,
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ],
+      "ui:widget": "select"
     },
     "tags": {
       "type": "object",

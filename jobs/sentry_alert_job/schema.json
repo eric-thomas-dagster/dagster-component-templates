@@ -1,22 +1,84 @@
 {
   "component_type": "dagster_community_components.SentryAlertJobComponent",
-  "description": "Fire a Sentry event as a scheduled (or on-demand) job — no asset materialized. Matches the pattern of http_webhook_job / observability_heartbeat_job. Configurable message, level, tags, extras, fingerprint, environment, release.",
+  "description": "Fire a Sentry event as a scheduled (or on-demand) job \u2014 no asset materialized. Matches the pattern of http_webhook_job / observability_heartbeat_job. Configurable message, level, tags, extras, fingerprint, environment, release.",
   "category": "jobs",
   "icon": "AlertCircle",
   "attributes": {
-    "job_name":       {"type": "string",  "required": true},
-    "schedule":       {"type": "string",  "required": false, "description": "Cron expression (None = no schedule)."},
-    "default_status": {"type": "string",  "required": false, "default": "STOPPED"},
-    "tags":           {"type": "object",  "required": false, "description": "Dagster job tags (not Sentry tags)."},
-
-    "dsn_env_var":    {"type": "string",  "required": false, "default": "SENTRY_DSN"},
-    "message":        {"type": "string",  "required": true, "description": "Event message text ({now} → UTC ISO timestamp)."},
-    "level":          {"type": "string",  "required": false, "default": "info", "description": "debug|info|warning|error|fatal"},
-    "environment":    {"type": "string",  "required": false},
-    "release":        {"type": "string",  "required": false},
-    "sentry_tags":    {"type": "object",  "required": false, "description": "Searchable Sentry tags applied to the event."},
-    "sentry_extras":  {"type": "object",  "required": false, "description": "Extra (non-indexed) context on the event."},
-    "fingerprint":    {"type": "array",   "required": false},
-    "fail_on_error":  {"type": "boolean", "required": false, "default": true}
+    "job_name": {
+      "type": "string",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "required": false,
+      "description": "Cron expression (None = no schedule).",
+      "x-dagster-widget": "cron"
+    },
+    "default_status": {
+      "type": "string",
+      "required": false,
+      "default": "STOPPED",
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ],
+      "ui:widget": "select"
+    },
+    "tags": {
+      "type": "object",
+      "required": false,
+      "description": "Dagster job tags (not Sentry tags)."
+    },
+    "dsn_env_var": {
+      "type": "string",
+      "required": false,
+      "default": "SENTRY_DSN"
+    },
+    "message": {
+      "type": "string",
+      "required": true,
+      "description": "Event message text ({now} \u2192 UTC ISO timestamp)."
+    },
+    "level": {
+      "type": "string",
+      "required": false,
+      "default": "info",
+      "description": "One of: debug / info / warning / error / fatal.",
+      "enum": [
+        "debug",
+        "info",
+        "warning",
+        "error",
+        "fatal"
+      ],
+      "ui:widget": "select"
+    },
+    "environment": {
+      "type": "string",
+      "required": false
+    },
+    "release": {
+      "type": "string",
+      "required": false
+    },
+    "sentry_tags": {
+      "type": "object",
+      "required": false,
+      "description": "Searchable Sentry tags applied to the event."
+    },
+    "sentry_extras": {
+      "type": "object",
+      "required": false,
+      "description": "Extra (non-indexed) context on the event."
+    },
+    "fingerprint": {
+      "type": "array",
+      "required": false
+    },
+    "fail_on_error": {
+      "type": "boolean",
+      "required": false,
+      "default": true
+    }
   }
 }

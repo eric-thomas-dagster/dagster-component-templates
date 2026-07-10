@@ -20,7 +20,8 @@
       "label": "Xml Column",
       "required": false,
       "description": "Column holding the raw ISO 20022 XML message (string).",
-      "default": "xml"
+      "default": "xml",
+      "x-dagster-widget": "column"
     },
     "description": {
       "type": "string",

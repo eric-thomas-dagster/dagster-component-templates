@@ -14,20 +14,37 @@
       "type": "string",
       "label": "Schedule",
       "description": "Cron schedule (e.g. '*/15 * * * *') \u2014 None = no schedule",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "cron"
     },
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "description": "STOPPED | RUNNING",
+      "description": "One of: STOPPED / RUNNING.",
       "required": false,
-      "default": "STOPPED"
+      "default": "STOPPED",
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ],
+      "ui:widget": "select"
     },
     "source": {
       "type": "string",
       "label": "Source",
       "description": "okta | aws_cloudtrail | github | azure_activity | slack | auth0 | snowflake | generic_http",
-      "required": true
+      "required": true,
+      "enum": [
+        "okta",
+        "aws_cloudtrail",
+        "github",
+        "azure_activity",
+        "slack",
+        "auth0",
+        "snowflake",
+        "generic_http"
+      ],
+      "ui:widget": "select"
     },
     "source_config": {
       "type": "object",
@@ -45,15 +62,32 @@
     "normalize_to": {
       "type": "string",
       "label": "Normalize To",
-      "description": "ocsf | ecs | none",
+      "description": "One of: ocsf / ecs / none.",
       "required": false,
-      "default": "ocsf"
+      "default": "ocsf",
+      "enum": [
+        "ocsf",
+        "ecs",
+        "none"
+      ],
+      "ui:widget": "select"
     },
     "sink": {
       "type": "string",
       "label": "Sink",
       "description": "splunk | sentinel | datadog_logs | sumo_logic | elastic | qradar | chronicle | s3",
-      "required": true
+      "required": true,
+      "enum": [
+        "splunk",
+        "sentinel",
+        "datadog_logs",
+        "sumo_logic",
+        "elastic",
+        "qradar",
+        "chronicle",
+        "s3"
+      ],
+      "ui:widget": "select"
     },
     "sink_config": {
       "type": "object",

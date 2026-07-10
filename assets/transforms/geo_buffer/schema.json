@@ -35,7 +35,13 @@
     },
     "units": {
       "type": "string",
-      "enum": ["meters", "km", "miles", "feet", "yards"],
+      "enum": [
+        "meters",
+        "km",
+        "miles",
+        "feet",
+        "yards"
+      ],
       "default": "meters",
       "label": "Units",
       "description": "Unit for `distance`"
@@ -44,7 +50,8 @@
       "type": "string",
       "default": "geometry",
       "label": "Geometry Column",
-      "description": "Input + output geometry column name"
+      "description": "Input + output geometry column name",
+      "x-dagster-widget": "column"
     },
     "projected_crs": {
       "type": "string",

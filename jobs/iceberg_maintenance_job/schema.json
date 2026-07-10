@@ -14,20 +14,32 @@
       "type": "string",
       "label": "Schedule",
       "description": "Cron schedule (None = no schedule)",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "cron"
     },
     "default_status": {
       "type": "string",
       "label": "Default Status",
       "description": "Default Status",
       "required": false,
-      "default": "STOPPED"
+      "default": "STOPPED",
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ],
+      "ui:widget": "select"
     },
     "engine": {
       "type": "string",
       "label": "Engine",
-      "description": "spark | trino | athena",
-      "required": true
+      "description": "One of: spark / trino / athena.",
+      "required": true,
+      "enum": [
+        "spark",
+        "trino",
+        "athena"
+      ],
+      "ui:widget": "select"
     },
     "connection_string_env": {
       "type": "string",

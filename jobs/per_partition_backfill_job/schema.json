@@ -14,14 +14,20 @@
       "type": "string",
       "label": "Schedule",
       "description": "Cron schedule",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "cron"
     },
     "default_status": {
       "type": "string",
       "label": "Default Status",
       "description": "Default Status",
       "required": false,
-      "default": "STOPPED"
+      "default": "STOPPED",
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ],
+      "ui:widget": "select"
     },
     "target_asset_key": {
       "type": "string",
@@ -34,7 +40,15 @@
       "label": "Partition Strategy",
       "description": "last_n_days | explicit | callable | dynamic_all | dynamic_subset",
       "required": false,
-      "default": "last_n_days"
+      "default": "last_n_days",
+      "enum": [
+        "last_n_days",
+        "explicit",
+        "callable",
+        "dynamic_all",
+        "dynamic_subset"
+      ],
+      "ui:widget": "select"
     },
     "partition_count": {
       "type": "integer",
@@ -45,7 +59,9 @@
     },
     "partition_keys": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Partition Keys",
       "description": "Explicit partition keys (when strategy=explicit)",
       "required": false

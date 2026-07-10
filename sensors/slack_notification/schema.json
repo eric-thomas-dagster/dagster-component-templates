@@ -61,7 +61,12 @@
       "label": "Default Status",
       "description": "Default Status",
       "required": false,
-      "default": "RUNNING"
+      "default": "RUNNING",
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ],
+      "ui:widget": "select"
     }
   },
   "tags": [

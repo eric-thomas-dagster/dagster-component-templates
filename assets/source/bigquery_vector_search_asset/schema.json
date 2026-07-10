@@ -39,7 +39,8 @@
       "type": "string",
       "label": "Base Column",
       "required": false,
-      "description": "Column in base_table containing the embedding (ARRAY<FLOAT64>)."
+      "description": "Column in base_table containing the embedding (ARRAY<FLOAT64>).",
+      "x-dagster-widget": "column"
     },
     "select_columns": {
       "type": "array",
@@ -48,7 +49,8 @@
       "description": "Columns to return alongside each match (id, text, metadata, etc.).",
       "items": {
         "type": "string"
-      }
+      },
+      "x-dagster-widget": "columns"
     },
     "top_k": {
       "type": "integer",
@@ -82,13 +84,15 @@
       "type": "string",
       "label": "Query Vector Column",
       "required": false,
-      "description": "From-upstream mode: column in upstream containing the embedding vector."
+      "description": "From-upstream mode: column in upstream containing the embedding vector.",
+      "x-dagster-widget": "column"
     },
     "query_id_column": {
       "type": "string",
       "label": "Query Id Column",
       "required": false,
-      "description": "Optional column in upstream to carry forward as `query_id` in results."
+      "description": "Optional column in upstream to carry forward as `query_id` in results.",
+      "x-dagster-widget": "column"
     },
     "use_brute_force": {
       "type": "boolean",

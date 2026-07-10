@@ -32,7 +32,8 @@
       "type": "string",
       "label": "Output Column",
       "description": "Write to a new column (None = overwrite)",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "column"
     },
     "default_value": {
       "type": "string",

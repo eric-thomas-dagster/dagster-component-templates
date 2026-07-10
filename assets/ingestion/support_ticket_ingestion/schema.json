@@ -98,7 +98,8 @@
     "freshness_cron": {
       "type": "string",
       "label": "Freshness Cron",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "cron"
     },
     "include_preview_metadata": {
       "type": "boolean",
@@ -115,7 +116,17 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "required": false
+      "required": false,
+      "enum": [
+        "daily",
+        "hourly",
+        "weekly",
+        "monthly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
+      "ui:widget": "select"
     },
     "partition_start": {
       "type": "string",
@@ -136,7 +147,13 @@
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,
-      "default": "exponential"
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
     },
     "column_lineage": {
       "type": "array",
@@ -149,7 +166,8 @@
     "partition_date_column": {
       "type": "string",
       "label": "Partition Date Column",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "column"
     },
     "partition_values": {
       "type": "string",
@@ -159,12 +177,14 @@
     "partition_static_dim": {
       "type": "string",
       "label": "Partition Static Dim",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "column"
     },
     "partition_static_column": {
       "type": "string",
       "label": "Partition Static Column",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "column"
     },
     "dynamic_partition_name": {
       "type": "string",

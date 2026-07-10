@@ -26,13 +26,15 @@
       "type": "array",
       "label": "Business Key Columns",
       "description": "Natural-key columns used to match incoming rows to existing",
-      "required": true
+      "required": true,
+      "x-dagster-widget": "columns"
     },
     "track_columns": {
       "type": "array",
       "label": "Track Columns",
       "description": "Columns to overwrite when changed (None = all non-key)",
-      "required": false
+      "required": false,
+      "x-dagster-widget": "columns"
     },
     "description": {
       "type": "string",

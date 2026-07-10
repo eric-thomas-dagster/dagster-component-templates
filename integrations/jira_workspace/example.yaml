@@ -1,0 +1,19 @@
+type: dagster_community_components.JiraWorkspaceComponent
+attributes:
+  base_url_env_var: JIRA_URL                # e.g. https://acme.atlassian.net
+  email_env_var: JIRA_EMAIL
+  api_token_env_var: JIRA_API_TOKEN
+
+  project_selector:
+    by_name: [ENG, OPS, PROD]                # or use project keys
+    # exclude_by_pattern: ["ARCHIVE_*"]
+
+  jql_template: "project = {project_key} AND updated >= -7d ORDER BY updated DESC"
+  max_results: 100
+
+  group_name: jira_projects
+  asset_key_prefix: [jira, project]
+
+  defs_state:
+    management_type: LOCAL_FILESYSTEM
+    refresh_if_dev: true

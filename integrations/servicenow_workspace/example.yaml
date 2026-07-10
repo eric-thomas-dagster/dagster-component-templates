@@ -1,0 +1,19 @@
+type: dagster_community_components.ServiceNowWorkspaceComponent
+attributes:
+  instance_env_var: SNOW_INSTANCE           # e.g. dev123456
+  username_env_var: SNOW_USERNAME
+  password_env_var: SNOW_PASSWORD
+
+  table_selector:
+    by_name: [incident, change_request, sys_user, cmdb_ci]
+    # by_pattern: ["u_*"]                   # only custom tables
+
+  query: "active=true"                       # sysparm_query filter (optional)
+  query_limit: 100
+
+  group_name: servicenow_tables
+  asset_key_prefix: [servicenow]
+
+  defs_state:
+    management_type: LOCAL_FILESYSTEM
+    refresh_if_dev: true

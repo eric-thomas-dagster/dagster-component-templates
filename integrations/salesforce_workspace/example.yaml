@@ -1,0 +1,18 @@
+type: dagster_community_components.SalesforceWorkspaceComponent
+attributes:
+  instance_url_env_var: SALESFORCE_INSTANCE_URL    # e.g. https://acme.my.salesforce.com
+  access_token_env_var: SALESFORCE_ACCESS_TOKEN
+  api_version: "58.0"
+
+  sobject_selector:
+    by_name: [Account, Contact, Opportunity, Lead]
+    # by_pattern: ["*__c"]                        # only custom SObjects
+    # include_custom_only: true
+
+  group_name: salesforce_crm
+  asset_key_prefix: [salesforce]
+  query_limit: 1000
+
+  defs_state:
+    management_type: LOCAL_FILESYSTEM
+    refresh_if_dev: true

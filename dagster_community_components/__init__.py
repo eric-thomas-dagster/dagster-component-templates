@@ -1031,6 +1031,11 @@ _CLASS_PATHS: dict[str, str] = {
     "CognosReportStatusSensorComponent": "sensors/cognos_report_status_sensor/component.py",
     "CognosReportDataIngestionComponent": "assets/ingestion/cognos_report_data_ingestion/component.py",
     "CognosWorkspaceComponent": "integrations/cognos_workspace/component.py",
+    "SalesforceWorkspaceComponent": "integrations/salesforce_workspace/component.py",
+    "HubSpotWorkspaceComponent": "integrations/hubspot_workspace/component.py",
+    "JiraWorkspaceComponent": "integrations/jira_workspace/component.py",
+    "ServiceNowWorkspaceComponent": "integrations/servicenow_workspace/component.py",
+    "NotionWorkspaceComponent": "integrations/notion_workspace/component.py",
 }
 
 _loaded: dict[str, object] = {}

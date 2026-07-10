@@ -1,0 +1,15 @@
+type: dagster_community_components.NotionWorkspaceComponent
+attributes:
+  access_token_env_var: NOTION_ACCESS_TOKEN
+
+  database_selector:
+    by_pattern: ["*Roadmap*", "*Tasks*"]
+    # exclude_by_pattern: ["*Archive*"]
+
+  page_size: 100
+  group_name: notion_dbs
+  asset_key_prefix: [notion]
+
+  defs_state:
+    management_type: LOCAL_FILESYSTEM
+    refresh_if_dev: true

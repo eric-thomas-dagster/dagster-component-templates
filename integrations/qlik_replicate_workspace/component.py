@@ -26,11 +26,17 @@ from pydantic import Field
 
 try:
     from dagster.components.component.state_backed_component import StateBackedComponent
-    from dagster.components.utils.defs_state import DefsStateConfig
+    from dagster.components.utils.defs_state import (
+        DefsStateConfig,
+        DefsStateConfigArgs,
+        ResolvedDefsStateConfig,
+    )
     _HAS_STATE_BACKED = True
 except ImportError:
     StateBackedComponent = None  # type: ignore
     DefsStateConfig = None  # type: ignore
+    DefsStateConfigArgs = None  # type: ignore
+    ResolvedDefsStateConfig = Any  # type: ignore
     _HAS_STATE_BACKED = False
 
 
@@ -151,7 +157,7 @@ if _HAS_STATE_BACKED:
         poll_interval_seconds: int = 15
         timeout_seconds: int = 3600
 
-        defs_state: Optional[Any] = None
+        defs_state: Optional[ResolvedDefsStateConfig] = None
 
         @property
         def defs_state_config(self) -> "DefsStateConfig":

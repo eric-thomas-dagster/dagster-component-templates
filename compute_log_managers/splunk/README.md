@@ -24,22 +24,73 @@ One HEC event per line of captured stdout/stderr, with structured `fields`:
     "dagster_run_id": "abc-123-uuid",
     "dagster_step_key": "process_orders",
     "dagster_io_type": "stdout",
-    "dagster_partial": "false"
+    "dagster_partial": "false",
+    "dagster_step_start_epoch": "1748534560.123",
+    "dagster_step_start_iso": "2025-05-29T18:22:40.123000+00:00",
+    "dagster_step_end_epoch": "1748534567.456",
+    "dagster_step_end_iso": "2025-05-29T18:22:47.456000+00:00",
+    "dagster_step_duration_ms": "7333",
+    "dagster_step_status": "SUCCESS"
   }
 }
 ```
 
-Query the run in Splunk Web:
+### Step-timing fields
+
+Alongside the run/step identifiers, every HEC event carries step-level timing metadata so you can filter, group, or sort logs by how long the step took and what its outcome was.
+
+| Field | Type | Populated when | Notes |
+|---|---|---|---|
+| `dagster_step_start_epoch` | float | step has started | unix seconds |
+| `dagster_step_start_iso` | string | step has started | UTC ISO-8601 |
+| `dagster_step_end_epoch` | float | step has finished | unix seconds |
+| `dagster_step_end_iso` | string | step has finished | UTC ISO-8601 |
+| `dagster_step_duration_ms` | int | step has finished | `end - start`, milliseconds |
+| `dagster_step_status` | string | step has finished | `SUCCESS`, `FAILURE`, `SKIPPED` |
+
+For long-running steps, partial uploads mid-execution have `dagster_step_start_*` but not the end/duration/status fields — Dagster only knows those values after the step completes. The final upload after the step ends carries all six. If you want duration on every log line for a long step, backfill in Splunk with `eventstats`:
+
+```spl
+search index=dagster dagster_run_id="abc-123-uuid"
+| eventstats
+    max(dagster_step_end_epoch)   as _end
+    max(dagster_step_duration_ms) as _duration
+    values(dagster_step_status)   as _status
+    by dagster_run_id dagster_step_key
+| eval dagster_step_duration_ms = coalesce(dagster_step_duration_ms, _duration)
+| eval dagster_step_end_epoch   = coalesce(dagster_step_end_epoch, _end)
+| eval dagster_step_status      = coalesce(dagster_step_status, _status)
+```
+
+### Query examples
+
+All logs for one run, chronologically:
 
 ```spl
 search index=dagster dagster_run_id="abc-123-uuid" | sort _time
 ```
 
-Or grouped by step:
+Log volume by step:
 
 ```spl
 search index=dagster dagster_run_id="abc-123-uuid"
 | stats count by dagster_step_key, dagster_io_type
+```
+
+Top 10 slowest steps in the last 24h:
+
+```spl
+search index=dagster earliest=-24h
+| dedup dagster_run_id dagster_step_key
+| sort -dagster_step_duration_ms
+| head 10
+| table dagster_run_id dagster_step_key dagster_step_duration_ms dagster_step_status
+```
+
+All logs from failed steps in the last hour:
+
+```spl
+search index=dagster dagster_step_status="FAILURE" earliest=-1h
 ```
 
 ## What the Dagster UI shows

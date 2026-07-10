@@ -48,9 +48,15 @@ One OTLP `LogRecord` per line of captured stdout/stderr:
           "body": {"stringValue": "INFO - my asset processed 1234 rows"},
           "attributes": [
             {"key": "dagster.run_id", "value": {"stringValue": "abc-123-uuid"}},
-            {"key": "dagster.step_key", "value": {"stringValue": "process_orders"}},
             {"key": "dagster.io_type", "value": {"stringValue": "stdout"}},
-            {"key": "dagster.partial", "value": {"stringValue": "false"}}
+            {"key": "dagster.partial", "value": {"stringValue": "false"}},
+            {"key": "dagster.step_key", "value": {"stringValue": "process_orders"}},
+            {"key": "dagster.step_start_epoch", "value": {"doubleValue": 1748534560.123}},
+            {"key": "dagster.step_start_iso", "value": {"stringValue": "2025-05-29T18:22:40.123000+00:00"}},
+            {"key": "dagster.step_end_epoch", "value": {"doubleValue": 1748534567.456}},
+            {"key": "dagster.step_end_iso", "value": {"stringValue": "2025-05-29T18:22:47.456000+00:00"}},
+            {"key": "dagster.step_duration_ms", "value": {"intValue": 7333}},
+            {"key": "dagster.step_status", "value": {"stringValue": "SUCCESS"}}
           ]
         }
       ]
@@ -60,6 +66,26 @@ One OTLP `LogRecord` per line of captured stdout/stderr:
 ```
 
 Severity: stdout → 9 (INFO), stderr → 13 (WARN) by default. **Not ERROR** for stderr because Dagster doesn't distinguish app errors from operational stderr (most Python loggers write everything there). Override per-backend via `severity_stdout` / `severity_stderr` if your observability strategy treats stderr differently.
+
+### Step-timing attributes
+
+Alongside the run/step identifiers, every LogRecord carries step-level timing metadata so you can filter, group, or sort logs by how long the step took and what its outcome was.
+
+| Attribute | Type | Populated when | Notes |
+|---|---|---|---|
+| `dagster.step_start_epoch` | double | step has started | unix seconds |
+| `dagster.step_start_iso` | string | step has started | UTC ISO-8601 |
+| `dagster.step_end_epoch` | double | step has finished | unix seconds |
+| `dagster.step_end_iso` | string | step has finished | UTC ISO-8601 |
+| `dagster.step_duration_ms` | int | step has finished | `end - start`, milliseconds |
+| `dagster.step_status` | string | step has finished | `SUCCESS`, `FAILURE`, `SKIPPED` |
+
+For long-running steps, partial uploads mid-execution have `dagster.step_start_*` but not the end/duration/status attributes — Dagster only knows those values after the step completes. The final upload after the step ends carries all six. If you want duration on every log line for a long step, backfill in your query language:
+
+- **Splunk (via OTel Collector → HEC)**: `| eventstats max(dagster.step_duration_ms) as _dur by dagster.run_id dagster.step_key`
+- **Datadog**: `@dagster.step_duration_ms` on the final event; use log-based metrics grouped by `@dagster.run_id`, `@dagster.step_key`
+- **Honeycomb / any tracing UI**: filter by `dagster.step_status = FAILURE` for post-mortem, group by `dagster.step_key` for slow-step dashboards
+- **Grafana Loki / LogQL**: use recording rules keyed on `dagster_run_id` + `dagster_step_key` to promote duration into metrics
 
 ## UI behavior
 

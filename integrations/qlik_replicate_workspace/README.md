@@ -66,8 +66,7 @@ attributes:
 | `username_env_var` / `password_env_var` | str | — | Session-based auth (dev). Required unless api_token is set. |
 | `verify_ssl` | bool | `true` | TLS verification. Set false for self-signed dev servers. |
 | `servers` | list[str] | all | Whitelist of Replicate servers to include. |
-| `include_task_patterns` | list[str] | — | fnmatch globs. Task must match at least one. |
-| `exclude_task_patterns` | list[str] | — | fnmatch globs. Task matching any is excluded. |
+| `task_selector` | object | — | Task filter. Mirrors Fivetran's `connector_selector`. See below. |
 | `group_name` | str | — | Dagster asset group name. |
 | `asset_key_prefix` | list[str] | `["qlik_replicate"]` | Prefix segments for emitted asset keys. Final key = `[...prefix, server, task]`. |
 | `compute_kind` | str | `qlik_replicate` | Asset compute_kind for UI display. |
@@ -77,6 +76,23 @@ attributes:
 | `poll_interval_seconds` | int | `15` | Seconds between status polls. |
 | `timeout_seconds` | int | `3600` | Deadline for wait_for_completion. |
 | `defs_state` | dict | — | StateBackedComponent config. `management_type: LOCAL_FILESYSTEM` (dev) or `CLOUD_OBJECT_STORE` (Dagster+). |
+
+## `task_selector` — Fivetran-style filtering
+
+Mirrors the shape of `FivetranWorkspace.connector_selector`. All four fields optional:
+
+```yaml
+task_selector:
+  by_name: [orders_cdc, customers_cdc]      # exact names to include
+  by_pattern: [orders_*]                     # fnmatch globs to include
+  exclude_by_name: [test_task]               # exact names to exclude
+  exclude_by_pattern: [*_deprecated, *_test] # fnmatch globs to exclude
+```
+
+**Semantics:**
+- If neither `by_name` nor `by_pattern` is set, ALL tasks are included (subject to exclusions).
+- If either `by_name` or `by_pattern` is set, only matching tasks are included.
+- `exclude_by_*` always wins over `by_*` — matching an exclusion drops the task even if it matches an include.
 
 ## The Fivetran / Airbyte parity
 

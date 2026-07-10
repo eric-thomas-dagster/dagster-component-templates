@@ -5,8 +5,11 @@ attributes:
 
   # Filter — optional. Omit to include every server + task.
   servers: [prod-replicate-01]
-  # include_task_patterns: ["orders_*", "customers_*"]
-  # exclude_task_patterns: ["*_deprecated"]
+  task_selector:
+    by_name: [orders_sqlserver_to_snowflake, customers_db2_to_snowflake]
+    # by_pattern: ["orders_*", "customers_*"]
+    # exclude_by_name: [test_task]
+    # exclude_by_pattern: ["*_deprecated"]
 
   # Grouping
   group_name: qlik_replicate

@@ -109,6 +109,43 @@ def _enumerate_workspace(base_url: str, username: Optional[str], password: Optio
     return {"servers": servers, "polled_at": time.time()}
 
 
+@dataclass
+class TaskSelector(dg.Resolvable):
+    """Selector for filtering Qlik Replicate tasks.
+
+    Mirrors the FivetranWorkspace `connector_selector` shape:
+
+        task_selector:
+          by_name: [orders_cdc, customers_cdc]       # exact names to include
+          by_pattern: [orders_*]                      # globs to include
+          exclude_by_name: [test_task]                # exact names to exclude
+          exclude_by_pattern: [*_deprecated, *_test]  # globs to exclude
+
+    Empty `by_name` + empty `by_pattern` = include all tasks.
+    `exclude_by_*` always wins over `by_*`.
+    """
+    by_name: Optional[List[str]] = None
+    by_pattern: Optional[List[str]] = None
+    exclude_by_name: Optional[List[str]] = None
+    exclude_by_pattern: Optional[List[str]] = None
+
+    def matches(self, task_name: str) -> bool:
+        import fnmatch
+        # Exclusions win.
+        if self.exclude_by_name and task_name in self.exclude_by_name:
+            return False
+        if self.exclude_by_pattern and any(fnmatch.fnmatch(task_name, p) for p in self.exclude_by_pattern):
+            return False
+        # If no include filters, include everything.
+        if not self.by_name and not self.by_pattern:
+            return True
+        if self.by_name and task_name in self.by_name:
+            return True
+        if self.by_pattern and any(fnmatch.fnmatch(task_name, p) for p in self.by_pattern):
+            return True
+        return False
+
+
 if _HAS_STATE_BACKED:
 
     @dataclass
@@ -129,6 +166,8 @@ if _HAS_STATE_BACKED:
               base_url_env_var: QLIK_EM_URL
               api_token_env_var: QLIK_EM_API_TOKEN
               servers: [prod-replicate-01]
+              task_selector:
+                by_name: [orders_sqlserver_to_snowflake]
               group_name: qlik_replicate
               action: reload           # what to do on materialize
               wait_for_completion: true
@@ -142,8 +181,7 @@ if _HAS_STATE_BACKED:
         verify_ssl: bool = True
 
         servers: Optional[List[str]] = None  # None = all servers
-        include_task_patterns: Optional[List[str]] = None  # glob include
-        exclude_task_patterns: Optional[List[str]] = None  # glob exclude
+        task_selector: Optional[TaskSelector] = None  # None = all tasks
 
         group_name: Optional[str] = None
         asset_key_prefix: List[str] = field(default_factory=lambda: ["qlik_replicate"])
@@ -165,7 +203,6 @@ if _HAS_STATE_BACKED:
 
         def write_state_to_path(self, state_path: Path) -> None:
             import os
-            import fnmatch
             base_url = os.environ.get(self.base_url_env_var, "")
             username = os.environ.get(self.username_env_var, "") if self.username_env_var else None
             password = os.environ.get(self.password_env_var, "") if self.password_env_var else None
@@ -174,18 +211,10 @@ if _HAS_STATE_BACKED:
                 base_url=base_url, username=username, password=password, api_token=api_token,
                 verify_ssl=self.verify_ssl, servers_filter=self.servers,
             )
-            # Apply include/exclude patterns.
-            if self.include_task_patterns or self.exclude_task_patterns:
+            # Apply task_selector filtering.
+            if self.task_selector is not None:
                 for sv in snapshot["servers"]:
-                    kept = []
-                    for t in sv["tasks"]:
-                        n = t["name"]
-                        if self.include_task_patterns and not any(fnmatch.fnmatch(n, p) for p in self.include_task_patterns):
-                            continue
-                        if self.exclude_task_patterns and any(fnmatch.fnmatch(n, p) for p in self.exclude_task_patterns):
-                            continue
-                        kept.append(t)
-                    sv["tasks"] = kept
+                    sv["tasks"] = [t for t in sv["tasks"] if self.task_selector.matches(t["name"])]
             state_path.write_text(json.dumps(snapshot, indent=2))
 
         def build_defs_from_state(

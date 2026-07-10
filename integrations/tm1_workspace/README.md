@@ -2,14 +2,14 @@
 
 Auto-emit one Dagster asset per **TM1 Cube / Process / Chore** by enumerating the workspace via the TM1 REST API. `StateBackedComponent` — discovery cached to disk, refreshed on explicit trigger, not on every project load.
 
-- **Cube assets** — observational; materialize records presence. Use [`tm1_cube_data_ingestion`](../../assets/ingestion/tm1_cube_data_ingestion/) for actual data extraction.
+- **Cube assets** — observational; materialize records presence. Use `tm1_cube_data_ingestion` for actual data extraction.
 - **Process / Chore assets** — executable; materialize invokes `ExecuteProcess` / `Execute` on TM1 and polls to terminal status.
 
 The workspace-shape peer of:
-- [`tm1_resource`](../../resources/tm1_resource/) — shared auth
-- [`tm1_process_trigger_job`](../../jobs/tm1_process_trigger_job/) — imperative single-process control
-- [`tm1_process_status_sensor`](../../sensors/tm1_process_status_sensor/) — event-drive on status
-- [`tm1_cube_data_ingestion`](../../assets/ingestion/tm1_cube_data_ingestion/) — cube data as DataFrame
+- `tm1_resource` — shared auth
+- `tm1_process_trigger_job` — imperative single-process control
+- `tm1_process_status_sensor` — event-drive on status
+- `tm1_cube_data_ingestion` — cube data as DataFrame
 - **`tm1_workspace` (this)** — auto-emit assets per object, zero per-object YAML
 
 ## When to use which

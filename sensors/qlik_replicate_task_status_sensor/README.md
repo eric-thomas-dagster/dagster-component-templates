@@ -2,7 +2,7 @@
 
 Poll a Qlik Replicate task's state via the Enterprise Manager REST API; trigger a Dagster job when the task transitions to a target state.
 
-Pairs with [`qlik_replicate_resource`](../../resources/qlik_replicate_resource/) for auth.
+Pairs with `qlik_replicate_resource` for auth.
 
 ## Common patterns
 
@@ -37,6 +37,6 @@ attributes:
 
 ## Related
 
-- [`qlik_replicate_resource`](../../resources/qlik_replicate_resource/) — shared auth
-- [`qlik_replicate_task_trigger_job`](../../jobs/qlik_replicate_task_trigger_job/) — the imperative counterpart (start/stop/reload)
-- [`qlik_replicate_task_metrics_ingestion`](../../assets/ingestion/qlik_replicate_task_metrics_ingestion/) — pull per-task metrics for dashboards
+- `qlik_replicate_resource` — shared auth
+- `qlik_replicate_task_trigger_job` — the imperative counterpart (start/stop/reload)
+- `qlik_replicate_task_metrics_ingestion` — pull per-task metrics for dashboards

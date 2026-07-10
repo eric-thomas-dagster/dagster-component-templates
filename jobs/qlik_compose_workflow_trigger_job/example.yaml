@@ -1,0 +1,12 @@
+type: dagster_community_components.QlikComposeWorkflowTriggerJobComponent
+attributes:
+  job_name: build_finance_dw
+  project: FinanceDW
+  workflow: FullBuildAndPopulate
+  action: run                     # run | stop
+  resource_key: qlik_compose_resource
+  wait_for_completion: true
+  poll_interval_seconds: 30
+  timeout_seconds: 3600
+  # schedule: "0 2 * * *"
+  # default_status: STOPPED

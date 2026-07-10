@@ -1,0 +1,11 @@
+type: dagster_community_components.QlikComposeResourceComponent
+attributes:
+  resource_key: qlik_compose_resource
+  base_url_env_var: QLIK_COMPOSE_URL         # e.g. https://qlikcompose.acme.com
+  api_token_env_var: QLIK_COMPOSE_TOKEN
+
+  # --- Session auth ---
+  # username_env_var: QLIK_COMPOSE_USER
+  # password_env_var: QLIK_COMPOSE_PASSWORD
+
+  # verify_ssl: false

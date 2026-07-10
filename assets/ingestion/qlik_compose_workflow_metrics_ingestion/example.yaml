@@ -1,0 +1,7 @@
+type: dagster_community_components.QlikComposeWorkflowMetricsIngestionComponent
+attributes:
+  asset_key: qlik_compose_metrics
+  projects: [FinanceDW, SalesDW]
+  group_name: qlik_observability
+  resource_key: qlik_compose_resource
+  # workflows: [FullBuildAndPopulate, IncrementalUpdate]      # optional whitelist

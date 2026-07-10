@@ -2,7 +2,7 @@
 
 Trigger a **Qlik Replicate task** — start, stop, or full reload — via the Qlik Enterprise Manager REST API. Wraps a Dagster job around a single control-plane call.
 
-Pairs with [`qlik_replicate_resource`](../../resources/qlik_replicate_resource/) for centralized auth.
+Pairs with `qlik_replicate_resource` for centralized auth.
 
 ## When to use
 
@@ -70,6 +70,6 @@ attributes:
 
 ## Related
 
-- [`qlik_replicate_resource`](../../resources/qlik_replicate_resource/) — shared auth
-- [`qlik_replicate_task_status_sensor`](../../sensors/qlik_replicate_task_status_sensor/) — trigger downstream jobs on task completion (event-driven pattern)
-- [`qlik_replicate_task_metrics_ingestion`](../../assets/ingestion/qlik_replicate_task_metrics_ingestion/) — pull per-task metrics into a DataFrame asset for dashboarding
+- `qlik_replicate_resource` — shared auth
+- `qlik_replicate_task_status_sensor` — trigger downstream jobs on task completion (event-driven pattern)
+- `qlik_replicate_task_metrics_ingestion` — pull per-task metrics into a DataFrame asset for dashboarding

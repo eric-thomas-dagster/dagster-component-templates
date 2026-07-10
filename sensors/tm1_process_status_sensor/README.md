@@ -2,7 +2,7 @@
 
 Poll a **TM1 TI process** for its execution status; trigger a Dagster job on transitions into a target status set. Cursor-deduped by `(status, execution_id)` so each execution fires downstream exactly once.
 
-Pairs with [`tm1_resource`](../../resources/tm1_resource/) for auth.
+Pairs with `tm1_resource` for auth.
 
 ## Common patterns
 
@@ -37,6 +37,6 @@ attributes:
 
 ## Related
 
-- [`tm1_resource`](../../resources/tm1_resource/) — shared auth
-- [`tm1_process_trigger_job`](../../jobs/tm1_process_trigger_job/) — the imperative counterpart
-- [`tm1_workspace`](../../integrations/tm1_workspace/) — auto-emit per-Process asset that fires on materialize
+- `tm1_resource` — shared auth
+- `tm1_process_trigger_job` — the imperative counterpart
+- `tm1_workspace` — auto-emit per-Process asset that fires on materialize

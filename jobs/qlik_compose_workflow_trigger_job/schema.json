@@ -1,0 +1,19 @@
+{
+  "component_type": "dagster_community_components.QlikComposeWorkflowTriggerJobComponent",
+  "description": "Trigger a Qlik Compose workflow via the Compose REST API. Wraps a Dagster job around a run/stop action with optional wait_for_completion polling to terminal state (COMPLETED / STOPPED / ERROR / FAILED).",
+  "category": "job",
+  "icon": "PlayArrow",
+  "attributes": {
+    "job_name": {"type": "string", "label": "Job Name", "required": true},
+    "project": {"type": "string", "label": "Project (Data Warehouse)", "required": true, "description": "Compose project name."},
+    "workflow": {"type": "string", "label": "Workflow", "required": true, "description": "Compose workflow name."},
+    "action": {"type": "string", "label": "Action", "required": false, "default": "run", "description": "run | stop", "ui:widget": "select", "enum": ["run", "stop"]},
+    "wait_for_completion": {"type": "boolean", "label": "Wait for Completion", "required": false, "default": true, "ui:widget": "checkbox"},
+    "poll_interval_seconds": {"type": "integer", "label": "Poll Interval (s)", "required": false, "default": 30},
+    "timeout_seconds": {"type": "integer", "label": "Timeout (s)", "required": false, "default": 3600},
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "qlik_compose_resource"},
+    "schedule": {"type": "string", "label": "Cron Schedule", "required": false},
+    "default_status": {"type": "string", "label": "Schedule Default Status", "required": false, "default": "STOPPED", "ui:widget": "select", "enum": ["STOPPED", "RUNNING"]},
+    "tags": {"type": "object", "label": "Job Tags", "required": false}
+  }
+}

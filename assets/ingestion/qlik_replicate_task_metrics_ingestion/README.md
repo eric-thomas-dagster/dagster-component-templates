@@ -2,7 +2,7 @@
 
 Materialize per-task metrics from **Qlik Replicate** (via Enterprise Manager REST API) as a DataFrame asset. Each materialization polls the API and emits one row per task with its current state, latency, throughput, and error count.
 
-Pairs with [`qlik_replicate_resource`](../../../resources/qlik_replicate_resource/) for auth.
+Pairs with `qlik_replicate_resource` for auth.
 
 ## When to use
 
@@ -68,7 +68,7 @@ Or use a schedule-based partitioned asset if you want to keep historical rows in
 
 ## Related
 
-- [`qlik_replicate_resource`](../../../resources/qlik_replicate_resource/) — shared auth
-- [`qlik_replicate_task_trigger_job`](../../../jobs/qlik_replicate_task_trigger_job/) — imperative task control (start/stop/reload)
-- [`qlik_replicate_task_status_sensor`](../../../sensors/qlik_replicate_task_status_sensor/) — event-drive on state transitions
-- [`dataframe_to_pagerduty`](../../sinks/dataframe_to_pagerduty/) — chain metrics → alerts on `error_count > 0` rows
+- `qlik_replicate_resource` — shared auth
+- `qlik_replicate_task_trigger_job` — imperative task control (start/stop/reload)
+- `qlik_replicate_task_status_sensor` — event-drive on state transitions
+- `dataframe_to_pagerduty` — chain metrics → alerts on `error_count > 0` rows

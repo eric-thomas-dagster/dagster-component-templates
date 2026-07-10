@@ -2,7 +2,7 @@
 
 Materialize a slice of a **TM1 cube** via MDX as a Dagster DataFrame asset. Turn multidimensional planning cube data into flat rows for downstream Dagster transforms, dbt models, or warehouse loads.
 
-Pairs with [`tm1_resource`](../../../resources/tm1_resource/) for auth.
+Pairs with `tm1_resource` for auth.
 
 ## Query modes
 
@@ -58,6 +58,6 @@ Common downstream patterns:
 
 ## Related
 
-- [`tm1_resource`](../../../resources/tm1_resource/)
-- [`tm1_process_trigger_job`](../../../jobs/tm1_process_trigger_job/) — run a TI process before ingesting
-- [`tm1_workspace`](../../../integrations/tm1_workspace/) — auto-emit assets per cube (workspace shape)
+- `tm1_resource`
+- `tm1_process_trigger_job` — run a TI process before ingesting
+- `tm1_workspace` — auto-emit assets per cube (workspace shape)

@@ -4,10 +4,10 @@ Auto-emit one Dagster asset per Qlik Replicate task by enumerating the workspace
 
 This is the **workspace-shape peer** of the low-level Qlik Replicate components:
 
-- [`qlik_replicate_resource`](../../resources/qlik_replicate_resource/) — shared auth
-- [`qlik_replicate_task_trigger_job`](../../jobs/qlik_replicate_task_trigger_job/) — imperative single-task control
-- [`qlik_replicate_task_status_sensor`](../../sensors/qlik_replicate_task_status_sensor/) — event-drive on state transitions
-- [`qlik_replicate_task_metrics_ingestion`](../../assets/ingestion/qlik_replicate_task_metrics_ingestion/) — per-task metrics DataFrame
+- `qlik_replicate_resource` — shared auth
+- `qlik_replicate_task_trigger_job` — imperative single-task control
+- `qlik_replicate_task_status_sensor` — event-drive on state transitions
+- `qlik_replicate_task_metrics_ingestion` — per-task metrics DataFrame
 - **`qlik_replicate_workspace` (this component)** — auto-emit one asset per task, zero per-task YAML
 
 ## When to use which

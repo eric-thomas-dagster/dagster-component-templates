@@ -1,0 +1,16 @@
+{
+  "component_type": "dagster_community_components.QlikComposeWorkflowStatusSensorComponent",
+  "description": "Poll a Qlik Compose workflow's state; trigger a Dagster job on transitions into target states (COMPLETED / ERROR / FAILED / STOPPED). Cursor-deduped so downstream fires once per completion.",
+  "category": "sensor",
+  "icon": "Bolt",
+  "attributes": {
+    "sensor_name": {"type": "string", "label": "Sensor Name", "required": true},
+    "project": {"type": "string", "label": "Project", "required": true},
+    "workflow": {"type": "string", "label": "Workflow", "required": true},
+    "target_states": {"type": "array", "label": "Target States", "required": false, "default": ["COMPLETED"]},
+    "job_name": {"type": "string", "label": "Job Name", "required": true},
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "qlik_compose_resource"},
+    "minimum_interval_seconds": {"type": "integer", "label": "Poll Interval (s)", "required": false, "default": 60},
+    "default_status": {"type": "string", "label": "Default Sensor Status", "required": false, "default": "running", "ui:widget": "select", "enum": ["running", "stopped"]}
+  }
+}

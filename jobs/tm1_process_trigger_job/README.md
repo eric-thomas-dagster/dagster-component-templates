@@ -2,7 +2,7 @@
 
 Trigger a **TM1 TI process or chore** via the TM1 REST API. Wraps a Dagster job around a single `ExecuteProcess` (or `ExecuteChore`) call, with optional parameter overrides for TI processes.
 
-Pairs with [`tm1_resource`](../../resources/tm1_resource/) for centralized auth.
+Pairs with `tm1_resource` for centralized auth.
 
 ## When to use
 
@@ -37,7 +37,7 @@ attributes:
 
 ## Related
 
-- [`tm1_resource`](../../resources/tm1_resource/) — shared auth
-- [`tm1_process_status_sensor`](../../sensors/tm1_process_status_sensor/) — trigger downstream Dagster jobs on process state
-- [`tm1_cube_data_ingestion`](../../assets/ingestion/tm1_cube_data_ingestion/) — read a cube slice via MDX
-- [`tm1_workspace`](../../integrations/tm1_workspace/) — auto-emit assets per Cube / Process / Chore (workspace shape)
+- `tm1_resource` — shared auth
+- `tm1_process_status_sensor` — trigger downstream Dagster jobs on process state
+- `tm1_cube_data_ingestion` — read a cube slice via MDX
+- `tm1_workspace` — auto-emit assets per Cube / Process / Chore (workspace shape)

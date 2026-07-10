@@ -1013,6 +1013,12 @@ _CLASS_PATHS: dict[str, str] = {
     "TM1ProcessStatusSensorComponent": "sensors/tm1_process_status_sensor/component.py",
     "TM1CubeDataIngestionComponent": "assets/ingestion/tm1_cube_data_ingestion/component.py",
     "TM1WorkspaceComponent": "integrations/tm1_workspace/component.py",
+    "QlikComposeResource": "resources/qlik_compose_resource/component.py",
+    "QlikComposeResourceComponent": "resources/qlik_compose_resource/component.py",
+    "QlikComposeWorkflowTriggerJobComponent": "jobs/qlik_compose_workflow_trigger_job/component.py",
+    "QlikComposeWorkflowStatusSensorComponent": "sensors/qlik_compose_workflow_status_sensor/component.py",
+    "QlikComposeWorkflowMetricsIngestionComponent": "assets/ingestion/qlik_compose_workflow_metrics_ingestion/component.py",
+    "QlikComposeWorkspaceComponent": "integrations/qlik_compose_workspace/component.py",
 }
 
 _loaded: dict[str, object] = {}

@@ -1006,6 +1006,7 @@ _CLASS_PATHS: dict[str, str] = {
     "QlikReplicateTaskTriggerJobComponent": "jobs/qlik_replicate_task_trigger_job/component.py",
     "QlikReplicateTaskStatusSensorComponent": "sensors/qlik_replicate_task_status_sensor/component.py",
     "QlikReplicateTaskMetricsIngestionComponent": "assets/ingestion/qlik_replicate_task_metrics_ingestion/component.py",
+    "QlikReplicateWorkspaceComponent": "integrations/qlik_replicate_workspace/component.py",
 }
 
 _loaded: dict[str, object] = {}

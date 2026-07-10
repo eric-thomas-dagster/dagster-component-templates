@@ -32164,9 +32164,38 @@
         "requires_pip": ["pandas", "requests"],
         "chains_with": ["dataframe_to_pagerduty", "dataframe_to_snowflake", "dataframe_to_prometheus"]
       }
+    },
+    {
+      "id": "qlik_replicate_workspace",
+      "name": "Qlik Replicate Workspace",
+      "component_type": "dagster_community_components.QlikReplicateWorkspaceComponent",
+      "path": "integrations/qlik_replicate_workspace",
+      "category": "integration",
+      "icon": "AccountTree",
+      "description": "Auto-emit one Dagster asset per Qlik Replicate task by enumerating the workspace via the Qlik Enterprise Manager REST API. StateBackedComponent — discovery is cached to disk and refreshed on explicit trigger. Materializing an asset triggers the underlying task (run / reload / stop) and polls to completion. The workspace-shape peer of the four low-level qlik_replicate_* components — use this when you want one YAML instead of one-per-task.",
+      "tags": ["integration", "qlik", "replicate", "cdc", "workspace", "auto-discovery", "state-backed"],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_replicate_workspace/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_replicate_workspace/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_replicate_workspace/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_replicate_workspace/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_replicate_workspace/schema.json",
+      "dependencies": {"pip": ["requests>=2.28.0"]},
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/qlik_replicate.md",
+        "last_validated": "2026-07-10"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": ["one_asset_per_qlik_replicate_task"],
+        "requires_pip": ["requests"],
+        "chains_with": ["qlik_replicate_task_status_sensor"],
+        "anti_uses": "Do not use alongside per-task qlik_replicate_task_trigger_job unless a specific task needs bespoke config outside the workspace defaults. This workspace already emits per-task assets."
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 888
+  "total": 889
 }

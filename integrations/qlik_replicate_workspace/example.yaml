@@ -1,0 +1,34 @@
+type: dagster_community_components.QlikReplicateWorkspaceComponent
+attributes:
+  base_url_env_var: QLIK_EM_URL             # e.g. https://qlikem.acme.com
+  api_token_env_var: QLIK_EM_API_TOKEN      # generate under Enterprise Manager → Manage API Tokens
+
+  # Filter — optional. Omit to include every server + task.
+  servers: [prod-replicate-01]
+  # include_task_patterns: ["orders_*", "customers_*"]
+  # exclude_task_patterns: ["*_deprecated"]
+
+  # Grouping
+  group_name: qlik_replicate
+  asset_key_prefix: [qlik_replicate]
+
+  # What happens when an asset is materialized.
+  action: run                                # run | reload | stop
+  run_option: RESUME_PROCESSING              # only used when action=run
+  wait_for_completion: true
+  poll_interval_seconds: 15
+  timeout_seconds: 3600
+
+  # State backing — how often the catalog re-discovers.
+  # LOCAL_FILESYSTEM caches under .local_defs_state/; refresh via
+  # `dg utils refresh-defs-state` or restart with refresh_if_dev=true.
+  defs_state:
+    management_type: LOCAL_FILESYSTEM
+    refresh_if_dev: true
+
+  # --- Basic auth (dev) ---
+  # username_env_var: QLIK_EM_USER
+  # password_env_var: QLIK_EM_PASSWORD
+
+  # --- Self-signed dev server ---
+  # verify_ssl: false

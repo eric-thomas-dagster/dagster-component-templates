@@ -1,0 +1,25 @@
+{
+  "component_type": "dagster_community_components.QlikReplicateWorkspaceComponent",
+  "description": "Auto-emit one Dagster asset per Qlik Replicate task by enumerating the workspace via the Qlik Enterprise Manager REST API. StateBackedComponent — discovery is cached to disk and refreshed on explicit trigger, not on every project load. Materializing an asset triggers the underlying task (run / reload / stop) and polls to completion. The workspace-shape peer of the low-level qlik_replicate_task_trigger_job / qlik_replicate_task_status_sensor / qlik_replicate_task_metrics_ingestion components — use this when you want one YAML instead of one-per-task.",
+  "category": "integration",
+  "icon": "AccountTree",
+  "attributes": {
+    "base_url_env_var": {"type": "string", "label": "Base URL Env Var", "required": true, "description": "Env var with the Enterprise Manager base URL (e.g. https://qlikem.acme.com). No trailing slash."},
+    "username_env_var": {"type": "string", "label": "Username Env Var", "required": false, "description": "Env var with EM username (session-based auth). Required unless api_token_env_var is set."},
+    "password_env_var": {"type": "string", "label": "Password Env Var", "required": false, "description": "Env var with EM password (session-based auth). Required unless api_token_env_var is set."},
+    "api_token_env_var": {"type": "string", "label": "API Token Env Var", "required": false, "description": "Env var with an EM API token. Preferred for production."},
+    "verify_ssl": {"type": "boolean", "label": "Verify SSL", "required": false, "default": true, "description": "Enable TLS verification.", "ui:widget": "checkbox"},
+    "servers": {"type": "array", "label": "Servers Filter", "required": false, "description": "Optional whitelist of Replicate server names. Omit to include all servers."},
+    "include_task_patterns": {"type": "array", "label": "Include Task Patterns", "required": false, "description": "fnmatch-style globs. Task must match at least one to be included."},
+    "exclude_task_patterns": {"type": "array", "label": "Exclude Task Patterns", "required": false, "description": "fnmatch-style globs. Task matching any pattern is excluded."},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "description": "Dagster asset group."},
+    "asset_key_prefix": {"type": "array", "label": "Asset Key Prefix", "required": false, "default": ["qlik_replicate"], "description": "Prefix segments prepended to every emitted asset key. Final key = [...prefix, server, task]."},
+    "compute_kind": {"type": "string", "label": "Compute Kind", "required": false, "default": "qlik_replicate", "description": "Dagster asset compute_kind for UI display."},
+    "action": {"type": "string", "label": "Action on Materialize", "required": false, "default": "run", "description": "What each asset does when materialized.", "ui:widget": "select", "enum": ["run", "reload", "stop"]},
+    "run_option": {"type": "string", "label": "Run Option", "required": false, "default": "RESUME_PROCESSING", "description": "For action=run: RESUME_PROCESSING | RELOAD_TARGET | RECOVER | RESUME_PROCESSING_FROM_TIMESTAMP"},
+    "wait_for_completion": {"type": "boolean", "label": "Wait for Completion", "required": false, "default": true, "description": "Poll until terminal state.", "ui:widget": "checkbox"},
+    "poll_interval_seconds": {"type": "integer", "label": "Poll Interval (s)", "required": false, "default": 15, "description": "Seconds between status polls."},
+    "timeout_seconds": {"type": "integer", "label": "Timeout (s)", "required": false, "default": 3600, "description": "Give up polling after this many seconds."},
+    "defs_state": {"type": "object", "label": "Defs State Config", "required": false, "description": "StateBackedComponent config. Set management_type: LOCAL_FILESYSTEM for dev, CLOUD_OBJECT_STORE for Dagster+."}
+  }
+}

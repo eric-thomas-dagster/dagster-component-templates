@@ -10,8 +10,12 @@ import re
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 
-import boto3
-from botocore.exceptions import ClientError
+try:
+    import boto3
+    from botocore.exceptions import ClientError
+except ImportError:
+    boto3 = None  # type: ignore[assignment]
+    ClientError = Exception  # type: ignore[assignment,misc]
 
 from dagster import (
     Component,

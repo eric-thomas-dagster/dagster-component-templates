@@ -1,0 +1,23 @@
+type: dagster_community_components.LinkedInAdsWorkspaceComponent
+attributes:
+  access_token_env_var: LINKEDIN_ACCESS_TOKEN
+  account_ids: ["1234567"]
+
+  campaign_selector:
+    by_pattern: ["Product*", "Brand*"]
+
+  analytics_fields:
+    - impressions
+    - clicks
+    - costInLocalCurrency
+    - externalWebsiteConversions
+    - videoViews
+  time_granularity: DAILY
+  date_range_days: 30
+
+  group_name: linkedin_ads
+  asset_key_prefix: [linkedin_ads]
+
+  defs_state:
+    management_type: LOCAL_FILESYSTEM
+    refresh_if_dev: true

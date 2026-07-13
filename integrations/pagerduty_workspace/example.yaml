@@ -1,0 +1,18 @@
+type: dagster_community_components.PagerDutyWorkspaceComponent
+attributes:
+  api_token_env_var: PAGERDUTY_API_TOKEN         # from PagerDuty → Integrations → API access keys
+
+  service_selector:
+    by_pattern: ["prod-*", "data-*"]
+    # exclude_by_pattern: ["*_deprecated"]
+
+  incidents_since_days: 30
+  incidents_limit: 100
+  statuses: [triggered, acknowledged, resolved]
+
+  group_name: pagerduty_services
+  asset_key_prefix: [pagerduty]
+
+  defs_state:
+    management_type: LOCAL_FILESYSTEM
+    refresh_if_dev: true

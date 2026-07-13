@@ -1,0 +1,25 @@
+type: dagster_community_components.FacebookAdsWorkspaceComponent
+attributes:
+  access_token_env_var: FB_ACCESS_TOKEN
+  account_ids: ["act_1234567890"]                # or ["1234567890"]
+
+  campaign_selector:
+    by_pattern: ["Q4*", "*_Retention"]
+    # exclude_by_pattern: ["*_test"]
+
+  date_preset: last_30d                          # or last_7d, this_month, lifetime
+  insights_fields:
+    - campaign_name
+    - impressions
+    - clicks
+    - spend
+    - reach
+    - ctr
+    - cpc
+
+  group_name: facebook_ads
+  asset_key_prefix: [facebook_ads]
+
+  defs_state:
+    management_type: LOCAL_FILESYSTEM
+    refresh_if_dev: true

@@ -1,0 +1,16 @@
+type: dagster_community_components.WandbWorkspaceComponent
+attributes:
+  api_key_env_var: WANDB_API_KEY
+  entity_env_var: WANDB_ENTITY                 # e.g. "acme-ml"
+  # base_url: https://api.wandb.ai              # override for self-hosted
+
+  project_selector:
+    by_pattern: ["prod-*", "staging-*"]
+
+  runs_limit: 100
+  group_name: wandb_ml
+  asset_key_prefix: [wandb]
+
+  defs_state:
+    management_type: LOCAL_FILESYSTEM
+    refresh_if_dev: true

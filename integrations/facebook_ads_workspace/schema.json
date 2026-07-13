@@ -1,0 +1,19 @@
+{
+  "component_type": "dagster_community_components.FacebookAdsWorkspaceComponent",
+  "description": "Auto-emit one Dagster asset per Facebook Ads campaign across specified ad accounts. StateBackedComponent — discovery cached to disk. Materializing an asset runs an insights query and emits a DataFrame with impressions / clicks / spend / reach / ctr / cpc metrics.",
+  "category": "ingestion",
+  "icon": "AccountTree",
+  "attributes": {
+    "access_token_env_var": {"type": "string", "label": "Access Token Env Var", "required": true, "description": "Env var with a Facebook Marketing API access token (ads_read scope)."},
+    "account_ids": {"type": "array", "label": "Ad Account IDs", "required": true, "description": "Facebook ad account IDs (with or without act_ prefix)."},
+    "api_version": {"type": "string", "label": "API Version", "required": false, "default": "v18.0"},
+    "verify_ssl": {"type": "boolean", "label": "Verify SSL", "required": false, "default": true, "ui:widget": "checkbox"},
+    "campaign_selector": {"type": "object", "label": "Campaign Selector", "required": false, "description": "Fivetran-shape selector against campaign names."},
+    "date_preset": {"type": "string", "label": "Date Preset", "required": false, "default": "last_30d", "description": "Facebook date preset for insights.", "enum": ["today", "yesterday", "this_month", "last_month", "this_quarter", "last_quarter", "last_year", "this_year", "last_7d", "last_14d", "last_30d", "last_90d", "lifetime"], "ui:widget": "select"},
+    "insights_fields": {"type": "array", "label": "Insights Fields", "required": false, "description": "Facebook Marketing API insights fields to fetch."},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "asset_key_prefix": {"type": "array", "label": "Asset Key Prefix", "required": false, "default": ["facebook_ads"]},
+    "compute_kind": {"type": "string", "label": "Compute Kind", "required": false, "default": "facebook_ads"},
+    "defs_state": {"type": "object", "label": "Defs State Config", "required": false}
+  }
+}

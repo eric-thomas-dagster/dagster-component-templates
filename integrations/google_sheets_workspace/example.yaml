@@ -1,0 +1,15 @@
+type: dagster_community_components.GoogleSheetsWorkspaceComponent
+attributes:
+  credentials_json_env_var: GS_SERVICE_ACCOUNT_JSON
+  folder_id: "0AbCdEf..."                          # Drive folder ID; omit for all shared
+
+  spreadsheet_selector:
+    by_pattern: ["*Master*", "Q4*"]
+
+  header_row: 1
+  group_name: gsheets
+  asset_key_prefix: [google_sheets]
+
+  defs_state:
+    management_type: LOCAL_FILESYSTEM
+    refresh_if_dev: true

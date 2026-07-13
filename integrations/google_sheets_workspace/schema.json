@@ -1,0 +1,17 @@
+{
+  "component_type": "dagster_community_components.GoogleSheetsWorkspaceComponent",
+  "description": "Auto-emit one Dagster asset per (spreadsheet, tab) in a Drive folder. StateBackedComponent — discovery cached to disk. Materializing reads the tab's values via the Sheets API and returns a DataFrame (header row treated as column names).",
+  "category": "ingestion",
+  "icon": "AccountTree",
+  "attributes": {
+    "credentials_json_env_var": {"type": "string", "label": "Service-Account JSON Env Var", "required": true, "description": "Env var containing the full service-account credentials JSON (needs Drive + Sheets read scopes)."},
+    "folder_id": {"type": "string", "label": "Drive Folder ID", "required": false, "description": "Restrict discovery to spreadsheets in this Drive folder. Omit for all spreadsheets shared with the service account."},
+    "verify_ssl": {"type": "boolean", "label": "Verify SSL", "required": false, "default": true, "ui:widget": "checkbox"},
+    "spreadsheet_selector": {"type": "object", "label": "Spreadsheet Selector", "required": false, "description": "Fivetran-shape selector against spreadsheet names."},
+    "header_row": {"type": "integer", "label": "Header Row (1-indexed)", "required": false, "default": 1, "description": "Row number to treat as column headers. Set to 0 to skip header handling."},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "asset_key_prefix": {"type": "array", "label": "Asset Key Prefix", "required": false, "default": ["google_sheets"]},
+    "compute_kind": {"type": "string", "label": "Compute Kind", "required": false, "default": "google_sheets"},
+    "defs_state": {"type": "object", "label": "Defs State Config", "required": false}
+  }
+}

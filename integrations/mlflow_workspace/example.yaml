@@ -1,0 +1,20 @@
+type: dagster_community_components.MLflowWorkspaceComponent
+attributes:
+  tracking_uri_env_var: MLFLOW_TRACKING_URI          # e.g. https://mlflow.acme.com
+  # username_env_var: MLFLOW_USER                    # optional basic auth
+  # password_env_var: MLFLOW_PASSWORD
+  # verify_ssl: false
+
+  experiment_selector:
+    by_pattern: ["prod_*", "staging_*"]
+
+  model_selector:
+    by_pattern: ["*_classifier", "*_regressor"]
+
+  runs_limit: 100
+  group_name: mlflow_workspace
+  asset_key_prefix: [mlflow]
+
+  defs_state:
+    management_type: LOCAL_FILESYSTEM
+    refresh_if_dev: true

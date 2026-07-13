@@ -1041,6 +1041,12 @@ _CLASS_PATHS: dict[str, str] = {
     "GoogleAnalyticsWorkspaceComponent": "integrations/google_analytics_workspace/component.py",
     "ShopifyWorkspaceComponent": "integrations/shopify_workspace/component.py",
     "StripeWorkspaceComponent": "integrations/stripe_workspace/component.py",
+    "FacebookAdsWorkspaceComponent": "integrations/facebook_ads_workspace/component.py",
+    "LinkedInAdsWorkspaceComponent": "integrations/linkedin_ads_workspace/component.py",
+    "GoogleSheetsWorkspaceComponent": "integrations/google_sheets_workspace/component.py",
+    "MLflowWorkspaceComponent": "integrations/mlflow_workspace/component.py",
+    "WandbWorkspaceComponent": "integrations/wandb_workspace/component.py",
+    "PagerDutyWorkspaceComponent": "integrations/pagerduty_workspace/component.py",
 }
 
 _loaded: dict[str, object] = {}

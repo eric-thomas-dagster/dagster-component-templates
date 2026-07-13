@@ -1,0 +1,20 @@
+{
+  "component_type": "dagster_community_components.LinkedInAdsWorkspaceComponent",
+  "description": "Auto-emit one Dagster asset per LinkedIn Ads campaign across specified ad accounts. StateBackedComponent — discovery cached to disk. Materializing an asset runs an adAnalytics query for the campaign and emits a DataFrame with impressions / clicks / cost / conversions / video views.",
+  "category": "ingestion",
+  "icon": "AccountTree",
+  "attributes": {
+    "access_token_env_var": {"type": "string", "label": "Access Token Env Var", "required": true, "description": "Env var with LinkedIn Marketing API access token (r_ads_reporting scope)."},
+    "account_ids": {"type": "array", "label": "Ad Account IDs", "required": true, "description": "LinkedIn sponsored account IDs."},
+    "api_version": {"type": "string", "label": "API Version", "required": false, "default": "202401"},
+    "verify_ssl": {"type": "boolean", "label": "Verify SSL", "required": false, "default": true, "ui:widget": "checkbox"},
+    "campaign_selector": {"type": "object", "label": "Campaign Selector", "required": false, "description": "Fivetran-shape selector against campaign names."},
+    "analytics_fields": {"type": "array", "label": "Analytics Fields", "required": false, "description": "LinkedIn adAnalytics field names."},
+    "time_granularity": {"type": "string", "label": "Time Granularity", "required": false, "default": "DAILY", "description": "Granularity for time series.", "enum": ["ALL", "DAILY", "MONTHLY", "YEARLY"], "ui:widget": "select"},
+    "date_range_days": {"type": "integer", "label": "Date Range (days)", "required": false, "default": 30, "description": "Rolling window in days."},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "asset_key_prefix": {"type": "array", "label": "Asset Key Prefix", "required": false, "default": ["linkedin_ads"]},
+    "compute_kind": {"type": "string", "label": "Compute Kind", "required": false, "default": "linkedin_ads"},
+    "defs_state": {"type": "object", "label": "Defs State Config", "required": false}
+  }
+}

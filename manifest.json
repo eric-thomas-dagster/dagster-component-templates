@@ -33639,9 +33639,153 @@
         "requires_pip": ["pandas", "requests"],
         "chains_with": ["dataframe_to_snowflake", "dataframe_to_bigquery", "stripe_event_sensor"]
       }
+    },
+    {
+      "id": "facebook_ads_workspace",
+      "name": "Facebook Ads Workspace",
+      "component_type": "dagster_community_components.FacebookAdsWorkspaceComponent",
+      "path": "integrations/facebook_ads_workspace",
+      "category": "ingestion",
+      "icon": "AccountTree",
+      "description": "Auto-emit one Dagster asset per Facebook Ads campaign across specified ad accounts. StateBackedComponent — discovery cached to disk. Materializing runs a Marketing API insights query and emits a DataFrame with impressions / clicks / spend / reach / ctr / cpc metrics.",
+      "tags": ["ingestion", "facebook-ads", "marketing", "ads", "workspace", "auto-discovery", "state-backed"],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/facebook_ads_workspace/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/facebook_ads_workspace/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/facebook_ads_workspace/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/facebook_ads_workspace/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/facebook_ads_workspace/schema.json",
+      "dependencies": {"pip": ["pandas>=2.0.0", "requests>=2.28.0"]},
+      "validation": {"level": "code"},
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": ["one_asset_per_facebook_campaign"],
+        "requires_pip": ["pandas", "requests"],
+        "chains_with": ["dataframe_to_snowflake", "dataframe_to_bigquery"]
+      }
+    },
+    {
+      "id": "linkedin_ads_workspace",
+      "name": "LinkedIn Ads Workspace",
+      "component_type": "dagster_community_components.LinkedInAdsWorkspaceComponent",
+      "path": "integrations/linkedin_ads_workspace",
+      "category": "ingestion",
+      "icon": "AccountTree",
+      "description": "Auto-emit one Dagster asset per LinkedIn Ads campaign across specified ad accounts. Materializing runs an adAnalytics finder query and emits a DataFrame with impressions / clicks / cost / conversions.",
+      "tags": ["ingestion", "linkedin-ads", "marketing", "ads", "workspace", "auto-discovery", "state-backed"],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/linkedin_ads_workspace/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/linkedin_ads_workspace/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/linkedin_ads_workspace/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/linkedin_ads_workspace/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/linkedin_ads_workspace/schema.json",
+      "dependencies": {"pip": ["pandas>=2.0.0", "requests>=2.28.0"]},
+      "validation": {"level": "code"},
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": ["one_asset_per_linkedin_campaign"],
+        "requires_pip": ["pandas", "requests"],
+        "chains_with": ["dataframe_to_snowflake", "dataframe_to_bigquery"]
+      }
+    },
+    {
+      "id": "google_sheets_workspace",
+      "name": "Google Sheets Workspace",
+      "component_type": "dagster_community_components.GoogleSheetsWorkspaceComponent",
+      "path": "integrations/google_sheets_workspace",
+      "category": "ingestion",
+      "icon": "AccountTree",
+      "description": "Auto-emit one Dagster asset per (spreadsheet, tab) in a Drive folder. StateBackedComponent — discovery cached to disk. Materializing reads the tab's values via the Sheets API and returns a DataFrame (header row treated as column names).",
+      "tags": ["ingestion", "google-sheets", "sheets", "workspace", "auto-discovery", "state-backed"],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_sheets_workspace/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_sheets_workspace/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_sheets_workspace/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_sheets_workspace/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_sheets_workspace/schema.json",
+      "dependencies": {"pip": ["pandas>=2.0.0", "requests>=2.28.0", "pyjwt[crypto]>=2.8.0"]},
+      "validation": {"level": "code"},
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": ["one_asset_per_google_sheet_tab"],
+        "requires_pip": ["pandas", "requests", "pyjwt"],
+        "chains_with": ["dataframe_to_snowflake", "dataframe_to_bigquery"]
+      }
+    },
+    {
+      "id": "mlflow_workspace",
+      "name": "MLflow Workspace",
+      "component_type": "dagster_community_components.MLflowWorkspaceComponent",
+      "path": "integrations/mlflow_workspace",
+      "category": "ingestion",
+      "icon": "AccountTree",
+      "description": "Auto-emit Dagster assets for MLflow experiments (recent runs + metrics + params) and registered models (versions). StateBackedComponent — discovery cached to disk.",
+      "tags": ["ingestion", "mlflow", "ml", "workspace", "auto-discovery", "state-backed"],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/mlflow_workspace/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/mlflow_workspace/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/mlflow_workspace/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/mlflow_workspace/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/mlflow_workspace/schema.json",
+      "dependencies": {"pip": ["pandas>=2.0.0", "requests>=2.28.0"]},
+      "validation": {"level": "code"},
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": ["one_asset_per_mlflow_experiment_and_model"],
+        "requires_pip": ["pandas", "requests"],
+        "chains_with": ["dataframe_to_snowflake", "mlflow_model_sensor"]
+      }
+    },
+    {
+      "id": "wandb_workspace",
+      "name": "Weights & Biases Workspace",
+      "component_type": "dagster_community_components.WandbWorkspaceComponent",
+      "path": "integrations/wandb_workspace",
+      "category": "ingestion",
+      "icon": "AccountTree",
+      "description": "Auto-emit one Dagster asset per Weights & Biases project for a given entity. Materializing fetches recent runs via GraphQL and emits a DataFrame with state / summary metrics / config.",
+      "tags": ["ingestion", "wandb", "ml", "workspace", "auto-discovery", "state-backed"],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/wandb_workspace/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/wandb_workspace/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/wandb_workspace/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/wandb_workspace/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/wandb_workspace/schema.json",
+      "dependencies": {"pip": ["pandas>=2.0.0", "requests>=2.28.0"]},
+      "validation": {"level": "code"},
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": ["one_asset_per_wandb_project"],
+        "requires_pip": ["pandas", "requests"],
+        "chains_with": ["dataframe_to_snowflake"]
+      }
+    },
+    {
+      "id": "pagerduty_workspace",
+      "name": "PagerDuty Workspace",
+      "component_type": "dagster_community_components.PagerDutyWorkspaceComponent",
+      "path": "integrations/pagerduty_workspace",
+      "category": "ingestion",
+      "icon": "AccountTree",
+      "description": "Auto-emit one Dagster asset per PagerDuty service. Materializing fetches recent incidents (statuses / assignees / timestamps) as a DataFrame — foundation for SLA dashboards and MTTR analytics.",
+      "tags": ["ingestion", "pagerduty", "incident-management", "workspace", "auto-discovery", "state-backed"],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/pagerduty_workspace/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/pagerduty_workspace/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/pagerduty_workspace/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/pagerduty_workspace/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/pagerduty_workspace/schema.json",
+      "dependencies": {"pip": ["pandas>=2.0.0", "requests>=2.28.0"]},
+      "validation": {"level": "code"},
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": ["one_asset_per_pagerduty_service"],
+        "requires_pip": ["pandas", "requests"],
+        "chains_with": ["dataframe_to_snowflake", "pagerduty_incident_sensor"]
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 919
+  "total": 925
 }

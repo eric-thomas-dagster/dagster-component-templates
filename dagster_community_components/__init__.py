@@ -1047,6 +1047,7 @@ _CLASS_PATHS: dict[str, str] = {
     "MLflowWorkspaceComponent": "integrations/mlflow_workspace/component.py",
     "WandbWorkspaceComponent": "integrations/wandb_workspace/component.py",
     "PagerDutyWorkspaceComponent": "integrations/pagerduty_workspace/component.py",
+    "DataVaultHubLinkSatelliteComponent": "assets/transforms/data_vault_hub_link_satellite/component.py",
 }
 
 _loaded: dict[str, object] = {}

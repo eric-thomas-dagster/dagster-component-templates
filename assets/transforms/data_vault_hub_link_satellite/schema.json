@@ -1,0 +1,18 @@
+{
+  "component_type": "dagster_community_components.DataVaultHubLinkSatelliteComponent",
+  "description": "Take a raw source DataFrame and generate Data Vault 2.0 Hub / Link / Satellite tables with system columns (hash_key, load_date, record_source, hash_diff). Emits 2-3 assets per config: <entity>_hub, <entity>_sat, and optionally <entity>_link. Each asset is independently materializable via SDA — see lineage back to the raw source.",
+  "category": "transformation",
+  "icon": "AccountTree",
+  "attributes": {
+    "entity": {"type": "string", "label": "Entity Name", "required": true, "description": "Base name — emitted assets are <entity>_hub / _link / _sat."},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": true, "description": "Raw source DataFrame asset key to consume."},
+    "business_keys": {"type": "array", "label": "Business Keys", "required": true, "description": "Business key column(s) that identify the entity in the source.", "x-dagster-widget": "columns"},
+    "satellite_columns": {"type": "array", "label": "Satellite Columns", "required": true, "description": "Descriptive columns that go into the satellite.", "x-dagster-widget": "columns"},
+    "link_business_keys": {"type": "array", "label": "Link Business Keys", "required": false, "description": "If provided, emit a <entity>_link asset. Usually business keys of both endpoints.", "x-dagster-widget": "columns"},
+    "record_source": {"type": "string", "label": "Record Source", "required": true, "description": "Value populated in the record_source system column."},
+    "load_date_column": {"type": "string", "label": "Load Date Column Name", "required": false, "default": "load_date"},
+    "hash_algo": {"type": "string", "label": "Hash Algorithm", "required": false, "default": "sha256", "enum": ["sha256", "md5"], "ui:widget": "select"},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "asset_key_prefix": {"type": "array", "label": "Asset Key Prefix", "required": false, "description": "Optional prefix segments prepended to every emitted asset key."}
+  }
+}

@@ -1,0 +1,13 @@
+type: dagster_community_components.DataVaultHubLinkSatelliteComponent
+attributes:
+  entity: customer
+  upstream_asset_key: raw_customers
+  business_keys: [customer_id]
+  satellite_columns: [name, email, phone, address, updated_at]
+  record_source: "erp_customers"
+  group_name: data_vault_raw
+
+  # Emit a link asset too (link between customer + order):
+  # link_business_keys: [customer_id, order_id]
+
+  # asset_key_prefix: [dv, raw]           # emitted keys become [dv, raw, customer_hub], etc

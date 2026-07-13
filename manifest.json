@@ -33783,9 +33783,34 @@
         "requires_pip": ["pandas", "requests"],
         "chains_with": ["dataframe_to_snowflake", "pagerduty_incident_sensor"]
       }
+    },
+    {
+      "id": "data_vault_hub_link_satellite",
+      "name": "Data Vault 2.0 Hub / Link / Satellite",
+      "component_type": "dagster_community_components.DataVaultHubLinkSatelliteComponent",
+      "path": "assets/transforms/data_vault_hub_link_satellite",
+      "category": "transformation",
+      "icon": "AccountTree",
+      "description": "Take a raw source DataFrame and generate Data Vault 2.0 Hub / Link / Satellite tables with system columns (hash_key, load_date, record_source, hash_diff). Each is an independently-materializable SDA — see lineage back to the raw source.",
+      "tags": ["transformation", "data-vault", "dv2", "dv2.0", "modeling", "warehouse"],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/data_vault_hub_link_satellite/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/data_vault_hub_link_satellite/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/data_vault_hub_link_satellite/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/data_vault_hub_link_satellite/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/data_vault_hub_link_satellite/schema.json",
+      "dependencies": {"pip": ["pandas>=2.0.0"]},
+      "validation": {"level": "code"},
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "inputs": ["raw_source_dataframe_asset_key"],
+        "outputs": ["<entity>_hub", "<entity>_sat", "<entity>_link (optional)"],
+        "requires_pip": ["pandas"],
+        "chains_with": ["dataframe_to_bigquery", "dataframe_to_snowflake", "warehouse_pipeline"]
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 925
+  "total": 926
 }

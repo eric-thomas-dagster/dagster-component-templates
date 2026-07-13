@@ -1,0 +1,18 @@
+type: dagster_community_components.ShopifyWorkspaceComponent
+attributes:
+  shop_env_var: SHOPIFY_SHOP              # e.g. mystore.myshopify.com
+  access_token_env_var: SHOPIFY_ACCESS_TOKEN
+  api_version: "2024-04"
+
+  resource_selector:
+    by_name: [products, orders, customers, inventory_items]
+    # by_pattern: ["*_orders"]
+    # exclude_by_name: [gift_cards]
+
+  page_limit: 250
+  group_name: shopify_data
+  asset_key_prefix: [shopify]
+
+  defs_state:
+    management_type: LOCAL_FILESYSTEM
+    refresh_if_dev: true

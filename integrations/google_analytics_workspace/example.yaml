@@ -1,0 +1,18 @@
+type: dagster_community_components.GoogleAnalyticsWorkspaceComponent
+attributes:
+  credentials_json_env_var: GA_SERVICE_ACCOUNT_JSON     # full JSON blob in env var
+
+  property_selector:
+    by_pattern: ["Marketing*", "Product*"]
+    # exclude_by_pattern: ["*_test"]
+
+  metrics: [activeUsers, sessions, eventCount, screenPageViews]
+  dimensions: [date, country]
+  date_range_days: 30
+
+  group_name: google_analytics
+  asset_key_prefix: [ga]
+
+  defs_state:
+    management_type: LOCAL_FILESYSTEM
+    refresh_if_dev: true

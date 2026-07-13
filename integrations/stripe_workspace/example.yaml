@@ -1,0 +1,15 @@
+type: dagster_community_components.StripeWorkspaceComponent
+attributes:
+  api_key_env_var: STRIPE_API_KEY               # sk_test_* or sk_live_*
+
+  resource_selector:
+    by_name: [customers, charges, subscriptions, invoices, payment_intents]
+    # exclude_by_name: [payouts, disputes]
+
+  page_limit: 100
+  group_name: stripe_billing
+  asset_key_prefix: [stripe]
+
+  defs_state:
+    management_type: LOCAL_FILESYSTEM
+    refresh_if_dev: true

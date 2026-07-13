@@ -1,0 +1,20 @@
+type: dagster_community_components.GitHubWorkspaceComponent
+attributes:
+  owner_env_var: GITHUB_OWNER              # org name or username
+  token_env_var: GITHUB_TOKEN              # PAT or GITHUB_TOKEN with repo + workflow scopes
+
+  repo_selector:
+    by_pattern: ["dagster-*", "*-pipelines"]
+    # exclude_by_pattern: ["*-archive"]
+
+  workflow_selector:
+    by_pattern: ["*.yml", "CI*", "Deploy*"]
+    # exclude_by_name: [old-workflow]
+
+  recent_runs_limit: 20
+  group_name: github_workflows
+  asset_key_prefix: [github]
+
+  defs_state:
+    management_type: LOCAL_FILESYSTEM
+    refresh_if_dev: true

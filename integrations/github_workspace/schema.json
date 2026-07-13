@@ -1,0 +1,18 @@
+{
+  "component_type": "dagster_community_components.GitHubWorkspaceComponent",
+  "description": "Auto-emit one Dagster asset per GitHub Actions workflow across every repo in an org (or user). StateBackedComponent — discovery cached to disk. Materializing an asset reads the most recent workflow runs and emits a DataFrame with status / conclusion / event / actor metadata.",
+  "category": "ingestion",
+  "icon": "AccountTree",
+  "attributes": {
+    "owner_env_var": {"type": "string", "label": "Owner Env Var", "required": true, "description": "Env var with GitHub org name or username."},
+    "token_env_var": {"type": "string", "label": "Token Env Var", "required": true, "description": "Env var with a GitHub PAT (repo + workflow scopes) or GITHUB_TOKEN."},
+    "verify_ssl": {"type": "boolean", "label": "Verify SSL", "required": false, "default": true, "ui:widget": "checkbox"},
+    "repo_selector": {"type": "object", "label": "Repo Selector", "required": false, "description": "Fivetran-shape selector for repositories."},
+    "workflow_selector": {"type": "object", "label": "Workflow Selector", "required": false, "description": "Fivetran-shape selector for workflows within selected repos."},
+    "recent_runs_limit": {"type": "integer", "label": "Recent Runs Limit", "required": false, "default": 20, "description": "How many recent workflow runs to fetch per asset materialize."},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "asset_key_prefix": {"type": "array", "label": "Asset Key Prefix", "required": false, "default": ["github"]},
+    "compute_kind": {"type": "string", "label": "Compute Kind", "required": false, "default": "github"},
+    "defs_state": {"type": "object", "label": "Defs State Config", "required": false}
+  }
+}

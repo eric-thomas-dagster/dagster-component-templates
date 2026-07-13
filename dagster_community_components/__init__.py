@@ -1036,6 +1036,11 @@ _CLASS_PATHS: dict[str, str] = {
     "JiraWorkspaceComponent": "integrations/jira_workspace/component.py",
     "ServiceNowWorkspaceComponent": "integrations/servicenow_workspace/component.py",
     "NotionWorkspaceComponent": "integrations/notion_workspace/component.py",
+    "AirtableWorkspaceComponent": "integrations/airtable_workspace/component.py",
+    "GitHubWorkspaceComponent": "integrations/github_workspace/component.py",
+    "GoogleAnalyticsWorkspaceComponent": "integrations/google_analytics_workspace/component.py",
+    "ShopifyWorkspaceComponent": "integrations/shopify_workspace/component.py",
+    "StripeWorkspaceComponent": "integrations/stripe_workspace/component.py",
 }
 
 _loaded: dict[str, object] = {}

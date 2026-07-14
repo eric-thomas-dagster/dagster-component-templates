@@ -33808,9 +33808,34 @@
         "requires_pip": ["pandas"],
         "chains_with": ["dataframe_to_bigquery", "dataframe_to_snowflake", "warehouse_pipeline"]
       }
+    },
+    {
+      "id": "spark_k8s_operator_asset",
+      "name": "Spark on K8s Operator Asset",
+      "component_type": "dagster_community_components.SparkK8sOperatorAssetComponent",
+      "path": "assets/infrastructure/spark_k8s_operator_asset",
+      "category": "infrastructure",
+      "icon": "PlayArrow",
+      "description": "Submit a SparkApplication CRD to the Kubernetes Spark Operator (kubeflow/spark-on-k8s-operator) and materialize on terminal state (COMPLETED / FAILED / SUBMISSION_FAILED). Right for organizations wrapping PySpark ETLs behind a config-driven 'data ingest' framework and submitting them to k8s. Requires kubectl on PATH.",
+      "tags": ["infrastructure", "spark", "kubernetes", "spark-operator", "pyspark", "etl"],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/spark_k8s_operator_asset/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/spark_k8s_operator_asset/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/spark_k8s_operator_asset/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/spark_k8s_operator_asset/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/spark_k8s_operator_asset/schema.json",
+      "dependencies": {"pip": ["pyyaml>=6.0"]},
+      "validation": {"level": "code"},
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": ["one_asset_per_spark_application"],
+        "requires_pip": ["pyyaml"],
+        "chains_with": ["dataframe_to_bigquery", "dataframe_to_snowflake", "k8s_job_asset"],
+        "anti_uses": "For in-process PySpark use pyspark_pipeline (no k8s dep). This component submits a SparkApplication CRD to the cluster; requires the Spark Operator to be installed."
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 926
+  "total": 927
 }

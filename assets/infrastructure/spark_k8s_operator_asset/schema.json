@@ -1,0 +1,21 @@
+{
+  "component_type": "dagster_community_components.SparkK8sOperatorAssetComponent",
+  "description": "Submit a SparkApplication CRD to the Kubernetes Spark Operator (kubeflow/spark-on-k8s-operator) and materialize on terminal state (COMPLETED / FAILED / SUBMISSION_FAILED). Right for organizations wrapping PySpark ETLs behind a config-driven framework and submitting them to k8s. Requires kubectl on PATH.",
+  "category": "infrastructure",
+  "icon": "PlayArrow",
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "group_name": {"type": "string", "label": "Group Name", "required": true},
+    "namespace": {"type": "string", "label": "k8s Namespace", "required": true, "description": "Namespace where the SparkApplication is submitted."},
+    "spark_application_name": {"type": "string", "label": "SparkApplication Name", "required": true, "description": "metadata.name for the CRD."},
+    "spark_application_body": {"type": "object", "label": "SparkApplication Spec", "required": true, "description": "The `spec:` block of the CRD. Component prepends apiVersion / kind / metadata."},
+    "api_version": {"type": "string", "label": "CRD API Version", "required": false, "default": "sparkoperator.k8s.io/v1beta2"},
+    "poll_interval_seconds": {"type": "integer", "label": "Poll Interval (s)", "required": false, "default": 15},
+    "timeout_seconds": {"type": "integer", "label": "Timeout (s)", "required": false, "default": 7200, "description": "Deadline for the SparkApplication to reach terminal state."},
+    "labels": {"type": "object", "label": "Labels", "required": false, "description": "metadata.labels — good for domain / team tagging."},
+    "annotations": {"type": "object", "label": "Annotations", "required": false},
+    "kube_context": {"type": "string", "label": "kubectl Context", "required": false, "description": "kubectl context name. Omit to use current-context."},
+    "delete_on_success": {"type": "boolean", "label": "Delete on Success", "required": false, "default": true, "description": "Delete the SparkApplication CRD after COMPLETED (avoids CRD sprawl).", "ui:widget": "checkbox"},
+    "deps": {"type": "array", "label": "Upstream Asset Deps", "required": false}
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "component_type": "dagster_community_components.DbtStateReusePatchComponent",
+  "description": "Bridge patch — monkey-patches dagster-dbt to treat `no-op` (dbt Cloud state-reuse) and `partial success` (incremental microbatch) statuses as materialization-yielding. Remove once dagster-io/dagster#34010 merges + releases.",
+  "category": "integration",
+  "attributes": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  }
+}

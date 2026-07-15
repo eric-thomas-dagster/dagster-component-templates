@@ -9468,6 +9468,47 @@
       ]
     },
     {
+      "id": "dbt_state_reuse_patch",
+      "name": "DbtStateReusePatch",
+      "category": "integration",
+      "description": "Bridge patch \u2014 monkey-patches dagster-dbt to treat `no-op` (state-reuse) and `partial success` (microbatch) statuses as materialization events. Remove once dagster-io/dagster#34010 merges + releases.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/dbt_state_reuse_patch",
+      "tags": [
+        "dbt",
+        "state-reuse",
+        "microbatch",
+        "resilience",
+        "bridge",
+        "patch"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster-dbt"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/dbt_state_reuse_patch/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/dbt_state_reuse_patch/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/dbt_state_reuse_patch/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/dbt_state_reuse_patch/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/dbt_state_reuse_patch/requirements.txt",
+      "validation": {
+        "level": "code",
+        "evidence": "https://github.com/dagster-io/dagster/pull/34010",
+        "last_validated": "2026-07-15"
+      },
+      "produces": [
+        "other"
+      ],
+      "agent_hints": {
+        "inputs": "None. Add to defs.yaml with empty attributes: {}.",
+        "outputs": "No assets. Patches dagster-dbt in-process at code-location load.",
+        "side_effects": "Monkey-patches dagster_dbt.core.dbt_cli_event.DbtCliEventMessage._get_node_status AND dagster_dbt.cloud_v2.run_handler.DbtCloudJobRunResults.to_default_asset_events. Idempotent; no-op if upstream fix present.",
+        "anti_uses": "Not needed once dagster-dbt release includes PR #34010."
+      }
+    },
+    {
       "id": "decision_tree_model",
       "name": "Decision Tree",
       "category": "analytics",

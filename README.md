@@ -41,6 +41,23 @@ attributes:
 | dbt | 1 | dbt-project wrapper |
 | **total** | **688** | |
 
+### By Dagster primitive (`produces` field)
+
+Every manifest entry declares which Dagster primitive(s) it emits when loaded — machine-readable metadata for tools that need to route users to the right authoring surface ("Add schedule" from the Schedules tab, "Add asset" from Graph view, etc.).
+
+| `produces` | Count | Meaning |
+|---|---:|---|
+| `asset` | 632 | Single `@asset` (or one asset key per instance) |
+| `asset_check` | 217 | `@asset_check` — many components ship free schema-drift checks via `build_column_schema_change_checks` |
+| `resource` | 138 | Connection / auth handle passed to downstream assets |
+| `sensor` | 100 | `@sensor` / polling `RunRequest` emitter |
+| `multi_asset` | 43 | `@multi_asset` OR workspace-shape (many assets per config, e.g. `snowflake_workspace`, `stripe_workspace`) |
+| `job` | 41 | `@job` / `define_asset_job(...)` |
+| `schedule` | 40 | `@schedule` / `ScheduleDefinition` |
+| `io_manager` | — | Component wraps an `IOManagerDefinition` (`0` today — most io_managers live under `resource` or `asset`) |
+
+Filter with `dagster-component search "" --produces schedule` to list every scheduling component. See [CONTRIBUTING.md#manifest-fields](CONTRIBUTING.md) for the full enum and semantics.
+
 ### Assets (90 analytics + 73 ai + 59 transformation + 49 ingestion + 23 sink + 21 external + 19 infrastructure + 18 source + 18 integration + 7 check = 377)
 
 **Ingestion — cloud storage**

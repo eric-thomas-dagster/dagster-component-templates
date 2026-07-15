@@ -326,13 +326,27 @@ Add your component to the manifest:
 
 - `id` - Unique identifier (snake_case)
 - `name` - Display name
-- `category` - Category (sensors, assets, resources, factories)
+- `category` - Category (sensors, assets, resources, factories) — component family, for browse/filter grouping
 - `description` - Brief description
 - `version` - Semantic version (e.g., "1.0.0")
 - `author` - Your name or organization
 - `path` - Relative path to component directory
 - `tags` - Searchable keywords
 - `dependencies` - Python package requirements
+
+**Optional shape fields — recommended:**
+
+- `produces` — list of Dagster primitives the component creates when loaded. Enum values: `asset`, `multi_asset`, `asset_check`, `job`, `schedule`, `sensor`, `resource`, `io_manager`, `partitions_def`, `other`. `multi_asset` is distinct from `asset` because tools care about the fanout shape (dbt / workspace components) vs. one Python asset. Always a list — a component may produce several (e.g. `ScheduledJobComponent` → `[schedule, job]`). List everything the component MAY emit, even if some outputs are config-gated.
+- `consumes` — list of primitives the component reads from. Enum: `asset`, `asset_check`, `resource`. Omit when nothing external is consumed.
+- `stateful` — `true` when the component holds state beyond its YAML (defs_state cache, live-refreshed workspace catalog, etc.). Matches `StateBackedComponent` subclasses 1:1 today.
+
+Example:
+
+```json
+"produces": ["multi_asset", "asset_check"]
+```
+
+Downstream consumers (Dagster Designer UI, docs generators, AI assistants) use `produces` to route users to the right authoring surface — "Add schedule" from the Schedules tab picks components whose `produces` includes `schedule`, rather than showing the full 900+ list. Omit if you don't know; consumers fall back to schema-field heuristics.
 
 ### 8. Add Tests (Optional)
 

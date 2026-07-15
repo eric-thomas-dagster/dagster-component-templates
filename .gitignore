@@ -28,3 +28,7 @@ create_*.sh
 
 # Dagster
 .dagster/
+
+# Tool report artifacts (regenerated on demand)
+infer_produces_report.json
+validate_manifest_report.json

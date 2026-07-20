@@ -965,8 +965,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_agent/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_agent/requirements.txt",
       "validation": {
-        "level": "code",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/litellm_agent.md",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/supabase_rag.md",
         "last_validated": "2026-06-04"
       },
       "version": "1.0.0",
@@ -7023,7 +7023,8 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_workspace/requirements.txt",
       "icon": "si:databricks",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/databricks_workspace.md",
         "last_validated": "2026-05-11"
       },
       "vendor": "Databricks",
@@ -10337,7 +10338,8 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dremio_ingestion/requirements.txt",
       "icon": "Database",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/dremio_pipeline.md",
         "last_validated": "2026-05-13"
       },
       "agent_hints": {
@@ -12057,7 +12059,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_precisely_job/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_precisely_job/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/precisely_validation.md",
         "last_validated": "2026-05-22"
       },
       "vendor": "Precisely",
@@ -12357,7 +12360,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_snowflake_openflow_flow/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_snowflake_openflow_flow/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/snowflake_single_entity.md",
         "last_validated": "2026-05-22"
       },
       "vendor": "Snowflake",
@@ -13411,7 +13415,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/firestore_reader/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/firestore_reader/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/firestore_roundtrip.md",
         "last_validated": "2026-05-11"
       },
       "version": "1.0.0",
@@ -16188,7 +16193,8 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/hubspot_ingestion/requirements.txt",
       "icon": "si:hubspot",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/crm_reconciliation.md",
         "last_validated": "2026-05-11"
       },
       "agent_hints": {
@@ -16265,7 +16271,8 @@
         ]
       },
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/huggingface.md",
         "last_validated": "2026-05-22"
       },
       "version": "1.0.0",
@@ -16299,7 +16306,8 @@
         ]
       },
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/huggingface.md",
         "last_validated": "2026-05-22"
       },
       "version": "1.0.0",
@@ -16333,7 +16341,8 @@
         ]
       },
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/huggingface.md",
         "last_validated": "2026-05-22"
       },
       "version": "1.0.0",
@@ -16367,7 +16376,8 @@
         ]
       },
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/huggingface.md",
         "last_validated": "2026-05-22"
       },
       "version": "1.0.0",
@@ -16401,7 +16411,8 @@
         ]
       },
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/huggingface.md",
         "last_validated": "2026-05-22"
       },
       "version": "1.0.0",
@@ -16435,7 +16446,8 @@
         ]
       },
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/huggingface.md",
         "last_validated": "2026-05-22"
       },
       "version": "1.0.0",
@@ -16470,7 +16482,8 @@
         ]
       },
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/huggingface.md",
         "last_validated": "2026-05-22"
       },
       "version": "1.0.0",
@@ -17600,7 +17613,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/jupyter_notebook/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/jupyter_notebook/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/notebooks.md",
         "last_validated": "2026-06-06"
       },
       "version": "1.0.0",
@@ -20491,7 +20505,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mlflow_experiment_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mlflow_experiment_sensor/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/mlflow_pipeline.md",
         "last_validated": "2026-07-20"
       },
       "produces": [
@@ -20526,7 +20541,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mlflow_model_inference/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mlflow_model_inference/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/mlflow_pipeline.md",
         "last_validated": "2026-07-20"
       },
       "produces": [
@@ -20561,7 +20577,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/mlflow_model_promotion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/mlflow_model_promotion/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/mlflow_pipeline.md",
         "last_validated": "2026-07-20"
       },
       "produces": [
@@ -20588,8 +20605,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mlflow_model_sensor/requirements.txt",
       "component_type": "dagster_component_templates.MLflowModelSensor",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/mlflow_pipeline.md",
+        "last_validated": "2026-07-20"
       },
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -20629,7 +20647,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/mlflow_model_version_check/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/mlflow_model_version_check/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/mlflow_pipeline.md",
         "last_validated": "2026-07-20"
       },
       "produces": [
@@ -20665,8 +20684,9 @@
         "mlflow_resource"
       ],
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/mlflow_pipeline.md",
+        "last_validated": "2026-07-20"
       },
       "produces": [
         "resource"
@@ -24533,7 +24553,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/polars_pipeline/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/polars_pipeline/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/polars_pipeline.md",
         "last_validated": "2026-05-19"
       },
       "agent_hints": {
@@ -24620,7 +24641,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/polars_scan_parquet/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/polars_scan_parquet/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/polars_pushdown.md",
         "last_validated": "2026-05-19"
       },
       "agent_hints": {
@@ -25016,9 +25038,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/precisely_job_sensor/requirements.txt",
       "icon": "Radar",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-22",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/precisely_validation.md \u2014 API surface matches Precisely's public REST docs; no live Precisely cluster available to validate end-to-end."
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/precisely_validation.md",
+        "last_validated": "2026-05-22"
       },
       "vendor": "Precisely",
       "produces": [
@@ -25667,7 +25689,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pyspark_pipeline/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pyspark_pipeline/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/pyspark_pipeline.md",
         "last_validated": "2026-05-19"
       },
       "agent_hints": {
@@ -27201,7 +27224,8 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/salesforce_ingestion/requirements.txt",
       "icon": "si:salesforce",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/pii_redaction.md",
         "last_validated": "2026-05-11"
       },
       "agent_hints": {
@@ -28857,7 +28881,8 @@
       "icon": "si:slack",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_notification/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/adaptive_triage.md",
         "last_validated": "2026-05-11"
       },
       "produces": [
@@ -29303,7 +29328,8 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_dynamic_table/requirements.txt",
       "icon": "si:snowflake",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/snowflake_single_entity.md",
         "last_validated": "2026-05-20"
       },
       "vendor": "Snowflake",
@@ -29331,7 +29357,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_dynamic_table_refresh_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_dynamic_table_refresh_asset/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/snowflake_single_entity.md",
         "last_validated": "2026-05-22"
       },
       "dependencies": {
@@ -29475,7 +29502,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/snowflake_openflow_status_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/snowflake_openflow_status_sensor/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/snowflake_single_entity.md",
         "last_validated": "2026-05-22"
       },
       "dependencies": {
@@ -29699,7 +29727,8 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_stored_procedure/requirements.txt",
       "icon": "si:snowflake",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/snowflake_single_entity.md",
         "last_validated": "2026-05-20"
       },
       "vendor": "Snowflake",
@@ -29727,7 +29756,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_stored_procedure_call_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_stored_procedure_call_asset/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/snowflake_single_entity.md",
         "last_validated": "2026-05-22"
       },
       "dependencies": {
@@ -29840,7 +29870,8 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_task/requirements.txt",
       "icon": "si:snowflake",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/snowflake_single_entity.md",
         "last_validated": "2026-05-20"
       },
       "vendor": "Snowflake",
@@ -29868,7 +29899,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/snowflake_task_completion_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/snowflake_task_completion_sensor/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/snowflake_single_entity.md",
         "last_validated": "2026-05-22"
       },
       "dependencies": {
@@ -29903,7 +29935,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_task_execute_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_task_execute_asset/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/snowflake_single_entity.md",
         "last_validated": "2026-05-22"
       },
       "dependencies": {
@@ -29980,7 +30013,8 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_workspace/requirements.txt",
       "icon": "si:snowflake",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/snowflake_workspace.md",
         "last_validated": "2026-05-11"
       },
       "vendor": "Snowflake",
@@ -30016,7 +30050,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/snowpark_pipeline/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/snowpark_pipeline/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/snowpark_pipeline.md",
         "last_validated": "2026-05-19"
       },
       "vendor": "Snowflake",
@@ -32910,7 +32945,8 @@
         "io_manager"
       ],
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/trino.md",
         "last_validated": "2026-05-11"
       },
       "vendor": "Trino",
@@ -32948,7 +32984,8 @@
         "trino_resource"
       ],
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/trino.md",
         "last_validated": "2026-05-11"
       },
       "vendor": "Trino",
@@ -34273,7 +34310,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_dedup/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_dedup/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/warehouse_native_pipeline.md",
         "last_validated": "2026-05-19"
       },
       "agent_hints": {
@@ -34317,7 +34355,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_filter/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_filter/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/warehouse_native_pipeline.md",
         "last_validated": "2026-05-19"
       },
       "agent_hints": {
@@ -34361,7 +34400,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_formula/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_formula/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/warehouse_native_pipeline.md",
         "last_validated": "2026-05-19"
       },
       "agent_hints": {
@@ -34405,7 +34445,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_join/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_join/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/warehouse_native_pipeline.md",
         "last_validated": "2026-05-19"
       },
       "agent_hints": {
@@ -34483,7 +34524,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_multi_field_formula/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_multi_field_formula/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/warehouse_native_pipeline.md",
         "last_validated": "2026-05-19"
       },
       "agent_hints": {
@@ -34527,7 +34569,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_multi_row_formula/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_multi_row_formula/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/warehouse_native_pipeline.md",
         "last_validated": "2026-05-19"
       },
       "agent_hints": {
@@ -34571,7 +34614,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_pipeline/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_pipeline/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/warehouse_native_pipeline.md",
         "last_validated": "2026-05-19"
       },
       "agent_hints": {
@@ -34650,7 +34694,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_summarize/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_summarize/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/warehouse_native_pipeline.md",
         "last_validated": "2026-05-19"
       },
       "agent_hints": {
@@ -34694,7 +34739,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_top_n_per_group/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_top_n_per_group/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/warehouse_native_pipeline.md",
         "last_validated": "2026-05-19"
       },
       "agent_hints": {
@@ -34738,7 +34784,8 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_union/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_union/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/warehouse_native_pipeline.md",
         "last_validated": "2026-05-19"
       },
       "agent_hints": {
@@ -35080,7 +35127,8 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/zendesk_ingestion/requirements.txt",
       "icon": "si:zendesk",
       "validation": {
-        "level": "code",
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/pii_redaction.md",
         "last_validated": "2026-05-11"
       },
       "agent_hints": {
@@ -37217,7 +37265,9 @@
         ]
       },
       "validation": {
-        "level": "code"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/mlflow_pipeline.md",
+        "last_validated": "2026-07-20"
       },
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -37365,7 +37415,9 @@
         ]
       },
       "validation": {
-        "level": "code"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_f500_poc_local_demo.sh",
+        "last_validated": "2026-07-20"
       },
       "version": "1.0.0",
       "author": "Dagster Community",

@@ -1,0 +1,22 @@
+{
+  "component_type": "dagster_community_components.MLflowExperimentSensorComponent",
+  "description": "Polls an MLflow experiment for new runs and fires a Dagster RunRequest per new run. Cursor-based dedup on run_id.",
+  "category": "sensor",
+  "attributes": {
+    "type": "object",
+    "properties": {
+      "sensor_name": { "type": "string", "description": "Unique name for this sensor." },
+      "tracking_uri_env_var": { "type": "string", "description": "Env var holding the MLflow Tracking URI." },
+      "experiment_name": { "type": "string", "description": "MLflow experiment name to watch. Provide this OR experiment_id." },
+      "experiment_id": { "type": "string", "description": "MLflow experiment ID to watch. Provide this OR experiment_name." },
+      "filter_string": { "type": "string", "description": "MLflow search_runs filter, e.g. \"attributes.status = 'FINISHED'\"." },
+      "target_job": { "type": "string", "description": "Dagster job to trigger for each new run." },
+      "minimum_interval_seconds": { "type": "integer", "default": 60, "x-dagster-widget": "number" },
+      "max_new_runs_per_tick": { "type": "integer", "default": 25, "description": "Cap on RunRequests per tick (guardrail against burst backfills)." },
+      "username_env_var": { "type": "string", "description": "Env var for HTTP-basic MLflow auth username (optional)." },
+      "password_env_var": { "type": "string", "description": "Env var for HTTP-basic MLflow auth password (optional)." },
+      "run_config": { "type": "object", "description": "Extra run_config merged into the triggered job's config." }
+    },
+    "required": ["sensor_name", "tracking_uri_env_var", "target_job"]
+  }
+}

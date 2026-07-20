@@ -1,0 +1,25 @@
+{
+  "component_type": "dagster_community_components.MLflowModelInferenceComponent",
+  "description": "Loads a registered MLflow model version (any pyfunc flavor) and scores an upstream DataFrame. Per-run metadata: model URI, row count, latency.",
+  "category": "ai",
+  "attributes": {
+    "type": "object",
+    "properties": {
+      "asset_name": { "type": "string" },
+      "upstream_asset_key": { "type": "string" },
+      "tracking_uri_env_var": { "type": "string" },
+      "model_name": { "type": "string" },
+      "model_stage": { "type": "string", "enum": ["Production", "Staging", "Archived", "None"], "default": "Production" },
+      "model_version": { "type": "string", "description": "Pin a specific version to load (overrides model_stage)." },
+      "output_column": { "type": "string", "default": "prediction" },
+      "keep_input_columns": { "type": "boolean", "default": true },
+      "id_columns": { "type": "array", "items": { "type": "string" }, "x-dagster-widget": "columns" },
+      "feature_columns": { "type": "array", "items": { "type": "string" }, "x-dagster-widget": "columns" },
+      "group_name": { "type": "string", "default": "mlflow_scoring" },
+      "asset_key_prefix": { "type": "array", "items": { "type": "string" } },
+      "username_env_var": { "type": "string" },
+      "password_env_var": { "type": "string" }
+    },
+    "required": ["asset_name", "upstream_asset_key", "tracking_uri_env_var", "model_name"]
+  }
+}

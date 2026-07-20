@@ -1,0 +1,9 @@
+type: dagster_community_components.MLflowModelPromotionComponent
+attributes:
+  asset_name: promote_churn_to_production
+  tracking_uri_env_var: MLFLOW_TRACKING_URI
+  model_name: churn_model
+  source_stage: Staging
+  target_stage: Production
+  archive_existing_target: true
+  group_name: mlflow_cd

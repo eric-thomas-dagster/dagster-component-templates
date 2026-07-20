@@ -1,0 +1,8 @@
+type: dagster_community_components.MLflowExperimentSensorComponent
+attributes:
+  sensor_name: churn_experiment_runs
+  tracking_uri_env_var: MLFLOW_TRACKING_URI
+  experiment_name: churn_prediction
+  filter_string: "attributes.status = 'FINISHED'"
+  target_job: evaluate_new_run
+  minimum_interval_seconds: 60

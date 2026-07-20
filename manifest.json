@@ -20466,6 +20466,109 @@
       ]
     },
     {
+      "id": "mlflow_experiment_sensor",
+      "name": "MLflowExperimentSensor",
+      "category": "sensor",
+      "description": "Polls an MLflow experiment for new runs; fires a Dagster RunRequest per new run. Cursor-based dedup on run_id.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/mlflow_experiment_sensor",
+      "tags": [
+        "mlflow",
+        "sensor",
+        "experiment",
+        "ml",
+        "mlops"
+      ],
+      "dependencies": {
+        "pip": [
+          "mlflow>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mlflow_experiment_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mlflow_experiment_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mlflow_experiment_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mlflow_experiment_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mlflow_experiment_sensor/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-20"
+      },
+      "produces": [
+        "sensor"
+      ]
+    },
+    {
+      "id": "mlflow_model_inference",
+      "name": "MLflowModelInference",
+      "category": "ai",
+      "description": "Materializable asset that loads a registered MLflow model (any pyfunc flavor) and scores an upstream DataFrame.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/mlflow_model_inference",
+      "tags": [
+        "mlflow",
+        "asset",
+        "inference",
+        "scoring",
+        "ml",
+        "mlops"
+      ],
+      "dependencies": {
+        "pip": [
+          "mlflow>=2.0.0",
+          "pandas>=1.5.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mlflow_model_inference/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mlflow_model_inference/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mlflow_model_inference/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mlflow_model_inference/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mlflow_model_inference/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-20"
+      },
+      "produces": [
+        "asset"
+      ]
+    },
+    {
+      "id": "mlflow_model_promotion",
+      "name": "MLflowModelPromotion",
+      "category": "integration",
+      "description": "Materializable asset that transitions an MLflow model version between stages (e.g. Staging \u2192 Production). Auditable ML CD step.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/mlflow_model_promotion",
+      "tags": [
+        "mlflow",
+        "asset",
+        "promotion",
+        "cd",
+        "ml",
+        "mlops",
+        "registry"
+      ],
+      "dependencies": {
+        "pip": [
+          "mlflow>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/mlflow_model_promotion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/mlflow_model_promotion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/mlflow_model_promotion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/mlflow_model_promotion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/mlflow_model_promotion/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-20"
+      },
+      "produces": [
+        "asset"
+      ]
+    },
+    {
       "id": "mlflow_model_sensor",
       "name": "MLflow Model Sensor",
       "category": "sensor",
@@ -20497,6 +20600,40 @@
       },
       "produces": [
         "sensor"
+      ]
+    },
+    {
+      "id": "mlflow_model_version_check",
+      "name": "MLflowModelVersionCheck",
+      "category": "check",
+      "description": "Asset check that verifies an MLflow registered model's state (exists / at required stage / within a freshness window).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "asset_checks/mlflow_model_version_check",
+      "tags": [
+        "mlflow",
+        "asset_check",
+        "registry",
+        "ml",
+        "mlops",
+        "gate"
+      ],
+      "dependencies": {
+        "pip": [
+          "mlflow>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/mlflow_model_version_check/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/mlflow_model_version_check/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/mlflow_model_version_check/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/mlflow_model_version_check/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/mlflow_model_version_check/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-20"
+      },
+      "produces": [
+        "asset_check"
       ]
     },
     {

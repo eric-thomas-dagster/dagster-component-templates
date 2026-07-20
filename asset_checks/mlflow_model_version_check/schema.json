@@ -1,0 +1,21 @@
+{
+  "component_type": "dagster_community_components.MLflowModelVersionCheckComponent",
+  "description": "Asset check that verifies an MLflow registered model's state (exists / at required stage / within a freshness window).",
+  "category": "check",
+  "attributes": {
+    "type": "object",
+    "properties": {
+      "asset_key": { "type": "string", "description": "Asset key this check attaches to (dot-separated for hierarchical)." },
+      "check_name": { "type": "string" },
+      "tracking_uri_env_var": { "type": "string" },
+      "model_name": { "type": "string" },
+      "required_stage": { "type": "string", "enum": ["Production", "Staging", "Archived", "None"], "description": "Model must have at least one version at this stage." },
+      "required_version": { "type": "string", "description": "Specific version to require." },
+      "max_age_days": { "type": "integer", "description": "Freshness gate — max age of the latest version at required_stage." },
+      "severity": { "type": "string", "enum": ["ERROR", "WARN"], "default": "ERROR" },
+      "username_env_var": { "type": "string" },
+      "password_env_var": { "type": "string" }
+    },
+    "required": ["asset_key", "check_name", "tracking_uri_env_var", "model_name"]
+  }
+}

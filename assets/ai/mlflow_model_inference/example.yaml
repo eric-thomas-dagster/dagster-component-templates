@@ -1,0 +1,9 @@
+type: dagster_community_components.MLflowModelInferenceComponent
+attributes:
+  asset_name: daily_churn_scores
+  upstream_asset_key: customer_features
+  tracking_uri_env_var: MLFLOW_TRACKING_URI
+  model_name: churn_model
+  model_stage: Production
+  output_column: churn_score
+  group_name: ml_scoring

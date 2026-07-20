@@ -1,0 +1,7 @@
+type: dagster_community_components.MLflowModelVersionCheckComponent
+attributes:
+  asset_key: daily_churn_predictions
+  check_name: churn_model_prod_exists
+  tracking_uri_env_var: MLFLOW_TRACKING_URI
+  model_name: churn_model
+  required_stage: Production

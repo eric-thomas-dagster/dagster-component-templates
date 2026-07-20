@@ -7,6 +7,7 @@ and routines as Dagster assets with automatic observation and orchestration.
 from dagster import AssetKey  # auto-added for hierarchical keys
 
 import re
+from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 
@@ -29,6 +30,32 @@ from dagster import (
     MetadataValue,
 )
 from pydantic import Field
+
+
+# ─── Asset overrides (inline; kept per-component to preserve self-containment) ─
+#
+# Per-asset override applied after enumeration. Today supports `depends_on` —
+# a list of upstream Dagster asset keys (strings; slash-delimited becomes a
+# hierarchical AssetKey). Extend with more fields as needed (group, tags,
+# description). Matches the pattern used by the official Databricks workspace
+# component's `attributes.asset_overrides.<key>.depends_on`.
+
+
+@dataclass
+class AssetOverride(Resolvable):
+    depends_on: Optional[List[str]] = None
+
+
+def _resolve_override_deps(
+    asset_overrides: Optional[Dict[str, "AssetOverride"]],
+    lookup_key: str,
+) -> List[AssetKey]:
+    if not asset_overrides:
+        return []
+    ov = asset_overrides.get(lookup_key)
+    if not ov or not ov.depends_on:
+        return []
+    return [AssetKey(d.split("/")) if "/" in d else AssetKey(d) for d in ov.depends_on]
 
 
 class GoogleBigQueryComponent(Component, Model, Resolvable):
@@ -201,6 +228,17 @@ class GoogleBigQueryComponent(Component, Model, Resolvable):
 
     )
 
+    asset_overrides: Optional[Dict[str, AssetOverride]] = Field(
+        default=None,
+        description=(
+            "Per-asset overrides keyed by the emitted asset's name (e.g. "
+            "`scheduled_query_daily_rollup`, `mv_customer_summary`, `table_orders`). "
+            "Today supports `depends_on: [upstream_key, ...]` to add Dagster asset "
+            "dependencies. Matches the pattern used by the official Databricks workspace "
+            "component."
+        ),
+    )
+
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build Dagster definitions from BigQuery entities."""
@@ -250,8 +288,11 @@ class GoogleBigQueryComponent(Component, Model, Resolvable):
                             backoff=Backoff[self.retry_policy_backoff.upper()],
                         )
 
-                    @asset(retry_policy=_retry_policy, 
+                    _override_deps = _resolve_override_deps(self.asset_overrides, asset_key)
+
+                    @asset(retry_policy=_retry_policy,
                         key=AssetKey.from_user_string(asset_key),
+                        deps=_override_deps,
                         group_name=self.group_name,
                         description=f"BigQuery scheduled query: {query_name}",
                         metadata={
@@ -317,10 +358,12 @@ class GoogleBigQueryComponent(Component, Model, Resolvable):
 
                         # Sanitize name for asset key
                         asset_key = f"procedure_{re.sub(r'[^a-zA-Z0-9_]', '_', routine_name.lower())}"
+                        _override_deps = _resolve_override_deps(self.asset_overrides, asset_key)
 
                         # Stored procedures are materializable
                         @asset(
                             key=AssetKey.from_user_string(asset_key),
+                            deps=_override_deps,
                             group_name=self.group_name,
                             description=f"BigQuery stored procedure: {routine_name}",
                             metadata={
@@ -379,10 +422,12 @@ class GoogleBigQueryComponent(Component, Model, Resolvable):
 
                         # Sanitize name for asset key
                         asset_key = f"mv_{re.sub(r'[^a-zA-Z0-9_]', '_', mv_name.lower())}"
+                        _override_deps = _resolve_override_deps(self.asset_overrides, asset_key)
 
                         # Materialized views are materializable
                         @asset(
                             key=AssetKey.from_user_string(asset_key),
+                            deps=_override_deps,
                             group_name=self.group_name,
                             description=f"BigQuery materialized view: {mv_name}",
                             metadata={
@@ -444,10 +489,12 @@ class GoogleBigQueryComponent(Component, Model, Resolvable):
 
                     # Sanitize name for asset key
                     asset_key = f"transfer_job_{re.sub(r'[^a-zA-Z0-9_]', '_', job_name.lower())}"
+                    _override_deps = _resolve_override_deps(self.asset_overrides, asset_key)
 
                     # Transfer jobs are materializable
                     @asset(
                         key=AssetKey.from_user_string(asset_key),
+                        deps=_override_deps,
                         group_name=self.group_name,
                         description=f"BigQuery transfer job: {job_name}",
                         metadata={

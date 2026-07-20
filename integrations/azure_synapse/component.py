@@ -7,6 +7,7 @@ as Dagster assets with automatic observation and orchestration.
 from dagster import AssetKey  # auto-added for hierarchical keys
 
 import re
+from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 import time
@@ -31,6 +32,32 @@ from dagster import (
     MetadataValue,
 )
 from pydantic import Field
+
+
+# ─── Asset overrides (inline; kept per-component to preserve self-containment) ─
+#
+# Per-asset override applied after enumeration. Today supports `depends_on` —
+# a list of upstream Dagster asset keys (strings; slash-delimited becomes a
+# hierarchical AssetKey). Extend with more fields as needed (group, tags,
+# description). Matches the pattern used by the official Databricks workspace
+# component's `attributes.asset_overrides.<key>.depends_on`.
+
+
+@dataclass
+class AssetOverride(Resolvable):
+    depends_on: Optional[List[str]] = None
+
+
+def _resolve_override_deps(
+    asset_overrides: Optional[Dict[str, "AssetOverride"]],
+    lookup_key: str,
+) -> List[AssetKey]:
+    if not asset_overrides:
+        return []
+    ov = asset_overrides.get(lookup_key)
+    if not ov or not ov.depends_on:
+        return []
+    return [AssetKey(d.split("/")) if "/" in d else AssetKey(d) for d in ov.depends_on]
 
 
 class AzureSynapseComponent(Component, Model, Resolvable):
@@ -134,6 +161,16 @@ class AzureSynapseComponent(Component, Model, Resolvable):
         description="Description for the Azure Synapse component"
     )
 
+    asset_overrides: Optional[Dict[str, AssetOverride]] = Field(
+        default=None,
+        description=(
+            "Per-asset overrides keyed by the emitted asset's name (e.g. "
+            "`synapse_pipeline_orders_load`, `synapse_notebook_scoring`). Today supports "
+            "`depends_on: [upstream_key, ...]` to add Dagster asset dependencies. "
+            "Matches the pattern used by the official Databricks workspace component."
+        ),
+    )
+
     def _get_credential(self):
         """Get Azure credential."""
         if self.tenant_id and self.client_id and self.client_secret:
@@ -209,10 +246,12 @@ class AzureSynapseComponent(Component, Model, Resolvable):
 
         for pipeline_name in pipelines:
             asset_key = f"synapse_pipeline_{pipeline_name}"
+            override_deps = _resolve_override_deps(component_self.asset_overrides, asset_key)
 
-            def _make_pipeline_asset(_pipeline_name=pipeline_name, _asset_key=asset_key):
+            def _make_pipeline_asset(_pipeline_name=pipeline_name, _asset_key=asset_key, _override_deps=override_deps):
                 @asset(
                     key=AssetKey.from_user_string(_asset_key),
+                    deps=_override_deps,
                     group_name=component_self.group_name,
                     metadata={
                         "pipeline_name": _pipeline_name,
@@ -270,10 +309,12 @@ class AzureSynapseComponent(Component, Model, Resolvable):
 
         for job_name in jobs:
             asset_key = f"synapse_spark_job_{job_name}"
+            override_deps = _resolve_override_deps(component_self.asset_overrides, asset_key)
 
-            def _make_spark_asset(_job_name=job_name, _asset_key=asset_key):
+            def _make_spark_asset(_job_name=job_name, _asset_key=asset_key, _override_deps=override_deps):
                 @asset(
                     key=AssetKey.from_user_string(_asset_key),
+                    deps=_override_deps,
                     group_name=component_self.group_name,
                     metadata={
                         "job_name": _job_name,
@@ -339,10 +380,12 @@ class AzureSynapseComponent(Component, Model, Resolvable):
 
         for notebook_name in notebooks:
             asset_key = f"synapse_notebook_{notebook_name}"
+            override_deps = _resolve_override_deps(component_self.asset_overrides, asset_key)
 
-            def _make_notebook_asset(_notebook_name=notebook_name, _asset_key=asset_key):
+            def _make_notebook_asset(_notebook_name=notebook_name, _asset_key=asset_key, _override_deps=override_deps):
                 @asset(
                     key=AssetKey.from_user_string(_asset_key),
+                    deps=_override_deps,
                     group_name=component_self.group_name,
                     metadata={
                         "notebook_name": _notebook_name,
@@ -456,7 +499,7 @@ class AzureSynapseComponent(Component, Model, Resolvable):
 
         return synapse_observation_sensor
 
-    def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
+    def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build Dagster definitions for the imported Synapse workspace."""
         mgmt_client = self._get_management_client()
         artifacts_client = self._get_artifacts_client()

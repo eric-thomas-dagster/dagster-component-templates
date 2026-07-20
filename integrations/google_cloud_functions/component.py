@@ -6,6 +6,7 @@ Import Google Cloud Functions as Dagster assets for invoking serverless function
 from dagster import AssetKey  # auto-added for hierarchical keys
 
 import re
+from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 
 from google.cloud import functions_v2
@@ -22,6 +23,32 @@ from dagster import (
     Model,
 )
 from pydantic import Field
+
+
+# ─── Asset overrides (inline; kept per-component to preserve self-containment) ─
+#
+# Per-asset override applied after enumeration. Today supports `depends_on` —
+# a list of upstream Dagster asset keys (strings; slash-delimited becomes a
+# hierarchical AssetKey). Extend with more fields as needed (group, tags,
+# description). Matches the pattern used by the official Databricks workspace
+# component's `attributes.asset_overrides.<key>.depends_on`.
+
+
+@dataclass
+class AssetOverride(Resolvable):
+    depends_on: Optional[List[str]] = None
+
+
+def _resolve_override_deps(
+    asset_overrides: Optional[Dict[str, "AssetOverride"]],
+    lookup_key: str,
+) -> List[AssetKey]:
+    if not asset_overrides:
+        return []
+    ov = asset_overrides.get(lookup_key)
+    if not ov or not ov.depends_on:
+        return []
+    return [AssetKey(d.split("/")) if "/" in d else AssetKey(d) for d in ov.depends_on]
 
 
 class GoogleCloudFunctionsComponent(Component, Model, Resolvable):
@@ -78,6 +105,16 @@ class GoogleCloudFunctionsComponent(Component, Model, Resolvable):
         description="Description for the Google Cloud Functions component"
     )
 
+    asset_overrides: Optional[Dict[str, AssetOverride]] = Field(
+        default=None,
+        description=(
+            "Per-asset overrides keyed by the emitted asset's name (e.g. "
+            "`cloud_function_process_upload`). Today supports "
+            "`depends_on: [upstream_key, ...]` to add Dagster asset dependencies. "
+            "Matches the pattern used by the official Databricks workspace component."
+        ),
+    )
+
     def _get_client(self) -> functions_v2.FunctionServiceClient:
         """Create Cloud Functions client."""
         if self.credentials_path:
@@ -125,9 +162,11 @@ class GoogleCloudFunctionsComponent(Component, Model, Resolvable):
             func_name = func_info["name"]
             safe_name = re.sub(r'[^a-zA-Z0-9_]', '_', func_name)
             asset_key = f"cloud_function_{safe_name}"
+            override_deps = _resolve_override_deps(self.asset_overrides, asset_key)
 
             @asset(
                 key=AssetKey.from_user_string(asset_key),
+                deps=override_deps,
                 group_name=self.group_name,
                 metadata={
                     "function_name": func_name,
@@ -155,8 +194,8 @@ class GoogleCloudFunctionsComponent(Component, Model, Resolvable):
 
         return assets
 
-    def resolve(self, load_context: ComponentLoadContext) -> Definitions:
-        """Resolve component to Dagster definitions."""
+    def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        """Build Dagster definitions from this component."""
         assets = []
 
         if self.import_functions:

@@ -216,17 +216,21 @@ combine_method: first   # Use only the first DataFrame
 
 ## Asset Dependencies & Lineage
 
-This component supports a `deps` field for declaring upstream Dagster asset dependencies:
+Primary upstream deps for a DataFrame transformer are declared via `upstream_asset_key` (single) or `upstream_asset_keys` (list) — the transformer receives those DataFrames at runtime. In addition, extra lineage-only deps (not loaded) can be declared via `asset_overrides` keyed by this component's `asset_name`. Matches the pattern used by the official [`DatabricksWorkspaceComponent`](https://docs.dagster.io/integrations/libraries/databricks/databricks-workspace-component#managing-dependencies).
 
 ```yaml
 attributes:
-  # ... other fields ...
-  deps:
-    - raw_orders              # simple asset key
-    - raw/schema/orders       # asset key with path prefix
+  asset_name: cleaned_orders
+  upstream_asset_key: raw_orders     # loaded at runtime (data flow)
+  drop_duplicates: true
+  asset_overrides:
+    cleaned_orders:
+      depends_on:
+        - reference/currency_rates   # extra lineage edge, not loaded
+        - dim/customers              # slash-delimited → hierarchical AssetKey
 ```
 
-`deps` draws lineage edges in the Dagster asset graph without loading data at runtime. Use it to express that this asset depends on upstream tables or assets produced by other components.
+The declared deps draw lineage edges in the Dagster asset graph — no data is loaded for `asset_overrides` entries at runtime (only `upstream_asset_key(s)` are loaded via the IO manager). Use them to express additional upstream references beyond the DataFrame inputs.
 
 Dependencies can also be wired externally via `map_resolved_asset_specs()` in `definitions.py` — the same approach used by [Dagster Designer](https://github.com/eric-thomas-dagster/dagster_designer).
 

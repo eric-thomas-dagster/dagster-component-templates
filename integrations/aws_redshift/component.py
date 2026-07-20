@@ -8,6 +8,7 @@ from dagster import AssetKey  # auto-added for hierarchical keys
 
 import re
 import time
+from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 
 import boto3
@@ -23,6 +24,32 @@ from dagster import (
     Model,
 )
 from pydantic import Field
+
+
+# ─── Asset overrides (inline; kept per-component to preserve self-containment) ─
+#
+# Per-asset override applied after enumeration. Today supports `depends_on` —
+# a list of upstream Dagster asset keys (strings; slash-delimited becomes a
+# hierarchical AssetKey). Extend with more fields as needed (group, tags,
+# description). Matches the pattern used by the official Databricks workspace
+# component's `attributes.asset_overrides.<key>.depends_on`.
+
+
+@dataclass
+class AssetOverride(Resolvable):
+    depends_on: Optional[List[str]] = None
+
+
+def _resolve_override_deps(
+    asset_overrides: Optional[Dict[str, "AssetOverride"]],
+    lookup_key: str,
+) -> List[AssetKey]:
+    if not asset_overrides:
+        return []
+    ov = asset_overrides.get(lookup_key)
+    if not ov or not ov.depends_on:
+        return []
+    return [AssetKey(d.split("/")) if "/" in d else AssetKey(d) for d in ov.depends_on]
 
 
 class AWSRedshiftComponent(Component, Model, Resolvable):
@@ -122,6 +149,16 @@ class AWSRedshiftComponent(Component, Model, Resolvable):
     description: Optional[str] = Field(
         default=None,
         description="Description for the AWS Redshift component"
+    )
+
+    asset_overrides: Optional[Dict[str, AssetOverride]] = Field(
+        default=None,
+        description=(
+            "Per-asset overrides keyed by the emitted asset's name (e.g. "
+            "`procedure_daily_rollup`, `matview_customer_summary`). Today supports "
+            "`depends_on: [upstream_key, ...]` to add Dagster asset dependencies. "
+            "Matches the pattern used by the official Databricks workspace component."
+        ),
     )
 
     def _get_boto3_session(self) -> boto3.Session:
@@ -333,9 +370,11 @@ class AWSRedshiftComponent(Component, Model, Resolvable):
 
         for proc_name in procedures:
             asset_key = f"procedure_{proc_name}"
+            override_deps = _resolve_override_deps(self.asset_overrides, asset_key)
 
             @asset(
                 key=AssetKey.from_user_string(asset_key),
+                deps=override_deps,
                 group_name=self.group_name,
                 metadata={
                     "procedure_name": proc_name,
@@ -372,9 +411,11 @@ class AWSRedshiftComponent(Component, Model, Resolvable):
             # Extract just the view name without schema
             simple_name = view_name.split('.')[-1]
             asset_key = f"matview_{simple_name}"
+            override_deps = _resolve_override_deps(self.asset_overrides, asset_key)
 
             @asset(
                 key=AssetKey.from_user_string(asset_key),
+                deps=override_deps,
                 group_name=self.group_name,
                 metadata={
                     "view_name": view_name,
@@ -402,8 +443,8 @@ class AWSRedshiftComponent(Component, Model, Resolvable):
 
         return assets
 
-    def resolve(self, load_context: ComponentLoadContext) -> Definitions:
-        """Resolve component to Dagster definitions."""
+    def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        """Build Dagster definitions from this component."""
         session = self._get_boto3_session()
 
         assets = []

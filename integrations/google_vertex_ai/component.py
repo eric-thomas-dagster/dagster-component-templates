@@ -7,6 +7,7 @@ as Dagster assets for orchestrating machine learning workflows.
 from dagster import AssetKey  # auto-added for hierarchical keys
 
 import re
+from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 
@@ -28,6 +29,32 @@ from dagster import (
     MetadataValue,
 )
 from pydantic import Field
+
+
+# ─── Asset overrides (inline; kept per-component to preserve self-containment) ─
+#
+# Per-asset override applied after enumeration. Today supports `depends_on` —
+# a list of upstream Dagster asset keys (strings; slash-delimited becomes a
+# hierarchical AssetKey). Extend with more fields as needed (group, tags,
+# description). Matches the pattern used by the official Databricks workspace
+# component's `attributes.asset_overrides.<key>.depends_on`.
+
+
+@dataclass
+class AssetOverride(Resolvable):
+    depends_on: Optional[List[str]] = None
+
+
+def _resolve_override_deps(
+    asset_overrides: Optional[Dict[str, "AssetOverride"]],
+    lookup_key: str,
+) -> List[AssetKey]:
+    if not asset_overrides:
+        return []
+    ov = asset_overrides.get(lookup_key)
+    if not ov or not ov.depends_on:
+        return []
+    return [AssetKey(d.split("/")) if "/" in d else AssetKey(d) for d in ov.depends_on]
 
 
 class GoogleVertexAIComponent(Component, Model, Resolvable):
@@ -119,6 +146,16 @@ class GoogleVertexAIComponent(Component, Model, Resolvable):
     description: Optional[str] = Field(
         default=None,
         description="Description for the Google Vertex AI component"
+    )
+
+    asset_overrides: Optional[Dict[str, AssetOverride]] = Field(
+        default=None,
+        description=(
+            "Per-asset overrides keyed by the emitted asset's name (e.g. "
+            "`training_job_recommender_v2`, `pipeline_customer_scoring`). Today supports "
+            "`depends_on: [upstream_key, ...]` to add Dagster asset dependencies. "
+            "Matches the pattern used by the official Databricks workspace component."
+        ),
     )
 
     def _init_vertex_ai(self):
@@ -258,9 +295,11 @@ class GoogleVertexAIComponent(Component, Model, Resolvable):
             # Create safe asset key
             safe_name = re.sub(r'[^a-zA-Z0-9_]', '_', display_name)
             asset_key = f"training_job_{safe_name}"
+            override_deps = _resolve_override_deps(self.asset_overrides, asset_key)
 
             @asset(
                 key=AssetKey.from_user_string(asset_key),
+                deps=override_deps,
                 group_name=self.group_name,
                 metadata={
                     "display_name": display_name,
@@ -298,9 +337,11 @@ class GoogleVertexAIComponent(Component, Model, Resolvable):
             display_name = job_info["display_name"]
             safe_name = re.sub(r'[^a-zA-Z0-9_]', '_', display_name)
             asset_key = f"batch_prediction_{safe_name}"
+            override_deps = _resolve_override_deps(self.asset_overrides, asset_key)
 
             @asset(
                 key=AssetKey.from_user_string(asset_key),
+                deps=override_deps,
                 group_name=self.group_name,
                 metadata={
                     "display_name": display_name,
@@ -337,9 +378,11 @@ class GoogleVertexAIComponent(Component, Model, Resolvable):
             display_name = pipeline_info["display_name"]
             safe_name = re.sub(r'[^a-zA-Z0-9_]', '_', display_name)
             asset_key = f"pipeline_{safe_name}"
+            override_deps = _resolve_override_deps(self.asset_overrides, asset_key)
 
             @asset(
                 key=AssetKey.from_user_string(asset_key),
+                deps=override_deps,
                 group_name=self.group_name,
                 metadata={
                     "display_name": display_name,
@@ -406,8 +449,8 @@ class GoogleVertexAIComponent(Component, Model, Resolvable):
 
         return vertex_ai_observation_sensor
 
-    def resolve(self, load_context: ComponentLoadContext) -> Definitions:
-        """Resolve component to Dagster definitions."""
+    def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        """Build Dagster definitions from this component."""
         assets = []
         sensors = []
 

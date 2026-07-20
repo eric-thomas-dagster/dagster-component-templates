@@ -184,16 +184,22 @@ Provides broader permissions for resource management.
 
 ## Asset Dependencies & Lineage
 
-This component supports a `deps` field for declaring upstream Dagster asset dependencies:
+Because this component enumerates many assets from one config, dependencies are declared per-asset via `asset_overrides` (keyed by the emitted asset's name). Matches the pattern used by the official [`DatabricksWorkspaceComponent`](https://docs.dagster.io/integrations/libraries/databricks/databricks-workspace-component#managing-dependencies).
 
 ```yaml
 attributes:
-  # ... other fields ...
-  deps:
-    - raw_orders              # simple asset key
-    - raw/schema/orders       # asset key with path prefix
+  subscription_id: "..."
+  workspace_name: my-synapse
+  asset_overrides:
+    synapse_pipeline_orders_load:
+      depends_on:
+        - raw_orders              # simple asset key
+        - raw/schema/orders       # slash-delimited → hierarchical AssetKey
+    synapse_notebook_scoring:
+      depends_on:
+        - synapse_pipeline_orders_load
 ```
 
-`deps` draws lineage edges in the Dagster asset graph without loading data at runtime. Use it to express that this asset depends on upstream tables or assets produced by other components.
+The declared deps draw lineage edges in the Dagster asset graph — no data is loaded at runtime. Use them to express that a specific imported Synapse pipeline, Spark job, or notebook depends on upstream tables or assets produced elsewhere in your project. Assets without a matching entry in `asset_overrides` are emitted with no upstream deps (the default).
 
 Dependencies can also be wired externally via `map_resolved_asset_specs()` in `definitions.py` — the same approach used by [Dagster Designer](https://github.com/eric-thomas-dagster/dagster_designer).

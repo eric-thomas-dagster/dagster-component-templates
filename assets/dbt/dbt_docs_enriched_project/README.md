@@ -349,16 +349,21 @@ attributes:
 
 ## Asset Dependencies & Lineage
 
-This component supports a `deps` field for declaring upstream Dagster asset dependencies:
+Because this component enumerates many dbt assets (models, sources, snapshots) from one project, extra Dagster asset dependencies are declared per-asset via `asset_overrides` (keyed by the emitted asset's stringified key — e.g. `my_dbt_model` or `analytics/orders`). Matches the pattern used by the official [`DatabricksWorkspaceComponent`](https://docs.dagster.io/integrations/libraries/databricks/databricks-workspace-component#managing-dependencies).
 
 ```yaml
 attributes:
   project: "{{ project_root }}/dbt_project"
-  deps:
-    - raw_orders
-    - raw/schema/orders
+  asset_overrides:
+    my_dbt_model:
+      depends_on:
+        - raw_orders              # simple asset key
+        - raw/schema/orders       # slash-delimited → hierarchical AssetKey
+    analytics/orders:
+      depends_on:
+        - upstream_lake/orders_snapshot
 ```
 
-`deps` draws lineage edges in the Dagster asset graph without loading data at runtime. Use it to express that your dbt project depends on upstream tables produced by other components.
+The declared deps are merged into each matching asset's spec and draw lineage edges in the Dagster asset graph — no data is loaded at runtime. Use them to connect dbt sources/models to upstream tables produced by other components. dbt's own ref/source lineage inside the project is preserved unchanged.
 
 Dependencies can also be wired externally via `map_resolved_asset_specs()` in `definitions.py` — the same approach used by [Dagster Designer](https://github.com/eric-thomas-dagster/dagster_designer).

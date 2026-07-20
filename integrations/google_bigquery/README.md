@@ -205,16 +205,22 @@ Required IAM permissions:
 
 ## Asset Dependencies & Lineage
 
-This component supports a `deps` field for declaring upstream Dagster asset dependencies:
+Because this component enumerates many assets from one config, dependencies are declared per-asset via `asset_overrides` (keyed by the emitted asset's name). Matches the pattern used by the official [`DatabricksWorkspaceComponent`](https://docs.dagster.io/integrations/libraries/databricks/databricks-workspace-component#managing-dependencies).
 
 ```yaml
 attributes:
-  # ... other fields ...
-  deps:
-    - raw_orders              # simple asset key
-    - raw/schema/orders       # asset key with path prefix
+  project_id: my-gcp-project
+  dataset_id: analytics
+  asset_overrides:
+    scheduled_query_daily_rollup:
+      depends_on:
+        - raw_orders              # simple asset key
+        - raw/schema/orders       # slash-delimited → hierarchical AssetKey
+    mv_customer_summary:
+      depends_on:
+        - scheduled_query_daily_rollup
 ```
 
-`deps` draws lineage edges in the Dagster asset graph without loading data at runtime. Use it to express that this asset depends on upstream tables or assets produced by other components.
+The declared deps draw lineage edges in the Dagster asset graph — no data is loaded at runtime. Use them to express that a specific imported BigQuery scheduled query, stored procedure, materialized view, or transfer job depends on upstream tables or assets produced elsewhere in your project. Assets without a matching entry in `asset_overrides` are emitted with no upstream deps (the default). Note: observable-source `table_*` and `routine_*` assets have no deps by definition and are unaffected.
 
 Dependencies can also be wired externally via `map_resolved_asset_specs()` in `definitions.py` — the same approach used by [Dagster Designer](https://github.com/eric-thomas-dagster/dagster_designer).

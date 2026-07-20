@@ -19,7 +19,7 @@ asset key mapping, partitions, and check generation work identically.
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 import dagster as dg
 from pydantic import Field
@@ -29,6 +29,32 @@ from pydantic import Field
 # from a resolved AssetSpec.
 _UNIQUE_ID_KEY = "dagster_dbt/unique_id"
 _MANIFEST_KEY = "dagster_dbt/manifest"
+
+
+# ─── Asset overrides (inline; kept per-component to preserve self-containment) ─
+#
+# Per-asset override applied after enumeration. Today supports `depends_on` —
+# a list of upstream Dagster asset keys (strings; slash-delimited becomes a
+# hierarchical AssetKey). Extend with more fields as needed (group, tags,
+# description). Matches the pattern used by the official Databricks workspace
+# component's `attributes.asset_overrides.<key>.depends_on`.
+
+
+@dataclass
+class AssetOverride(dg.Resolvable):
+    depends_on: Optional[List[str]] = None
+
+
+def _resolve_override_deps(
+    asset_overrides: Optional[Dict[str, "AssetOverride"]],
+    lookup_key: str,
+) -> List[dg.AssetKey]:
+    if not asset_overrides:
+        return []
+    ov = asset_overrides.get(lookup_key)
+    if not ov or not ov.depends_on:
+        return []
+    return [dg.AssetKey(d.split("/")) if "/" in d else dg.AssetKey(d) for d in ov.depends_on]
 
 
 def _get_str_meta(metadata: dict, key: str) -> Optional[str]:
@@ -99,6 +125,13 @@ try:
 
         manifest_path: Optional[str] = None
         """Override path to manifest.json. Defaults to {project_dir}/target/manifest.json."""
+
+        asset_overrides: Optional[Dict[str, AssetOverride]] = None
+        """Per-asset overrides keyed by the emitted asset's stringified key (e.g.
+        `my_dbt_model` or `analytics/orders`). Today supports
+        `depends_on: [upstream_key, ...]` to add Dagster asset dependencies —
+        merged into each matching spec's deps. Matches the pattern used by the
+        official Databricks workspace component."""
 
         # ------------------------------------------------------------------
         # Internal helpers
@@ -301,10 +334,25 @@ try:
 
             def enrich(spec: dg.AssetSpec) -> dg.AssetSpec:
                 try:
-                    return self._enrich_spec(spec, manifest)
+                    enriched = self._enrich_spec(spec, manifest)
                 except Exception:
                     # Never break the load — degrade gracefully
-                    return spec
+                    enriched = spec
+
+                # Apply per-asset override deps if set. Look up by the spec's
+                # stringified asset key (matches Databricks pattern).
+                if self.asset_overrides:
+                    lookup_key = spec.key.to_user_string()
+                    override_deps = _resolve_override_deps(self.asset_overrides, lookup_key)
+                    if override_deps:
+                        try:
+                            existing = list(enriched.deps or [])
+                            enriched = enriched.merge_attributes(
+                                deps=existing + list(override_deps)
+                            )
+                        except Exception:
+                            pass
+                return enriched
 
             return base_defs.map_resolved_asset_specs(enrich)
 
@@ -333,6 +381,7 @@ except ImportError:
         include_meta: bool = Field(default=False)
         include_source_freshness: bool = Field(default=False)
         include_doc_blocks: bool = Field(default=False)
+        asset_overrides: Optional[Dict[str, AssetOverride]] = Field(default=None)
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             raise ImportError(

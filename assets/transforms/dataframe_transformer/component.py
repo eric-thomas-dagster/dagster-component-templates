@@ -4,6 +4,7 @@ Transform DataFrames from upstream assets using IO managers for automatic data f
 Works with visual dependency drawing - just connect DataFrame-producing assets!
 """
 
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 import json
 
@@ -22,6 +23,32 @@ from dagster import (
     MetadataValue,
 )
 from pydantic import Field, field_validator
+
+
+# ─── Asset overrides (inline; kept per-component to preserve self-containment) ─
+#
+# Per-asset override applied after enumeration. Today supports `depends_on` —
+# a list of upstream Dagster asset keys (strings; slash-delimited becomes a
+# hierarchical AssetKey). Extend with more fields as needed (group, tags,
+# description). Matches the pattern used by the official Databricks workspace
+# component's `attributes.asset_overrides.<key>.depends_on`.
+
+
+@dataclass
+class AssetOverride(Resolvable):
+    depends_on: Optional[List[str]] = None
+
+
+def _resolve_override_deps(
+    asset_overrides: Optional[Dict[str, "AssetOverride"]],
+    lookup_key: str,
+) -> List[AssetKey]:
+    if not asset_overrides:
+        return []
+    ov = asset_overrides.get(lookup_key)
+    if not ov or not ov.depends_on:
+        return []
+    return [AssetKey(d.split("/")) if "/" in d else AssetKey(d) for d in ov.depends_on]
 
 
 def _build_partitions_def(
@@ -328,6 +355,16 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         description="Multiple upstream asset keys for multi-source transforms.",
     )
 
+    asset_overrides: Optional[Dict[str, AssetOverride]] = Field(
+        default=None,
+        description=(
+            "Per-asset overrides keyed by the emitted asset's name (typically "
+            "`asset_name`). Today supports `depends_on: [upstream_key, ...]` to add "
+            "Dagster asset dependencies (merged with `upstream_asset_key(s)`). "
+            "Matches the pattern used by the official Databricks workspace component."
+        ),
+    )
+
     # Sample metadata
     include_preview_metadata: bool = Field(
         default=False,
@@ -426,6 +463,10 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         if self.upstream_asset_keys:
             upstream_keys.extend(self.upstream_asset_keys)
 
+        # asset_overrides.depends_on merges into the deps list alongside upstream_keys.
+        override_deps = _resolve_override_deps(self.asset_overrides, asset_name)
+        combined_deps: List[Any] = list(upstream_keys) + list(override_deps)
+
         partitions_def = _build_partitions_def(
             self.partition_type,
             self.partition_start,
@@ -484,7 +525,7 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
             tags=_all_tags,
             freshness_policy=_freshness_policy,
 group_name=group_name,
-            deps=upstream_keys if upstream_keys else None,
+            deps=combined_deps if combined_deps else None,
             retry_policy=_retry_policy,
         )
         def dataframe_transformer_asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:

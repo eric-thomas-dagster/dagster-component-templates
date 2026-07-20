@@ -6,6 +6,7 @@ Import Google Cloud Run Jobs as Dagster assets for executing containerized batch
 from dagster import AssetKey  # auto-added for hierarchical keys
 
 import re
+from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 
 from google.cloud import run_v2
@@ -22,6 +23,32 @@ from dagster import (
     Model,
 )
 from pydantic import Field
+
+
+# ─── Asset overrides (inline; kept per-component to preserve self-containment) ─
+#
+# Per-asset override applied after enumeration. Today supports `depends_on` —
+# a list of upstream Dagster asset keys (strings; slash-delimited becomes a
+# hierarchical AssetKey). Extend with more fields as needed (group, tags,
+# description). Matches the pattern used by the official Databricks workspace
+# component's `attributes.asset_overrides.<key>.depends_on`.
+
+
+@dataclass
+class AssetOverride(Resolvable):
+    depends_on: Optional[List[str]] = None
+
+
+def _resolve_override_deps(
+    asset_overrides: Optional[Dict[str, "AssetOverride"]],
+    lookup_key: str,
+) -> List[AssetKey]:
+    if not asset_overrides:
+        return []
+    ov = asset_overrides.get(lookup_key)
+    if not ov or not ov.depends_on:
+        return []
+    return [AssetKey(d.split("/")) if "/" in d else AssetKey(d) for d in ov.depends_on]
 
 
 class GoogleCloudRunJobsComponent(Component, Model, Resolvable):
@@ -78,6 +105,16 @@ class GoogleCloudRunJobsComponent(Component, Model, Resolvable):
         description="Description for the Google Cloud Run Jobs component"
     )
 
+    asset_overrides: Optional[Dict[str, AssetOverride]] = Field(
+        default=None,
+        description=(
+            "Per-asset overrides keyed by the emitted asset's name (e.g. "
+            "`cloud_run_job_my_pipeline`). Today supports `depends_on: [upstream_key, ...]` "
+            "to add Dagster asset dependencies. Matches the pattern used by the official "
+            "Databricks workspace component."
+        ),
+    )
+
     def _get_client(self) -> run_v2.JobsClient:
         """Create Cloud Run Jobs client."""
         if self.credentials_path:
@@ -124,9 +161,11 @@ class GoogleCloudRunJobsComponent(Component, Model, Resolvable):
             job_name = job_info["name"]
             safe_name = re.sub(r'[^a-zA-Z0-9_]', '_', job_name)
             asset_key = f"cloud_run_job_{safe_name}"
+            override_deps = _resolve_override_deps(self.asset_overrides, asset_key)
 
             @asset(
                 key=AssetKey.from_user_string(asset_key),
+                deps=override_deps,
                 group_name=self.group_name,
                 metadata={
                     "job_name": job_name,
@@ -162,8 +201,8 @@ class GoogleCloudRunJobsComponent(Component, Model, Resolvable):
 
         return assets
 
-    def resolve(self, load_context: ComponentLoadContext) -> Definitions:
-        """Resolve component to Dagster definitions."""
+    def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        """Build Dagster definitions from this component."""
         assets = []
 
         if self.import_jobs:

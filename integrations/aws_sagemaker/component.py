@@ -8,6 +8,7 @@ from dagster import AssetKey  # auto-added for hierarchical keys
 
 import re
 import time
+from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 
@@ -28,6 +29,32 @@ from dagster import (
     MetadataValue,
 )
 from pydantic import Field
+
+
+# ─── Asset overrides (inline; kept per-component to preserve self-containment) ─
+#
+# Per-asset override applied after enumeration. Today supports `depends_on` —
+# a list of upstream Dagster asset keys (strings; slash-delimited becomes a
+# hierarchical AssetKey). Extend with more fields as needed (group, tags,
+# description). Matches the pattern used by the official Databricks workspace
+# component's `attributes.asset_overrides.<key>.depends_on`.
+
+
+@dataclass
+class AssetOverride(Resolvable):
+    depends_on: Optional[List[str]] = None
+
+
+def _resolve_override_deps(
+    asset_overrides: Optional[Dict[str, "AssetOverride"]],
+    lookup_key: str,
+) -> List[AssetKey]:
+    if not asset_overrides:
+        return []
+    ov = asset_overrides.get(lookup_key)
+    if not ov or not ov.depends_on:
+        return []
+    return [AssetKey(d.split("/")) if "/" in d else AssetKey(d) for d in ov.depends_on]
 
 
 class AWSSageMakerComponent(Component, Model, Resolvable):
@@ -125,6 +152,16 @@ class AWSSageMakerComponent(Component, Model, Resolvable):
     description: Optional[str] = Field(
         default=None,
         description="Description for the AWS SageMaker component"
+    )
+
+    asset_overrides: Optional[Dict[str, AssetOverride]] = Field(
+        default=None,
+        description=(
+            "Per-asset overrides keyed by the emitted asset's name (e.g. "
+            "`training_job_xgboost_v1`, `pipeline_customer_scoring`). Today supports "
+            "`depends_on: [upstream_key, ...]` to add Dagster asset dependencies. "
+            "Matches the pattern used by the official Databricks workspace component."
+        ),
     )
 
     def _get_boto3_session(self) -> boto3.Session:
@@ -268,9 +305,11 @@ class AWSSageMakerComponent(Component, Model, Resolvable):
 
         for job_name in job_names:
             asset_key = f"training_job_{job_name}"
+            override_deps = _resolve_override_deps(self.asset_overrides, asset_key)
 
             @asset(
                 key=AssetKey.from_user_string(asset_key),
+                deps=override_deps,
                 group_name=self.group_name,
                 metadata={
                     "job_name": job_name,
@@ -320,9 +359,11 @@ class AWSSageMakerComponent(Component, Model, Resolvable):
 
         for job_name in job_names:
             asset_key = f"transform_job_{job_name}"
+            override_deps = _resolve_override_deps(self.asset_overrides, asset_key)
 
             @asset(
                 key=AssetKey.from_user_string(asset_key),
+                deps=override_deps,
                 group_name=self.group_name,
                 metadata={
                     "job_name": job_name,
@@ -367,9 +408,11 @@ class AWSSageMakerComponent(Component, Model, Resolvable):
 
         for job_name in job_names:
             asset_key = f"processing_job_{job_name}"
+            override_deps = _resolve_override_deps(self.asset_overrides, asset_key)
 
             @asset(
                 key=AssetKey.from_user_string(asset_key),
+                deps=override_deps,
                 group_name=self.group_name,
                 metadata={
                     "job_name": job_name,
@@ -414,9 +457,11 @@ class AWSSageMakerComponent(Component, Model, Resolvable):
         for pipeline in pipelines:
             pipeline_name = pipeline["name"]
             asset_key = f"pipeline_{pipeline_name}"
+            override_deps = _resolve_override_deps(self.asset_overrides, asset_key)
 
             @asset(
                 key=AssetKey.from_user_string(asset_key),
+                deps=override_deps,
                 group_name=self.group_name,
                 metadata={
                     "pipeline_name": pipeline_name,
@@ -505,8 +550,8 @@ class AWSSageMakerComponent(Component, Model, Resolvable):
 
         return sagemaker_observation_sensor
 
-    def resolve(self, load_context: ComponentLoadContext) -> Definitions:
-        """Resolve component to Dagster definitions."""
+    def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        """Build Dagster definitions from this component."""
         session = self._get_boto3_session()
 
         assets = []

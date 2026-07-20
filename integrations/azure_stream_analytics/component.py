@@ -6,6 +6,7 @@ Import Azure Stream Analytics jobs as Dagster assets with automatic observation 
 from dagster import AssetKey  # auto-added for hierarchical keys
 
 import re
+from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 import time
@@ -28,6 +29,32 @@ from dagster import (
     MetadataValue,
 )
 from pydantic import Field
+
+
+# ─── Asset overrides (inline; kept per-component to preserve self-containment) ─
+#
+# Per-asset override applied after enumeration. Today supports `depends_on` —
+# a list of upstream Dagster asset keys (strings; slash-delimited becomes a
+# hierarchical AssetKey). Extend with more fields as needed (group, tags,
+# description). Matches the pattern used by the official Databricks workspace
+# component's `attributes.asset_overrides.<key>.depends_on`.
+
+
+@dataclass
+class AssetOverride(Resolvable):
+    depends_on: Optional[List[str]] = None
+
+
+def _resolve_override_deps(
+    asset_overrides: Optional[Dict[str, "AssetOverride"]],
+    lookup_key: str,
+) -> List[AssetKey]:
+    if not asset_overrides:
+        return []
+    ov = asset_overrides.get(lookup_key)
+    if not ov or not ov.depends_on:
+        return []
+    return [AssetKey(d.split("/")) if "/" in d else AssetKey(d) for d in ov.depends_on]
 
 
 class AzureStreamAnalyticsComponent(Component, Model, Resolvable):
@@ -114,6 +141,16 @@ class AzureStreamAnalyticsComponent(Component, Model, Resolvable):
         description="Description for the Azure Stream Analytics component"
     )
 
+    asset_overrides: Optional[Dict[str, AssetOverride]] = Field(
+        default=None,
+        description=(
+            "Per-asset overrides keyed by the emitted asset's name (e.g. "
+            "`asa_job_iot_ingestion`). Today supports `depends_on: [upstream_key, ...]` "
+            "to add Dagster asset dependencies. Matches the pattern used by the official "
+            "Databricks workspace component."
+        ),
+    )
+
     def _get_credential(self):
         """Get Azure credential."""
         if self.tenant_id and self.client_id and self.client_secret:
@@ -169,9 +206,11 @@ class AzureStreamAnalyticsComponent(Component, Model, Resolvable):
         for job_info in jobs:
             job_name = job_info["name"]
             asset_key = f"asa_job_{job_name}"
+            override_deps = _resolve_override_deps(self.asset_overrides, asset_key)
 
             @asset(
                 key=AssetKey.from_user_string(asset_key),
+                deps=override_deps,
                 group_name=self.group_name,
                 metadata={
                     "job_name": job_name,
@@ -298,8 +337,8 @@ class AzureStreamAnalyticsComponent(Component, Model, Resolvable):
 
         return asa_observation_sensor
 
-    def resolve(self, load_context: ComponentLoadContext) -> Definitions:
-        """Resolve component to Dagster definitions."""
+    def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        """Build Dagster definitions from this component."""
         client = self._get_client()
 
         assets = []

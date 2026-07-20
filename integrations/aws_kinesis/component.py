@@ -7,6 +7,7 @@ as Dagster assets for orchestrating real-time data delivery and analytics.
 from dagster import AssetKey  # auto-added for hierarchical keys
 
 import re
+from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 
@@ -27,6 +28,32 @@ from dagster import (
     MetadataValue,
 )
 from pydantic import Field
+
+
+# ─── Asset overrides (inline; kept per-component to preserve self-containment) ─
+#
+# Per-asset override applied after enumeration. Today supports `depends_on` —
+# a list of upstream Dagster asset keys (strings; slash-delimited becomes a
+# hierarchical AssetKey). Extend with more fields as needed (group, tags,
+# description). Matches the pattern used by the official Databricks workspace
+# component's `attributes.asset_overrides.<key>.depends_on`.
+
+
+@dataclass
+class AssetOverride(Resolvable):
+    depends_on: Optional[List[str]] = None
+
+
+def _resolve_override_deps(
+    asset_overrides: Optional[Dict[str, "AssetOverride"]],
+    lookup_key: str,
+) -> List[AssetKey]:
+    if not asset_overrides:
+        return []
+    ov = asset_overrides.get(lookup_key)
+    if not ov or not ov.depends_on:
+        return []
+    return [AssetKey(d.split("/")) if "/" in d else AssetKey(d) for d in ov.depends_on]
 
 
 class AWSKinesisComponent(Component, Model, Resolvable):
@@ -112,6 +139,16 @@ class AWSKinesisComponent(Component, Model, Resolvable):
         description="Description for the AWS Kinesis component"
     )
 
+    asset_overrides: Optional[Dict[str, AssetOverride]] = Field(
+        default=None,
+        description=(
+            "Per-asset overrides keyed by the emitted asset's name (e.g. "
+            "`firehose_stream_orders`, `analytics_app_metrics`). Today supports "
+            "`depends_on: [upstream_key, ...]` to add Dagster asset dependencies. "
+            "Matches the pattern used by the official Databricks workspace component."
+        ),
+    )
+
     def _get_boto3_session(self) -> boto3.Session:
         """Create boto3 session with credentials."""
         session_kwargs = {"region_name": self.aws_region}
@@ -189,9 +226,11 @@ class AWSKinesisComponent(Component, Model, Resolvable):
 
         for stream_name in streams:
             asset_key = f"firehose_stream_{stream_name}"
+            override_deps = _resolve_override_deps(self.asset_overrides, asset_key)
 
             @asset(
                 key=AssetKey.from_user_string(asset_key),
+                deps=override_deps,
                 group_name=self.group_name,
                 metadata={
                     "stream_name": stream_name,
@@ -264,9 +303,11 @@ class AWSKinesisComponent(Component, Model, Resolvable):
         for app in applications:
             app_name = app["name"]
             asset_key = f"analytics_app_{app_name}"
+            override_deps = _resolve_override_deps(self.asset_overrides, asset_key)
 
             @asset(
                 key=AssetKey.from_user_string(asset_key),
+                deps=override_deps,
                 group_name=self.group_name,
                 metadata={
                     "application_name": app_name,
@@ -413,8 +454,8 @@ class AWSKinesisComponent(Component, Model, Resolvable):
 
         return kinesis_observation_sensor
 
-    def resolve(self, load_context: ComponentLoadContext) -> Definitions:
-        """Resolve component to Dagster definitions."""
+    def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        """Build Dagster definitions from this component."""
         session = self._get_boto3_session()
 
         assets = []

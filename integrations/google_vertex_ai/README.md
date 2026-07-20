@@ -71,16 +71,22 @@ attributes:
 
 ## Asset Dependencies & Lineage
 
-This component supports a `deps` field for declaring upstream Dagster asset dependencies:
+Because this component enumerates many assets from one config, dependencies are declared per-asset via `asset_overrides` (keyed by the emitted asset's name). Matches the pattern used by the official [`DatabricksWorkspaceComponent`](https://docs.dagster.io/integrations/libraries/databricks/databricks-workspace-component#managing-dependencies).
 
 ```yaml
 attributes:
-  # ... other fields ...
-  deps:
-    - raw_orders              # simple asset key
-    - raw/schema/orders       # asset key with path prefix
+  project_id: my-gcp-project
+  location: us-central1
+  asset_overrides:
+    training_job_recommender_v2:
+      depends_on:
+        - feature_store/user_features
+        - feature_store/item_catalog
+    pipeline_customer_scoring:
+      depends_on:
+        - training_job_recommender_v2
 ```
 
-`deps` draws lineage edges in the Dagster asset graph without loading data at runtime. Use it to express that this asset depends on upstream tables or assets produced by other components.
+The declared deps draw lineage edges in the Dagster asset graph — no data is loaded at runtime. Use them to express that a specific imported Vertex AI training job, batch prediction, or pipeline depends on upstream tables or assets produced elsewhere in your project. Assets without a matching entry in `asset_overrides` are emitted with no upstream deps (the default).
 
 Dependencies can also be wired externally via `map_resolved_asset_specs()` in `definitions.py` — the same approach used by [Dagster Designer](https://github.com/eric-thomas-dagster/dagster_designer).

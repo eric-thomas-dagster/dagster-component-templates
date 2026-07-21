@@ -356,6 +356,12 @@ group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def _asset(context: AssetExecutionContext, upstream: Any) -> MaterializeResult:
+            # Defensive Output/MaterializeResult unwrap — some upstream
+            # community components annotate `-> Output` instead of the
+            # value type, which can leave the wrapper in the pipeline.
+            # Tolerate wrappers by extracting `.value` before continuing.
+            if hasattr(upstream, "value") and hasattr(upstream, "metadata"):
+                upstream = upstream.value
             # partition bridge dict-concat: when an unpartitioned
             # asset consumes a partitioned upstream, Dagster's IO
             # manager loads ALL partitions as a dict; concat to

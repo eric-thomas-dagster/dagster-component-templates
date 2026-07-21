@@ -426,6 +426,15 @@ group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def _asset(context: AssetExecutionContext, upstream: Any) -> Any:
+            # Defensive Output/MaterializeResult unwrap. Some upstream
+            # components in the community catalog annotate `-> Output`
+            # (rather than the value type), which can leave the wrapper
+            # in place instead of unwrapping to the DataFrame value.
+            # Rather than fail with a cryptic "Asset returned Output,
+            # expected DataFrame", tolerate wrappers and extract .value.
+            if hasattr(upstream, "value") and hasattr(upstream, "metadata"):
+                upstream = upstream.value
+
             # Detect input frame type. Component accepts pandas OR polars at
             # runtime regardless of the configured `backend` — backend chooses
             # the EXECUTION + OUTPUT type, not the input type.

@@ -143,6 +143,18 @@ from dagster import (
 from pydantic import Field
 
 
+# Backwards-compatible opt-in for Dagster+'s "app-managed components"
+# UI editor. `ComponentFormConfig` + `Resolvable.get_form_config()` are
+# available in dagster >= 1.13.8. Older Dagster doesn't have this
+# module — the try/except swallows the ImportError so the component
+# still loads cleanly, just without the UI-editable capability.
+try:
+    from dagster.components.resolved.form_config import ComponentFormConfig
+    _HAS_FORM_CONFIG = True
+except ImportError:
+    _HAS_FORM_CONFIG = False
+
+
 def _parse_dt(s: str) -> datetime:
     """Accept ISO date or datetime strings."""
     for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
@@ -253,6 +265,15 @@ def _gen_value(
 
 class ParametricDataGeneratorComponent(Component, Model, Resolvable):
     """YAML-driven synthetic data generator. Define columns + types in the config."""
+
+    # Opt-in to Dagster+'s app-managed components UI editor (dagster >= 1.13.8).
+    # Guarded by the compat flag at module scope — on older Dagster the
+    # method is simply not defined and the component works as a normal
+    # code-authored component.
+    if _HAS_FORM_CONFIG:
+        @classmethod
+        def get_form_config(cls) -> "ComponentFormConfig":  # noqa: F821
+            return ComponentFormConfig(editable=True)
 
     asset_name: str = Field(description="Output asset name.")
 

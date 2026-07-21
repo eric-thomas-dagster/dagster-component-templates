@@ -339,6 +339,7 @@ Add your component to the manifest:
 - `produces` — list of Dagster primitives the component creates when loaded. Enum values: `asset`, `multi_asset`, `asset_check`, `job`, `schedule`, `sensor`, `resource`, `io_manager`, `partitions_def`, `other`. `multi_asset` is distinct from `asset` because tools care about the fanout shape (dbt / workspace components) vs. one Python asset. Always a list — a component may produce several (e.g. `ScheduledJobComponent` → `[schedule, job]`). List everything the component MAY emit, even if some outputs are config-gated.
 - `consumes` — list of primitives the component reads from. Enum: `asset`, `asset_check`, `resource`. Omit when nothing external is consumed.
 - `stateful` — `true` when the component holds state beyond its YAML (defs_state cache, live-refreshed workspace catalog, etc.). Matches `StateBackedComponent` subclasses 1:1 today.
+- `ui_editable` — `true` when the component ships a `get_form_config()` classmethod returning `ComponentFormConfig(editable=True)`. Signals to downstream tooling (Dagster+ workspace UI, Dagster Designer, catalog site) that the component can be created, edited, and deleted through Dagster+'s schema-driven form under Components → Instances (feature-flagged behind `flagComponentInstanceUI`). Omit or set `false` when the component isn't UI-authorable — resources / io_managers / sensors / infrastructure components typically shouldn't ship `get_form_config`, since they represent system wiring rather than app-managed instances. See "Backwards-compatible opt-in for UI editing" below for the code pattern.
 - `capabilities` — optional list of `"<object>.<action>"` strings declaring **additional** actions the component performs beyond `<primitive>.add`. Enables fine-grained RBAC gating in downstream tooling (Dagster Designer, Dagster+ workspace permissions, catalog policy checks). Every entry in `produces` implicitly grants `<primitive>.add`; use `capabilities` when the component ALSO triggers external systems, deletes objects, invokes functions, runs queries against remote services, etc. Examples:
 
   ```json
@@ -360,6 +361,58 @@ Example:
 ```
 
 Downstream consumers (Dagster Designer UI, docs generators, AI assistants) use `produces` to route users to the right authoring surface — "Add schedule" from the Schedules tab picks components whose `produces` includes `schedule`, rather than showing the full 900+ list. Omit if you don't know; consumers fall back to schema-field heuristics.
+
+### 7b. Backwards-compatible opt-in for UI editing (`ui_editable: true`)
+
+Dagster+ ships an "App Managed Components" editor (feature flag `flagComponentInstanceUI`) that renders a schema-driven form for any component that overrides `get_form_config()` to return `ComponentFormConfig(editable=True)`. This makes the component **creatable, editable, and deletable through the Dagster+ UI** rather than only through YAML/code — the state is stored in Dagster+'s defs-state storage and a code-location reload picks it up.
+
+Support was added in `dagster >= 1.13.8`. To avoid breaking users on older Dagster, gate both the import AND the method definition behind a `try/except ImportError`:
+
+```python
+from dagster import Component, Model, Resolvable
+# ... other imports ...
+
+# Backwards-compatible opt-in for Dagster+'s UI editor.
+# On dagster < 1.13.8 the import fails and _HAS_FORM_CONFIG stays False;
+# the component keeps working as a normal code-authored component.
+try:
+    from dagster.components.resolved.form_config import ComponentFormConfig
+    _HAS_FORM_CONFIG = True
+except ImportError:
+    _HAS_FORM_CONFIG = False
+
+
+class MyComponent(Component, Model, Resolvable):
+    """..."""
+
+    # Opt-in to Dagster+'s UI editor. Guarded by the flag above.
+    if _HAS_FORM_CONFIG:
+        @classmethod
+        def get_form_config(cls) -> "ComponentFormConfig":  # noqa: F821
+            return ComponentFormConfig(editable=True)
+
+    # ... normal fields + build_defs() ...
+```
+
+**Behavior matrix:**
+
+| Dagster version | `_HAS_FORM_CONFIG` | Class has `get_form_config`? | Effect |
+|---|---|---|---|
+| < 1.13.8 | `False` | No | Component loads normally; not visible in Dagster+ UI editor. **Silent, no error.** |
+| ≥ 1.13.8 | `True` | Yes → `ComponentFormConfig(editable=True)` | Component registers as `isAppManaged`; appears in the type picker; creatable/editable/deletable through the form. |
+
+**Do NOT** put a hard `dagster >= 1.13.8` in `requirements.txt` just to add UI editing — the conditional pattern above keeps installs working across all Dagster versions. Advertise the intent via `"ui_editable": true` in the manifest entry so downstream tooling can filter without introspecting the Dagster version.
+
+**Which components should opt in?** Rough guidance:
+
+| Category | UI-editable candidate? |
+|---|---|
+| `source`, `ingestion`, `sink` | Yes — natural "add a new X" flow |
+| `transformation`, `analytics`, `ai` extractors | Yes if the config is meaningful standalone (not "requires 5 upstream schema constraints") |
+| Scheduled-job wrappers | Yes — clear form-based authoring |
+| `resource`, `io_manager` | No — system wiring, not app-managed |
+| `sensor` | Rarely — sensors are typically runtime code, not form-authored |
+| `infrastructure`, `integration` | Depends — multi-service ones are hard to form-author |
 
 ### 8. Add Tests (Optional)
 

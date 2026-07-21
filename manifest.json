@@ -25141,7 +25141,8 @@
       },
       "produces": [
         "asset"
-      ]
+      ],
+      "ui_editable": true
     },
     {
       "id": "part_of_speech_tagger",

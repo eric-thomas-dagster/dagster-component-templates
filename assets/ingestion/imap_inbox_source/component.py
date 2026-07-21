@@ -290,7 +290,7 @@ class ImapInboxSourceComponent(Component, Model, Resolvable):
             freshness_policy=freshness_policy,
             partitions_def=partitions_def,
         )
-        def _asset(context: AssetExecutionContext) -> Output:
+        def _asset(context: AssetExecutionContext):
             username = EnvVar(user_env).get_value()
             password = EnvVar(pass_env).get_value()
             if not username or not password:

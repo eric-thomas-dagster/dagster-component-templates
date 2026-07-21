@@ -99,7 +99,7 @@ class DataframeToSentryComponent(Component, Model, Resolvable):
             group_name=_self.group_name,
             kinds={"python", "sentry"},
         )
-        def _sink_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> Output:
+        def _sink_asset(context: AssetExecutionContext, upstream: pd.DataFrame):
             try:
                 import sentry_sdk
             except ImportError as e:

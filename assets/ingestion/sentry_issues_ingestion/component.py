@@ -93,7 +93,7 @@ class SentryIssuesIngestionComponent(Component, Model, Resolvable):
             group_name=_self.group_name,
             kinds={"python", "sentry"},
         )
-        def _issues_asset(context: AssetExecutionContext) -> Output:
+        def _issues_asset(context: AssetExecutionContext):
             token = os.environ.get(_self.api_token_env_var)
             if not token:
                 raise RuntimeError(

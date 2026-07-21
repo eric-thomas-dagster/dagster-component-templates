@@ -258,7 +258,7 @@ class DataframeToAvroComponent(dg.Component, dg.Model, dg.Resolvable):
             retry_policy=retry_policy,
             freshness_policy=freshness_policy,
         )
-        def _asset(context: AssetExecutionContext, upstream: Any) -> Output:
+        def _asset(context: AssetExecutionContext, upstream: Any):
             # partition bridge dict-concat: when an unpartitioned
             # asset consumes a partitioned upstream, Dagster's IO
             # manager loads ALL partitions as a dict; concat to

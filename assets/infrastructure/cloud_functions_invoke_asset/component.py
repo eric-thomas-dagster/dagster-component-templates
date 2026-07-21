@@ -128,7 +128,7 @@ class CloudFunctionsInvokeAssetComponent(Component, Model, Resolvable):
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])] or None,
             **ins_kwargs,
         )
-        def _asset(context: AssetExecutionContext, **kwargs) -> Output:
+        def _asset(context: AssetExecutionContext, **kwargs):
             try:
                 from google.oauth2 import service_account
                 from google.auth.transport.requests import Request, AuthorizedSession

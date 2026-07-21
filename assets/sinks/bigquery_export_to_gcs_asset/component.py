@@ -212,7 +212,7 @@ class BigQueryExportToGcsAssetComponent(Component, Model, Resolvable):
             freshness_policy=freshness_policy,
             partitions_def=partitions_def,
         )
-        def _asset(context: AssetExecutionContext) -> Output:
+        def _asset(context: AssetExecutionContext):
             try:
                 from google.cloud import bigquery, storage
                 from google.oauth2 import service_account

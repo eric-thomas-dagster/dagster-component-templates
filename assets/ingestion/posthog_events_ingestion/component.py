@@ -88,7 +88,7 @@ class PostHogEventsIngestionComponent(Component, Model, Resolvable):
             group_name=_self.group_name,
             kinds={"python", "posthog"},
         )
-        def _events_asset(context: AssetExecutionContext) -> Output:
+        def _events_asset(context: AssetExecutionContext):
             api_key = os.environ.get(_self.api_key_env_var)
             if not api_key:
                 raise RuntimeError(

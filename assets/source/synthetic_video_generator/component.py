@@ -179,7 +179,7 @@ class SyntheticVideoGeneratorComponent(Component, Model, Resolvable):
             freshness_policy=freshness_policy,
             partitions_def=partitions_def,
         )
-        def _asset(context: AssetExecutionContext) -> Output:
+        def _asset(context: AssetExecutionContext):
             if shutil.which(ffmpeg_binary) is None:
                 raise RuntimeError(
                     f"ffmpeg binary {ffmpeg_binary!r} not in PATH. "

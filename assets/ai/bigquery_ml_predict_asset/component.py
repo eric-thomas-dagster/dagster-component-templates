@@ -213,7 +213,7 @@ class BigQueryMLPredictAssetComponent(Component, Model, Resolvable):
             freshness_policy=freshness_policy,
             partitions_def=partitions_def,
         )
-        def _asset(context: AssetExecutionContext, **_kwargs) -> Output:
+        def _asset(context: AssetExecutionContext, **_kwargs):
             try:
                 from google.cloud import bigquery
                 from google.oauth2 import service_account

@@ -78,7 +78,7 @@ class SupabaseEdgeFunctionTriggerComponent(Component, Model, Resolvable):
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])] or None,
             required_resource_keys={resource_name},
         )
-        def _asset(context: AssetExecutionContext) -> Output:
+        def _asset(context: AssetExecutionContext):
             supabase_resource = getattr(context.resources, resource_name)
             client = supabase_resource.get_client()
 

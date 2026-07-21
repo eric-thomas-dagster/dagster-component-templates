@@ -460,7 +460,7 @@ class ArchiveFetcherComponent(Component, Model, Resolvable):
             freshness_policy=freshness_policy,
             partitions_def=partitions_def,
         )
-        def _asset(context: AssetExecutionContext) -> Output:
+        def _asset(context: AssetExecutionContext):
             # Resolve archive kind.
             kind = archive_type_override or _infer_archive_type(url)
             if not kind:

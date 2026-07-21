@@ -159,7 +159,7 @@ class SupabaseVectorSearchAssetComponent(Component, Model, Resolvable):
             required_resource_keys={resource_name},
             **ins_kwargs,
         )
-        def _asset(context: AssetExecutionContext, **kwargs) -> Output:
+        def _asset(context: AssetExecutionContext, **kwargs):
             supabase_resource = getattr(context.resources, resource_name)
             client = supabase_resource.get_client()
 

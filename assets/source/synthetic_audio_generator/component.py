@@ -199,7 +199,7 @@ class SyntheticAudioGeneratorComponent(Component, Model, Resolvable):
             freshness_policy=freshness_policy,
             partitions_def=partitions_def,
         )
-        def _asset(context: AssetExecutionContext) -> Output:
+        def _asset(context: AssetExecutionContext):
             os.makedirs(output_dir, exist_ok=True)
             rows: List[Dict[str, Any]] = []
             for c in clips:

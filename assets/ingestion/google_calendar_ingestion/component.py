@@ -268,7 +268,7 @@ class GoogleCalendarIngestionComponent(Component, Model, Resolvable):
             retry_policy=retry_policy,
             freshness_policy=freshness_policy,
         )
-        def _asset(context: AssetExecutionContext) -> Output:
+        def _asset(context: AssetExecutionContext):
             try:
                 from google.oauth2 import service_account
                 from googleapiclient.discovery import build

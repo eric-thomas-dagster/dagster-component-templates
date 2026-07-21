@@ -96,7 +96,7 @@ class CloudRunJobTriggerAssetComponent(Component, Model, Resolvable):
             owners=self.owners or None,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])] or None,
         )
-        def _asset(context: AssetExecutionContext) -> Output:
+        def _asset(context: AssetExecutionContext):
             try:
                 from google.cloud import run_v2
                 from google.oauth2 import service_account

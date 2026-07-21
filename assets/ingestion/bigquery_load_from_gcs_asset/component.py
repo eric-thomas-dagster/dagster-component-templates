@@ -168,7 +168,7 @@ class BigQueryLoadFromGcsAssetComponent(Component, Model, Resolvable):
             retry_policy=retry_policy,
             freshness_policy=freshness_policy,
         )
-        def _asset(context: AssetExecutionContext) -> Output:
+        def _asset(context: AssetExecutionContext):
             try:
                 from google.cloud import bigquery
                 from google.oauth2 import service_account

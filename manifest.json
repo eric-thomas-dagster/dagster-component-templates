@@ -263,7 +263,10 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:acceldata"
+      ]
     },
     {
       "id": "acord_xml_parser",
@@ -465,6 +468,9 @@
       "agent_hints": {},
       "capabilities": [
         "adls_object.delete"
+      ],
+      "consumes": [
+        "resource:adls"
       ]
     },
     {
@@ -500,7 +506,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:adls"
+      ]
     },
     {
       "id": "adls_observation_sensor",
@@ -534,7 +543,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:adls"
+      ]
     },
     {
       "id": "adls_to_database_asset",
@@ -581,6 +593,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:adls"
       ]
     },
     {
@@ -615,7 +630,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:airbyte"
+      ]
     },
     {
       "id": "airbyte_sync_sensor",
@@ -648,7 +666,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:airbyte"
+      ]
     },
     {
       "id": "airbyte_sync_trigger_job",
@@ -685,6 +706,9 @@
       "agent_hints": {},
       "capabilities": [
         "airbyte_sync.trigger"
+      ],
+      "consumes": [
+        "resource:airbyte"
       ]
     },
     {
@@ -719,7 +743,10 @@
       "produces": [
         "multi_asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:airflow"
+      ]
     },
     {
       "id": "airflow_trigger_job",
@@ -756,6 +783,9 @@
       "agent_hints": {},
       "capabilities": [
         "airflow_dag.trigger"
+      ],
+      "consumes": [
+        "resource:airflow"
       ]
     },
     {
@@ -832,6 +862,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:airtable"
       ]
     },
     {
@@ -869,7 +902,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:airtable"
+      ]
     },
     {
       "id": "alter_row",
@@ -1026,7 +1062,10 @@
       ],
       "agent_hints": {
         "output_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:anthropic"
+      ]
     },
     {
       "id": "anthropic_llm",
@@ -1064,7 +1103,10 @@
       ],
       "agent_hints": {
         "input_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:anthropic"
+      ]
     },
     {
       "id": "anthropic_resource",
@@ -1101,7 +1143,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:anthropic"
+      ]
     },
     {
       "id": "append_cluster",
@@ -1267,7 +1312,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:argo_workflow"
+      ]
     },
     {
       "id": "argo_workflow_trigger",
@@ -1306,6 +1354,9 @@
       "agent_hints": {},
       "capabilities": [
         "argo_workflow.trigger"
+      ],
+      "consumes": [
+        "resource:argo_workflow"
       ]
     },
     {
@@ -2367,6 +2418,9 @@
       ],
       "capabilities": [
         "cloudwatch.query"
+      ],
+      "consumes": [
+        "resource:cloudwatch"
       ]
     },
     {
@@ -2419,6 +2473,9 @@
       ],
       "capabilities": [
         "cloudwatch.query"
+      ],
+      "consumes": [
+        "resource:cloudwatch"
       ]
     },
     {
@@ -2528,7 +2585,10 @@
         "asset",
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:kinesis"
+      ]
     },
     {
       "id": "aws_redshift",
@@ -2563,7 +2623,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:redshift"
+      ]
     },
     {
       "id": "aws_s3_resource",
@@ -2600,7 +2663,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:s3"
+      ]
     },
     {
       "id": "aws_sagemaker",
@@ -2816,6 +2882,9 @@
       ],
       "capabilities": [
         "azure_log_analytics.query"
+      ],
+      "consumes": [
+        "resource:azure_log_analytics"
       ]
     },
     {
@@ -2856,7 +2925,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:openai"
+      ]
     },
     {
       "id": "azure_search_indexer",
@@ -2909,6 +2981,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:azure_search"
       ]
     },
     {
@@ -2956,6 +3031,9 @@
       },
       "capabilities": [
         "azure_ai_search.query"
+      ],
+      "consumes": [
+        "resource:azure_search"
       ]
     },
     {
@@ -3206,6 +3284,9 @@
       "capabilities": [
         "bigquery_table.create",
         "bigquery.query"
+      ],
+      "consumes": [
+        "resource:bigquery"
       ]
     },
     {
@@ -3240,7 +3321,10 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:bigquery"
+      ]
     },
     {
       "id": "bigquery_export_to_gcs_asset",
@@ -3291,6 +3375,10 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:bigquery",
+        "resource:gcs"
       ]
     },
     {
@@ -3330,7 +3418,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:bigquery"
+      ]
     },
     {
       "id": "bigquery_load_from_gcs_asset",
@@ -3382,6 +3473,10 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:bigquery",
+        "resource:gcs"
       ]
     },
     {
@@ -3428,7 +3523,10 @@
       ],
       "agent_hints": {
         "output_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:bigquery"
+      ]
     },
     {
       "id": "bigquery_ml_train_asset",
@@ -3473,7 +3571,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:bigquery"
+      ]
     },
     {
       "id": "bigquery_query_asset",
@@ -3524,6 +3625,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:bigquery"
       ]
     },
     {
@@ -3561,7 +3665,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:bigquery"
+      ]
     },
     {
       "id": "bigquery_table_freshness_check",
@@ -3595,7 +3702,10 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:bigquery"
+      ]
     },
     {
       "id": "bigquery_table_observation_sensor",
@@ -3630,7 +3740,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:bigquery"
+      ]
     },
     {
       "id": "bigquery_vector_search_asset",
@@ -3673,6 +3786,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:bigquery"
       ]
     },
     {
@@ -3716,6 +3832,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:bigtable"
       ]
     },
     {
@@ -3760,6 +3879,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:bigtable"
       ]
     },
     {
@@ -4004,6 +4126,9 @@
       "produces": [
         "asset",
         "asset_check"
+      ],
+      "consumes": [
+        "resource:cassandra"
       ]
     },
     {
@@ -4042,7 +4167,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:cassandra"
+      ]
     },
     {
       "id": "cassandra_writer",
@@ -4090,6 +4218,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:cassandra"
       ]
     },
     {
@@ -4173,6 +4304,9 @@
       "agent_hints": {},
       "capabilities": [
         "census_sync.trigger"
+      ],
+      "consumes": [
+        "resource:census"
       ]
     },
     {
@@ -4252,6 +4386,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:chromadb"
       ]
     },
     {
@@ -4299,6 +4436,9 @@
       "produces": [
         "asset",
         "asset_check"
+      ],
+      "consumes": [
+        "resource:chromadb"
       ]
     },
     {
@@ -4377,7 +4517,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:clickhouse"
+      ]
     },
     {
       "id": "clickhouse_polars_io_manager",
@@ -4414,7 +4557,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:clickhouse"
+      ]
     },
     {
       "id": "clickhouse_resource",
@@ -4451,7 +4597,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:clickhouse"
+      ]
     },
     {
       "id": "clickhouse_table_observation_sensor",
@@ -4486,7 +4635,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:clickhouse"
+      ]
     },
     {
       "id": "cloud_dlp_inspect_asset",
@@ -4523,7 +4675,10 @@
       "agent_hints": {
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:cloud_dlp"
+      ]
     },
     {
       "id": "cloud_dlp_pii_check",
@@ -4557,7 +4712,10 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:cloud_dlp"
+      ]
     },
     {
       "id": "cloud_functions_invoke_asset",
@@ -4600,6 +4758,9 @@
       "agent_hints": {},
       "capabilities": [
         "cloud_function.invoke"
+      ],
+      "consumes": [
+        "resource:cloud_functions"
       ]
     },
     {
@@ -4643,6 +4804,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:cloud_logging"
       ]
     },
     {
@@ -4686,6 +4850,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:cloud_monitoring"
       ]
     },
     {
@@ -4728,6 +4895,9 @@
       "agent_hints": {},
       "capabilities": [
         "cloud_run_job.trigger"
+      ],
+      "consumes": [
+        "resource:cloud_run"
       ]
     },
     {
@@ -4771,6 +4941,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:cloud_tasks"
       ]
     },
     {
@@ -4880,6 +5053,9 @@
       "agent_hints": {},
       "capabilities": [
         "coalesce_job.trigger"
+      ],
+      "consumes": [
+        "resource:coalesce"
       ]
     },
     {
@@ -4915,7 +5091,10 @@
         "multi_asset"
       ],
       "stateful": true,
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:coalesce"
+      ]
     },
     {
       "id": "coalesce_run_asset",
@@ -4950,7 +5129,10 @@
         "multi_asset"
       ],
       "stateful": true,
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:coalesce"
+      ]
     },
     {
       "id": "cohort_analysis",
@@ -5064,7 +5246,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:airflow"
+      ]
     },
     {
       "id": "contract_extractor",
@@ -5235,6 +5420,9 @@
       "produces": [
         "asset",
         "asset_check"
+      ],
+      "consumes": [
+        "resource:cosmosdb"
       ]
     },
     {
@@ -5274,7 +5462,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:cosmosdb"
+      ]
     },
     {
       "id": "cosmosdb_writer",
@@ -5323,6 +5514,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:cosmosdb"
       ]
     },
     {
@@ -5369,6 +5563,9 @@
       "produces": [
         "asset",
         "asset_check"
+      ],
+      "consumes": [
+        "resource:couchdb"
       ]
     },
     {
@@ -5406,7 +5603,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:couchdb"
+      ]
     },
     {
       "id": "couchdb_writer",
@@ -5449,6 +5649,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:couchdb"
       ]
     },
     {
@@ -5870,6 +6073,9 @@
       "agent_hints": {},
       "capabilities": [
         "cube_semantic.query"
+      ],
+      "consumes": [
+        "resource:cube_semantic"
       ]
     },
     {
@@ -6026,6 +6232,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:segment"
       ]
     },
     {
@@ -6063,7 +6272,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:otlp"
+      ]
     },
     {
       "id": "dagster_materializations_to_prometheus_sensor",
@@ -6102,6 +6314,9 @@
       "agent_hints": {},
       "capabilities": [
         "prometheus.write"
+      ],
+      "consumes": [
+        "resource:prometheus"
       ]
     },
     {
@@ -6303,7 +6518,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:influxdb"
+      ]
     },
     {
       "id": "dagster_runs_to_otlp_metrics_sensor",
@@ -6340,7 +6558,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:otlp"
+      ]
     },
     {
       "id": "dagster_runs_to_otlp_sensor",
@@ -6379,7 +6600,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:otlp"
+      ]
     },
     {
       "id": "dagster_runs_to_prometheus_sensor",
@@ -6415,7 +6639,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:prometheus"
+      ]
     },
     {
       "id": "dagster_runs_to_splunk_hec_sensor",
@@ -7127,7 +7354,10 @@
         "multi_asset",
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:databricks"
+      ]
     },
     {
       "id": "databricks_genie_query",
@@ -7166,7 +7396,10 @@
       ],
       "agent_hints": {
         "output_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:databricks"
+      ]
     },
     {
       "id": "databricks_io_manager",
@@ -7206,7 +7439,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:databricks"
+      ]
     },
     {
       "id": "databricks_resource",
@@ -7243,7 +7479,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:databricks"
+      ]
     },
     {
       "id": "databricks_table_observation_sensor",
@@ -7278,7 +7517,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:databricks"
+      ]
     },
     {
       "id": "databricks_workspace",
@@ -7315,7 +7557,10 @@
         "multi_asset",
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:databricks"
+      ]
     },
     {
       "id": "datadog_resource",
@@ -7604,6 +7849,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:kusto"
       ]
     },
     {
@@ -7650,6 +7898,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:prometheus"
       ]
     },
     {
@@ -7872,6 +8123,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:adls"
       ]
     },
     {
@@ -8017,6 +8271,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:bigquery"
       ]
     },
     {
@@ -8062,6 +8319,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:clickhouse"
       ]
     },
     {
@@ -8150,6 +8410,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:databricks"
       ]
     },
     {
@@ -8199,6 +8462,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:delta_lake"
       ]
     },
     {
@@ -8245,6 +8511,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:doris"
       ]
     },
     {
@@ -8294,6 +8563,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:dynatrace"
       ]
     },
     {
@@ -8342,6 +8614,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:eventhub"
       ]
     },
     {
@@ -8437,6 +8712,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:fabric_lakehouse"
       ]
     },
     {
@@ -8484,6 +8762,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:gcs"
       ]
     },
     {
@@ -8530,6 +8811,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:iceberg"
       ]
     },
     {
@@ -8575,6 +8859,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:influxdb"
       ]
     },
     {
@@ -8668,6 +8955,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:kusto"
       ]
     },
     {
@@ -8717,6 +9007,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:newrelic"
       ]
     },
     {
@@ -8807,6 +9100,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:otlp"
       ]
     },
     {
@@ -8854,6 +9150,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:otlp"
       ]
     },
     {
@@ -8902,6 +9201,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:otlp"
       ]
     },
     {
@@ -8992,6 +9294,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:prometheus"
       ]
     },
     {
@@ -9039,6 +9344,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:redshift"
       ]
     },
     {
@@ -9085,6 +9393,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:s3"
       ]
     },
     {
@@ -9181,6 +9492,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_sentry/requirements.txt",
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:sentry"
       ]
     },
     {
@@ -9231,6 +9545,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:servicebus"
       ]
     },
     {
@@ -9277,6 +9594,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:snowflake"
       ]
     },
     {
@@ -9328,6 +9648,9 @@
       "author": "Dagster Community",
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:snowflake"
       ]
     },
     {
@@ -9374,6 +9697,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:starrocks"
       ]
     },
     {
@@ -9466,6 +9792,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:victoriametrics"
       ]
     },
     {
@@ -9615,7 +9944,10 @@
       ],
       "agent_hints": {
         "output_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:dataplex"
+      ]
     },
     {
       "id": "datetime_parser",
@@ -9732,7 +10064,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:dbt"
+      ]
     },
     {
       "id": "dbt_cloud_resource",
@@ -9768,7 +10103,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:dbt"
+      ]
     },
     {
       "id": "dbt_docs_enriched_project",
@@ -9806,7 +10144,10 @@
         "asset_check",
         "multi_asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:dbt"
+      ]
     },
     {
       "id": "dbt_run_job",
@@ -9840,7 +10181,10 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:dbt"
+      ]
     },
     {
       "id": "dbt_state_reuse_patch",
@@ -9881,7 +10225,10 @@
         "outputs": "No assets. Patches dagster-dbt in-process at code-location load.",
         "side_effects": "Monkey-patches dagster_dbt.core.dbt_cli_event.DbtCliEventMessage._get_node_status AND dagster_dbt.cloud_v2.run_handler.DbtCloudJobRunResults.to_default_asset_events. Idempotent; no-op if upstream fix present.",
         "anti_uses": "Not needed once dagster-dbt release includes PR #34010."
-      }
+      },
+      "consumes": [
+        "resource:dbt"
+      ]
     },
     {
       "id": "decision_tree_model",
@@ -10610,6 +10957,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:doris"
       ]
     },
     {
@@ -10647,7 +10997,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:doris"
+      ]
     },
     {
       "id": "doris_routine_load_sensor",
@@ -10684,7 +11037,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:doris"
+      ]
     },
     {
       "id": "doris_workspace",
@@ -10721,7 +11077,10 @@
       "produces": [
         "multi_asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:doris"
+      ]
     },
     {
       "id": "dremio_ingestion",
@@ -10899,7 +11258,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:duckdb"
+      ]
     },
     {
       "id": "duckdb_polars_io_manager",
@@ -10936,7 +11298,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:duckdb"
+      ]
     },
     {
       "id": "duckdb_pyspark_io_manager",
@@ -10972,7 +11337,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:duckdb"
+      ]
     },
     {
       "id": "duckdb_query_reader",
@@ -11018,6 +11386,9 @@
       "produces": [
         "asset",
         "asset_check"
+      ],
+      "consumes": [
+        "resource:duckdb"
       ]
     },
     {
@@ -11056,7 +11427,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:duckdb"
+      ]
     },
     {
       "id": "duckdb_table_writer",
@@ -11097,6 +11471,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:duckdb"
       ]
     },
     {
@@ -11219,6 +11596,9 @@
       "produces": [
         "asset",
         "asset_check"
+      ],
+      "consumes": [
+        "resource:dynamodb"
       ]
     },
     {
@@ -11258,7 +11638,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:dynamodb"
+      ]
     },
     {
       "id": "dynamodb_writer",
@@ -11305,6 +11688,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:dynamodb"
       ]
     },
     {
@@ -11353,6 +11739,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:dynatrace"
       ]
     },
     {
@@ -11392,7 +11781,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:dynatrace"
+      ]
     },
     {
       "id": "ecommerce_standardizer",
@@ -11466,7 +11858,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:elasticsearch"
+      ]
     },
     {
       "id": "elasticsearch_reader",
@@ -11511,6 +11906,9 @@
       "produces": [
         "asset",
         "asset_check"
+      ],
+      "consumes": [
+        "resource:elasticsearch"
       ]
     },
     {
@@ -11549,7 +11947,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:elasticsearch"
+      ]
     },
     {
       "id": "email_parser",
@@ -11832,7 +12233,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:eventhub"
+      ]
     },
     {
       "id": "eventhubs_observation_sensor",
@@ -11866,7 +12270,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:eventhub"
+      ]
     },
     {
       "id": "eventhubs_to_database_asset",
@@ -11915,6 +12322,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:eventhub"
       ]
     },
     {
@@ -11990,7 +12400,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:adls"
+      ]
     },
     {
       "id": "external_argo_workflow",
@@ -12023,7 +12436,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:argo_workflow"
+      ]
     },
     {
       "id": "external_bigquery_table",
@@ -12058,7 +12474,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:bigquery"
+      ]
     },
     {
       "id": "external_clickhouse_table",
@@ -12093,7 +12512,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:clickhouse"
+      ]
     },
     {
       "id": "external_cube_metric",
@@ -12163,7 +12585,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:databricks"
+      ]
     },
     {
       "id": "external_delta_table",
@@ -12198,7 +12623,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:delta_lake"
+      ]
     },
     {
       "id": "external_doris_table",
@@ -12230,7 +12658,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:doris"
+      ]
     },
     {
       "id": "external_eventhubs_asset",
@@ -12264,7 +12695,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:eventhub"
+      ]
     },
     {
       "id": "external_gcs_asset",
@@ -12299,7 +12733,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:gcs"
+      ]
     },
     {
       "id": "external_huggingface_space",
@@ -12365,7 +12802,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:iceberg"
+      ]
     },
     {
       "id": "external_kafka_asset",
@@ -12434,7 +12874,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:kinesis"
+      ]
     },
     {
       "id": "external_mqtt_asset",
@@ -12537,7 +12980,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:precisely"
+      ]
     },
     {
       "id": "external_pubsub_asset",
@@ -12572,7 +13018,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:pubsub"
+      ]
     },
     {
       "id": "external_pulsar_asset",
@@ -12675,7 +13124,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:redis"
+      ]
     },
     {
       "id": "external_s3_asset",
@@ -12709,7 +13161,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:s3"
+      ]
     },
     {
       "id": "external_servicebus_asset",
@@ -12743,7 +13198,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:servicebus"
+      ]
     },
     {
       "id": "external_sftp_path",
@@ -12777,7 +13235,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:sftp"
+      ]
     },
     {
       "id": "external_sharepoint_library",
@@ -12847,7 +13308,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "external_snowflake_table",
@@ -12882,7 +13346,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "external_sql_asset",
@@ -12951,7 +13418,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:sqs"
+      ]
     },
     {
       "id": "external_starrocks_table",
@@ -12983,7 +13453,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:starrocks"
+      ]
     },
     {
       "id": "external_temporal_workflow",
@@ -13136,7 +13609,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:fabric_lakehouse"
+      ]
     },
     {
       "id": "fabric_lakehouse_resource",
@@ -13175,7 +13651,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:fabric_lakehouse"
+      ]
     },
     {
       "id": "fabric_pipeline_trigger_job",
@@ -13906,6 +14385,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:firestore"
       ]
     },
     {
@@ -13953,6 +14435,9 @@
       "produces": [
         "asset",
         "asset_check"
+      ],
+      "consumes": [
+        "resource:firestore"
       ]
     },
     {
@@ -14000,6 +14485,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:firestore"
       ]
     },
     {
@@ -14038,7 +14526,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:firestore"
+      ]
     },
     {
       "id": "firestore_writer",
@@ -14086,6 +14577,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:firestore"
       ]
     },
     {
@@ -14135,6 +14629,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:firestore"
       ]
     },
     {
@@ -14671,7 +15168,10 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:gcs"
+      ]
     },
     {
       "id": "gcs_monitor",
@@ -14706,7 +15206,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:gcs"
+      ]
     },
     {
       "id": "gcs_observation_sensor",
@@ -14740,7 +15243,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:gcs"
+      ]
     },
     {
       "id": "gcs_parquet_io_manager",
@@ -14782,7 +15288,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:gcs"
+      ]
     },
     {
       "id": "gcs_resource",
@@ -14819,7 +15328,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:gcs"
+      ]
     },
     {
       "id": "gcs_to_database_asset",
@@ -14865,6 +15377,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:gcs"
       ]
     },
     {
@@ -14908,7 +15423,10 @@
       ],
       "agent_hints": {
         "output_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:gemini"
+      ]
     },
     {
       "id": "gemini_image_generation",
@@ -14952,7 +15470,10 @@
       "agent_hints": {
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:gemini"
+      ]
     },
     {
       "id": "gemini_llm",
@@ -14996,7 +15517,10 @@
       "agent_hints": {
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:gemini"
+      ]
     },
     {
       "id": "gemini_resource",
@@ -15034,7 +15558,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:gemini"
+      ]
     },
     {
       "id": "generate_rows",
@@ -15321,6 +15848,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:github"
       ]
     },
     {
@@ -15354,7 +15884,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:github"
+      ]
     },
     {
       "id": "github_ingestion",
@@ -15395,6 +15928,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:github"
       ]
     },
     {
@@ -15432,7 +15968,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:github"
+      ]
     },
     {
       "id": "gitlab_event_sensor",
@@ -15465,7 +16004,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:gitlab"
+      ]
     },
     {
       "id": "gong_call_summary_asset",
@@ -15754,7 +16296,10 @@
         "asset",
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:bigquery"
+      ]
     },
     {
       "id": "google_calendar_ingestion",
@@ -15802,6 +16347,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:google_calendar"
       ]
     },
     {
@@ -15837,7 +16385,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:cloud_functions"
+      ]
     },
     {
       "id": "google_cloud_run_jobs",
@@ -15873,7 +16424,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:cloud_run"
+      ]
     },
     {
       "id": "google_dataflow",
@@ -15992,6 +16546,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:google_docs"
       ]
     },
     {
@@ -16041,6 +16598,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:google_drive"
       ]
     },
     {
@@ -16076,7 +16636,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:pubsub"
+      ]
     },
     {
       "id": "google_sheets_ingestion",
@@ -16193,7 +16756,10 @@
         "asset",
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:vertex_ai"
+      ]
     },
     {
       "id": "gradient_boosting_model",
@@ -16361,7 +16927,10 @@
       "agent_hints": {
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:groq"
+      ]
     },
     {
       "id": "hash",
@@ -16822,6 +17391,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:hubspot"
       ]
     },
     {
@@ -16859,7 +17431,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:hubspot"
+      ]
     },
     {
       "id": "huggingface_chat_completion",
@@ -17150,7 +17725,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:iceberg"
+      ]
     },
     {
       "id": "iceberg_ingestion",
@@ -17202,6 +17780,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:iceberg"
       ]
     },
     {
@@ -17238,7 +17819,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:iceberg"
+      ]
     },
     {
       "id": "iceberg_maintenance_job",
@@ -17274,7 +17858,10 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:iceberg"
+      ]
     },
     {
       "id": "image_captioner",
@@ -17649,6 +18236,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:imap"
       ]
     },
     {
@@ -17725,7 +18315,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:influxdb"
+      ]
     },
     {
       "id": "inline_dataframe",
@@ -17810,7 +18403,10 @@
       ],
       "agent_hints": {
         "input_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:instructor"
+      ]
     },
     {
       "id": "insurance_claim_extractor",
@@ -18084,6 +18680,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:jira"
       ]
     },
     {
@@ -18117,7 +18716,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:jira"
+      ]
     },
     {
       "id": "jira_resource",
@@ -18154,7 +18756,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:jira"
+      ]
     },
     {
       "id": "job_posting_extractor",
@@ -18763,7 +19368,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:kinesis"
+      ]
     },
     {
       "id": "kinesis_observation_sensor",
@@ -18797,7 +19405,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:kinesis"
+      ]
     },
     {
       "id": "kinesis_to_database_asset",
@@ -18846,6 +19457,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:kinesis"
       ]
     },
     {
@@ -19347,6 +19961,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:alation"
       ]
     },
     {
@@ -19393,6 +20010,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:collibra"
       ]
     },
     {
@@ -19438,6 +20058,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:data360"
       ]
     },
     {
@@ -19484,6 +20107,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:datahub"
       ]
     },
     {
@@ -19570,6 +20196,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:openmetadata"
       ]
     },
     {
@@ -19616,6 +20245,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:purview"
       ]
     },
     {
@@ -19690,7 +20322,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:linear"
+      ]
     },
     {
       "id": "linear_regression_model",
@@ -19735,6 +20370,9 @@
       "produces": [
         "asset",
         "asset_check"
+      ],
+      "consumes": [
+        "resource:linear"
       ]
     },
     {
@@ -19857,7 +20495,10 @@
       ],
       "agent_hints": {
         "output_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:litellm"
+      ]
     },
     {
       "id": "litellm_audio_transcription",
@@ -19899,7 +20540,10 @@
       "agent_hints": {
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:litellm"
+      ]
     },
     {
       "id": "litellm_batch_completion",
@@ -19942,7 +20586,10 @@
       "agent_hints": {
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:litellm"
+      ]
     },
     {
       "id": "litellm_embedding_batch",
@@ -19985,7 +20632,10 @@
       "agent_hints": {
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:litellm"
+      ]
     },
     {
       "id": "litellm_function_calling",
@@ -20029,7 +20679,10 @@
       "agent_hints": {
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:litellm"
+      ]
     },
     {
       "id": "litellm_image_generation",
@@ -20071,7 +20724,10 @@
       "agent_hints": {
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:litellm"
+      ]
     },
     {
       "id": "litellm_inference_asset",
@@ -20113,7 +20769,10 @@
       "agent_hints": {
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:litellm"
+      ]
     },
     {
       "id": "litellm_structured_output",
@@ -20156,7 +20815,10 @@
       ],
       "agent_hints": {
         "input_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:litellm"
+      ]
     },
     {
       "id": "litellm_text_to_speech",
@@ -20192,7 +20854,10 @@
       "agent_hints": {
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:litellm"
+      ]
     },
     {
       "id": "llm_chain_executor",
@@ -21345,7 +22010,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:mlflow"
+      ]
     },
     {
       "id": "mlflow_model_inference",
@@ -21382,7 +22050,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:mlflow"
+      ]
     },
     {
       "id": "mlflow_model_promotion",
@@ -21419,7 +22090,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:mlflow"
+      ]
     },
     {
       "id": "mlflow_model_sensor",
@@ -21455,7 +22129,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:mlflow"
+      ]
     },
     {
       "id": "mlflow_model_version_check",
@@ -21491,7 +22168,10 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:mlflow"
+      ]
     },
     {
       "id": "mlflow_resource",
@@ -21529,7 +22209,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:mlflow"
+      ]
     },
     {
       "id": "modal_asset",
@@ -21783,6 +22466,9 @@
       "produces": [
         "asset",
         "resource"
+      ],
+      "consumes": [
+        "resource:mongodb"
       ]
     },
     {
@@ -21818,7 +22504,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:mongodb"
+      ]
     },
     {
       "id": "mongodb_reader",
@@ -21865,6 +22554,9 @@
       "produces": [
         "asset",
         "asset_check"
+      ],
+      "consumes": [
+        "resource:mongodb"
       ]
     },
     {
@@ -21903,7 +22595,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:mongodb"
+      ]
     },
     {
       "id": "mongodb_writer",
@@ -21950,6 +22645,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:mongodb"
       ]
     },
     {
@@ -21983,7 +22681,10 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:monte_carlo"
+      ]
     },
     {
       "id": "motherduck_io_manager",
@@ -22176,7 +22877,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:mssql"
+      ]
     },
     {
       "id": "mssql_resource",
@@ -22215,7 +22919,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:mssql"
+      ]
     },
     {
       "id": "msteams_resource",
@@ -22249,7 +22956,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:teams"
+      ]
     },
     {
       "id": "multi_field_binning",
@@ -22500,7 +23210,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:mysql"
+      ]
     },
     {
       "id": "mysql_resource",
@@ -22538,7 +23251,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:mysql"
+      ]
     },
     {
       "id": "naive_bayes_model",
@@ -22798,6 +23514,9 @@
       "produces": [
         "asset",
         "asset_check"
+      ],
+      "consumes": [
+        "resource:neo4j"
       ]
     },
     {
@@ -22836,7 +23555,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:neo4j"
+      ]
     },
     {
       "id": "neo4j_writer",
@@ -22880,6 +23602,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:neo4j"
       ]
     },
     {
@@ -23019,6 +23744,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:newrelic"
       ]
     },
     {
@@ -23058,7 +23786,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:newrelic"
+      ]
     },
     {
       "id": "notion_database_sensor",
@@ -23737,7 +24468,10 @@
       ],
       "agent_hints": {
         "output_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:openai"
+      ]
     },
     {
       "id": "openai_llm",
@@ -23775,7 +24509,10 @@
       ],
       "agent_hints": {
         "input_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:openai"
+      ]
     },
     {
       "id": "openai_resource",
@@ -23812,7 +24549,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:openai"
+      ]
     },
     {
       "id": "openapi_asset",
@@ -23972,7 +24712,10 @@
       "agent_hints": {
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:openrouter"
+      ]
     },
     {
       "id": "optimization",
@@ -24906,6 +25649,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:pgvector"
       ]
     },
     {
@@ -24954,6 +25700,9 @@
       "produces": [
         "asset",
         "asset_check"
+      ],
+      "consumes": [
+        "resource:pgvector"
       ]
     },
     {
@@ -25089,6 +25838,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:pinecone"
       ]
     },
     {
@@ -25137,6 +25889,9 @@
       "produces": [
         "asset",
         "asset_check"
+      ],
+      "consumes": [
+        "resource:pinecone"
       ]
     },
     {
@@ -25738,7 +26493,10 @@
       "produces": [
         "multi_asset"
       ],
-      "stateful": true
+      "stateful": true,
+      "consumes": [
+        "resource:polytomic"
+      ]
     },
     {
       "id": "postgres_backup_job",
@@ -25772,7 +26530,10 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:postgres"
+      ]
     },
     {
       "id": "postgres_io_manager",
@@ -25813,7 +26574,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:postgres"
+      ]
     },
     {
       "id": "postgres_resource",
@@ -25850,7 +26614,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:postgres"
+      ]
     },
     {
       "name": "PostHog Events Ingestion",
@@ -25896,6 +26663,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/posthog_events_ingestion/requirements.txt",
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:posthog"
       ]
     },
     {
@@ -25940,6 +26710,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:precisely"
       ]
     },
     {
@@ -25976,7 +26749,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:precisely"
+      ]
     },
     {
       "id": "precisely_dis_dq_check",
@@ -26013,7 +26789,10 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:precisely"
+      ]
     },
     {
       "id": "precisely_job_sensor",
@@ -26049,7 +26828,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:precisely"
+      ]
     },
     {
       "id": "precision_match",
@@ -26286,7 +27068,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:prometheus"
+      ]
     },
     {
       "id": "propensity_scoring",
@@ -26362,7 +27147,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:pubsub"
+      ]
     },
     {
       "id": "pubsub_observation_sensor",
@@ -26396,7 +27184,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:pubsub"
+      ]
     },
     {
       "id": "pubsub_publish_asset",
@@ -26444,6 +27235,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:pubsub"
       ]
     },
     {
@@ -26492,6 +27286,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:pubsub"
       ]
     },
     {
@@ -27251,6 +28048,9 @@
       "produces": [
         "asset",
         "asset_check"
+      ],
+      "consumes": [
+        "resource:redis"
       ]
     },
     {
@@ -27289,7 +28089,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:redis"
+      ]
     },
     {
       "id": "redis_stream_observation_sensor",
@@ -27324,7 +28127,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:redis"
+      ]
     },
     {
       "id": "redis_streams_monitor",
@@ -27359,7 +28165,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:redis"
+      ]
     },
     {
       "id": "redis_streams_to_database_asset",
@@ -27409,6 +28218,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:redis"
       ]
     },
     {
@@ -27457,6 +28269,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:redis"
       ]
     },
     {
@@ -27497,7 +28312,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:redshift"
+      ]
     },
     {
       "id": "redshift_resource",
@@ -27534,7 +28352,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:redshift"
+      ]
     },
     {
       "id": "regex_parser",
@@ -27828,6 +28649,9 @@
       "produces": [
         "asset",
         "asset_check"
+      ],
+      "consumes": [
+        "resource:segment"
       ]
     },
     {
@@ -28281,6 +29105,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:salesforce"
       ]
     },
     {
@@ -28324,6 +29151,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:salesforce"
       ]
     },
     {
@@ -28360,7 +29190,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:salesforce"
+      ]
     },
     {
       "id": "sample",
@@ -29031,6 +29864,9 @@
       "produces": [
         "job",
         "schedule"
+      ],
+      "consumes": [
+        "resource:sentry"
       ]
     },
     {
@@ -29078,6 +29914,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sentry_issues_ingestion/requirements.txt",
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:sentry"
       ]
     },
     {
@@ -29128,6 +29967,9 @@
       "produces": [
         "job",
         "schedule"
+      ],
+      "consumes": [
+        "resource:sentry"
       ]
     },
     {
@@ -29163,7 +30005,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:servicebus"
+      ]
     },
     {
       "id": "servicebus_observation_sensor",
@@ -29197,7 +30042,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:servicebus"
+      ]
     },
     {
       "id": "servicebus_to_database_asset",
@@ -29246,6 +30094,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:servicebus"
       ]
     },
     {
@@ -29294,6 +30145,9 @@
       "produces": [
         "asset",
         "asset_check"
+      ],
+      "consumes": [
+        "resource:servicenow"
       ]
     },
     {
@@ -29329,7 +30183,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:servicenow"
+      ]
     },
     {
       "id": "servicenow_sensor",
@@ -29361,7 +30218,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:servicenow"
+      ]
     },
     {
       "id": "sftp_monitor",
@@ -29394,7 +30254,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:sftp"
+      ]
     },
     {
       "id": "sftp_path_observation_sensor",
@@ -29428,7 +30291,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:sftp"
+      ]
     },
     {
       "id": "sftp_resource",
@@ -29465,7 +30331,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:sftp"
+      ]
     },
     {
       "id": "sftp_to_database_asset",
@@ -29510,6 +30379,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:sftp"
       ]
     },
     {
@@ -29837,7 +30709,10 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:sifflet"
+      ]
     },
     {
       "id": "sigma_assets",
@@ -29956,6 +30831,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:slack"
       ]
     },
     {
@@ -29997,6 +30875,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:slack"
       ]
     },
     {
@@ -30029,7 +30910,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:slack"
+      ]
     },
     {
       "id": "slack_notification_job",
@@ -30063,7 +30947,10 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:slack"
+      ]
     },
     {
       "id": "slack_resource",
@@ -30099,7 +30986,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:slack"
+      ]
     },
     {
       "id": "sling_replication_asset",
@@ -30213,7 +31103,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:smtp"
+      ]
     },
     {
       "id": "smtp_send_asset",
@@ -30257,6 +31150,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:smtp"
       ]
     },
     {
@@ -30301,6 +31197,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:snowflake"
       ]
     },
     {
@@ -30338,7 +31237,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowflake_cortex_agent",
@@ -30381,7 +31283,10 @@
       ],
       "agent_hints": {
         "output_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowflake_cortex_asset",
@@ -30417,7 +31322,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowflake_cortex_search",
@@ -30455,7 +31363,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowflake_dynamic_table",
@@ -30493,7 +31404,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowflake_dynamic_table_refresh_asset",
@@ -30530,7 +31444,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowflake_iceberg_table",
@@ -30567,7 +31484,11 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:iceberg",
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowflake_io_manager",
@@ -30605,7 +31526,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowflake_materialized_view",
@@ -30642,7 +31566,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowflake_openflow_status_sensor",
@@ -30679,7 +31606,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowflake_polars_io_manager",
@@ -30716,7 +31646,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowflake_pyspark_io_manager",
@@ -30753,7 +31686,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowflake_resource",
@@ -30790,7 +31726,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowflake_snowpipe",
@@ -30828,7 +31767,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowflake_snowpipe_load_sensor",
@@ -30865,7 +31807,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowflake_stored_procedure",
@@ -30903,7 +31848,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowflake_stored_procedure_call_asset",
@@ -30940,7 +31888,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowflake_stream",
@@ -30977,7 +31928,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowflake_table_observation_sensor",
@@ -31012,7 +31966,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowflake_task",
@@ -31050,7 +32007,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowflake_task_completion_sensor",
@@ -31087,7 +32047,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowflake_task_execute_asset",
@@ -31124,7 +32087,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowflake_time_travel_asset",
@@ -31161,7 +32127,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowflake_workspace",
@@ -31198,7 +32167,10 @@
         "multi_asset",
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:snowflake"
+      ]
     },
     {
       "id": "snowpark_pipeline",
@@ -31276,7 +32248,10 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:soda"
+      ]
     },
     {
       "id": "sort",
@@ -31360,6 +32335,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:spanner"
       ]
     },
     {
@@ -31902,7 +32880,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:sqs"
+      ]
     },
     {
       "id": "sqs_observation_sensor",
@@ -31936,7 +32917,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:sqs"
+      ]
     },
     {
       "id": "sqs_to_database_asset",
@@ -31983,6 +32967,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:sqs"
       ]
     },
     {
@@ -32099,7 +33086,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:starrocks"
+      ]
     },
     {
       "id": "step_functions_asset",
@@ -32213,7 +33203,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:stripe"
+      ]
     },
     {
       "id": "stripe_ingestion",
@@ -32254,6 +33247,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:stripe"
       ]
     },
     {
@@ -32291,7 +33287,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:stripe"
+      ]
     },
     {
       "id": "subscription_metrics",
@@ -32409,7 +33408,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:supabase"
+      ]
     },
     {
       "id": "supabase_resource",
@@ -32449,7 +33451,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:supabase"
+      ]
     },
     {
       "id": "supabase_storage_monitor",
@@ -32484,7 +33489,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:supabase"
+      ]
     },
     {
       "id": "supabase_vector_search_asset",
@@ -32523,7 +33531,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:supabase"
+      ]
     },
     {
       "id": "supervisor_agent",
@@ -33109,7 +34120,10 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:teams"
+      ]
     },
     {
       "id": "tecton_asset",
@@ -35152,7 +36166,10 @@
       "agent_hints": {
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame"
-      }
+      },
+      "consumes": [
+        "resource:vertex_ai"
+      ]
     },
     {
       "id": "victoriametrics_cardinality_sensor",
@@ -35187,7 +36204,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:victoriametrics"
+      ]
     },
     {
       "id": "victoriametrics_query_asset",
@@ -35232,6 +36252,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:victoriametrics"
       ]
     },
     {
@@ -35267,7 +36290,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:victoriametrics"
+      ]
     },
     {
       "id": "victoriametrics_snapshot_job",
@@ -35303,7 +36329,10 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:victoriametrics"
+      ]
     },
     {
       "id": "video_audio_extract_asset",
@@ -35570,7 +36599,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:wandb"
+      ]
     },
     {
       "id": "wandb_reader",
@@ -35615,6 +36647,9 @@
       "produces": [
         "asset",
         "asset_check"
+      ],
+      "consumes": [
+        "resource:wandb"
       ]
     },
     {
@@ -35652,7 +36687,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:wandb"
+      ]
     },
     {
       "id": "warehouse_dedup",
@@ -36532,6 +37570,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "consumes": [
+        "resource:zendesk"
       ]
     },
     {
@@ -36569,7 +37610,10 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:zendesk"
+      ]
     },
     {
       "id": "zendesk_ticket_sensor",
@@ -36602,7 +37646,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "consumes": [
+        "resource:zendesk"
+      ]
     },
     {
       "id": "zero_shot_classifier",
@@ -38028,7 +39075,10 @@
       "produces": [
         "multi_asset"
       ],
-      "stateful": true
+      "stateful": true,
+      "consumes": [
+        "resource:salesforce"
+      ]
     },
     {
       "id": "hubspot_workspace",
@@ -38079,7 +39129,10 @@
       "produces": [
         "multi_asset"
       ],
-      "stateful": true
+      "stateful": true,
+      "consumes": [
+        "resource:hubspot"
+      ]
     },
     {
       "id": "jira_workspace",
@@ -38131,7 +39184,10 @@
       "produces": [
         "multi_asset"
       ],
-      "stateful": true
+      "stateful": true,
+      "consumes": [
+        "resource:jira"
+      ]
     },
     {
       "id": "servicenow_workspace",
@@ -38183,7 +39239,10 @@
       "produces": [
         "multi_asset"
       ],
-      "stateful": true
+      "stateful": true,
+      "consumes": [
+        "resource:servicenow"
+      ]
     },
     {
       "id": "notion_workspace",
@@ -38284,7 +39343,10 @@
       "produces": [
         "multi_asset"
       ],
-      "stateful": true
+      "stateful": true,
+      "consumes": [
+        "resource:airtable"
+      ]
     },
     {
       "id": "github_workspace",
@@ -38335,7 +39397,10 @@
       "produces": [
         "multi_asset"
       ],
-      "stateful": true
+      "stateful": true,
+      "consumes": [
+        "resource:github"
+      ]
     },
     {
       "id": "google_analytics_workspace",
@@ -38493,7 +39558,10 @@
       "produces": [
         "multi_asset"
       ],
-      "stateful": true
+      "stateful": true,
+      "consumes": [
+        "resource:stripe"
+      ]
     },
     {
       "id": "facebook_ads_workspace",
@@ -38703,7 +39771,10 @@
       "produces": [
         "multi_asset"
       ],
-      "stateful": true
+      "stateful": true,
+      "consumes": [
+        "resource:mlflow"
+      ]
     },
     {
       "id": "wandb_workspace",
@@ -38753,7 +39824,10 @@
       "produces": [
         "multi_asset"
       ],
-      "stateful": true
+      "stateful": true,
+      "consumes": [
+        "resource:wandb"
+      ]
     },
     {
       "id": "pagerduty_workspace",

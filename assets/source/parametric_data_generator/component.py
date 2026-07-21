@@ -379,7 +379,15 @@ class ParametricDataGeneratorComponent(Component, Model, Resolvable):
             freshness_policy=freshness_policy,
             partitions_def=partitions_def,
         )
-        def _asset(context: AssetExecutionContext) -> Output:
+        def _asset(context: AssetExecutionContext):
+            # No return-type annotation. Annotating `-> Output` (the
+            # previous shape here) makes Dagster treat the asset's
+            # declared output *type* as `Output` — an internal wrapper
+            # class, not the value inside it. Downstream consumers that
+            # type their input as `pd.DataFrame` then fail schema check
+            # with "Asset returned Output, expected DataFrame". Dropping
+            # the annotation lets Dagster infer from the returned value,
+            # which correctly unwraps `Output(value=df, ...)` to `df`.
             rng = random.Random(random_state)
             rows: List[Dict[str, Any]] = []
             for i in range(row_count):

@@ -5213,7 +5213,8 @@
         "multi_asset"
       ],
       "stateful": true,
-      "agent_hints": {}
+      "agent_hints": {},
+      "ui_editable": true
     },
     {
       "id": "composer_airflow_auth_backend",

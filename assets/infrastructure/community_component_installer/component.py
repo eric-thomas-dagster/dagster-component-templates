@@ -58,6 +58,17 @@ except ImportError:
     _HAS_STATE_BACKED = False
 
 
+# Backwards-compatible opt-in for Dagster+'s "App Managed Components" UI
+# editor. Available in dagster >= 1.13.8; older versions gracefully
+# degrade to a normal code-authored component. See CONTRIBUTING.md
+# section 7b for the full pattern.
+try:
+    from dagster.components.resolved.form_config import ComponentFormConfig
+    _HAS_FORM_CONFIG = True
+except ImportError:
+    _HAS_FORM_CONFIG = False
+
+
 DEFAULT_REGISTRY_URL = (
     "https://raw.githubusercontent.com/"
     "eric-thomas-dagster/dagster-component-templates/main/manifest.json"
@@ -294,6 +305,14 @@ if _HAS_STATE_BACKED:
         https://github.com/eric-thomas-dagster/dagster-community-components-cli
         """
 
+        # Opt into Dagster+'s UI editor so users can add / remove entries
+        # to `components:` through the schema-driven form under
+        # Components → Instances, rather than editing YAML by hand.
+        if _HAS_FORM_CONFIG:
+            @classmethod
+            def get_form_config(cls) -> "ComponentFormConfig":  # noqa: F821
+                return ComponentFormConfig(editable=True)
+
         components: List[str]
         registry_url: Optional[str] = None
         install_pip_requirements: bool = True
@@ -351,6 +370,13 @@ else:
         re-downloads (still cheap for small lists; consider upgrading Dagster
         for larger ones).
         """
+
+        # Opt into Dagster+'s UI editor for the fallback path too, on
+        # Dagster versions that have form_config but not StateBackedComponent.
+        if _HAS_FORM_CONFIG:
+            @classmethod
+            def get_form_config(cls) -> "ComponentFormConfig":  # noqa: F821
+                return ComponentFormConfig(editable=True)
 
         components: List[str] = Field(
             description="Community component IDs to install."

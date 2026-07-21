@@ -462,7 +462,10 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "capabilities": [
+        "adls_object.delete"
+      ]
     },
     {
       "id": "adls_monitor",
@@ -679,7 +682,10 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "capabilities": [
+        "airbyte_sync.trigger"
+      ]
     },
     {
       "id": "airflow_dag_proxy",
@@ -747,7 +753,10 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "capabilities": [
+        "airflow_dag.trigger"
+      ]
     },
     {
       "id": "airlift_dag_assets",
@@ -1294,7 +1303,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "capabilities": [
+        "argo_workflow.trigger"
+      ]
     },
     {
       "id": "arima_forecast",
@@ -2352,6 +2364,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "capabilities": [
+        "cloudwatch.query"
       ]
     },
     {
@@ -2401,6 +2416,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "capabilities": [
+        "cloudwatch.query"
       ]
     },
     {
@@ -2795,6 +2813,9 @@
       },
       "produces": [
         "asset"
+      ],
+      "capabilities": [
+        "azure_log_analytics.query"
       ]
     },
     {
@@ -2932,7 +2953,10 @@
       ],
       "agent_hints": {
         "output_type": "pd.DataFrame"
-      }
+      },
+      "capabilities": [
+        "azure_ai_search.query"
+      ]
     },
     {
       "id": "azure_stream_analytics",
@@ -3178,7 +3202,11 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "capabilities": [
+        "bigquery_table.create",
+        "bigquery.query"
+      ]
     },
     {
       "id": "bigquery_dry_run_check",
@@ -4142,7 +4170,10 @@
         "asset",
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "capabilities": [
+        "census_sync.trigger"
+      ]
     },
     {
       "id": "chroma_resource",
@@ -4566,7 +4597,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "capabilities": [
+        "cloud_function.invoke"
+      ]
     },
     {
       "id": "cloud_logging_query_asset",
@@ -4691,7 +4725,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "capabilities": [
+        "cloud_run_job.trigger"
+      ]
     },
     {
       "id": "cloud_tasks_enqueue_asset",
@@ -4840,7 +4877,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "capabilities": [
+        "coalesce_job.trigger"
+      ]
     },
     {
       "id": "coalesce_project",
@@ -5827,7 +5867,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "capabilities": [
+        "cube_semantic.query"
+      ]
     },
     {
       "id": "customer_360",
@@ -6056,7 +6099,10 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {},
+      "capabilities": [
+        "prometheus.write"
+      ]
     },
     {
       "id": "dagster_plus_asset_events_ingestion",

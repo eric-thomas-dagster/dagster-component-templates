@@ -339,6 +339,19 @@ Add your component to the manifest:
 - `produces` — list of Dagster primitives the component creates when loaded. Enum values: `asset`, `multi_asset`, `asset_check`, `job`, `schedule`, `sensor`, `resource`, `io_manager`, `partitions_def`, `other`. `multi_asset` is distinct from `asset` because tools care about the fanout shape (dbt / workspace components) vs. one Python asset. Always a list — a component may produce several (e.g. `ScheduledJobComponent` → `[schedule, job]`). List everything the component MAY emit, even if some outputs are config-gated.
 - `consumes` — list of primitives the component reads from. Enum: `asset`, `asset_check`, `resource`. Omit when nothing external is consumed.
 - `stateful` — `true` when the component holds state beyond its YAML (defs_state cache, live-refreshed workspace catalog, etc.). Matches `StateBackedComponent` subclasses 1:1 today.
+- `capabilities` — optional list of `"<object>.<action>"` strings declaring **additional** actions the component performs beyond `<primitive>.add`. Enables fine-grained RBAC gating in downstream tooling (Dagster Designer, Dagster+ workspace permissions, catalog policy checks). Every entry in `produces` implicitly grants `<primitive>.add`; use `capabilities` when the component ALSO triggers external systems, deletes objects, invokes functions, runs queries against remote services, etc. Examples:
+
+  ```json
+  "produces": ["asset"],
+  "capabilities": ["cloud_function.invoke", "gcs_object.read"]
+  ```
+
+  ```json
+  "produces": ["job", "schedule"],
+  "capabilities": ["airbyte_sync.trigger"]
+  ```
+
+  Format is `snake_case_object.action_verb`. Suggested verbs: `add` (implicit from `produces`), `trigger`, `invoke`, `delete`, `read`, `write`, `query`, `pause`, `resume`. Use the object name customers would recognize (`airbyte_sync`, not `saas_api`) so RBAC policies read naturally. Omit entirely when the component only creates definitions and does no side-effect work at runtime.
 
 Example:
 

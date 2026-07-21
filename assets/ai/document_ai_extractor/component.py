@@ -232,6 +232,11 @@ class DocumentAiExtractorComponent(Component, Model, Resolvable):
             partitions_def=partitions_def,
         )
         def _asset(context: AssetExecutionContext, upstream: Any):
+            # Defensive Output/MaterializeResult unwrap — see summarize for the rationale.
+            # Tolerates upstream authors who annotate `-> Output` or
+            # return `Output(value=df, ...)` / `MaterializeResult(value=df)`.
+            if hasattr(upstream, "value") and hasattr(upstream, "metadata"):
+                upstream = upstream.value
             # partition bridge dict-concat: when an unpartitioned
             # asset consumes a partitioned upstream, Dagster's IO
             # manager loads ALL partitions as a dict; concat to

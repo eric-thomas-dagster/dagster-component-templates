@@ -364,6 +364,11 @@ group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def _asset(context: AssetExecutionContext, upstream: Any) -> Any:
+            # Defensive Output/MaterializeResult unwrap — see summarize for the rationale.
+            # Tolerates upstream authors who annotate `-> Output` or
+            # return `Output(value=df, ...)` / `MaterializeResult(value=df)`.
+            if hasattr(upstream, "value") and hasattr(upstream, "metadata"):
+                upstream = upstream.value
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key

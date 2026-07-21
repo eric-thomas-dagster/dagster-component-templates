@@ -7780,7 +7780,9 @@
         "inputs": "Any DataFrame to write.",
         "outputs": "None (sink \u2014 writes file to `file_path` and returns Output(value=None)).",
         "side_effects": "Writes to `file_path` on disk. For MULTIPLE CSV outputs, use MULTIPLE instances with different asset_name AND file_path values.",
-        "anti_uses": "Not for reading (use file_ingestion). Not for parquet/JSON/excel (use dataframe_to_parquet/json/excel)."
+        "anti_uses": "Not for reading (use file_ingestion). Not for parquet/JSON/excel (use dataframe_to_parquet/json/excel).",
+        "input_type": "pd.DataFrame",
+        "output_type": null
       },
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -8275,7 +8277,9 @@
         "inputs": "Any DataFrame.",
         "outputs": "None (sink \u2014 writes JSON file to `file_path`).",
         "side_effects": "Writes to disk. `orient` controls JSON shape (records|split|table|columns|index).",
-        "anti_uses": "For CSV/parquet output use respective components. Very large frames should prefer parquet."
+        "anti_uses": "For CSV/parquet output use respective components. Very large frames should prefer parquet.",
+        "input_type": "pd.DataFrame",
+        "output_type": null
       },
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -8590,7 +8594,9 @@
         "inputs": "Any DataFrame.",
         "outputs": "None (sink \u2014 writes parquet file to `file_path`).",
         "side_effects": "Writes to disk. For MULTIPLE parquet outputs, use MULTIPLE instances with different asset_name AND file_path.",
-        "anti_uses": "For CSV output use dataframe_to_csv. Requires pyarrow (or fastparquet)."
+        "anti_uses": "For CSV output use dataframe_to_csv. Requires pyarrow (or fastparquet).",
+        "input_type": "pd.DataFrame",
+        "output_type": null
       },
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -13219,7 +13225,9 @@
         "inputs": "DataFrame with columns referenced by the condition.",
         "outputs": "Same columns; fewer rows. Preserves column order and dtypes.",
         "side_effects": "Reduces row count; column set unchanged. If the condition matches 0 rows, the step succeeds but writes an EMPTY output \u2014 check upstream data values (case, whitespace, type) when this happens.",
-        "anti_uses": "condition is a Python-style expression evaluated with pandas eval. Column names must exist in upstream. Value CASE matters: if `data_cleansing` with normalize_case=lower ran upstream, string values are now lowercase \u2014 use `condition: \"Survived == 'yes'\"` (not 'Yes'). For case-insensitive match, use `Survived.str.lower() == 'yes'`."
+        "anti_uses": "condition is a Python-style expression evaluated with pandas eval. Column names must exist in upstream. Value CASE matters: if `data_cleansing` with normalize_case=lower ran upstream, string values are now lowercase \u2014 use `condition: \"Survived == 'yes'\"` (not 'Yes'). For case-insensitive match, use `Survived.str.lower() == 'yes'`.",
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame"
       },
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -23448,7 +23456,9 @@
       "agent_hints": {
         "inputs": "None \u2014 configured distribution + row count.",
         "outputs": "DataFrame with generated numeric/categorical columns.",
-        "side_effects": "For statistical / model-test fixtures."
+        "side_effects": "For statistical / model-test fixtures.",
+        "input_type": null,
+        "output_type": "pd.DataFrame"
       },
       "produces": [
         "asset"
@@ -27787,7 +27797,9 @@
         "inputs": "Any DataFrame.",
         "outputs": "DataFrame containing ONLY the columns listed in `columns` (in that order). Rows unchanged.",
         "side_effects": "REMOVES all columns not in the list. Downstream steps referencing dropped columns will KeyError.",
-        "chains_with": "Useful mid-pipeline to trim before one_hot_encoding (avoid encoding label columns) or to reshape output."
+        "chains_with": "Useful mid-pipeline to trim before one_hot_encoding (avoid encoding label columns) or to reshape output.",
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame"
       },
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -30126,7 +30138,9 @@
         "inputs": "Any DataFrame.",
         "outputs": "Same DataFrame; rows sorted per config.",
         "side_effects": "Row order changes; no data loss.",
-        "anti_uses": "For top-N use top_n_per_group. Same as `arrange` \u2014 pick one."
+        "anti_uses": "For top-N use top_n_per_group. Same as `arrange` \u2014 pick one.",
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame"
       },
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -31142,7 +31156,9 @@
         "inputs": "DataFrame with columns named by `group_by` present. Aggregation column names must exist in input.",
         "outputs": "DataFrame with columns: group_by keys + one column per aggregation.",
         "side_effects": "REDUCES rows to one per group. Column set changes: only group_by keys + aggs remain.",
-        "anti_uses": "group_by columns MUST exist in the upstream. aggregations shape: {'<output_name>': {'col': '<source_col>', 'agg': 'sum|mean|count|min|max|std|median|first|last'}}. For ANY 'group by X, sum/count/mean Y' task \u2014 USE summarize, not count_records + formula. count_records only gives a grand total; formula only computes per-row values \u2014 neither does group-by aggregation. If upstream was one_hot_encoded, branch off pre-encoded upstream."
+        "anti_uses": "group_by columns MUST exist in the upstream. aggregations shape: {'<output_name>': {'col': '<source_col>', 'agg': 'sum|mean|count|min|max|std|median|first|last'}}. For ANY 'group by X, sum/count/mean Y' task \u2014 USE summarize, not count_records + formula. count_records only gives a grand total; formula only computes per-row values \u2014 neither does group-by aggregation. If upstream was one_hot_encoded, branch off pre-encoded upstream.",
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame"
       },
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -31694,7 +31710,9 @@
         "inputs": "None (root source) \u2014 generates synthetic tabular data per `schema_type`.",
         "outputs": "DataFrame with fixed schema per schema_type. Common schemas:\n  \u2022 'customers' \u2192 customer_id, first_name, last_name, email, phone, city, state, signup_date, lifetime_value, is_active\n  \u2022 'orders' \u2192 order_id, customer_id, order_date, CATEGORY (NOT product_id), num_items, subtotal, shipping, tax, total, status, region\n  \u2022 'products' \u2192 product_id, name, category, price, cost, inventory\n  \u2022 'transactions' \u2192 txn_id, customer_id, amount, merchant, timestamp\n  \u2022 'support_tickets' \u2192 ticket_id, customer_id, subject, priority, status, created_at, resolved_at",
         "side_effects": "Produces ONE schema per call. Default order_date range: last 365 days (was 30) \u2014 gives cohort_analysis / window_calculation / ts_forecast real signal. Override via schema_options={date_range_days: N}. For multiple datasets use SEPARATE calls with different schema_type. Never self-join synthetic tables.",
-        "anti_uses": "Not for reading real files (use file_ingestion). Not for custom schemas (use a formula step after generation)."
+        "anti_uses": "Not for reading real files (use file_ingestion). Not for custom schemas (use a formula step after generation).",
+        "input_type": null,
+        "output_type": "pd.DataFrame"
       },
       "produces": [
         "asset",

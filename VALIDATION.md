@@ -1,10 +1,18 @@
 # Validation Metadata Convention
 
-The web UI at <https://dagster-component-ui.vercel.app/> shows a
-"Trust & feedback" section on every component page. By default it
-renders "Unverified" because there's no validation signal in the
-manifest. This file documents the convention components can use to
-opt in.
+## Consumers
+
+Today, exactly one consumer reads this field:
+
+- The catalog site at <https://dagster-component-ui.vercel.app/> renders
+  a "Trust & feedback" section per component driven by
+  `manifest.json[].validation.level`.
+
+Other tools that install / plan / recommend components from this
+manifest (e.g. `dagster-community-components-cli`, Dagster Designer's
+AI planner) **do not currently read this field**. So `validation:` is
+a signal for humans browsing the catalog, not a runtime gate. If you
+want it to gate installation, add a filter to your installer of choice.
 
 ## Manifest field
 
@@ -86,7 +94,18 @@ the producer side.
 
 ## Counts at last update
 
-- 132 / 653 components have `validation: live` (validated end-to-end
-  against a live system or via a worked walkthrough demo).
-- The remaining are mostly code-validated; opt them in by validating
-  + adding the manifest block.
+- **949 components total** in the manifest.
+- **613 (65%) have `validation: live`** — validated end-to-end against a
+  live system or via a worked walkthrough demo.
+- **336 (35%) have `validation: code`** — compile-validated to the SDK
+  spec but not yet run against a live backend.
+- **0 currently unverified** — every component has some validation level
+  set. To gate strictly on the `live` bar, filter on
+  `validation.level == "live"`.
+- Regenerate these counts with:
+  ```bash
+  python3 -c "import json; d=json.load(open('manifest.json'));
+  from collections import Counter;
+  print(Counter((c.get('validation') or {}).get('level','unverified')
+                for c in d['components']))"
+  ```

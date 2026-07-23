@@ -1,0 +1,29 @@
+{
+  "include": ["dagster_community_components", "tools"],
+  "exclude": [
+    "**/__pycache__",
+    "**/node_modules",
+    "**/.venv",
+    "assets",
+    "resources",
+    "sensors",
+    "observations",
+    "external_assets",
+    "integrations",
+    "asset_checks",
+    "compute_log_managers",
+    "jobs",
+    "sinks",
+    "transforms",
+    "pipelines",
+    "schedules",
+    "vendors",
+    "core",
+    "ingestion",
+    "io_managers"
+  ],
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "none",
+  "reportMissingTypeStubs": "none",
+  "reportGeneralTypeIssues": "warning"
+}

@@ -155,8 +155,6 @@ _CLASS_PATHS: dict[str, str] = {
     "CloudTextToSpeechAssetComponent": "assets/ai/cloud_text_to_speech_asset/component.py",
     "CoalesceJobSensorComponent": "sensors/coalesce_job_sensor/component.py",
     "CoalesceProjectComponent": "assets/infrastructure/coalesce_run_asset/component.py",
-    "CoalesceProjectComponent": "assets/infrastructure/coalesce_run_asset/component.py",
-    "CoalesceResource": "assets/infrastructure/coalesce_run_asset/component.py",
     "CoalesceResource": "assets/infrastructure/coalesce_run_asset/component.py",
     "CohortAnalysisComponent": "assets/analytics/cohort_analysis/component.py",
     "CommunityComponentInstallerComponent": "assets/infrastructure/community_component_installer/component.py",

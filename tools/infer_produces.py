@@ -359,7 +359,7 @@ def infer_for_entry(entry: dict) -> dict:
     name_signal = _classname_hint(name)
     if "multi_asset" in name_signal:
         ins.primitives.add("multi_asset")
-        ins.evidence.append(f"classname suffix → multi_asset (fanout shape)")
+        ins.evidence.append("classname suffix → multi_asset (fanout shape)")
 
     if ins.primitives:
         # Strong signal — decorator or Definitions call

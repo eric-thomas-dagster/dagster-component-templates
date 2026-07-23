@@ -24,7 +24,7 @@ class ClickhousePolarsIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
         io_manager = ClickhousePolarsIOManager(
             host=self.host,
             port=self.port,
-            username=dg.EnvVar(self.username_env_var),
+            user=dg.EnvVar(self.username_env_var),
             password=dg.EnvVar(self.password_env_var),
             database=self.database,
             secure=self.secure,

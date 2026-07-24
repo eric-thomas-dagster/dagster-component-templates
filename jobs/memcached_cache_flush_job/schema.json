@@ -1,0 +1,24 @@
+{
+  "x-dagster-provides": ["job"],
+  "category": "job",
+  "type": "object",
+  "properties": {
+    "job_name": {"type": "string", "description": "Dagster job name."},
+    "schedule": {"type": "string", "description": "Cron schedule (empty = no schedule)."},
+    "default_status": {"type": "string", "enum": ["STOPPED", "RUNNING"], "default": "STOPPED"},
+    "tags": {"type": "object", "description": "Dagster job tags."},
+    "host": {"type": "string", "default": "localhost"},
+    "port": {"type": "integer", "default": 11211},
+    "keys": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Explicit keys to delete. When empty, calls flush_all."
+    },
+    "timeout_seconds": {"type": "number", "default": 3.0}
+  },
+  "required": ["job_name"],
+  "description": "Flush Memcached — entire cache or a key list — as a Dagster job.",
+  "tags": ["job", "memcached", "cache", "invalidation"],
+  "icon": "si:memcached",
+  "name": "Memcached Cache Flush Job"
+}

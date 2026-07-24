@@ -1,0 +1,6 @@
+type: dagster_component_templates.MemcachedResourceComponent
+attributes:
+  resource_key: memcached_resource
+  host: localhost
+  port: 11211
+  timeout_seconds: 3.0

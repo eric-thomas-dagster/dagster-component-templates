@@ -1,0 +1,12 @@
+type: dagster_component_templates.MemcachedCacheFlushJobComponent
+attributes:
+  job_name: memcached_flush_hourly
+  schedule: "0 * * * *"
+  default_status: STOPPED
+  host: localhost
+  port: 11211
+  # Delete specific keys — Memcached has no SCAN, so enumerate them.
+  # If keys is null/empty, flush_all is invoked (nukes everything).
+  keys:
+    - "session:*"
+    - "user_prefs"

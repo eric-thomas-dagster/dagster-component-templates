@@ -1,0 +1,65 @@
+{
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "memcached_resource"
+  ],
+  "category": "resource",
+  "type": "object",
+  "properties": {
+    "resource_key": {
+      "type": "string",
+      "default": "memcached_resource",
+      "description": "The key under which the Memcached resource is registered."
+    },
+    "host": {
+      "type": "string",
+      "default": "localhost",
+      "description": "Memcached server hostname."
+    },
+    "port": {
+      "type": "integer",
+      "default": 11211,
+      "description": "Memcached server port."
+    },
+    "timeout_seconds": {
+      "type": "number",
+      "default": 3.0,
+      "description": "Connect + read/write timeout in seconds."
+    }
+  },
+  "required": [],
+  "description": "Register a Memcached resource for high-performance in-memory caching.",
+  "tags": [
+    "resource",
+    "memcached",
+    "cache"
+  ],
+  "icon": "si:memcached",
+  "name": "Memcached Resource",
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "memcached_resource"
+    },
+    "host": {
+      "type": "string",
+      "label": "Host",
+      "required": false,
+      "default": "localhost"
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "required": false,
+      "default": 11211
+    },
+    "timeout_seconds": {
+      "type": "number",
+      "label": "Timeout Seconds",
+      "required": false,
+      "default": 3.0
+    }
+  }
+}

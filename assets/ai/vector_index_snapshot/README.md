@@ -7,7 +7,7 @@ Downstream RAG assets (`rag_eval`, RAG query components you write yourself) are 
 **Why this exists.** Most RAG stacks overwrite the vector index in place. If today's rebuild embedded broken PDFs or the chunker regressed, there's no "last-week's-good-index" to fall back to. Treating each snapshot as an immutable materialization + a partition key means:
 
 - **Rollback = re-materialize downstream against an older snapshot partition** — no rebuild, no restore-from-backup, one click in the UI.
-- **Backfill across snapshots** — re-run `rag_eval` across the last 30 days of snapshots against today's golden set. Prefect can't do this natively; Dagster does it as a partition backfill.
+- **Backfill across snapshots** — re-run `rag_eval` across the last 30 days of snapshots against today's golden set to plot retrieval quality over time. Native partition backfill.
 - **Compare embeddings across versions** — snapshot v42 vs v43 diff'able by opening both ChromaDB clients.
 - **Provenance** — `corpus_hash` in output metadata proves which corpus version produced this index.
 
@@ -57,11 +57,9 @@ results = collection.query(query_texts=["how do I ..."], n_results=5)
 
 For rollback, point `path` at a specific past snapshot dir instead of `latest` — OR (the graph-native way) materialize your downstream `rag_eval` against the older snapshot partition.
 
-## What Prefect can't do here
+## What you get that a plain "rebuild in place" workflow doesn't
 
-An imperative flow can chunk + embed + write. It can't natively:
-
-- Track "which corpus version produced which index snapshot" as a first-class lineage edge — Dagster's asset materialization metadata records `corpus_hash` on every snapshot; you can trace every retrieval back to a specific corpus version.
-- Assert `corpus_hash` matches between the corpus asset and the snapshot's metadata (that's a Dagster asset check, one line).
-- Roll back queries to a past snapshot **via asset selection in the UI** — this component registers each `snapshot_id` as a dynamic partition, so "roll back to Monday" is a partition selector, not a file-path change.
-- **Backfill downstream across all past snapshots** — e.g., re-run `rag_eval` against every snapshot of the last 30 days to plot retrieval quality over time. Native Dagster partition backfill.
+- **Corpus-version → index-version lineage edge.** The materialization metadata records `corpus_hash` on every snapshot; every retrieval traces back to a specific corpus version.
+- **Corpus-hash assertion.** `corpus_hash` on the upstream corpus and on the snapshot's metadata can be equality-checked in an asset check — one line, one gate.
+- **Rollback via asset selection in the UI.** Each `snapshot_id` is a dynamic partition. "Roll back to Monday" is a partition selector, not a file-path change.
+- **Backfill downstream across all past snapshots.** Re-run `rag_eval` against every snapshot of the last 30 days to plot retrieval quality over time — native partition backfill.

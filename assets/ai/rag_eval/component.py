@@ -10,8 +10,9 @@ key registered by ``vector_index_snapshot``), so:
   - The attached asset check FAILS the run when the current score regresses
     against the immediately-prior materialization by more than
     ``regression_pct_threshold`` percentage points, OR falls below
-    ``min_score_threshold``. This is a data-quality gate — Prefect can log
-    the metric; Dagster can block downstream materialization on it.
+    ``min_score_threshold``. Failing checks with severity ERROR block
+    downstream materializations — the regression is caught as data, not
+    surfaced later from a customer complaint.
 """
 
 from pathlib import Path

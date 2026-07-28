@@ -40,9 +40,8 @@ The `<asset_name>_retrieval_quality_check` reads the two most recent materializa
 
 This is what turns "we track a metric" into "**we block bad snapshots from advancing downstream**." Combine with `AutomationCondition` on any RAG-answer asset that consumes the snapshot to make quality-gated promotions automatic.
 
-## What Prefect can't do here
+## What the check unlocks
 
-- Log a metric per task, sure. But it can't natively:
-  - Compare current metric to N prior runs' metrics without a bespoke store
-  - Block downstream orchestration on the check result (Dagster's asset checks are first-class run gates)
-  - Point the check at a specific historical partition for backfill/investigation ("was Monday's snapshot fine? re-run just that partition's check")
+- **Cross-materialization comparison for free.** The check reads the two most recent materializations of this asset from the instance — no bespoke metrics store, no external DB.
+- **Downstream materialization is gated.** Asset checks with severity ERROR block runs that depend on this asset. Bad snapshots don't advance to answer generation.
+- **Retrospective per-partition checking.** Re-run the check against any past snapshot partition — "was Monday's snapshot fine?" is one CLI invocation.

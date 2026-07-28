@@ -1,0 +1,114 @@
+{
+  "component_type": "dagster_component_templates.TrinoQueryComponent",
+  "description": "Run a Trino SQL query and materialize the result as a DataFrame asset.",
+  "category": "source",
+  "icon": "Database",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "Query result as a pandas DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "required": true
+    },
+    "host": {
+      "type": "string",
+      "label": "Host",
+      "description": "Trino coordinator host",
+      "required": false,
+      "default": "localhost"
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "description": "Trino coordinator port",
+      "required": false,
+      "default": 8080
+    },
+    "user": {
+      "type": "string",
+      "label": "User",
+      "description": "Trino user name",
+      "required": false,
+      "default": "dagster"
+    },
+    "catalog": {
+      "type": "string",
+      "label": "Catalog",
+      "description": "Trino catalog, e.g. 'postgres', 'iceberg', 'hive'",
+      "required": true
+    },
+    "schema_name": {
+      "type": "string",
+      "label": "Schema",
+      "description": "Default schema within the catalog",
+      "required": false,
+      "default": null
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var holding the Trino password (basic auth). Omit for no auth.",
+      "required": false,
+      "default": null
+    },
+    "query": {
+      "type": "string",
+      "label": "Query",
+      "description": "Trino SQL query to execute",
+      "required": true,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Deps",
+      "description": "Upstream asset keys (e.g. ['raw_orders', 'sales/dim_customer'])",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Owners",
+      "description": "Asset owners",
+      "required": false,
+      "default": null
+    },
+    "asset_tags": {
+      "type": "object",
+      "additionalProperties": {"type": "string"},
+      "label": "Asset Tags",
+      "description": "Additional key-value tags",
+      "required": false,
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Kinds",
+      "description": "Asset kinds. Defaults to ['trino'] if not set.",
+      "required": false,
+      "default": null
+    }
+  }
+}

@@ -20,7 +20,6 @@ class ShellCommandAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     deps: Optional[List[str]] = Field(default=None, description="Upstream Dagster asset keys for lineage.")
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-        from dagster_shell import execute_shell_command
         cmd = self.command
         cwd = self.cwd
         env_vars = self.env_vars or {}
@@ -33,13 +32,38 @@ class ShellCommandAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             deps=deps_keys,
         )
         def _shell_asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
-            output, return_code = execute_shell_command(
-                shell_command=cmd, output_logging="STREAM", log=context.log,
-                cwd=cwd, env=env_vars,
+            import os
+            import subprocess
+            import sys
+
+            merged_env = {**os.environ, **env_vars}
+            print(f"$ {cmd}", flush=True)
+            # Stream stdout/stderr through the parent process so the
+            # ComputeLogManager captures them. Do NOT `capture_output=True` here
+            # — that swallows the streams and starves the CLM.
+            proc = subprocess.Popen(
+                cmd, shell=True, cwd=cwd, env=merged_env,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                text=True, bufsize=1,
             )
+            stdout_lines = []
+            for line in proc.stdout or []:
+                sys.stdout.write(line)
+                sys.stdout.flush()
+                stdout_lines.append(line)
+            stderr_data = (proc.stderr.read() if proc.stderr else "") or ""
+            if stderr_data:
+                sys.stderr.write(stderr_data)
+                sys.stderr.flush()
+            proc.wait()
+            if proc.returncode != 0:
+                raise dg.Failure(
+                    description=f"Shell command exited {proc.returncode}",
+                    metadata={"stderr": dg.MetadataValue.text(stderr_data[:2000])},
+                )
             return dg.MaterializeResult(metadata={
-                "exit_code": dg.MetadataValue.int(return_code),
-                "stdout_preview": dg.MetadataValue.text(output[:2000] if output else ""),
+                "exit_code": dg.MetadataValue.int(proc.returncode),
+                "stdout_preview": dg.MetadataValue.text("".join(stdout_lines)[:2000]),
             })
         return dg.Definitions(assets=[_shell_asset])
 

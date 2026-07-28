@@ -1,0 +1,14 @@
+type: dagster_component_templates.TrinoQueryComponent
+attributes:
+  asset_name: federated_pnl
+  host: localhost
+  port: 8080
+  catalog: postgres
+  schema_name: finance
+  query: |
+    SELECT
+      account,
+      SUM(debit - credit) AS balance
+    FROM finance.gl_entries
+    GROUP BY account
+  group_name: finance

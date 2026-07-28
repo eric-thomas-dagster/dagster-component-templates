@@ -326,7 +326,7 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
             tags=_all_tags,
             freshness_policy=_freshness_policy,
 group_name=group_name,
-            deps=upstream_keys if upstream_keys else None,
+            deps=[AssetKey.from_user_string(k) for k in upstream_keys] if upstream_keys else None,
         )
         def duckdb_writer_asset(context: AssetExecutionContext, **kwargs) -> None:
             # Filter to current partition if partitioned
@@ -353,8 +353,8 @@ group_name=group_name,
                 context.log.info(f"Loading {len(upstream_keys)} upstream asset(s) via context.load_asset_value()")
                 for key in upstream_keys:
                     try:
-                        # Convert string key to AssetKey if needed
-                        asset_key = AssetKey(key) if isinstance(key, str) else key
+                        # Convert string key to AssetKey if needed; supports slash-paths.
+                        asset_key = AssetKey.from_user_string(key) if isinstance(key, str) else key
                         value = context.load_asset_value(asset_key)
                         upstream_assets[key] = value
                         context.log.info(f"  - Loaded '{key}': {type(value).__name__}")

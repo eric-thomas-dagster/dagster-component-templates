@@ -37590,6 +37590,49 @@
       "agent_hints": {}
     },
     {
+      "id": "trino_query",
+      "name": "Trino Query",
+      "category": "source",
+      "description": "Run a Trino SQL query and materialize the result as a DataFrame asset.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sources/trino_query",
+      "tags": [
+        "source",
+        "trino",
+        "query",
+        "federated",
+        "sql"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "trino>=0.328.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/trino_query/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/trino_query/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/trino_query/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/trino_query/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/trino_query/requirements.txt",
+      "icon": "Database",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-28"
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 runs Trino SQL against a Trino coordinator.",
+        "outputs": "DataFrame with columns from the query.",
+        "side_effects": "None on local data.",
+        "anti_uses": "For non-federated single-DB queries prefer database_query. For Trino as an IO manager use trino_io_manager.",
+        "requires_resources": [],
+        "output_type": "pd.DataFrame"
+      },
+      "produces": [
+        "asset"
+      ]
+    },
+    {
       "id": "trino_resource",
       "name": "Trino Resource",
       "category": "resource",

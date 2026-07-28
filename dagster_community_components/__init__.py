@@ -944,6 +944,7 @@ _CLASS_PATHS: dict[str, str] = {
     "TranslationApiAssetComponent": "assets/ai/translation_api_asset/component.py",
     "TransposeComponent": "assets/transforms/transpose/component.py",
     "TrinoIOManagerComponent": "io_managers/trino_io_manager/component.py",
+    "TrinoQueryComponent": "assets/sources/trino_query/component.py",
     "TrinoResource": "resources/trino_resource/component.py",
     "TrinoResourceComponent": "resources/trino_resource/component.py",
     "TsCompareComponent": "assets/analytics/ts_compare/component.py",

@@ -1,0 +1,25 @@
+{
+  "component_type": "dagster_community_components.DocumentCorpusComponent",
+  "description": "Materialize a directory of documents as a versioned corpus asset.",
+  "category": "source",
+  "icon": "DocumentText",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "One row per document: doc_id, content, source_path, content_hash, byte_size, ingested_at"
+    }
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "source_dir": {"type": "string", "label": "Source Dir", "description": "Absolute path to the directory of docs", "required": true},
+    "file_glob": {"type": "string", "label": "File Glob", "description": "Glob relative to source_dir", "required": false, "default": "**/*.md"},
+    "encoding": {"type": "string", "label": "Encoding", "required": false, "default": "utf-8"},
+    "min_doc_count": {"type": "integer", "label": "Min Doc Count", "description": "Asset check fails if fewer docs than this", "required": false, "default": 1},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false},
+    "asset_tags": {"type": "object", "additionalProperties": {"type": "string"}, "label": "Tags", "required": false},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false},
+    "freshness_max_lag_minutes": {"type": "integer", "label": "Freshness Max Lag Minutes", "required": false}
+  }
+}

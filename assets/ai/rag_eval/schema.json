@@ -1,0 +1,28 @@
+{
+  "component_type": "dagster_community_components.RagEvalComponent",
+  "description": "Run a golden-set retrieval eval against a specific vector_index_snapshot partition. Asset check fails on regression vs the prior materialization or below an absolute floor.",
+  "category": "ai",
+  "icon": "Check",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "One row per golden query: query, expected_terms, top_k_docs, matched_terms, score"
+    }
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "snapshot_root_dir": {"type": "string", "label": "Snapshot Root Dir", "description": "Same directory as the upstream vector_index_snapshot writes to", "required": true},
+    "collection_name": {"type": "string", "label": "Collection Name", "required": false, "default": "rag_corpus"},
+    "golden_set": {"type": "array", "label": "Golden Set", "description": "List of {query, expected_terms} dicts", "required": true},
+    "k": {"type": "integer", "label": "K", "description": "Top-k retrieval count", "required": false, "default": 3},
+    "min_score_threshold": {"type": "number", "label": "Min Score Threshold", "description": "Absolute floor; asset check fails below this", "required": false, "default": 0.5},
+    "regression_pct_threshold": {"type": "number", "label": "Regression Pct Threshold", "description": "Max allowed drop vs prior materialization in percentage points", "required": false, "default": 10.0},
+    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "required": false, "default": "rag_snapshot"},
+    "upstream_snapshot_asset_key": {"type": "string", "label": "Upstream Snapshot Asset Key", "required": false},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false},
+    "asset_tags": {"type": "object", "additionalProperties": {"type": "string"}, "label": "Tags", "required": false},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false}
+  }
+}

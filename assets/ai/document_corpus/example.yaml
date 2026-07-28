@@ -1,0 +1,8 @@
+type: dagster_community_components.DocumentCorpusComponent
+attributes:
+  asset_name: product_docs_corpus
+  source_dir: /data/product_docs
+  file_glob: "**/*.md"
+  min_doc_count: 5
+  freshness_max_lag_minutes: 240
+  group_name: rag_state

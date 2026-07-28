@@ -11092,6 +11092,49 @@
       }
     },
     {
+      "id": "document_corpus",
+      "name": "Document Corpus",
+      "category": "source",
+      "description": "Materialize a directory of documents as a versioned Dagster asset \u2014 first-class corpus state, not implicit input.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/document_corpus",
+      "tags": [
+        "source",
+        "rag",
+        "ai",
+        "corpus",
+        "state"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_corpus/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_corpus/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_corpus/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_corpus/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_corpus/requirements.txt",
+      "icon": "Document",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-28"
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 reads text files from a local directory.",
+        "outputs": "DataFrame [doc_id, content, source_path, content_hash, byte_size, ingested_at] + metadata (doc_count, total_bytes, corpus_hash).",
+        "side_effects": "None (read-only).",
+        "anti_uses": "For streaming ingest use S3/GCS monitors. For fanout across many source dirs, one component per dir.",
+        "requires_resources": [],
+        "output_type": "pd.DataFrame"
+      },
+      "produces": [
+        "asset",
+        "asset_check"
+      ]
+    },
+    {
       "id": "document_ingestion",
       "name": "Document Ingestion",
       "category": "ingestion",
@@ -29573,6 +29616,51 @@
       ]
     },
     {
+      "id": "rag_eval",
+      "name": "RAG Eval",
+      "category": "ai",
+      "description": "Retrieval quality as a first-class, checked asset. Partitioned by snapshot_id; asset check fails on regression vs the prior materialization.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/rag_eval",
+      "tags": [
+        "ai",
+        "rag",
+        "eval",
+        "quality",
+        "asset-check",
+        "state"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "chromadb>=0.5.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rag_eval/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rag_eval/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rag_eval/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rag_eval/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rag_eval/requirements.txt",
+      "icon": "Document",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-28"
+      },
+      "agent_hints": {
+        "inputs": "Reads a vector_index_snapshot's on-disk ChromaDB collection (located via partition_key = snapshot_id).",
+        "outputs": "DataFrame [query, expected_terms, top_k_docs, matched_terms, score] + metadata (precision_at_k, n_queries, k).",
+        "side_effects": "None on data \u2014 attaches an asset_check that fails on quality regression.",
+        "anti_uses": "For LLM-based faithfulness scoring against a reference answer, wrap a separate eval component; this one is retrieval-only.",
+        "requires_resources": [],
+        "output_type": "pd.DataFrame"
+      },
+      "produces": [
+        "asset",
+        "asset_check"
+      ]
+    },
+    {
       "id": "rag_pipeline",
       "name": "RAG Pipeline",
       "category": "ai",
@@ -38313,6 +38401,51 @@
         "resource"
       ],
       "agent_hints": {}
+    },
+    {
+      "id": "vector_index_snapshot",
+      "name": "Vector Index Snapshot",
+      "category": "ai",
+      "description": "Chunk + embed an upstream corpus into a versioned, immutable ChromaDB snapshot. Each materialization registers a new dynamic partition, so downstream rollback is a partition selection.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/vector_index_snapshot",
+      "tags": [
+        "ai",
+        "rag",
+        "vector-store",
+        "chromadb",
+        "state",
+        "snapshot",
+        "embedding"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "chromadb>=0.5.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vector_index_snapshot/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vector_index_snapshot/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vector_index_snapshot/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vector_index_snapshot/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vector_index_snapshot/requirements.txt",
+      "icon": "Document",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-28"
+      },
+      "agent_hints": {
+        "inputs": "Upstream document_corpus DataFrame (via context.load_asset_value on upstream_asset_key).",
+        "outputs": "Dict with snapshot_path, snapshot_id, chunk_count, dimension, corpus_hash, dynamic_partition_name.",
+        "side_effects": "Writes a new ChromaDB persistent snapshot to disk. Registers a new dynamic partition on the instance.",
+        "anti_uses": "For live-mutation of a single index without versioning, use vector_store_writer.",
+        "requires_resources": [],
+        "output_type": "dict"
+      },
+      "produces": [
+        "asset"
+      ]
     },
     {
       "id": "vector_store_query",

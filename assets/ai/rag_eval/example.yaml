@@ -1,0 +1,15 @@
+type: dagster_community_components.RagEvalComponent
+attributes:
+  asset_name: product_docs_eval
+  upstream_snapshot_asset_key: product_docs_index
+  snapshot_root_dir: /data/rag/snapshots
+  collection_name: product_docs
+  k: 3
+  min_score_threshold: 0.6
+  regression_pct_threshold: 10.0
+  golden_set:
+    - query: "How do I configure the retry policy?"
+      expected_terms: ["retry_policy", "max_retries", "backoff"]
+    - query: "What is a dynamic partition?"
+      expected_terms: ["DynamicPartitionsDefinition", "partition_key"]
+  group_name: rag_state

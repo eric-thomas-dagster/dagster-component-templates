@@ -1,0 +1,29 @@
+{
+  "component_type": "dagster_community_components.VectorIndexSnapshotComponent",
+  "description": "Chunk + embed an upstream corpus into a versioned ChromaDB snapshot. Each materialization is a new immutable snapshot on disk.",
+  "category": "ai",
+  "icon": "Database",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dict",
+      "description": "snapshot_path, snapshot_id, collection_name, embedder, chunk_count, dimension, corpus_hash"
+    }
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "description": "The document_corpus asset key (supports slash-paths)", "required": true},
+    "snapshot_root_dir": {"type": "string", "label": "Snapshot Root Dir", "description": "Directory holding all snapshots; each materialization creates a new subdir", "required": true},
+    "chunk_size": {"type": "integer", "label": "Chunk Size", "required": false, "default": 800},
+    "chunk_overlap": {"type": "integer", "label": "Chunk Overlap", "required": false, "default": 100},
+    "embedder_provider": {"type": "string", "label": "Embedder Provider", "description": "'chromadb_default' or 'openai'", "required": false, "default": "chromadb_default"},
+    "embedder_model": {"type": "string", "label": "Embedder Model", "required": false},
+    "api_key_env_var": {"type": "string", "label": "API Key Env Var", "required": false},
+    "collection_name": {"type": "string", "label": "Collection Name", "required": false, "default": "rag_corpus"},
+    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "description": "Name of the DynamicPartitionsDefinition; each materialization registers snapshot_id as a new key so downstream can rollback via partition selection", "required": false, "default": "rag_snapshot"},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false},
+    "asset_tags": {"type": "object", "additionalProperties": {"type": "string"}, "label": "Tags", "required": false},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false}
+  }
+}

@@ -1,0 +1,10 @@
+type: dagster_community_components.VectorIndexSnapshotComponent
+attributes:
+  asset_name: product_docs_index
+  upstream_asset_key: product_docs_corpus
+  snapshot_root_dir: /data/rag/snapshots
+  chunk_size: 800
+  chunk_overlap: 100
+  embedder_provider: chromadb_default
+  collection_name: product_docs
+  group_name: rag_state

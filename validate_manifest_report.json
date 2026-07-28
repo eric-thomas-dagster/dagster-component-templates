@@ -1,12 +1,13 @@
 {
   "summary": {
-    "PASS": 634,
-    "FAIL": 64,
-    "SKIP_OPTIONAL_DEP": 37,
+    "PASS": 679,
+    "WARN": 7,
+    "FAIL": 74,
+    "SKIP_OPTIONAL_DEP": 84,
     "SKIP_EXAMPLE_MULTI_DOC": 51,
-    "SKIP_PROJECT_REQUIRED": 11,
-    "SKIP_CREDENTIALS": 35,
-    "SKIP_RELATIVE_IMPORT": 2
+    "SKIP_PROJECT_REQUIRED": 13,
+    "SKIP_RELATIVE_IMPORT": 3,
+    "SKIP_CREDENTIALS": 41
   },
   "results": [
     {
@@ -84,10 +85,28 @@
       "error_class": null
     },
     {
-      "id": "adls_cleanup_job",
-      "path": "jobs/adls_cleanup_job",
+      "id": "adaptive_research_brief",
+      "path": "assets/ai/adaptive_research_brief",
       "status": "PASS",
       "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "address_standardize",
+      "path": "assets/transforms/address_standardize",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "adls_cleanup_job",
+      "path": "jobs/adls_cleanup_job",
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"AdaptiveResearchBriefComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -122,14 +141,14 @@
       "path": "integrations/airbyte_assets",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for AirbyteAssetsComponent\nconnection_filter\n  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/list_type",
+      "error": "1 validation error for AirbyteAssetsComponent\nconnection_filter\n  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/list_type",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for AirbyteAssetsComponent",
         "connection_filter",
         "  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/list_type"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/list_type"
       ]
     },
     {
@@ -167,24 +186,17 @@
     {
       "id": "airlift_dag_assets",
       "path": "integrations/airlift_dag_assets",
-      "status": "FAIL",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "cannot import name 'BasicAuthBackend' from 'dagster_airlift.core' (/opt/homebrew/lib/python3.11/site-packages/dagster_airlift/core/__init__.py)",
-      "error_class": "ImportError",
-      "traceback": [
-        "    defs = instance.build_defs(ctx)",
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/airlift_dag_assets/component.py\", line 20, in build_defs",
-        "    from dagster_airlift.core import AirflowInstance, BasicAuthBackend, build_defs_from_airflow_instance",
-        "ImportError: cannot import name 'BasicAuthBackend' from 'dagster_airlift.core' (/opt/homebrew/lib/python3.11/site-packages/dagster_airlift/core/__init__.py)"
-      ]
+      "error": "ModuleNotFoundError: No module named 'dagster_airlift'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "airtable_ingestion",
       "path": "assets/ingestion/airtable_ingestion",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
+      "error": "ModuleNotFoundError: No module named 'dlt'",
       "error_class": null
     },
     {
@@ -194,6 +206,21 @@
       "warnings": [],
       "error": null,
       "error_class": null
+    },
+    {
+      "id": "airtable_workspace",
+      "path": "integrations/airtable_workspace",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "'dict' object has no attribute 'key'",
+      "error_class": "AttributeError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
+        "    key=args.key or default_key,",
+        "        ^^^^^^^^",
+        "AttributeError: 'dict' object has no attribute 'key'. Did you mean: 'keys'?"
+      ]
     },
     {
       "id": "alter_row",
@@ -216,6 +243,14 @@
     {
       "id": "ansible_asset",
       "path": "assets/infrastructure/ansible_asset",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "anthropic_agent",
+      "path": "assets/ai/anthropic_agent",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -318,9 +353,9 @@
     {
       "id": "asana_ingestion",
       "path": "assets/ingestion/asana_ingestion",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
+      "error": "ModuleNotFoundError: No module named 'dlt'",
       "error_class": null
     },
     {
@@ -472,10 +507,17 @@
     {
       "id": "aws_cdk_asset",
       "path": "assets/infrastructure/aws_cdk_asset",
-      "status": "PASS",
+      "status": "FAIL",
       "warnings": [],
-      "error": null,
-      "error_class": null
+      "error": "name 'AssetKey' is not defined",
+      "error_class": "NameError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /assets/infrastructure/aws_cdk_asset/component.py\", line 233, in build_defs",
+        "    key=AssetKey.from_user_string(asset_name),",
+        "        ^^^^^^^^",
+        "NameError: name 'AssetKey' is not defined"
+      ]
     },
     {
       "id": "aws_cloudtrail_ingestion",
@@ -506,44 +548,37 @@
       "path": "integrations/aws_dms",
       "status": "FAIL",
       "warnings": [],
-      "error": "Can't instantiate abstract class AWSDMSComponent with abstract method build_defs",
+      "error": "Can't instantiate abstract class AWSDMSComponent without an implementation for abstract method 'build_defs'",
       "error_class": "TypeError",
       "traceback": [
         "               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/pydantic/main.py\", line 716, in model_validate",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/pydantic/main.py\", line 732, in model_validate",
         "    return cls.__pydantic_validator__.validate_python(",
         "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "TypeError: Can't instantiate abstract class AWSDMSComponent with abstract method build_defs"
+        "TypeError: Can't instantiate abstract class AWSDMSComponent without an implementation for abstract method 'build_defs'"
       ]
     },
     {
       "id": "aws_glue",
       "path": "integrations/aws_glue",
-      "status": "FAIL",
+      "status": "SKIP_PROJECT_REQUIRED",
       "warnings": [],
-      "error": "name 'dataclass' is not defined",
-      "error_class": "NameError",
-      "traceback": [
-        "  File \"<frozen importlib._bootstrap>\", line 241, in _call_with_frames_removed",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/aws_glue/component.py\", line 600, in <module>",
-        "    @dataclass",
-        "     ^^^^^^^^^",
-        "NameError: name 'dataclass' is not defined"
-      ]
+      "error": "Could not find dg.toml or pyproject.toml in .",
+      "error_class": null
     },
     {
       "id": "aws_kinesis",
       "path": "integrations/aws_kinesis",
       "status": "FAIL",
       "warnings": [],
-      "error": "Can't instantiate abstract class AWSKinesisComponent with abstract method build_defs",
-      "error_class": "TypeError",
+      "error": "Operation cannot be paginated: list_delivery_streams",
+      "error_class": "OperationNotPageableError",
       "traceback": [
-        "               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/pydantic/main.py\", line 716, in model_validate",
-        "    return cls.__pydantic_validator__.validate_python(",
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "TypeError: Can't instantiate abstract class AWSKinesisComponent with abstract method build_defs"
+        "    paginator = firehose.get_paginator(\"list_delivery_streams\")",
+        "                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/botocore/client.py\", line 1234, in get_paginator",
+        "    raise OperationNotPageableError(operation_name=operation_name)",
+        "botocore.exceptions.OperationNotPageableError: Operation cannot be paginated: list_delivery_streams"
       ]
     },
     {
@@ -551,39 +586,37 @@
       "path": "integrations/aws_redshift",
       "status": "FAIL",
       "warnings": [],
-      "error": "Can't instantiate abstract class AWSRedshiftComponent with abstract method build_defs",
-      "error_class": "TypeError",
+      "error": "Failed to list stored procedures: An error occurred (ValidationException) when calling the ExecuteStatement operation: Redshift endpoint doesn't exist in this region.",
+      "error_class": "Exception",
       "traceback": [
-        "               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/pydantic/main.py\", line 716, in model_validate",
-        "    return cls.__pydantic_validator__.validate_python(",
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "TypeError: Can't instantiate abstract class AWSRedshiftComponent with abstract method build_defs"
+        "    procedures = self._list_stored_procedures(session)",
+        "                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/aws_redshift/component.py\", line 308, in _list_stored_procedures",
+        "    raise Exception(f\"Failed to list stored procedures: {e}\")",
+        "Exception: Failed to list stored procedures: An error occurred (ValidationException) when calling the ExecuteStatement operation: Redshift endpoint doesn't exist in this region."
       ]
     },
     {
       "id": "aws_s3_resource",
       "path": "resources/aws_s3_resource",
-      "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-aws` (0.28.1)."
-      ],
-      "error": null,
-      "error_class": null
+      "status": "SKIP_OPTIONAL_DEP",
+      "warnings": [],
+      "error": "ModuleNotFoundError: No module named 'dagster_aws'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "aws_sagemaker",
       "path": "integrations/aws_sagemaker",
       "status": "FAIL",
       "warnings": [],
-      "error": "Can't instantiate abstract class AWSSageMakerComponent with abstract method build_defs",
-      "error_class": "TypeError",
+      "error": "Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'gaCtN0IyxrIAVZZDEcaHI3Zw8gbqughH/ZgIEbIqqDQ='.",
+      "error_class": "Exception",
       "traceback": [
-        "               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/pydantic/main.py\", line 716, in model_validate",
-        "    return cls.__pydantic_validator__.validate_python(",
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "TypeError: Can't instantiate abstract class AWSSageMakerComponent with abstract method build_defs"
+        "    job_names = self._list_training_job_definitions(session)",
+        "                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/aws_sagemaker/component.py\", line 225, in _list_training_job_definitions",
+        "    raise Exception(f\"Failed to list training jobs: {e}\")",
+        "Exception: Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'gaCtN0IyxrIAVZZDEcaHI3Zw8gbqughH/ZgIEbIqqDQ='."
       ]
     },
     {
@@ -597,9 +630,9 @@
     {
       "id": "azure_blob_parquet_io_manager",
       "path": "io_managers/azure_blob_parquet_io_manager",
-      "status": "PASS",
+      "status": "SKIP_RELATIVE_IMPORT",
       "warnings": [],
-      "error": null,
+      "error": "attempted relative import with no known parent package",
       "error_class": null
     },
     {
@@ -623,14 +656,14 @@
       "path": "resources/azure_openai_resource",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for AzureOpenAIResourceComponent\napi_version\n  Input should be a valid string [type=string_type, input_value=datetime.date(2024, 10, 21), input_type=date]\n    For further information visit https://errors.pydantic.dev/2.12/v/string_type",
+      "error": "1 validation error for AzureOpenAIResourceComponent\napi_version\n  Input should be a valid string [type=string_type, input_value=datetime.date(2024, 10, 21), input_type=date]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for AzureOpenAIResourceComponent",
         "api_version",
         "  Input should be a valid string [type=string_type, input_value=datetime.date(2024, 10, 21), input_type=date]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/string_type"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
       ]
     },
     {
@@ -652,32 +685,46 @@
     {
       "id": "azure_stream_analytics",
       "path": "integrations/azure_stream_analytics",
-      "status": "SKIP_OPTIONAL_DEP",
+      "status": "FAIL",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'azure.mgmt.streamanalytics'",
-      "error_class": null
+      "error": "Invalid tenant ID provided. You can locate your tenant ID by following the instructions here: https://learn.microsoft.com/partner-center/find-ids-and-domain-names",
+      "error_class": "ValueError",
+      "traceback": [
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/azure/identity/_internal/msal_credentials.py\", line 43, in __init__",
+        "    validate_tenant_id(self._tenant_id)",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/azure/identity/_internal/utils.py\", line 113, in validate_tenant_id",
+        "    raise ValueError(",
+        "ValueError: Invalid tenant ID provided. You can locate your tenant ID by following the instructions here: https://learn.microsoft.com/partner-center/find-ids-and-domain-names"
+      ]
     },
     {
       "id": "azure_synapse",
       "path": "integrations/azure_synapse",
-      "status": "SKIP_OPTIONAL_DEP",
+      "status": "FAIL",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'azure.mgmt.synapse'",
-      "error_class": null
+      "error": "Invalid tenant ID provided. You can locate your tenant ID by following the instructions here: https://learn.microsoft.com/partner-center/find-ids-and-domain-names",
+      "error_class": "ValueError",
+      "traceback": [
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/azure/identity/_internal/msal_credentials.py\", line 43, in __init__",
+        "    validate_tenant_id(self._tenant_id)",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/azure/identity/_internal/utils.py\", line 113, in validate_tenant_id",
+        "    raise ValueError(",
+        "ValueError: Invalid tenant ID provided. You can locate your tenant ID by following the instructions here: https://learn.microsoft.com/partner-center/find-ids-and-domain-names"
+      ]
     },
     {
       "id": "azure_table_reader",
       "path": "assets/sources/azure_table_reader",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for AzureTableReaderComponent\ntop\n  Extra inputs are not permitted [type=extra_forbidden, input_value=1000, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
+      "error": "1 validation error for AzureTableReaderComponent\ntop\n  Extra inputs are not permitted [type=extra_forbidden, input_value=1000, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for AzureTableReaderComponent",
         "top",
         "  Extra inputs are not permitted [type=extra_forbidden, input_value=1000, input_type=int]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
       ]
     },
     {
@@ -765,10 +812,10 @@
     {
       "id": "bigquery_resource",
       "path": "resources/bigquery_resource",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
-      "error_class": null
+      "error": "ModuleNotFoundError: No module named 'dagster_gcp'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "bigquery_table_freshness_check",
@@ -813,6 +860,14 @@
       "error_class": "ValueError"
     },
     {
+      "id": "blob_convert",
+      "path": "assets/transforms/blob_convert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "bounding_box_filter",
       "path": "assets/analytics/bounding_box_filter",
       "status": "SKIP_EXAMPLE_MULTI_DOC",
@@ -841,14 +896,14 @@
       "path": "assets/analytics/campaign_performance",
       "status": "FAIL",
       "warnings": [],
-      "error": "2 validation errors for CampaignPerformanceComponent\ncampaign_data_asset_key\n  Extra inputs are not permitted [type=extra_forbidden, input_value='campaign_metrics', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden\nconversion_data_asset_key\n  Extra inputs are not permitted [type=extra_forbidden, input_value='conversions', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
+      "error": "2 validation errors for CampaignPerformanceComponent\ncampaign_data_asset_key\n  Extra inputs are not permitted [type=extra_forbidden, input_value='campaign_metrics', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nconversion_data_asset_key\n  Extra inputs are not permitted [type=extra_forbidden, input_value='conversions', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
       "error_class": "ValidationError",
       "traceback": [
         "  Extra inputs are not permitted [type=extra_forbidden, input_value='campaign_metrics', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
+        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
         "conversion_data_asset_key",
         "  Extra inputs are not permitted [type=extra_forbidden, input_value='conversions', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
       ]
     },
     {
@@ -878,6 +933,14 @@
       "error_class": null
     },
     {
+      "id": "catalog_agent",
+      "path": "assets/ai/catalog_agent",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "census_sync_asset",
       "path": "integrations/census_sync_asset",
       "status": "SKIP_OPTIONAL_DEP",
@@ -898,14 +961,14 @@
       "path": "assets/analytics/chromadb_asset",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for ChromadbAssetComponent\nsource_table\n  Extra inputs are not permitted [type=extra_forbidden, input_value='public.products', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
+      "error": "1 validation error for ChromadbAssetComponent\nsource_table\n  Extra inputs are not permitted [type=extra_forbidden, input_value='public.products', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for ChromadbAssetComponent",
         "source_table",
         "  Extra inputs are not permitted [type=extra_forbidden, input_value='public.products', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
       ]
     },
     {
@@ -933,14 +996,14 @@
       "path": "io_managers/clickhouse_io_manager",
       "status": "FAIL",
       "warnings": [],
-      "error": "2 validation errors for ClickhouseIOManagerComponent\nport\n  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/int_parsing\nsecure\n  Input should be a valid boolean, unable to interpret input [type=bool_parsing, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/bool_parsing",
+      "error": "2 validation errors for ClickhouseIOManagerComponent\nport\n  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing\nsecure\n  Input should be a valid boolean, unable to interpret input [type=bool_parsing, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/bool_parsing",
       "error_class": "ValidationError",
       "traceback": [
         "  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='<fill in>', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/int_parsing",
+        "    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing",
         "secure",
         "  Input should be a valid boolean, unable to interpret input [type=bool_parsing, input_value='<fill in>', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/bool_parsing"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/bool_parsing"
       ]
     },
     {
@@ -948,14 +1011,14 @@
       "path": "io_managers/clickhouse_polars_io_manager",
       "status": "FAIL",
       "warnings": [],
-      "error": "2 validation errors for ClickhousePolarsIOManagerComponent\nport\n  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/int_parsing\nsecure\n  Input should be a valid boolean, unable to interpret input [type=bool_parsing, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/bool_parsing",
+      "error": "2 validation errors for ClickhousePolarsIOManagerComponent\nport\n  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing\nsecure\n  Input should be a valid boolean, unable to interpret input [type=bool_parsing, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/bool_parsing",
       "error_class": "ValidationError",
       "traceback": [
         "  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='<fill in>', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/int_parsing",
+        "    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing",
         "secure",
         "  Input should be a valid boolean, unable to interpret input [type=bool_parsing, input_value='<fill in>', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/bool_parsing"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/bool_parsing"
       ]
     },
     {
@@ -1071,6 +1134,53 @@
       "warnings": [],
       "error": "Could not find dg.toml or pyproject.toml in .",
       "error_class": null
+    },
+    {
+      "id": "cognos_report_data_ingestion",
+      "path": "assets/ingestion/cognos_report_data_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "cognos_report_run_job",
+      "path": "jobs/cognos_report_run_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "cognos_report_status_sensor",
+      "path": "sensors/cognos_report_status_sensor",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "cognos_resource",
+      "path": "resources/cognos_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "cognos_workspace",
+      "path": "integrations/cognos_workspace",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "'dict' object has no attribute 'key'",
+      "error_class": "AttributeError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
+        "    key=args.key or default_key,",
+        "        ^^^^^^^^",
+        "AttributeError: 'dict' object has no attribute 'key'. Did you mean: 'keys'?"
+      ]
     },
     {
       "id": "cohort_analysis",
@@ -1259,6 +1369,14 @@
       "error_class": null
     },
     {
+      "id": "cube_query_asset",
+      "path": "assets/analytics/cube_query_asset",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "customer_360",
       "path": "assets/analytics/customer_360",
       "status": "PASS",
@@ -1313,10 +1431,17 @@
     {
       "id": "dagster_plus_asset_events_ingestion",
       "path": "ingestion/dagster_plus_asset_events_ingestion",
-      "status": "PASS",
+      "status": "FAIL",
       "warnings": [],
-      "error": null,
-      "error_class": null
+      "error": "name 'AssetKey' is not defined",
+      "error_class": "NameError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /ingestion/dagster_plus_asset_events_ingestion/component.py\", line 136, in build_defs",
+        "    key=AssetKey.from_user_string(self.asset_name),",
+        "        ^^^^^^^^",
+        "NameError: name 'AssetKey' is not defined"
+      ]
     },
     {
       "id": "dagster_plus_audit_log_ingestion",
@@ -1329,10 +1454,17 @@
     {
       "id": "dagster_plus_run_events_ingestion",
       "path": "ingestion/dagster_plus_run_events_ingestion",
-      "status": "PASS",
+      "status": "FAIL",
       "warnings": [],
-      "error": null,
-      "error_class": null
+      "error": "name 'AssetKey' is not defined",
+      "error_class": "NameError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /ingestion/dagster_plus_run_events_ingestion/component.py\", line 143, in build_defs",
+        "    key=AssetKey.from_user_string(self.asset_name),",
+        "        ^^^^^^^^",
+        "NameError: name 'AssetKey' is not defined"
+      ]
     },
     {
       "id": "dagster_plus_to_siem_job",
@@ -1351,8 +1483,40 @@
       "error_class": null
     },
     {
+      "id": "dagster_runs_to_otlp_metrics_sensor",
+      "path": "sensors/dagster_runs_to_otlp_metrics_sensor",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "dagster_runs_to_otlp_sensor",
+      "path": "sensors/dagster_runs_to_otlp_sensor",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "dagster_runs_to_prometheus_sensor",
       "path": "sensors/dagster_runs_to_prometheus_sensor",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "dagster_runs_to_splunk_hec_sensor",
+      "path": "sensors/dagster_runs_to_splunk_hec_sensor",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "dagster_runs_to_statsd_sensor",
+      "path": "sensors/dagster_runs_to_statsd_sensor",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -1363,14 +1527,14 @@
       "path": "assets/infrastructure/dagstermill_notebook_asset",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for DagstermillNotebookAssetComponent\ndeps\n  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/list_type",
+      "error": "1 validation error for DagstermillNotebookAssetComponent\ndeps\n  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/list_type",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for DagstermillNotebookAssetComponent",
         "deps",
         "  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/list_type"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/list_type"
       ]
     },
     {
@@ -1394,6 +1558,22 @@
     {
       "id": "data_masking",
       "path": "transforms/data_masking",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "data_remediation_asset",
+      "path": "assets/ai/data_remediation_asset",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "data_vault_hub_link_satellite",
+      "path": "assets/transforms/data_vault_hub_link_satellite",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -1428,17 +1608,10 @@
     {
       "id": "database_replication",
       "path": "assets/ingestion/database_replication",
-      "status": "FAIL",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "Env var 'ORACLE_DB_URL' (for source_connection) is not set",
-      "error_class": "OSError",
-      "traceback": [
-        "    source_url = _resolve(self.source_connection, self.source_connection_env_var, \"source_connection\")",
-        "                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /assets/ingestion/database_replication/component.py\", line 151, in _resolve",
-        "    raise EnvironmentError(f\"Env var '{env_var}' (for {name}) is not set\")",
-        "OSError: Env var 'ORACLE_DB_URL' (for source_connection) is not set"
-      ]
+      "error": "dagster-sling required: pip install dagster-sling",
+      "error_class": null
     },
     {
       "id": "database_schema_inventory",
@@ -1475,17 +1648,18 @@
     {
       "id": "databricks_asset_bundle",
       "path": "integrations/databricks_asset_bundle",
-      "status": "FAIL",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "Databricks config file not found: /Users/ericthomas/dagster_components/dagster-component-templates /databricks.yml",
-      "error_class": "FileNotFoundError",
-      "traceback": [
-        "    config = self._load_bundle_config(context)",
-        "             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/databricks_asset_bundle/component.py\", line 144, in _load_bundle_config",
-        "    raise FileNotFoundError(f\"Databricks config file not found: {config_path}\")",
-        "FileNotFoundError: Databricks config file not found: /Users/ericthomas/dagster_components/dagster-component-templates /databricks.yml"
-      ]
+      "error": "ModuleNotFoundError: No module named 'databricks'",
+      "error_class": null
+    },
+    {
+      "id": "databricks_genie_query",
+      "path": "assets/ai/databricks_genie_query",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "databricks_io_manager",
@@ -1498,10 +1672,10 @@
     {
       "id": "databricks_resource",
       "path": "resources/databricks_resource",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
-      "error_class": null
+      "error": "ModuleNotFoundError: No module named 'dagster_databricks'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "databricks_table_observation_sensor",
@@ -1516,12 +1690,9 @@
     {
       "id": "databricks_workspace",
       "path": "integrations/databricks_workspace",
-      "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-spark` (0.28.12).",
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-sling` (0.28.1)."
-      ],
-      "error": null,
+      "status": "SKIP_OPTIONAL_DEP",
+      "warnings": [],
+      "error": "ModuleNotFoundError: No module named 'databricks'",
       "error_class": null
     },
     {
@@ -1613,18 +1784,26 @@
       "error_class": null
     },
     {
+      "id": "dataframe_from_yxdb",
+      "path": "assets/sources/dataframe_from_yxdb",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "dataframe_join",
       "path": "assets/transforms/dataframe_join",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for DataframeJoin\n1\n  Keys should be strings [type=invalid_key, input_value=True, input_type=bool]\n    For further information visit https://errors.pydantic.dev/2.12/v/invalid_key",
+      "error": "1 validation error for DataframeJoin\n1\n  Keys should be strings [type=invalid_key, input_value=True, input_type=bool]\n    For further information visit https://errors.pydantic.dev/2.13/v/invalid_key",
       "error_class": "ValidationError",
       "traceback": [
         "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for DataframeJoin",
         "1",
         "  Keys should be strings [type=invalid_key, input_value=True, input_type=bool]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/invalid_key"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/invalid_key"
       ]
     },
     {
@@ -1647,9 +1826,7 @@
       "id": "dataframe_to_azure_table",
       "path": "assets/sinks/dataframe_to_azure_table",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-pyspark` (0.28.12)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -1673,9 +1850,7 @@
       "id": "dataframe_to_csv",
       "path": "assets/sinks/dataframe_to_csv",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-databricks` (0.28.12)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -1804,14 +1979,14 @@
       "path": "assets/sinks/dataframe_to_otlp_metrics",
       "status": "FAIL",
       "warnings": [],
-      "error": "2 validation errors for DataframeToOtlpMetricsComponent\nmetric_name\n  Field required [type=missing, input_value={'asset_name': 'otlp_metr...'http://localhost:4318'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nvalue_column\n  Field required [type=missing, input_value={'asset_name': 'otlp_metr...'http://localhost:4318'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing",
+      "error": "2 validation errors for DataframeToOtlpMetricsComponent\nmetric_name\n  Field required [type=missing, input_value={'asset_name': 'otlp_metr...'http://localhost:4318'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nvalue_column\n  Field required [type=missing, input_value={'asset_name': 'otlp_metr...'http://localhost:4318'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
       "error_class": "ValidationError",
       "traceback": [
         "  Field required [type=missing, input_value={'asset_name': 'otlp_metr...'http://localhost:4318'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing",
+        "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
         "value_column",
         "  Field required [type=missing, input_value={'asset_name': 'otlp_metr...'http://localhost:4318'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
       ]
     },
     {
@@ -1819,14 +1994,14 @@
       "path": "assets/sinks/dataframe_to_otlp_traces",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for DataframeToOtlpTracesComponent\nspan_name_column\n  Field required [type=missing, input_value={'asset_name': 'otlp_trac...'http://localhost:4318'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing",
+      "error": "1 validation error for DataframeToOtlpTracesComponent\nspan_name_column\n  Field required [type=missing, input_value={'asset_name': 'otlp_trac...'http://localhost:4318'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for DataframeToOtlpTracesComponent",
         "span_name_column",
         "  Field required [type=missing, input_value={'asset_name': 'otlp_trac...'http://localhost:4318'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
       ]
     },
     {
@@ -1864,6 +2039,14 @@
     {
       "id": "dataframe_to_security_lake",
       "path": "sinks/dataframe_to_security_lake",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "dataframe_to_sentry",
+      "path": "assets/sinks/dataframe_to_sentry",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -1982,36 +2165,30 @@
     {
       "id": "dbt_cloud_resource",
       "path": "resources/dbt_cloud_resource",
-      "status": "FAIL",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "deadlock detected by _ModuleLock('dagster_dbt.components.dbt_project.component') at 5124603216",
-      "error_class": "_DeadlockError",
-      "traceback": [
-        "    from dagster_dbt.components.dbt_project.component import DbtProjectComponent as DbtProjectComponent",
-        "  File \"<frozen importlib._bootstrap>\", line 1173, in _find_and_load",
-        "  File \"<frozen importlib._bootstrap>\", line 171, in __enter__",
-        "  File \"<frozen importlib._bootstrap>\", line 116, in acquire",
-        "_frozen_importlib._DeadlockError: deadlock detected by _ModuleLock('dagster_dbt.components.dbt_project.component') at 5124603216"
-      ]
+      "error": "ModuleNotFoundError: No module named 'dagster_dbt'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "dbt_docs_enriched_project",
       "path": "assets/dbt/dbt_docs_enriched_project",
-      "status": "FAIL",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "'str' object has no attribute 'defs_state_discriminator'",
-      "error_class": "AttributeError",
-      "traceback": [
-        "          ^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/dagster_dbt/components/dbt_project/component.py\", line 235, in defs_state_config",
-        "    key=f\"DbtProjectComponent[{self._project_manager.defs_state_discriminator}]\",",
-        "                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "AttributeError: 'str' object has no attribute 'defs_state_discriminator'"
-      ]
+      "error": "DbtDocsEnrichedProjectComponent requires dagster-dbt. Install with: pip install dagster-dbt",
+      "error_class": null
     },
     {
       "id": "dbt_run_job",
       "path": "jobs/dbt_run_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "dbt_state_reuse_patch",
+      "path": "integrations/dbt_state_reuse_patch",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -2036,12 +2213,10 @@
     {
       "id": "delta_lake_io_manager",
       "path": "io_managers/delta_lake_io_manager",
-      "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-dbt` (0.28.12)."
-      ],
-      "error": null,
-      "error_class": null
+      "status": "SKIP_OPTIONAL_DEP",
+      "warnings": [],
+      "error": "ModuleNotFoundError: No module named 'dagster_deltalake_pandas'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "deltalake_polars_io_manager",
@@ -2078,39 +2253,32 @@
     {
       "id": "dlt_dataframe_writer",
       "path": "assets/sinks/dlt_dataframe_writer",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
-      "error_class": null
+      "error": "ModuleNotFoundError: No module named 'dlt'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "dlt_pipeline_assets",
       "path": "integrations/dlt_pipeline_assets",
-      "status": "FAIL",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named '<fill in>'",
-      "error_class": "ModuleNotFoundError",
-      "traceback": [
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"<frozen importlib._bootstrap>\", line 1204, in _gcd_import",
-        "  File \"<frozen importlib._bootstrap>\", line 1176, in _find_and_load",
-        "  File \"<frozen importlib._bootstrap>\", line 1140, in _find_and_load_unlocked",
-        "ModuleNotFoundError: No module named '<fill in>'"
-      ]
+      "error": "ModuleNotFoundError: No module named 'dagster_dlt'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "docker_container_asset",
       "path": "assets/infrastructure/docker_container_asset",
       "status": "FAIL",
       "warnings": [],
-      "error": "3 validation errors for DockerContainerAssetComponent\ncommand\n  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/list_type\nenv_vars\n  Input should be a valid dictionary [type=dict_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/dict_type\ndeps\n  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/list_type",
+      "error": "3 validation errors for DockerContainerAssetComponent\ncommand\n  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/list_type\nenv_vars\n  Input should be a valid dictionary [type=dict_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/dict_type\ndeps\n  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/list_type",
       "error_class": "ValidationError",
       "traceback": [
         "  Input should be a valid dictionary [type=dict_type, input_value='<fill in>', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/dict_type",
+        "    For further information visit https://errors.pydantic.dev/2.13/v/dict_type",
         "deps",
         "  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/list_type"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/list_type"
       ]
     },
     {
@@ -2172,7 +2340,6 @@
       "path": "assets/ai/document_text_extractor",
       "status": "PASS",
       "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-dlt` (0.28.1).",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -2226,6 +2393,14 @@
       "error_class": null
     },
     {
+      "id": "drive_time",
+      "path": "assets/transforms/drive_time",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "dspy_program",
       "path": "assets/ai/dspy_program",
       "status": "PASS",
@@ -2238,10 +2413,10 @@
     {
       "id": "duckdb_io_manager",
       "path": "io_managers/duckdb_io_manager",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
-      "error_class": null
+      "error": "ModuleNotFoundError: No module named 'dagster_duckdb_pandas'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "duckdb_polars_io_manager",
@@ -2272,10 +2447,10 @@
     {
       "id": "duckdb_resource",
       "path": "resources/duckdb_resource",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
-      "error_class": null
+      "error": "ModuleNotFoundError: No module named 'dagster_duckdb'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "duckdb_table_writer",
@@ -2288,6 +2463,14 @@
     {
       "id": "dynamic_fanout_job",
       "path": "jobs/dynamic_fanout_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "dynamic_rename",
+      "path": "assets/transforms/dynamic_rename",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -2307,9 +2490,7 @@
       "id": "dynamodb_resource",
       "path": "resources/dynamodb_resource",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-duckdb` (0.28.1)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -2317,9 +2498,7 @@
       "id": "dynamodb_writer",
       "path": "assets/sinks/dynamodb_writer",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-duckdb-pandas` (0.28.1)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -2354,14 +2533,14 @@
       "path": "assets/analytics/elasticsearch_asset",
       "status": "FAIL",
       "warnings": [],
-      "error": "2 validation errors for ElasticsearchAssetComponent\nsource_database_url_env_var\n  Extra inputs are not permitted [type=extra_forbidden, input_value='DATABASE_URL', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden\nsource_table_name\n  Extra inputs are not permitted [type=extra_forbidden, input_value='products', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
+      "error": "2 validation errors for ElasticsearchAssetComponent\nsource_database_url_env_var\n  Extra inputs are not permitted [type=extra_forbidden, input_value='DATABASE_URL', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nsource_table_name\n  Extra inputs are not permitted [type=extra_forbidden, input_value='products', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
       "error_class": "ValidationError",
       "traceback": [
         "  Extra inputs are not permitted [type=extra_forbidden, input_value='DATABASE_URL', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
+        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
         "source_table_name",
         "  Extra inputs are not permitted [type=extra_forbidden, input_value='products', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
       ]
     },
     {
@@ -2403,17 +2582,10 @@
     {
       "id": "enhanced_data_quality_checks",
       "path": "asset_checks/enhanced_data_quality_checks",
-      "status": "FAIL",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "\"group:dbt_marts_mart_row_count\" is not a valid name in Dagster. Names must be in regex ^[A-Za-z0-9_]+$.",
-      "error_class": "DagsterInvalidDefinitionError",
-      "traceback": [
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/_core/definitions/utils.py\", line 82, in check_valid_name",
-        "    check_valid_chars(name)",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/_core/definitions/utils.py\", line 90, in check_valid_chars",
-        "    raise DagsterInvalidDefinitionError(",
-        "dagster._core.errors.DagsterInvalidDefinitionError: \"group:dbt_marts_mart_row_count\" is not a valid name in Dagster. Names must be in regex ^[A-Za-z0-9_]+$."
-      ]
+      "error": "ModuleNotFoundError: No module named 'scipy'",
+      "error_class": null
     },
     {
       "id": "entity_extractor",
@@ -2506,6 +2678,14 @@
     {
       "id": "external_clickhouse_table",
       "path": "external_assets/external_clickhouse_table",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "external_cube_metric",
+      "path": "external_assets/external_cube_metric",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -2712,6 +2892,22 @@
       "error_class": null
     },
     {
+      "id": "external_temporal_workflow",
+      "path": "external_assets/external_temporal_workflow",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "external_vercel_deployment",
+      "path": "external_assets/external_vercel_deployment",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "fabric_capacity_admin_job",
       "path": "jobs/fabric_capacity_admin_job",
       "status": "PASS",
@@ -2724,14 +2920,14 @@
       "path": "io_managers/fabric_lakehouse_io_manager",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for FabricLakehouseIOManagerComponent\ntable_prefix\n  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.12/v/string_type",
+      "error": "1 validation error for FabricLakehouseIOManagerComponent\ntable_prefix\n  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for FabricLakehouseIOManagerComponent",
         "table_prefix",
         "  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/string_type"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
       ]
     },
     {
@@ -2760,7 +2956,7 @@
       "traceback": [
         "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/fabric_workspace/component.py\", line 107, in _list_items",
         "    resp.raise_for_status()",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/requests/models.py\", line 1026, in raise_for_status",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/requests/models.py\", line 1167, in raise_for_status",
         "    raise HTTPError(http_error_msg, response=self)",
         "requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url: https://api.fabric.microsoft.com/v1/workspaces/12345678-1234-1234-1234-123456789012/items"
       ]
@@ -2786,9 +2982,9 @@
     {
       "id": "facebook_ads_ingestion",
       "path": "assets/ingestion/facebook_ads_ingestion",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
+      "error": "ModuleNotFoundError: No module named 'dlt'",
       "error_class": null
     },
     {
@@ -2798,6 +2994,21 @@
       "warnings": [],
       "error": null,
       "error_class": null
+    },
+    {
+      "id": "facebook_ads_workspace",
+      "path": "integrations/facebook_ads_workspace",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "'dict' object has no attribute 'key'",
+      "error_class": "AttributeError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
+        "    key=args.key or default_key,",
+        "        ^^^^^^^^",
+        "AttributeError: 'dict' object has no attribute 'key'. Did you mean: 'keys'?"
+      ]
     },
     {
       "id": "feast_asset",
@@ -2880,6 +3091,30 @@
       "error_class": null
     },
     {
+      "id": "firebase_resource",
+      "path": "resources/firebase_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "firebase_storage_monitor",
+      "path": "sensors/firebase_storage_monitor",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "firestore_collection_ingestion",
+      "path": "assets/ingestion/firestore_collection_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "firestore_reader",
       "path": "assets/sources/firestore_reader",
       "status": "PASS",
@@ -2905,8 +3140,8 @@
       "error": "cannot import name 'firestore' from 'google.cloud' (unknown location)",
       "error_class": "ImportError",
       "traceback": [
-        "  File \"<frozen importlib._bootstrap_external>\", line 940, in exec_module",
-        "  File \"<frozen importlib._bootstrap>\", line 241, in _call_with_frames_removed",
+        "  File \"<frozen importlib._bootstrap_external>\", line 999, in exec_module",
+        "  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed",
         "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /resources/firestore_resource/component.py\", line 7, in <module>",
         "    from google.cloud import firestore",
         "ImportError: cannot import name 'firestore' from 'google.cloud' (unknown location)"
@@ -2933,14 +3168,14 @@
       "path": "integrations/fivetran_assets",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for FivetranAssetsComponent\nconnector_filter\n  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/list_type",
+      "error": "1 validation error for FivetranAssetsComponent\nconnector_filter\n  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/list_type",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for FivetranAssetsComponent",
         "connector_filter",
         "  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/list_type"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/list_type"
       ]
     },
     {
@@ -2980,9 +3215,9 @@
     {
       "id": "freshdesk_ingestion",
       "path": "assets/ingestion/freshdesk_ingestion",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
+      "error": "ModuleNotFoundError: No module named 'dlt'",
       "error_class": null
     },
     {
@@ -3008,14 +3243,14 @@
       "path": "assets/analytics/funnel_analysis",
       "status": "FAIL",
       "warnings": [],
-      "error": "5 validation errors for FunnelAnalysisComponent\nupstream_asset_key\n  Extra inputs are not permitted [type=extra_forbidden, input_value='user_events', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden\nfunnel_steps\n  Extra inputs are not permitted [type=extra_forbidden, input_value='Landing,Product View,Add... Cart,Checkout,Purchase', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden\nconversion_window_hours\n  Extra inputs are not permitted [type=extra_forbidden, input_value=24, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden\nrequire_sequential\n  Extra inputs are not permitted [type=extra_forbidden, input_value=True, input_type=bool]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden\nallow_skips\n  Extra inputs are not permitted [type=extra_forbidden, input_value=False, input_type=bool]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
+      "error": "5 validation errors for FunnelAnalysisComponent\nupstream_asset_key\n  Extra inputs are not permitted [type=extra_forbidden, input_value='user_events', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nfunnel_steps\n  Extra inputs are not permitted [type=extra_forbidden, input_value='Landing,Product View,Add... Cart,Checkout,Purchase', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nconversion_window_hours\n  Extra inputs are not permitted [type=extra_forbidden, input_value=24, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nrequire_sequential\n  Extra inputs are not permitted [type=extra_forbidden, input_value=True, input_type=bool]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nallow_skips\n  Extra inputs are not permitted [type=extra_forbidden, input_value=False, input_type=bool]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
       "error_class": "ValidationError",
       "traceback": [
         "  Extra inputs are not permitted [type=extra_forbidden, input_value=True, input_type=bool]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
+        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
         "allow_skips",
         "  Extra inputs are not permitted [type=extra_forbidden, input_value=False, input_type=bool]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
       ]
     },
     {
@@ -3089,14 +3324,22 @@
     {
       "id": "gcs_resource",
       "path": "resources/gcs_resource",
+      "status": "SKIP_OPTIONAL_DEP",
+      "warnings": [],
+      "error": "ModuleNotFoundError: No module named 'dagster_gcp'",
+      "error_class": "ModuleNotFoundError"
+    },
+    {
+      "id": "gcs_to_database_asset",
+      "path": "assets/ingestion/gcs_to_database_asset",
       "status": "PASS",
       "warnings": [],
       "error": null,
       "error_class": null
     },
     {
-      "id": "gcs_to_database_asset",
-      "path": "assets/ingestion/gcs_to_database_asset",
+      "id": "gemini_agent",
+      "path": "assets/ai/gemini_agent",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -3137,6 +3380,30 @@
       "error_class": null
     },
     {
+      "id": "geo_buffer",
+      "path": "assets/transforms/geo_buffer",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "geo_overlay",
+      "path": "assets/transforms/geo_overlay",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "geo_simplify",
+      "path": "assets/transforms/geo_simplify",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "geocoder",
       "path": "assets/analytics/geocoder",
       "status": "PASS",
@@ -3165,9 +3432,9 @@
     {
       "id": "github_ingestion",
       "path": "assets/ingestion/github_ingestion",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
+      "error": "ModuleNotFoundError: No module named 'dlt'",
       "error_class": null
     },
     {
@@ -3179,6 +3446,21 @@
       "error_class": "ModuleNotFoundError"
     },
     {
+      "id": "github_workspace",
+      "path": "integrations/github_workspace",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "'dict' object has no attribute 'key'",
+      "error_class": "AttributeError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
+        "    key=args.key or default_key,",
+        "        ^^^^^^^^",
+        "AttributeError: 'dict' object has no attribute 'key'. Did you mean: 'keys'?"
+      ]
+    },
+    {
       "id": "gitlab_event_sensor",
       "path": "sensors/gitlab_event_sensor",
       "status": "PASS",
@@ -3187,19 +3469,46 @@
       "error_class": null
     },
     {
-      "id": "google_ads_ingestion",
-      "path": "assets/ingestion/google_ads_ingestion",
+      "id": "gong_call_summary_asset",
+      "path": "assets/ai/gong_call_summary_asset",
       "status": "PASS",
       "warnings": [],
       "error": null,
       "error_class": null
     },
     {
-      "id": "google_analytics_ingestion",
-      "path": "assets/ingestion/google_analytics_ingestion",
+      "id": "gong_calls_ingestion",
+      "path": "assets/ingestion/gong_calls_ingestion",
       "status": "PASS",
       "warnings": [],
       "error": null,
+      "error_class": null
+    },
+    {
+      "id": "gong_resource",
+      "path": "resources/gong_resource",
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"GongCallSummaryAssetComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"GongCallSummaryAssetComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "google_ads_ingestion",
+      "path": "assets/ingestion/google_ads_ingestion",
+      "status": "SKIP_OPTIONAL_DEP",
+      "warnings": [],
+      "error": "ModuleNotFoundError: No module named 'dlt'",
+      "error_class": null
+    },
+    {
+      "id": "google_analytics_ingestion",
+      "path": "assets/ingestion/google_analytics_ingestion",
+      "status": "SKIP_OPTIONAL_DEP",
+      "warnings": [],
+      "error": "ModuleNotFoundError: No module named 'dlt'",
       "error_class": null
     },
     {
@@ -3211,19 +3520,27 @@
       "error_class": null
     },
     {
-      "id": "google_bigquery",
-      "path": "integrations/google_bigquery",
+      "id": "google_analytics_workspace",
+      "path": "integrations/google_analytics_workspace",
       "status": "FAIL",
       "warnings": [],
-      "error": "cannot import name 'bigquery_datatransfer_v1' from 'google.cloud' (unknown location)",
-      "error_class": "ImportError",
+      "error": "'dict' object has no attribute 'key'",
+      "error_class": "AttributeError",
       "traceback": [
-        "  File \"<frozen importlib._bootstrap_external>\", line 940, in exec_module",
-        "  File \"<frozen importlib._bootstrap>\", line 241, in _call_with_frames_removed",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/google_bigquery/component.py\", line 12, in <module>",
-        "    from google.cloud import bigquery_datatransfer_v1",
-        "ImportError: cannot import name 'bigquery_datatransfer_v1' from 'google.cloud' (unknown location)"
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
+        "    key=args.key or default_key,",
+        "        ^^^^^^^^",
+        "AttributeError: 'dict' object has no attribute 'key'. Did you mean: 'keys'?"
       ]
+    },
+    {
+      "id": "google_bigquery",
+      "path": "integrations/google_bigquery",
+      "status": "SKIP_CREDENTIALS",
+      "warnings": [],
+      "error": "[Errno 2] No such file or directory: \"{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}\"",
+      "error_class": "FileNotFoundError"
     },
     {
       "id": "google_calendar_ingestion",
@@ -3236,62 +3553,34 @@
     {
       "id": "google_cloud_functions",
       "path": "integrations/google_cloud_functions",
-      "status": "FAIL",
+      "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "cannot import name 'functions_v2' from 'google.cloud' (unknown location)",
-      "error_class": "ImportError",
-      "traceback": [
-        "  File \"<frozen importlib._bootstrap_external>\", line 940, in exec_module",
-        "  File \"<frozen importlib._bootstrap>\", line 241, in _call_with_frames_removed",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/google_cloud_functions/component.py\", line 9, in <module>",
-        "    from google.cloud import functions_v2",
-        "ImportError: cannot import name 'functions_v2' from 'google.cloud' (unknown location)"
-      ]
+      "error": "[Errno 2] No such file or directory: \"{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}\"",
+      "error_class": "FileNotFoundError"
     },
     {
       "id": "google_cloud_run_jobs",
       "path": "integrations/google_cloud_run_jobs",
-      "status": "FAIL",
+      "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "cannot import name 'run_v2' from 'google.cloud' (unknown location)",
-      "error_class": "ImportError",
-      "traceback": [
-        "  File \"<frozen importlib._bootstrap_external>\", line 940, in exec_module",
-        "  File \"<frozen importlib._bootstrap>\", line 241, in _call_with_frames_removed",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/google_cloud_run_jobs/component.py\", line 9, in <module>",
-        "    from google.cloud import run_v2",
-        "ImportError: cannot import name 'run_v2' from 'google.cloud' (unknown location)"
-      ]
+      "error": "[Errno 2] No such file or directory: \"{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}\"",
+      "error_class": "FileNotFoundError"
     },
     {
       "id": "google_dataflow",
       "path": "integrations/google_dataflow",
-      "status": "FAIL",
+      "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "cannot import name 'dataflow_v1beta3' from 'google.cloud' (unknown location)",
-      "error_class": "ImportError",
-      "traceback": [
-        "  File \"<frozen importlib._bootstrap_external>\", line 940, in exec_module",
-        "  File \"<frozen importlib._bootstrap>\", line 241, in _call_with_frames_removed",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/google_dataflow/component.py\", line 11, in <module>",
-        "    from google.cloud import dataflow_v1beta3",
-        "ImportError: cannot import name 'dataflow_v1beta3' from 'google.cloud' (unknown location)"
-      ]
+      "error": "[Errno 2] No such file or directory: \"{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}\"",
+      "error_class": "FileNotFoundError"
     },
     {
       "id": "google_datastream",
       "path": "integrations/google_datastream",
-      "status": "FAIL",
+      "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "cannot import name 'datastream_v1' from 'google.cloud' (unknown location)",
-      "error_class": "ImportError",
-      "traceback": [
-        "  File \"<frozen importlib._bootstrap_external>\", line 940, in exec_module",
-        "  File \"<frozen importlib._bootstrap>\", line 241, in _call_with_frames_removed",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/google_datastream/component.py\", line 10, in <module>",
-        "    from google.cloud import datastream_v1",
-        "ImportError: cannot import name 'datastream_v1' from 'google.cloud' (unknown location)"
-      ]
+      "error": "[Errno 2] No such file or directory: \"{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}\"",
+      "error_class": "FileNotFoundError"
     },
     {
       "id": "google_docs_extractor",
@@ -3312,25 +3601,18 @@
     {
       "id": "google_pubsub",
       "path": "integrations/google_pubsub",
-      "status": "FAIL",
+      "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "Can't instantiate abstract class GooglePubSubComponent with abstract method build_defs",
-      "error_class": "TypeError",
-      "traceback": [
-        "               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/pydantic/main.py\", line 716, in model_validate",
-        "    return cls.__pydantic_validator__.validate_python(",
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "TypeError: Can't instantiate abstract class GooglePubSubComponent with abstract method build_defs"
-      ]
+      "error": "[Errno 2] No such file or directory: \"{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}\"",
+      "error_class": "FileNotFoundError"
     },
     {
       "id": "google_sheets_ingestion",
       "path": "assets/ingestion/google_sheets_ingestion",
-      "status": "SKIP_CREDENTIALS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "1 validation error for GoogleSheetsIngestionComponent\ncredentials\n  Input should be a valid dictionary [type=dict_type, input_value='${GOOGLE_SHEETS_CREDENTIALS}', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/dict_type",
-      "error_class": "ValidationError"
+      "error": "ModuleNotFoundError: No module named 'dlt'",
+      "error_class": null
     },
     {
       "id": "google_sheets_resource",
@@ -3341,19 +3623,27 @@
       "error_class": null
     },
     {
-      "id": "google_vertex_ai",
-      "path": "integrations/google_vertex_ai",
+      "id": "google_sheets_workspace",
+      "path": "integrations/google_sheets_workspace",
       "status": "FAIL",
       "warnings": [],
-      "error": "cannot import name 'aiplatform' from 'google.cloud' (unknown location)",
-      "error_class": "ImportError",
+      "error": "'dict' object has no attribute 'key'",
+      "error_class": "AttributeError",
       "traceback": [
-        "  File \"<frozen importlib._bootstrap_external>\", line 940, in exec_module",
-        "  File \"<frozen importlib._bootstrap>\", line 241, in _call_with_frames_removed",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/google_vertex_ai/component.py\", line 11, in <module>",
-        "    from google.cloud import aiplatform",
-        "ImportError: cannot import name 'aiplatform' from 'google.cloud' (unknown location)"
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
+        "    key=args.key or default_key,",
+        "        ^^^^^^^^",
+        "AttributeError: 'dict' object has no attribute 'key'. Did you mean: 'keys'?"
       ]
+    },
+    {
+      "id": "google_vertex_ai",
+      "path": "integrations/google_vertex_ai",
+      "status": "SKIP_CREDENTIALS",
+      "warnings": [],
+      "error": "[Errno 2] No such file or directory: \"{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}\"",
+      "error_class": "FileNotFoundError"
     },
     {
       "id": "gradient_boosting_model",
@@ -3478,9 +3768,9 @@
     {
       "id": "hubspot_ingestion",
       "path": "assets/ingestion/hubspot_ingestion",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
+      "error": "ModuleNotFoundError: No module named 'dlt'",
       "error_class": null
     },
     {
@@ -3490,6 +3780,21 @@
       "warnings": [],
       "error": null,
       "error_class": null
+    },
+    {
+      "id": "hubspot_workspace",
+      "path": "integrations/hubspot_workspace",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "'dict' object has no attribute 'key'",
+      "error_class": "AttributeError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
+        "    key=args.key or default_key,",
+        "        ^^^^^^^^",
+        "AttributeError: 'dict' object has no attribute 'key'. Did you mean: 'keys'?"
+      ]
     },
     {
       "id": "huggingface_chat_completion",
@@ -3556,10 +3861,10 @@
       "path": "resources/iceberg_catalog_resource",
       "status": "PASS",
       "warnings": [
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/"
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/"
       ],
       "error": null,
       "error_class": null
@@ -3575,22 +3880,9 @@
     {
       "id": "iceberg_io_manager",
       "path": "io_managers/iceberg_io_manager",
-      "status": "PASS",
-      "warnings": [
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PreviewWarning: Class `IcebergCatalogConfig` is currently in preview, and may have breaking changes in patch version releases. This feature is not considered ready for production use.",
-        "PreviewWarning: Class `PyArrowIcebergIOManager` is currently in preview, and may have breaking changes in patch version releases. This feature is not considered ready for production use.",
-        "PreviewWarning: Class `IcebergIOManager` is currently in preview, and may have breaking changes in patch version releases. This feature is not considered ready for production use."
-      ],
-      "error": null,
+      "status": "SKIP_OPTIONAL_DEP",
+      "warnings": [],
+      "error": "ModuleNotFoundError: No module named 'dagster_iceberg'",
       "error_class": null
     },
     {
@@ -3702,6 +3994,14 @@
       "error_class": null
     },
     {
+      "id": "inline_dataframe",
+      "path": "assets/sources/inline_dataframe",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "instructor_extractor",
       "path": "assets/ai/instructor_extractor",
       "status": "PASS",
@@ -3726,14 +4026,14 @@
       "path": "resources/intercom_resource",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for IntercomResourceComponent\napi_token_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing",
+      "error": "1 validation error for IntercomResourceComponent\napi_token_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for IntercomResourceComponent",
         "api_token_env_var",
         "  Field required [type=missing, input_value={}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
       ]
     },
     {
@@ -3763,11 +4063,71 @@
       "error_class": null
     },
     {
-      "id": "jira_ingestion",
-      "path": "assets/ingestion/jira_ingestion",
+      "id": "iterative_supervisor_agent",
+      "path": "assets/ai/iterative_supervisor_agent",
       "status": "PASS",
       "warnings": [],
       "error": null,
+      "error_class": null
+    },
+    {
+      "id": "jde_orchestration_output_ingestion",
+      "path": "assets/ingestion/jde_orchestration_output_ingestion",
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "jde_orchestration_status_sensor",
+      "path": "sensors/jde_orchestration_status_sensor",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "jde_orchestration_trigger_job",
+      "path": "jobs/jde_orchestration_trigger_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "jde_orchestrator_resource",
+      "path": "resources/jde_orchestrator_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "jde_orchestrator_workspace",
+      "path": "integrations/jde_orchestrator_workspace",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "'dict' object has no attribute 'key'",
+      "error_class": "AttributeError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
+        "    key=args.key or default_key,",
+        "        ^^^^^^^^",
+        "AttributeError: 'dict' object has no attribute 'key'. Did you mean: 'keys'?"
+      ]
+    },
+    {
+      "id": "jira_ingestion",
+      "path": "assets/ingestion/jira_ingestion",
+      "status": "SKIP_OPTIONAL_DEP",
+      "warnings": [],
+      "error": "ModuleNotFoundError: No module named 'dlt'",
       "error_class": null
     },
     {
@@ -3785,6 +4145,21 @@
       "warnings": [],
       "error": null,
       "error_class": null
+    },
+    {
+      "id": "jira_workspace",
+      "path": "integrations/jira_workspace",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "'dict' object has no attribute 'key'",
+      "error_class": "AttributeError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
+        "    key=args.key or default_key,",
+        "        ^^^^^^^^",
+        "AttributeError: 'dict' object has no attribute 'key'. Did you mean: 'keys'?"
+      ]
     },
     {
       "id": "job_posting_extractor",
@@ -3813,6 +4188,14 @@
       "error_class": null
     },
     {
+      "id": "jupyter_notebook",
+      "path": "assets/transforms/jupyter_notebook",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "jupyter_notebook_asset",
       "path": "assets/analytics/jupyter_notebook_asset",
       "status": "PASS",
@@ -3825,14 +4208,14 @@
       "path": "assets/infrastructure/k8s_job_asset",
       "status": "FAIL",
       "warnings": [],
-      "error": "3 validation errors for K8sJobAssetComponent\ncommand\n  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/list_type\nenv_vars\n  Input should be a valid dictionary [type=dict_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/dict_type\ndeps\n  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/list_type",
+      "error": "3 validation errors for K8sJobAssetComponent\ncommand\n  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/list_type\nenv_vars\n  Input should be a valid dictionary [type=dict_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/dict_type\ndeps\n  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/list_type",
       "error_class": "ValidationError",
       "traceback": [
         "  Input should be a valid dictionary [type=dict_type, input_value='<fill in>', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/dict_type",
+        "    For further information visit https://errors.pydantic.dev/2.13/v/dict_type",
         "deps",
         "  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/list_type"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/list_type"
       ]
     },
     {
@@ -3942,14 +4325,14 @@
       "path": "assets/analytics/lakefs_asset",
       "status": "FAIL",
       "warnings": [],
-      "error": "2 validation errors for LakeFSAssetComponent\nendpoint\n  Field required [type=missing, input_value={'asset_name': 'data_vers...rs', 'marts/customers']}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nlakefs_endpoint_env_var\n  Extra inputs are not permitted [type=extra_forbidden, input_value='LAKEFS_ENDPOINT', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
+      "error": "2 validation errors for LakeFSAssetComponent\nendpoint\n  Field required [type=missing, input_value={'asset_name': 'data_vers...rs', 'marts/customers']}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nlakefs_endpoint_env_var\n  Extra inputs are not permitted [type=extra_forbidden, input_value='LAKEFS_ENDPOINT', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
       "error_class": "ValidationError",
       "traceback": [
         "  Field required [type=missing, input_value={'asset_name': 'data_vers...rs', 'marts/customers']}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing",
+        "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
         "lakefs_endpoint_env_var",
         "  Extra inputs are not permitted [type=extra_forbidden, input_value='LAKEFS_ENDPOINT', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
       ]
     },
     {
@@ -3973,15 +4356,23 @@
       "path": "assets/ai/langchain_chain_asset",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for LangChainChainAssetComponent\ntable_name\n  Extra inputs are not permitted [type=extra_forbidden, input_value='summarized_articles', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
+      "error": "1 validation error for LangChainChainAssetComponent\ntable_name\n  Extra inputs are not permitted [type=extra_forbidden, input_value='summarized_articles', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for LangChainChainAssetComponent",
         "table_name",
         "  Extra inputs are not permitted [type=extra_forbidden, input_value='summarized_articles', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
       ]
+    },
+    {
+      "id": "langgraph_agent",
+      "path": "assets/ai/langgraph_agent",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "language_detector",
@@ -3994,8 +4385,13 @@
     {
       "id": "lead_scoring",
       "path": "assets/analytics/lead_scoring",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"LangGraphStep\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"LangGraphAgentComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"LangGraphStep\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"LangGraphAgentComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -4020,10 +4416,17 @@
     {
       "id": "lineage_graph_extractor",
       "path": "assets/sources/lineage_graph_extractor",
-      "status": "PASS",
+      "status": "FAIL",
       "warnings": [],
-      "error": null,
-      "error_class": null
+      "error": "name 'AssetKey' is not defined",
+      "error_class": "NameError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /assets/sources/lineage_graph_extractor/component.py\", line 302, in build_defs",
+        "    key=AssetKey.from_user_string(self.asset_name),",
+        "        ^^^^^^^^",
+        "NameError: name 'AssetKey' is not defined"
+      ]
     },
     {
       "id": "lineage_to_alation",
@@ -4062,19 +4465,19 @@
       "path": "assets/sinks/lineage_to_file",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for LineageToFileComponent\napi_token_env\n  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.12/v/string_type",
+      "error": "1 validation error for LineageToFileComponent\napi_token_env\n  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for LineageToFileComponent",
         "api_token_env",
         "  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/string_type"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
       ]
     },
     {
-      "id": "lineage_to_openlineage",
-      "path": "assets/sinks/lineage_to_openlineage",
+      "id": "lineage_to_openmetadata",
+      "path": "assets/sinks/lineage_to_openmetadata",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -4115,14 +4518,37 @@
     {
       "id": "linkedin_ads_ingestion",
       "path": "assets/ingestion/linkedin_ads_ingestion",
+      "status": "SKIP_OPTIONAL_DEP",
+      "warnings": [],
+      "error": "ModuleNotFoundError: No module named 'dlt'",
+      "error_class": null
+    },
+    {
+      "id": "linkedin_ads_resource",
+      "path": "resources/linkedin_ads_resource",
       "status": "PASS",
       "warnings": [],
       "error": null,
       "error_class": null
     },
     {
-      "id": "linkedin_ads_resource",
-      "path": "resources/linkedin_ads_resource",
+      "id": "linkedin_ads_workspace",
+      "path": "integrations/linkedin_ads_workspace",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "'dict' object has no attribute 'key'",
+      "error_class": "AttributeError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
+        "    key=args.key or default_key,",
+        "        ^^^^^^^^",
+        "AttributeError: 'dict' object has no attribute 'key'. Did you mean: 'keys'?"
+      ]
+    },
+    {
+      "id": "litellm_agent",
+      "path": "assets/ai/litellm_agent",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -4209,15 +4635,23 @@
       "path": "assets/ai/llm_chain_executor",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for LLMChainExecutorComponent\nchain_steps\n  Input should be a valid list [type=list_type, input_value='[{\"prompt\": \"Summarize: ...utput_key\": \"summary\"}]', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/list_type",
+      "error": "1 validation error for LLMChainExecutorComponent\nchain_steps\n  Input should be a valid list [type=list_type, input_value='[{\"prompt\": \"Summarize: ...utput_key\": \"summary\"}]', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/list_type",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for LLMChainExecutorComponent",
         "chain_steps",
         "  Input should be a valid list [type=list_type, input_value='[{\"prompt\": \"Summarize: ...utput_key\": \"summary\"}]', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/list_type"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/list_type"
       ]
+    },
+    {
+      "id": "llm_evaluator",
+      "path": "assets/ai/llm_evaluator",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "llm_judge",
@@ -4234,14 +4668,14 @@
       "path": "assets/ai/llm_output_parser",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for LLMOutputParserComponent\noutput_format\n  Extra inputs are not permitted [type=extra_forbidden, input_value='dict', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
+      "error": "1 validation error for LLMOutputParserComponent\noutput_format\n  Extra inputs are not permitted [type=extra_forbidden, input_value='dict', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for LLMOutputParserComponent",
         "output_format",
         "  Extra inputs are not permitted [type=extra_forbidden, input_value='dict', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
       ]
     },
     {
@@ -4299,14 +4733,14 @@
       "path": "transforms/lookup",
       "status": "FAIL",
       "warnings": [],
-      "error": "2 validation errors for LookupComponent\non\n  Field required [type=missing, input_value={'asset_name': 'lookup_ou...oup_name': 'transforms'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\n1\n  Keys should be strings [type=invalid_key, input_value=True, input_type=bool]\n    For further information visit https://errors.pydantic.dev/2.12/v/invalid_key",
+      "error": "2 validation errors for LookupComponent\non\n  Field required [type=missing, input_value={'asset_name': 'lookup_ou...oup_name': 'transforms'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\n1\n  Keys should be strings [type=invalid_key, input_value=True, input_type=bool]\n    For further information visit https://errors.pydantic.dev/2.13/v/invalid_key",
       "error_class": "ValidationError",
       "traceback": [
         "  Field required [type=missing, input_value={'asset_name': 'lookup_ou...oup_name': 'transforms'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing",
+        "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
         "1",
         "  Keys should be strings [type=invalid_key, input_value=True, input_type=bool]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/invalid_key"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/invalid_key"
       ]
     },
     {
@@ -4384,14 +4818,14 @@
       "path": "resources/marketo_resource",
       "status": "FAIL",
       "warnings": [],
-      "error": "3 validation errors for MarketoResourceComponent\nrest_url\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nclient_id_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nclient_secret_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing",
+      "error": "3 validation errors for MarketoResourceComponent\nrest_url\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nclient_id_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nclient_secret_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
       "error_class": "ValidationError",
       "traceback": [
         "  Field required [type=missing, input_value={}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing",
+        "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
         "client_secret_env_var",
         "  Field required [type=missing, input_value={}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
       ]
     },
     {
@@ -4413,6 +4847,22 @@
     {
       "id": "matomo_ingestion",
       "path": "assets/ingestion/matomo_ingestion",
+      "status": "SKIP_OPTIONAL_DEP",
+      "warnings": [],
+      "error": "ModuleNotFoundError: No module named 'dlt'",
+      "error_class": null
+    },
+    {
+      "id": "mcp_tool_call",
+      "path": "assets/sources/mcp_tool_call",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "mcp_tool_picker",
+      "path": "assets/ai/mcp_tool_picker",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -4421,10 +4871,28 @@
     {
       "id": "medical_record_extractor",
       "path": "assets/ai/medical_record_extractor",
-      "status": "PASS",
+      "status": "WARN",
       "warnings": [
+        "UserWarning: Field name \"model\" in \"MCPToolPickerComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"MCPToolPickerComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "memcached_cache_flush_job",
+      "path": "jobs/memcached_cache_flush_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "memcached_resource",
+      "path": "resources/memcached_resource",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -4445,8 +4913,40 @@
       "error_class": null
     },
     {
+      "id": "mlflow_experiment_sensor",
+      "path": "sensors/mlflow_experiment_sensor",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "mlflow_model_inference",
+      "path": "assets/ai/mlflow_model_inference",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "mlflow_model_promotion",
+      "path": "integrations/mlflow_model_promotion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "mlflow_model_sensor",
       "path": "sensors/mlflow_model_sensor",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "mlflow_model_version_check",
+      "path": "asset_checks/mlflow_model_version_check",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -4459,6 +4959,21 @@
       "warnings": [],
       "error": null,
       "error_class": null
+    },
+    {
+      "id": "mlflow_workspace",
+      "path": "integrations/mlflow_workspace",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "'dict' object has no attribute 'key'",
+      "error_class": "AttributeError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
+        "    key=args.key or default_key,",
+        "        ^^^^^^^^",
+        "AttributeError: 'dict' object has no attribute 'key'. Did you mean: 'keys'?"
+      ]
     },
     {
       "id": "modal_asset",
@@ -4503,9 +5018,9 @@
     {
       "id": "mongodb_ingestion",
       "path": "assets/ingestion/mongodb_ingestion",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
+      "error": "ModuleNotFoundError: No module named 'dlt'",
       "error_class": null
     },
     {
@@ -4553,10 +5068,10 @@
     {
       "id": "motherduck_io_manager",
       "path": "io_managers/motherduck_io_manager",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
-      "error_class": null
+      "error": "ModuleNotFoundError: No module named 'dagster_duckdb_pandas'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "mqtt_monitor",
@@ -4605,14 +5120,14 @@
       "path": "resources/msteams_resource",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for MSTeamsResourceComponent\ntimeout_seconds\n  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/int_parsing",
+      "error": "1 validation error for MSTeamsResourceComponent\ntimeout_seconds\n  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for MSTeamsResourceComponent",
         "timeout_seconds",
         "  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='<fill in>', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/int_parsing"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing"
       ]
     },
     {
@@ -4648,14 +5163,14 @@
       "path": "assets/analytics/multi_touch_attribution",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for MultiTouchAttributionComponent\ntouchpoint_data_asset_key\n  Extra inputs are not permitted [type=extra_forbidden, input_value='marketing_touchpoints', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
+      "error": "1 validation error for MultiTouchAttributionComponent\ntouchpoint_data_asset_key\n  Extra inputs are not permitted [type=extra_forbidden, input_value='marketing_touchpoints', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for MultiTouchAttributionComponent",
         "touchpoint_data_asset_key",
         "  Extra inputs are not permitted [type=extra_forbidden, input_value='marketing_touchpoints', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
       ]
     },
     {
@@ -4771,14 +5286,14 @@
       "path": "assets/sources/newrelic_nrql_query",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for NewRelicNrqlQueryComponent\naccount_id\n  Input should be a valid string [type=string_type, input_value=1234567, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.12/v/string_type",
+      "error": "1 validation error for NewRelicNrqlQueryComponent\naccount_id\n  Input should be a valid string [type=string_type, input_value=1234567, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for NewRelicNrqlQueryComponent",
         "account_id",
         "  Input should be a valid string [type=string_type, input_value=1234567, input_type=int]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/string_type"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
       ]
     },
     {
@@ -4786,14 +5301,14 @@
       "path": "resources/newrelic_resource",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for NewRelicResourceComponent\naccount_id\n  Input should be a valid string [type=string_type, input_value=1234567, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.12/v/string_type",
+      "error": "1 validation error for NewRelicResourceComponent\naccount_id\n  Input should be a valid string [type=string_type, input_value=1234567, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for NewRelicResourceComponent",
         "account_id",
         "  Input should be a valid string [type=string_type, input_value=1234567, input_type=int]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/string_type"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
       ]
     },
     {
@@ -4807,9 +5322,9 @@
     {
       "id": "notion_ingestion",
       "path": "assets/ingestion/notion_ingestion",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
+      "error": "ModuleNotFoundError: No module named 'dlt'",
       "error_class": null
     },
     {
@@ -4819,6 +5334,21 @@
       "warnings": [],
       "error": null,
       "error_class": null
+    },
+    {
+      "id": "notion_workspace",
+      "path": "integrations/notion_workspace",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "'dict' object has no attribute 'key'",
+      "error_class": "AttributeError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
+        "    key=args.key or default_key,",
+        "        ^^^^^^^^",
+        "AttributeError: 'dict' object has no attribute 'key'. Did you mean: 'keys'?"
+      ]
     },
     {
       "id": "o365_audit_log_ingestion",
@@ -4841,10 +5371,10 @@
       "path": "resources/oauth_token_resource",
       "status": "PASS",
       "warnings": [
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/"
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/"
       ],
       "error": null,
       "error_class": null
@@ -4904,10 +5434,10 @@
       "path": "resources/odata_resource",
       "status": "PASS",
       "warnings": [
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/"
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/"
       ],
       "error": null,
       "error_class": null
@@ -4925,23 +5455,33 @@
       "path": "assets/ai/ollama_inference_asset",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for OllamaInferenceAssetComponent\ntable_name\n  Extra inputs are not permitted [type=extra_forbidden, input_value='categorized_feedback', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
+      "error": "1 validation error for OllamaInferenceAssetComponent\ntable_name\n  Extra inputs are not permitted [type=extra_forbidden, input_value='categorized_feedback', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for OllamaInferenceAssetComponent",
         "table_name",
         "  Extra inputs are not permitted [type=extra_forbidden, input_value='categorized_feedback', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
       ]
     },
     {
       "id": "one_hot_encoding",
       "path": "assets/transforms/one_hot_encoding",
-      "status": "PASS",
+      "status": "WARN",
       "warnings": [
+        "UserWarning: Field name \"model\" in \"OllamaInferenceAssetComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"OllamaInferenceAssetComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "openai_agent",
+      "path": "assets/ai/openai_agent",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -5056,18 +5596,33 @@
       "error_class": "ModuleNotFoundError"
     },
     {
+      "id": "pagerduty_workspace",
+      "path": "integrations/pagerduty_workspace",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "'dict' object has no attribute 'key'",
+      "error_class": "AttributeError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
+        "    key=args.key or default_key,",
+        "        ^^^^^^^^",
+        "AttributeError: 'dict' object has no attribute 'key'. Did you mean: 'keys'?"
+      ]
+    },
+    {
       "id": "pandas_dataframe_check",
       "path": "asset_checks/pandas_dataframe_check",
       "status": "FAIL",
       "warnings": [],
-      "error": "3 validation errors for PandasDataframeCheckComponent\nrequired_columns\n  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/list_type\ncolumn_types\n  Input should be a valid dictionary [type=dict_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/dict_type\nblocking\n  Input should be a valid boolean, unable to interpret input [type=bool_parsing, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/bool_parsing",
+      "error": "3 validation errors for PandasDataframeCheckComponent\nrequired_columns\n  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/list_type\ncolumn_types\n  Input should be a valid dictionary [type=dict_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/dict_type\nblocking\n  Input should be a valid boolean, unable to interpret input [type=bool_parsing, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/bool_parsing",
       "error_class": "ValidationError",
       "traceback": [
         "  Input should be a valid dictionary [type=dict_type, input_value='<fill in>', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/dict_type",
+        "    For further information visit https://errors.pydantic.dev/2.13/v/dict_type",
         "blocking",
         "  Input should be a valid boolean, unable to interpret input [type=bool_parsing, input_value='<fill in>', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/bool_parsing"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/bool_parsing"
       ]
     },
     {
@@ -5075,14 +5630,14 @@
       "path": "asset_checks/pandera_asset_check",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for PanderaAssetCheckComponent\nblocking\n  Input should be a valid boolean, unable to interpret input [type=bool_parsing, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/bool_parsing",
+      "error": "1 validation error for PanderaAssetCheckComponent\nblocking\n  Input should be a valid boolean, unable to interpret input [type=bool_parsing, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/bool_parsing",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for PanderaAssetCheckComponent",
         "blocking",
         "  Input should be a valid boolean, unable to interpret input [type=bool_parsing, input_value='<fill in>', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/bool_parsing"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/bool_parsing"
       ]
     },
     {
@@ -5090,14 +5645,14 @@
       "path": "resources/papertrail_resource",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for PapertrailResourceComponent\npapertrail_port\n  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/int_parsing",
+      "error": "1 validation error for PapertrailResourceComponent\npapertrail_port\n  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for PapertrailResourceComponent",
         "papertrail_port",
         "  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='<fill in>', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/int_parsing"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing"
       ]
     },
     {
@@ -5137,11 +5692,27 @@
       "error_class": null
     },
     {
+      "id": "pdf_report",
+      "path": "assets/sinks/pdf_report",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "pdf_text_extractor",
       "path": "assets/transforms/pdf_text_extractor",
       "status": "SKIP_EXAMPLE_MULTI_DOC",
       "warnings": [],
       "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "error_class": null
+    },
+    {
+      "id": "pearson_correlation",
+      "path": "assets/analytics/pearson_correlation",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
       "error_class": null
     },
     {
@@ -5161,11 +5732,19 @@
       "error_class": null
     },
     {
-      "id": "personio_ingestion",
-      "path": "assets/ingestion/personio_ingestion",
+      "id": "per_row_http_fetcher",
+      "path": "assets/transforms/per_row_http_fetcher",
       "status": "PASS",
       "warnings": [],
       "error": null,
+      "error_class": null
+    },
+    {
+      "id": "personio_ingestion",
+      "path": "assets/ingestion/personio_ingestion",
+      "status": "SKIP_OPTIONAL_DEP",
+      "warnings": [],
+      "error": "ModuleNotFoundError: No module named 'dlt'",
       "error_class": null
     },
     {
@@ -5181,14 +5760,14 @@
       "path": "assets/analytics/pgvector_asset",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for PgvectorAssetComponent\nsource_table\n  Extra inputs are not permitted [type=extra_forbidden, input_value='public.products', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
+      "error": "1 validation error for PgvectorAssetComponent\nsource_table\n  Extra inputs are not permitted [type=extra_forbidden, input_value='public.products', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for PgvectorAssetComponent",
         "source_table",
         "  Extra inputs are not permitted [type=extra_forbidden, input_value='public.products', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
       ]
     },
     {
@@ -5238,17 +5817,17 @@
     {
       "id": "pinterest_ads_ingestion",
       "path": "assets/ingestion/pinterest_ads_ingestion",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
+      "error": "ModuleNotFoundError: No module named 'dlt'",
       "error_class": null
     },
     {
       "id": "pipedrive_ingestion",
       "path": "assets/ingestion/pipedrive_ingestion",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
+      "error": "ModuleNotFoundError: No module named 'dlt'",
       "error_class": null
     },
     {
@@ -5272,15 +5851,23 @@
       "path": "resources/plaid_resource",
       "status": "FAIL",
       "warnings": [],
-      "error": "2 validation errors for PlaidResourceComponent\nclient_id_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nsecret_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing",
+      "error": "2 validation errors for PlaidResourceComponent\nclient_id_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nsecret_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
       "error_class": "ValidationError",
       "traceback": [
         "  Field required [type=missing, input_value={}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing",
+        "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
         "secret_env_var",
         "  Field required [type=missing, input_value={}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
       ]
+    },
+    {
+      "id": "planned_catalog_agent",
+      "path": "assets/ai/planned_catalog_agent",
+      "status": "SKIP_PROJECT_REQUIRED",
+      "warnings": [],
+      "error": "Could not find dg.toml or pyproject.toml in .",
+      "error_class": null
     },
     {
       "id": "point_in_polygon",
@@ -5288,6 +5875,14 @@
       "status": "SKIP_EXAMPLE_MULTI_DOC",
       "warnings": [],
       "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "error_class": null
+    },
+    {
+      "id": "points_from_latlon",
+      "path": "assets/transforms/points_from_latlon",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
       "error_class": null
     },
     {
@@ -5323,6 +5918,14 @@
       "error_class": null
     },
     {
+      "id": "poly_build",
+      "path": "assets/transforms/poly_build",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "polytomic_asset",
       "path": "assets/sinks/polytomic_asset",
       "status": "SKIP_PROJECT_REQUIRED",
@@ -5349,6 +5952,14 @@
     {
       "id": "postgres_resource",
       "path": "resources/postgres_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "posthog_events_ingestion",
+      "path": "assets/ingestion/posthog_events_ingestion",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -5437,14 +6048,14 @@
       "path": "resources/prometheus_resource",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for PrometheusResourceComponent\ntimeout\n  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/int_parsing",
+      "error": "1 validation error for PrometheusResourceComponent\ntimeout\n  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for PrometheusResourceComponent",
         "timeout",
         "  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='<fill in>', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/int_parsing"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing"
       ]
     },
     {
@@ -5546,10 +6157,10 @@
     {
       "id": "pyspark_resource",
       "path": "resources/pyspark_resource",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
-      "error_class": null
+      "error": "ModuleNotFoundError: No module named 'dagster_pyspark'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "python_callable_job",
@@ -5566,6 +6177,108 @@
       "warnings": [],
       "error": "ModuleNotFoundError: No module named 'dagster_qdrant'",
       "error_class": "ModuleNotFoundError"
+    },
+    {
+      "id": "qlik_compose_resource",
+      "path": "resources/qlik_compose_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "qlik_compose_workflow_metrics_ingestion",
+      "path": "assets/ingestion/qlik_compose_workflow_metrics_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "qlik_compose_workflow_status_sensor",
+      "path": "sensors/qlik_compose_workflow_status_sensor",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "qlik_compose_workflow_trigger_job",
+      "path": "jobs/qlik_compose_workflow_trigger_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "qlik_compose_workspace",
+      "path": "integrations/qlik_compose_workspace",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "'dict' object has no attribute 'key'",
+      "error_class": "AttributeError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
+        "    key=args.key or default_key,",
+        "        ^^^^^^^^",
+        "AttributeError: 'dict' object has no attribute 'key'. Did you mean: 'keys'?"
+      ]
+    },
+    {
+      "id": "qlik_replicate_resource",
+      "path": "resources/qlik_replicate_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "qlik_replicate_task_metrics_ingestion",
+      "path": "assets/ingestion/qlik_replicate_task_metrics_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "qlik_replicate_task_status_sensor",
+      "path": "sensors/qlik_replicate_task_status_sensor",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "qlik_replicate_task_trigger_job",
+      "path": "jobs/qlik_replicate_task_trigger_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "qlik_replicate_workspace",
+      "path": "integrations/qlik_replicate_workspace",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "'dict' object has no attribute 'key'",
+      "error_class": "AttributeError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
+        "    key=args.key or default_key,",
+        "        ^^^^^^^^",
+        "AttributeError: 'dict' object has no attribute 'key'. Did you mean: 'keys'?"
+      ]
+    },
+    {
+      "id": "r_script",
+      "path": "assets/transforms/r_script",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "rabbitmq_monitor",
@@ -5704,10 +6417,10 @@
     {
       "id": "redshift_resource",
       "path": "resources/redshift_resource",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
-      "error_class": null
+      "error": "ModuleNotFoundError: No module named 'dagster_aws'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "regex_parser",
@@ -5878,9 +6591,9 @@
     {
       "id": "salesforce_ingestion",
       "path": "assets/ingestion/salesforce_ingestion",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
+      "error": "ModuleNotFoundError: No module named 'dlt'",
       "error_class": null
     },
     {
@@ -5890,6 +6603,21 @@
       "warnings": [],
       "error": "ModuleNotFoundError: No module named 'dagster_salesforce'",
       "error_class": "ModuleNotFoundError"
+    },
+    {
+      "id": "salesforce_workspace",
+      "path": "integrations/salesforce_workspace",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "'dict' object has no attribute 'key'",
+      "error_class": "AttributeError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
+        "    key=args.key or default_key,",
+        "        ^^^^^^^^",
+        "AttributeError: 'dict' object has no attribute 'key'. Did you mean: 'keys'?"
+      ]
     },
     {
       "id": "sample",
@@ -5930,10 +6658,10 @@
       "path": "resources/sap_hana_resource",
       "status": "PASS",
       "warnings": [
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/"
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/"
       ],
       "error": null,
       "error_class": null
@@ -5951,10 +6679,10 @@
       "path": "resources/sap_rfc_resource",
       "status": "PASS",
       "warnings": [
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/"
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/"
       ],
       "error": null,
       "error_class": null
@@ -6032,6 +6760,30 @@
       "error_class": null
     },
     {
+      "id": "sentry_alert_job",
+      "path": "jobs/sentry_alert_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "sentry_issues_ingestion",
+      "path": "assets/ingestion/sentry_issues_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "sentry_monitor_checkin_job",
+      "path": "jobs/sentry_monitor_checkin_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "servicebus_monitor",
       "path": "sensors/servicebus_monitor",
       "status": "PASS",
@@ -6084,6 +6836,21 @@
       "error_class": null
     },
     {
+      "id": "servicenow_workspace",
+      "path": "integrations/servicenow_workspace",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "'dict' object has no attribute 'key'",
+      "error_class": "AttributeError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
+        "    key=args.key or default_key,",
+        "        ^^^^^^^^",
+        "AttributeError: 'dict' object has no attribute 'key'. Did you mean: 'keys'?"
+      ]
+    },
+    {
       "id": "sftp_monitor",
       "path": "sensors/sftp_monitor",
       "status": "PASS",
@@ -6130,14 +6897,14 @@
       "path": "assets/infrastructure/shell_command_asset",
       "status": "FAIL",
       "warnings": [],
-      "error": "2 validation errors for ShellCommandAssetComponent\nenv_vars\n  Input should be a valid dictionary [type=dict_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/dict_type\ndeps\n  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/list_type",
+      "error": "2 validation errors for ShellCommandAssetComponent\nenv_vars\n  Input should be a valid dictionary [type=dict_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/dict_type\ndeps\n  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/list_type",
       "error_class": "ValidationError",
       "traceback": [
         "  Input should be a valid dictionary [type=dict_type, input_value='<fill in>', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/dict_type",
+        "    For further information visit https://errors.pydantic.dev/2.13/v/dict_type",
         "deps",
         "  Input should be a valid list [type=list_type, input_value='<fill in>', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/list_type"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/list_type"
       ]
     },
     {
@@ -6161,9 +6928,9 @@
     {
       "id": "shopify_ingestion",
       "path": "assets/ingestion/shopify_ingestion",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
+      "error": "ModuleNotFoundError: No module named 'dlt'",
       "error_class": null
     },
     {
@@ -6173,6 +6940,21 @@
       "warnings": [],
       "error": null,
       "error_class": null
+    },
+    {
+      "id": "shopify_workspace",
+      "path": "integrations/shopify_workspace",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "'dict' object has no attribute 'key'",
+      "error_class": "AttributeError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
+        "    key=args.key or default_key,",
+        "        ^^^^^^^^",
+        "AttributeError: 'dict' object has no attribute 'key'. Did you mean: 'keys'?"
+      ]
     },
     {
       "id": "siem_audit_export_job",
@@ -6227,9 +7009,9 @@
     {
       "id": "slack_ingestion",
       "path": "assets/ingestion/slack_ingestion",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
+      "error": "ModuleNotFoundError: No module named 'dlt'",
       "error_class": null
     },
     {
@@ -6259,17 +7041,10 @@
     {
       "id": "sling_replication_asset",
       "path": "integrations/sling_replication_asset",
-      "status": "FAIL",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "[Errno 2] No such file or directory: '<fill in>'",
-      "error_class": "FileNotFoundError",
-      "traceback": [
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/sling_replication_asset/component.py\", line 21, in build_defs",
-        "    with open(self.replication_config_path) as f:",
-        "         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "FileNotFoundError: [Errno 2] No such file or directory: '<fill in>'"
-      ]
+      "error": "ModuleNotFoundError: No module named 'dagster_sling'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "smooth",
@@ -6306,6 +7081,14 @@
     {
       "id": "snowflake_alert",
       "path": "integrations/snowflake_alert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "snowflake_cortex_agent",
+      "path": "assets/ai/snowflake_cortex_agent",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -6394,10 +7177,10 @@
     {
       "id": "snowflake_resource",
       "path": "resources/snowflake_resource",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
-      "error_class": null
+      "error": "ModuleNotFoundError: No module named 'dagster_snowflake'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "snowflake_snowpipe",
@@ -6484,17 +7267,10 @@
     {
       "id": "snowflake_workspace",
       "path": "integrations/snowflake_workspace",
-      "status": "FAIL",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "290404 (08001): 404 Not Found: post xy12345.us-east-1.snowflakecomputing.com:443/session/v1/login-request",
-      "error_class": "HttpError",
-      "traceback": [
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/snowflake/connector/errors.py\", line 344, in hand_to_other_handler",
-        "    connection.errorhandler(connection, cursor, error_class, error_value)",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/snowflake/connector/errors.py\", line 217, in default_errorhandler",
-        "    raise error_class(",
-        "snowflake.connector.errors.HttpError: 290404 (08001): 404 Not Found: post xy12345.us-east-1.snowflakecomputing.com:443/session/v1/login-request"
-      ]
+      "error": "ModuleNotFoundError: No module named 'snowflake'",
+      "error_class": null
     },
     {
       "id": "snowpark_pipeline",
@@ -6531,6 +7307,14 @@
       "error_class": "ValueError"
     },
     {
+      "id": "spark_k8s_operator_asset",
+      "path": "assets/infrastructure/spark_k8s_operator_asset",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "spatial_cluster",
       "path": "assets/analytics/spatial_cluster",
       "status": "SKIP_EXAMPLE_MULTI_DOC",
@@ -6539,11 +7323,27 @@
       "error_class": null
     },
     {
+      "id": "spatial_info",
+      "path": "assets/transforms/spatial_info",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "spatial_join",
       "path": "assets/analytics/spatial_join",
       "status": "SKIP_EXAMPLE_MULTI_DOC",
       "warnings": [],
       "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "error_class": null
+    },
+    {
+      "id": "spatial_process",
+      "path": "assets/transforms/spatial_process",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
       "error_class": null
     },
     {
@@ -6689,9 +7489,9 @@
     {
       "id": "stripe_ingestion",
       "path": "assets/ingestion/stripe_ingestion",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
+      "error": "ModuleNotFoundError: No module named 'dlt'",
       "error_class": null
     },
     {
@@ -6701,6 +7501,21 @@
       "warnings": [],
       "error": null,
       "error_class": null
+    },
+    {
+      "id": "stripe_workspace",
+      "path": "integrations/stripe_workspace",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "'dict' object has no attribute 'key'",
+      "error_class": "AttributeError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
+        "    key=args.key or default_key,",
+        "        ^^^^^^^^",
+        "AttributeError: 'dict' object has no attribute 'key'. Did you mean: 'keys'?"
+      ]
     },
     {
       "id": "subscription_metrics",
@@ -6723,11 +7538,51 @@
       "error_class": null
     },
     {
-      "id": "support_ticket_ingestion",
-      "path": "assets/ingestion/support_ticket_ingestion",
+      "id": "supabase_edge_function_trigger",
+      "path": "assets/infrastructure/supabase_edge_function_trigger",
       "status": "PASS",
       "warnings": [],
       "error": null,
+      "error_class": null
+    },
+    {
+      "id": "supabase_resource",
+      "path": "resources/supabase_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "supabase_storage_monitor",
+      "path": "sensors/supabase_storage_monitor",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "supabase_vector_search_asset",
+      "path": "assets/ai/supabase_vector_search_asset",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "supervisor_agent",
+      "path": "assets/ai/supervisor_agent",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "support_ticket_ingestion",
+      "path": "assets/ingestion/support_ticket_ingestion",
+      "status": "SKIP_OPTIONAL_DEP",
+      "warnings": [],
+      "error": "ModuleNotFoundError: No module named 'dlt'",
       "error_class": null
     },
     {
@@ -6827,14 +7682,14 @@
       "path": "integrations/tableau_assets",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for TableauAssetsComponent\nonline\n  Input should be a valid boolean, unable to interpret input [type=bool_parsing, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/bool_parsing",
+      "error": "1 validation error for TableauAssetsComponent\nonline\n  Input should be a valid boolean, unable to interpret input [type=bool_parsing, input_value='<fill in>', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/bool_parsing",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for TableauAssetsComponent",
         "online",
         "  Input should be a valid boolean, unable to interpret input [type=bool_parsing, input_value='<fill in>', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/bool_parsing"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/bool_parsing"
       ]
     },
     {
@@ -6848,6 +7703,38 @@
     {
       "id": "tecton_asset",
       "path": "assets/analytics/tecton_asset",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "temporal_query_asset",
+      "path": "assets/infrastructure/temporal_query_asset",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "temporal_signal_asset",
+      "path": "assets/infrastructure/temporal_signal_asset",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "temporal_workflow_sensor",
+      "path": "sensors/temporal_workflow_sensor",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "temporal_workflow_trigger",
+      "path": "assets/infrastructure/temporal_workflow_trigger",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -6906,6 +7793,14 @@
       "error_class": null
     },
     {
+      "id": "text_embedding_asset",
+      "path": "assets/ai/text_embedding_asset",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "text_moderator",
       "path": "assets/ai/text_moderator",
       "status": "PASS",
@@ -6954,9 +7849,9 @@
     {
       "id": "tiktok_ads_ingestion",
       "path": "assets/ingestion/tiktok_ads_ingestion",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
+      "error": "ModuleNotFoundError: No module named 'dlt'",
       "error_class": null
     },
     {
@@ -6986,6 +7881,53 @@
       "warnings": [],
       "error": null,
       "error_class": null
+    },
+    {
+      "id": "tm1_cube_data_ingestion",
+      "path": "assets/ingestion/tm1_cube_data_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "tm1_process_status_sensor",
+      "path": "sensors/tm1_process_status_sensor",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "tm1_process_trigger_job",
+      "path": "jobs/tm1_process_trigger_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "tm1_resource",
+      "path": "resources/tm1_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "tm1_workspace",
+      "path": "integrations/tm1_workspace",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "'dict' object has no attribute 'key'",
+      "error_class": "AttributeError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
+        "    key=args.key or default_key,",
+        "        ^^^^^^^^",
+        "AttributeError: 'dict' object has no attribute 'key'. Did you mean: 'keys'?"
+      ]
     },
     {
       "id": "top_n_per_group",
@@ -7018,14 +7960,14 @@
       "path": "assets/transforms/train_test_splitter",
       "status": "FAIL",
       "warnings": [],
-      "error": "1 validation error for TrainTestSplitterComponent\nseed\n  Extra inputs are not permitted [type=extra_forbidden, input_value=42, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
+      "error": "1 validation error for TrainTestSplitterComponent\nseed\n  Extra inputs are not permitted [type=extra_forbidden, input_value=42, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
       "error_class": "ValidationError",
       "traceback": [
         "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for TrainTestSplitterComponent",
         "seed",
         "  Extra inputs are not permitted [type=extra_forbidden, input_value=42, input_type=int]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
       ]
     },
     {
@@ -7049,6 +7991,14 @@
     {
       "id": "trino_io_manager",
       "path": "io_managers/trino_io_manager",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "trino_query",
+      "path": "assets/sources/trino_query",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -7135,9 +8085,9 @@
     {
       "id": "twitter_ads_ingestion",
       "path": "assets/ingestion/twitter_ads_ingestion",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
+      "error": "ModuleNotFoundError: No module named 'dlt'",
       "error_class": null
     },
     {
@@ -7167,6 +8117,33 @@
       "error_class": null
     },
     {
+      "id": "vanta_controls_ingestion",
+      "path": "assets/ingestion/vanta_controls_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "vanta_evidence_response_agent",
+      "path": "assets/ai/vanta_evidence_response_agent",
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"VantaEvidenceResponseAgentComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"VantaEvidenceResponseAgentComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "vanta_resource",
+      "path": "resources/vanta_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "vector_store_query",
       "path": "assets/ai/vector_store_query",
       "status": "PASS",
@@ -7183,6 +8160,22 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "vercel_ai_gateway_agent",
+      "path": "assets/ai/vercel_ai_gateway_agent",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "vercel_deployment_sensor",
+      "path": "sensors/vercel_deployment_sensor",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -7301,6 +8294,21 @@
       "warnings": [],
       "error": null,
       "error_class": null
+    },
+    {
+      "id": "wandb_workspace",
+      "path": "integrations/wandb_workspace",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "'dict' object has no attribute 'key'",
+      "error_class": "AttributeError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /.venv/lib/python3.12/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
+        "    key=args.key or default_key,",
+        "        ^^^^^^^^",
+        "AttributeError: 'dict' object has no attribute 'key'. Did you mean: 'keys'?"
+      ]
     },
     {
       "id": "warehouse_dedup",
@@ -7437,9 +8445,9 @@
     {
       "id": "workable_ingestion",
       "path": "assets/ingestion/workable_ingestion",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
+      "error": "ModuleNotFoundError: No module named 'dlt'",
       "error_class": null
     },
     {
@@ -7447,14 +8455,14 @@
       "path": "resources/workday_resource",
       "status": "FAIL",
       "warnings": [],
-      "error": "4 validation errors for WorkdayResourceComponent\ntenant_url\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nclient_id_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nclient_secret_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nrefresh_token_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing",
+      "error": "4 validation errors for WorkdayResourceComponent\ntenant_url\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nclient_id_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nclient_secret_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nrefresh_token_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
       "error_class": "ValidationError",
       "traceback": [
         "  Field required [type=missing, input_value={}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing",
+        "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
         "refresh_token_env_var",
         "  Field required [type=missing, input_value={}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing"
+        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
       ]
     },
     {
@@ -7478,9 +8486,9 @@
     {
       "id": "zendesk_ingestion",
       "path": "assets/ingestion/zendesk_ingestion",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
+      "error": "ModuleNotFoundError: No module named 'dlt'",
       "error_class": null
     },
     {

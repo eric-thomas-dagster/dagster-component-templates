@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.RagEvalComponent",
-  "description": "Run a golden-set retrieval eval against a specific vector_index_snapshot partition. Asset check fails on regression vs the prior materialization or below an absolute floor.",
+  "description": "Golden-set retrieval eval against a specific vector_index_snapshot partition. Asset check fails on regression vs the prior materialization.",
   "category": "ai",
   "icon": "Check",
   "x-dagster-io": {
@@ -10,19 +10,174 @@
     }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "snapshot_root_dir": {"type": "string", "label": "Snapshot Root Dir", "description": "Same directory as the upstream vector_index_snapshot writes to", "required": true},
-    "collection_name": {"type": "string", "label": "Collection Name", "required": false, "default": "rag_corpus"},
-    "golden_set": {"type": "array", "label": "Golden Set", "description": "List of {query, expected_terms} dicts", "required": true},
-    "k": {"type": "integer", "label": "K", "description": "Top-k retrieval count", "required": false, "default": 3},
-    "min_score_threshold": {"type": "number", "label": "Min Score Threshold", "description": "Absolute floor; asset check fails below this", "required": false, "default": 0.5},
-    "regression_pct_threshold": {"type": "number", "label": "Regression Pct Threshold", "description": "Max allowed drop vs prior materialization in percentage points", "required": false, "default": 10.0},
-    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "required": false, "default": "rag_snapshot"},
-    "upstream_snapshot_asset_key": {"type": "string", "label": "Upstream Snapshot Asset Key", "required": false},
-    "group_name": {"type": "string", "label": "Group Name", "required": false},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false},
-    "asset_tags": {"type": "object", "additionalProperties": {"type": "string"}, "label": "Tags", "required": false},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false}
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Dagster asset name"
+    },
+    "snapshot_root_dir": {
+      "type": "string",
+      "label": "Snapshot Root Dir",
+      "required": true,
+      "description": "Same snapshot_root_dir the upstream vector_index_snapshot writes to. The partition_key (snapshot_id) locates the specific snapshot directory."
+    },
+    "collection_name": {
+      "type": "string",
+      "label": "Collection Name",
+      "required": false,
+      "description": "ChromaDB collection name (must match the upstream snapshot's collection_name).",
+      "default": "rag_corpus"
+    },
+    "golden_set": {
+      "type": "array",
+      "label": "Golden Set",
+      "required": true,
+      "description": "List of {query: str, expected_terms: [str]} dicts. Each query is issued against the snapshot; the score is the fraction of `expected_terms` that appear (case-insensitive substring match) in any of the top-k retrieved chunks. Mean across queries is the asset's precision@k.",
+      "items": {
+        "type": "object"
+      }
+    },
+    "k": {
+      "type": "integer",
+      "label": "K",
+      "required": false,
+      "description": "Top-k retrieval count per query",
+      "default": 3
+    },
+    "min_score_threshold": {
+      "type": "number",
+      "label": "Min Score Threshold",
+      "required": false,
+      "description": "Absolute minimum precision@k score. Asset check fails below this.",
+      "default": 0.5
+    },
+    "regression_pct_threshold": {
+      "type": "number",
+      "label": "Regression Pct Threshold",
+      "required": false,
+      "description": "Max allowed drop (in percentage points) vs the immediately-prior materialization. Asset check fails if this snapshot's score is prior_score - threshold or lower.",
+      "default": 10.0
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "description": "Name of the DynamicPartitionsDefinition registered by vector_index_snapshot.",
+      "default": "rag_snapshot"
+    },
+    "upstream_snapshot_asset_key": {
+      "type": "string",
+      "label": "Upstream Snapshot Asset Key",
+      "required": false,
+      "description": "Optional: the vector_index_snapshot asset key to declare as an upstream dep in the graph. Not required for execution (we load from disk).",
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "description": "Asset group",
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "description": "Asset description",
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "description": "Asset owners",
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "description": "Additional key-value tags",
+      "default": null,
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "required": false,
+      "description": "Asset kinds (defaults to ['rag', 'eval'])",
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes",
+      "required": false,
+      "description": "Freshness policy: max lag between evals (per snapshot).",
+      "default": null
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "required": false,
+      "description": "Cron schedule for the freshness policy.",
+      "default": null
+    },
+    "column_lineage": {
+      "type": "object",
+      "label": "Column Lineage",
+      "required": false,
+      "description": "Column-level lineage (output col \u2192 list of upstream cols).",
+      "default": null,
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "required": false,
+      "description": "Include a `preview` metadata key (markdown table of first rows).",
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "required": false,
+      "description": "Rows in the preview when include_preview_metadata=True.",
+      "default": 25
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "description": "Max retries on asset failure (opt-in).",
+      "default": null
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "description": "Seconds between retries (default 1).",
+      "default": null
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "default": "exponential"
+    }
   }
 }

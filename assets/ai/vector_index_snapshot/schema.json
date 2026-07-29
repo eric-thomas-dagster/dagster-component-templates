@@ -1,29 +1,160 @@
 {
   "component_type": "dagster_community_components.VectorIndexSnapshotComponent",
-  "description": "Chunk + embed an upstream corpus into a versioned ChromaDB snapshot. Each materialization is a new immutable snapshot on disk.",
+  "description": "Chunk + embed an upstream corpus into a versioned ChromaDB snapshot. Each materialization = new immutable snapshot; registers a new dynamic partition for downstream.",
   "category": "ai",
   "icon": "Database",
   "x-dagster-io": {
     "outputs": {
       "type": "dict",
-      "description": "snapshot_path, snapshot_id, collection_name, embedder, chunk_count, dimension, corpus_hash"
+      "description": "Dict with snapshot_path, snapshot_id, chunk_count, dimension, corpus_hash, dynamic_partition_name"
     }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "description": "The document_corpus asset key (supports slash-paths)", "required": true},
-    "snapshot_root_dir": {"type": "string", "label": "Snapshot Root Dir", "description": "Directory holding all snapshots; each materialization creates a new subdir", "required": true},
-    "chunk_size": {"type": "integer", "label": "Chunk Size", "required": false, "default": 800},
-    "chunk_overlap": {"type": "integer", "label": "Chunk Overlap", "required": false, "default": 100},
-    "embedder_provider": {"type": "string", "label": "Embedder Provider", "description": "'chromadb_default' or 'openai'", "required": false, "default": "chromadb_default"},
-    "embedder_model": {"type": "string", "label": "Embedder Model", "required": false},
-    "api_key_env_var": {"type": "string", "label": "API Key Env Var", "required": false},
-    "collection_name": {"type": "string", "label": "Collection Name", "required": false, "default": "rag_corpus"},
-    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "description": "Name of the DynamicPartitionsDefinition; each materialization registers snapshot_id as a new key so downstream can rollback via partition selection", "required": false, "default": "rag_snapshot"},
-    "group_name": {"type": "string", "label": "Group Name", "required": false},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false},
-    "asset_tags": {"type": "object", "additionalProperties": {"type": "string"}, "label": "Tags", "required": false},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false}
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Dagster asset name"
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true,
+      "description": "Upstream document_corpus asset key (supports slash-paths for cross-loc)."
+    },
+    "snapshot_root_dir": {
+      "type": "string",
+      "label": "Snapshot Root Dir",
+      "required": true,
+      "description": "Directory that holds all snapshots. Each materialization writes a new subdir."
+    },
+    "chunk_size": {
+      "type": "integer",
+      "label": "Chunk Size",
+      "required": false,
+      "description": "Max chars per chunk",
+      "default": 800
+    },
+    "chunk_overlap": {
+      "type": "integer",
+      "label": "Chunk Overlap",
+      "required": false,
+      "description": "Overlap chars between adjacent chunks",
+      "default": 100
+    },
+    "embedder_provider": {
+      "type": "string",
+      "label": "Embedder Provider",
+      "required": false,
+      "description": "'chromadb_default' (local ONNX MiniLM, no API key) | 'openai' (needs api_key_env_var)",
+      "default": "chromadb_default"
+    },
+    "embedder_model": {
+      "type": "string",
+      "label": "Embedder Model",
+      "required": false,
+      "description": "Provider-specific model name. Defaults: chromadb_default=all-MiniLM-L6-v2, openai=text-embedding-3-small",
+      "default": null
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "required": false,
+      "description": "For openai provider: env var holding the API key (e.g. OPENAI_API_KEY)",
+      "default": null
+    },
+    "collection_name": {
+      "type": "string",
+      "label": "Collection Name",
+      "required": false,
+      "description": "ChromaDB collection name inside each snapshot",
+      "default": "rag_corpus"
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "description": "Name of the DynamicPartitionsDefinition used to track snapshot ids. Downstream assets bind to a specific snapshot by partition key = snapshot_id, so rollback is 'materialize downstream against the older partition' \u2014 no rebuild.",
+      "default": "rag_snapshot"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "description": "Asset group",
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "description": "Asset description",
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "description": "Asset owners",
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "description": "Additional key-value tags",
+      "default": null,
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "required": false,
+      "description": "Asset kinds (defaults to ['rag', 'chromadb'])",
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes",
+      "required": false,
+      "description": "Freshness policy: max lag before this snapshot is considered stale.",
+      "default": null
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "required": false,
+      "description": "Cron schedule for the freshness policy.",
+      "default": null
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "description": "Max retries on asset failure (opt-in).",
+      "default": null
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "description": "Seconds between retries (default 1).",
+      "default": null
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "default": "exponential"
+    }
   }
 }

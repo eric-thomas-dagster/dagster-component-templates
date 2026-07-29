@@ -75,6 +75,32 @@ class RagEvalComponent(dg.Component, dg.Model, dg.Resolvable):
     owners: Optional[List[str]] = Field(default=None, description="Asset owners")
     asset_tags: Optional[Dict[str, str]] = Field(default=None, description="Additional key-value tags")
     kinds: Optional[List[str]] = Field(default=None, description="Asset kinds (defaults to ['rag', 'eval'])")
+    freshness_max_lag_minutes: Optional[int] = Field(
+        default=None, description="Freshness policy: max lag between evals (per snapshot)."
+    )
+    freshness_cron: Optional[str] = Field(
+        default=None, description="Cron schedule for the freshness policy."
+    )
+    column_lineage: Optional[Dict[str, List[str]]] = Field(
+        default=None, description="Column-level lineage (output col → list of upstream cols)."
+    )
+
+    include_preview_metadata: bool = Field(
+        default=False, description="Include a `preview` metadata key (markdown table of first rows)."
+    )
+    preview_rows: int = Field(
+        default=25, ge=1, le=500, description="Rows in the preview when include_preview_metadata=True."
+    )
+
+    retry_policy_max_retries: Optional[int] = Field(
+        default=None, description="Max retries on asset failure (opt-in)."
+    )
+    retry_policy_delay_seconds: Optional[int] = Field(
+        default=None, description="Seconds between retries (default 1)."
+    )
+    retry_policy_backoff: str = Field(
+        default="exponential", description="Backoff strategy: 'linear' or 'exponential'."
+    )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         asset_name = self.asset_name
@@ -98,6 +124,26 @@ class RagEvalComponent(dg.Component, dg.Model, dg.Resolvable):
         if upstream_snapshot_asset_key:
             deps.append(dg.AssetKey.from_user_string(upstream_snapshot_asset_key))
 
+        freshness_policy = None
+        if self.freshness_max_lag_minutes is not None:
+            freshness_policy = dg.FreshnessPolicy(
+                maximum_lag_minutes=self.freshness_max_lag_minutes,
+                cron_schedule=self.freshness_cron,
+            )
+
+        retry_policy = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            retry_policy = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
+
+        include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
+        column_lineage = self.column_lineage
+
         @dg.asset(
             key=dg.AssetKey.from_user_string(asset_name),
             description=self.description or f"Golden-set retrieval eval against snapshot",
@@ -106,6 +152,8 @@ class RagEvalComponent(dg.Component, dg.Model, dg.Resolvable):
             tags=tags,
             partitions_def=partitions_def,
             deps=deps or None,
+            freshness_policy=freshness_policy,
+            retry_policy=retry_policy,
         )
         def _rag_eval_asset(context: dg.AssetExecutionContext) -> pd.DataFrame:
             import chromadb
@@ -157,16 +205,33 @@ class RagEvalComponent(dg.Component, dg.Model, dg.Resolvable):
             context.log.info(
                 f"snapshot={snapshot_id} n_queries={len(df)} precision@{k}={precision_at_k:.3f}"
             )
-            context.add_output_metadata(
-                {
-                    "snapshot_id": dg.MetadataValue.text(snapshot_id),
-                    "n_queries": dg.MetadataValue.int(len(df)),
-                    "k": dg.MetadataValue.int(k),
-                    "precision_at_k": dg.MetadataValue.float(precision_at_k),
-                    "min_threshold": dg.MetadataValue.float(min_score_threshold),
-                    "regression_pct_threshold": dg.MetadataValue.float(regression_pct_threshold),
-                }
-            )
+            metadata: Dict[str, Any] = {
+                "snapshot_id": dg.MetadataValue.text(snapshot_id),
+                "n_queries": dg.MetadataValue.int(len(df)),
+                "k": dg.MetadataValue.int(k),
+                "precision_at_k": dg.MetadataValue.float(precision_at_k),
+                "min_threshold": dg.MetadataValue.float(min_score_threshold),
+                "regression_pct_threshold": dg.MetadataValue.float(regression_pct_threshold),
+            }
+            if column_lineage and upstream_snapshot_asset_key:
+                _uak = dg.AssetKey.from_user_string(upstream_snapshot_asset_key)
+                lineage_deps: Dict[str, List[dg.TableColumnDep]] = {}
+                for out_col, in_cols in column_lineage.items():
+                    lineage_deps[str(out_col)] = [
+                        dg.TableColumnDep(asset_key=_uak, column_name=str(ic)) for ic in in_cols
+                    ]
+                if lineage_deps:
+                    metadata["dagster/column_lineage"] = dg.MetadataValue.column_lineage(
+                        dg.TableColumnLineage(lineage_deps)
+                    )
+            if include_preview and len(df) > 0:
+                try:
+                    _prev = df[["query", "score", "matched_terms"]] if all(c in df.columns for c in ("query", "score", "matched_terms")) else df
+                    _prev = _prev.sample(min(preview_rows, len(_prev))) if len(_prev) > preview_rows * 10 else _prev.head(preview_rows)
+                    metadata["preview"] = dg.MetadataValue.md(_prev.to_markdown(index=False))
+                except Exception as e:  # noqa: BLE001
+                    context.log.warning(f"preview emission failed: {e}")
+            context.add_output_metadata(metadata)
             return df
 
         eval_asset_key = dg.AssetKey.from_user_string(asset_name)

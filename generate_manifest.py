@@ -140,11 +140,14 @@ def main():
     # Combine all components
     all_components = components + sensors
 
-    # Create manifest
+    # Create manifest — `total` mirrors len(components) so UI stat boxes that
+    # read root.total agree with denominators that count the array directly
+    # (Trust signals, etc.). Kept in sync automatically here so it can't drift.
     manifest = {
         "version": "1.0.0",
         "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
         "last_updated": "2025-12-05",
+        "total": len(all_components),
         "components": all_components
     }
 

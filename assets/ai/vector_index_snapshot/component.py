@@ -103,6 +103,22 @@ class VectorIndexSnapshotComponent(dg.Component, dg.Model, dg.Resolvable):
     owners: Optional[List[str]] = Field(default=None, description="Asset owners")
     asset_tags: Optional[Dict[str, str]] = Field(default=None, description="Additional key-value tags")
     kinds: Optional[List[str]] = Field(default=None, description="Asset kinds (defaults to ['rag', 'chromadb'])")
+    freshness_max_lag_minutes: Optional[int] = Field(
+        default=None, description="Freshness policy: max lag before this snapshot is considered stale."
+    )
+    freshness_cron: Optional[str] = Field(
+        default=None, description="Cron schedule for the freshness policy."
+    )
+
+    retry_policy_max_retries: Optional[int] = Field(
+        default=None, description="Max retries on asset failure (opt-in)."
+    )
+    retry_policy_delay_seconds: Optional[int] = Field(
+        default=None, description="Seconds between retries (default 1)."
+    )
+    retry_policy_backoff: str = Field(
+        default="exponential", description="Backoff strategy: 'linear' or 'exponential'."
+    )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         asset_name = self.asset_name
@@ -121,6 +137,22 @@ class VectorIndexSnapshotComponent(dg.Component, dg.Model, dg.Resolvable):
         for k in kinds:
             tags[f"dagster/kind/{k}"] = ""
 
+        freshness_policy = None
+        if self.freshness_max_lag_minutes is not None:
+            freshness_policy = dg.FreshnessPolicy(
+                maximum_lag_minutes=self.freshness_max_lag_minutes,
+                cron_schedule=self.freshness_cron,
+            )
+
+        retry_policy = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            retry_policy = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
+
         @dg.asset(
             key=dg.AssetKey.from_user_string(asset_name),
             description=self.description or f"Vector index snapshot from {upstream_asset_key}",
@@ -128,6 +160,8 @@ class VectorIndexSnapshotComponent(dg.Component, dg.Model, dg.Resolvable):
             owners=self.owners or [],
             tags=tags,
             deps=[dg.AssetKey.from_user_string(upstream_asset_key)],
+            freshness_policy=freshness_policy,
+            retry_policy=retry_policy,
         )
         def _snapshot_asset(context: dg.AssetExecutionContext) -> dict:
             import chromadb

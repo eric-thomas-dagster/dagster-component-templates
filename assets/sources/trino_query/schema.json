@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TrinoQueryComponent",
+  "component_type": "dagster_community_components.TrinoQueryComponent",
   "description": "Run a Trino SQL query and materialize the result as a DataFrame asset.",
   "category": "source",
   "icon": "Database",
@@ -13,102 +13,231 @@
     "asset_name": {
       "type": "string",
       "label": "Asset Name",
-      "description": "Name of the asset",
-      "required": true
+      "required": true,
+      "description": "Name of the asset"
     },
     "host": {
       "type": "string",
       "label": "Host",
-      "description": "Trino coordinator host",
       "required": false,
+      "description": "Trino coordinator host",
       "default": "localhost"
     },
     "port": {
       "type": "integer",
       "label": "Port",
-      "description": "Trino coordinator port",
       "required": false,
+      "description": "Trino coordinator port",
       "default": 8080
     },
     "user": {
       "type": "string",
       "label": "User",
-      "description": "Trino user name",
       "required": false,
+      "description": "Trino user name",
       "default": "dagster"
     },
     "catalog": {
       "type": "string",
       "label": "Catalog",
-      "description": "Trino catalog, e.g. 'postgres', 'iceberg', 'hive'",
-      "required": true
+      "required": true,
+      "description": "Trino catalog, e.g. 'postgres', 'iceberg', 'hive'"
     },
     "schema_name": {
       "type": "string",
-      "label": "Schema",
-      "description": "Default schema within the catalog",
+      "label": "Schema Name",
       "required": false,
+      "description": "Default schema within the catalog",
       "default": null
     },
     "password_env_var": {
       "type": "string",
       "label": "Password Env Var",
-      "description": "Env var holding the Trino password (basic auth). Omit for no auth.",
       "required": false,
+      "description": "Env var holding the Trino password (basic auth). Omit for no auth.",
       "default": null
     },
     "query": {
       "type": "string",
       "label": "Query",
-      "description": "Trino SQL query to execute",
       "required": true,
+      "description": "Trino SQL query to execute",
       "ui:widget": "code"
     },
     "group_name": {
       "type": "string",
       "label": "Group Name",
-      "description": "Asset group",
       "required": false,
+      "description": "Asset group",
       "default": null
     },
     "description": {
       "type": "string",
       "label": "Description",
-      "description": "Asset description",
       "required": false,
+      "description": "Asset description",
       "default": null
     },
     "deps": {
       "type": "array",
-      "items": {"type": "string"},
       "label": "Deps",
-      "description": "Upstream asset keys (e.g. ['raw_orders', 'sales/dim_customer'])",
       "required": false,
-      "default": null
+      "description": "Upstream asset keys (e.g. ['raw_orders', 'sales/dim_customer'])",
+      "default": null,
+      "items": {
+        "type": "string"
+      }
     },
     "owners": {
       "type": "array",
-      "items": {"type": "string"},
       "label": "Owners",
-      "description": "Asset owners",
       "required": false,
-      "default": null
+      "description": "Asset owners",
+      "default": null,
+      "items": {
+        "type": "string"
+      }
     },
     "asset_tags": {
       "type": "object",
-      "additionalProperties": {"type": "string"},
       "label": "Asset Tags",
-      "description": "Additional key-value tags",
       "required": false,
-      "default": null
+      "description": "Additional key-value tags",
+      "default": null,
+      "additionalProperties": {
+        "type": "string"
+      }
     },
     "kinds": {
       "type": "array",
-      "items": {"type": "string"},
       "label": "Kinds",
-      "description": "Asset kinds. Defaults to ['trino'] if not set.",
       "required": false,
+      "description": "Asset kinds. Defaults to ['trino'] if not set.",
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes",
+      "required": false,
+      "description": "Maximum acceptable lag in minutes before the asset is considered stale.",
       "default": null
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "required": false,
+      "description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5'.",
+      "default": null
+    },
+    "column_lineage": {
+      "type": "object",
+      "label": "Column Lineage",
+      "required": false,
+      "description": "Column-level lineage: output column \u2192 list of upstream columns.",
+      "default": null,
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "required": false,
+      "description": "Include a `preview` metadata key (markdown table of first rows).",
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "required": false,
+      "description": "Rows to include in the preview when include_preview_metadata=True.",
+      "default": 25
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "description": "'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | 'dynamic' | 'multi' | None",
+      "default": null
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "required": false,
+      "description": "ISO date for time-based partition types.",
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "required": false,
+      "description": "Comma-separated values for static/multi partitioning.",
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "description": "Name for DynamicPartitionsDefinition when partition_type='dynamic'.",
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "required": false,
+      "description": "Column used to filter output to the current date partition key (for downstream reuse).",
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Partition Static Dim",
+      "required": false,
+      "description": "Dimension name for static axis in multi-partitioning.",
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Partition Static Column",
+      "required": false,
+      "description": "Column used to filter to the current static partition dimension.",
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "label": "Partition Dimensions",
+      "required": false,
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts.",
+      "default": null,
+      "items": {
+        "type": "object"
+      }
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "description": "Max retries on asset failure (opt-in \u2014 enables a RetryPolicy).",
+      "default": null
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "description": "Seconds between retries (default 1).",
+      "default": null
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "default": "exponential"
     }
   }
 }

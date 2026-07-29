@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.DocumentCorpusComponent",
-  "description": "Materialize a directory of documents as a versioned corpus asset.",
+  "description": "Materialize a directory of documents as a versioned corpus asset \u2014 first-class corpus state, not implicit input.",
   "category": "source",
   "icon": "DocumentText",
   "x-dagster-io": {
@@ -10,16 +10,203 @@
     }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "source_dir": {"type": "string", "label": "Source Dir", "description": "Absolute path to the directory of docs", "required": true},
-    "file_glob": {"type": "string", "label": "File Glob", "description": "Glob relative to source_dir", "required": false, "default": "**/*.md"},
-    "encoding": {"type": "string", "label": "Encoding", "required": false, "default": "utf-8"},
-    "min_doc_count": {"type": "integer", "label": "Min Doc Count", "description": "Asset check fails if fewer docs than this", "required": false, "default": 1},
-    "group_name": {"type": "string", "label": "Group Name", "required": false},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false},
-    "asset_tags": {"type": "object", "additionalProperties": {"type": "string"}, "label": "Tags", "required": false},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false},
-    "freshness_max_lag_minutes": {"type": "integer", "label": "Freshness Max Lag Minutes", "required": false}
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Dagster asset name"
+    },
+    "source_dir": {
+      "type": "string",
+      "label": "Source Dir",
+      "required": true,
+      "description": "Absolute path to the directory of docs"
+    },
+    "file_glob": {
+      "type": "string",
+      "label": "File Glob",
+      "required": false,
+      "description": "Glob relative to source_dir (default '**/*.md')",
+      "default": "**/*.md"
+    },
+    "encoding": {
+      "type": "string",
+      "label": "Encoding",
+      "required": false,
+      "description": "Text file encoding",
+      "default": "utf-8"
+    },
+    "min_doc_count": {
+      "type": "integer",
+      "label": "Min Doc Count",
+      "required": false,
+      "description": "Asset check fails if fewer docs than this \u2014 guards against empty corpus regressions.",
+      "default": 1
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "description": "Asset group",
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "description": "Asset description",
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "description": "Asset owners",
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "description": "Additional key-value tags",
+      "default": null,
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "required": false,
+      "description": "Asset kinds (defaults to ['rag'])",
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes",
+      "required": false,
+      "description": "Freshness policy: max lag before stale.",
+      "default": null
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "required": false,
+      "description": "Cron schedule string for the freshness policy.",
+      "default": null
+    },
+    "column_lineage": {
+      "type": "object",
+      "label": "Column Lineage",
+      "required": false,
+      "description": "Column-level lineage (output col \u2192 list of upstream cols).",
+      "default": null,
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "required": false,
+      "description": "Include a `preview` metadata key (markdown table of first rows).",
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "required": false,
+      "description": "Rows in the preview when include_preview_metadata=True.",
+      "default": 25
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "description": "'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | 'dynamic' | 'multi' | None",
+      "default": null
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "required": false,
+      "description": "ISO date for time-based partition types.",
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "required": false,
+      "description": "Comma-separated values for static/multi partitioning.",
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "description": "Name for DynamicPartitionsDefinition when partition_type='dynamic'.",
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "required": false,
+      "description": "Column to filter to the current date partition.",
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Partition Static Dim",
+      "required": false,
+      "description": "Dimension name for static axis in multi-partitioning.",
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Partition Static Column",
+      "required": false,
+      "description": "Column to filter to the current static partition.",
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "label": "Partition Dimensions",
+      "required": false,
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name}.",
+      "default": null,
+      "items": {
+        "type": "object"
+      }
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "description": "Max retries on asset failure (opt-in).",
+      "default": null
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "description": "Seconds between retries (default 1).",
+      "default": null
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "default": "exponential"
+    }
   }
 }

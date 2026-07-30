@@ -1,0 +1,36 @@
+# HumanApprovalGateComponent — gate a downstream asset on a JSON approval token.
+#
+# The token is a plain JSON file at `{approval_dir}/{partition_key}.json`
+# (or `{default_approval_key}.json` when unpartitioned). Format:
+#
+#   {
+#     "approved": true,
+#     "approver": "eric@dagsterlabs.com",
+#     "reason": "reviewed the draft, ship it"
+#   }
+#
+# Anything can write the token — a bash `echo > .json`, a Slack bot, a
+# Retool form, ServiceNow webhook, GitHub Action, another Dagster asset.
+#
+# Pair with FilesystemMonitorSensorComponent pointed at `approval_dir` to
+# auto-progress the graph the moment a token drops (no manual re-materialize).
+
+type: dagster_component_templates.HumanApprovalGateComponent
+attributes:
+  asset_name: response_approved
+  upstream_asset_key: draft_response
+  approval_dir: /tmp/approvals
+  # Unpartitioned example — reads /tmp/approvals/default.json
+  default_approval_key: default
+  group_name: human_in_the_loop
+
+# Partitioned example (per-case gating):
+#
+# type: dagster_component_templates.HumanApprovalGateComponent
+# attributes:
+#   asset_name: response_approved
+#   upstream_asset_key: draft_response
+#   approval_dir: /tmp/approvals
+#   partition_type: static
+#   partition_values: "t1,t2,t3"     # one token per partition, e.g. /tmp/approvals/t2.json
+#   group_name: human_in_the_loop

@@ -1,0 +1,156 @@
+{
+  "component_type": "dagster_community_components.HumanApprovalGateComponent",
+  "description": "Gate a downstream asset on a JSON approval token file — the human-in-the-loop primitive. Missing token = approval_pending; approved:false = approval_rejected; approved:true = passthrough of upstream payload plus approver metadata. Pair with FilesystemMonitorSensorComponent for auto-progression.",
+  "category": "ai",
+  "icon": "UserCircle",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "passthrough",
+      "description": "Upstream payload, unchanged. Approver / reason / timestamp land in materialization metadata."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Dagster asset name"
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true,
+      "description": "Upstream asset whose value passes through the gate when approved."
+    },
+    "approval_dir": {
+      "type": "string",
+      "label": "Approval Dir",
+      "required": true,
+      "description": "Absolute path to the directory of approval token JSON files. Filename is `<partition_key>.json` (or `<default_approval_key>.json` when unpartitioned)."
+    },
+    "default_approval_key": {
+      "type": "string",
+      "label": "Default Approval Key",
+      "required": false,
+      "description": "Token filename stem used when the asset is unpartitioned.",
+      "default": "default"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "description": "Asset group",
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "description": "Asset description",
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "description": "Asset owners",
+      "default": null,
+      "items": {"type": "string"}
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "description": "Additional key-value tags",
+      "default": null,
+      "additionalProperties": {"type": "string"}
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "required": false,
+      "description": "Asset kinds (defaults to ['human', 'approval']).",
+      "default": null,
+      "items": {"type": "string"}
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes",
+      "required": false,
+      "description": "Freshness policy: max lag before stale.",
+      "default": null
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "required": false,
+      "description": "Cron schedule string for the freshness policy.",
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "description": "'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | 'dynamic' | 'multi' | None",
+      "default": null
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "required": false,
+      "description": "ISO date for time-based partition types.",
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "required": false,
+      "description": "Comma-separated values for static/multi partitioning.",
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "description": "Name for DynamicPartitionsDefinition when partition_type='dynamic'.",
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "label": "Partition Dimensions",
+      "required": false,
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name}.",
+      "default": null,
+      "items": {"type": "object"}
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "description": "Max retries on failure. Rarely useful — a pending approval isn't retry-able. Leave unset unless you want a per-run poll.",
+      "default": null
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "description": "Seconds between retries (default 1).",
+      "default": null
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "default": "exponential"
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "description": "Lineage-only upstream asset keys (no data loaded at runtime).",
+      "default": null,
+      "items": {"type": "string"}
+    }
+  }
+}

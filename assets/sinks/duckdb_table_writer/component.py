@@ -329,18 +329,6 @@ group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in upstream_keys] if upstream_keys else None,
         )
         def duckdb_writer_asset(context: AssetExecutionContext, **kwargs) -> None:
-            # Filter to current partition if partitioned
-            if context.has_partition_key:
-                _pk = context.partition_key
-                _is_multi = hasattr(_pk, "keys_by_dimension")
-                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
-                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
-                if partition_date_column and partition_date_column in upstream.columns and _date_key:
-                    upstream = upstream[upstream[partition_date_column].astype(str) == _date_key]
-                if partition_static_column and partition_static_column in upstream.columns and _static_key:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
-                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
             """Write DataFrame to DuckDB table."""
             import duckdb
 
@@ -351,11 +339,20 @@ group_name=group_name,
             if upstream_keys and hasattr(context, 'load_asset_value'):
                 # Real execution context - load assets explicitly
                 context.log.info(f"Loading {len(upstream_keys)} upstream asset(s) via context.load_asset_value()")
+                # If the current asset has a partition key, propagate it to the
+                # load call. Upstream assets that share the partition scheme
+                # then load only their matching partition slice.
+                _load_pk = context.partition_key if context.has_partition_key else None
                 for key in upstream_keys:
                     try:
                         # Convert string key to AssetKey if needed; supports slash-paths.
                         asset_key = AssetKey.from_user_string(key) if isinstance(key, str) else key
-                        value = context.load_asset_value(asset_key)
+                        try:
+                            value = context.load_asset_value(asset_key, partition_key=_load_pk) if _load_pk else context.load_asset_value(asset_key)
+                        except Exception:
+                            # Upstream may be unpartitioned or use a different
+                            # partition scheme — fall back to a plain load.
+                            value = context.load_asset_value(asset_key)
                         upstream_assets[key] = value
                         context.log.info(f"  - Loaded '{key}': {type(value).__name__}")
                     except Exception as e:
@@ -378,6 +375,22 @@ group_name=group_name,
                 raise ValueError(
                     f"Expected DataFrame from upstream asset, got {type(df)}"
                 )
+
+            # Filter to current partition when partition_static_column /
+            # partition_date_column are set. Note the upstream may already be
+            # filtered by a partitioned producer, in which case the filter is
+            # a no-op — safe.
+            if context.has_partition_key:
+                _pk = context.partition_key
+                _is_multi = hasattr(_pk, "keys_by_dimension")
+                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
+                if partition_date_column and partition_date_column in df.columns and _date_key:
+                    df = df[df[partition_date_column].astype(str) == _date_key]
+                if partition_static_column and partition_static_column in df.columns and _static_key:
+                    df = df[df[partition_static_column].astype(str) == _static_key]
+                elif partition_static_column and partition_static_column in df.columns and not _is_multi:
+                    df = df[df[partition_static_column].astype(str) == str(_pk)]
 
             context.log.info(
                 f"Writing {len(df)} rows to DuckDB table '{table_name}' "

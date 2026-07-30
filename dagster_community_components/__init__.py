@@ -466,6 +466,7 @@ _CLASS_PATHS: dict[str, str] = {
     "HubSpotIngestionComponent": "assets/ingestion/hubspot_ingestion/component.py",
     "HubSpotResource": "resources/hubspot_resource/component.py",
     "HubSpotResourceComponent": "resources/hubspot_resource/component.py",
+    "HumanApprovalGateComponent": "assets/ai/human_approval_gate/component.py",
     "HuggingfaceChatCompletionComponent": "assets/ai/huggingface_chat_completion/component.py",
     "HuggingfaceDatasetAssetComponent": "assets/ai/huggingface_dataset_asset/component.py",
     "HuggingfaceInferenceEndpointComponent": "assets/ai/huggingface_inference_endpoint/component.py",

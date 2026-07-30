@@ -10,6 +10,7 @@ from typing import Optional
 import re
 
 from dagster import (
+    AddDynamicPartitionsRequest,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -74,6 +75,33 @@ class FilesystemMonitorSensorComponent(Component, Model, Resolvable):
         description="Default status of the sensor (running or stopped)"
     )
 
+    partition_mode: str = Field(
+        default="run_config",
+        description=(
+            "How the sensor surfaces detected files: 'run_config' (default — "
+            "embed file metadata in run_config), 'static_partition' (yield "
+            "RunRequest(partition_key=<from partition_key_template>) — use when "
+            "the target asset has a static/dynamic partitions_def), or "
+            "'dynamic_partition' (also registers each key on the given "
+            "DynamicPartitionsDefinition first)."
+        ),
+    )
+    partition_key_template: str = Field(
+        default="{file_stem}",
+        description=(
+            "Template for the partition key per detected file. Fields: "
+            "{file_path}, {file_name}, {file_stem} (filename without extension). "
+            "Default `{file_stem}` — e.g. `/tmp/approvals/t3.json` → `t3`."
+        ),
+    )
+    dynamic_partitions_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "Required when partition_mode='dynamic_partition'. Must match the "
+            "downstream asset's `dynamic_partition_name:` field."
+        ),
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         sensor_name = self.sensor_name
         directory_path = self.directory_path
@@ -82,6 +110,16 @@ class FilesystemMonitorSensorComponent(Component, Model, Resolvable):
         minimum_interval_seconds = self.minimum_interval_seconds
         recursive = self.recursive
         default_status_str = self.default_status
+        partition_mode = self.partition_mode
+        partition_key_template = self.partition_key_template
+        dynamic_partitions_name = self.dynamic_partitions_name
+
+        if partition_mode == "dynamic_partition" and not dynamic_partitions_name:
+            raise ValueError(
+                "filesystem_monitor: partition_mode='dynamic_partition' requires "
+                "dynamic_partitions_name (must match downstream asset's "
+                "dynamic_partition_name)."
+            )
 
         # Convert default_status string to enum
         default_status = (
@@ -137,6 +175,7 @@ class FilesystemMonitorSensorComponent(Component, Model, Resolvable):
                 ]
 
             # Process each file
+            new_partition_keys: list = []
             for file_path in files:
                 try:
                     # Check if file matches pattern
@@ -151,23 +190,42 @@ class FilesystemMonitorSensorComponent(Component, Model, Resolvable):
                     if mtime <= last_processed_time:
                         continue
 
-                    # Create run request with file information
-                    run_requests.append(
-                        RunRequest(
-                            run_key=f"{file_path}-{mtime}",
-                            run_config={
-                                "ops": {
-                                    "config": {
-                                        "file_path": file_path,
-                                        "file_name": os.path.basename(file_path),
-                                        "file_size": stat.st_size,
-                                        "file_modified_time": mtime,
-                                        "directory_path": directory_path,
-                                    }
-                                }
-                            },
+                    file_name = os.path.basename(file_path)
+                    file_stem = os.path.splitext(file_name)[0]
+
+                    if partition_mode in ("static_partition", "dynamic_partition"):
+                        # Materialize a specific partition of the downstream asset(s).
+                        partition_key = partition_key_template.format(
+                            file_path=file_path,
+                            file_name=file_name,
+                            file_stem=file_stem,
                         )
-                    )
+                        new_partition_keys.append(partition_key)
+                        run_requests.append(
+                            RunRequest(
+                                run_key=f"{partition_key}-{mtime}",
+                                partition_key=partition_key,
+                            )
+                        )
+                    else:
+                        # Legacy run_config shape — for jobs whose op reads
+                        # file_path / file_name / file_size from config.
+                        run_requests.append(
+                            RunRequest(
+                                run_key=f"{file_path}-{mtime}",
+                                run_config={
+                                    "ops": {
+                                        "config": {
+                                            "file_path": file_path,
+                                            "file_name": file_name,
+                                            "file_size": stat.st_size,
+                                            "file_modified_time": mtime,
+                                            "directory_path": directory_path,
+                                        }
+                                    }
+                                },
+                            )
+                        )
 
                     # Track latest modification time
                     latest_mtime = max(latest_mtime, mtime)
@@ -178,9 +236,17 @@ class FilesystemMonitorSensorComponent(Component, Model, Resolvable):
 
             if run_requests:
                 context.log.info(f"Found {len(run_requests)} new file(s) matching pattern")
+                dynamic_partitions_requests = (
+                    [AddDynamicPartitionsRequest(
+                        partitions_def_name=dynamic_partitions_name or "",
+                        partition_keys=new_partition_keys,
+                    )]
+                    if new_partition_keys and dynamic_partitions_name else []
+                )
                 return SensorResult(
                     run_requests=run_requests,
                     cursor=str(latest_mtime),
+                    dynamic_partitions_requests=dynamic_partitions_requests,
                 )
 
             return SensorResult(skip_reason="No new files found")

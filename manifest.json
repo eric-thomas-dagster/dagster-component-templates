@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-07-24",
+  "last_updated": "2026-07-30",
   "components": [
     {
       "id": "ab_controls",
@@ -18378,6 +18378,48 @@
         "asset"
       ],
       "agent_hints": {}
+    },
+    {
+      "id": "human_approval_gate",
+      "name": "Human Approval Gate",
+      "category": "ai",
+      "description": "Gate a downstream asset on a JSON approval token file \u2014 the human-in-the-loop primitive. Missing token = approval_pending; approved:false = approval_rejected; approved:true = passthrough. Pair with filesystem_monitor for auto-progression.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/human_approval_gate",
+      "tags": [
+        "ai",
+        "human-in-the-loop",
+        "approval",
+        "governance",
+        "agentic",
+        "control-flow"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/human_approval_gate/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/human_approval_gate/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/human_approval_gate/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/human_approval_gate/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/human_approval_gate/requirements.txt",
+      "icon": "UserCircle",
+      "validation": {
+        "level": "live",
+        "last_validated": "2026-07-30",
+        "evidence": "examples/agentic_orchestration.md \u2014 3 partitions \u00d7 approve/reject/pending, sensor auto-progression verified end-to-end (t3 auto-cascaded through response_approved \u2192 response_sent \u2192 audit_log)."
+      },
+      "agent_hints": {
+        "inputs": "upstream_asset_key \u2014 any asset whose materialized value should be passed through if approved.",
+        "outputs": "Upstream payload unchanged, plus approver / approval_reason / approved_at / status='approved' in materialization metadata.",
+        "side_effects": "Reads (never writes) the approval token file at {approval_dir}/{partition_key or default_approval_key}.json.",
+        "anti_uses": "Not for programmatic approval logic \u2014 use an assessor asset upstream. Not for time-based gating \u2014 use FreshnessPolicy or automation conditions.",
+        "requires_resources": [],
+        "output_type": "passthrough"
+      },
+      "produces": [
+        "asset"
+      ]
     },
     {
       "id": "iceberg_catalog_resource",
@@ -40242,5 +40284,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 955
+  "total": 956
 }

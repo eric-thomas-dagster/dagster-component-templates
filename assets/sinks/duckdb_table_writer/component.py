@@ -214,6 +214,17 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
         default=None,
         description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
     )
+    automation_condition: Optional[Any] = Field(
+        default=None,
+        description=(
+            "AutomationCondition for this asset. In YAML, write as a Jinja "
+            "template against the dg namespace, e.g. "
+            "'{{ dg.AutomationCondition.eager() }}' — Dagster's component "
+            "loader resolves it to the actual AutomationCondition object. "
+            "Useful when the upstream is a multi-asset with sparse "
+            "per-partition materialization."
+        ),
+    )
 
     # Per FIELD_CONVENTIONS: singular for one upstream, plural list for multi.
     upstream_asset_key: Optional[str] = Field(
@@ -318,16 +329,20 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
         column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
 
 
-        @asset(
+        _asset_kwargs = dict(
             key=AssetKey.from_user_string(asset_name),
             description=description,
             partitions_def=partitions_def,
-                        owners=owners,
+            owners=owners,
             tags=_all_tags,
             freshness_policy=_freshness_policy,
-group_name=group_name,
+            group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in upstream_keys] if upstream_keys else None,
         )
+        if self.automation_condition is not None:
+            _asset_kwargs["automation_condition"] = self.automation_condition
+
+        @asset(**_asset_kwargs)
         def duckdb_writer_asset(context: AssetExecutionContext, **kwargs) -> None:
             """Write DataFrame to DuckDB table."""
             import duckdb

@@ -222,6 +222,22 @@ class HumanApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
+        # An asset check named `approved` fails (severity=ERROR) when the token
+        # is missing (pending) or explicitly rejected — that's what BLOCKS
+        # downstream from materializing via automation conditions. The asset
+        # itself still MATERIALIZES on every run — so in the UI the gate shows
+        # green ("was evaluated") with a failing check badge (informative,
+        # not alarming). Downstream sees the failed check and doesn't fire.
+        _check_spec = dg.AssetCheckSpec(
+            name="approved",
+            asset=dg.AssetKey.from_user_string(asset_name),
+            description=(
+                "Fails when the approval token is missing (pending) or "
+                "approved=false (rejected). Blocks downstream via "
+                "AutomationCondition.eager()."
+            ),
+        )
+
         @dg.asset(
             key=dg.AssetKey.from_user_string(asset_name),
             description=self.description or f"Approval gate for {upstream_asset_key}",
@@ -233,16 +249,26 @@ class HumanApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
             retry_policy=retry_policy,
             deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
             ins={"upstream": dg.AssetIn(key=dg.AssetKey.from_user_string(upstream_asset_key))},
+            check_specs=[_check_spec],
         )
         def _gate(context: dg.AssetExecutionContext, upstream):
+            import pandas as pd
             key = context.partition_key if context.has_partition_key else default_approval_key
             token_file = Path(approval_dir).expanduser().resolve() / f"{key}.json"
 
             context.log.info(f"Checking approval token: {token_file}")
 
+            # Common failure payload — the gate always MATERIALIZES so the
+            # asset stays green in the UI; the check_result signals the state.
+            def _empty_passthrough_df():
+                if isinstance(upstream, pd.DataFrame):
+                    return upstream.iloc[0:0].copy()  # empty frame with same schema
+                return pd.DataFrame()
+
             if not token_file.exists():
-                raise dg.Failure(
-                    description=f"approval_pending — no token at {token_file}",
+                context.log.info(f"approval_pending — no token at {token_file}")
+                yield dg.Output(
+                    _empty_passthrough_df(),
                     metadata={
                         "status": "approval_pending",
                         "token_file": str(token_file),
@@ -255,22 +281,44 @@ class HumanApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
                         ),
                     },
                 )
+                yield dg.AssetCheckResult(
+                    check_name="approved",
+                    passed=False,
+                    severity=dg.AssetCheckSeverity.WARN,
+                    description=f"approval_pending — no token at {token_file}",
+                    metadata={"status": "approval_pending", "partition_key": key},
+                )
+                return
 
             try:
                 token = json.loads(token_file.read_text())
             except json.JSONDecodeError as e:
-                raise dg.Failure(
-                    description=f"approval_token_malformed — {token_file} is not valid JSON: {e}",
-                    metadata={"status": "approval_token_malformed", "token_file": str(token_file)},
+                context.log.error(f"approval_token_malformed — {token_file}: {e}")
+                yield dg.Output(
+                    _empty_passthrough_df(),
+                    metadata={
+                        "status": "approval_token_malformed",
+                        "token_file": str(token_file),
+                        "parse_error": str(e),
+                    },
                 )
+                yield dg.AssetCheckResult(
+                    check_name="approved",
+                    passed=False,
+                    severity=dg.AssetCheckSeverity.ERROR,
+                    description=f"approval_token_malformed — not valid JSON: {e}",
+                    metadata={"status": "approval_token_malformed"},
+                )
+                return
 
             approver = str(token.get("approver") or "unknown")
             reason = str(token.get("reason") or "")
             approved_at = str(token.get("timestamp") or datetime.now(timezone.utc).isoformat())
 
             if not token.get("approved"):
-                raise dg.Failure(
-                    description=f"approval_rejected by {approver}: {reason}",
+                context.log.info(f"approval_rejected by {approver}: {reason}")
+                yield dg.Output(
+                    _empty_passthrough_df(),
                     metadata={
                         "status": "approval_rejected",
                         "approver": approver,
@@ -279,16 +327,38 @@ class HumanApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
                         "token_file": str(token_file),
                     },
                 )
+                yield dg.AssetCheckResult(
+                    check_name="approved",
+                    passed=False,
+                    severity=dg.AssetCheckSeverity.ERROR,
+                    description=f"approval_rejected by {approver}: {reason}",
+                    metadata={
+                        "status": "approval_rejected",
+                        "approver": approver,
+                        "reason": reason,
+                    },
+                )
+                return
 
-            context.add_output_metadata({
-                "status": "approved",
-                "approver": approver,
-                "approval_reason": reason,
-                "approved_at": approved_at,
-                "token_file": str(token_file),
-                "partition_key": key,
-            })
+            # Approved — passthrough of upstream.
             context.log.info(f"Approved by {approver}: {reason}")
-            return upstream
+            yield dg.Output(
+                upstream,
+                metadata={
+                    "status": "approved",
+                    "approver": approver,
+                    "approval_reason": reason,
+                    "approved_at": approved_at,
+                    "token_file": str(token_file),
+                    "partition_key": key,
+                },
+            )
+            yield dg.AssetCheckResult(
+                check_name="approved",
+                passed=True,
+                severity=dg.AssetCheckSeverity.WARN,  # only used on failures
+                description=f"approved by {approver}",
+                metadata={"approver": approver, "approval_reason": reason},
+            )
 
         return dg.Definitions(assets=[_gate])

@@ -1,0 +1,105 @@
+{
+  "component_type": "dagster_community_components.LlmMultiPathRouterComponent",
+  "description": "Router agent as a single graph-backed multi-asset per case — ReAct steps are ops visible in the run view; per-branch outputs are separate downstream assets. Only branches the classifier picks are emitted per partition, so downstream lineage stays honest (a voucher-sink only shows partitions for cases that actually issued a voucher).",
+  "category": "ai",
+  "icon": "GitBranch",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "multi_asset",
+      "description": "One asset per declared `outputs:` entry, each carrying the trajectory + summary + n_iterations in metadata."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Base name for the router graph (used in op naming). Emitted assets are the `outputs:` names below."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true,
+      "description": "Upstream asset providing the per-case DataFrame. Filtered by partition_static_column to a single row per partition."
+    },
+    "task_template": {
+      "type": "string",
+      "label": "Task Template",
+      "required": true,
+      "description": "The task template the planner sees for each case. Row column names substitute via .format() — e.g. 'Resolve for {passenger} on {flight}'. {partition_key} also available."
+    },
+    "tools": {
+      "type": "array",
+      "label": "Tools",
+      "required": true,
+      "description": "Bounded list of tools the planner can pick from at each step. Each entry has {name, description, system_message}.",
+      "items": {"type": "object"}
+    },
+    "outputs": {
+      "type": "array",
+      "label": "Outputs",
+      "required": true,
+      "description": "Downstream branches. Each entry becomes its own Dagster asset. Emitted per-partition only when the classifier picks it. Each: {name, description, kinds}.",
+      "items": {"type": "object"}
+    },
+    "max_iterations": {
+      "type": "integer",
+      "label": "Max Iterations",
+      "required": false,
+      "description": "Max ReAct steps (= number of plan_step ops in the graph).",
+      "default": 5
+    },
+    "model": {
+      "type": "string",
+      "label": "Model",
+      "required": false,
+      "description": "OpenAI-compatible chat model. Same model powers planner + tools + classifier by default.",
+      "default": "gpt-4o-mini"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "required": false,
+      "description": "Env var holding the LLM API key.",
+      "default": "OPENAI_API_KEY"
+    },
+    "api_base_env_var": {
+      "type": "string",
+      "label": "API Base Env Var",
+      "required": false,
+      "description": "Env var holding an OpenAI-compatible base URL (Vercel AI Gateway, local Ollama, etc.).",
+      "default": null
+    },
+    "temperature": {
+      "type": "number",
+      "label": "Temperature",
+      "required": false,
+      "description": "Lower is better for tool-picking discipline.",
+      "default": 0.0
+    },
+    "planner_max_tokens": {"type": "integer", "label": "Planner Max Tokens", "required": false, "description": "Max tokens for each planner turn.", "default": 400},
+    "tool_max_tokens": {"type": "integer", "label": "Tool Max Tokens", "required": false, "description": "Max tokens for each tool LLM response.", "default": 500},
+    "classifier_max_tokens": {"type": "integer", "label": "Classifier Max Tokens", "required": false, "description": "Max tokens for the final classifier response.", "default": 400},
+    "classifier_system_message": {
+      "type": "string",
+      "label": "Classifier System Message",
+      "required": false,
+      "description": "Optional override for the classifier's system prompt.",
+      "default": null
+    },
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "description": "Asset group.", "default": null},
+    "owners": {"type": "array", "label": "Owners", "required": false, "description": "Asset owners.", "default": null, "items": {"type": "string"}},
+    "tags": {"type": "object", "label": "Tags", "required": false, "description": "Additional key-value tags.", "default": null, "additionalProperties": {"type": "string"}},
+    "partition_type": {"type": "string", "label": "Partition Type", "required": false, "description": "'daily'|'weekly'|'monthly'|'hourly'|'static'|'dynamic'|None", "default": null},
+    "partition_start": {"type": "string", "label": "Partition Start", "required": false, "description": "ISO date for time-based partitions.", "default": null},
+    "partition_values": {"type": "string", "label": "Partition Values", "required": false, "description": "Comma-separated static values.", "default": null},
+    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "required": false, "description": "Name for DynamicPartitionsDefinition.", "default": null},
+    "partition_static_column": {
+      "type": "string",
+      "label": "Partition Static Column",
+      "required": false,
+      "description": "Upstream column to filter on for the current partition (e.g. 'case_id' with partition_values 'c1,c2,c3').",
+      "default": null
+    }
+  }
+}

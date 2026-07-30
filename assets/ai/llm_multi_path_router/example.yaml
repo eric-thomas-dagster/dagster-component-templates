@@ -1,0 +1,58 @@
+# LlmMultiPathRouterComponent — one graph-backed asset per case,
+# ReAct steps as ops (visible in the run view), multi-asset outputs for
+# each downstream branch.
+#
+# Only the outputs the classifier picks are emitted for a given partition.
+# Downstream assets that depend on an unemitted output skip that partition.
+
+type: dagster_community_components.LlmMultiPathRouterComponent
+attributes:
+  asset_name: baggage_triage_agent
+  upstream_asset_key: baggage_reports
+  task_template: |
+    You are a baggage-loss triage agent. Resolve the case for {passenger}
+    on flight {flight}, baggage_id {baggage_id}.
+    Description: {description}
+
+    Standard operating procedure:
+      1. Query the tracking DB (query_baggage_db).
+      2. If located + address known → organize_delivery + inform_passenger → done, emit delivery_request.
+      3. If not_found → inquire_with_airport; if still lost → send_care_voucher + request_info → done, emit voucher_issued AND escalation.
+
+  model: gpt-4o-mini
+  api_key_env_var: OPENAI_API_KEY
+  max_iterations: 5
+  partition_type: static
+  partition_values: "c1,c2,c3"
+  partition_static_column: case_id
+  group_name: router
+
+  tools:
+    - name: query_baggage_db
+      description: "Query the baggage tracking DB. Args: baggage_id."
+      system_message: |
+        You are the baggage tracking database. Respond ONLY with the record:
+          "baggage_id=<id>; status=<status>; location=<code>; delivery_address=<addr or NA>"
+    - name: inquire_with_airport
+      description: "Send a lookup to an airport. Args: airport_code."
+      system_message: "You are the airport lookup response. Respond: 'airport=<code>; response=<one-line>'."
+    - name: send_care_voucher
+      description: "Issue a voucher. Args: passenger_id, amount_usd."
+      system_message: "Respond: 'voucher_id=V<6-digits>; passenger_id=<id>; amount_usd=<n>; status=issued'."
+    - name: organize_delivery
+      description: "Book a courier. Args: baggage_id, address."
+      system_message: "Respond: 'delivery_id=D<6-digits>; baggage_id=<id>; address=<addr>; eta_hours=8'."
+    - name: inform_passenger
+      description: "Notify the passenger. Args: passenger_id, message."
+      system_message: "Respond: 'notification_id=N<6-digits>; passenger_id=<id>; status=sent'."
+    - name: request_info_from_passenger
+      description: "Ask the passenger a question. Args: question."
+      system_message: "Roleplay the passenger's reply. Respond: 'passenger_reply=<one sentence>'."
+
+  outputs:
+    - name: delivery_request
+      description: "Emit when the agent organized delivery for a located bag."
+    - name: voucher_issued
+      description: "Emit when a care voucher was sent (bag not immediately deliverable)."
+    - name: escalation
+      description: "Emit when the case needs human review (bag lost, awaiting passenger reply)."

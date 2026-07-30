@@ -22087,6 +22087,52 @@
       }
     },
     {
+      "id": "llm_multi_path_router",
+      "name": "LLM Multi-Path Router",
+      "category": "ai",
+      "description": "Router agent as a single graph-backed multi-asset per case \u2014 ReAct steps are ops visible in the run view; per-branch outputs are separate downstream assets. Only branches the classifier picks are emitted per partition, so downstream lineage stays honest per case.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/llm_multi_path_router",
+      "tags": [
+        "ai",
+        "agent",
+        "router",
+        "react",
+        "multi-asset",
+        "graph-backed",
+        "agentic"
+      ],
+      "dependencies": {
+        "pip": [
+          "openai>=1.0.0",
+          "pandas>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_multi_path_router/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_multi_path_router/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_multi_path_router/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_multi_path_router/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_multi_path_router/requirements.txt",
+      "icon": "GitBranch",
+      "validation": {
+        "level": "live",
+        "last_validated": "2026-07-30",
+        "evidence": "examples/agentic_router.md \u2014 3 partitions \u00d7 baggage-loss triage; c1 emitted delivery_request \u2192 courier_booked, c2 emitted voucher_issued+escalation \u2192 compensation + human_review, c3 emitted escalation. Each downstream sink shows only the partitions that flowed through it. ReAct steps as ops verified in run view."
+      },
+      "agent_hints": {
+        "inputs": "upstream_asset_key \u2014 a DataFrame with one row per case (filtered per-partition via partition_static_column).",
+        "outputs": "One asset per declared outputs[] entry. Emitted conditionally per case based on classifier. Each carries {branch, summary, n_iterations, trajectory} plus rich metadata (trajectory as markdown).",
+        "side_effects": "Makes LLM API calls: max_iterations planner turns + up to max_iterations tool calls + 1 classifier turn per partition.",
+        "anti_uses": "Not for cases where each ReAct step should be its own asset (use iterative_supervisor_agent). Not for single-output tasks (use llm_prompt_executor).",
+        "requires_resources": [],
+        "output_type": "graph_multi_asset"
+      },
+      "produces": [
+        "asset"
+      ]
+    },
+    {
       "id": "llm_output_parser",
       "name": "LLM Output Parser",
       "category": "ai",
@@ -40284,5 +40330,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 956
+  "total": 957
 }

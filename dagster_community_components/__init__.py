@@ -525,6 +525,7 @@ _CLASS_PATHS: dict[str, str] = {
     "LLMEvaluatorComponent": "assets/ai/llm_evaluator/component.py",
     "LLMOutputParserComponent": "assets/ai/llm_output_parser/component.py",
     "LLMPromptExecutorComponent": "assets/ai/llm_prompt_executor/component.py",
+    "LlmMultiPathRouterComponent": "assets/ai/llm_multi_path_router/component.py",
     "LTVPredictionComponent": "assets/analytics/ltv_prediction/component.py",
     "LabelEncoderComponent": "assets/transforms/label_encoder/component.py",
     "LakeFSAssetComponent": "assets/analytics/lakefs_asset/component.py",

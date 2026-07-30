@@ -49,8 +49,153 @@ import dagster as dg
 from pydantic import Field
 
 
+def _invoke_tool(
+    spec,
+    args_str: str,
+    *,
+    context,
+    llm_client,
+    model: str,
+    temperature: float,
+    max_tokens: int,
+) -> str:
+    """Dispatch a tool call by tool_type. Returns the tool's textual output.
+
+    - llm_roleplay: chat completion with spec.system_message as system prompt.
+    - sql: format spec.sql_template with args and execute against
+      `context.resources.<spec.resource>.get_connection()`. Returns rows as
+      pipe-delimited text.
+    - http: format spec.http_url + optional body_template with args, dispatch
+      via `context.resources.<spec.resource>.request(...)` (if the resource
+      exposes .request()) or plain `requests` otherwise.
+
+    Missing / malformed configuration raises with an actionable message so the
+    error surfaces on the failing step in the UI, not in a stack trace later.
+    """
+    tool_type = (spec.tool_type or "llm_roleplay").lower()
+
+    if tool_type == "llm_roleplay":
+        if not spec.system_message:
+            raise ValueError(
+                f"tool {spec.name!r}: tool_type='llm_roleplay' requires system_message."
+            )
+        resp = llm_client.chat.completions.create(
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            messages=[
+                {"role": "system", "content": spec.system_message},
+                {"role": "user", "content": args_str},
+            ],
+        )
+        return (resp.choices[0].message.content or "").strip()
+
+    if tool_type == "sql":
+        if not spec.resource:
+            raise ValueError(f"tool {spec.name!r}: tool_type='sql' requires resource.")
+        if not spec.sql_template:
+            raise ValueError(f"tool {spec.name!r}: tool_type='sql' requires sql_template.")
+        resource = getattr(context.resources, spec.resource, None)
+        if resource is None:
+            raise ValueError(
+                f"tool {spec.name!r}: resource {spec.resource!r} not found on context. "
+                f"Add a resource component registering key={spec.resource!r}."
+            )
+        # Template substitution — try to parse args as JSON so named-arg
+        # templates like `... WHERE id = '{baggage_id}'` work when the LLM
+        # emits JSON args. If it's not JSON, fall back to bare `{args}`.
+        # Also expose the first JSON value as `{args}` so single-value
+        # templates work regardless of what the LLM emits.
+        _format_kwargs: Dict[str, Any] = {"args": args_str.strip()}
+        _stripped = args_str.strip()
+        if _stripped.startswith("{") and _stripped.endswith("}"):
+            try:
+                _parsed = json.loads(_stripped)
+                if isinstance(_parsed, dict):
+                    _format_kwargs.update({str(k): v for k, v in _parsed.items()})
+                    # Override {args} with the first value if it's a single-key dict.
+                    if len(_parsed) == 1:
+                        _format_kwargs["args"] = next(iter(_parsed.values()))
+            except json.JSONDecodeError:
+                pass
+        # Also strip surrounding quotes if the LLM emitted `"BAG-001"`.
+        if isinstance(_format_kwargs["args"], str) and len(_format_kwargs["args"]) >= 2:
+            _a = _format_kwargs["args"]
+            if (_a[0], _a[-1]) in {('"', '"'), ("'", "'")}:
+                _format_kwargs["args"] = _a[1:-1]
+        try:
+            query = spec.sql_template.format(**_format_kwargs)
+        except KeyError as e:
+            raise ValueError(
+                f"tool {spec.name!r}: sql_template references {e} — "
+                f"planner emitted args={args_str!r}. Either the planner must "
+                f"emit that field as a JSON key or the template should use "
+                f"the raw `{{args}}` substitution."
+            ) from e
+        with resource.get_connection() as conn:
+            cur = conn.execute(query) if hasattr(conn, "execute") else conn.cursor().execute(query)
+            try:
+                rows = cur.fetchall()
+            except Exception:
+                rows = []
+            try:
+                cols = [d[0] for d in (cur.description or [])]
+            except Exception:
+                cols = []
+        if not rows:
+            return "(no rows)"
+        if cols:
+            return " | ".join(cols) + "\n" + "\n".join(" | ".join(str(v) for v in r) for r in rows)
+        return "\n".join(" | ".join(str(v) for v in r) for r in rows)
+
+    if tool_type == "http":
+        if not spec.http_url:
+            raise ValueError(f"tool {spec.name!r}: tool_type='http' requires http_url.")
+        url = spec.http_url.format(args=args_str)
+        body = spec.http_body_template.format(args=args_str) if spec.http_body_template else None
+        headers = dict(spec.http_headers or {})
+        method = (spec.http_method or "GET").upper()
+        if spec.resource:
+            resource = getattr(context.resources, spec.resource, None)
+            if resource is None:
+                raise ValueError(
+                    f"tool {spec.name!r}: resource {spec.resource!r} not found on context."
+                )
+            if hasattr(resource, "request"):
+                resp = resource.request(method=method, url=url, headers=headers, data=body)
+                # Support both requests-style and plain-text .text attribute.
+                return getattr(resp, "text", str(resp))
+        import requests as _req
+        resp = _req.request(method=method, url=url, headers=headers, data=body, timeout=30)
+        resp.raise_for_status()
+        return resp.text
+
+    raise ValueError(f"tool {spec.name!r}: unknown tool_type={spec.tool_type!r}.")
+
+
 class LlmMultiPathRouterToolSpec(dg.Resolvable, dg.Model):
-    """One tool the router can pick at any ReAct step."""
+    """One tool the router can pick at any ReAct step.
+
+    Set `tool_type` to bind the tool to a real backend:
+
+      - `llm_roleplay` (default): the tool is an LLM invocation with
+        `system_message` — the LLM plays the tool's role. Great for demos
+        where you don't have real endpoints yet. Requires `system_message`.
+
+      - `sql`: args are substituted into `sql_template` and the query runs
+        against `resource` (a Dagster resource key registered elsewhere in
+        the project). Returns rows as a text block. Requires `resource` and
+        `sql_template`.
+
+      - `http`: args are substituted into `http_url` (and optionally
+        `http_body_template`); an HTTP call is made via `resource`
+        (a Dagster resource providing a `.request(method, url, ...)`
+        interface, or the built-in `requests` fallback if `resource` is
+        omitted). Requires `http_url`; optional `resource`, `http_method`,
+        `http_headers`.
+
+    `{args}` in any template resolves to the planner's raw args string.
+    """
 
     name: str = Field(description="Tool name — planner picks by this.")
     description: str = Field(
@@ -59,12 +204,53 @@ class LlmMultiPathRouterToolSpec(dg.Resolvable, dg.Model):
             "the planner picks based on this text."
         ),
     )
-    system_message: str = Field(
+    tool_type: str = Field(
+        default="llm_roleplay",
+        description="'llm_roleplay' (LLM plays the tool) | 'sql' (real SQL) | 'http' (real HTTP call).",
+    )
+    system_message: Optional[str] = Field(
+        default=None,
         description=(
-            "The tool's LLM system prompt. Receives the planner's `tool_input` "
-            "as the user message. Pre-seed with any ground-truth data the tool "
-            "should have access to (e.g., simulated DB rows for a demo)."
+            "Only used when tool_type='llm_roleplay'. System prompt for the "
+            "tool's LLM. Receives the planner's args string as the user "
+            "message."
         ),
+    )
+    resource: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster resource key. For tool_type='sql': the resource must "
+            "expose a get_connection() context manager returning a DB-API "
+            "connection (e.g., dagster-duckdb's DuckDBResource). For "
+            "tool_type='http': the resource may expose a .request() method; "
+            "if omitted, plain `requests` is used."
+        ),
+    )
+    sql_template: Optional[str] = Field(
+        default=None,
+        description=(
+            "Only used when tool_type='sql'. SQL template with `{args}` "
+            "substitution. Example: \"SELECT * FROM baggage WHERE id = '{args}'\"."
+        ),
+    )
+    http_method: str = Field(
+        default="GET",
+        description="Only used when tool_type='http'. HTTP method.",
+    )
+    http_url: Optional[str] = Field(
+        default=None,
+        description=(
+            "Only used when tool_type='http'. URL template with `{args}` "
+            "substitution. Example: \"https://airports/api/{args}\"."
+        ),
+    )
+    http_headers: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Only used when tool_type='http'. Request headers.",
+    )
+    http_body_template: Optional[str] = Field(
+        default=None,
+        description="Only used when tool_type='http'. Body template with `{args}` substitution.",
     )
 
 
@@ -230,6 +416,11 @@ class LlmMultiPathRouterComponent(dg.Component, dg.Model, dg.Resolvable):
 
         tool_by_name = {t.name: t for t in self.tools}
         output_names = [o.name for o in self.outputs]
+        # Union of resource keys any tool depends on — declared on every step
+        # op so context.resources.<key> is available inside _invoke_tool.
+        _tool_resource_keys = {
+            t.resource for t in self.tools if t.resource
+        }
 
         # ─── Ops: one plan_step op per iteration + classifier op ────
         # Each step op takes (task_str, prior_step_json) and returns
@@ -246,6 +437,7 @@ class LlmMultiPathRouterComponent(dg.Component, dg.Model, dg.Resolvable):
                     "prior_step": dg.In(dict, default_value={"done": False, "trajectory": []}),
                 },
                 out={"step": dg.Out(dict)},
+                required_resource_keys=_tool_resource_keys,
                 description=f"ReAct step {iteration}: planner picks the next tool or declares done.",
             )
             def _step_op(context, task_str, prior_step):
@@ -341,16 +533,15 @@ class LlmMultiPathRouterComponent(dg.Component, dg.Model, dg.Resolvable):
                         f"planner picked unknown tool {tool_name!r}; valid tools: {list(tool_by_name)}"
                     )
                 spec = tool_by_name[tool_name]
-                tool_resp = client.chat.completions.create(
+                tool_output = _invoke_tool(
+                    spec,
+                    str(plan.get("args") or ""),
+                    context=context,
+                    llm_client=client,
                     model=_self.model,
                     temperature=_self.temperature,
                     max_tokens=_self.tool_max_tokens,
-                    messages=[
-                        {"role": "system", "content": spec.system_message},
-                        {"role": "user", "content": str(plan.get("args") or "")},
-                    ],
                 )
-                tool_output = (tool_resp.choices[0].message.content or "").strip()
                 context.log.info(f"[step {iteration}] tool_output: {tool_output[:200]}")
 
                 new_step = {
@@ -592,6 +783,7 @@ class LlmMultiPathRouterComponent(dg.Component, dg.Model, dg.Resolvable):
         tool_by_name = {t.name: t for t in self.tools}
         outputs_list = list(self.outputs)
         output_names = {o.name for o in outputs_list}
+        _tool_resource_keys = {t.resource for t in self.tools if t.resource}
 
         # ─── Op: build task string from upstream row ────────────────
         _task_template = self.task_template
@@ -634,6 +826,7 @@ class LlmMultiPathRouterComponent(dg.Component, dg.Model, dg.Resolvable):
                     "prior_step": dg.In(dict, default_value={"done": False, "trajectory": []}),
                 },
                 out={"step": dg.Out(dict)},
+                required_resource_keys=_tool_resource_keys,
                 description=f"ReAct step {iteration}: planner picks the next tool or declares done.",
             )
             def _step_op(context, task_str, prior_step):
@@ -711,16 +904,15 @@ class LlmMultiPathRouterComponent(dg.Component, dg.Model, dg.Resolvable):
                 if tool_name not in tool_by_name:
                     raise ValueError(f"planner picked unknown tool {tool_name!r}; valid tools: {list(tool_by_name)}")
                 spec = tool_by_name[tool_name]
-                tool_resp = client.chat.completions.create(
+                tool_output = _invoke_tool(
+                    spec,
+                    str(plan.get("args") or ""),
+                    context=context,
+                    llm_client=client,
                     model=_self.model,
                     temperature=_self.temperature,
                     max_tokens=_self.tool_max_tokens,
-                    messages=[
-                        {"role": "system", "content": spec.system_message},
-                        {"role": "user", "content": str(plan.get("args") or "")},
-                    ],
                 )
-                tool_output = (tool_resp.choices[0].message.content or "").strip()
                 context.log.info(f"[step {iteration}] tool_output: {tool_output[:200]}")
 
                 new_step = {

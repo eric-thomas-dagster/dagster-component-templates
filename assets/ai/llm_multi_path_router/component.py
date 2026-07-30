@@ -265,6 +265,19 @@ class LlmMultiPathRouterOutputSpec(dg.Resolvable, dg.Model):
             "whether this path applies to a case."
         ),
     )
+    output_schema: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "Optional. Field name → short description of what to extract for "
+            "this branch. When set, the classifier reads the ReAct trajectory "
+            "and fills in these fields per case; the branch asset returns a "
+            "single-row DataFrame with those columns (branch-specific data "
+            "for downstream sinks). When None, the branch returns the raw "
+            "trajectory + summary passthrough shape. Example: "
+            "{'delivery_id': 'D<number> emitted by organize_delivery', "
+            "'address': 'delivery address from the DB row'}."
+        ),
+    )
     kinds: Optional[List[str]] = Field(default=None, description="Asset kinds.")
 
 
@@ -928,27 +941,55 @@ class LlmMultiPathRouterComponent(dg.Component, dg.Model, dg.Resolvable):
         step_ops = [_make_step_op(i) for i in range(1, self.max_iterations + 1)]
 
         # ─── Classifier + partition-registration op ─────────────────
+        # The classifier's job:
+        #   1. Read the ReAct trajectory.
+        #   2. Decide which branches apply to this case.
+        #   3. For each picked branch, fill in the branch's output_schema
+        #      fields (or omit if the branch has no schema declared).
+        #   4. Register the current partition_key on each picked branch's
+        #      DynamicPartitionsDefinition — that's what makes the branch
+        #      asset materializable for this case.
+
+        # Build a per-branch schema summary the classifier can see.
+        _branch_schema_lines: List[str] = []
+        for o in outputs_list:
+            if o.output_schema:
+                _fields = ", ".join(f"{k} ({v})" for k, v in o.output_schema.items())
+                _branch_schema_lines.append(
+                    f"  - {o.name}: {o.description}\n    payload fields: {{{_fields}}}"
+                )
+            else:
+                _branch_schema_lines.append(
+                    f"  - {o.name}: {o.description}\n    payload fields: (none — will use trajectory passthrough)"
+                )
+        _options_str = "\n".join(_branch_schema_lines)
+
         classifier_system = self.classifier_system_message or (
             "You classify an agent's ReAct trajectory into which downstream "
-            "branches to emit. Reply ONLY with a JSON object of the form "
-            '{"emit": ["<name>", ...], "summary": "<one line>"}. Pick '
-            "output names ONLY from the provided set."
+            "branches to emit AND extract branch-specific payloads. Reply ONLY "
+            "with JSON of the form:\n"
+            '  {"emit": {"<branch_name>": {payload-fields}, ...}, '
+            '"summary": "<one line>"}\n'
+            "Rules:\n"
+            "  - Only pick branch names from the provided set.\n"
+            "  - Fill in EVERY payload field listed for each picked branch — "
+            "extract values from the tool outputs in the trajectory.\n"
+            "  - For branches with `payload fields: (none — will use trajectory passthrough)`, "
+            "emit an empty object `{}`.\n"
+            "  - Omit branches that don't apply — don't include them in `emit`."
         )
-        _output_names_list = [o.name for o in outputs_list]
 
         @dg.op(
             name="classify_and_register",
             ins={f"step_{i+1}": dg.In(dict, default_value={"done": False, "trajectory": []}) for i in range(self.max_iterations)},
             out={"classification": dg.Out(dict)},
             description=(
-                "Classify the trajectory + register the current partition_key "
-                "on each picked branch's DynamicPartitionsDefinition (so those "
-                "branches materialize for this case)."
+                "Classify the trajectory, extract per-branch payloads, and "
+                "register the current partition_key on each picked branch's "
+                "DynamicPartitionsDefinition."
             ),
         )
         def _classify_op(context, **kwargs):
-            import pandas as pd
-
             steps_ordered = [kwargs[f"step_{i+1}"] for i in range(_self.max_iterations)]
             final_trajectory: List[Dict[str, Any]] = []
             for s in steps_ordered:
@@ -957,11 +998,10 @@ class LlmMultiPathRouterComponent(dg.Component, dg.Model, dg.Resolvable):
 
             trajectory_summary = "\n".join(
                 f"Step {st['iteration']}: reasoning={st.get('reasoning','')} | "
-                f"tool={st.get('tool')}({st.get('args')}) | output={str(st.get('tool_output',''))[:250]}"
+                f"tool={st.get('tool')}({st.get('args')}) | output={str(st.get('tool_output',''))[:300]}"
                 for st in final_trajectory
             ) or "(agent invoked no tools)"
 
-            options_str = "\n".join(f"  - {o.name}: {o.description}" for o in outputs_list)
             client = _client()
             resp = client.chat.completions.create(
                 model=_self.model,
@@ -971,8 +1011,8 @@ class LlmMultiPathRouterComponent(dg.Component, dg.Model, dg.Resolvable):
                     {"role": "system", "content": classifier_system},
                     {"role": "user", "content": (
                         f"Agent trajectory:\n{trajectory_summary}\n\n"
-                        f"Available downstream branches:\n{options_str}\n\n"
-                        f'Which branches apply? Reply with JSON: {{"emit": ["<name>", ...], "summary": "<one line>"}}'
+                        f"Available downstream branches:\n{_options_str}\n\n"
+                        f'Which branches apply? Reply with JSON per the format above.'
                     )},
                 ],
             )
@@ -986,14 +1026,28 @@ class LlmMultiPathRouterComponent(dg.Component, dg.Model, dg.Resolvable):
             except Exception as e:
                 raise ValueError(f"classifier returned non-JSON: {raw[:300]}") from e
 
-            picked = [n for n in classification.get("emit", []) if n in output_names]
+            # Normalize `emit`: accept both new shape {name: {...}} and legacy
+            # list shape [name, name] for backward compat with existing YAMLs.
+            emit_raw = classification.get("emit")
+            emit_payloads: Dict[str, Dict[str, Any]] = {}
+            if isinstance(emit_raw, dict):
+                for k, v in emit_raw.items():
+                    if k in output_names:
+                        emit_payloads[k] = v if isinstance(v, dict) else {}
+            elif isinstance(emit_raw, list):
+                for k in emit_raw:
+                    if isinstance(k, str) and k in output_names:
+                        emit_payloads[k] = {}
+
+            picked = list(emit_payloads.keys())
             summary = str(classification.get("summary", ""))
             case_id = context.partition_key if context.has_partition_key else None
             context.log.info(f"classifier picked outputs: {picked} — {summary} (case_id={case_id})")
+            for bname, payload in emit_payloads.items():
+                context.log.info(f"  {bname}: {payload}")
 
-            # THE KEY MOVE: register the current case_id on each picked branch's
-            # DynamicPartitionsDefinition. Now those (and only those) branches
-            # can be materialized for this case.
+            # Register the current case_id on each picked branch's dynamic
+            # partition set → makes those branches materializable for this case.
             if case_id:
                 for branch_name in picked:
                     pdef_name = f"{branch_name}_cases"
@@ -1002,6 +1056,7 @@ class LlmMultiPathRouterComponent(dg.Component, dg.Model, dg.Resolvable):
 
             return {
                 "picked": picked,
+                "emit_payloads": emit_payloads,
                 "summary": summary,
                 "n_iterations": len(final_trajectory),
                 "trajectory": final_trajectory,
@@ -1035,11 +1090,16 @@ class LlmMultiPathRouterComponent(dg.Component, dg.Model, dg.Resolvable):
             return _classify_op(**{f"step_{i+1}": s for i, s in enumerate(steps)})
 
         # ─── Branch assets — one per declared output ────────────────
-        # Factory to bind the branch name into a fresh closure per iteration.
+        # Factory to bind the branch name + schema into a fresh closure per output.
         # Uses AssetDep+AllPartitionsMapping so the static-per-case router can
         # feed dynamic-per-branch downstream without a partition-scheme error.
         # (Runtime load is scoped to the branch's own partition_key = case_id.)
-        def _make_branch_asset(bname: str, bdesc: str, bkinds: set, bpdef, router_key):
+        #
+        # When output_schema is declared, the branch returns a single-row DF
+        # with the schema's columns filled from the classifier's emit_payloads
+        # for this branch. Without output_schema it falls back to the legacy
+        # trajectory-passthrough shape.
+        def _make_branch_asset(bname: str, bdesc: str, bkinds: set, bpdef, router_key, bschema):
             @dg.asset(
                 key=dg.AssetKey.from_user_string(bname),
                 description=bdesc,
@@ -1069,25 +1129,44 @@ class LlmMultiPathRouterComponent(dg.Component, dg.Model, dg.Resolvable):
                     )
                 trajectory = router_val.get("trajectory", [])
                 summary = str(router_val.get("summary", ""))
+                emit_payloads = router_val.get("emit_payloads", {}) or {}
                 trajectory_md = "\n".join(
                     f"**Step {st['iteration']}** — {st.get('reasoning','')}\n"
                     f"- tool: `{st.get('tool')}({st.get('args')})`\n"
                     f"- output: `{str(st.get('tool_output',''))[:400]}`"
                     for st in trajectory
                 )
-                df = pd.DataFrame([{
-                    "branch": bname,
-                    "case_id": case_id,
-                    "summary": summary,
-                    "n_iterations": len(trajectory),
-                    "trajectory": json.dumps(trajectory),
-                }])
+
+                if bschema:
+                    # Structured payload: one row per branch with the schema's
+                    # fields. Downstream sinks get branch-specific columns
+                    # (delivery_id, address, eta for delivery_request;
+                    # voucher_id, amount for voucher_issued; etc.)
+                    payload = emit_payloads.get(bname, {}) or {}
+                    row: Dict[str, Any] = {"case_id": case_id}
+                    for field_name in bschema:
+                        row[field_name] = payload.get(field_name)
+                    df = pd.DataFrame([row])
+                else:
+                    # Legacy passthrough shape.
+                    df = pd.DataFrame([{
+                        "branch": bname,
+                        "case_id": case_id,
+                        "summary": summary,
+                        "n_iterations": len(trajectory),
+                        "trajectory": json.dumps(trajectory),
+                    }])
+
                 context.add_output_metadata({
                     "branch": dg.MetadataValue.text(bname),
                     "case_id": dg.MetadataValue.text(case_id),
                     "summary": dg.MetadataValue.text(summary),
                     "n_iterations": dg.MetadataValue.int(len(trajectory)),
                     "trajectory": dg.MetadataValue.md(trajectory_md or "*(no tools invoked)*"),
+                    **({
+                        f"payload/{k}": dg.MetadataValue.text(str(v))
+                        for k, v in (emit_payloads.get(bname, {}) or {}).items()
+                    } if bschema else {}),
                 })
                 return df
             return _branch_asset
@@ -1101,6 +1180,7 @@ class LlmMultiPathRouterComponent(dg.Component, dg.Model, dg.Resolvable):
                 bkinds=set(out_spec.kinds or []) | {"ai", "agent", "branch"},
                 bpdef=branch_partitions[out_spec.name],
                 router_key=_router_key,
+                bschema=out_spec.output_schema,
             ))
 
         return dg.Definitions(assets=[_router_asset, *branch_assets])

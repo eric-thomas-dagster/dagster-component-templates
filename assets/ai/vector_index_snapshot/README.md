@@ -54,6 +54,12 @@ Default embedder is ChromaDB's built-in ONNX MiniLM (no API key needed). Swap to
 | `freshness_max_lag_minutes` | `int` | — | Freshness policy: max lag before this snapshot is considered stale. |
 | `freshness_cron` | `str` | — | Cron schedule for the freshness policy. |
 
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_this_asset` | `bool` | `false` | When True, partition this asset by the same dynamic-partitions def named by `dynamic_partition_name` (default 'rag_snapshot'). Materialization takes the snapshot_id from context.partition_key instead of auto-generating a timestamp id. Enables graph-native rollback: `dg launch --assets docs_index_snapshot --partition snap_v3`. |
+
 ### Retry policy
 
 | Field | Type | Default | Description |

@@ -155,6 +155,13 @@
       "required": false,
       "description": "Backoff strategy: 'linear' or 'exponential'.",
       "default": "exponential"
+    },
+    "partition_this_asset": {
+      "type": "boolean",
+      "label": "Partition This Asset",
+      "required": false,
+      "description": "When True, partition this asset by the same dynamic-partitions def named by 'dynamic_partition_name'. Materialization takes the snapshot_id from context.partition_key instead of auto-generating a timestamp id.",
+      "default": false
     }
   }
 }

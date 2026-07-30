@@ -120,6 +120,21 @@ class VectorIndexSnapshotComponent(dg.Component, dg.Model, dg.Resolvable):
         default="exponential", description="Backoff strategy: 'linear' or 'exponential'."
     )
 
+    # Partitioning — when set, the asset itself is partitioned. Each partition
+    # key becomes the snapshot_id (no auto-generation). If unset, keeps the
+    # v0 behavior: unpartitioned, one auto-id snapshot per materialization,
+    # still registers the id on the downstream dynamic partitions def.
+    partition_this_asset: bool = Field(
+        default=False,
+        description=(
+            "When True, partition this asset by the same dynamic-partitions "
+            "def named by `dynamic_partition_name` (default 'rag_snapshot'). "
+            "Materialization takes the snapshot_id from context.partition_key "
+            "instead of auto-generating a timestamp id. Enables graph-native "
+            "rollback: `dg launch --assets docs_index_snapshot --partition snap_v3`."
+        ),
+    )
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
@@ -153,6 +168,16 @@ class VectorIndexSnapshotComponent(dg.Component, dg.Model, dg.Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
+        # When partition_this_asset=True, the snapshot asset itself is
+        # partitioned by the same dynamic-partitions def it registers keys
+        # on for downstream. The partition_key IS the snapshot_id.
+        partitions_def = (
+            dg.DynamicPartitionsDefinition(name=dynamic_partition_name)
+            if self.partition_this_asset
+            else None
+        )
+        _partition_this = self.partition_this_asset
+
         @dg.asset(
             key=dg.AssetKey.from_user_string(asset_name),
             description=self.description or f"Vector index snapshot from {upstream_asset_key}",
@@ -160,6 +185,7 @@ class VectorIndexSnapshotComponent(dg.Component, dg.Model, dg.Resolvable):
             owners=self.owners or [],
             tags=tags,
             deps=[dg.AssetKey.from_user_string(upstream_asset_key)],
+            partitions_def=partitions_def,
             freshness_policy=freshness_policy,
             retry_policy=retry_policy,
         )
@@ -177,8 +203,6 @@ class VectorIndexSnapshotComponent(dg.Component, dg.Model, dg.Resolvable):
             if missing:
                 raise dg.Failure(description=f"Upstream corpus missing columns: {missing}")
 
-            # snapshot id: timestamp + short corpus hash prefix (if available on upstream metadata)
-            ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
             # Try to lift corpus_hash from the upstream materialization metadata.
             corpus_hash = "unknown"
             try:
@@ -190,7 +214,12 @@ class VectorIndexSnapshotComponent(dg.Component, dg.Model, dg.Resolvable):
             except Exception:  # noqa: BLE001
                 pass
 
-            snapshot_id = f"{ts}-{corpus_hash[:8] if corpus_hash != 'unknown' else 'nohash'}"
+            # snapshot_id: either the partition_key (when partitioned) or auto-generated timestamp id
+            if _partition_this and context.has_partition_key:
+                snapshot_id = context.partition_key
+            else:
+                ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+                snapshot_id = f"{ts}-{corpus_hash[:8] if corpus_hash != 'unknown' else 'nohash'}"
             snapshot_root = Path(snapshot_root_dir).expanduser().resolve()
             snapshot_root.mkdir(parents=True, exist_ok=True)
             snapshot_dir = snapshot_root / snapshot_id

@@ -484,11 +484,24 @@ group_name=group_name,
 
             responses = []
 
+            # Expose partition_key + run_id in the templating namespace so
+            # per-partition prompts can reference them without needing a
+            # matching column in the upstream DataFrame.
+            _partition_key_val = ""
+            if context.has_partition_key:
+                try:
+                    _partition_key_val = str(context.partition_key)
+                except Exception:
+                    _partition_key_val = ""
+            _run_id_val = str(getattr(context, "run_id", "") or "")
+
             for idx, row in df.iterrows():
                 # Build prompt for this row (alias input_column → 'input' for templates)
                 if user_prompt_template:
                     row_data = row.to_dict()
                     row_data["input"] = row[input_column]
+                    row_data.setdefault("partition_key", _partition_key_val)
+                    row_data.setdefault("run_id", _run_id_val)
                     prompt = user_prompt_template.format(**row_data)
                 else:
                     prompt = str(row[input_column])

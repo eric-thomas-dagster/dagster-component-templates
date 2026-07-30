@@ -115,6 +115,31 @@ class LlmMultiPathRouterComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
 
+    use_dynamic_partitions: bool = Field(
+        default=True,
+        description=(
+            "Shape selector. True (default) → dynamic-partitions shape: emits "
+            "one intermediate 'agent' asset (partitioned per case) PLUS N branch "
+            "assets, each with its own DynamicPartitionsDefinition. Each branch "
+            "asset only shows the case keys the router actually registered on "
+            "it — clean per-branch lineage, no red-failed slots for cases that "
+            "didn't take that branch. False → the older shape: single "
+            "@graph_multi_asset with all outputs sharing one partitions_def "
+            "and is_required=False (sparse slots, all in one asset)."
+        ),
+    )
+    router_asset_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "Only used when use_dynamic_partitions=True. Name for the "
+            "intermediate 'agent' asset that runs the ReAct loop + registers "
+            "case keys on branch dynamic partition sets. Defaults to "
+            "`<asset_name>` (i.e., the base name).  If asset_name is 'baggage_triage_agent', "
+            "the intermediate asset is `baggage_triage_agent` and the branches "
+            "are the `outputs:` names."
+        ),
+    )
+
     max_iterations: int = Field(
         default=5, ge=1, le=15,
         description="Max ReAct steps (= number of plan_step ops in the graph).",
@@ -155,6 +180,11 @@ class LlmMultiPathRouterComponent(dg.Component, dg.Model, dg.Resolvable):
     )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        if self.use_dynamic_partitions:
+            return self._build_dynamic_shape(context)
+        return self._build_multi_asset_shape(context)
+
+    def _build_multi_asset_shape(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
 
         # ─── Partitions ────────────────────────────────────────────
@@ -517,3 +547,368 @@ class LlmMultiPathRouterComponent(dg.Component, dg.Model, dg.Resolvable):
             return {o.name: getattr(outs, o.name) for o in outputs_list}
 
         return dg.Definitions(assets=[_router_graph])
+
+    def _build_dynamic_shape(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        """The clean shape: 1 router asset (static-partitioned per case, ReAct
+        steps as ops in the run view) + N branch assets, each with its own
+        DynamicPartitionsDefinition. At runtime, the router registers case_id
+        on the appropriate branch's dynamic partition set. Each branch's UI
+        shows ONLY the cases the router actually picked for it. No red-failed
+        slots for cases that didn't take that branch.
+        """
+        _self = self
+
+        if not self.partition_values:
+            raise ValueError(
+                "llm_multi_path_router.use_dynamic_partitions=True requires "
+                "partition_values (comma-separated case_ids)."
+            )
+        case_ids = [v.strip() for v in self.partition_values.split(",") if v.strip()]
+        router_partitions = dg.StaticPartitionsDefinition(case_ids)
+
+        # Per-branch DynamicPartitionsDefinition. Named `<output>_cases` for clarity.
+        branch_partitions: Dict[str, dg.DynamicPartitionsDefinition] = {
+            o.name: dg.DynamicPartitionsDefinition(name=f"{o.name}_cases")
+            for o in self.outputs
+        }
+
+        # ─── LLM client (same as multi_asset shape) ─────────────────
+        def _client():
+            import os
+            try:
+                from openai import OpenAI
+            except ImportError as e:
+                raise ImportError("llm_multi_path_router requires openai>=1.0.0") from e
+            api_key = os.environ.get(_self.api_key_env_var)
+            if not api_key:
+                raise RuntimeError(f"{_self.api_key_env_var!r} env var not set.")
+            kwargs: Dict[str, Any] = {"api_key": api_key}
+            if _self.api_base_env_var:
+                base_url = os.environ.get(_self.api_base_env_var)
+                if base_url:
+                    kwargs["base_url"] = base_url
+            return OpenAI(**kwargs)
+
+        tool_by_name = {t.name: t for t in self.tools}
+        outputs_list = list(self.outputs)
+        output_names = {o.name for o in outputs_list}
+
+        # ─── Op: build task string from upstream row ────────────────
+        _task_template = self.task_template
+        _partition_static_column = self.partition_static_column
+        _upstream_asset_key = self.upstream_asset_key
+        _router_asset_key = self.router_asset_name or self.asset_name
+
+        @dg.op(
+            name="build_task",
+            ins={"upstream": dg.In(dg.Nothing)},
+            out={"task_str": dg.Out(str)},
+            description="Load upstream + filter to current partition + build task string.",
+        )
+        def _build_task_op(context):
+            import pandas as pd
+            _pk = context.partition_key if context.has_partition_key else None
+            upstream = context.op_execution_context.load_asset_value(
+                dg.AssetKey.from_user_string(_upstream_asset_key)
+            )
+            df = upstream if isinstance(upstream, pd.DataFrame) else pd.DataFrame(upstream)
+            if _partition_static_column and _pk and _partition_static_column in df.columns:
+                df = df[df[_partition_static_column].astype(str) == str(_pk)]
+            if df.empty:
+                raise ValueError(f"No upstream rows for partition {_pk!r}")
+            row = df.iloc[0].to_dict()
+            row.setdefault("partition_key", str(_pk or ""))
+            try:
+                return _task_template.format(**row)
+            except KeyError as e:
+                raise ValueError(
+                    f"task_template references {e} but upstream row has columns: {list(row)}"
+                ) from e
+
+        # ─── ReAct step ops — same shape as the multi_asset variant ─
+        def _make_step_op(iteration: int):
+            @dg.op(
+                name=f"plan_step_{iteration}",
+                ins={
+                    "task_str": dg.In(str),
+                    "prior_step": dg.In(dict, default_value={"done": False, "trajectory": []}),
+                },
+                out={"step": dg.Out(dict)},
+                description=f"ReAct step {iteration}: planner picks the next tool or declares done.",
+            )
+            def _step_op(context, task_str, prior_step):
+                if prior_step.get("done"):
+                    context.log.info(f"[step {iteration}] short-circuit — prior step declared done")
+                    yield dg.Output({
+                        "iteration": iteration,
+                        "done": True,
+                        "tool": None, "args": None,
+                        "reasoning": "short-circuited — prior step done",
+                        "tool_output": None,
+                        "trajectory": list(prior_step.get("trajectory", [])),
+                    }, "step")
+                    return
+
+                trajectory = list(prior_step.get("trajectory", []))
+                tool_list = "\n".join(f"  - {t.name}: {t.description}" for t in _self.tools)
+                valid_names = ", ".join(f'"{t.name}"' for t in _self.tools)
+
+                prior_summary = ""
+                if trajectory:
+                    for st in trajectory:
+                        prior_summary += (
+                            f"Step {st['iteration']}: reasoning={st.get('reasoning','')} | "
+                            f"tool={st.get('tool')}({st.get('args')}) | "
+                            f"output={st.get('tool_output','')[:200]}\n"
+                        )
+                else:
+                    prior_summary = "(this is step 1 — no prior work)"
+
+                planner_prompt = (
+                    f"Task:\n{task_str}\n\n"
+                    f"Prior work so far:\n{prior_summary}\n"
+                    f"Available tools:\n{tool_list}\n\n"
+                    f"Decide: (a) call one more tool by picking from {valid_names}, "
+                    f"or (b) declare done. Reply in JSON:\n"
+                    f'{{"done": true|false, "tool": "<name>|null", "args": "<args-string>|null", "reasoning": "<one clause>"}}'
+                )
+                client = _client()
+                resp = client.chat.completions.create(
+                    model=_self.model,
+                    temperature=_self.temperature,
+                    max_tokens=_self.planner_max_tokens,
+                    messages=[
+                        {"role": "system", "content": "You are a strict tool-picking planner. Reply ONLY with the JSON — no prose, no markdown fences."},
+                        {"role": "user", "content": planner_prompt},
+                    ],
+                )
+                raw = (resp.choices[0].message.content or "").strip()
+                if raw.startswith("```"):
+                    raw = raw.strip("`")
+                    if raw.startswith("json"): raw = raw[len("json"):].strip()
+                    if raw.endswith("```"): raw = raw[:-3].strip()
+                try:
+                    plan = json.loads(raw)
+                except Exception as e:
+                    raise ValueError(f"planner returned non-JSON: {raw[:200]}") from e
+
+                context.log.info(
+                    f"[step {iteration}] plan: done={plan.get('done')} tool={plan.get('tool')} "
+                    f"args={str(plan.get('args'))[:120]} reasoning={plan.get('reasoning','')[:120]}"
+                )
+
+                if plan.get("done"):
+                    yield dg.Output({
+                        "iteration": iteration, "done": True,
+                        "tool": None, "args": None,
+                        "reasoning": plan.get("reasoning", ""),
+                        "tool_output": None,
+                        "trajectory": trajectory,
+                    }, "step")
+                    return
+
+                tool_name = plan.get("tool")
+                if tool_name not in tool_by_name:
+                    raise ValueError(f"planner picked unknown tool {tool_name!r}; valid tools: {list(tool_by_name)}")
+                spec = tool_by_name[tool_name]
+                tool_resp = client.chat.completions.create(
+                    model=_self.model,
+                    temperature=_self.temperature,
+                    max_tokens=_self.tool_max_tokens,
+                    messages=[
+                        {"role": "system", "content": spec.system_message},
+                        {"role": "user", "content": str(plan.get("args") or "")},
+                    ],
+                )
+                tool_output = (tool_resp.choices[0].message.content or "").strip()
+                context.log.info(f"[step {iteration}] tool_output: {tool_output[:200]}")
+
+                new_step = {
+                    "iteration": iteration, "done": False,
+                    "tool": tool_name, "args": plan.get("args"),
+                    "reasoning": plan.get("reasoning", ""),
+                    "tool_output": tool_output,
+                }
+                trajectory.append(new_step)
+                yield dg.Output({**new_step, "trajectory": trajectory}, "step")
+            return _step_op
+
+        step_ops = [_make_step_op(i) for i in range(1, self.max_iterations + 1)]
+
+        # ─── Classifier + partition-registration op ─────────────────
+        classifier_system = self.classifier_system_message or (
+            "You classify an agent's ReAct trajectory into which downstream "
+            "branches to emit. Reply ONLY with a JSON object of the form "
+            '{"emit": ["<name>", ...], "summary": "<one line>"}. Pick '
+            "output names ONLY from the provided set."
+        )
+        _output_names_list = [o.name for o in outputs_list]
+
+        @dg.op(
+            name="classify_and_register",
+            ins={f"step_{i+1}": dg.In(dict, default_value={"done": False, "trajectory": []}) for i in range(self.max_iterations)},
+            out={"classification": dg.Out(dict)},
+            description=(
+                "Classify the trajectory + register the current partition_key "
+                "on each picked branch's DynamicPartitionsDefinition (so those "
+                "branches materialize for this case)."
+            ),
+        )
+        def _classify_op(context, **kwargs):
+            import pandas as pd
+
+            steps_ordered = [kwargs[f"step_{i+1}"] for i in range(_self.max_iterations)]
+            final_trajectory: List[Dict[str, Any]] = []
+            for s in steps_ordered:
+                if s and s.get("trajectory"):
+                    final_trajectory = s["trajectory"]
+
+            trajectory_summary = "\n".join(
+                f"Step {st['iteration']}: reasoning={st.get('reasoning','')} | "
+                f"tool={st.get('tool')}({st.get('args')}) | output={str(st.get('tool_output',''))[:250]}"
+                for st in final_trajectory
+            ) or "(agent invoked no tools)"
+
+            options_str = "\n".join(f"  - {o.name}: {o.description}" for o in outputs_list)
+            client = _client()
+            resp = client.chat.completions.create(
+                model=_self.model,
+                temperature=_self.temperature,
+                max_tokens=_self.classifier_max_tokens,
+                messages=[
+                    {"role": "system", "content": classifier_system},
+                    {"role": "user", "content": (
+                        f"Agent trajectory:\n{trajectory_summary}\n\n"
+                        f"Available downstream branches:\n{options_str}\n\n"
+                        f'Which branches apply? Reply with JSON: {{"emit": ["<name>", ...], "summary": "<one line>"}}'
+                    )},
+                ],
+            )
+            raw = (resp.choices[0].message.content or "").strip()
+            if raw.startswith("```"):
+                raw = raw.strip("`")
+                if raw.startswith("json"): raw = raw[len("json"):].strip()
+                if raw.endswith("```"): raw = raw[:-3].strip()
+            try:
+                classification = json.loads(raw)
+            except Exception as e:
+                raise ValueError(f"classifier returned non-JSON: {raw[:300]}") from e
+
+            picked = [n for n in classification.get("emit", []) if n in output_names]
+            summary = str(classification.get("summary", ""))
+            case_id = context.partition_key if context.has_partition_key else None
+            context.log.info(f"classifier picked outputs: {picked} — {summary} (case_id={case_id})")
+
+            # THE KEY MOVE: register the current case_id on each picked branch's
+            # DynamicPartitionsDefinition. Now those (and only those) branches
+            # can be materialized for this case.
+            if case_id:
+                for branch_name in picked:
+                    pdef_name = f"{branch_name}_cases"
+                    context.instance.add_dynamic_partitions(pdef_name, [case_id])
+                    context.log.info(f"registered partition {case_id!r} on {pdef_name!r}")
+
+            return {
+                "picked": picked,
+                "summary": summary,
+                "n_iterations": len(final_trajectory),
+                "trajectory": final_trajectory,
+                "case_id": case_id,
+            }
+
+        # ─── Router asset: graph-backed, static-partitioned per case ─
+        router_kinds = set(self.tags.values() if isinstance(self.tags, dict) else []) if False else set()
+        router_kinds |= {"ai", "agent", "router"}
+
+        @dg.graph_asset(
+            name=_router_asset_key,
+            group_name=self.group_name,
+            partitions_def=router_partitions,
+            ins={"upstream": dg.AssetIn(key=dg.AssetKey.from_user_string(self.upstream_asset_key))},
+            kinds=router_kinds,
+            description=(
+                "Router agent. Per case: runs the ReAct loop (steps as ops), "
+                "classifies the trajectory, and registers the case_id on each "
+                "picked branch's DynamicPartitionsDefinition."
+            ),
+        )
+        def _router_asset(upstream):
+            task_str = _build_task_op(upstream)
+            steps = []
+            prior = None
+            for op_fn in step_ops:
+                step = op_fn(task_str=task_str) if prior is None else op_fn(task_str=task_str, prior_step=prior)
+                steps.append(step)
+                prior = step
+            return _classify_op(**{f"step_{i+1}": s for i, s in enumerate(steps)})
+
+        # ─── Branch assets — one per declared output ────────────────
+        # Factory to bind the branch name into a fresh closure per iteration.
+        # Uses AssetDep+AllPartitionsMapping so the static-per-case router can
+        # feed dynamic-per-branch downstream without a partition-scheme error.
+        # (Runtime load is scoped to the branch's own partition_key = case_id.)
+        def _make_branch_asset(bname: str, bdesc: str, bkinds: set, bpdef, router_key):
+            @dg.asset(
+                key=dg.AssetKey.from_user_string(bname),
+                description=bdesc,
+                group_name=self.group_name,
+                kinds=bkinds,
+                partitions_def=bpdef,
+                owners=list(self.owners or []),
+                tags=dict(self.tags or {}),
+                deps=[dg.AssetDep(asset=router_key, partition_mapping=dg.AllPartitionMapping())],
+            )
+            def _branch_asset(context: dg.AssetExecutionContext):
+                import pandas as pd
+                case_id = context.partition_key if context.has_partition_key else None
+                if not case_id:
+                    raise RuntimeError(
+                        f"branch asset {bname!r} materialized without a partition_key"
+                    )
+                router_val = context.op_execution_context.load_asset_value(
+                    router_key, partition_key=case_id
+                )
+                picked = router_val.get("picked", []) if isinstance(router_val, dict) else []
+                if bname not in picked:
+                    raise RuntimeError(
+                        f"branch {bname!r} materialized for case {case_id!r} but router "
+                        f"didn't pick it (picked={picked}). Dynamic-partition registration "
+                        f"may be out of sync."
+                    )
+                trajectory = router_val.get("trajectory", [])
+                summary = str(router_val.get("summary", ""))
+                trajectory_md = "\n".join(
+                    f"**Step {st['iteration']}** — {st.get('reasoning','')}\n"
+                    f"- tool: `{st.get('tool')}({st.get('args')})`\n"
+                    f"- output: `{str(st.get('tool_output',''))[:400]}`"
+                    for st in trajectory
+                )
+                df = pd.DataFrame([{
+                    "branch": bname,
+                    "case_id": case_id,
+                    "summary": summary,
+                    "n_iterations": len(trajectory),
+                    "trajectory": json.dumps(trajectory),
+                }])
+                context.add_output_metadata({
+                    "branch": dg.MetadataValue.text(bname),
+                    "case_id": dg.MetadataValue.text(case_id),
+                    "summary": dg.MetadataValue.text(summary),
+                    "n_iterations": dg.MetadataValue.int(len(trajectory)),
+                    "trajectory": dg.MetadataValue.md(trajectory_md or "*(no tools invoked)*"),
+                })
+                return df
+            return _branch_asset
+
+        branch_assets: List[Any] = []
+        _router_key = dg.AssetKey.from_user_string(_router_asset_key)
+        for out_spec in outputs_list:
+            branch_assets.append(_make_branch_asset(
+                bname=out_spec.name,
+                bdesc=out_spec.description,
+                bkinds=set(out_spec.kinds or []) | {"ai", "agent", "branch"},
+                bpdef=branch_partitions[out_spec.name],
+                router_key=_router_key,
+            ))
+
+        return dg.Definitions(assets=[_router_asset, *branch_assets])

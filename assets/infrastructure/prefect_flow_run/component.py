@@ -317,6 +317,16 @@ class PrefectFlowRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 f"Prefect flow run {flow_run.id} state={state_name} ({state_type})"
             )
 
+            # Note: we deliberately do NOT try to fetch state.result(). Fetching
+            # the flow's return value requires Prefect result persistence to be
+            # configured, which is Prefect-specific plumbing users shouldn't have
+            # to worry about here. Downstream Dagster assets read the artifacts
+            # the flow WROTE (to S3/GCS/local disk) — the standard Prefect-owns-
+            # execution pattern. This asset's return dict is intentionally small
+            # (flow_run_id + state + parameters), enough for lineage + to derive
+            # where the flow's artifacts landed if the output path was passed as
+            # a parameter.
+
             if _self.wait_for_result and _self.fail_on_flow_run_failure and terminal_failure:
                 raise dg.Failure(
                     description=f"Prefect flow run ended in {state_name} state: {state_message}",

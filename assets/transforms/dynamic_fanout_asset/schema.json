@@ -1,0 +1,32 @@
+{
+  "component_type": "dagster_community_components.DynamicFanoutAssetComponent",
+  "description": "Asset-lineage sibling of DynamicFanoutJobComponent. Wraps discover→map→collect via DynamicOut in a @graph_asset so the fan-out lives in the asset catalog.",
+  "category": "transformation",
+  "icon": "GitBranch",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "any",
+      "description": "Whatever collect returns, or the raw list of process results if no collect callable."
+    }
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true, "description": "Name of the emitted @graph_asset."},
+    "discover_callable_path": {"type": "string", "label": "Discover Callable", "required": true, "description": "module:function returning an iterable of items. Signature: discover(upstream=..., **discover_kwargs) → List[item]."},
+    "discover_kwargs": {"type": "object", "label": "Discover Kwargs", "required": false, "description": "Static kwargs passed to discover.", "default": null},
+    "process_callable_path": {"type": "string", "label": "Process Callable", "required": true, "description": "module:function that takes one item and returns a result."},
+    "process_kwargs": {"type": "object", "label": "Process Kwargs", "required": false, "description": "Static kwargs merged into each process call.", "default": null},
+    "collect_callable_path": {"type": "string", "label": "Collect Callable", "required": false, "description": "Optional module:function that takes the list of results and returns the asset's final value.", "default": null},
+    "mapping_key_field": {"type": "string", "label": "Mapping Key Field", "required": false, "description": "If items are dicts, use this field as the DynamicOutput mapping_key (stable per-item retries).", "default": null},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "description": "Optional asset to depend on. Its materialized value passes into discover as upstream=X.", "default": null},
+    "retry_max_retries": {"type": "integer", "label": "Retry Max Retries", "required": false, "description": "Per-item retry max.", "default": null},
+    "retry_delay_seconds": {"type": "integer", "label": "Retry Delay Seconds", "required": false, "description": "Seconds between retries.", "default": null},
+    "retry_backoff": {"type": "string", "label": "Retry Backoff", "required": false, "description": "'linear' or 'exponential'.", "default": "exponential"},
+    "max_concurrent_tag_value": {"type": "string", "label": "Max Concurrent Tag Value", "required": false, "description": "If set, applies dagster/concurrency_key=<value> to the process op so an instance-level concurrency limit governs fan-out parallelism.", "default": null},
+    "fail_on_empty": {"type": "boolean", "label": "Fail On Empty", "required": false, "description": "Fail the graph if discover returns no items.", "default": false},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "description": "Asset group.", "default": null},
+    "description": {"type": "string", "label": "Description", "required": false, "description": "Asset description.", "default": null},
+    "owners": {"type": "array", "label": "Owners", "required": false, "description": "Asset owners.", "default": null, "items": {"type": "string"}},
+    "tags": {"type": "object", "label": "Tags", "required": false, "description": "Extra asset tags.", "default": null, "additionalProperties": {"type": "string"}},
+    "kinds": {"type": "array", "label": "Kinds", "required": false, "description": "Asset kinds. Defaults to ['fanout', 'transform'].", "default": null, "items": {"type": "string"}}
+  }
+}

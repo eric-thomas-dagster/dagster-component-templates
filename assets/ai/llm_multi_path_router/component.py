@@ -324,7 +324,43 @@ class LlmMultiPathRouterComponent(dg.Component, dg.Model, dg.Resolvable):
             "it — clean per-branch lineage, no red-failed slots for cases that "
             "didn't take that branch. False → the older shape: single "
             "@graph_multi_asset with all outputs sharing one partitions_def "
-            "and is_required=False (sparse slots, all in one asset)."
+            "and is_required=False (sparse slots, all in one asset). "
+            "IGNORED when fanout_mode=True."
+        ),
+    )
+    fanout_mode: bool = Field(
+        default=False,
+        description=(
+            "Batch fan-out shape. When True the router becomes a @graph_asset "
+            "that fans out over the upstream DataFrame's rows via DynamicOut. "
+            "N per-case ReAct triages run in parallel inside ONE run, then "
+            "collect into a batch result. Branch assets downstream are "
+            "unpartitioned DataFrames with N rows for the cases that took "
+            "that branch. Overrides use_dynamic_partitions when True. "
+            "Compose with `partition_type` (daily/hourly/etc.) for the "
+            "canonical production shape: daily-partitioned batch, fan-out "
+            "inside — partition_key is the day, mapping_keys are the row ids "
+            "within the day's data."
+        ),
+    )
+    fanout_mapping_key_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "Only used when fanout_mode=True. Column in the upstream "
+            "DataFrame to use as the DynamicOutput mapping_key per row (so "
+            "per-item retries are stable). Falls back to `partition_static_"
+            "column`, then to the row index."
+        ),
+    )
+    fanout_batch_filter_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "Only used when fanout_mode=True AND the upstream is unpartitioned "
+            "but the batch asset IS partitioned (e.g. daily-partitioned batch "
+            "reading from an unpartitioned CSV with a date column). Column to "
+            "filter upstream to `partition_key`'s rows. If upstream shares "
+            "the same partition scheme, Dagster's IO manager handles the "
+            "filter automatically — leave this unset."
         ),
     )
     router_asset_name: Optional[str] = Field(
@@ -379,6 +415,8 @@ class LlmMultiPathRouterComponent(dg.Component, dg.Model, dg.Resolvable):
     )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        if self.fanout_mode:
+            return self._build_fanout_shape(context)
         if self.use_dynamic_partitions:
             return self._build_dynamic_shape(context)
         return self._build_multi_asset_shape(context)
@@ -1184,3 +1222,300 @@ class LlmMultiPathRouterComponent(dg.Component, dg.Model, dg.Resolvable):
             ))
 
         return dg.Definitions(assets=[_router_asset, *branch_assets])
+
+    def _build_fanout_shape(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        """Batch fan-out: one unpartitioned @graph_asset that reads all cases
+        from upstream, fans out to N per-case ReAct triages via DynamicOut,
+        and .collect()s into a single classification DataFrame. N unpartitioned
+        branch assets each contain the rows for cases where THAT branch was
+        picked.
+
+        Use for high-volume batch processing where per-case partition catalog
+        overhead isn't worth it. Each case is a row in a batch DataFrame, not
+        a Dagster partition.
+        """
+        _self = self
+
+        outputs_list = list(self.outputs)
+        output_names = {o.name for o in outputs_list}
+        tool_by_name = {t.name: t for t in self.tools}
+        _tool_resource_keys = {t.resource for t in self.tools if t.resource}
+
+        def _client():
+            import os
+            try:
+                from openai import OpenAI
+            except ImportError as e:
+                raise ImportError("llm_multi_path_router requires openai>=1.0.0") from e
+            api_key = os.environ.get(_self.api_key_env_var)
+            if not api_key:
+                raise RuntimeError(f"{_self.api_key_env_var!r} env var not set.")
+            kwargs: Dict[str, Any] = {"api_key": api_key}
+            if _self.api_base_env_var:
+                base_url = os.environ.get(_self.api_base_env_var)
+                if base_url:
+                    kwargs["base_url"] = base_url
+            return OpenAI(**kwargs)
+
+        # ─── Per-case triage op: internal Python ReAct loop (no per-step ops) ─
+        # Small per-item retry — a single bad LLM call on one case shouldn't
+        # kill the whole batch.
+        _per_item_retry = dg.RetryPolicy(max_retries=1, delay=2, backoff=dg.Backoff.EXPONENTIAL)
+
+        @dg.op(
+            name="triage_one_case",
+            required_resource_keys=_tool_resource_keys,
+            retry_policy=_per_item_retry,
+            description="ReAct loop + classifier for ONE case. Called via .map() from fan_out_cases.",
+        )
+        def _triage_one_case_op(context, case: dict) -> dict:
+            client = _client()
+            case_dict = dict(case)
+            # Build task template from row data.
+            try:
+                task = _self.task_template.format(**case_dict, partition_key="")
+            except KeyError as e:
+                raise ValueError(
+                    f"task_template references {e} but case row has columns: {list(case_dict)}"
+                ) from e
+
+            tool_list = "\n".join(f"  - {t.name}: {t.description}" for t in _self.tools)
+            valid_names = ", ".join(f'"{t.name}"' for t in _self.tools)
+
+            trajectory: List[Dict[str, Any]] = []
+            for i in range(1, _self.max_iterations + 1):
+                prior_txt = "\n".join(
+                    f"Step {t['iteration']}: {t.get('tool')}({t.get('args')}) → {str(t.get('tool_output',''))[:200]}"
+                    for t in trajectory
+                ) or "(no prior work)"
+                planner_prompt = (
+                    f"Task:\n{task}\n\nPrior:\n{prior_txt}\n\n"
+                    f"Available tools:\n{tool_list}\n\n"
+                    f'Decide: call one more tool from {valid_names} or declare done. '
+                    f'Reply in JSON: {{"done": bool, "tool": "<name>|null", "args": "<string>|null", "reasoning": "<one clause>"}}'
+                )
+                resp = client.chat.completions.create(
+                    model=_self.model, temperature=_self.temperature, max_tokens=_self.planner_max_tokens,
+                    messages=[
+                        {"role": "system", "content": "You are a strict tool-picking planner. Reply ONLY with JSON."},
+                        {"role": "user", "content": planner_prompt},
+                    ],
+                )
+                raw = (resp.choices[0].message.content or "").strip()
+                if raw.startswith("```"):
+                    raw = raw.strip("`")
+                    if raw.startswith("json"): raw = raw[len("json"):].strip()
+                    if raw.endswith("```"): raw = raw[:-3].strip()
+                plan = json.loads(raw)
+                case_id = case_dict.get(_self.partition_static_column) if _self.partition_static_column else "?"
+                context.log.info(f"[{case_id} step {i}] plan={plan.get('tool')} done={plan.get('done')}")
+                if plan.get("done"):
+                    break
+                tool_name = plan.get("tool")
+                if tool_name not in tool_by_name:
+                    raise ValueError(f"planner picked unknown tool {tool_name!r}")
+                tool_output = _invoke_tool(
+                    tool_by_name[tool_name],
+                    str(plan.get("args") or ""),
+                    context=context, llm_client=client,
+                    model=_self.model, temperature=_self.temperature,
+                    max_tokens=_self.tool_max_tokens,
+                )
+                trajectory.append({
+                    "iteration": i, "done": False, "tool": tool_name,
+                    "args": plan.get("args"), "reasoning": plan.get("reasoning",""),
+                    "tool_output": tool_output,
+                })
+
+            # Classifier
+            traj_txt = "\n".join(
+                f"{t['iteration']}: {t.get('tool')}({t.get('args')}) → {str(t.get('tool_output',''))[:300]}"
+                for t in trajectory
+            ) or "(no tools)"
+            _branch_schema_lines = []
+            for o in outputs_list:
+                if o.output_schema:
+                    _fields = ", ".join(f"{k} ({v})" for k, v in o.output_schema.items())
+                    _branch_schema_lines.append(f"  - {o.name}: {o.description}\n    payload fields: {{{_fields}}}")
+                else:
+                    _branch_schema_lines.append(f"  - {o.name}: {o.description}\n    payload fields: (none)")
+            options_str = "\n".join(_branch_schema_lines)
+            classifier_system = _self.classifier_system_message or (
+                "You classify an agent's ReAct trajectory into which downstream "
+                "branches to emit AND extract branch-specific payloads. Reply ONLY "
+                "with JSON of the form:\n"
+                '  {"emit": {"<branch_name>": {payload-fields}, ...}, "summary": "<one line>"}\n'
+                "Only pick branch names from the provided set. Fill EVERY payload field."
+            )
+            resp = client.chat.completions.create(
+                model=_self.model, temperature=_self.temperature, max_tokens=_self.classifier_max_tokens,
+                messages=[
+                    {"role": "system", "content": classifier_system},
+                    {"role": "user", "content": f"Trajectory:\n{traj_txt}\n\nBranches:\n{options_str}"},
+                ],
+            )
+            raw = (resp.choices[0].message.content or "").strip()
+            if raw.startswith("```"):
+                raw = raw.strip("`")
+                if raw.startswith("json"): raw = raw[len("json"):].strip()
+                if raw.endswith("```"): raw = raw[:-3].strip()
+            cls = json.loads(raw)
+            emit_raw = cls.get("emit")
+            emit_payloads: Dict[str, Dict[str, Any]] = {}
+            if isinstance(emit_raw, dict):
+                for k, v in emit_raw.items():
+                    if k in output_names:
+                        emit_payloads[k] = v if isinstance(v, dict) else {}
+            elif isinstance(emit_raw, list):
+                for k in emit_raw:
+                    if isinstance(k, str) and k in output_names:
+                        emit_payloads[k] = {}
+
+            case_id_val = case_dict.get(_self.partition_static_column) if _self.partition_static_column else None
+            return {
+                "case_id": case_id_val,
+                "case_row": case_dict,
+                "picked": list(emit_payloads),
+                "emit_payloads": emit_payloads,
+                "summary": str(cls.get("summary", "")),
+                "n_iterations": len(trajectory),
+                "trajectory": trajectory,
+            }
+
+        # ─── Fan-out op ─────────────────────────────────────────────────────
+        # Filter to the current partition_key's rows if upstream isn't
+        # partitioned but batch is (via fanout_batch_filter_column).
+        _mapping_col = self.fanout_mapping_key_column or self.partition_static_column
+        _batch_filter_col = self.fanout_batch_filter_column
+
+        @dg.op(name="fan_out_cases", out=dg.DynamicOut(dict))
+        def _fan_out_op(context, upstream):
+            import pandas as pd
+            df = upstream if isinstance(upstream, pd.DataFrame) else pd.DataFrame(upstream)
+            # If batch is partitioned + user set fanout_batch_filter_column,
+            # filter to just the rows for this partition_key.
+            if _batch_filter_col and context.has_partition_key and _batch_filter_col in df.columns:
+                pk = str(context.partition_key)
+                df = df[df[_batch_filter_col].astype(str) == pk]
+                context.log.info(f"filtered upstream to partition {pk!r} on {_batch_filter_col!r}: {len(df)} row(s)")
+            for _, row in df.iterrows():
+                row_dict = row.to_dict()
+                key = (str(row_dict[_mapping_col]) if (_mapping_col and _mapping_col in row_dict)
+                       else str(row.name))
+                context.log.info(f"fanning out {key}")
+                yield dg.DynamicOutput(row_dict, mapping_key=key)
+
+        # ─── Collect op ─────────────────────────────────────────────────────
+        @dg.op(name="collect_batch")
+        def _collect_batch_op(context, triaged: list) -> dict:
+            context.log.info(f"collected {len(triaged)} case result(s)")
+            return {"results": triaged}
+
+        # ─── The graph_asset router ─────────────────────────────────────────
+        # Build optional partitions_def for the BATCH (e.g. daily). This is
+        # the "daily batch fans out over today's records" production shape.
+        _batch_partitions_def = None
+        if self.partition_type:
+            from dagster import (
+                DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+                MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+                StaticPartitionsDefinition, DynamicPartitionsDefinition,
+            )
+            _pt = self.partition_type
+            _vals = [v.strip() for v in (self.partition_values or "").split(",") if v.strip()]
+            if _pt in ("daily", "weekly", "monthly", "hourly") and not self.partition_start:
+                raise ValueError(f"partition_type={_pt!r} requires partition_start.")
+            if _pt == "daily":
+                _batch_partitions_def = DailyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "weekly":
+                _batch_partitions_def = WeeklyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "monthly":
+                _batch_partitions_def = MonthlyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "hourly":
+                _batch_partitions_def = HourlyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "static":
+                if not _vals: raise ValueError("partition_type='static' requires partition_values.")
+                _batch_partitions_def = StaticPartitionsDefinition(_vals)
+            elif _pt == "dynamic":
+                if not self.dynamic_partition_name:
+                    raise ValueError("partition_type='dynamic' requires dynamic_partition_name.")
+                _batch_partitions_def = DynamicPartitionsDefinition(name=self.dynamic_partition_name)
+
+        _router_asset_key = self.router_asset_name or self.asset_name
+
+        _router_kwargs: Dict[str, Any] = dict(
+            name=_router_asset_key,
+            group_name=self.group_name,
+            ins={"upstream": dg.AssetIn(key=dg.AssetKey.from_user_string(self.upstream_asset_key))},
+            kinds={"ai", "agent", "router", "fanout"},
+            description=(
+                "Batch fan-out router: reads upstream, fans out to N per-case "
+                "triages via DynamicOut, collects. Optional daily/hourly/static "
+                "partition on the batch itself."
+            ),
+        )
+        if _batch_partitions_def is not None:
+            _router_kwargs["partitions_def"] = _batch_partitions_def
+
+        @dg.graph_asset(**_router_kwargs)
+        def _router_graph(upstream):
+            cases = _fan_out_op(upstream)
+            triaged = cases.map(_triage_one_case_op)
+            return _collect_batch_op(triaged.collect())
+
+        # ─── Branch assets — DataFrames per branch ──────────────────────────
+        # When the batch is partitioned (e.g. daily), branches share the same
+        # partition scheme so batch[2026-07-30] flows to branch[2026-07-30].
+        def _make_batch_branch_asset(bname: str, bdesc: str, bkinds: set, bschema, router_key):
+            _branch_kwargs: Dict[str, Any] = dict(
+                key=dg.AssetKey.from_user_string(bname),
+                description=bdesc,
+                group_name=self.group_name,
+                kinds=bkinds,
+                owners=list(self.owners or []),
+                tags=dict(self.tags or {}),
+                ins={"router": dg.AssetIn(key=router_key)},
+            )
+            if _batch_partitions_def is not None:
+                _branch_kwargs["partitions_def"] = _batch_partitions_def
+
+            @dg.asset(**_branch_kwargs)
+            def _branch_asset(context: dg.AssetExecutionContext, router) -> Any:
+                import pandas as pd
+                results = router.get("results", []) if isinstance(router, dict) else []
+                rows = []
+                for r in results:
+                    payload = (r.get("emit_payloads") or {}).get(bname)
+                    if payload is None:
+                        continue
+                    row: Dict[str, Any] = {
+                        "case_id": r.get("case_id"),
+                        "summary": r.get("summary"),
+                    }
+                    if bschema:
+                        for field in bschema:
+                            row[field] = payload.get(field)
+                    else:
+                        row["payload_json"] = json.dumps(payload)
+                    rows.append(row)
+                df = pd.DataFrame(rows) if rows else pd.DataFrame(columns=(["case_id","summary"] + (list(bschema) if bschema else ["payload_json"])))
+                context.add_output_metadata({
+                    "branch": dg.MetadataValue.text(bname),
+                    "row_count": dg.MetadataValue.int(len(df)),
+                    "case_ids": dg.MetadataValue.text(", ".join(str(r.get("case_id")) for r in results if (r.get("emit_payloads") or {}).get(bname) is not None)),
+                })
+                return df
+            return _branch_asset
+
+        branch_assets: List[Any] = []
+        _router_key = dg.AssetKey.from_user_string(_router_asset_key)
+        for out_spec in outputs_list:
+            branch_assets.append(_make_batch_branch_asset(
+                bname=out_spec.name,
+                bdesc=out_spec.description,
+                bkinds=set(out_spec.kinds or []) | {"ai", "agent", "branch"},
+                bschema=out_spec.output_schema,
+                router_key=_router_key,
+            ))
+
+        return dg.Definitions(assets=[_router_graph, *branch_assets])

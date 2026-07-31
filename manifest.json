@@ -11897,6 +11897,48 @@
       ]
     },
     {
+      "id": "dynamic_fanout_asset",
+      "name": "Dynamic Fanout Asset",
+      "category": "transformation",
+      "description": "Generic DynamicOut fan-out as a Dagster asset \u2014 the asset-lineage sibling of dynamic_fanout_job. User provides discover/process/collect callables; component wires them into a @graph_asset with DynamicOut \u2192 .map() \u2192 .collect() so fan-out lives in the asset catalog.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/dynamic_fanout_asset",
+      "tags": [
+        "transformation",
+        "fanout",
+        "parallel",
+        "dynamic_output",
+        "batch",
+        "graph_asset"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dynamic_fanout_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dynamic_fanout_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dynamic_fanout_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dynamic_fanout_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dynamic_fanout_asset/requirements.txt",
+      "icon": "GitBranch",
+      "validation": {
+        "level": "live",
+        "last_validated": "2026-07-30",
+        "evidence": "examples/agentic_batch_triage.md \u2014 5-case baggage triage batch, discover\u2192map\u2192collect verified end-to-end."
+      },
+      "agent_hints": {
+        "inputs": "Optional upstream_asset_key (loaded and passed into discover) OR nothing \u2014 discover fetches its own items.",
+        "outputs": "Whatever collect returns (or the raw list of process results if no collect callable). One asset materialization per graph_asset run.",
+        "side_effects": "None inherent; depends on what the user's callables do.",
+        "anti_uses": "For stable per-item catalog entries (per-tenant, per-date) use partitioned assets. For side-effect-only batches use dynamic_fanout_job.",
+        "requires_resources": [],
+        "output_type": "any"
+      },
+      "produces": [
+        "asset"
+      ]
+    },
+    {
       "id": "dynamic_fanout_job",
       "name": "DynamicFanoutJobComponent",
       "category": "jobs",
@@ -40330,5 +40372,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 957
+  "total": 958
 }

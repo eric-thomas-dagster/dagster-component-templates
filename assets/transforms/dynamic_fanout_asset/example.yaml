@@ -1,0 +1,31 @@
+# DynamicFanoutAssetComponent — asset-lineage sibling of DynamicFanoutJobComponent.
+#
+# Produces a @graph_asset that runs discover → .map() → .collect() via
+# Dagster's DynamicOut. Same 3-callable interface as the job version.
+
+type: dagster_community_components.DynamicFanoutAssetComponent
+attributes:
+  asset_name: processed_urls
+  group_name: pipelines
+
+  # Optional upstream — when set, the graph_asset depends on this asset
+  # and its materialized value gets passed into discover as `upstream=X`.
+  # upstream_asset_key: url_list
+
+  discover_callable_path: "mypkg.pipeline:list_urls"
+  discover_kwargs:
+    category: news
+
+  process_callable_path: "mypkg.pipeline:fetch_and_extract"
+  process_kwargs:
+    timeout_seconds: 30
+
+  collect_callable_path: "mypkg.pipeline:summarize"
+
+  mapping_key_field: url          # DynamicOutput mapping_key per item
+
+  retry_max_retries: 3            # per-item retry
+  retry_delay_seconds: 2
+  retry_backoff: exponential
+
+  fail_on_empty: false

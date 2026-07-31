@@ -1,0 +1,33 @@
+# PrefectFlowRunAssetComponent — trigger a Prefect deployment as a Dagster asset.
+#
+# Materializing this asset creates a Prefect flow run and (by default) waits
+# for it to complete. Flow run id + state land in the asset's materialization
+# metadata; downstream Dagster assets can key off this.
+
+type: dagster_community_components.PrefectFlowRunAssetComponent
+attributes:
+  asset_name: parsed_document
+  deployment_name: "document-parser/main"    # flow_name/deployment_name
+
+  # Parameters passed to the Prefect flow. String values are templated:
+  # `{partition_key}` substitutes the current partition key.
+  parameters:
+    file_path: "{partition_key}"
+    output_dir: /tmp/parsed
+
+  # Wait for the flow to complete before this Dagster asset finishes.
+  # Set false for fire-and-forget triggers (pair with prefect_flow_run_sensor).
+  wait_for_result: true
+
+  # Local Prefect server (default). For Prefect Cloud:
+  # api_url: https://api.prefect.cloud/api/accounts/<acct>/workspaces/<ws>
+  # api_key_env_var: PREFECT_API_KEY
+  api_url: http://127.0.0.1:4200/api
+
+  # Dynamic-partitioned per file — Dagster owns the partition, Prefect owns
+  # the per-file work.
+  partition_type: dynamic
+  dynamic_partition_name: incoming_files
+
+  group_name: prefect
+  kinds: [prefect]

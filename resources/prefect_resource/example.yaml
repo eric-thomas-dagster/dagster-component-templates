@@ -1,0 +1,12 @@
+# PrefectResourceComponent — Dagster resource that points at a Prefect instance.
+#
+# Works against local Prefect server (`prefect server start` → :4200) or
+# Prefect Cloud (set api_url to your cloud workspace + provide api_key_env_var).
+
+type: dagster_community_components.PrefectResourceComponent
+attributes:
+  resource_key: prefect
+  api_url: http://127.0.0.1:4200/api
+  # For Prefect Cloud, uncomment + set:
+  # api_url: https://api.prefect.cloud/api/accounts/<acct-id>/workspaces/<ws-id>
+  # api_key_env_var: PREFECT_API_KEY

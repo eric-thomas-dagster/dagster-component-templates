@@ -1,0 +1,11 @@
+{
+  "component_type": "dagster_community_components.PrefectResourceComponent",
+  "description": "Dagster resource that configures the Prefect Python SDK for a specific Prefect instance (local server or Prefect Cloud).",
+  "category": "resource",
+  "icon": "Cloud",
+  "attributes": {
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "description": "Key other Prefect components reference.", "default": "prefect"},
+    "api_url": {"type": "string", "label": "API URL", "required": false, "description": "Prefect API URL.", "default": "http://127.0.0.1:4200/api"},
+    "api_key_env_var": {"type": "string", "label": "API Key Env Var", "required": false, "description": "Env var holding a Prefect Cloud API key.", "default": null}
+  }
+}

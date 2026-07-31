@@ -1,0 +1,24 @@
+# PrefectFlowRunSensorComponent — sensor watching Prefect flow runs.
+#
+# Polls the Prefect API for flow runs that entered a terminal state since
+# the last tick; launches a Dagster job per new run. Use to bring Prefect-
+# owned upstream work (durable execution, runtime task graph) into Dagster's
+# asset catalog downstream.
+
+type: dagster_community_components.PrefectFlowRunSensorComponent
+attributes:
+  sensor_name: on_document_parsed
+  job_name: index_parsed_document_job
+
+  # Filter: only completed runs of a specific deployment
+  deployment_name: "document-parser/main"
+  states: [COMPLETED]
+
+  api_url: http://127.0.0.1:4200/api
+  minimum_interval_seconds: 15
+
+  # Register each completed flow run as a dynamic partition on `prefect_flow_runs`
+  # so downstream assets are addressable per Prefect run.
+  partition_mode: dynamic_partition
+  dynamic_partitions_name: prefect_flow_runs
+  partition_key_template: "{flow_run_id}"

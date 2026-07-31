@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-07-30",
+  "last_updated": "2026-07-31",
   "components": [
     {
       "id": "ab_controls",
@@ -28300,6 +28300,105 @@
       }
     },
     {
+      "id": "prefect_flow_run",
+      "name": "Prefect Flow Run",
+      "category": "infrastructure",
+      "description": "Trigger a Prefect deployment and materialize the flow run as a Dagster asset. Optionally waits for completion; flow_run_id + state land in materialization metadata. Works with local Prefect server + Prefect Cloud.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/prefect_flow_run",
+      "tags": [
+        "prefect",
+        "workflow-orchestration",
+        "durable-execution",
+        "hybrid"
+      ],
+      "dependencies": {
+        "pip": [
+          "prefect>=3.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/prefect_flow_run/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/prefect_flow_run/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/prefect_flow_run/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/prefect_flow_run/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/prefect_flow_run/requirements.txt",
+      "validation": {
+        "level": "live",
+        "last_validated": "2026-07-31",
+        "evidence": "examples/dagster_orchestrates_prefect.md \u2014 Dagster partitions files, triggers Prefect flow per file, verified end-to-end."
+      },
+      "produces": [
+        "asset"
+      ]
+    },
+    {
+      "id": "prefect_flow_run_sensor",
+      "name": "Prefect Flow Run Sensor",
+      "category": "sensor",
+      "description": "Dagster sensor watching the Prefect API for flow runs in terminal states. Launches a Dagster job per new completion. Filters by flow_name / deployment_name / state types. Bridges Prefect-owned upstream work into Dagster's asset catalog.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/prefect_flow_run_sensor",
+      "tags": [
+        "prefect",
+        "sensor",
+        "workflow-orchestration",
+        "hybrid"
+      ],
+      "dependencies": {
+        "pip": [
+          "prefect>=3.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/prefect_flow_run_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/prefect_flow_run_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/prefect_flow_run_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/prefect_flow_run_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/prefect_flow_run_sensor/requirements.txt",
+      "validation": {
+        "level": "live",
+        "last_validated": "2026-07-31",
+        "evidence": "examples/dagster_orchestrates_prefect.md \u2014 polls a local Prefect server for completions and triggers downstream Dagster processing."
+      },
+      "produces": [
+        "sensor"
+      ]
+    },
+    {
+      "id": "prefect_resource",
+      "name": "Prefect Resource",
+      "category": "resource",
+      "description": "Dagster resource that configures the Prefect Python SDK for a specific Prefect instance (local server or Prefect Cloud). Used by prefect_flow_run + prefect_flow_run_sensor, or referenced directly.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/prefect_resource",
+      "tags": [
+        "prefect",
+        "resource",
+        "connection",
+        "workflow-orchestration"
+      ],
+      "dependencies": {
+        "pip": [
+          "prefect>=3.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/prefect_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/prefect_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/prefect_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/prefect_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/prefect_resource/requirements.txt",
+      "validation": {
+        "level": "live",
+        "last_validated": "2026-07-31",
+        "evidence": "examples/dagster_orchestrates_prefect.md \u2014 connects a Dagster project to a local Prefect server end-to-end."
+      },
+      "produces": [
+        "resource"
+      ]
+    },
+    {
       "id": "priority_scorer",
       "name": "Priority Scorer",
       "category": "analytics",
@@ -40372,5 +40471,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 958
+  "total": 961
 }

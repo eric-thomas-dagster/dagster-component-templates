@@ -1,0 +1,21 @@
+{
+  "component_type": "dagster_community_components.PrefectFlowRunSensorComponent",
+  "description": "Dagster sensor that polls the Prefect API for flow runs entering a terminal state and launches a Dagster job for each new one. Filters on flow_name / deployment_name / state types. Optionally registers each flow_run as a dynamic partition on a downstream asset.",
+  "category": "sensor",
+  "icon": "Eye",
+  "attributes": {
+    "sensor_name": {"type": "string", "label": "Sensor Name", "required": true, "description": "Unique sensor name."},
+    "job_name": {"type": "string", "label": "Job Name", "required": true, "description": "Dagster job launched per new flow run."},
+    "flow_name": {"type": "string", "label": "Flow Name Filter", "required": false, "default": null},
+    "deployment_name": {"type": "string", "label": "Deployment Name Filter", "required": false, "default": null},
+    "states": {"type": "array", "label": "States", "required": false, "description": "Prefect terminal state types to react to.", "default": ["COMPLETED"], "items": {"type": "string"}},
+    "look_back_minutes": {"type": "integer", "label": "Look Back Minutes", "required": false, "description": "First-tick lookback window before a cursor is established.", "default": 60},
+    "api_url": {"type": "string", "label": "API URL", "required": false, "default": "http://127.0.0.1:4200/api"},
+    "api_key_env_var": {"type": "string", "label": "API Key Env Var", "required": false, "default": null},
+    "minimum_interval_seconds": {"type": "integer", "label": "Minimum Interval Seconds", "required": false, "default": 30},
+    "default_status": {"type": "string", "label": "Default Status", "required": false, "description": "'running' | 'stopped'.", "default": "running"},
+    "partition_mode": {"type": "string", "label": "Partition Mode", "required": false, "description": "'run_config' | 'static_partition' | 'dynamic_partition'.", "default": "run_config"},
+    "partition_key_template": {"type": "string", "label": "Partition Key Template", "required": false, "description": "Fields: {flow_run_id}, {flow_name}, {deployment_name}.", "default": "{flow_run_id}"},
+    "dynamic_partitions_name": {"type": "string", "label": "Dynamic Partitions Name", "required": false, "default": null}
+  }
+}

@@ -1,0 +1,20 @@
+# prefect_resource
+
+Dagster resource that configures the Prefect Python SDK to point at a specific Prefect instance — local server or Prefect Cloud. Other Prefect components can either reference this resource by key OR inline `api_url` + `api_key_env_var` on themselves.
+
+Works against:
+- **Local server**: `prefect server start` → default `api_url` `http://127.0.0.1:4200/api`
+- **Prefect Cloud**: set `api_url` to your workspace URL + `api_key_env_var` to an env var holding your API key
+
+## Fields
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `"prefect"` | Resource key other Prefect components reference. |
+| `api_url` | `str` | `"http://127.0.0.1:4200/api"` | Prefect API URL. |
+| `api_key_env_var` | `str` | — | Env var holding a Prefect Cloud API key. Leave unset for local server. |
+
+## Related
+
+- [`prefect_flow_run`](../../assets/infrastructure/prefect_flow_run) — trigger a Prefect deployment as a Dagster asset.
+- [`prefect_flow_run_sensor`](../../sensors/prefect_flow_run_sensor) — sensor watching completed flow runs.

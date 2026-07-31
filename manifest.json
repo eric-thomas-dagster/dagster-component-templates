@@ -32973,40 +32973,6 @@
       ]
     },
     {
-      "id": "sigma_assets",
-      "name": "SigmaAssets",
-      "category": "integration",
-      "description": "Import Sigma workbooks + datasets as Dagster external assets via dagster-sigma.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "integrations/sigma_assets",
-      "tags": [
-        "integration",
-        "sigma",
-        "bi",
-        "official"
-      ],
-      "dependencies": {
-        "pip": [
-          "dagster",
-          "dagster-sigma"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/sigma_assets/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/sigma_assets/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/sigma_assets/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/sigma_assets/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/sigma_assets/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
-      },
-      "produces": [
-        "asset"
-      ],
-      "agent_hints": {}
-    },
-    {
       "id": "simulation_sampling",
       "name": "Simulation Sampling",
       "category": "analytics",
@@ -40471,5 +40437,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 961
+  "total": 960
 }

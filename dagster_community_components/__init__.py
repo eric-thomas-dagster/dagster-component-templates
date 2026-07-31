@@ -831,7 +831,6 @@ _CLASS_PATHS: dict[str, str] = {
     "SiemAuditExportJobComponent": "jobs/siem_audit_export_job/component.py",
     "SiemEventNormalizerComponent": "transforms/siem_event_normalizer/component.py",
     "SiffletCheckComponent": "asset_checks/sifflet_check/component.py",
-    "SigmaAssetsComponent": "integrations/sigma_assets/component.py",
     "SimulationSamplingComponent": "assets/analytics/simulation_sampling/component.py",
     "SlackAuditLogIngestionComponent": "ingestion/slack_audit_log_ingestion/component.py",
     "SlackIngestionComponent": "assets/ingestion/slack_ingestion/component.py",

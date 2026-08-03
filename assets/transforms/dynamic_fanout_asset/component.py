@@ -220,22 +220,37 @@ class DynamicFanoutAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             owners=list(self.owners or []),
             tags=_tags,
         )
+        _ins: Dict[str, Any] = {}
         if _upstream_key:
-            _asset_kwargs["ins"] = {
-                "upstream": dg.AssetIn(key=dg.AssetKey.from_user_string(_upstream_key))
-            }
-        if self.deps:
-            _asset_kwargs["deps"] = [dg.AssetKey.from_user_string(d) for d in self.deps]
+            _ins["upstream"] = dg.AssetIn(key=dg.AssetKey.from_user_string(_upstream_key))
+        # Lineage-only deps: declared as Nothing-typed AssetIns so Dagster wires
+        # the graph edge but the IO manager is never asked to load a value.
+        # Used when the upstream asset writes to an external store (dbt models
+        # in DuckDB, external warehouses, etc.) instead of the IO manager.
+        _dep_names: List[str] = []
+        for i, d in enumerate(self.deps or []):
+            name = f"_dep_{i}"
+            _ins[name] = dg.AssetIn(key=dg.AssetKey.from_user_string(d), dagster_type=dg.Nothing)
+            _dep_names.append(name)
+        if _ins:
+            _asset_kwargs["ins"] = _ins
 
-        # Two graph functions — one with upstream input, one without.
-        # @graph_asset validates signature against declared ins, so we can't
-        # use *args/**kwargs.
-        if _upstream_key:
-            @dg.graph_asset(**_asset_kwargs)
-            def _fanout_graph_asset(upstream):
-                items = _discover(upstream)
-                processed = items.map(_process)
-                return _collect(processed.collect())
+        # Build graph function with the exact input params @graph_asset expects.
+        # Positional signature: `upstream` first (if set), then one param per
+        # Nothing-typed dep.
+        params = (["upstream"] if _upstream_key else []) + _dep_names
+        if params:
+            arglist = ", ".join(params)
+            body_upstream = "_discover(upstream)" if _upstream_key else "_discover()"
+            src = (
+                f"def _fanout_graph_asset({arglist}):\n"
+                f"    items = {body_upstream}\n"
+                f"    processed = items.map(_process)\n"
+                f"    return _collect(processed.collect())\n"
+            )
+            ns: Dict[str, Any] = {"_discover": _discover, "_process": _process, "_collect": _collect}
+            exec(src, ns)
+            _fanout_graph_asset = dg.graph_asset(**_asset_kwargs)(ns["_fanout_graph_asset"])
         else:
             @dg.graph_asset(**_asset_kwargs)
             def _fanout_graph_asset():

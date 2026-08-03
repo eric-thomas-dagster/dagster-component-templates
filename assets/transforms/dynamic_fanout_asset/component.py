@@ -73,6 +73,18 @@ class DynamicFanoutAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
 
+    deps: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Optional list of upstream Dagster asset keys as lineage-only "
+            "dependencies — declares graph edges without loading data through "
+            "the IO manager. Use for assets whose materialization doesn't "
+            "write a value to the IO manager (e.g. dbt models writing to "
+            "an external warehouse). For value-loading upstreams use "
+            "`upstream_asset_key` instead."
+        ),
+    )
+
     discover_callable_path: str = Field(
         description=(
             "'module:function' that returns an iterable of items. Signature: "
@@ -212,6 +224,8 @@ class DynamicFanoutAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             _asset_kwargs["ins"] = {
                 "upstream": dg.AssetIn(key=dg.AssetKey.from_user_string(_upstream_key))
             }
+        if self.deps:
+            _asset_kwargs["deps"] = [dg.AssetKey.from_user_string(d) for d in self.deps]
 
         # Two graph functions — one with upstream input, one without.
         # @graph_asset validates signature against declared ins, so we can't

@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.PubsubObservationSensorComponent",
-  "description": "PubsubObservationSensorComponent",
+  "description": "Periodically connect to Pub/Sub and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
   "category": "observation",
   "icon": "Eye",
   "x-dagster-io": {

@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.AdlsObservationSensorComponent",
-  "description": "AdlsObservationSensorComponent",
+  "description": "Periodically connect to ADLS and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
   "category": "observation",
   "icon": "si:microsoftazure",
   "x-dagster-io": {

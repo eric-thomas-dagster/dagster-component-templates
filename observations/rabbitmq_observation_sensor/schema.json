@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.RabbitmqObservationSensorComponent",
-  "description": "RabbitmqObservationSensorComponent",
+  "description": "Periodically connect to RabbitMQ and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
   "category": "observation",
   "icon": "si:rabbitmq",
   "x-dagster-io": {

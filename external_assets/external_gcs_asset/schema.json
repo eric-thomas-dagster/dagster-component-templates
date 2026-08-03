@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.ExternalGcsAsset",
-  "description": "ExternalGcsAsset",
+  "description": "Declare a GCS storage bucket as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
   "category": "external",
   "icon": "Link",
   "x-dagster-io": {

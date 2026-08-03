@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.AbInitioRunAssetComponent",
-  "description": "Resource for connecting to Ab Initio EME REST API.",
+  "description": "Submit an Ab Initio graph or job to the EME REST API and wait for completion \u2014 Dagster owns the schedule, Ab Initio executes the work.",
   "category": "infrastructure",
   "icon": "Server",
   "x-dagster-io": {

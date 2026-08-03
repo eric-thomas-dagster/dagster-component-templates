@@ -197,13 +197,18 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Resource for connecting to Ab Initio EME REST API.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      }
     },
     {
       "id": "abinitio_run_asset",
       "name": "Ab Initio Run Asset",
       "category": "infrastructure",
-      "description": "Resource for connecting to Ab Initio EME REST API.",
+      "description": "Submit an Ab Initio graph or job to the EME REST API and wait for completion \u2014 Dagster owns the schedule, Ab Initio executes the work.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/infrastructure/abinitio_run_asset",
@@ -231,7 +236,12 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Submit an Ab Initio graph or job to the EME REST API and wait for completion \u2014 Dagster owns the schedule, Ab Initio executes the work.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      }
     },
     {
       "id": "acceldata_check",
@@ -263,7 +273,14 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "AssetCheckResult",
+        "outputs": "Trigger an Acceldata rule execution and surface results as a Dagster asset check.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      },
       "consumes": [
         "resource:acceldata"
       ]
@@ -465,7 +482,13 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Delete Azure ADLS Gen2 / Blob objects older than N days under a prefix.",
+        "requires_pip": [
+          "azure-storage-blob",
+          "azure-identity"
+        ]
+      },
       "capabilities": [
         "adls_object.delete"
       ],
@@ -506,7 +529,13 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Component for monitoring Azure Data Lake Storage Gen2 for new files.",
+        "requires_pip": [
+          "azure-storage-file-datalake>=12.0.0",
+          "azure-identity>=1.12.0"
+        ]
+      },
       "consumes": [
         "resource:adls"
       ]
@@ -515,7 +544,7 @@
       "id": "adls_observation_sensor",
       "name": "ADLS Observation Sensor",
       "category": "observation",
-      "description": "AdlsObservationSensorComponent",
+      "description": "Periodically connect to ADLS and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "observations/adls_observation_sensor",
@@ -543,7 +572,14 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetObservation",
+        "outputs": "Periodically connect to ADLS and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
+        "requires_pip": [
+          "azure-storage-file-datalake>=12.0.0",
+          "azure-identity>=1.10.0"
+        ]
+      },
       "consumes": [
         "resource:adls"
       ]
@@ -630,7 +666,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Import each Airbyte connection as a Dagster external asset via dagster-airbyte.",
+        "requires_pip": [
+          "dagster",
+          "dagster-airbyte"
+        ]
+      },
       "consumes": [
         "resource:airbyte"
       ]
@@ -666,7 +708,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Trigger a job when an Airbyte connection sync completes.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      },
       "consumes": [
         "resource:airbyte"
       ]
@@ -703,7 +750,12 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Trigger an Airbyte connection sync via REST API \u2014 fire-and-forget or wait for completion.",
+        "requires_pip": [
+          "requests"
+        ]
+      },
       "capabilities": [
         "airbyte_sync.trigger"
       ],
@@ -743,7 +795,13 @@
       "produces": [
         "multi_asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Convert an Airflow DAG to Dagster definitions via dagster-airflow.",
+        "requires_pip": [
+          "dagster",
+          "dagster-airflow"
+        ]
+      },
       "consumes": [
         "resource:airflow"
       ]
@@ -780,7 +838,12 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Trigger an Airflow DAG run via the Airflow REST API as a Dagster job.",
+        "requires_pip": [
+          "requests"
+        ]
+      },
       "capabilities": [
         "airflow_dag.trigger"
       ],
@@ -820,7 +883,13 @@
       "produces": [
         "multi_asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Mirror an Airflow DAG as Dagster assets via dagster-airlift.",
+        "requires_pip": [
+          "dagster",
+          "dagster-airlift"
+        ]
+      }
     },
     {
       "id": "airtable_ingestion",
@@ -902,7 +971,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register an AirtableResource wrapping the pyairtable client for use by other components",
+        "requires_pip": [
+          "pyairtable"
+        ]
+      },
       "consumes": [
         "resource:airtable"
       ]
@@ -1072,7 +1146,12 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Run an Ansible playbook as a Dagster asset.",
+        "requires_pip": [
+          "dagster"
+        ]
+      }
     },
     {
       "id": "anthropic_agent",
@@ -1196,7 +1275,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a dagster-anthropic AnthropicResource for use by other components",
+        "requires_pip": [
+          "dagster-anthropic"
+        ]
+      },
       "consumes": [
         "resource:anthropic"
       ]
@@ -1365,7 +1449,13 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Polls Argo Server REST API for workflow status; emits AssetMaterialization / AssetObservation + RunRequest on terminal success.",
+        "requires_pip": [
+          "dagster",
+          "requests"
+        ]
+      },
       "consumes": [
         "resource:argo_workflow"
       ]
@@ -1404,7 +1494,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Materializable asset that submits an Argo Workflow via /api/v1/workflows/{namespace}/submit.",
+        "requires_pip": [
+          "dagster",
+          "requests"
+        ]
+      },
       "capabilities": [
         "argo_workflow.trigger"
       ],
@@ -1488,7 +1584,9 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Deploy an Azure Resource Manager (ARM) template as a Dagster asset."
+      }
     },
     {
       "id": "arrange",
@@ -1655,7 +1753,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register an AsanaResource wrapping the Asana Python SDK for use by other components",
+        "requires_pip": [
+          "asana"
+        ]
+      }
     },
     {
       "id": "asset_job",
@@ -1686,7 +1789,9 @@
       "produces": [
         "job"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Define a named Dagster job from a set of asset keys (without scheduling it)."
+      }
     },
     {
       "id": "asset_reference",
@@ -1716,7 +1821,9 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Reference an existing asset (dbt, Python, etc.) in a pipeline definition"
+      }
     },
     {
       "id": "athena_io_manager",
@@ -1757,7 +1864,16 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Register an Athena IO manager that stores assets as Parquet on S3 and queries them via Amazon Athena",
+        "requires_pip": [
+          "awswrangler>=3.0.0",
+          "boto3>=1.26.0",
+          "pandas>=1.5.0"
+        ]
+      }
     },
     {
       "id": "audio_transcriber",
@@ -2301,7 +2417,9 @@
         "schedule",
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Apply Dagster AutomationConditions broadly via selection rules with fall-through priority."
+      }
     },
     {
       "id": "autosys_asset",
@@ -2337,7 +2455,12 @@
         "multi_asset"
       ],
       "stateful": true,
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "AutoSys enterprise job scheduler component.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      }
     },
     {
       "id": "aws_cdk_asset",
@@ -2374,7 +2497,12 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Deploy AWS CDK stacks as a Dagster asset.",
+        "requires_pip": [
+          "dagster"
+        ]
+      }
     },
     {
       "id": "aws_cloudtrail_ingestion",
@@ -2565,7 +2693,13 @@
         "asset",
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Component for importing AWS DMS and Zero ETL entities as Dagster assets.",
+        "requires_pip": [
+          "boto3>=1.28.0",
+          "dagster>=1.6.0"
+        ]
+      }
     },
     {
       "id": "aws_glue",
@@ -2602,7 +2736,13 @@
         "sensor"
       ],
       "stateful": true,
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Component for importing AWS Glue entities as Dagster assets.",
+        "requires_pip": [
+          "boto3>=1.28.0",
+          "dagster>=1.8.0"
+        ]
+      }
     },
     {
       "id": "aws_kinesis",
@@ -2638,7 +2778,13 @@
         "asset",
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Component for importing AWS Kinesis entities as Dagster assets.",
+        "requires_pip": [
+          "boto3>=1.28.0",
+          "dagster>=1.6.0"
+        ]
+      },
       "consumes": [
         "resource:kinesis"
       ]
@@ -2676,7 +2822,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Component for importing AWS Redshift entities as Dagster assets.",
+        "requires_pip": [
+          "boto3>=1.28.0",
+          "dagster>=1.6.0"
+        ]
+      },
       "consumes": [
         "resource:redshift"
       ]
@@ -2716,7 +2868,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a dagster-aws S3Resource for use by other components",
+        "requires_pip": [
+          "dagster-aws"
+        ]
+      },
       "consumes": [
         "resource:s3"
       ]
@@ -2755,7 +2912,13 @@
         "asset",
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Component for importing AWS SageMaker entities as Dagster assets.",
+        "requires_pip": [
+          "boto3>=1.28.0",
+          "dagster>=1.6.0"
+        ]
+      }
     },
     {
       "id": "azure_activity_log_ingestion",
@@ -2839,7 +3002,17 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Store DataFrames as Parquet on Azure Blob Storage.",
+        "requires_pip": [
+          "pandas",
+          "pyarrow",
+          "azure-storage-blob",
+          "azure-identity"
+        ]
+      }
     },
     {
       "id": "azure_data_factory",
@@ -2879,7 +3052,14 @@
         "sensor"
       ],
       "stateful": true,
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Shared Azure Data Factory connection config.",
+        "requires_pip": [
+          "azure-identity>=1.12.0",
+          "azure-mgmt-datafactory>=4.0.0",
+          "dagster>=1.8.0"
+        ]
+      }
     },
     {
       "id": "azure_log_analytics_query",
@@ -2978,7 +3158,14 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Azure OpenAI Service client (distinct from openai_resource).",
+        "requires_pip": [
+          "dagster",
+          "openai>=1.0",
+          "azure-identity"
+        ]
+      },
       "consumes": [
         "resource:openai"
       ]
@@ -3125,7 +3312,14 @@
         "asset",
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Component for importing Azure Stream Analytics entities as Dagster assets.",
+        "requires_pip": [
+          "azure-identity>=1.12.0",
+          "azure-mgmt-streamanalytics>=2.0.0",
+          "dagster>=1.6.0"
+        ]
+      }
     },
     {
       "id": "azure_synapse",
@@ -3164,7 +3358,15 @@
         "asset",
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Component for importing Azure Synapse Analytics entities as Dagster assets.",
+        "requires_pip": [
+          "azure-identity>=1.12.0",
+          "azure-mgmt-synapse>=2.0.0",
+          "azure-synapse-artifacts>=0.17.0",
+          "dagster>=1.6.0"
+        ]
+      }
     },
     {
       "id": "azure_table_reader",
@@ -3290,7 +3492,9 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Deploy a Bicep template as a Dagster asset (compiles via `az bicep build` then deploys via ARM)."
+      }
     },
     {
       "id": "bigquery_create_table_from_query_asset",
@@ -3333,7 +3537,18 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "CTAS as a Dagster asset \u2014 CREATE OR REPLACE TABLE / VIEW / MATERIALIZED VIEW from a SELECT statement.",
+        "requires_pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-cloud-bigquery>=3.0.0",
+          "google-auth>=2.0.0",
+          "db-dtypes>=1.0.0"
+        ]
+      },
       "capabilities": [
         "bigquery_table.create",
         "bigquery.query"
@@ -3374,7 +3589,15 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "AssetCheckResult",
+        "outputs": "Asset check that dry-runs a BigQuery query and fails on excessive bytes scanned.",
+        "requires_pip": [
+          "google-cloud-bigquery",
+          "google-auth"
+        ]
+      },
       "consumes": [
         "resource:bigquery"
       ]
@@ -3471,7 +3694,14 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Register a BigQueryPandasIOManager so assets are automatically stored in and loaded from BigQuery",
+        "requires_pip": [
+          "dagster-gcp-pandas>=0.22.0"
+        ]
+      },
       "consumes": [
         "resource:bigquery"
       ]
@@ -3624,7 +3854,18 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Train a BigQuery ML model from a SELECT statement \u2014 ML in pure SQL, no Python ML stack.",
+        "requires_pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-cloud-bigquery>=3.0.0",
+          "google-auth>=2.0.0",
+          "db-dtypes>=1.0.0"
+        ]
+      },
       "consumes": [
         "resource:bigquery"
       ]
@@ -3718,7 +3959,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a dagster-gcp BigQueryResource for use by other components",
+        "requires_pip": [
+          "dagster-gcp"
+        ]
+      },
       "consumes": [
         "resource:bigquery"
       ]
@@ -3755,7 +4001,15 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "AssetCheckResult",
+        "outputs": "Asset check that fails if a BigQuery table's last_modified_time is too old.",
+        "requires_pip": [
+          "google-cloud-bigquery",
+          "google-auth"
+        ]
+      },
       "consumes": [
         "resource:bigquery"
       ]
@@ -3793,7 +4047,13 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetObservation",
+        "outputs": "Emit health observations for an external BigQuery table.",
+        "requires_pip": [
+          "google-cloud-bigquery>=3.0.0"
+        ]
+      },
       "consumes": [
         "resource:bigquery"
       ]
@@ -4096,7 +4356,12 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Flush keys from a Redis (or compatible) cache as a job \u2014 pattern-based or full FLUSHDB.",
+        "requires_pip": [
+          "redis"
+        ]
+      }
     },
     {
       "id": "campaign_performance",
@@ -4220,7 +4485,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register an Apache Cassandra resource for high-throughput distributed database access",
+        "requires_pip": [
+          "cassandra-driver"
+        ]
+      },
       "consumes": [
         "resource:cassandra"
       ]
@@ -4354,7 +4624,13 @@
         "asset",
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Run a Census reverse-ETL sync on materialization via dagster-census.",
+        "requires_pip": [
+          "dagster",
+          "dagster-census"
+        ]
+      },
       "capabilities": [
         "census_sync.trigger"
       ],
@@ -4397,7 +4673,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register a dagster-chroma ChromaResource for use by other components",
+        "requires_pip": [
+          "dagster-chroma"
+        ]
+      }
     },
     {
       "id": "chromadb_asset",
@@ -4570,7 +4851,15 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Wrap dagster-clickhouse-pandas's ClickhousePandasIOManager so DataFrame assets persist to ClickHouse.",
+        "requires_pip": [
+          "dagster",
+          "dagster-clickhouse-pandas"
+        ]
+      },
       "consumes": [
         "resource:clickhouse"
       ]
@@ -4610,7 +4899,16 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Wrap dagster-clickhouse-polars's ClickhousePolarsIOManager so polars.DataFrame assets persist to ClickHouse.",
+        "requires_pip": [
+          "dagster",
+          "dagster-clickhouse-polars",
+          "polars"
+        ]
+      },
       "consumes": [
         "resource:clickhouse"
       ]
@@ -4650,7 +4948,15 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "ClickHouse connection resource via clickhouse-connect (HTTP) + SQLAlchemy URL via clickhouse-sqlalchemy.",
+        "requires_pip": [
+          "dagster",
+          "clickhouse-connect>=0.7.0",
+          "sqlalchemy>=2.0.0",
+          "clickhouse-sqlalchemy"
+        ]
+      },
       "consumes": [
         "resource:clickhouse"
       ]
@@ -4688,7 +4994,13 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetObservation",
+        "outputs": "Emit health observations for an external ClickHouse table.",
+        "requires_pip": [
+          "clickhouse-connect>=0.6.0"
+        ]
+      },
       "consumes": [
         "resource:clickhouse"
       ]
@@ -4765,7 +5077,16 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "AssetCheckResult",
+        "outputs": "Cloud DLP-backed asset check: fail (or warn) if forbidden PII is present.",
+        "requires_pip": [
+          "google-cloud-dlp",
+          "google-auth",
+          "pandas"
+        ]
+      },
       "consumes": [
         "resource:cloud_dlp"
       ]
@@ -4808,7 +5129,15 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Invoke a deployed Cloud Function (gen 1 / gen 2 / Cloud Run-deployed) over HTTPS with automatic OIDC authentication.",
+        "requires_pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-auth>=2.0.0",
+          "requests>=2.28.0"
+        ]
+      },
       "capabilities": [
         "cloud_function.invoke"
       ],
@@ -4945,7 +5274,15 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Trigger a single deployed Cloud Run job and wait for it to finish, with optional per-execution container overrides (env / args / task_count / timeout).",
+        "requires_pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-cloud-run>=0.10.0",
+          "google-auth>=2.0.0"
+        ]
+      },
       "capabilities": [
         "cloud_run_job.trigger"
       ],
@@ -5070,7 +5407,12 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Deploy or update an AWS CloudFormation stack as a Dagster asset.",
+        "requires_pip": [
+          "boto3>=1.26.0"
+        ]
+      }
     },
     {
       "id": "coalesce_job_sensor",
@@ -5103,7 +5445,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Trigger a Dagster job when a Coalesce job run completes.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      },
       "capabilities": [
         "coalesce_job.trigger"
       ],
@@ -5144,7 +5491,12 @@
         "multi_asset"
       ],
       "stateful": true,
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Shared Coalesce connection config.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      },
       "consumes": [
         "resource:coalesce"
       ]
@@ -5182,7 +5534,12 @@
         "multi_asset"
       ],
       "stateful": true,
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "State-backed component that materializes Coalesce nodes as Dagster assets.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      },
       "consumes": [
         "resource:coalesce"
       ]
@@ -5534,7 +5891,13 @@
         "multi_asset"
       ],
       "stateful": true,
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Download other community components from the registry at refresh-state time, configured via YAML.",
+        "requires_pip": [
+          "dagster",
+          "requests"
+        ]
+      },
       "ui_editable": true
     },
     {
@@ -5568,7 +5931,13 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Provide a dagster-airlift AirflowAuthBackend backed by GCP OIDC for Cloud Composer.",
+        "requires_pip": [
+          "dagster-airlift",
+          "google-auth"
+        ]
+      },
       "consumes": [
         "resource:airflow"
       ]
@@ -5784,7 +6153,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register an Azure Cosmos DB resource for globally distributed multi-model database access",
+        "requires_pip": [
+          "azure-cosmos"
+        ]
+      },
       "consumes": [
         "resource:cosmosdb"
       ]
@@ -5925,7 +6299,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a CouchDB resource for document-oriented database access via HTTP",
+        "requires_pip": [
+          "couchdb"
+        ]
+      },
       "consumes": [
         "resource:couchdb"
       ]
@@ -6225,7 +6604,9 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Run an asset selection on a cron schedule."
+      }
     },
     {
       "id": "cross_join",
@@ -6392,7 +6773,16 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Run a Cube semantic-layer query (REST /v1/load) and materialize as a Dagster asset (pandas DataFrame).",
+        "requires_pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0",
+          "tabulate>=0.9.0"
+        ]
+      },
       "capabilities": [
         "cube_semantic.query"
       ],
@@ -6594,7 +6984,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Push Dagster run failure events as OTLP/HTTP log records \u2014 targets Honeycomb, Datadog OTel-ingest, Grafana Loki via OTel Collector, AWS CloudWatch OTel.",
+        "requires_pip": [
+          "requests>=2.28"
+        ]
+      },
       "consumes": [
         "resource:otlp"
       ]
@@ -6633,7 +7028,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Push per-asset materialization metrics (counter + last-materialized timestamp) to Prometheus Push Gateway or VictoriaMetrics.",
+        "requires_pip": [
+          "requests>=2.28"
+        ]
+      },
       "capabilities": [
         "prometheus.write"
       ],
@@ -6805,7 +7205,13 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Compound op job: pull Dagster+ events (audit-log/runs/asset-events) \u2192 optionally normalize \u2192 ship to SIEM (Splunk/Sentinel/Datadog/Sumo/S3) on cron.",
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ]
+      }
     },
     {
       "id": "dagster_runs_to_influxdb_sensor",
@@ -6840,7 +7246,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Push Dagster run lifecycle metrics to InfluxDB 2.x / 3.x (and AWS Timestream for InfluxDB) as line protocol on every run completion.",
+        "requires_pip": [
+          "requests>=2.28"
+        ]
+      },
       "consumes": [
         "resource:influxdb"
       ]
@@ -6880,7 +7291,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Push Dagster run lifecycle events as OpenTelemetry metrics (Sum + Gauge) via OTLP/HTTP.",
+        "requires_pip": [
+          "requests>=2.28"
+        ]
+      },
       "consumes": [
         "resource:otlp"
       ]
@@ -6922,7 +7338,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Push Dagster run lifecycle events (success + failure) as OTLP/HTTP log records to any OTel-compatible backend (Splunk via Splunk OTC, Datadog, Honeycomb, Sumo, Loki via OTC).",
+        "requires_pip": [
+          "requests>=2.28"
+        ]
+      },
       "consumes": [
         "resource:otlp"
       ]
@@ -6961,7 +7382,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Push Dagster run lifecycle metrics (duration / count / last-finished) to Prometheus Push Gateway, VictoriaMetrics, or Mimir on every run completion.",
+        "requires_pip": [
+          "requests>=2.28"
+        ]
+      },
       "consumes": [
         "resource:prometheus"
       ]
@@ -6999,7 +7425,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Push Dagster run lifecycle events (success + failure) directly to Splunk via HTTP Event Collector (HEC).",
+        "requires_pip": [
+          "requests>=2.28"
+        ]
+      }
     },
     {
       "id": "dagster_runs_to_statsd_sensor",
@@ -7035,7 +7466,9 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Push Dagster run lifecycle events as StatsD/DogStatsD UDP metrics."
+      }
     },
     {
       "id": "dagstermill_notebook_asset",
@@ -7073,7 +7506,14 @@
         "asset",
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Run a Jupyter notebook as a Dagster asset via dagstermill.",
+        "requires_pip": [
+          "dagster",
+          "dagstermill",
+          "ipykernel"
+        ]
+      }
     },
     {
       "id": "data_cleansing",
@@ -7731,7 +8171,14 @@
         "multi_asset",
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Resource for interacting with Databricks workspace.",
+        "requires_pip": [
+          "databricks-sdk>=0.18.0",
+          "dagster>=1.6.0",
+          "pyyaml>=6.0"
+        ]
+      },
       "consumes": [
         "resource:databricks"
       ]
@@ -7816,7 +8263,15 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Register a Databricks IO manager that reads and writes DataFrames as Unity Catalog Delta tables via Databricks SQL",
+        "requires_pip": [
+          "databricks-sql-connector>=3.0.0",
+          "pandas>=1.5.0"
+        ]
+      },
       "consumes": [
         "resource:databricks"
       ]
@@ -7856,7 +8311,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a Databricks workspace resource for use by other components",
+        "requires_pip": [
+          "dagster-databricks"
+        ]
+      },
       "consumes": [
         "resource:databricks"
       ]
@@ -7894,7 +8354,13 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetObservation",
+        "outputs": "Emit health observations for an external Databricks Delta table.",
+        "requires_pip": [
+          "databricks-sql-connector>=3.0.0"
+        ]
+      },
       "consumes": [
         "resource:databricks"
       ]
@@ -7934,7 +8400,13 @@
         "multi_asset",
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Component for importing Databricks workspace entities as Dagster assets.",
+        "requires_pip": [
+          "databricks-sdk>=0.18.0",
+          "dagster>=1.6.0"
+        ]
+      },
       "consumes": [
         "resource:databricks"
       ]
@@ -7974,7 +8446,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register a dagster-datadog DatadogResource for use by other components",
+        "requires_pip": [
+          "dagster-datadog"
+        ]
+      }
     },
     {
       "id": "dataform_repository_resource",
@@ -8010,7 +8487,14 @@
         "asset_check",
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Expose `dagster_dataform.DataformRepositoryResource` via YAML config.",
+        "requires_pip": [
+          "dagster-dataform",
+          "google-cloud-dataform",
+          "google-auth"
+        ]
+      }
     },
     {
       "id": "dataframe_describe",
@@ -10208,7 +10692,15 @@
         "asset",
         "asset_check"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Component for transforming DataFrames from upstream assets.",
+        "requires_pip": [
+          "pandas>=2.0.0",
+          "pyarrow>=10.0.0"
+        ]
+      }
     },
     {
       "id": "dataframe_union",
@@ -10285,7 +10777,14 @@
         "multi_asset"
       ],
       "stateful": true,
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Dataiku DSS scenario component \u2014 one Dagster asset per Dataiku scenario.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      }
     },
     {
       "id": "dataplex_dq_scan_results_asset",
@@ -10407,7 +10906,14 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "IBM Db2 Dagster resource \u2014 connection string + connection factory shared across assets.",
+        "requires_pip": [
+          "sqlalchemy>=2.0.0",
+          "ibm_db>=3.2.0",
+          "ibm_db_sa>=0.4.0"
+        ]
+      }
     },
     {
       "id": "dbt_cloud_job_sensor",
@@ -10441,7 +10947,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Trigger a Dagster job when a dbt Cloud job run completes.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      },
       "consumes": [
         "resource:dbt"
       ]
@@ -10480,7 +10991,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a dagster-dbt DbtCloudClientResource for use by other components",
+        "requires_pip": [
+          "dagster-dbt"
+        ]
+      },
       "consumes": [
         "resource:dbt"
       ]
@@ -10521,7 +11037,14 @@
         "asset_check",
         "multi_asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Extends DbtProjectComponent with rich dbt docs metadata on every asset.",
+        "requires_pip": [
+          "dagster",
+          "dagster-dbt>=0.23.0"
+        ]
+      },
       "consumes": [
         "resource:dbt"
       ]
@@ -10558,7 +11081,12 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Run a `dbt` command (run, build, test, snapshot) as a Dagster job \u2014 no asset modeling.",
+        "requires_pip": [
+          "dbt-core"
+        ]
+      },
       "consumes": [
         "resource:dbt"
       ]
@@ -10743,7 +11271,14 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Register a DeltaLakePandasIOManager so assets are stored as Delta tables on local disk, S3, GCS, or Azure ADLS",
+        "requires_pip": [
+          "dagster-deltalake-pandas>=0.4.0"
+        ]
+      }
     },
     {
       "id": "deltalake_polars_io_manager",
@@ -10780,7 +11315,16 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Wrap dagster-deltalake-polars so polars.DataFrame assets persist as Delta tables.",
+        "requires_pip": [
+          "dagster",
+          "dagster-deltalake-polars",
+          "polars"
+        ]
+      }
     },
     {
       "id": "dependency_graph",
@@ -10810,7 +11354,9 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Define dependencies between assets without modifying component schemas"
+      }
     },
     {
       "id": "detect_changes",
@@ -10973,7 +11519,14 @@
         "asset",
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Run a dlt (data-load-tool) pipeline as Dagster assets via dagster-dlt.",
+        "requires_pip": [
+          "dagster",
+          "dagster-dlt",
+          "dlt"
+        ]
+      }
     },
     {
       "id": "docker_container_asset",
@@ -11008,7 +11561,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Run a Docker container as a Dagster asset via dagster-docker.",
+        "requires_pip": [
+          "dagster",
+          "dagster-docker"
+        ]
+      }
     },
     {
       "id": "document_ai_extractor",
@@ -11253,7 +11812,15 @@
         "asset",
         "asset_check"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Merge two document DataFrames on a key column, designed for document-style data with nested columns.",
+        "requires_pip": [
+          "dagster",
+          "pandas>=1.5.0"
+        ]
+      }
     },
     {
       "id": "document_summarizer",
@@ -11333,7 +11900,20 @@
         "asset",
         "asset_check"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Component for extracting text from documents.",
+        "requires_pip": [
+          "pypdf>=3.0.0",
+          "pdfplumber>=0.9.0",
+          "python-docx>=0.8.11",
+          "beautifulsoup4>=4.11.0",
+          "pytesseract>=0.3.10",
+          "pdf2image>=1.16.0",
+          "Pillow>=9.0.0"
+        ]
+      }
     },
     {
       "id": "doris_query_asset",
@@ -11417,7 +11997,14 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Apache Doris connection resource \u2014 SQLAlchemy URL via MySQL wire protocol (port 9030) + HTTP frontend endpoint (port 8030) for Stream Load.",
+        "requires_pip": [
+          "dagster",
+          "sqlalchemy>=2.0.0",
+          "pymysql"
+        ]
+      },
       "consumes": [
         "resource:doris"
       ]
@@ -11457,7 +12044,14 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Watch Apache Doris Routine Load jobs (Kafka->Doris continuous ingestion).",
+        "requires_pip": [
+          "dagster",
+          "sqlalchemy>=2.0.0",
+          "pymysql"
+        ]
+      },
       "consumes": [
         "resource:doris"
       ]
@@ -11497,7 +12091,13 @@
       "produces": [
         "multi_asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Auto-discover tables / views / materialized views in an Apache Doris database; emit one observable Dagster asset per entity with row count + last-update tracking.",
+        "requires_pip": [
+          "sqlalchemy>=2.0",
+          "pymysql>=1.0"
+        ]
+      },
       "consumes": [
         "resource:doris"
       ]
@@ -11678,7 +12278,14 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Register a DuckDBPandasIOManager so assets are automatically stored in and loaded from a local DuckDB file",
+        "requires_pip": [
+          "dagster-duckdb-pandas>=0.22.0"
+        ]
+      },
       "consumes": [
         "resource:duckdb"
       ]
@@ -11718,7 +12325,16 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Wrap dagster-duckdb-polars's DuckDBPolarsIOManager so polars.DataFrame assets persist to DuckDB.",
+        "requires_pip": [
+          "dagster",
+          "dagster-duckdb-polars",
+          "polars"
+        ]
+      },
       "consumes": [
         "resource:duckdb"
       ]
@@ -11757,7 +12373,16 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Wrap dagster-duckdb-pyspark so PySpark DataFrames persist to DuckDB.",
+        "requires_pip": [
+          "dagster",
+          "dagster-duckdb-pyspark",
+          "pyspark"
+        ]
+      },
       "consumes": [
         "resource:duckdb"
       ]
@@ -11847,7 +12472,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a DuckDB resource for fast in-process analytical queries",
+        "requires_pip": [
+          "dagster-duckdb"
+        ]
+      },
       "consumes": [
         "resource:duckdb"
       ]
@@ -11970,7 +12600,9 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Generic DynamicOut op job \u2014 discover\u2192map\u2192collect via Python callables."
+      }
     },
     {
       "id": "dynamic_rename",
@@ -12100,7 +12732,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register an AWS DynamoDB resource for serverless key-value and document storage",
+        "requires_pip": [
+          "boto3"
+        ]
+      },
       "consumes": [
         "resource:dynamodb"
       ]
@@ -12243,7 +12880,13 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Dynatrace API client wrapper (Environment API v2 + Metrics API v2).",
+        "requires_pip": [
+          "dagster",
+          "requests"
+        ]
+      },
       "consumes": [
         "resource:dynatrace"
       ]
@@ -12320,7 +12963,17 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Index data into Elasticsearch or query ES and write results to a database table.",
+        "requires_pip": [
+          "dagster",
+          "elasticsearch>=8.0",
+          "pandas",
+          "sqlalchemy"
+        ]
+      },
       "consumes": [
         "resource:elasticsearch"
       ]
@@ -12409,7 +13062,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register an Elasticsearch resource for full-text search and analytics",
+        "requires_pip": [
+          "elasticsearch>=8.0.0"
+        ]
+      },
       "consumes": [
         "resource:elasticsearch"
       ]
@@ -12532,7 +13190,16 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "AssetCheckResult",
+        "outputs": "Comparison operators for validation checks.",
+        "requires_pip": [
+          "pandas>=1.3.0",
+          "numpy>=1.21.0",
+          "scipy>=1.7.0"
+        ]
+      }
     },
     {
       "id": "entity_extractor",
@@ -12695,7 +13362,13 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Component for monitoring an Azure Event Hub for new events.",
+        "requires_pip": [
+          "azure-eventhub>=5.11.0",
+          "azure-identity>=1.12.0"
+        ]
+      },
       "consumes": [
         "resource:eventhub"
       ]
@@ -12704,7 +13377,7 @@
       "id": "eventhubs_observation_sensor",
       "name": "Event Hubs Observation Sensor",
       "category": "observation",
-      "description": "EventHubsObservationSensorComponent",
+      "description": "Periodically connect to Event Hubs and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "observations/eventhubs_observation_sensor",
@@ -12732,7 +13405,14 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetObservation",
+        "outputs": "Periodically connect to Event Hubs and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
+        "requires_pip": [
+          "azure-eventhub>=5.10.0",
+          "azure-identity>=1.10.0"
+        ]
+      },
       "consumes": [
         "resource:eventhub"
       ]
@@ -12834,7 +13514,7 @@
       "id": "external_adls_asset",
       "name": "External ADLS Asset",
       "category": "external",
-      "description": "ExternalAdlsAsset",
+      "description": "Declare an ADLS storage container as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "external_assets/external_adls_asset",
@@ -12862,7 +13542,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare an ADLS storage container as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
       "consumes": [
         "resource:adls"
       ]
@@ -12898,7 +13584,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare-only AssetSpec for an Argo Workflow.",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
       "consumes": [
         "resource:argo_workflow"
       ]
@@ -12936,7 +13628,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare a BigQuery table as an observable external asset.",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
       "consumes": [
         "resource:bigquery"
       ]
@@ -12974,7 +13672,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Resource for connecting to ClickHouse.",
+        "requires_pip": [
+          "clickhouse-connect>=0.6.0"
+        ]
+      },
       "consumes": [
         "resource:clickhouse"
       ]
@@ -13012,7 +13716,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare a Cube semantic-layer measure or dimension as an external Dagster asset."
+      }
     },
     {
       "id": "external_databricks_table",
@@ -13047,7 +13754,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare a Databricks Delta table (Unity Catalog or Hive Metastore) as an observable external asset.",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
       "consumes": [
         "resource:databricks"
       ]
@@ -13085,7 +13798,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare an external Delta Lake table (written by Spark, Databricks, Trino, Flink, etc.) as an observable Dagster external asset."
+      },
       "consumes": [
         "resource:delta_lake"
       ]
@@ -13120,7 +13836,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare-only AssetSpec for an Apache Doris table.",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
       "consumes": [
         "resource:doris"
       ]
@@ -13129,7 +13851,7 @@
       "id": "external_eventhubs_asset",
       "name": "External Event Hubs Asset",
       "category": "external",
-      "description": "ExternalEventHubsAsset",
+      "description": "Declare an Event Hubs event stream as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "external_assets/external_eventhubs_asset",
@@ -13157,7 +13879,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare an Event Hubs event stream as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
       "consumes": [
         "resource:eventhub"
       ]
@@ -13166,7 +13894,7 @@
       "id": "external_gcs_asset",
       "name": "External GCS Asset",
       "category": "external",
-      "description": "ExternalGcsAsset",
+      "description": "Declare a GCS storage bucket as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "external_assets/external_gcs_asset",
@@ -13195,7 +13923,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare a GCS storage bucket as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
       "consumes": [
         "resource:gcs"
       ]
@@ -13231,7 +13965,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare a HuggingFace Space as an external Dagster asset (declare-only AssetSpec)."
+      }
     },
     {
       "id": "external_iceberg_table",
@@ -13264,7 +14001,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare an external Apache Iceberg table (written by Snowflake / Trino / Spark / Flink / Databricks / etc.) as an observable Dagster external asset."
+      },
       "consumes": [
         "resource:iceberg"
       ]
@@ -13273,7 +14013,7 @@
       "id": "external_kafka_asset",
       "name": "External Kafka Asset",
       "category": "external",
-      "description": "ExternalKafkaAsset",
+      "description": "Declare a Kafka topic as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "external_assets/external_kafka_asset",
@@ -13301,13 +14041,19 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare a Kafka topic as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
+        "requires_pip": [
+          "dagster"
+        ]
+      }
     },
     {
       "id": "external_kinesis_asset",
       "name": "External Kinesis Asset",
       "category": "external",
-      "description": "ExternalKinesisAsset",
+      "description": "Declare a Kinesis stream as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "external_assets/external_kinesis_asset",
@@ -13336,7 +14082,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare a Kinesis stream as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
       "consumes": [
         "resource:kinesis"
       ]
@@ -13345,7 +14097,7 @@
       "id": "external_mqtt_asset",
       "name": "External MQTT Asset",
       "category": "external",
-      "description": "ExternalMqttAsset",
+      "description": "Declare an MQTT topic as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "external_assets/external_mqtt_asset",
@@ -13373,13 +14125,19 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare an MQTT topic as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
+        "requires_pip": [
+          "dagster"
+        ]
+      }
     },
     {
       "id": "external_nats_asset",
       "name": "External NATS Asset",
       "category": "external",
-      "description": "ExternalNatsAsset",
+      "description": "Declare a NATS subject as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "external_assets/external_nats_asset",
@@ -13407,7 +14165,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare a NATS subject as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
+        "requires_pip": [
+          "dagster"
+        ]
+      }
     },
     {
       "id": "external_precisely_job",
@@ -13442,7 +14206,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare a Precisely Connect ETL job as an external Dagster asset (declare-only AssetSpec)."
+      },
       "consumes": [
         "resource:precisely"
       ]
@@ -13451,7 +14218,7 @@
       "id": "external_pubsub_asset",
       "name": "External Pub/Sub Asset",
       "category": "external",
-      "description": "ExternalPubsubAsset",
+      "description": "Declare a Pub/Sub topic as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "external_assets/external_pubsub_asset",
@@ -13480,7 +14247,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare a Pub/Sub topic as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
       "consumes": [
         "resource:pubsub"
       ]
@@ -13489,7 +14262,7 @@
       "id": "external_pulsar_asset",
       "name": "External Pulsar Asset",
       "category": "external",
-      "description": "ExternalPulsarAsset",
+      "description": "Declare a Pulsar topic as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "external_assets/external_pulsar_asset",
@@ -13517,13 +14290,19 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare a Pulsar topic as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
+        "requires_pip": [
+          "dagster"
+        ]
+      }
     },
     {
       "id": "external_rabbitmq_asset",
       "name": "External RabbitMQ Asset",
       "category": "external",
-      "description": "ExternalRabbitmqAsset",
+      "description": "Declare a RabbitMQ queue as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "external_assets/external_rabbitmq_asset",
@@ -13551,13 +14330,19 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare a RabbitMQ queue as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
+        "requires_pip": [
+          "dagster"
+        ]
+      }
     },
     {
       "id": "external_redis_stream_asset",
       "name": "External Redis Stream Asset",
       "category": "external",
-      "description": "ExternalRedisStreamAsset",
+      "description": "Declare a Redis stream as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "external_assets/external_redis_stream_asset",
@@ -13586,7 +14371,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare a Redis stream as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
       "consumes": [
         "resource:redis"
       ]
@@ -13595,7 +14386,7 @@
       "id": "external_s3_asset",
       "name": "External S3 Asset",
       "category": "external",
-      "description": "ExternalS3Asset",
+      "description": "Declare an S3 bucket as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "external_assets/external_s3_asset",
@@ -13623,7 +14414,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare an S3 bucket as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
       "consumes": [
         "resource:s3"
       ]
@@ -13632,7 +14429,7 @@
       "id": "external_servicebus_asset",
       "name": "External Service Bus Asset",
       "category": "external",
-      "description": "ExternalServiceBusAsset",
+      "description": "Declare a Service Bus queue or topic as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "external_assets/external_servicebus_asset",
@@ -13660,7 +14457,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare a Service Bus queue or topic as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
       "consumes": [
         "resource:servicebus"
       ]
@@ -13697,7 +14500,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare an SFTP directory as an observable external asset.",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
       "consumes": [
         "resource:sftp"
       ]
@@ -13735,7 +14544,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare a SharePoint document library as an observable external asset.",
+        "requires_pip": [
+          "dagster"
+        ]
+      }
     },
     {
       "id": "external_snowflake_openflow_flow",
@@ -13770,7 +14585,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare a Snowflake OpenFlow process group as an external Dagster asset."
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -13808,7 +14626,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare a Snowflake table as an observable external asset.",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -13817,7 +14641,7 @@
       "id": "external_sql_asset",
       "name": "External SQL Asset",
       "category": "external",
-      "description": "ExternalSqlAsset",
+      "description": "Declare an SQL table as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "external_assets/external_sql_asset",
@@ -13845,13 +14669,19 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare an SQL table as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
+        "requires_pip": [
+          "dagster"
+        ]
+      }
     },
     {
       "id": "external_sqs_asset",
       "name": "External SQS Asset",
       "category": "external",
-      "description": "ExternalSqsAsset",
+      "description": "Declare an SQS queue as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "external_assets/external_sqs_asset",
@@ -13880,7 +14710,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare an SQS queue as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
       "consumes": [
         "resource:sqs"
       ]
@@ -13915,7 +14751,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare-only AssetSpec for a StarRocks table.",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
       "consumes": [
         "resource:starrocks"
       ]
@@ -13953,7 +14795,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare a Temporal Workflow as an external Dagster asset."
+      }
     },
     {
       "id": "external_vercel_deployment",
@@ -13988,7 +14833,10 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declare a Vercel project's deployment stream as an external Dagster asset."
+      }
     },
     {
       "id": "fabric_capacity_admin_job",
@@ -14029,7 +14877,14 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Pause / resume / scale a Microsoft Fabric capacity via the management REST API.",
+        "requires_pip": [
+          "dagster",
+          "azure-identity",
+          "requests"
+        ]
+      }
     },
     {
       "id": "fabric_lakehouse_io_manager",
@@ -14071,7 +14926,16 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "ConfigurableIOManager that auto-serializes asset DataFrames as Delta tables in a Fabric Lakehouse on OneLake.",
+        "requires_pip": [
+          "dagster",
+          "pandas",
+          "deltalake"
+        ]
+      },
       "consumes": [
         "resource:fabric_lakehouse"
       ]
@@ -14113,7 +14977,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "OneLake URL helper + storage credentials for Fabric Lakehouse access.",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
       "consumes": [
         "resource:fabric_lakehouse"
       ]
@@ -14157,7 +15026,14 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Op-job that triggers a Microsoft Fabric Data Pipeline / Notebook / Dataflow Gen2 run via the Fabric REST API.",
+        "requires_pip": [
+          "dagster",
+          "azure-identity",
+          "requests"
+        ]
+      }
     },
     {
       "id": "fabric_workspace",
@@ -14197,7 +15073,14 @@
       "produces": [
         "multi_asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Import Microsoft Fabric workspace items (Lakehouse, Warehouse, Notebook, DataPipeline, Dataflow) as Dagster assets via the Fabric REST API.",
+        "requires_pip": [
+          "dagster",
+          "azure-identity",
+          "requests"
+        ]
+      }
     },
     {
       "id": "fabric_workspace_resource",
@@ -14237,7 +15120,14 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Reusable Microsoft Fabric REST API client (token caching, list_items, trigger_item_run, wait_for_run helpers).",
+        "requires_pip": [
+          "dagster",
+          "azure-identity",
+          "requests"
+        ]
+      }
     },
     {
       "id": "face_detector",
@@ -14358,7 +15248,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register a FacebookAdsResource wrapping the Facebook Business SDK for use by other components",
+        "requires_pip": [
+          "facebook-business"
+        ]
+      }
     },
     {
       "id": "facebook_ads_workspace",
@@ -14443,7 +15338,15 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Materialize features from a source table into a Feast feature store.",
+        "requires_pip": [
+          "dagster",
+          "feast"
+        ]
+      }
     },
     {
       "id": "feature_scaler",
@@ -14658,7 +15561,16 @@
         "asset",
         "asset_check"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Component for transforming files between formats.",
+        "requires_pip": [
+          "pandas>=2.0.0",
+          "pyarrow>=10.0.0",
+          "openpyxl>=3.0.0"
+        ]
+      }
     },
     {
       "id": "filesystem_monitor",
@@ -14689,7 +15601,9 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Component for monitoring filesystem directories for new files."
+      }
     },
     {
       "id": "filter",
@@ -14816,7 +15730,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register a Firebase Admin SDK resource (Firestore + Cloud Storage + Realtime Database) for use by other components.",
+        "requires_pip": [
+          "firebase-admin>=6.0.0"
+        ]
+      }
     },
     {
       "id": "firebase_storage_monitor",
@@ -14853,7 +15772,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Watch a Firebase Storage bucket for new files; emit one RunRequest per new object.",
+        "requires_pip": [
+          "firebase-admin>=6.0.0"
+        ]
+      }
     },
     {
       "id": "firestore_collection_ingestion",
@@ -15040,7 +15964,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a Google Cloud Firestore resource for serverless document database access",
+        "requires_pip": [
+          "google-cloud-firestore"
+        ]
+      },
       "consumes": [
         "resource:firestore"
       ]
@@ -15180,7 +16109,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Import each Fivetran connector as a Dagster external asset via dagster-fivetran.",
+        "requires_pip": [
+          "dagster",
+          "dagster-fivetran"
+        ]
+      }
     },
     {
       "id": "fivetran_sync_sensor",
@@ -15213,7 +16148,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Trigger a job when a Fivetran connector sync completes.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      }
     },
     {
       "id": "fivetran_sync_trigger_job",
@@ -15247,7 +16187,12 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Trigger a Fivetran connector sync via REST API.",
+        "requires_pip": [
+          "requests"
+        ]
+      }
     },
     {
       "id": "fix_message_parser",
@@ -15404,7 +16349,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register a FreshdeskResource for the Freshdesk REST API for use by other components",
+        "requires_pip": [
+          "requests"
+        ]
+      }
     },
     {
       "id": "freshness_check",
@@ -15437,7 +16387,14 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "AssetCheckResult",
+        "outputs": "Attach a Dagster FreshnessPolicy to an asset for continuous SLA monitoring.",
+        "requires_pip": [
+          "dagster"
+        ]
+      }
     },
     {
       "id": "funnel_analysis",
@@ -15646,7 +16603,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Deploy a GCP Deployment Manager configuration (.yaml or jinja) as a Dagster asset.",
+        "requires_pip": [
+          "google-cloud-deployment-manager",
+          "google-auth"
+        ]
+      }
     },
     {
       "id": "gcs_cleanup_job",
@@ -15682,7 +16645,12 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Delete GCS objects older than N days under a prefix.",
+        "requires_pip": [
+          "google-cloud-storage"
+        ]
+      },
       "consumes": [
         "resource:gcs"
       ]
@@ -15720,7 +16688,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Component for monitoring a Google Cloud Storage bucket prefix for new objects.",
+        "requires_pip": [
+          "google-cloud-storage>=2.0.0"
+        ]
+      },
       "consumes": [
         "resource:gcs"
       ]
@@ -15729,7 +16702,7 @@
       "id": "gcs_observation_sensor",
       "name": "GCS Observation Sensor",
       "category": "observation",
-      "description": "GcsObservationSensorComponent",
+      "description": "Periodically connect to GCS and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "observations/gcs_observation_sensor",
@@ -15757,7 +16730,13 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetObservation",
+        "outputs": "Periodically connect to GCS and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
+        "requires_pip": [
+          "google-cloud-storage>=2.0.0"
+        ]
+      },
       "consumes": [
         "resource:gcs"
       ]
@@ -15802,7 +16781,16 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Register an IO manager that stores assets as Parquet files on Google Cloud Storage",
+        "requires_pip": [
+          "gcsfs>=2023.1.0",
+          "pandas>=1.5.0",
+          "pyarrow>=12.0.0"
+        ]
+      },
       "consumes": [
         "resource:gcs"
       ]
@@ -15842,7 +16830,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a dagster-gcp GCSResource for use by other components",
+        "requires_pip": [
+          "dagster-gcp"
+        ]
+      },
       "consumes": [
         "resource:gcs"
       ]
@@ -16072,7 +17065,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a dagster-gemini GeminiResource for use by other components",
+        "requires_pip": [
+          "dagster-gemini"
+        ]
+      },
       "consumes": [
         "resource:gemini"
       ]
@@ -16398,7 +17396,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Trigger a run when a GitHub repo has new events (PRs opened/merged, pushes, issues).",
+        "requires_pip": [
+          "requests"
+        ]
+      },
       "consumes": [
         "resource:github"
       ]
@@ -16482,7 +17485,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a dagster-github GithubResource for use by other components",
+        "requires_pip": [
+          "dagster-github"
+        ]
+      },
       "consumes": [
         "resource:github"
       ]
@@ -16572,7 +17580,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Trigger a run when a GitLab project has new events (push, merge, issue, comment).",
+        "requires_pip": [
+          "requests"
+        ]
+      },
       "consumes": [
         "resource:gitlab"
       ]
@@ -16704,7 +17717,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register a GongResource wrapping Gong API v2 Basic Auth credentials for use by other components.",
+        "requires_pip": [
+          "requests>=2.28"
+        ]
+      }
     },
     {
       "id": "google_ads_ingestion",
@@ -16827,7 +17845,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register a GoogleAnalyticsResource wrapping the GA4 Data API client for use by other components",
+        "requires_pip": [
+          "google-analytics-data"
+        ]
+      }
     },
     {
       "id": "google_analytics_workspace",
@@ -16918,7 +17941,14 @@
         "asset",
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Component for importing BigQuery entities as Dagster assets.",
+        "requires_pip": [
+          "google-cloud-bigquery>=3.11.0",
+          "google-cloud-bigquery-datatransfer>=3.11.0",
+          "dagster>=1.6.0"
+        ]
+      },
       "consumes": [
         "resource:bigquery"
       ]
@@ -17007,7 +18037,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Component for importing Google Cloud Functions as Dagster assets.",
+        "requires_pip": [
+          "google-cloud-functions>=1.13.0",
+          "dagster>=1.6.0"
+        ]
+      },
       "consumes": [
         "resource:cloud_functions"
       ]
@@ -17046,7 +18082,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Component for importing Google Cloud Run Jobs as Dagster assets.",
+        "requires_pip": [
+          "google-cloud-run>=0.10.0",
+          "dagster>=1.6.0"
+        ]
+      },
       "consumes": [
         "resource:cloud_run"
       ]
@@ -17084,7 +18126,13 @@
         "asset",
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Component for importing Google Cloud Dataflow jobs as Dagster assets.",
+        "requires_pip": [
+          "google-cloud-dataflow-client>=0.8.0",
+          "dagster>=1.6.0"
+        ]
+      }
     },
     {
       "id": "google_datastream",
@@ -17119,7 +18167,13 @@
         "asset",
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Component for importing Google Cloud Datastream entities as Dagster assets.",
+        "requires_pip": [
+          "google-cloud-datastream>=1.5.0",
+          "dagster>=1.6.0"
+        ]
+      }
     },
     {
       "id": "google_docs_extractor",
@@ -17258,7 +18312,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Component for importing Google Cloud Pub/Sub entities as Dagster assets.",
+        "requires_pip": [
+          "google-cloud-pubsub>=2.18.0",
+          "dagster>=1.6.0"
+        ]
+      },
       "consumes": [
         "resource:pubsub"
       ]
@@ -17342,7 +18402,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register a GoogleSheetsResource wrapping the gspread client for use by other components",
+        "requires_pip": [
+          "gspread"
+        ]
+      }
     },
     {
       "id": "google_sheets_workspace",
@@ -17431,7 +18496,13 @@
         "asset",
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Component for importing Google Vertex AI entities as Dagster assets.",
+        "requires_pip": [
+          "google-cloud-aiplatform>=1.38.0",
+          "dagster>=1.6.0"
+        ]
+      },
       "consumes": [
         "resource:vertex_ai"
       ]
@@ -17558,7 +18629,14 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "AssetCheckResult",
+        "outputs": "Run a Great Expectations expectation suite \u2014 one Dagster asset check per expectation.",
+        "requires_pip": [
+          "great-expectations>=0.18.0"
+        ]
+      }
     },
     {
       "id": "groq_llm",
@@ -17680,7 +18758,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Dagster resource for reading secrets from a HashiCorp Vault cluster.",
+        "requires_pip": [
+          "dagster",
+          "requests>=2.28.0"
+        ]
+      }
     },
     {
       "id": "helm_deploy",
@@ -17715,7 +18799,12 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Deploy or upgrade a Helm chart as a Dagster asset.",
+        "requires_pip": [
+          "dagster"
+        ]
+      }
     },
     {
       "id": "hex_project_assets",
@@ -17750,7 +18839,13 @@
         "asset",
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Run a Hex project on materialization via dagster-hex.",
+        "requires_pip": [
+          "dagster",
+          "dagster-hex"
+        ]
+      }
     },
     {
       "id": "hl7_v2_parser",
@@ -17918,7 +19013,15 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Generic wrapper for HTTP-driven external job runners \u2014 internal job APIs, less-common SaaS tools, GitHub Actions / Jenkins / CircleCI / Argo / Kestra style runners, or prototyping before investing in\u2026",
+        "requires_pip": [
+          "dagster>=1.8.0",
+          "httpx>=0.24.0",
+          "jinja2>=3.0.0",
+          "jsonpath-ng>=1.6.0"
+        ]
+      }
     },
     {
       "id": "http_poll_sensor",
@@ -17953,7 +19056,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Poll an HTTP endpoint and trigger a run when a targeted slice of the response changes (json_path / regex / css_selector / strip_patterns).",
+        "requires_pip": [
+          "requests"
+        ]
+      }
     },
     {
       "id": "http_resource",
@@ -17989,7 +19097,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register an HTTP resource (base URL + auth header) for use by other components",
+        "requires_pip": [
+          "requests"
+        ]
+      }
     },
     {
       "id": "http_webhook_job",
@@ -18024,7 +19137,12 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "POST/GET to an HTTP endpoint as a job \u2014 heartbeats, status pings, fire-and-forget triggers.",
+        "requires_pip": [
+          "requests"
+        ]
+      }
     },
     {
       "id": "hubspot_ingestion",
@@ -18106,7 +19224,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a HubSpotResource wrapping the hubspot-api-client for use by other components",
+        "requires_pip": [
+          "hubspot-api-client"
+        ]
+      },
       "consumes": [
         "resource:hubspot"
       ]
@@ -18200,7 +19323,14 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Call a chat-completion model via the HuggingFace router (OpenAI-compatible) \u2014 Kimi, Llama, Mistral, Qwen, DeepSeek via one SDK.",
+        "requires_pip": [
+          "openai>=1.0.0"
+        ]
+      }
     },
     {
       "id": "huggingface_dataset_asset",
@@ -18236,7 +19366,14 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Observe a HuggingFace Hub dataset's metadata as a Dagster source asset \u2014 downloads, likes, configs, license.",
+        "requires_pip": [
+          "huggingface-hub>=0.20.0"
+        ]
+      }
     },
     {
       "id": "huggingface_inference_endpoint",
@@ -18272,7 +19409,14 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Call a dedicated HuggingFace Inference Endpoint (paid, scaled, per-model deployment) \u2014 different from the shared public API.",
+        "requires_pip": [
+          "huggingface-hub>=0.20.0"
+        ]
+      }
     },
     {
       "id": "huggingface_model_asset",
@@ -18308,7 +19452,14 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Observe a HuggingFace Hub model's metadata as a Dagster source asset \u2014 downloads, likes, pipeline tag, last_modified.",
+        "requires_pip": [
+          "huggingface-hub>=0.20.0"
+        ]
+      }
     },
     {
       "id": "huggingface_pipeline",
@@ -18382,7 +19533,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Fire a Dagster RunRequest when a HuggingFace Space hits a target stage (e.g.",
+        "requires_pip": [
+          "huggingface-hub>=0.20.0"
+        ]
+      }
     },
     {
       "id": "huggingface_text_to_image",
@@ -18419,7 +19575,15 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Generate images from text prompts via HuggingFace InferenceClient.",
+        "requires_pip": [
+          "huggingface-hub>=0.20.0",
+          "Pillow>=10.0.0"
+        ]
+      }
     },
     {
       "id": "human_approval_gate",
@@ -18496,7 +19660,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a PyIceberg catalog (REST / Glue / Hive / Hadoop / SQL) once and reuse across many ingestion / sink / observation components.",
+        "requires_pip": [
+          "pyiceberg>=0.6.0"
+        ]
+      },
       "consumes": [
         "resource:iceberg"
       ]
@@ -18590,7 +19759,16 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Wrap the official `dagster-iceberg` IcebergPyarrowIOManager so assets persist as Iceberg tables.",
+        "requires_pip": [
+          "dagster",
+          "dagster-iceberg",
+          "pyarrow"
+        ]
+      },
       "consumes": [
         "resource:iceberg"
       ]
@@ -18629,7 +19807,12 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Cron-driven Iceberg maintenance \u2014 OPTIMIZE (compaction), expire snapshots, remove orphans, rewrite manifests.",
+        "requires_pip": [
+          "sqlalchemy"
+        ]
+      },
       "consumes": [
         "resource:iceberg"
       ]
@@ -19086,7 +20269,13 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "InfluxDB 2.x / 3.x connection resource via the official influxdb-client SDK.",
+        "requires_pip": [
+          "dagster",
+          "influxdb-client>=1.40.0"
+        ]
+      },
       "consumes": [
         "resource:influxdb"
       ]
@@ -19256,7 +20445,13 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Intercom REST API client for support data ingestion.",
+        "requires_pip": [
+          "dagster",
+          "requests"
+        ]
+      }
     },
     {
       "id": "interval_schedule",
@@ -19288,7 +20483,9 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Run an asset selection at a fixed interval (every N minutes / hours / days)."
+      }
     },
     {
       "id": "invoice_extractor",
@@ -19753,7 +20950,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Trigger a run when Jira has new or updated issues matching a JQL query.",
+        "requires_pip": [
+          "requests"
+        ]
+      },
       "consumes": [
         "resource:jira"
       ]
@@ -19793,7 +20995,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a JiraResource wrapping the Jira Python client for use by other components",
+        "requires_pip": [
+          "jira"
+        ]
+      },
       "consumes": [
         "resource:jira"
       ]
@@ -20064,7 +21271,16 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Execute a Jupyter notebook as a Dagster asset using Papermill.",
+        "requires_pip": [
+          "dagster",
+          "papermill>=2.4.0",
+          "ipykernel>=6.0.0"
+        ]
+      }
     },
     {
       "id": "k8s_job_asset",
@@ -20100,7 +21316,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Run a Kubernetes Job as a Dagster asset via dagster-k8s.",
+        "requires_pip": [
+          "dagster",
+          "dagster-k8s"
+        ]
+      }
     },
     {
       "id": "k_centroids_diagnostics",
@@ -20225,13 +21447,18 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Component for monitoring a Kafka topic for new messages.",
+        "requires_pip": [
+          "kafka-python>=2.0.2"
+        ]
+      }
     },
     {
       "id": "kafka_observation_sensor",
       "name": "Kafka Observation Sensor",
       "category": "observation",
-      "description": "KafkaObservationSensorComponent",
+      "description": "Periodically connect to Kafka and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "observations/kafka_observation_sensor",
@@ -20259,7 +21486,13 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "output_type": "AssetObservation",
+        "outputs": "Periodically connect to Kafka and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
+        "requires_pip": [
+          "kafka-python>=2.0.0"
+        ]
+      }
     },
     {
       "id": "kafka_resource",
@@ -20297,7 +21530,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register a Kafka resource providing producer and consumer factories",
+        "requires_pip": [
+          "kafka-python>=2.0.2"
+        ]
+      }
     },
     {
       "id": "kafka_to_database_asset",
@@ -20383,7 +21621,14 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Azure Key Vault client for runtime secret retrieval.",
+        "requires_pip": [
+          "dagster",
+          "azure-identity",
+          "azure-keyvault-secrets"
+        ]
+      }
     },
     {
       "id": "keyword_extractor",
@@ -20460,7 +21705,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Component for monitoring an AWS Kinesis Data Stream for new records.",
+        "requires_pip": [
+          "boto3>=1.26.0"
+        ]
+      },
       "consumes": [
         "resource:kinesis"
       ]
@@ -20469,7 +21719,7 @@
       "id": "kinesis_observation_sensor",
       "name": "Kinesis Observation Sensor",
       "category": "observation",
-      "description": "KinesisObservationSensorComponent",
+      "description": "Periodically connect to Kinesis and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "observations/kinesis_observation_sensor",
@@ -20497,7 +21747,13 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetObservation",
+        "outputs": "Periodically connect to Kinesis and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
+        "requires_pip": [
+          "boto3>=1.20.0"
+        ]
+      },
       "consumes": [
         "resource:kinesis"
       ]
@@ -20630,7 +21886,15 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Interact with a lakeFS repository for data versioning as a Dagster asset.",
+        "requires_pip": [
+          "dagster",
+          "lakefs>=0.7.0"
+        ]
+      }
     },
     {
       "id": "lakefs_io_manager",
@@ -20672,7 +21936,17 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Register an IO manager that stores assets as Parquet files on a lakeFS repository (Git-for-data over S3-compatible storage)",
+        "requires_pip": [
+          "s3fs>=2023.1.0",
+          "pandas>=1.5.0",
+          "pyarrow>=12.0.0",
+          "lakefs>=0.7.0"
+        ]
+      }
     },
     {
       "id": "lance_io_manager",
@@ -20714,7 +21988,16 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Register a LanceDB IO manager for ML-optimised columnar storage ideal for embeddings and vector data",
+        "requires_pip": [
+          "lancedb>=0.5.0",
+          "pandas>=1.5.0",
+          "pyarrow>=12.0.0"
+        ]
+      }
     },
     {
       "id": "langchain_chain_asset",
@@ -21007,7 +22290,14 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Materialize the canonical Dagster asset lineage graph (nodes + edges + source system identity) as an asset.",
+        "requires_pip": [
+          "dagster",
+          "requests"
+        ]
+      }
     },
     {
       "id": "lineage_to_alation",
@@ -21414,7 +22704,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Trigger a run when Linear has new or updated issues matching a team/state filter.",
+        "requires_pip": [
+          "requests"
+        ]
+      },
       "consumes": [
         "resource:linear"
       ]
@@ -21545,7 +22840,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register a LinkedInAdsResource for the LinkedIn Marketing API for use by other components",
+        "requires_pip": [
+          "linkedin-api"
+        ]
+      }
     },
     {
       "id": "linkedin_ads_workspace",
@@ -22290,7 +23590,14 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Store DataFrames as CSV files on the local filesystem (dev / human-inspectable).",
+        "requires_pip": [
+          "pandas"
+        ]
+      }
     },
     {
       "id": "local_json_io_manager",
@@ -22324,7 +23631,14 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Store DataFrames as JSON Lines (.jsonl) files on the local filesystem.",
+        "requires_pip": [
+          "pandas"
+        ]
+      }
     },
     {
       "id": "local_parquet_io_manager",
@@ -22359,7 +23673,15 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Store DataFrames as Parquet files on the local filesystem (dev / no-warehouse).",
+        "requires_pip": [
+          "pandas",
+          "pyarrow"
+        ]
+      }
     },
     {
       "id": "logistic_regression_model",
@@ -22438,7 +23760,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Import Looker LookML views + dashboards as Dagster external assets via dagster-looker.",
+        "requires_pip": [
+          "dagster",
+          "dagster-looker"
+        ]
+      }
     },
     {
       "id": "lookup",
@@ -22853,7 +24181,13 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Marketo REST API client wrapper.",
+        "requires_pip": [
+          "dagster",
+          "requests"
+        ]
+      }
     },
     {
       "id": "matillion_job_sensor",
@@ -22886,7 +24220,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Trigger a Dagster job when a Matillion ETL job run completes.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      }
     },
     {
       "id": "matillion_run_asset",
@@ -22920,7 +24259,12 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Resource for connecting to the Matillion ETL REST API.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      }
     },
     {
       "id": "matomo_ingestion",
@@ -23126,7 +24470,12 @@
       "produces": [
         "job"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Flush the entire Memcached instance (flush_all) or a specific key list as a Dagster job.",
+        "requires_pip": [
+          "pymemcache>=4.0.0"
+        ]
+      },
       "consumes": []
     },
     {
@@ -23164,7 +24513,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a Memcached resource for high-performance in-memory caching.",
+        "requires_pip": [
+          "pymemcache>=4.0.0"
+        ]
+      },
       "consumes": []
     },
     {
@@ -23204,7 +24558,15 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Register a Delta Lake IO manager pointed at MinIO for S3-compatible lakehouse storage",
+        "requires_pip": [
+          "deltalake>=0.15.0",
+          "pandas>=1.5.0"
+        ]
+      }
     },
     {
       "id": "minio_resource",
@@ -23242,7 +24604,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register a MinIO S3-compatible object storage resource for use by other components",
+        "requires_pip": [
+          "minio>=7.0.0"
+        ]
+      }
     },
     {
       "id": "mlflow_experiment_sensor",
@@ -23277,7 +24644,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Polls an MLflow experiment for new runs; fires a Dagster RunRequest per new run.",
+        "requires_pip": [
+          "mlflow>=2.0.0"
+        ]
+      },
       "consumes": [
         "resource:mlflow"
       ]
@@ -23317,7 +24689,15 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Materializable asset that loads a registered MLflow model (any pyfunc flavor) and scores an upstream DataFrame.",
+        "requires_pip": [
+          "mlflow>=2.0.0",
+          "pandas>=1.5.0"
+        ]
+      },
       "consumes": [
         "resource:mlflow"
       ]
@@ -23357,7 +24737,12 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Materializable asset that transitions an MLflow model version between stages (e.g.",
+        "requires_pip": [
+          "mlflow>=2.0.0"
+        ]
+      },
       "consumes": [
         "resource:mlflow"
       ]
@@ -23396,7 +24781,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Component that fires a RunRequest when an MLflow model transitions to a",
+        "requires_pip": [
+          "mlflow>=2.0.0"
+        ]
+      },
       "consumes": [
         "resource:mlflow"
       ]
@@ -23435,7 +24825,14 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "AssetCheckResult",
+        "outputs": "Asset check that verifies an MLflow registered model's state (exists / at required stage / within a freshness window).",
+        "requires_pip": [
+          "mlflow>=2.0.0"
+        ]
+      },
       "consumes": [
         "resource:mlflow"
       ]
@@ -23476,7 +24873,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register an MLflow resource for experiment tracking and model registry",
+        "requires_pip": [
+          "mlflow"
+        ]
+      },
       "consumes": [
         "resource:mlflow"
       ]
@@ -23571,7 +24973,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Trigger a Modal function as a Dagster asset.",
+        "requires_pip": [
+          "dagster",
+          "modal>=0.55.0"
+        ]
+      }
     },
     {
       "id": "model_coefficients",
@@ -23827,7 +25235,15 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Persist DataFrames to MongoDB collections (one per asset, document-store).",
+        "requires_pip": [
+          "pandas",
+          "pymongo"
+        ]
+      },
       "consumes": [
         "resource:mongodb"
       ]
@@ -23918,7 +25334,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a MongoDB resource for flexible document database access via pymongo",
+        "requires_pip": [
+          "pymongo"
+        ]
+      },
       "consumes": [
         "resource:mongodb"
       ]
@@ -24004,7 +25425,14 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "AssetCheckResult",
+        "outputs": "Trigger a Monte Carlo custom rule or monitor run and surface results as a Dagster asset check.",
+        "requires_pip": [
+          "pycarlo"
+        ]
+      },
       "consumes": [
         "resource:monte_carlo"
       ]
@@ -24046,7 +25474,15 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Register a DuckDB IO manager connected to MotherDuck (serverless DuckDB cloud) for asset storage",
+        "requires_pip": [
+          "dagster-duckdb-pandas>=0.22.0",
+          "duckdb>=0.9.0"
+        ]
+      }
     },
     {
       "id": "mqtt_monitor",
@@ -24080,13 +25516,18 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Component for subscribing to an MQTT broker topic for new messages.",
+        "requires_pip": [
+          "paho-mqtt>=1.6.1"
+        ]
+      }
     },
     {
       "id": "mqtt_observation_sensor",
       "name": "MQTT Observation Sensor",
       "category": "observation",
-      "description": "MqttObservationSensorComponent",
+      "description": "Periodically connect to MQTT and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "observations/mqtt_observation_sensor",
@@ -24114,7 +25555,13 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "output_type": "AssetObservation",
+        "outputs": "Periodically connect to MQTT and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
+        "requires_pip": [
+          "paho-mqtt>=1.6.1"
+        ]
+      }
     },
     {
       "id": "mqtt_to_database_asset",
@@ -24200,7 +25647,16 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Persist DataFrames to a Microsoft SQL Server schema, one table per asset.",
+        "requires_pip": [
+          "pandas",
+          "sqlalchemy",
+          "pymssql"
+        ]
+      },
       "consumes": [
         "resource:mssql"
       ]
@@ -24242,7 +25698,13 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "SQL Server / Azure SQL Database Dagster resource \u2014 connection string + connection factory shared across assets.",
+        "requires_pip": [
+          "sqlalchemy",
+          "pymssql"
+        ]
+      },
       "consumes": [
         "resource:mssql"
       ]
@@ -24279,7 +25741,13 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Microsoft Teams notification resource via dagster-msteams.",
+        "requires_pip": [
+          "dagster",
+          "dagster-msteams"
+        ]
+      },
       "consumes": [
         "resource:teams"
       ]
@@ -24533,7 +26001,16 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Persist DataFrames to a MySQL/MariaDB schema, one table per asset.",
+        "requires_pip": [
+          "pandas",
+          "sqlalchemy",
+          "pymysql"
+        ]
+      },
       "consumes": [
         "resource:mysql"
       ]
@@ -24574,7 +26051,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a MySQL resource for relational database access",
+        "requires_pip": [
+          "mysql-connector-python"
+        ]
+      },
       "consumes": [
         "resource:mysql"
       ]
@@ -24660,13 +26142,18 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Component for monitoring a NATS JetStream consumer for new messages.",
+        "requires_pip": [
+          "nats-py>=2.3.0"
+        ]
+      }
     },
     {
       "id": "nats_observation_sensor",
       "name": "NATS Observation Sensor",
       "category": "observation",
-      "description": "NatsObservationSensorComponent",
+      "description": "Periodically connect to NATS and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "observations/nats_observation_sensor",
@@ -24694,7 +26181,13 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "output_type": "AssetObservation",
+        "outputs": "Periodically connect to NATS and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
+        "requires_pip": [
+          "nats-py>=2.3.0"
+        ]
+      }
     },
     {
       "id": "nats_to_database_asset",
@@ -24878,7 +26371,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a Neo4j resource for graph database queries via the Bolt protocol",
+        "requires_pip": [
+          "neo4j"
+        ]
+      },
       "consumes": [
         "resource:neo4j"
       ]
@@ -25109,7 +26607,13 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "New Relic API client wrapper (NerdGraph + Logs/Metrics/Events ingestion).",
+        "requires_pip": [
+          "dagster",
+          "requests"
+        ]
+      },
       "consumes": [
         "resource:newrelic"
       ]
@@ -25144,7 +26648,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Trigger a run when a Notion database has new or updated rows.",
+        "requires_pip": [
+          "requests"
+        ]
+      }
     },
     {
       "id": "notion_ingestion",
@@ -25222,7 +26731,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register a NotionResource wrapping the notion-client SDK for use by other components",
+        "requires_pip": [
+          "notion-client"
+        ]
+      }
     },
     {
       "id": "notion_workspace",
@@ -25400,7 +26914,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Headless OAuth 2.0 token resource.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      }
     },
     {
       "id": "observability_heartbeat_job",
@@ -25436,7 +26955,12 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Compound op job: send a heartbeat to multiple destinations (Slack + PagerDuty + HTTP) on cron \u2014 single YAML config.",
+        "requires_pip": [
+          "requests"
+        ]
+      }
     },
     {
       "id": "ocr_extractor",
@@ -25513,7 +27037,14 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Normalize source events to OCSF v1.1 with class_uid / category_uid / activity_id \u2014 per-source mapping tables for dagster_plus, cloudtrail, okta, github, azure_activity, slack.",
+        "requires_pip": [
+          "pandas"
+        ]
+      }
     },
     {
       "id": "ocsf_validator",
@@ -25547,7 +27078,14 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "AssetCheckResult",
+        "outputs": "Asset check: validates OCSF v1.x conformance \u2014 required fields, severity range, known class_uid set.",
+        "requires_pip": [
+          "pandas"
+        ]
+      }
     },
     {
       "id": "odata_check",
@@ -25581,7 +27119,14 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "AssetCheckResult",
+        "outputs": "Asset check \u2014 smoke-test that an OData service URL + entity set is reachable, returns N rows, and contains expected columns.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      }
     },
     {
       "id": "odata_ingestion",
@@ -25668,7 +27213,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register an OData service connection (base URL + auth) once and reuse it across components.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      }
     },
     {
       "id": "okta_system_log_ingestion",
@@ -25923,7 +27473,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a dagster-openai OpenAIResource for use by other components",
+        "requires_pip": [
+          "dagster-openai"
+        ]
+      },
       "consumes": [
         "resource:openai"
       ]
@@ -26007,7 +27562,15 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "AssetCheckResult",
+        "outputs": "Asset check that emits OpenLineage START/COMPLETE events to OL-compatible backends (Marquez, DataHub, OpenMetadata) when an upstream asset materializes.",
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ]
+      }
     },
     {
       "id": "openlineage_export_job",
@@ -26044,7 +27607,12 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Op-shaped job that emits OpenLineage RunEvent (START / COMPLETE) per Dagster run to a configured collector (Marquez, OpenLineage Proxy, Datakin).",
+        "requires_pip": [
+          "dagster>=1.7.0"
+        ]
+      }
     },
     {
       "id": "openrouter_llm",
@@ -26172,7 +27740,13 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Oracle Database Dagster resource \u2014 connection string + connection factory shared across assets.",
+        "requires_pip": [
+          "sqlalchemy>=2.0.0",
+          "oracledb>=2.0.0"
+        ]
+      }
     },
     {
       "id": "outlier_clipper",
@@ -26298,7 +27872,12 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Send a PagerDuty heartbeat (resolve event) \u2014 confirms a job is alive on a cadence.",
+        "requires_pip": [
+          "requests"
+        ]
+      }
     },
     {
       "id": "pagerduty_incident_sensor",
@@ -26331,7 +27910,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Trigger a run when PagerDuty incidents are created or change state.",
+        "requires_pip": [
+          "requests"
+        ]
+      }
     },
     {
       "id": "pagerduty_resource",
@@ -26368,7 +27952,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register a dagster-pagerduty PagerDutyService for use by other components",
+        "requires_pip": [
+          "dagster-pagerduty"
+        ]
+      }
     },
     {
       "id": "pagerduty_workspace",
@@ -26454,7 +28043,15 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "AssetCheckResult",
+        "outputs": "Validate a DataFrame asset's column constraints via dagster-pandas.",
+        "requires_pip": [
+          "dagster",
+          "pandas"
+        ]
+      }
     },
     {
       "id": "pandera_asset_check",
@@ -26490,7 +28087,16 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "AssetCheckResult",
+        "outputs": "Validate a DataFrame asset against a Pandera schema as a Dagster asset check.",
+        "requires_pip": [
+          "dagster",
+          "dagster-pandera",
+          "pandera"
+        ]
+      }
     },
     {
       "id": "papertrail_resource",
@@ -26524,7 +28130,13 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Stream Dagster logs to Papertrail via dagster-papertrail.",
+        "requires_pip": [
+          "dagster",
+          "dagster-papertrail"
+        ]
+      }
     },
     {
       "id": "parametric_data_generator",
@@ -26874,7 +28486,15 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "List files in S3/GCS/ADLS matching a pattern, run a callable per file in parallel via DynamicOut.",
+        "requires_pip": [
+          "boto3",
+          "google-cloud-storage",
+          "azure-storage-blob",
+          "azure-identity"
+        ]
+      }
     },
     {
       "id": "per_partition_backfill_job",
@@ -26908,7 +28528,9 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Cron-driven parallel backfill of N partitions of an existing partitioned asset."
+      }
     },
     {
       "id": "per_row_http_fetcher",
@@ -27028,7 +28650,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register a PersonioResource wrapping the personio-py client for use by other components",
+        "requires_pip": [
+          "personio-py"
+        ]
+      }
     },
     {
       "id": "pgvector_asset",
@@ -27440,7 +29067,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register a PipedriveResource for the Pipedrive CRM API for use by other components",
+        "requires_pip": [
+          "pipedrive-python-lib"
+        ]
+      }
     },
     {
       "id": "pivot",
@@ -27516,7 +29148,13 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Plaid REST API client for fintech data: accounts, transactions, identity, balance.",
+        "requires_pip": [
+          "dagster",
+          "requests"
+        ]
+      }
     },
     {
       "id": "planned_catalog_agent",
@@ -27696,7 +29334,17 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Wrap the official `dagster-polars` PolarsParquetIOManager so polars.DataFrame assets persist as Parquet.",
+        "requires_pip": [
+          "dagster",
+          "dagster-polars",
+          "polars",
+          "pyarrow"
+        ]
+      }
     },
     {
       "id": "polars_pipeline",
@@ -27956,7 +29604,12 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Run pg_dump \u2192 upload to S3/GCS/local \u2014 backup as a job, no asset materialized.",
+        "requires_pip": [
+          "boto3"
+        ]
+      },
       "consumes": [
         "resource:postgres"
       ]
@@ -28000,7 +29653,16 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Register a PostgreSQL IO manager so assets are automatically stored in and loaded from Postgres tables",
+        "requires_pip": [
+          "psycopg2-binary>=2.9.0",
+          "sqlalchemy>=2.0.0",
+          "pandas>=1.5.0"
+        ]
+      },
       "consumes": [
         "resource:postgres"
       ]
@@ -28040,7 +29702,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a PostgreSQL resource for use by other components",
+        "requires_pip": [
+          "psycopg2-binary"
+        ]
+      },
       "consumes": [
         "resource:postgres"
       ]
@@ -28175,7 +29842,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Trigger a Precisely Connect ETL job-run from Dagster via the /runtask endpoint.",
+        "requires_pip": [
+          "dagster",
+          "requests"
+        ]
+      },
       "consumes": [
         "resource:precisely"
       ]
@@ -28215,7 +29888,15 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "AssetCheckResult",
+        "outputs": "Wrap Precisely Data Integrity Suite (DIS) Data Quality rules as N Dagster asset checks \u2014 one @asset_check per rule.",
+        "requires_pip": [
+          "dagster",
+          "requests"
+        ]
+      },
       "consumes": [
         "resource:precisely"
       ]
@@ -28254,7 +29935,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Sensor-only \u2014 fire a Dagster RunRequest when a Precisely Connect ETL job-run reaches terminal SUCCESS.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      },
       "consumes": [
         "resource:precisely"
       ]
@@ -28330,7 +30016,13 @@
       },
       "produces": [
         "asset"
-      ]
+      ],
+      "agent_hints": {
+        "outputs": "Trigger a Prefect deployment and materialize the flow run as a Dagster asset.",
+        "requires_pip": [
+          "prefect>=3.0.0"
+        ]
+      }
     },
     {
       "id": "prefect_flow_run_sensor",
@@ -28363,7 +30055,13 @@
       },
       "produces": [
         "sensor"
-      ]
+      ],
+      "agent_hints": {
+        "outputs": "Dagster sensor watching the Prefect API for flow runs in terminal states.",
+        "requires_pip": [
+          "prefect>=3.0.0"
+        ]
+      }
     },
     {
       "id": "prefect_resource",
@@ -28396,7 +30094,13 @@
       },
       "produces": [
         "resource"
-      ]
+      ],
+      "agent_hints": {
+        "outputs": "Dagster resource that configures the Prefect Python SDK for a specific Prefect instance (local server or Prefect Cloud).",
+        "requires_pip": [
+          "prefect>=3.0.0"
+        ]
+      }
     },
     {
       "id": "priority_scorer",
@@ -28593,7 +30297,14 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Push metrics to a Prometheus pushgateway via dagster-prometheus.",
+        "requires_pip": [
+          "dagster",
+          "dagster-prometheus",
+          "prometheus_client"
+        ]
+      },
       "consumes": [
         "resource:prometheus"
       ]
@@ -28672,7 +30383,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Component for pulling messages from a Google Cloud Pub/Sub subscription.",
+        "requires_pip": [
+          "google-cloud-pubsub>=2.0.0"
+        ]
+      },
       "consumes": [
         "resource:pubsub"
       ]
@@ -28681,7 +30397,7 @@
       "id": "pubsub_observation_sensor",
       "name": "Pub/Sub Observation Sensor",
       "category": "observation",
-      "description": "PubsubObservationSensorComponent",
+      "description": "Periodically connect to Pub/Sub and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "observations/pubsub_observation_sensor",
@@ -28709,7 +30425,13 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetObservation",
+        "outputs": "Periodically connect to Pub/Sub and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
+        "requires_pip": [
+          "google-cloud-pubsub>=2.0.0"
+        ]
+      },
       "consumes": [
         "resource:pubsub"
       ]
@@ -28848,13 +30570,18 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Component for monitoring an Apache Pulsar topic for new messages.",
+        "requires_pip": [
+          "pulsar-client>=3.0.0"
+        ]
+      }
     },
     {
       "id": "pulsar_observation_sensor",
       "name": "Pulsar Observation Sensor",
       "category": "observation",
-      "description": "PulsarObservationSensorComponent",
+      "description": "Periodically connect to Pulsar and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "observations/pulsar_observation_sensor",
@@ -28882,7 +30609,13 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "output_type": "AssetObservation",
+        "outputs": "Periodically connect to Pulsar and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
+        "requires_pip": [
+          "pulsar-client>=3.0.0"
+        ]
+      }
     },
     {
       "id": "pulsar_to_database_asset",
@@ -28966,7 +30699,12 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Deploy a Pulumi stack as a Dagster asset.",
+        "requires_pip": [
+          "dagster"
+        ]
+      }
     },
     {
       "id": "purchase_order_extractor",
@@ -29089,7 +30827,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register a dagster-pyspark PySparkResource for use by other components",
+        "requires_pip": [
+          "dagster-pyspark"
+        ]
+      }
     },
     {
       "id": "python_callable_job",
@@ -29122,7 +30865,9 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Run an arbitrary Python callable as a Dagster job \u2014 Airflow PythonOperator equivalent."
+      }
     },
     {
       "id": "qdrant_resource",
@@ -29159,7 +30904,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register a dagster-qdrant QdrantResource for use by other components",
+        "requires_pip": [
+          "dagster-qdrant"
+        ]
+      }
     },
     {
       "id": "qlik_compose_resource",
@@ -29759,13 +31509,18 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Component for polling a RabbitMQ queue for new messages.",
+        "requires_pip": [
+          "pika>=1.3.0"
+        ]
+      }
     },
     {
       "id": "rabbitmq_observation_sensor",
       "name": "RabbitMQ Observation Sensor",
       "category": "observation",
-      "description": "RabbitmqObservationSensorComponent",
+      "description": "Periodically connect to RabbitMQ and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "observations/rabbitmq_observation_sensor",
@@ -29793,7 +31548,13 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "output_type": "AssetObservation",
+        "outputs": "Periodically connect to RabbitMQ and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
+        "requires_pip": [
+          "pika>=1.3.0"
+        ]
+      }
     },
     {
       "id": "rabbitmq_to_database_asset",
@@ -30187,7 +31948,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a Redis resource for in-memory key-value store and pub/sub access",
+        "requires_pip": [
+          "redis>=4.0.0"
+        ]
+      },
       "consumes": [
         "resource:redis"
       ]
@@ -30196,7 +31962,7 @@
       "id": "redis_stream_observation_sensor",
       "name": "Redis Stream Observation Sensor",
       "category": "observation",
-      "description": "RedisStreamObservationSensorComponent",
+      "description": "Periodically connect to Redis and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "observations/redis_stream_observation_sensor",
@@ -30225,7 +31991,13 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetObservation",
+        "outputs": "Periodically connect to Redis and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
+        "requires_pip": [
+          "redis>=4.0.0"
+        ]
+      },
       "consumes": [
         "resource:redis"
       ]
@@ -30263,7 +32035,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Component for monitoring a Redis Stream for new entries.",
+        "requires_pip": [
+          "redis>=4.0.0"
+        ]
+      },
       "consumes": [
         "resource:redis"
       ]
@@ -30410,7 +32187,16 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Register a Redshift IO manager so assets are automatically stored in and loaded from Amazon Redshift",
+        "requires_pip": [
+          "psycopg2-binary>=2.9.0",
+          "sqlalchemy>=2.0.0",
+          "pandas>=1.5.0"
+        ]
+      },
       "consumes": [
         "resource:redshift"
       ]
@@ -30450,7 +32236,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a dagster-aws RedshiftClientResource for use by other components",
+        "requires_pip": [
+          "dagster-aws"
+        ]
+      },
       "consumes": [
         "resource:redshift"
       ]
@@ -30783,7 +32574,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Trigger a Dagster job when a Rivery river run completes.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      }
     },
     {
       "id": "rivery_run_asset",
@@ -30817,7 +32613,12 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Resource for connecting to the Rivery REST API.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      }
     },
     {
       "id": "router",
@@ -30889,7 +32690,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Trigger a run when an RSS / Atom feed publishes a new entry.",
+        "requires_pip": [
+          "feedparser"
+        ]
+      }
     },
     {
       "id": "running_total",
@@ -30968,7 +32774,12 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Delete S3 objects older than N days under a prefix \u2014 cost control + compliance retention.",
+        "requires_pip": [
+          "boto3"
+        ]
+      }
     },
     {
       "id": "s3_csv_io_manager",
@@ -31003,7 +32814,15 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Store DataFrames as CSV files on Amazon S3 (or any S3-compatible endpoint).",
+        "requires_pip": [
+          "pandas",
+          "boto3"
+        ]
+      }
     },
     {
       "id": "s3_monitor",
@@ -31037,13 +32856,18 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Component for monitoring an S3 bucket prefix for new objects.",
+        "requires_pip": [
+          "boto3>=1.26.0"
+        ]
+      }
     },
     {
       "id": "s3_observation_sensor",
       "name": "S3 Observation Sensor",
       "category": "observation",
-      "description": "S3ObservationSensorComponent",
+      "description": "Periodically connect to S3 and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "observations/s3_observation_sensor",
@@ -31070,7 +32894,13 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "output_type": "AssetObservation",
+        "outputs": "Periodically connect to S3 and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
+        "requires_pip": [
+          "boto3>=1.20.0"
+        ]
+      }
     },
     {
       "id": "s3_parquet_io_manager",
@@ -31111,7 +32941,16 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Register an IO manager that stores assets as Parquet files on Amazon S3",
+        "requires_pip": [
+          "s3fs>=2023.1.0",
+          "pandas>=1.5.0",
+          "pyarrow>=12.0.0"
+        ]
+      }
     },
     {
       "id": "s3_to_database_asset",
@@ -31288,7 +33127,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a dagster-salesforce SalesforceResource for use by other components",
+        "requires_pip": [
+          "dagster-salesforce"
+        ]
+      },
       "consumes": [
         "resource:salesforce"
       ]
@@ -31425,7 +33269,13 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "output_type": "AssetObservation",
+        "outputs": "Poll SAP Integration Suite (CPI) Message Processing Logs and emit AssetObservations per iFlow run.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      }
     },
     {
       "id": "sap_event_mesh_sensor",
@@ -31462,7 +33312,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Poll an SAP Event Mesh queue and trigger Dagster runs per event (job or dynamic-partition mode).",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      }
     },
     {
       "id": "sap_hana_ingestion",
@@ -31551,7 +33406,15 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "SAP HANA database resource \u2014 provides a SQLAlchemy URL helper.",
+        "requires_pip": [
+          "dagster",
+          "sqlalchemy",
+          "sqlalchemy-hana",
+          "hdbcli"
+        ]
+      }
     },
     {
       "id": "sap_rfc_ingestion",
@@ -31640,7 +33503,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register a connection to an SAP system over RFC (Remote Function Call) \u2014 for on-prem R/3 / ECC / S/4HANA installs without OData.",
+        "requires_pip": [
+          "pyrfc>=3.3"
+        ]
+      }
     },
     {
       "id": "scd_type_1",
@@ -32157,7 +34025,13 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Component for polling an Azure Service Bus queue or topic subscription.",
+        "requires_pip": [
+          "azure-servicebus>=7.11.0",
+          "azure-identity>=1.12.0"
+        ]
+      },
       "consumes": [
         "resource:servicebus"
       ]
@@ -32166,7 +34040,7 @@
       "id": "servicebus_observation_sensor",
       "name": "Service Bus Observation Sensor",
       "category": "observation",
-      "description": "ServiceBusObservationSensorComponent",
+      "description": "Periodically connect to Service Bus and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "observations/servicebus_observation_sensor",
@@ -32194,7 +34068,14 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetObservation",
+        "outputs": "Periodically connect to Service Bus and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
+        "requires_pip": [
+          "azure-servicebus>=7.0.0",
+          "azure-identity>=1.10.0"
+        ]
+      },
       "consumes": [
         "resource:servicebus"
       ]
@@ -32335,7 +34216,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Shared ServiceNow Table API connection (instance subdomain + auth).",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      },
       "consumes": [
         "resource:servicenow"
       ]
@@ -32370,7 +34256,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Trigger a job when ServiceNow records match a target state.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      },
       "consumes": [
         "resource:servicenow"
       ]
@@ -32461,7 +34352,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Monitor an SFTP directory for new files.",
+        "requires_pip": [
+          "paramiko>=3.0.0"
+        ]
+      },
       "consumes": [
         "resource:sftp"
       ]
@@ -32498,7 +34394,13 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetObservation",
+        "outputs": "Emit health observations for an external SFTP path.",
+        "requires_pip": [
+          "paramiko>=3.0.0"
+        ]
+      },
       "consumes": [
         "resource:sftp"
       ]
@@ -32538,7 +34440,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register an SFTP resource for reading and writing files over SSH",
+        "requires_pip": [
+          "paramiko"
+        ]
+      },
       "consumes": [
         "resource:sftp"
       ]
@@ -32623,7 +34530,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Monitor a SharePoint document library for new or modified files.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      }
     },
     {
       "id": "shell_command_asset",
@@ -32658,7 +34570,12 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Run a shell command as a Dagster asset via dagster-shell.",
+        "requires_pip": [
+          "dagster"
+        ]
+      }
     },
     {
       "id": "shell_command_job",
@@ -32691,7 +34608,9 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Run a shell command as a Dagster job (no asset materialized) \u2014 for cleanup, maintenance, ad-hoc tasks."
+      }
     },
     {
       "id": "shipping_label_extractor",
@@ -32811,7 +34730,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register a ShopifyResource wrapping the ShopifyAPI client for use by other components",
+        "requires_pip": [
+          "ShopifyAPI"
+        ]
+      }
     },
     {
       "id": "shopify_workspace",
@@ -32899,7 +34823,13 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Compound op job: pull audit logs from a SaaS source, normalize to OCSF/ECS, ship to a SIEM \u2014 all in one YAML config.",
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ]
+      }
     },
     {
       "id": "siem_event_normalizer",
@@ -32935,7 +34865,14 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Normalize heterogeneous audit-log events to a common schema (OCSF or ECS) before shipping to a SIEM.",
+        "requires_pip": [
+          "pandas"
+        ]
+      }
     },
     {
       "id": "sifflet_check",
@@ -32967,7 +34904,14 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "AssetCheckResult",
+        "outputs": "Trigger a Sifflet monitor run and surface results as a Dagster asset check.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      },
       "consumes": [
         "resource:sifflet"
       ]
@@ -33134,7 +35078,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Monitor Slack channels for new messages and trigger jobs.",
+        "requires_pip": [
+          "slack-sdk>=3.19.0"
+        ]
+      },
       "consumes": [
         "resource:slack"
       ]
@@ -33171,7 +35120,12 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Send a Slack message as a scheduled job \u2014 daily summaries, weekly reports, ad-hoc alerts.",
+        "requires_pip": [
+          "requests"
+        ]
+      },
       "consumes": [
         "resource:slack"
       ]
@@ -33210,7 +35164,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a dagster-slack SlackResource for use by other components",
+        "requires_pip": [
+          "dagster-slack"
+        ]
+      },
       "consumes": [
         "resource:slack"
       ]
@@ -33249,7 +35208,14 @@
         "multi_asset",
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Run a Sling YAML replication as Dagster assets via dagster-sling.",
+        "requires_pip": [
+          "dagster",
+          "dagster-sling",
+          "pyyaml"
+        ]
+      }
     },
     {
       "id": "smooth",
@@ -33327,7 +35293,9 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register an SMTP resource for sending emails from other components"
+      },
       "consumes": [
         "resource:smtp"
       ]
@@ -33461,7 +35429,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Define a Snowflake ALERT (scheduled conditional action) as Dagster YAML.",
+        "requires_pip": [
+          "snowflake-connector-python>=3.7.0",
+          "dagster>=1.7.0"
+        ]
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -33546,7 +35520,16 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Run a Snowflake Cortex LLM function on a table and write results to a new table.",
+        "requires_pip": [
+          "dagster>=1.8.0",
+          "snowflake-connector-python>=3.6.0",
+          "snowflake-sqlalchemy>=1.5.0"
+        ]
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -33587,7 +35570,15 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Query a Snowflake Cortex Search Service (managed RAG / vector search) and materialize the results as a Dagster asset.",
+        "requires_pip": [
+          "snowflake-connector-python>=3.7.0",
+          "dagster>=1.7.0"
+        ]
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -33628,7 +35619,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Define a Snowflake DYNAMIC TABLE as Dagster YAML.",
+        "requires_pip": [
+          "snowflake-connector-python>=3.7.0",
+          "dagster>=1.7.0"
+        ]
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -33668,7 +35665,14 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Materialize by ALTER DYNAMIC TABLE ...",
+        "requires_pip": [
+          "snowflake-connector-python>=3.0.0"
+        ]
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -33708,7 +35712,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Define a Snowflake ICEBERG TABLE as Dagster YAML.",
+        "requires_pip": [
+          "snowflake-connector-python>=3.7.0",
+          "dagster>=1.7.0"
+        ]
+      },
       "consumes": [
         "resource:iceberg",
         "resource:snowflake"
@@ -33750,7 +35760,14 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Register a SnowflakePandasIOManager so assets are automatically stored in and loaded from Snowflake",
+        "requires_pip": [
+          "dagster-snowflake-pandas>=0.22.0"
+        ]
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -33790,7 +35807,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Define a Snowflake MATERIALIZED VIEW as Dagster YAML.",
+        "requires_pip": [
+          "snowflake-connector-python>=3.7.0",
+          "dagster>=1.7.0"
+        ]
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -33830,7 +35853,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Poll SNOWFLAKE.TELEMETRY.EVENTS for openflow_metric activity; emit AssetMaterialization when a named flow's activity advances.",
+        "requires_pip": [
+          "snowflake-connector-python>=3.0.0"
+        ]
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -33870,7 +35898,16 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Wrap dagster-snowflake-polars so polars.DataFrame assets persist to Snowflake.",
+        "requires_pip": [
+          "dagster",
+          "dagster-snowflake-polars",
+          "polars"
+        ]
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -33910,7 +35947,16 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Wrap dagster-snowflake-pyspark so PySpark DataFrames persist to Snowflake.",
+        "requires_pip": [
+          "dagster",
+          "dagster-snowflake-pyspark",
+          "pyspark"
+        ]
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -33950,7 +35996,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a dagster-snowflake SnowflakeResource for use by other components",
+        "requires_pip": [
+          "dagster-snowflake"
+        ]
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -33991,7 +36042,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Define a Snowflake PIPE (Snowpipe) as Dagster YAML.",
+        "requires_pip": [
+          "snowflake-connector-python>=3.7.0",
+          "dagster>=1.7.0"
+        ]
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -34031,7 +36088,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Fires a Dagster RunRequest each time a Snowflake PIPE ingests new files (reads COPY_HISTORY).",
+        "requires_pip": [
+          "snowflake-connector-python>=3.0.0"
+        ]
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -34072,7 +36134,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Define a Snowflake STORED PROCEDURE (SQL / Python / JavaScript / Scala) as Dagster YAML.",
+        "requires_pip": [
+          "snowflake-connector-python>=3.7.0",
+          "dagster>=1.7.0"
+        ]
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -34112,7 +36180,14 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Materialize by CALL on a named Snowflake stored procedure.",
+        "requires_pip": [
+          "snowflake-connector-python>=3.0.0"
+        ]
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -34152,7 +36227,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Define a Snowflake STREAM (CDC) as Dagster YAML.",
+        "requires_pip": [
+          "snowflake-connector-python>=3.7.0",
+          "dagster>=1.7.0"
+        ]
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -34190,7 +36271,13 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetObservation",
+        "outputs": "Emit health observations for an external Snowflake table.",
+        "requires_pip": [
+          "snowflake-connector-python>=3.0.0"
+        ]
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -34231,7 +36318,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Define a Snowflake TASK as Dagster YAML.",
+        "requires_pip": [
+          "snowflake-connector-python>=3.7.0",
+          "dagster>=1.7.0"
+        ]
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -34271,7 +36364,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Poll Snowflake TASK_HISTORY for a named task and emit AssetMaterialization on each new SUCCESS.",
+        "requires_pip": [
+          "snowflake-connector-python>=3.0.0"
+        ]
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -34311,7 +36409,14 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Materialize by EXECUTE TASK on a named Snowflake task.",
+        "requires_pip": [
+          "snowflake-connector-python>=3.0.0"
+        ]
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -34351,7 +36456,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Query a Snowflake table AT a past point in time (Time Travel via OFFSET / TIMESTAMP / BEFORE STATEMENT) and materialize the result as a Dagster asset.",
+        "requires_pip": [
+          "snowflake-connector-python>=3.7.0",
+          "dagster>=1.7.0"
+        ]
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -34391,7 +36502,13 @@
         "multi_asset",
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Component for importing Snowflake workspace entities as Dagster assets.",
+        "requires_pip": [
+          "snowflake-connector-python>=3.0.0",
+          "dagster>=1.6.0"
+        ]
+      },
       "consumes": [
         "resource:snowflake"
       ]
@@ -34472,7 +36589,15 @@
       "produces": [
         "asset_check"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "AssetCheckResult",
+        "outputs": "[DEPRECATED \u2014 use dagster-soda] Run a Soda scan \u2014 one Dagster asset check per SodaCL check (community).",
+        "requires_pip": [
+          "soda-core>=3.0.0",
+          "PyYAML>=5.1"
+        ]
+      },
       "consumes": [
         "resource:soda"
       ]
@@ -34920,7 +37045,12 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Execute a SQL maintenance command (VACUUM, ANALYZE, REFRESH MATERIALIZED VIEW, etc.) \u2014 no asset.",
+        "requires_pip": [
+          "sqlalchemy"
+        ]
+      }
     },
     {
       "id": "sql_generator",
@@ -34996,13 +37126,18 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Component for monitoring a SQL database table for new or updated rows.",
+        "requires_pip": [
+          "sqlalchemy>=2.0.0"
+        ]
+      }
     },
     {
       "id": "sql_observation_sensor",
       "name": "SQL Observation Sensor",
       "category": "observation",
-      "description": "SqlObservationSensorComponent",
+      "description": "Periodically connect to SQL and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "observations/sql_observation_sensor",
@@ -35029,7 +37164,13 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "output_type": "AssetObservation",
+        "outputs": "Periodically connect to SQL and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
+        "requires_pip": [
+          "sqlalchemy>=2.0.0"
+        ]
+      }
     },
     {
       "id": "sql_to_database_asset",
@@ -35153,7 +37294,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Component for polling an AWS SQS queue for new messages.",
+        "requires_pip": [
+          "boto3>=1.26.0"
+        ]
+      },
       "consumes": [
         "resource:sqs"
       ]
@@ -35162,7 +37308,7 @@
       "id": "sqs_observation_sensor",
       "name": "SQS Observation Sensor",
       "category": "observation",
-      "description": "SqsObservationSensorComponent",
+      "description": "Periodically connect to SQS and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "observations/sqs_observation_sensor",
@@ -35190,7 +37336,13 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "output_type": "AssetObservation",
+        "outputs": "Periodically connect to SQS and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
+        "requires_pip": [
+          "boto3>=1.20.0"
+        ]
+      },
       "consumes": [
         "resource:sqs"
       ]
@@ -35323,7 +37475,13 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Starburst connection resource \u2014 alias for trino_resource.",
+        "requires_pip": [
+          "dagster",
+          "trino>=0.330.0"
+        ]
+      }
     },
     {
       "id": "starrocks_resource",
@@ -35359,7 +37517,14 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "StarRocks connection resource \u2014 same MySQL wire protocol + Stream Load HTTP path as Doris (StarRocks is a Doris fork).",
+        "requires_pip": [
+          "dagster",
+          "sqlalchemy>=2.0.0",
+          "pymysql"
+        ]
+      },
       "consumes": [
         "resource:starrocks"
       ]
@@ -35399,7 +37564,12 @@
         "multi_asset"
       ],
       "stateful": true,
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "AWS Step Functions Asset Component.",
+        "requires_pip": [
+          "boto3>=1.26.0"
+        ]
+      }
     },
     {
       "id": "stepwise",
@@ -35476,7 +37646,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Trigger a run when Stripe emits new events (charges, subscriptions, invoices, etc).",
+        "requires_pip": [
+          "requests"
+        ]
+      },
       "consumes": [
         "resource:stripe"
       ]
@@ -35560,7 +37735,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a StripeResource wrapping the Stripe Python SDK for use by other components",
+        "requires_pip": [
+          "stripe"
+        ]
+      },
       "consumes": [
         "resource:stripe"
       ]
@@ -35737,7 +37917,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Materializable asset that invokes a Supabase Edge Function via POST /functions/v1/<function-name>.",
+        "requires_pip": [
+          "supabase>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
       "consumes": [
         "resource:supabase"
       ]
@@ -35780,7 +37966,13 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a SupabaseResource wrapping the supabase-py client for use by other components.",
+        "requires_pip": [
+          "supabase>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
       "consumes": [
         "resource:supabase"
       ]
@@ -35818,7 +38010,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Monitor a Supabase Storage bucket for new files and emit a RunRequest per new object.",
+        "requires_pip": [
+          "supabase>=2.0.0"
+        ]
+      },
       "consumes": [
         "resource:supabase"
       ]
@@ -35860,7 +38057,16 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "pgvector similarity search against a Supabase table with a vector column.",
+        "requires_pip": [
+          "supabase>=2.0.0",
+          "pandas>=1.5.0",
+          "numpy>=1.20.0"
+        ]
+      },
       "consumes": [
         "resource:supabase"
       ]
@@ -36162,7 +38368,14 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Pause / resume / scale a Synapse dedicated SQL pool via the management REST API.",
+        "requires_pip": [
+          "dagster",
+          "azure-identity",
+          "requests"
+        ]
+      }
     },
     {
       "id": "synthetic_audio_generator",
@@ -36233,7 +38446,16 @@
         "asset",
         "asset_check"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Generate synthetic data rows using an LLM based on a schema definition.",
+        "requires_pip": [
+          "dagster",
+          "pandas",
+          "litellm"
+        ]
+      }
     },
     {
       "id": "synthetic_data_generator",
@@ -36415,7 +38637,13 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Import Tableau workbooks + sheets as Dagster external assets via dagster-tableau.",
+        "requires_pip": [
+          "dagster",
+          "dagster-tableau"
+        ]
+      }
     },
     {
       "id": "teams_notification_job",
@@ -36449,7 +38677,12 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Send a message to a Microsoft Teams channel via incoming webhook.",
+        "requires_pip": [
+          "requests"
+        ]
+      },
       "consumes": [
         "resource:teams"
       ]
@@ -36485,7 +38718,15 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Trigger Tecton feature view materialization jobs via the Tecton SDK.",
+        "requires_pip": [
+          "dagster",
+          "tecton-client"
+        ]
+      }
     },
     {
       "id": "temporal_query_asset",
@@ -36524,7 +38765,12 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Materialize the live state of a running Temporal workflow via a Query (read-only).",
+        "requires_pip": [
+          "temporalio>=1.7.0"
+        ]
+      }
     },
     {
       "id": "temporal_signal_asset",
@@ -36563,7 +38809,12 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Send a Signal to a running Temporal workflow as a Dagster asset.",
+        "requires_pip": [
+          "temporalio>=1.7.0"
+        ]
+      }
     },
     {
       "id": "temporal_workflow_sensor",
@@ -36601,7 +38852,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Poll Temporal for terminal workflow status via the temporalio SDK and fire a Dagster job + optional AssetMaterialization/Observation.",
+        "requires_pip": [
+          "temporalio>=1.7.0"
+        ]
+      }
     },
     {
       "id": "temporal_workflow_trigger",
@@ -36639,7 +38895,12 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Start a Temporal Workflow via the temporalio SDK (gRPC).",
+        "requires_pip": [
+          "temporalio>=1.7.0"
+        ]
+      }
     },
     {
       "id": "terraform_asset",
@@ -36675,7 +38936,12 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Provision infrastructure with Terraform as a Dagster asset.",
+        "requires_pip": [
+          "dagster"
+        ]
+      }
     },
     {
       "id": "terraform_cloud_asset",
@@ -36712,7 +38978,12 @@
         "multi_asset"
       ],
       "stateful": true,
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "HCP Terraform (Terraform Cloud) asset component.",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      }
     },
     {
       "id": "test_of_means",
@@ -37295,7 +39566,14 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "TimescaleDB connection resource (Postgres extension) with hypertable / compression / retention helpers.",
+        "requires_pip": [
+          "dagster",
+          "sqlalchemy>=2.0.0",
+          "psycopg2-binary"
+        ]
+      }
     },
     {
       "id": "tm1_cube_data_ingestion",
@@ -37870,7 +40148,15 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "Any",
+        "output_type": "Any",
+        "outputs": "Register a Trino IO manager that reads and writes Pandas DataFrames via Trino SQL",
+        "requires_pip": [
+          "trino>=0.320.0",
+          "pandas>=1.5.0"
+        ]
+      }
     },
     {
       "id": "trino_query",
@@ -37953,7 +40239,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register a Trino distributed SQL query engine resource for use by other components",
+        "requires_pip": [
+          "trino>=0.320.0"
+        ]
+      }
     },
     {
       "id": "ts_compare",
@@ -38217,7 +40508,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Component that sends SMS or WhatsApp notifications when Dagster assets",
+        "requires_pip": [
+          "requests>=2.28.0"
+        ]
+      }
     },
     {
       "id": "twilio_resource",
@@ -38254,7 +40550,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register a dagster-twilio TwilioResource for use by other components",
+        "requires_pip": [
+          "dagster-twilio"
+        ]
+      }
     },
     {
       "id": "twilio_sms_job",
@@ -38288,7 +40589,12 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Send an SMS via Twilio as a job \u2014 useful for on-call paging without a full PagerDuty stack.",
+        "requires_pip": [
+          "twilio"
+        ]
+      }
     },
     {
       "id": "twitter_ads_ingestion",
@@ -38595,7 +40901,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Vanta API v1 resource with OAuth2 client-credentials token minting, caching, and auto-refresh.",
+        "requires_pip": [
+          "requests>=2.28"
+        ]
+      }
     },
     {
       "id": "vector_index_snapshot",
@@ -38807,7 +41118,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Poll Vercel for deployment state, emit AssetMaterialization/Observation on READY, and fire a Dagster job.",
+        "requires_pip": [
+          "requests>=2.28"
+        ]
+      }
     },
     {
       "id": "vertex_ai_text_embeddings_asset",
@@ -38890,7 +41206,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Poll VictoriaMetrics /api/v1/status/tsdb and emit a RunRequest (or warning SkipReason) when totalSeries crosses a threshold.",
+        "requires_pip": [
+          "requests>=2.28"
+        ]
+      },
       "consumes": [
         "resource:victoriametrics"
       ]
@@ -38976,7 +41297,13 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "VictoriaMetrics connection resource \u2014 Prometheus-compatible time-series DB.",
+        "requires_pip": [
+          "dagster",
+          "requests"
+        ]
+      },
       "consumes": [
         "resource:victoriametrics"
       ]
@@ -39015,7 +41342,12 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Create a VictoriaMetrics snapshot via /snapshot/create as a Dagster job, optionally with retention-based cleanup of older snapshots.",
+        "requires_pip": [
+          "requests>=2.28"
+        ]
+      },
       "consumes": [
         "resource:victoriametrics"
       ]
@@ -39285,7 +41617,16 @@
       "produces": [
         "asset"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Log metrics or upload artifacts to Weights & Biases.",
+        "requires_pip": [
+          "dagster>=1.8.0",
+          "wandb>=0.17.0",
+          "sqlalchemy>=2.0.0"
+        ]
+      },
       "consumes": [
         "resource:wandb"
       ]
@@ -39373,7 +41714,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a Weights & Biases resource for experiment tracking",
+        "requires_pip": [
+          "wandb"
+        ]
+      },
       "consumes": [
         "resource:wandb"
       ]
@@ -39645,7 +41991,12 @@
         "job",
         "schedule"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Compound op job: run warehouse maintenance (VACUUM / ANALYZE / REFRESH MATERIALIZED VIEW) across many statements with one schedule.",
+        "requires_pip": [
+          "sqlalchemy"
+        ]
+      }
     },
     {
       "id": "warehouse_multi_field_formula",
@@ -39816,7 +42167,14 @@
         "multi_asset"
       ],
       "stateful": true,
-      "agent_hints": {}
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Create one external Dagster asset per table/view in a database schema.",
+        "requires_pip": [
+          "sqlalchemy>=2.0.0"
+        ]
+      }
     },
     {
       "id": "warehouse_summarize",
@@ -39987,7 +42345,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Register a dagster-weaviate WeaviateResource for use by other components",
+        "requires_pip": [
+          "dagster-weaviate"
+        ]
+      }
     },
     {
       "id": "weighted_average",
@@ -40192,7 +42555,13 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {}
+      "agent_hints": {
+        "outputs": "Workday REST API client wrapper (OAuth Client Grant flow).",
+        "requires_pip": [
+          "dagster",
+          "requests"
+        ]
+      }
     },
     {
       "id": "x12_edi_parser",
@@ -40349,7 +42718,12 @@
       "produces": [
         "resource"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Register a ZendeskResource wrapping the Zenpy client for use by other components",
+        "requires_pip": [
+          "zenpy"
+        ]
+      },
       "consumes": [
         "resource:zendesk"
       ]
@@ -40385,7 +42759,12 @@
       "produces": [
         "sensor"
       ],
-      "agent_hints": {},
+      "agent_hints": {
+        "outputs": "Trigger a run when Zendesk has new or updated tickets matching a query.",
+        "requires_pip": [
+          "requests"
+        ]
+      },
       "consumes": [
         "resource:zendesk"
       ]

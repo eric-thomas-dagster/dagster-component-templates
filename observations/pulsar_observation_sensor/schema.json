@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.PulsarObservationSensorComponent",
-  "description": "PulsarObservationSensorComponent",
+  "description": "Periodically connect to Pulsar and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
   "category": "observation",
   "icon": "Eye",
   "x-dagster-io": {

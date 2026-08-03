@@ -151,13 +151,22 @@ class DynamicFanoutAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         op_tags = {"dagster/concurrency_key": self.max_concurrent_tag_value} if self.max_concurrent_tag_value else None
 
         # ─── Ops ───────────────────────────────────────────────────────────
-        # discover takes an optional upstream ins (Nothing so we just get the
-        # dep for ordering; the value is loaded in-op via load_asset_value).
+        # discover takes optional Nothing-typed ordering ins:
+        #   - `upstream` (if upstream_asset_key set) — value is loaded in-op
+        #     via load_asset_value; the input itself is Nothing for ordering.
+        #   - `_dep_N` for each lineage-only dep (deps field) — pure ordering.
         _upstream_key = self.upstream_asset_key
+        _dep_names: List[str] = [f"_dep_{i}" for i, _ in enumerate(self.deps or [])]
+
+        _discover_ins: Dict[str, Any] = {}
+        if _upstream_key:
+            _discover_ins["upstream"] = dg.In(dg.Nothing)
+        for n in _dep_names:
+            _discover_ins[n] = dg.In(dg.Nothing)
 
         if _upstream_key:
-            @dg.op(out=dg.DynamicOut(), ins={"upstream": dg.In(dg.Nothing)})
-            def _discover(context):
+            @dg.op(out=dg.DynamicOut(), ins=_discover_ins)
+            def _discover(context, **_ignored):
                 fn = _resolve(_self.discover_callable_path)
                 upstream_val = context.op_execution_context.load_asset_value(
                     dg.AssetKey.from_user_string(_upstream_key)
@@ -174,8 +183,8 @@ class DynamicFanoutAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                         key = str(i)
                     yield dg.DynamicOutput(item, mapping_key=key)
         else:
-            @dg.op(out=dg.DynamicOut())
-            def _discover(context):
+            @dg.op(out=dg.DynamicOut(), ins=_discover_ins)
+            def _discover(context, **_ignored):
                 fn = _resolve(_self.discover_callable_path)
                 items = fn(**(_self.discover_kwargs or {}))
                 items = list(items)
@@ -235,16 +244,16 @@ class DynamicFanoutAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         if _ins:
             _asset_kwargs["ins"] = _ins
 
-        # Build graph function with the exact input params @graph_asset expects.
-        # Positional signature: `upstream` first (if set), then one param per
-        # Nothing-typed dep.
+        # Build graph function whose signature matches @graph_asset's declared
+        # ins (upstream first if set, then one param per Nothing-typed dep).
+        # Each parameter is routed into _discover as its Nothing-typed input.
         params = (["upstream"] if _upstream_key else []) + _dep_names
         if params:
             arglist = ", ".join(params)
-            body_upstream = "_discover(upstream)" if _upstream_key else "_discover()"
+            discover_kwargs_pass = ", ".join(f"{n}={n}" for n in params)
             src = (
                 f"def _fanout_graph_asset({arglist}):\n"
-                f"    items = {body_upstream}\n"
+                f"    items = _discover({discover_kwargs_pass})\n"
                 f"    processed = items.map(_process)\n"
                 f"    return _collect(processed.collect())\n"
             )

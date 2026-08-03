@@ -386,7 +386,12 @@ async def _call_tool(
             await session.initialize()
         elif transport in ("http", "streamable_http", "streamable-http"):
             from mcp import ClientSession
-            from mcp.client.streamable_http import streamablehttp_client
+            # mcp 1.x named this streamablehttp_client; mcp 2.x renamed to
+            # streamable_http_client. Try new name first, fall back to old.
+            try:
+                from mcp.client.streamable_http import streamable_http_client as _http_client
+            except ImportError:
+                from mcp.client.streamable_http import streamablehttp_client as _http_client
 
             url = server_cfg.get("url")
             if not url:
@@ -397,7 +402,7 @@ async def _call_tool(
                 + (f" (headers: {sorted(headers.keys())})" if headers else "")
             )
             read, write, _sid = await stack.enter_async_context(
-                streamablehttp_client(url, headers=headers or None)
+                _http_client(url, headers=headers or None)
             )
             session = await stack.enter_async_context(ClientSession(read, write))
             await session.initialize()

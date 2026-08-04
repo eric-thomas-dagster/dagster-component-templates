@@ -63,18 +63,35 @@ class HttpPollSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Regexes to REMOVE from the body before hashing. Use to strip known noise (timestamps, ad slots, nonces).",
     )
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster resource key to use as the HTTP client. "
+            "When set, context.resources.<resource_key> is used instead of creating "
+            "a new requests client from the other fields. The resource must expose a "
+            "`request(method, url, headers=..., timeout=...)` method returning an object "
+            "with `.status_code`, `.text`, and `.json()`. Use for demo-mode seams (swap in "
+            "a fixture-backed client) or shared auth (retry/backoff wrappers)."
+        ),
+    )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         targets = [AssetKey.from_user_string(k) for k in self.asset_keys]
 
         def sensor_fn(context: SensorEvaluationContext):
+            client = None
+            if _self.resource_key:
+                client = getattr(context.resources, _self.resource_key, None)
+                if client is None:
+                    return SkipReason(f"resource '{_self.resource_key}' not found on context")
+            else:
+                try:
+                    import requests as client  # type: ignore[no-redef]
+                except ImportError:
+                    return SkipReason("requests not installed")
             try:
-                import requests
-            except ImportError:
-                return SkipReason("requests not installed")
-            try:
-                resp = requests.request(_self.method, _self.url, headers=_self.headers or None, timeout=_self.timeout_seconds)
+                resp = client.request(_self.method, _self.url, headers=_self.headers or None, timeout=_self.timeout_seconds)
             except Exception as e:
                 return SkipReason(f"HTTP error: {e}")
             if resp.status_code != _self.expected_status:
@@ -138,5 +155,6 @@ class HttpPollSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             minimum_interval_seconds=self.minimum_interval_seconds,
             default_status=DefaultSensorStatus.RUNNING if self.default_status.upper() == "RUNNING" else DefaultSensorStatus.STOPPED,
             asset_selection=AssetSelection.assets(*targets),
+            required_resource_keys={self.resource_key} if self.resource_key else set(),
         )
         return dg.Definitions(sensors=[sensor_def])

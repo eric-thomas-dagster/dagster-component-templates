@@ -137,32 +137,22 @@ try:
         # Internal helpers
         # ------------------------------------------------------------------
 
-        def _resolve_manifest(self, state: Any) -> Optional[dict]:
-            """Load the dbt manifest.json. Tries multiple locations."""
+        def _resolve_manifest(self, state_path: Optional[Path]) -> Optional[dict]:
+            """Load the dbt manifest.json. Tries manifest_path override first,
+            then falls back to the project manager's compiled manifest path."""
             candidates: list[Path] = []
-
             if self.manifest_path:
                 candidates.append(Path(self.manifest_path))
-
-            # Try to get project_dir from state or the project object
-            for obj in [state, getattr(self, "project", None)]:
-                for attr in ["project_dir", "target_path", "manifest_path"]:
-                    val = getattr(obj, attr, None)
-                    if val:
-                        p = Path(str(val))
-                        if attr == "project_dir":
-                            candidates.append(p / "target" / "manifest.json")
-                        elif attr == "target_path":
-                            candidates.append(p / "manifest.json")
-                        else:
-                            candidates.append(p)
-
+            try:
+                project = self._project_manager.get_project(state_path)
+                candidates.append(Path(project.manifest_path))
+            except Exception:
+                pass
             for candidate in candidates:
                 try:
                     return json.loads(candidate.read_text())
                 except (FileNotFoundError, PermissionError, json.JSONDecodeError):
                     continue
-
             return None
 
         def _enrich_spec(self, spec: dg.AssetSpec, manifest: dict) -> dg.AssetSpec:
@@ -320,10 +310,12 @@ try:
         # Override build_defs_from_state
         # ------------------------------------------------------------------
 
-        def build_defs_from_state(self, context: dg.ComponentLoadContext, state: Any) -> dg.Definitions:
-            base_defs = super().build_defs_from_state(context, state)
+        def build_defs_from_state(
+            self, context: dg.ComponentLoadContext, state_path: Optional[Path]
+        ) -> dg.Definitions:
+            base_defs = super().build_defs_from_state(context, state_path)
 
-            manifest = self._resolve_manifest(state)
+            manifest = self._resolve_manifest(state_path)
             if manifest is None:
                 context.log.warning(  # type: ignore[attr-defined]
                     "DbtDocsEnrichedProjectComponent: could not load manifest.json — "
@@ -354,7 +346,7 @@ try:
                             pass
                 return enriched
 
-            return base_defs.map_resolved_asset_specs(enrich)
+            return base_defs.map_resolved_asset_specs(func=enrich)
 
 except ImportError:
     # dagster-dbt not installed — provide a stub that accepts the same field

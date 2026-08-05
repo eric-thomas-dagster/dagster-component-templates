@@ -164,6 +164,36 @@ Any zero-arg method on `dg.AutomationCondition`. Most common: `eager`, `on_missi
   preset: eager
 ```
 
+#### `preset: on_deploy_if_code_changed` — the "run changed dbt models on deploy" pattern
+
+Fires **exactly once per deployment** for assets whose `code_version` changed since the last materialization. Subsequent ticks with the same (unchanged) `code_version` stay idle. Under the hood:
+
+```python
+AutomationCondition.code_version_changed().since_last_handled()
+    & ~AutomationCondition.in_progress()
+```
+
+**Canonical dbt use case**: run changed models — and only changed models — immediately after every dbt code deploy, without triggering a full rebuild.
+
+`dagster-dbt` sets each asset's `code_version` from the model's dbt manifest checksum, so **only models whose SQL / config actually changed** get a new `code_version` on redeploy. Combine with `selection: "kind:dbt"` to scope to your dbt assets:
+
+```yaml
+type: dagster_community_components.AutomationConditionApplicatorComponent
+attributes:
+  rules:
+    - name: dbt_changed_on_deploy
+      selection: "kind:dbt"
+      preset: on_deploy_if_code_changed
+```
+
+Timeline:
+
+1. **Deploy #1**: all dbt assets have a fresh `code_version` → all fire once → materialize.
+2. **Deploy #2** *(SQL edit to 3 models, 47 untouched)*: those 3 assets get a new `code_version` → 3 fire, 44 stay idle. Untouched models are not re-run.
+3. **Every subsequent tick** *(no deploy)*: `code_version` unchanged → all idle.
+
+Works for any framework that stamps `code_version` on assets (dbt, custom `@asset(code_version=...)` decorators, notebook checksums, etc.), but dbt is the case customers ask about the most.
+
 ### Shape 3 — Derive from upstreams
 
 Walks each matching asset's deps, inspects their cron schedules, and generates an appropriate `AutomationCondition`. Six strategies:

@@ -19,8 +19,11 @@ Three rule shapes supported:
    With optional `ignore_selection` / `allow_selection` for the daily+monthly
    mix pattern (see README).
 
-2. **Preset** — `preset: eager` / `any_downstream_conditions` / `on_missing` —
-   the named AutomationCondition factory methods.
+2. **Preset** — `preset: eager` / `any_downstream_conditions` / `on_missing` /
+   `on_deploy_if_code_changed` — the named AutomationCondition factory methods,
+   plus one synthetic composite: `on_deploy_if_code_changed` fires exactly once
+   per deploy for assets whose `code_version` changed. Great for the "run
+   changed dbt models immediately after deploy" pattern.
 
 3. **Derive from upstreams** — `derive_from_upstreams: true` + `strategy:
    most_frequent | least_frequent`. Walks each asset's dependencies, finds
@@ -113,18 +116,35 @@ def _build_condition_for_rule(
     # ---- Preset shortcuts ------------------------------------------------
     elif rule.get("preset"):
         preset = rule["preset"]
-        method = getattr(dg.AutomationCondition, preset, None)
-        if method is None or not callable(method):
-            raise ValueError(
-                f"preset={preset!r} is not a valid AutomationCondition factory "
-                f"(e.g. 'eager', 'any_downstream_conditions', 'on_missing')."
+        # Synthetic composite presets — not bare AutomationCondition methods.
+        if preset == "on_deploy_if_code_changed":
+            # Fire exactly once per deployment for assets whose code_version
+            # changed. Common use case: run changed dbt models immediately
+            # after a code deploy, without re-running unchanged ones.
+            #   code_version_changed()  — asset's code_version differs from
+            #                              the last materialization's version.
+            #   .since_last_handled()   — only fire once per version bump;
+            #                              subsequent ticks with the same
+            #                              (unchanged) version stay idle.
+            #   & ~in_progress()        — don't stack while one is running.
+            condition = (
+                dg.AutomationCondition.code_version_changed().since_last_handled()
+                & ~dg.AutomationCondition.in_progress()
             )
-        result = method()
-        if not isinstance(result, dg.AutomationCondition):
-            raise ValueError(
-                f"preset={preset!r} did not return an AutomationCondition (got {type(result).__name__})."
-            )
-        condition = result
+        else:
+            method = getattr(dg.AutomationCondition, preset, None)
+            if method is None or not callable(method):
+                raise ValueError(
+                    f"preset={preset!r} is not a valid AutomationCondition factory "
+                    f"(e.g. 'eager', 'any_downstream_conditions', 'on_missing', "
+                    f"'on_deploy_if_code_changed')."
+                )
+            result = method()
+            if not isinstance(result, dg.AutomationCondition):
+                raise ValueError(
+                    f"preset={preset!r} did not return an AutomationCondition (got {type(result).__name__})."
+                )
+            condition = result
 
     # ---- Explicit cron ---------------------------------------------------
     elif rule.get("cron"):

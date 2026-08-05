@@ -3,7 +3,7 @@ import threading
 from typing import Optional
 import dagster as dg
 import json
-from dagster import AssetKey, AssetObservation, SensorEvaluationContext, SensorResult, sensor
+from dagster import AssetKey, AssetMaterialization, AssetObservation, SensorEvaluationContext, SensorResult, sensor
 from dagster._core.definitions.data_version import DATA_VERSION_TAG
 from pydantic import Field
 
@@ -16,6 +16,21 @@ class MqttObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     connect_timeout_seconds: float = Field(default=5.0, description="Seconds to wait for connection")
     check_interval_seconds: int = Field(default=300, description="Seconds between health checks")
     resource_key: Optional[str] = Field(default=None, description="Optional Dagster resource key.")
+
+    emit_materialization: bool = Field(
+        default=True,
+        description=(
+            "When True (default), emit AssetMaterialization on the target "
+            "asset key. External assets show healthy/green in the Dagster UI "
+            "and downstream AutomationCondition.eager() fires naturally on "
+            "parent updates. When False, emit AssetObservation — free of "
+            "Dagster+ credit charges, but the target asset renders as "
+            "observed-external (dashed border, gray) and downstream "
+            "conditions that gate on ~any_deps_missing() (including "
+            "eager()) will not fire. Both event types carry the same "
+            "dagster/data_version tag."
+        ),
+    )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
@@ -31,6 +46,7 @@ class MqttObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             ),
         )
         def _mqtt_obs(context: SensorEvaluationContext, **_resources):
+            _event_cls = AssetMaterialization if _self.emit_materialization else AssetObservation
             # ── Resource-backed path (v0.10.46) ─────────────────────────────
             if resource_key:
                 _rk_client = getattr(context.resources, resource_key, None)
@@ -42,7 +58,7 @@ class MqttObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                     context.log.error(f"resource '{resource_key}'.observe failed: {_rk_e}")
                     return SensorResult(skip_reason=f"resource observe failed: {_rk_e}")
                 _rk_dv = str(_rk_observed.pop("data_version", ""))
-                return SensorResult(asset_events=[AssetObservation(
+                return SensorResult(asset_events=[_event_cls(
                     asset_key=AssetKey.from_user_string(_self.asset_key),
                     metadata=_rk_observed,
                     tags={DATA_VERSION_TAG: _rk_dv} if _rk_dv else None,
@@ -83,7 +99,7 @@ class MqttObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                 "broker_port": _self.broker_port,
                 "topic": _self.topic,
             }
-            return SensorResult(asset_events=[AssetObservation(
+            return SensorResult(asset_events=[_event_cls(
                 asset_key=AssetKey.from_user_string(_self.asset_key),
                 metadata=metadata,
                 tags={DATA_VERSION_TAG: json.dumps(metadata, sort_keys=True, default=str)},

@@ -11,6 +11,7 @@ from typing import Optional, Union
 
 from dagster import (
     AssetKey,
+    AssetMaterialization,
     AssetObservation,
     Component,
     ComponentLoadContext,
@@ -122,6 +123,21 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
         description="Default status of the sensor (running or stopped)"
     )
 
+    emit_materialization: bool = Field(
+        default=True,
+        description=(
+            "When True (default), emit AssetMaterialization on the target "
+            "asset key. External assets show healthy/green in the Dagster UI "
+            "and downstream AutomationCondition.eager() fires naturally on "
+            "parent updates. When False, emit AssetObservation — free of "
+            "Dagster+ credit charges, but the target asset renders as "
+            "observed-external (dashed border, gray) and downstream "
+            "conditions that gate on ~any_deps_missing() (including "
+            "eager()) will not fire. Both event types carry the same "
+            "dagster/data_version tag."
+        ),
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         sensor_name = self.sensor_name
         connection_string_env_var = self.connection_string_env_var
@@ -148,7 +164,7 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
             if not source_asset_key or new_rows == 0:
                 return []
             return [
-                AssetObservation(
+                _event_cls(
                     asset_key=AssetKey.from_user_string(source_asset_key),
                     metadata={
                         "table": table_name,
@@ -167,6 +183,7 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
             required_resource_keys=required_resource_keys,
         )
         def sql_sensor(context: SensorEvaluationContext, **_resources):
+            _event_cls = AssetMaterialization if self.emit_materialization else AssetObservation
             """Sensor that monitors a SQL table for new or updated rows."""
             import os
 

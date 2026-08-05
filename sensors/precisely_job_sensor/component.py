@@ -136,6 +136,21 @@ class PreciselyJobSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     minimum_interval_seconds: int = Field(default=60, description="Seconds between polls")
     default_status: str = Field(default="running", description="running or stopped")
 
+    emit_materialization: bool = Field(
+        default=True,
+        description=(
+            "When True (default), emit AssetMaterialization on the target "
+            "asset key. External assets show healthy/green in the Dagster UI "
+            "and downstream AutomationCondition.eager() fires naturally on "
+            "parent updates. When False, emit AssetObservation — free of "
+            "Dagster+ credit charges, but the target asset renders as "
+            "observed-external (dashed border, gray) and downstream "
+            "conditions that gate on ~any_deps_missing() (including "
+            "eager()) will not fire. Both event types carry the same "
+            "dagster/data_version tag."
+        ),
+    )
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         required_resource_keys = {self.resource_key} if self.resource_key else set()
@@ -152,6 +167,7 @@ class PreciselyJobSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             required_resource_keys=required_resource_keys,
         )
         def precisely_job_sensor(context: SensorEvaluationContext, **_resources):
+            _event_cls = AssetMaterialization if _self.emit_materialization else AssetObservation
             import os
             try:
                 import requests
@@ -194,7 +210,7 @@ class PreciselyJobSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                         "precisely_host": base,
                     }
                     if _self.asset_event_type == "observation":
-                        asset_events.append(AssetObservation(
+                        asset_events.append(_event_cls(
                             asset_key=asset_key,
                             description=description,
                             metadata=metadata,

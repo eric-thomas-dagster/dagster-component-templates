@@ -21,6 +21,7 @@ from typing import Optional
 import dagster as dg
 from dagster import (
     AssetKey,
+    AssetMaterialization,
     AssetObservation,
     MetadataValue,
     SensorEvaluationContext,
@@ -78,6 +79,21 @@ class SapCPIObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
     default_status: str = Field(default="stopped")
 
+    emit_materialization: bool = Field(
+        default=True,
+        description=(
+            "When True (default), emit AssetMaterialization on the target "
+            "asset key. External assets show healthy/green in the Dagster UI "
+            "and downstream AutomationCondition.eager() fires naturally on "
+            "parent updates. When False, emit AssetObservation — free of "
+            "Dagster+ credit charges, but the target asset renders as "
+            "observed-external (dashed border, gray) and downstream "
+            "conditions that gate on ~any_deps_missing() (including "
+            "eager()) will not fire. Both event types carry the same "
+            "dagster/data_version tag."
+        ),
+    )
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         cfg = self
         default_status = (
@@ -94,6 +110,7 @@ class SapCPIObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             required_resource_keys={cfg.oauth_token_resource_key},
         )
         def sap_cpi_observation_sensor(context: SensorEvaluationContext, **_resources):
+            _event_cls = AssetMaterialization if self.emit_materialization else AssetObservation
             try:
                 import requests
             except ImportError:
@@ -161,7 +178,7 @@ class SapCPIObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                 application_id = mpl.get("ApplicationMessageId") or ""
 
                 observations.append(
-                    AssetObservation(
+                    _event_cls(
                         asset_key=asset_key_obj,
                         metadata={
                             "sap_cpi.message_guid": MetadataValue.text(str(guid)),

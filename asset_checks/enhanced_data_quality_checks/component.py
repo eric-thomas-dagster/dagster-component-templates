@@ -1717,13 +1717,17 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
 
     def _discover_sibling_assets(
         self, context: dg.ComponentLoadContext
-    ) -> tuple[List[str], Dict[str, str]]:
+    ) -> tuple[List[str], Dict[str, str], Optional[dg.Definitions]]:
         """Discover asset keys and their groups from sibling components.
 
-        Returns (list_of_key_strings, dict_of_key_to_group_name).
+        Returns (list_of_key_strings, dict_of_key_to_group_name, sibling_defs).
+        The sibling_defs is returned so `_resolve_selection_targets` can call
+        `resolve_asset_graph()` for the full Dagster selection language
+        (`AssetSelection.from_string`).
         """
         keys: List[str] = []
         key_to_group: Dict[str, str] = {}
+        sibling_defs: Optional[dg.Definitions] = None
         try:
             parent_path = context.path.parent if hasattr(context.path, 'parent') else None
             if parent_path:
@@ -1738,21 +1742,30 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
                                 key_to_group[key_str] = spec.group_name
         except Exception:
             pass
-        return keys, key_to_group
+        return keys, key_to_group, sibling_defs
 
     def _resolve_selection_targets(
         self,
         target: Union[List[str], str],
         discovered_keys: List[str],
         key_to_group: Dict[str, str],
+        sibling_defs: Optional[dg.Definitions] = None,
     ) -> List[str]:
         """Resolve a selection target into a list of asset key strings.
 
-        Supports:
-        - Explicit list:   ["marts/a", "marts/b"]
-        - Glob pattern:    "marts/*"
-        - Group selector:  "group:dbt_marts"
-        - All assets:      "*"
+        Supports the full Dagster asset-selection language via
+        `AssetSelection.from_string()`, plus a fnmatch fallback for bare
+        glob patterns that aren't valid selection syntax.
+
+        - Explicit list:         ["marts/a", "marts/b"]
+        - All assets:            "*"
+        - Group (exact):         "group:dbt_marts"
+        - Group (hierarchical):  'group:"marketing/*"'  (needs quotes)
+        - Asset type filter:     "is:external", "is:materializable"
+        - Tag:                   "tag:tier=gold"
+        - Kind:                  "kind:dbt"
+        - Boolean composition:   "group:silver and tag:critical"
+        - Bare fnmatch glob:     "marts/*" (backward compat — falls through)
         """
         import fnmatch
 
@@ -1761,15 +1774,31 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
             return target
 
         if not discovered_keys:
-            # Can't discover — treat as explicit single key
+            # Can't discover siblings — treat as explicit single key
             return [target] if target != "*" else []
 
-        # Group selector: "group:dbt_marts"
-        if target.startswith("group:"):
-            group_name = target[len("group:"):]
-            return [k for k, g in key_to_group.items() if g == group_name]
+        # "*" — return everything the caller discovered (including sources).
+        # AssetSelection.all() defaults to include_sources=False on recent
+        # dagster, so we handle this ourselves to preserve backward compat.
+        if target == "*":
+            return list(discovered_keys)
 
-        # Glob pattern: "marts/*", "staging/stg_*", "*"
+        # Try the full Dagster selection language first — this unlocks
+        # hierarchical groups, `is:` filters, tag/kind selectors, and boolean
+        # composition (all added in dagster 1.13.9+).
+        if sibling_defs is not None:
+            try:
+                graph = sibling_defs.resolve_asset_graph()
+                matched = dg.AssetSelection.from_string(target).resolve(graph)
+                if matched:
+                    return sorted(k.to_user_string() for k in matched)
+            except Exception:
+                # Not valid selection syntax — fall through to the legacy
+                # fnmatch path so bare globs like "marts/*" still work.
+                pass
+
+        # Legacy fnmatch fallback — bare glob patterns like "marts/*"
+        # (which aren't valid AssetSelection syntax but are handy shortcuts).
         return [k for k in discovered_keys if fnmatch.fnmatch(k, target)]
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
@@ -1781,7 +1810,7 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         # Expand selections into the assets dict
         if self.selections:
             # Discover sibling assets once for all selections
-            discovered_keys, key_to_group = self._discover_sibling_assets(context)
+            discovered_keys, key_to_group, sibling_defs = self._discover_sibling_assets(context)
 
             for selection in self.selections:
                 selection = dict(selection)  # copy so we can pop
@@ -1790,7 +1819,7 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
                 check_config = selection
 
                 resolved_keys = self._resolve_selection_targets(
-                    target, discovered_keys, key_to_group
+                    target, discovered_keys, key_to_group, sibling_defs
                 )
                 for asset_key_str in resolved_keys:
                     if asset_key_str in merged_assets:

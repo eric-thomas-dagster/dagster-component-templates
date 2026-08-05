@@ -91,6 +91,21 @@ class DorisRoutineLoadSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     minimum_interval_seconds: int = Field(default=60, description="Seconds between polls.")
     default_status: str = Field(default="running", description="'running' or 'stopped'.")
 
+    emit_materialization: bool = Field(
+        default=True,
+        description=(
+            "When True (default), emit AssetMaterialization on the target "
+            "asset key. External assets show healthy/green in the Dagster UI "
+            "and downstream AutomationCondition.eager() fires naturally on "
+            "parent updates. When False, emit AssetObservation — free of "
+            "Dagster+ credit charges, but the target asset renders as "
+            "observed-external (dashed border, gray) and downstream "
+            "conditions that gate on ~any_deps_missing() (including "
+            "eager()) will not fire. Both event types carry the same "
+            "dagster/data_version tag."
+        ),
+    )
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         default_status = (
@@ -105,6 +120,7 @@ class DorisRoutineLoadSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             job_name=_self.job_name_target,
         )
         def doris_routine_load_sensor(context: SensorEvaluationContext, **_resources):
+            _event_cls = AssetMaterialization if _self.emit_materialization else AssetObservation
             import os, json
             try:
                 from sqlalchemy import create_engine, text
@@ -171,7 +187,7 @@ class DorisRoutineLoadSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                     ak = dg.AssetKey(_self.asset_key.split("/"))
                     if state in DORIS_ROUTINE_LOAD_HEALTHY:
                         # Healthy resumption — emit Observation (asset state OK).
-                        asset_events.append(AssetObservation(
+                        asset_events.append(_event_cls(
                             asset_key=ak,
                             description=f"Routine Load {name} → {state}",
                             metadata=metadata,

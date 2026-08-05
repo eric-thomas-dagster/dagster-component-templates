@@ -10,7 +10,7 @@ import os
 from typing import Any, Optional
 
 import dagster as dg
-from dagster import AssetKey, AssetObservation, SensorEvaluationContext, SensorResult, sensor
+from dagster import AssetKey, AssetMaterialization, AssetObservation, SensorEvaluationContext, SensorResult, sensor
 from dagster._core.definitions.data_version import DATA_VERSION_TAG
 from pydantic import Field
 
@@ -35,6 +35,21 @@ class DatabricksTableObservationSensorComponent(dg.Component, dg.Model, dg.Resol
         ),
     )
 
+    emit_materialization: bool = Field(
+        default=True,
+        description=(
+            "When True (default), emit AssetMaterialization on the target "
+            "asset key. External assets show healthy/green in the Dagster UI "
+            "and downstream AutomationCondition.eager() fires naturally on "
+            "parent updates. When False, emit AssetObservation — free of "
+            "Dagster+ credit charges, but the target asset renders as "
+            "observed-external (dashed border, gray) and downstream "
+            "conditions that gate on ~any_deps_missing() (including "
+            "eager()) will not fire. Both event types carry the same "
+            "dagster/data_version tag."
+        ),
+    )
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         resource_key = self.resource_key
@@ -49,6 +64,7 @@ class DatabricksTableObservationSensorComponent(dg.Component, dg.Model, dg.Resol
             ),
         )
         def _dbx_obs(context: SensorEvaluationContext, **_resources):
+            _event_cls = AssetMaterialization if _self.emit_materialization else AssetObservation
             full_name = (
                 f"{_self.catalog}.{_self.schema_name}.{_self.table_name}"
                 if _self.catalog else f"{_self.schema_name}.{_self.table_name}"
@@ -64,7 +80,7 @@ class DatabricksTableObservationSensorComponent(dg.Component, dg.Model, dg.Resol
                     context.log.error(f"resource '{resource_key}'.observe failed: {e}")
                     return SensorResult(skip_reason=f"resource observe failed: {e}")
                 data_version = str(observed.pop("data_version", ""))
-                return SensorResult(asset_events=[AssetObservation(
+                return SensorResult(asset_events=[_event_cls(
                     asset_key=AssetKey.from_user_string(_self.asset_key),
                     metadata=observed,
                     tags={DATA_VERSION_TAG: data_version} if data_version else None,
@@ -101,7 +117,7 @@ class DatabricksTableObservationSensorComponent(dg.Component, dg.Model, dg.Resol
                 "last_modified": last_modified,
                 "table_name": full_name,
             }
-            return SensorResult(asset_events=[AssetObservation(
+            return SensorResult(asset_events=[_event_cls(
                 asset_key=AssetKey.from_user_string(_self.asset_key),
                 metadata=metadata,
                 tags={DATA_VERSION_TAG: data_version},

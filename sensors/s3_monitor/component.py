@@ -10,6 +10,7 @@ from typing import Optional
 
 from dagster import (
     AssetKey,
+    AssetMaterialization,
     AssetObservation,
     Component,
     ComponentLoadContext,
@@ -149,6 +150,21 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
         ),
     )
 
+    emit_materialization: bool = Field(
+        default=True,
+        description=(
+            "When True (default), emit AssetMaterialization on the target "
+            "asset key. External assets show healthy/green in the Dagster UI "
+            "and downstream AutomationCondition.eager() fires naturally on "
+            "parent updates. When False, emit AssetObservation — free of "
+            "Dagster+ credit charges, but the target asset renders as "
+            "observed-external (dashed border, gray) and downstream "
+            "conditions that gate on ~any_deps_missing() (including "
+            "eager()) will not fire. Both event types carry the same "
+            "dagster/data_version tag."
+        ),
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         sensor_name = self.sensor_name
         bucket_name = self.bucket_name
@@ -192,6 +208,7 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
             required_resource_keys=required_resource_keys,
         )
         def s3_sensor(context: SensorEvaluationContext, **_resources):
+            _event_cls = AssetMaterialization if self.emit_materialization else AssetObservation
             """Sensor that monitors an S3 bucket prefix for new objects."""
             try:
                 import boto3
@@ -304,7 +321,7 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
                     if new_partition_keys and dynamic_partitions_name else []
                 )
                 asset_events = (
-                    [AssetObservation(
+                    [_event_cls(
                         asset_key=AssetKey.from_user_string(source_asset_key),
                         metadata={
                             "bucket": bucket_name,

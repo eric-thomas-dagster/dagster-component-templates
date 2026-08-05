@@ -86,7 +86,7 @@ class ExternalTemporalWorkflowAsset(dg.Component, dg.Model, dg.Resolvable):
             metadata["temporal_ui_url"] = dg.MetadataValue.url(self.temporal_ui_url)
 
         spec = dg.AssetSpec(
-            key=dg.AssetKey(self.asset_key.split("/")),
+            key=dg.AssetKey.from_user_string(self.asset_key),
             group_name=self.group_name,
             description=self.description or (
                 f"Temporal Workflow "

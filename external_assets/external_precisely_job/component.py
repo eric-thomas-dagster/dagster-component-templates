@@ -75,7 +75,7 @@ class ExternalPreciselyJobAsset(dg.Component, dg.Model, dg.Resolvable):
             metadata["precisely_host"] = dg.MetadataValue.url(self.host)
 
         spec = dg.AssetSpec(
-            key=dg.AssetKey(self.asset_key.split("/")),
+            key=dg.AssetKey.from_user_string(self.asset_key),
             group_name=self.group_name,
             description=self.description or (
                 f"Precisely Connect ETL run "

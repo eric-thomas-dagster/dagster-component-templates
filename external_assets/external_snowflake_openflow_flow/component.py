@@ -52,7 +52,7 @@ class ExternalSnowflakeOpenflowFlowAsset(dg.Component, dg.Model, dg.Resolvable):
             metadata["openflow_runtime_id"] = self.runtime_id
 
         spec = dg.AssetSpec(
-            key=dg.AssetKey(self.asset_key.split("/")),
+            key=dg.AssetKey.from_user_string(self.asset_key),
             group_name=self.group_name,
             description=self.description or (
                 f"Snowflake OpenFlow process group {self.flow_name} — "

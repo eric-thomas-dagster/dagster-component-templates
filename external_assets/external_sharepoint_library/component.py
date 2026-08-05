@@ -143,7 +143,7 @@ class ExternalSharePointLibraryAsset(dg.Component, dg.Model, dg.Resolvable):
             self.partition_dimensions,
         )
         spec = dg.AssetSpec(
-            key=self.asset_key,
+            key=dg.AssetKey.from_user_string(self.asset_key),
             group_name=self.group_name,
             description=self.description or f"SharePoint {self.site_url}/{self.library_name}",
             kinds={"sharepoint", "microsoft", "files"},

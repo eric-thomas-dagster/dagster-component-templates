@@ -142,7 +142,7 @@ class ExternalEventHubsAsset(dg.Component, dg.Model, dg.Resolvable):
             self.partition_dimensions,
         )
         spec = dg.AssetSpec(
-            key=self.asset_key,
+            key=dg.AssetKey.from_user_string(self.asset_key),
             group_name=self.group_name,
             description=self.description or f"Event Hub {self.namespace}/{self.eventhub_name}",
             kinds={"eventhubs", "azure", "streaming"},

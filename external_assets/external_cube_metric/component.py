@@ -95,7 +95,7 @@ class ExternalCubeMetricAsset(dg.Component, dg.Model, dg.Resolvable):
             metadata["cube_docs_url"] = dg.MetadataValue.url(self.cube_docs_url)
 
         spec = dg.AssetSpec(
-            key=dg.AssetKey(self.asset_key.split("/")),
+            key=dg.AssetKey.from_user_string(self.asset_key),
             group_name=self.group_name,
             description=self.description or (
                 f"Cube {'measure' if self.measure_name else 'dimension'} "

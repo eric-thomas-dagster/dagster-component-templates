@@ -59,7 +59,7 @@ class SnowflakeTableObservationSensorComponent(dg.Component, dg.Model, dg.Resolv
             minimum_interval_seconds=_self.check_interval_seconds,
             required_resource_keys=required_resource_keys,
             asset_selection=dg.AssetSelection.keys(
-                dg.AssetKey(_self.asset_key.split("/"))
+                dg.AssetKey.from_user_string(_self.asset_key)
             ),
         )
         def _sf_obs(context: SensorEvaluationContext):
@@ -148,6 +148,6 @@ class SnowflakeTableObservationSensorComponent(dg.Component, dg.Model, dg.Resolv
                     context.log.warning(f"Preview query failed: {e}")
             conn.close()
             return SensorResult(asset_events=[AssetObservation(
-                asset_key=AssetKey(_self.asset_key.split("/")), metadata=metadata)])
+                asset_key=AssetKey.from_user_string(_self.asset_key), metadata=metadata)])
 
         return dg.Definitions(sensors=[_sf_obs])

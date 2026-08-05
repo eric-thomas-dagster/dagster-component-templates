@@ -61,7 +61,7 @@ class ClickHouseTableObservationSensorComponent(dg.Component, dg.Model, dg.Resol
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         required_resource_keys = {self.resource_key} if self.resource_key else set()
-        asset_key = dg.AssetKey(self.asset_key.split("/"))
+        asset_key = dg.AssetKey.from_user_string(self.asset_key)
         default_status = (
             DefaultSensorStatus.RUNNING if self.default_status == "running"
             else DefaultSensorStatus.STOPPED

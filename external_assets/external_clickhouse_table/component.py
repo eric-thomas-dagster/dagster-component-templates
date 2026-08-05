@@ -204,7 +204,7 @@ class ExternalClickHouseTableComponent(dg.Component, dg.Model, dg.Resolvable):
             self.partition_dimensions,
         )
         spec = dg.AssetSpec(
-            key=dg.AssetKey(self.asset_key.split("/")),
+            key=dg.AssetKey.from_user_string(self.asset_key),
             description=self.description or f"ClickHouse table {self.database}.{self.table}",
             group_name=self.group_name,
             owners=self.owners or [],

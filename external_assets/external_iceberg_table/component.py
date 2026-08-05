@@ -134,7 +134,7 @@ class ExternalIcebergTableAsset(dg.Component, dg.Model, dg.Resolvable):
             metadata["owner_engine"] = self.owner_engine
 
         spec = dg.AssetSpec(
-            key=self.asset_key,
+            key=dg.AssetKey.from_user_string(self.asset_key),
             group_name=self.group_name,
             description=self.description or f"External Iceberg table {full_name}",
             kinds=kinds,

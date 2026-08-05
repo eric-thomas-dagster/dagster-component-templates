@@ -144,7 +144,7 @@ class ExternalServiceBusAsset(dg.Component, dg.Model, dg.Resolvable):
             self.partition_dimensions,
         )
         spec = dg.AssetSpec(
-            key=self.asset_key,
+            key=dg.AssetKey.from_user_string(self.asset_key),
             group_name=self.group_name,
             description=self.description or f"Service Bus {self.namespace}/{source}",
             kinds={"servicebus", "azure", "queue"},

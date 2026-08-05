@@ -23,7 +23,7 @@ class GcsObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             minimum_interval_seconds=_self.check_interval_seconds,
             required_resource_keys=required_resource_keys,
             asset_selection=dg.AssetSelection.keys(
-                dg.AssetKey(_self.asset_key.split("/"))
+                dg.AssetKey.from_user_string(_self.asset_key)
             ),
         )
         def _gcs_obs(context: SensorEvaluationContext):
@@ -62,6 +62,6 @@ class GcsObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                 "prefix": _self.prefix,
             }
             return SensorResult(asset_events=[AssetObservation(
-                asset_key=AssetKey(_self.asset_key.split("/")), metadata=metadata)])
+                asset_key=AssetKey.from_user_string(_self.asset_key), metadata=metadata)])
 
         return dg.Definitions(sensors=[_gcs_obs])

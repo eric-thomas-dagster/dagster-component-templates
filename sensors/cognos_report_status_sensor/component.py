@@ -51,7 +51,7 @@ class CognosReportStatusSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             job_name=_self.job_name,
             required_resource_keys=required_resource_keys,
         )
-        def cognos_report_status_sensor(context: SensorEvaluationContext):
+        def cognos_report_status_sensor(context: SensorEvaluationContext, **_resources):
             try:
                 import requests
             except ImportError:

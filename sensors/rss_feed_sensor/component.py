@@ -34,7 +34,7 @@ class RssFeedSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         _self = self
         targets = [AssetKey.from_user_string(k) for k in self.asset_keys]
 
-        def sensor_fn(context: SensorEvaluationContext):
+        def sensor_fn(context: SensorEvaluationContext, **_resources):
             try:
                 import feedparser
             except ImportError:

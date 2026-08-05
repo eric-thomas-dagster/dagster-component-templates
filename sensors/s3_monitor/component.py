@@ -191,7 +191,7 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
             job_name=job_name,
             required_resource_keys=required_resource_keys,
         )
-        def s3_sensor(context: SensorEvaluationContext):
+        def s3_sensor(context: SensorEvaluationContext, **_resources):
             """Sensor that monitors an S3 bucket prefix for new objects."""
             try:
                 import boto3

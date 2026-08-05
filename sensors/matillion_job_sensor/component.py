@@ -59,7 +59,7 @@ class MatillionJobSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             job_name=_self.job_name_dagster,
             required_resource_keys=required_resource_keys,
         )
-        def matillion_job_sensor(context: SensorEvaluationContext):
+        def matillion_job_sensor(context: SensorEvaluationContext, **_resources):
             import os, base64
             try:
                 import requests

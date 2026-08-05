@@ -126,7 +126,7 @@ class ServiceBusMonitorSensorComponent(Component, Model, Resolvable):
             job_name=job_name,
             required_resource_keys=required_resource_keys,
         )
-        def servicebus_sensor(context: SensorEvaluationContext):
+        def servicebus_sensor(context: SensorEvaluationContext, **_resources):
             """Sensor that polls an Azure Service Bus queue or topic subscription."""
             try:
                 from azure.servicebus import ServiceBusClient

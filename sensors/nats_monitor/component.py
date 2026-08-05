@@ -135,7 +135,7 @@ class NATSMonitorSensorComponent(Component, Model, Resolvable):
             job_name=job_name,
             required_resource_keys=required_resource_keys,
         )
-        def nats_sensor(context: SensorEvaluationContext):
+        def nats_sensor(context: SensorEvaluationContext, **_resources):
             """Sensor that fetches messages from a NATS JetStream consumer."""
             import asyncio
 

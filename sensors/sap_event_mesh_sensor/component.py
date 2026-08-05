@@ -140,7 +140,7 @@ class SapEventMeshSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             asset_selection=selection,
             required_resource_keys={cfg.oauth_token_resource_key},
         )
-        def sap_event_mesh_sensor(context: SensorEvaluationContext):
+        def sap_event_mesh_sensor(context: SensorEvaluationContext, **_resources):
             try:
                 import requests
             except ImportError:

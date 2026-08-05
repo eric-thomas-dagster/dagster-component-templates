@@ -138,7 +138,7 @@ class VercelDeploymentSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             default_status=default_status,
             job_name=_self.job_name,
         )
-        def vercel_deployment_sensor(context: SensorEvaluationContext):
+        def vercel_deployment_sensor(context: SensorEvaluationContext, **_resources):
             import os
             try:
                 import requests

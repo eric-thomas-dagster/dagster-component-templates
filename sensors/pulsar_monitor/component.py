@@ -124,7 +124,7 @@ class PulsarMonitorSensorComponent(Component, Model, Resolvable):
             job_name=job_name,
             required_resource_keys=required_resource_keys,
         )
-        def pulsar_sensor(context: SensorEvaluationContext):
+        def pulsar_sensor(context: SensorEvaluationContext, **_resources):
             """Sensor that monitors an Apache Pulsar topic for new messages."""
             import os
 

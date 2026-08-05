@@ -79,7 +79,7 @@ class HttpPollSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         _self = self
         targets = [AssetKey.from_user_string(k) for k in self.asset_keys]
 
-        def sensor_fn(context: SensorEvaluationContext):
+        def sensor_fn(context: SensorEvaluationContext, **_resources):
             client = None
             if _self.resource_key:
                 client = getattr(context.resources, _self.resource_key, None)

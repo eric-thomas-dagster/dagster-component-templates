@@ -181,7 +181,7 @@ class TemporalWorkflowSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             default_status=default_status,
             job_name=_self.job_name,
         )
-        def temporal_workflow_sensor(context: SensorEvaluationContext):
+        def temporal_workflow_sensor(context: SensorEvaluationContext, **_resources):
             import asyncio
             import os
 

@@ -52,7 +52,7 @@ class JDEOrchestrationStatusSensorComponent(dg.Component, dg.Model, dg.Resolvabl
             job_name=_self.job_name,
             required_resource_keys=required_resource_keys,
         )
-        def jde_orchestration_status_sensor(context: SensorEvaluationContext):
+        def jde_orchestration_status_sensor(context: SensorEvaluationContext, **_resources):
             try:
                 import requests
             except ImportError:

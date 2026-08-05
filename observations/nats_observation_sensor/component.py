@@ -2,7 +2,9 @@
 import asyncio
 from typing import Optional
 import dagster as dg
+import json
 from dagster import AssetKey, AssetObservation, SensorEvaluationContext, SensorResult, sensor
+from dagster._core.definitions.data_version import DATA_VERSION_TAG
 from pydantic import Field
 
 class NatsObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -27,7 +29,7 @@ class NatsObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                 dg.AssetKey.from_user_string(_self.asset_key)
             ),
         )
-        def _nats_obs(context: SensorEvaluationContext):
+        def _nats_obs(context: SensorEvaluationContext, **_resources):
             try:
                 import nats
             except ImportError:
@@ -64,6 +66,9 @@ class NatsObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                 return SensorResult(skip_reason=f"NATS stream info failed: {e}")
 
             return SensorResult(asset_events=[AssetObservation(
-                asset_key=AssetKey.from_user_string(_self.asset_key), metadata=metadata)])
+                asset_key=AssetKey.from_user_string(_self.asset_key),
+                metadata=metadata,
+                tags={DATA_VERSION_TAG: json.dumps(metadata, sort_keys=True, default=str)},
+            )])
 
         return dg.Definitions(sensors=[_nats_obs])

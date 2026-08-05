@@ -50,7 +50,7 @@ class FivetranSyncSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             job_name=_self.job_name,
             required_resource_keys=required_resource_keys,
         )
-        def fivetran_sync_sensor(context: SensorEvaluationContext):
+        def fivetran_sync_sensor(context: SensorEvaluationContext, **_resources):
             import os, base64
             try:
                 import requests

@@ -1,8 +1,25 @@
-"""SFTP Path Observation Sensor Component."""
-from typing import Optional
+"""SFTP Path Observation Sensor Component.
+
+Polls an SFTP path on a schedule and emits an AssetObservation tagged with a
+DataVersion. Downstream AutomationCondition.newly_updated() / .eager() fires
+when the DataVersion changes.
+
+Two operating modes:
+
+- resource_key set: `.observe(source)` on the resource where source is
+  `"host:remote_path"`. Returns `{"data_version": str, **metadata}`.
+- resource_key unset: uses paramiko, lists the remote directory, counts files,
+  tracks latest mtime, derives DataVersion from `f"{file_count}-{latest_iso}"`.
+"""
+import os
+from datetime import datetime, timezone
+from typing import Any, Optional
+
 import dagster as dg
 from dagster import AssetKey, AssetObservation, SensorEvaluationContext, SensorResult, sensor
+from dagster._core.definitions.data_version import DATA_VERSION_TAG
 from pydantic import Field
+
 
 class SftpPathObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     """Emit health observations for an external SFTP path."""
@@ -11,11 +28,17 @@ class SftpPathObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     host: str = Field(description="SFTP host")
     port: int = Field(default=22, description="SFTP port")
     remote_path: str = Field(description="Remote directory path")
-    username_env_var: str = Field(description="Env var with SFTP username")
+    username_env_var: str = Field(default="", description="Env var with SFTP username")
     password_env_var: Optional[str] = Field(default=None, description="Env var with SFTP password")
     private_key_env_var: Optional[str] = Field(default=None, description="Env var with path to SSH private key")
     check_interval_seconds: int = Field(default=300, description="Seconds between health checks")
-    resource_key: Optional[str] = Field(default=None, description="Optional Dagster resource key.")
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster resource key exposing `.observe(source) -> dict` (source is "
+            "'host:remote_path') that returns `{'data_version': str, **metadata}`."
+        ),
+    )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
@@ -30,8 +53,26 @@ class SftpPathObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                 dg.AssetKey.from_user_string(_self.asset_key)
             ),
         )
-        def _sftp_obs(context: SensorEvaluationContext):
-            import os
+        def _sftp_obs(context: SensorEvaluationContext, **_resources):
+            # ── Resource-backed path ────────────────────────────────────────
+            if resource_key:
+                client = getattr(context.resources, resource_key, None)
+                if client is None:
+                    return SensorResult(skip_reason=f"resource '{resource_key}' not found on context")
+                try:
+                    source = f"{_self.host}:{_self.remote_path}"
+                    observed: dict[str, Any] = dict(client.observe(source))
+                except Exception as e:
+                    context.log.error(f"resource '{resource_key}'.observe failed: {e}")
+                    return SensorResult(skip_reason=f"resource observe failed: {e}")
+                data_version = str(observed.pop("data_version", ""))
+                return SensorResult(asset_events=[AssetObservation(
+                    asset_key=AssetKey.from_user_string(_self.asset_key),
+                    metadata=observed,
+                    tags={DATA_VERSION_TAG: data_version} if data_version else None,
+                )])
+
+            # ── Native paramiko path ────────────────────────────────────────
             try:
                 import paramiko
             except ImportError:
@@ -45,8 +86,10 @@ class SftpPathObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                 ssh = paramiko.SSHClient()
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 kwargs = {"username": username, "port": _self.port, "timeout": 15}
-                if password: kwargs["password"] = password
-                if key_path: kwargs["key_filename"] = key_path
+                if password:
+                    kwargs["password"] = password
+                if key_path:
+                    kwargs["key_filename"] = key_path
                 ssh.connect(_self.host, **kwargs)
                 sftp = ssh.open_sftp()
                 attrs = sftp.listdir_attr(_self.remote_path)
@@ -58,15 +101,19 @@ class SftpPathObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             except Exception as e:
                 return SensorResult(skip_reason=f"SFTP failed: {e}")
 
-            from datetime import datetime, timezone
+            latest_iso = datetime.fromtimestamp(latest, tz=timezone.utc).isoformat() if latest else ""
+            data_version = f"{file_count}-{latest_iso}"
             metadata = {
                 "file_count": file_count,
                 "total_size_bytes": total_size,
-                "latest_mtime_iso": datetime.fromtimestamp(latest, tz=timezone.utc).isoformat() if latest else "",
+                "latest_mtime_iso": latest_iso,
                 "host": _self.host,
                 "remote_path": _self.remote_path,
             }
             return SensorResult(asset_events=[AssetObservation(
-                asset_key=AssetKey.from_user_string(_self.asset_key), metadata=metadata)])
+                asset_key=AssetKey.from_user_string(_self.asset_key),
+                metadata=metadata,
+                tags={DATA_VERSION_TAG: data_version},
+            )])
 
         return dg.Definitions(sensors=[_sftp_obs])

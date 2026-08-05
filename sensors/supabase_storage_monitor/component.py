@@ -94,7 +94,7 @@ class SupabaseStorageMonitorComponent(Component, Model, Resolvable):
             job_name=job_name,
             required_resource_keys={resource_name},
         )
-        def _supabase_storage_sensor(context: SensorEvaluationContext):
+        def _supabase_storage_sensor(context: SensorEvaluationContext, **_resources):
             supabase_resource = getattr(context.resources, resource_name)
             client = supabase_resource.get_client()
 

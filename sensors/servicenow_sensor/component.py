@@ -58,7 +58,7 @@ class ServiceNowSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             job_name=_self.job_name,
             required_resource_keys=required_resource_keys,
         )
-        def snow_sensor(context: SensorEvaluationContext):
+        def snow_sensor(context: SensorEvaluationContext, **_resources):
             import os
             try:
                 import requests

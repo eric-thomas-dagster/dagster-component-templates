@@ -123,7 +123,7 @@ class SnowflakeTaskCompletionSensorComponent(Component, Model, Resolvable):
             default_status=default_status,
             job_name=_self.job_name,
         )
-        def snowflake_task_completion_sensor(context: SensorEvaluationContext):
+        def snowflake_task_completion_sensor(context: SensorEvaluationContext, **_resources):
             try:
                 import snowflake.connector
             except ImportError:

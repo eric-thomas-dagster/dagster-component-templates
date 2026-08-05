@@ -117,7 +117,7 @@ class EventHubsMonitorSensorComponent(Component, Model, Resolvable):
             job_name=job_name,
             required_resource_keys=required_resource_keys,
         )
-        def eventhubs_sensor(context: SensorEvaluationContext):
+        def eventhubs_sensor(context: SensorEvaluationContext, **_resources):
             """Sensor that monitors an Azure Event Hub for new events."""
             import os
 

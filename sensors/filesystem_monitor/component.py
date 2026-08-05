@@ -134,7 +134,7 @@ class FilesystemMonitorSensorComponent(Component, Model, Resolvable):
             default_status=default_status,
             job_name=job_name,
         )
-        def filesystem_sensor(context: SensorEvaluationContext):
+        def filesystem_sensor(context: SensorEvaluationContext, **_resources):
             """Sensor that monitors a directory for new files."""
 
             # Ensure directory exists

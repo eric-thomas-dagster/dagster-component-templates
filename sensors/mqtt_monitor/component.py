@@ -142,7 +142,7 @@ class MQTTMonitorSensorComponent(Component, Model, Resolvable):
             job_name=job_name,
             required_resource_keys=required_resource_keys,
         )
-        def mqtt_sensor(context: SensorEvaluationContext):
+        def mqtt_sensor(context: SensorEvaluationContext, **_resources):
             """Sensor that subscribes to an MQTT topic and collects messages."""
             import os
             import uuid

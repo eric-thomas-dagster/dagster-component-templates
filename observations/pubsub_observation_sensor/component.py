@@ -1,7 +1,9 @@
 """Pub/Sub Observation Sensor Component."""
 from typing import Optional
 import dagster as dg
+import json
 from dagster import AssetKey, AssetObservation, SensorEvaluationContext, SensorResult, sensor
+from dagster._core.definitions.data_version import DATA_VERSION_TAG
 from pydantic import Field
 
 class PubsubObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -26,7 +28,7 @@ class PubsubObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                 dg.AssetKey.from_user_string(_self.asset_key)
             ),
         )
-        def _pubsub_obs(context: SensorEvaluationContext):
+        def _pubsub_obs(context: SensorEvaluationContext, **_resources):
             try:
                 from google.cloud import pubsub_v1
             except ImportError:
@@ -61,6 +63,9 @@ class PubsubObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                     context.log.warning(f"Could not get subscription details: {e}")
 
             return SensorResult(asset_events=[AssetObservation(
-                asset_key=AssetKey.from_user_string(_self.asset_key), metadata=metadata)])
+                asset_key=AssetKey.from_user_string(_self.asset_key),
+                metadata=metadata,
+                tags={DATA_VERSION_TAG: json.dumps(metadata, sort_keys=True, default=str)},
+            )])
 
         return dg.Definitions(sensors=[_pubsub_obs])

@@ -145,7 +145,7 @@ class ArgoWorkflowSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             default_status=default_status,
             job_name=_self.job_name,
         )
-        def argo_workflow_sensor(context: SensorEvaluationContext):
+        def argo_workflow_sensor(context: SensorEvaluationContext, **_resources):
             import os
             try:
                 import requests

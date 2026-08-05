@@ -1,7 +1,9 @@
 """Redis Streams Observation Sensor Component."""
 from typing import Optional
 import dagster as dg
+import json
 from dagster import AssetKey, AssetObservation, SensorEvaluationContext, SensorResult, sensor
+from dagster._core.definitions.data_version import DATA_VERSION_TAG
 from pydantic import Field
 
 class RedisStreamObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -28,7 +30,7 @@ class RedisStreamObservationSensorComponent(dg.Component, dg.Model, dg.Resolvabl
                 dg.AssetKey.from_user_string(_self.asset_key)
             ),
         )
-        def _redis_obs(context: SensorEvaluationContext):
+        def _redis_obs(context: SensorEvaluationContext, **_resources):
             try:
                 import redis as redis_lib
             except ImportError:
@@ -62,6 +64,9 @@ class RedisStreamObservationSensorComponent(dg.Component, dg.Model, dg.Resolvabl
                 "host": _self.host,
             }
             return SensorResult(asset_events=[AssetObservation(
-                asset_key=AssetKey.from_user_string(_self.asset_key), metadata=metadata)])
+                asset_key=AssetKey.from_user_string(_self.asset_key),
+                metadata=metadata,
+                tags={DATA_VERSION_TAG: json.dumps(metadata, sort_keys=True, default=str)},
+            )])
 
         return dg.Definitions(sensors=[_redis_obs])

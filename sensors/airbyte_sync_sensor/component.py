@@ -50,7 +50,7 @@ class AirbyteSyncSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             job_name=_self.job_name,
             required_resource_keys=required_resource_keys,
         )
-        def airbyte_sync_sensor(context: SensorEvaluationContext):
+        def airbyte_sync_sensor(context: SensorEvaluationContext, **_resources):
             import os
             try:
                 import requests

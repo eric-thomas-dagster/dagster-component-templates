@@ -107,7 +107,7 @@ class SQSMonitorSensorComponent(Component, Model, Resolvable):
             job_name=job_name,
             required_resource_keys=required_resource_keys,
         )
-        def sqs_sensor(context: SensorEvaluationContext):
+        def sqs_sensor(context: SensorEvaluationContext, **_resources):
             """Sensor that polls an SQS queue for new messages."""
             try:
                 import boto3

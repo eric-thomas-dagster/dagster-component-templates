@@ -67,7 +67,7 @@ class TM1ProcessStatusSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             job_name=_self.job_name,
             required_resource_keys=required_resource_keys,
         )
-        def tm1_process_status_sensor(context: SensorEvaluationContext):
+        def tm1_process_status_sensor(context: SensorEvaluationContext, **_resources):
             try:
                 import requests
             except ImportError:

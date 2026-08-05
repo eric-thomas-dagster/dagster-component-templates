@@ -3,9 +3,10 @@
 Periodically connects to ClickHouse and emits AssetObservation events
 for an external ClickHouse table. Uses ClickHouseResource when available.
 """
-from typing import Optional
+from typing import Any, Optional
 import dagster as dg
 from dagster import SensorEvaluationContext, SensorResult
+from dagster._core.definitions.data_version import DATA_VERSION_TAG
 from dagster._core.definitions.sensor_definition import DefaultSensorStatus
 from pydantic import Field
 
@@ -74,7 +75,26 @@ class ClickHouseTableObservationSensorComponent(dg.Component, dg.Model, dg.Resol
             required_resource_keys=required_resource_keys,
             asset_selection=dg.AssetSelection.keys(asset_key),
         )
-        def clickhouse_observation_sensor(context: SensorEvaluationContext):
+        def clickhouse_observation_sensor(context: SensorEvaluationContext, **_resources):
+            # ── Resource-backed path ────────────────────────────────────────
+            if _self.resource_key:
+                resource = getattr(context.resources, _self.resource_key, None)
+                if resource is None:
+                    return SensorResult(skip_reason=f"resource '{_self.resource_key}' not found on context")
+                try:
+                    source = f"{_self.database}.{_self.table}"
+                    observed: dict[str, Any] = dict(resource.observe(source))
+                except Exception as e:
+                    context.log.error(f"resource '{_self.resource_key}'.observe failed: {e}")
+                    return SensorResult(skip_reason=f"resource observe failed: {e}")
+                data_version = str(observed.pop("data_version", ""))
+                return SensorResult(asset_events=[dg.AssetObservation(
+                    asset_key=asset_key,
+                    metadata=observed,
+                    tags={DATA_VERSION_TAG: data_version} if data_version else None,
+                )])
+
+            # ── Native clickhouse-connect path ──────────────────────────────
             import os
 
             try:
@@ -82,18 +102,13 @@ class ClickHouseTableObservationSensorComponent(dg.Component, dg.Model, dg.Resol
             except ImportError:
                 return SensorResult(skip_reason="clickhouse-connect not installed. Run: pip install clickhouse-connect")
 
-            # Get client — via resource or env vars
-            if _self.resource_key:
-                resource = getattr(context.resources, _self.resource_key)
-                client = resource.get_client()
-            else:
-                host = os.environ.get(_self.host_env_var or "", "")
-                username = os.environ.get(_self.username_env_var or "", "default") if _self.username_env_var else "default"
-                password = os.environ.get(_self.password_env_var or "", "") if _self.password_env_var else ""
-                client = clickhouse_connect.get_client(
-                    host=host, port=_self.port, username=username, password=password,
-                    secure=(_self.port == 8443),
-                )
+            host = os.environ.get(_self.host_env_var or "", "")
+            username = os.environ.get(_self.username_env_var or "", "default") if _self.username_env_var else "default"
+            password = os.environ.get(_self.password_env_var or "", "") if _self.password_env_var else ""
+            client = clickhouse_connect.get_client(
+                host=host, port=_self.port, username=username, password=password,
+                secure=(_self.port == 8443),
+            )
 
             db, tbl = _self.database, _self.table
             try:
@@ -116,6 +131,7 @@ class ClickHouseTableObservationSensorComponent(dg.Component, dg.Model, dg.Resol
             except Exception as e:
                 return SensorResult(skip_reason=f"ClickHouse query error: {e}")
 
+            data_version = f"{int(row_count or 0)}-{last_modified or ''}"
             observation = dg.AssetObservation(
                 asset_key=asset_key,
                 metadata={
@@ -127,6 +143,7 @@ class ClickHouseTableObservationSensorComponent(dg.Component, dg.Model, dg.Resol
                     "database": dg.MetadataValue.text(db),
                     "table": dg.MetadataValue.text(tbl),
                 },
+                tags={DATA_VERSION_TAG: data_version},
             )
             return SensorResult(asset_events=[observation])
 

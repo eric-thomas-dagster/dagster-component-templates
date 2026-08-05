@@ -1,7 +1,9 @@
 """RabbitMQ Observation Sensor Component."""
 from typing import Optional
 import dagster as dg
+import json
 from dagster import AssetKey, AssetObservation, SensorEvaluationContext, SensorResult, sensor
+from dagster._core.definitions.data_version import DATA_VERSION_TAG
 from pydantic import Field
 
 class RabbitmqObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -29,7 +31,7 @@ class RabbitmqObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                 dg.AssetKey.from_user_string(_self.asset_key)
             ),
         )
-        def _rabbit_obs(context: SensorEvaluationContext):
+        def _rabbit_obs(context: SensorEvaluationContext, **_resources):
             try:
                 import pika
             except ImportError:
@@ -70,6 +72,9 @@ class RabbitmqObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                 "host": _self.host,
             }
             return SensorResult(asset_events=[AssetObservation(
-                asset_key=AssetKey.from_user_string(_self.asset_key), metadata=metadata)])
+                asset_key=AssetKey.from_user_string(_self.asset_key),
+                metadata=metadata,
+                tags={DATA_VERSION_TAG: json.dumps(metadata, sort_keys=True, default=str)},
+            )])
 
         return dg.Definitions(sensors=[_rabbit_obs])

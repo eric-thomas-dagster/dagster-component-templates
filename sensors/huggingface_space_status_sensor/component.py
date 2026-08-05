@@ -96,7 +96,7 @@ class HuggingfaceSpaceStatusSensorComponent(Component, Model, Resolvable):
             default_status=default_status,
             job_name=_self.job_name,
         )
-        def huggingface_space_status_sensor(context: SensorEvaluationContext):
+        def huggingface_space_status_sensor(context: SensorEvaluationContext, **_resources):
             import os
             try:
                 from huggingface_hub import HfApi

@@ -105,7 +105,7 @@ class KinesisMonitorSensorComponent(Component, Model, Resolvable):
             job_name=job_name,
             required_resource_keys=required_resource_keys,
         )
-        def kinesis_sensor(context: SensorEvaluationContext):
+        def kinesis_sensor(context: SensorEvaluationContext, **_resources):
             """Sensor that monitors a Kinesis stream for new records."""
             import base64
 

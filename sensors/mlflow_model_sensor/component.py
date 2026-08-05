@@ -101,7 +101,7 @@ class MLflowModelSensor(Component, Model, Resolvable):
             default_status=DefaultSensorStatus.RUNNING,
             job_name=target_job,
         )
-        def mlflow_model_sensor(context: SensorEvaluationContext):
+        def mlflow_model_sensor(context: SensorEvaluationContext, **_resources):
             """Sensor that polls MLflow for new model versions in the target stage."""
             try:
                 import mlflow

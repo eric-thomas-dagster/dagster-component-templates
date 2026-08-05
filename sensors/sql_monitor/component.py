@@ -166,7 +166,7 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
             job_name=job_name,
             required_resource_keys=required_resource_keys,
         )
-        def sql_sensor(context: SensorEvaluationContext):
+        def sql_sensor(context: SensorEvaluationContext, **_resources):
             """Sensor that monitors a SQL table for new or updated rows."""
             import os
 

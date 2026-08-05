@@ -138,7 +138,7 @@ class AbInitioJobSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             job_name=_self.job_name,
             required_resource_keys=required_resource_keys,
         )
-        def abinitio_job_sensor(context: SensorEvaluationContext):
+        def abinitio_job_sensor(context: SensorEvaluationContext, **_resources):
             import os, base64, urllib.parse
             try:
                 import requests

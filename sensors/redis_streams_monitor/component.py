@@ -117,7 +117,7 @@ class RedisStreamsMonitorSensorComponent(Component, Model, Resolvable):
             job_name=job_name,
             required_resource_keys=required_resource_keys,
         )
-        def redis_streams_sensor(context: SensorEvaluationContext):
+        def redis_streams_sensor(context: SensorEvaluationContext, **_resources):
             """Sensor that reads new entries from a Redis Stream."""
             import os
 

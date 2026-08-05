@@ -165,7 +165,7 @@ class TwilioNotificationSensor(Component, Model, Resolvable):
             minimum_interval_seconds=minimum_interval_seconds,
             default_status=DefaultSensorStatus.RUNNING,
         )
-        def twilio_notification_sensor(context: SensorEvaluationContext):
+        def twilio_notification_sensor(context: SensorEvaluationContext, **_resources):
             """Sensor that sends Twilio SMS/WhatsApp alerts on asset events."""
             # Resolve credentials at evaluation time.
             account_sid = os.environ.get(account_sid_env_var)

@@ -141,7 +141,7 @@ class MLflowExperimentSensorComponent(Component, Model, Resolvable):
             default_status=DefaultSensorStatus.RUNNING,
             job_name=target_job,
         )
-        def mlflow_experiment_sensor(context: SensorEvaluationContext):
+        def mlflow_experiment_sensor(context: SensorEvaluationContext, **_resources):
             try:
                 import mlflow
             except ImportError:

@@ -1,8 +1,19 @@
-"""Databricks Table Observation Sensor Component."""
-from typing import Optional
+"""Databricks Table Observation Sensor Component.
+
+Polls a Databricks Delta table via a SQL warehouse and emits an
+AssetObservation tagged with a DataVersion (`f"{row_count}-{last_modified}"`).
+
+When resource_key is set, `.observe(source)` is called (source is
+`"catalog.schema.table"` or `"schema.table"` when no catalog).
+"""
+import os
+from typing import Any, Optional
+
 import dagster as dg
 from dagster import AssetKey, AssetObservation, SensorEvaluationContext, SensorResult, sensor
+from dagster._core.definitions.data_version import DATA_VERSION_TAG
 from pydantic import Field
+
 
 class DatabricksTableObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     """Emit health observations for an external Databricks Delta table."""
@@ -12,10 +23,17 @@ class DatabricksTableObservationSensorComponent(dg.Component, dg.Model, dg.Resol
     catalog: Optional[str] = Field(default=None, description="Unity Catalog name")
     schema_name: str = Field(description="Schema/database name")
     table_name: str = Field(description="Table name")
-    token_env_var: str = Field(description="Env var with Databricks personal access token")
-    http_path: str = Field(description="SQL warehouse HTTP path (from connection details)")
+    token_env_var: str = Field(default="", description="Env var with Databricks personal access token")
+    http_path: str = Field(default="", description="SQL warehouse HTTP path (from connection details)")
     check_interval_seconds: int = Field(default=300, description="Seconds between health checks")
-    resource_key: Optional[str] = Field(default=None, description="Optional Dagster resource key.")
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster resource key exposing `.observe(source) -> dict` (source is "
+            "'catalog.schema.table' or 'schema.table') that returns "
+            "`{'data_version': str, **metadata}`."
+        ),
+    )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
@@ -30,27 +48,41 @@ class DatabricksTableObservationSensorComponent(dg.Component, dg.Model, dg.Resol
                 dg.AssetKey.from_user_string(_self.asset_key)
             ),
         )
-        def _dbx_obs(context: SensorEvaluationContext):
-            import os
+        def _dbx_obs(context: SensorEvaluationContext, **_resources):
+            full_name = (
+                f"{_self.catalog}.{_self.schema_name}.{_self.table_name}"
+                if _self.catalog else f"{_self.schema_name}.{_self.table_name}"
+            )
+            # ── Resource-backed path ────────────────────────────────────────
+            if resource_key:
+                client = getattr(context.resources, resource_key, None)
+                if client is None:
+                    return SensorResult(skip_reason=f"resource '{resource_key}' not found on context")
+                try:
+                    observed: dict[str, Any] = dict(client.observe(full_name))
+                except Exception as e:
+                    context.log.error(f"resource '{resource_key}'.observe failed: {e}")
+                    return SensorResult(skip_reason=f"resource observe failed: {e}")
+                data_version = str(observed.pop("data_version", ""))
+                return SensorResult(asset_events=[AssetObservation(
+                    asset_key=AssetKey.from_user_string(_self.asset_key),
+                    metadata=observed,
+                    tags={DATA_VERSION_TAG: data_version} if data_version else None,
+                )])
+
+            # ── Native databricks-sql-connector path ────────────────────────
             try:
                 from databricks import sql as dbsql
             except ImportError:
                 return SensorResult(skip_reason="databricks-sql-connector not installed")
 
             token = os.environ.get(_self.token_env_var, "")
-            full_name = (
-                f"{_self.catalog}.{_self.schema_name}.{_self.table_name}"
-                if _self.catalog else f"{_self.schema_name}.{_self.table_name}"
-            )
             try:
-                if resource_key:
-                    conn = getattr(context.resources, resource_key).get_connection()
-                else:
-                    conn = dbsql.connect(
-                        server_hostname=_self.workspace_url.replace("https://", ""),
-                        http_path=_self.http_path,
-                        access_token=token,
-                    )
+                conn = dbsql.connect(
+                    server_hostname=_self.workspace_url.replace("https://", ""),
+                    http_path=_self.http_path,
+                    access_token=token,
+                )
                 with conn.cursor() as cur:
                     cur.execute(f"DESCRIBE DETAIL {full_name}")
                     detail = dict(zip([d[0] for d in cur.description], cur.fetchone()))
@@ -60,14 +92,19 @@ class DatabricksTableObservationSensorComponent(dg.Component, dg.Model, dg.Resol
             except Exception as e:
                 return SensorResult(skip_reason=f"Query failed: {e}")
 
+            last_modified = str(detail.get("lastModified", ""))
+            data_version = f"{row_count}-{last_modified}"
             metadata = {
                 "row_count": row_count,
                 "size_in_bytes": detail.get("sizeInBytes", 0),
                 "num_files": detail.get("numFiles", 0),
-                "last_modified": str(detail.get("lastModified", "")),
+                "last_modified": last_modified,
                 "table_name": full_name,
             }
             return SensorResult(asset_events=[AssetObservation(
-                asset_key=AssetKey.from_user_string(_self.asset_key), metadata=metadata)])
+                asset_key=AssetKey.from_user_string(_self.asset_key),
+                metadata=metadata,
+                tags={DATA_VERSION_TAG: data_version},
+            )])
 
         return dg.Definitions(sensors=[_dbx_obs])

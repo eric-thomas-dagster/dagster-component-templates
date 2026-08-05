@@ -108,7 +108,7 @@ class SnowflakeOpenflowStatusSensorComponent(Component, Model, Resolvable):
             default_status=default_status,
             job_name=_self.job_name,
         )
-        def snowflake_openflow_status_sensor(context: SensorEvaluationContext):
+        def snowflake_openflow_status_sensor(context: SensorEvaluationContext, **_resources):
             try:
                 import snowflake.connector
             except ImportError:

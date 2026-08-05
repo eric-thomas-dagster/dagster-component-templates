@@ -104,7 +104,7 @@ class DorisRoutineLoadSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             default_status=default_status,
             job_name=_self.job_name_target,
         )
-        def doris_routine_load_sensor(context: SensorEvaluationContext):
+        def doris_routine_load_sensor(context: SensorEvaluationContext, **_resources):
             import os, json
             try:
                 from sqlalchemy import create_engine, text

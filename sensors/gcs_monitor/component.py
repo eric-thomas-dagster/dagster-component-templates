@@ -156,7 +156,7 @@ class GCSMonitorSensorComponent(Component, Model, Resolvable):
             job_name=job_name,
             required_resource_keys=required_resource_keys,
         )
-        def gcs_sensor(context: SensorEvaluationContext):
+        def gcs_sensor(context: SensorEvaluationContext, **_resources):
             """Sensor that monitors a GCS bucket prefix for new objects."""
             try:
                 from google.cloud import storage as gcs

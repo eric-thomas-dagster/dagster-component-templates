@@ -182,7 +182,7 @@ class ADLSMonitorSensorComponent(Component, Model, Resolvable):
             job_name=job_name,
             required_resource_keys=required_resource_keys,
         )
-        def adls_sensor(context: SensorEvaluationContext):
+        def adls_sensor(context: SensorEvaluationContext, **_resources):
             """Sensor that monitors an ADLS Gen2 container for new files."""
             import os
 

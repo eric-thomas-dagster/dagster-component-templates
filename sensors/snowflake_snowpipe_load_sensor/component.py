@@ -135,7 +135,7 @@ class SnowflakeSnowpipeLoadSensorComponent(dg.Component, dg.Model, dg.Resolvable
             description=_self.description or
                 f"Watches Snowpipe {_self.pipe_name} for new file ingestions.",
         )
-        def snowflake_snowpipe_load_sensor(context: SensorEvaluationContext):
+        def snowflake_snowpipe_load_sensor(context: SensorEvaluationContext, **_resources):
             conn = _self._connect()
             try:
                 cur = conn.cursor()

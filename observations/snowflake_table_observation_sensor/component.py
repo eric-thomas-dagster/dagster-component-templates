@@ -1,7 +1,17 @@
-"""Snowflake Table Observation Sensor Component."""
-from typing import Optional
+"""Snowflake Table Observation Sensor Component.
+
+Polls a Snowflake table on a schedule and emits an AssetObservation tagged
+with a DataVersion (`f"{row_count}-{created_on}"`). Downstream
+AutomationCondition.newly_updated() / .eager() fires when the DataVersion
+changes.
+
+When resource_key is set, `.observe(source)` is called (source is
+`"database.schema.table"`) and the resource controls DataVersion + metadata.
+"""
+from typing import Any, Optional
 import dagster as dg
 from dagster import AssetKey, AssetObservation, MetadataValue, SensorEvaluationContext, SensorResult, sensor
+from dagster._core.definitions.data_version import DATA_VERSION_TAG
 from pydantic import Field
 
 class SnowflakeTableObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -62,7 +72,26 @@ class SnowflakeTableObservationSensorComponent(dg.Component, dg.Model, dg.Resolv
                 dg.AssetKey.from_user_string(_self.asset_key)
             ),
         )
-        def _sf_obs(context: SensorEvaluationContext):
+        def _sf_obs(context: SensorEvaluationContext, **_resources):
+            # ── Resource-backed path ────────────────────────────────────────
+            if resource_key:
+                client = getattr(context.resources, resource_key, None)
+                if client is None:
+                    return SensorResult(skip_reason=f"resource '{resource_key}' not found on context")
+                try:
+                    source = f"{_self.database}.{_self.schema_name}.{_self.table_name}"
+                    observed: dict[str, Any] = dict(client.observe(source))
+                except Exception as e:
+                    context.log.error(f"resource '{resource_key}'.observe failed: {e}")
+                    return SensorResult(skip_reason=f"resource observe failed: {e}")
+                data_version = str(observed.pop("data_version", ""))
+                return SensorResult(asset_events=[AssetObservation(
+                    asset_key=AssetKey.from_user_string(_self.asset_key),
+                    metadata=observed,
+                    tags={DATA_VERSION_TAG: data_version} if data_version else None,
+                )])
+
+            # ── Native snowflake-connector-python path ──────────────────────
             import os
             try:
                 import snowflake.connector
@@ -72,34 +101,31 @@ class SnowflakeTableObservationSensorComponent(dg.Component, dg.Model, dg.Resolv
             username = os.environ.get(_self.username_env_var, "")
             password = os.environ.get(_self.password_env_var, "") if _self.password_env_var else ""
             try:
-                if resource_key:
-                    conn = getattr(context.resources, resource_key).get_connection()
-                else:
-                    conn_kwargs = {
-                        "account": _self.account,
-                        "user": username,
-                        "database": _self.database,
-                        "schema": _self.schema_name,
-                    }
-                    if _self.warehouse:
-                        conn_kwargs["warehouse"] = _self.warehouse
-                    if _self.authenticator:
-                        conn_kwargs["authenticator"] = _self.authenticator
-                        if _self.private_key_file_env_var:
-                            pk_path = os.environ.get(_self.private_key_file_env_var)
-                            if pk_path:
-                                conn_kwargs["private_key_file"] = pk_path
-                            if _self.private_key_file_pwd_env_var:
-                                pk_pwd = os.environ.get(_self.private_key_file_pwd_env_var)
-                                if pk_pwd:
-                                    conn_kwargs["private_key_file_pwd"] = pk_pwd
-                        elif _self.token_env_var:
-                            tok = os.environ.get(_self.token_env_var)
-                            if tok:
-                                conn_kwargs["token"] = tok
-                    elif password:
-                        conn_kwargs["password"] = password
-                    conn = snowflake.connector.connect(**conn_kwargs)
+                conn_kwargs = {
+                    "account": _self.account,
+                    "user": username,
+                    "database": _self.database,
+                    "schema": _self.schema_name,
+                }
+                if _self.warehouse:
+                    conn_kwargs["warehouse"] = _self.warehouse
+                if _self.authenticator:
+                    conn_kwargs["authenticator"] = _self.authenticator
+                    if _self.private_key_file_env_var:
+                        pk_path = os.environ.get(_self.private_key_file_env_var)
+                        if pk_path:
+                            conn_kwargs["private_key_file"] = pk_path
+                        if _self.private_key_file_pwd_env_var:
+                            pk_pwd = os.environ.get(_self.private_key_file_pwd_env_var)
+                            if pk_pwd:
+                                conn_kwargs["private_key_file_pwd"] = pk_pwd
+                    elif _self.token_env_var:
+                        tok = os.environ.get(_self.token_env_var)
+                        if tok:
+                            conn_kwargs["token"] = tok
+                elif password:
+                    conn_kwargs["password"] = password
+                conn = snowflake.connector.connect(**conn_kwargs)
                 cursor = conn.cursor()
             except Exception as e:
                 return SensorResult(skip_reason=f"Connect failed: {e}")
@@ -120,7 +146,9 @@ class SnowflakeTableObservationSensorComponent(dg.Component, dg.Model, dg.Resolv
                 conn.close()
                 return SensorResult(skip_reason=f"Query failed: {e}")
 
-            metadata = {
+            created_on = str(info_dict.get("created_on", "")) if info_dict else ""
+            data_version = f"{row_count}-{created_on}"
+            metadata: dict[str, Any] = {
                 "row_count": row_count,
                 "database": _self.database,
                 "schema": _self.schema_name,
@@ -132,8 +160,8 @@ class SnowflakeTableObservationSensorComponent(dg.Component, dg.Model, dg.Resolv
                 metadata.update({
                     k: info_dict[k] for k in ("bytes", "owner", "kind") if k in info_dict
                 })
-                if info_dict.get("created_on"):
-                    metadata["created_on"] = str(info_dict["created_on"])
+                if created_on:
+                    metadata["created_on"] = created_on
             if _self.include_preview_metadata and row_count > 0:
                 try:
                     fqn = f"{_self.database}.{_self.schema_name}.{_self.table_name}"
@@ -148,6 +176,9 @@ class SnowflakeTableObservationSensorComponent(dg.Component, dg.Model, dg.Resolv
                     context.log.warning(f"Preview query failed: {e}")
             conn.close()
             return SensorResult(asset_events=[AssetObservation(
-                asset_key=AssetKey.from_user_string(_self.asset_key), metadata=metadata)])
+                asset_key=AssetKey.from_user_string(_self.asset_key),
+                metadata=metadata,
+                tags={DATA_VERSION_TAG: data_version},
+            )])
 
         return dg.Definitions(sensors=[_sf_obs])

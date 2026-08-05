@@ -187,7 +187,7 @@ class KafkaMonitorSensorComponent(Component, Model, Resolvable):
             job_name=job_name,
             required_resource_keys=required_resource_keys,
         )
-        def kafka_sensor(context: SensorEvaluationContext):
+        def kafka_sensor(context: SensorEvaluationContext, **_resources):
             """Sensor that polls a Kafka topic for new messages."""
             import os
 

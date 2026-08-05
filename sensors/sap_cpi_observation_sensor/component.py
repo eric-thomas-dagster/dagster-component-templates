@@ -93,7 +93,7 @@ class SapCPIObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             default_status=default_status,
             required_resource_keys={cfg.oauth_token_resource_key},
         )
-        def sap_cpi_observation_sensor(context: SensorEvaluationContext):
+        def sap_cpi_observation_sensor(context: SensorEvaluationContext, **_resources):
             try:
                 import requests
             except ImportError:

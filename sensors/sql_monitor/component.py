@@ -10,6 +10,8 @@ import json
 from typing import Optional, Union
 
 from dagster import (
+    AssetKey,
+    AssetObservation,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -82,9 +84,37 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
 
     resource_key: Optional[str] = Field(
         default=None,
-        description="Optional Dagster resource key providing a pre-configured client. "
-                    "When set, context.resources.<resource_key> is used instead of creating "
-                    "a connection from the other fields. See README for the expected interface."
+        description=(
+            "Optional Dagster resource key providing a pre-configured client. "
+            "When set, context.resources.<resource_key>.poll(table_name, last_id) "
+            "is called instead of building a SQLAlchemy engine from "
+            "connection_string_env_var. The resource must return a list of dicts, "
+            "each shaped {id, ts, source, payload} (payload being the row). "
+            "Use for demo-mode seams or shared connection pooling."
+        ),
+    )
+
+    op_name: Optional[str] = Field(
+        default="config",
+        description=(
+            "Op name to key the run_config under. Emitted as "
+            "`{'ops': {op_name: {'config': {...}}}}`. Defaults to 'config' for "
+            "backward compat, but if the target job's op is not named 'config' "
+            "(e.g. an @asset or @multi_asset with a custom name), set this to "
+            "the actual op name — otherwise Dagster rejects the run config with "
+            "'Received unexpected config entry \"config\" at path root:ops'."
+        ),
+    )
+
+    source_asset_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional asset key (e.g. 'orders_source') to receive an "
+            "AssetObservation on every tick that yields new rows. Metadata "
+            "includes table, new_rows, last_event_id, last_watermark — lets an "
+            "observable-source asset in the graph show a live timeline of row "
+            "arrivals in the Dagster UI."
+        ),
     )
 
     default_status: str = Field(
@@ -103,6 +133,8 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
         minimum_interval_seconds = self.minimum_interval_seconds
         default_status_str = self.default_status
         resource_key = self.resource_key
+        op_name = self.op_name or "config"
+        source_asset_key = self.source_asset_key
 
         default_status = (
             DefaultSensorStatus.RUNNING
@@ -111,6 +143,21 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
         )
 
         required_resource_keys = {resource_key} if resource_key else set()
+
+        def _observation(new_rows: int, last_id: Optional[str], last_watermark) -> list:
+            if not source_asset_key or new_rows == 0:
+                return []
+            return [
+                AssetObservation(
+                    asset_key=AssetKey.from_user_string(source_asset_key),
+                    metadata={
+                        "table": table_name,
+                        "new_rows": new_rows,
+                        "last_event_id": last_id or "",
+                        "last_watermark": str(last_watermark) if last_watermark is not None else "",
+                    },
+                )
+            ]
 
         @sensor(
             name=sensor_name,
@@ -123,6 +170,61 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
             """Sensor that monitors a SQL table for new or updated rows."""
             import os
 
+            # ── Resource-backed path (demo-mode seam or shared client) ──────
+            if resource_key:
+                client = getattr(context.resources, resource_key, None)
+                if client is None:
+                    return SensorResult(skip_reason=f"resource '{resource_key}' not found on context")
+                try:
+                    events = client.poll(table_name, context.cursor)
+                except Exception as e:
+                    context.log.error(f"resource '{resource_key}'.poll failed: {e}")
+                    return SensorResult(skip_reason=f"resource poll failed: {e}")
+
+                run_requests = []
+                last_id = context.cursor
+                last_ts = None
+                for event in events or []:
+                    eid = str(event.get("id"))
+                    ets = event.get("ts")
+                    src = event.get("source", table_name)
+                    payload = event.get("payload") or {}
+                    serialized = payload if isinstance(payload, str) else json.dumps(
+                        {k: str(v) for k, v in dict(payload).items()}
+                    )
+                    run_requests.append(
+                        RunRequest(
+                            run_key=f"{table_name}-{eid}",
+                            run_config={
+                                "ops": {
+                                    op_name: {
+                                        "config": {
+                                            "table_name": table_name,
+                                            "row_id": eid,
+                                            "watermark_value": str(ets) if ets is not None else "",
+                                            "source": src,
+                                            "row": serialized,
+                                        }
+                                    }
+                                }
+                            },
+                        )
+                    )
+                    last_id = eid
+                    last_ts = ets
+
+                if run_requests:
+                    context.log.info(
+                        f"Found {len(run_requests)} new row(s) in '{table_name}' (via resource '{resource_key}')"
+                    )
+                    return SensorResult(
+                        run_requests=run_requests,
+                        cursor=last_id,
+                        asset_events=_observation(len(run_requests), last_id, last_ts),
+                    )
+                return SensorResult(skip_reason=f"No new rows in '{table_name}' (via resource '{resource_key}')")
+
+            # ── SQLAlchemy native path ──────────────────────────────────────
             try:
                 from sqlalchemy import create_engine, text
             except ImportError:
@@ -147,6 +249,7 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
 
             run_requests = []
             new_watermark = last_watermark
+            last_row_id: Optional[str] = None
 
             try:
                 with engine.connect() as conn:
@@ -193,14 +296,16 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
                                 run_key=f"{table_name}-{id_column}-{row_id}",
                                 run_config={
                                     "ops": {
-                                        "config": {
-                                            "table_name": table_name,
-                                            "watermark_column": watermark_column,
-                                            "watermark_value": str(watermark_val),
-                                            "row_id_column": id_column,
-                                            "row_id": row_id,
-                                            "row": json.dumps(serializable_row),
-                                            "columns": json.dumps(list(row_dict.keys())),
+                                        op_name: {
+                                            "config": {
+                                                "table_name": table_name,
+                                                "watermark_column": watermark_column,
+                                                "watermark_value": str(watermark_val),
+                                                "row_id_column": id_column,
+                                                "row_id": row_id,
+                                                "row": json.dumps(serializable_row),
+                                                "columns": json.dumps(list(row_dict.keys())),
+                                            }
                                         }
                                     }
                                 },
@@ -209,6 +314,7 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
 
                         if new_watermark is None or str(watermark_val) > new_watermark:
                             new_watermark = str(watermark_val)
+                        last_row_id = row_id
 
             except Exception as e:
                 context.log.error(f"Error querying table '{table_name}': {e}")
@@ -219,7 +325,11 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
                     f"Found {len(run_requests)} new/updated row(s) in '{table_name}' "
                     f"(watermark: {last_watermark} → {new_watermark})"
                 )
-                return SensorResult(run_requests=run_requests, cursor=new_watermark)
+                return SensorResult(
+                    run_requests=run_requests,
+                    cursor=new_watermark,
+                    asset_events=_observation(len(run_requests), last_row_id, new_watermark),
+                )
 
             return SensorResult(
                 skip_reason=f"No new rows in '{table_name}' since watermark {last_watermark}",

@@ -8,6 +8,8 @@ import json
 from typing import Optional
 
 from dagster import (
+    AssetKey,
+    AssetObservation,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -99,9 +101,37 @@ class KafkaMonitorSensorComponent(Component, Model, Resolvable):
 
     resource_key: Optional[str] = Field(
         default=None,
-        description="Optional Dagster resource key providing a pre-configured client. "
-                    "When set, context.resources.<resource_key> is used instead of creating "
-                    "a connection from the other fields. See README for the expected interface."
+        description=(
+            "Optional Dagster resource key providing a pre-configured client. "
+            "When set, context.resources.<resource_key>.poll(topic, last_id) is "
+            "called instead of building a KafkaConsumer from the other fields. "
+            "The resource must return a list of dicts, each shaped "
+            "{id, ts, source, payload}. Use this for demo-mode seams (swap in a "
+            "fixture-backed client) or shared-auth wrappers."
+        ),
+    )
+
+    op_name: Optional[str] = Field(
+        default="config",
+        description=(
+            "Op name to key the run_config under. Emitted as "
+            "`{'ops': {op_name: {'config': {...}}}}`. Defaults to 'config' for "
+            "backward compat, but if the target job's op is not named 'config' "
+            "(e.g. an @asset or @multi_asset with a custom name), set this to "
+            "the actual op name — otherwise Dagster rejects the run config with "
+            "'Received unexpected config entry \"config\" at path root:ops'."
+        ),
+    )
+
+    source_asset_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional asset key (e.g. 'kafka_user_events') to receive an "
+            "AssetObservation on every tick that yields new messages. Metadata "
+            "includes topic, new_messages, last_event_id, last_event_ts — lets "
+            "an observable-source asset in the graph show a live timeline of "
+            "message arrivals in the Dagster UI."
+        ),
     )
 
     default_status: str = Field(
@@ -124,6 +154,8 @@ class KafkaMonitorSensorComponent(Component, Model, Resolvable):
         sasl_password_env_var = self.sasl_password_env_var
         default_status_str = self.default_status
         resource_key = self.resource_key
+        op_name = self.op_name or "config"
+        source_asset_key = self.source_asset_key
 
         default_status = (
             DefaultSensorStatus.RUNNING
@@ -132,6 +164,21 @@ class KafkaMonitorSensorComponent(Component, Model, Resolvable):
         )
 
         required_resource_keys = {resource_key} if resource_key else set()
+
+        def _observation(new_messages: int, last_id: Optional[str], last_ts) -> list:
+            if not source_asset_key or new_messages == 0:
+                return []
+            return [
+                AssetObservation(
+                    asset_key=AssetKey.from_user_string(source_asset_key),
+                    metadata={
+                        "topic": topic,
+                        "new_messages": new_messages,
+                        "last_event_id": last_id or "",
+                        "last_event_ts": str(last_ts) if last_ts is not None else "",
+                    },
+                )
+            ]
 
         @sensor(
             name=sensor_name,
@@ -144,9 +191,64 @@ class KafkaMonitorSensorComponent(Component, Model, Resolvable):
             """Sensor that polls a Kafka topic for new messages."""
             import os
 
+            # ── Resource-backed path (demo-mode seam or shared client) ──────
+            if resource_key:
+                client = getattr(context.resources, resource_key, None)
+                if client is None:
+                    return SensorResult(skip_reason=f"resource '{resource_key}' not found on context")
+                try:
+                    events = client.poll(topic, context.cursor)
+                except Exception as e:
+                    context.log.error(f"resource '{resource_key}'.poll failed: {e}")
+                    return SensorResult(skip_reason=f"resource poll failed: {e}")
+
+                run_requests = []
+                last_id = context.cursor
+                last_ts = None
+                for event in events or []:
+                    eid = str(event.get("id"))
+                    ets = event.get("ts")
+                    src = event.get("source", topic)
+                    payload = event.get("payload")
+                    run_requests.append(
+                        RunRequest(
+                            run_key=f"{topic}-{eid}",
+                            run_config={
+                                "ops": {
+                                    op_name: {
+                                        "config": {
+                                            "topic": topic,
+                                            "id": eid,
+                                            "ts": ets,
+                                            "source": src,
+                                            "payload": (
+                                                payload if isinstance(payload, str)
+                                                else json.dumps(payload)
+                                            ),
+                                        }
+                                    }
+                                }
+                            },
+                        )
+                    )
+                    last_id = eid
+                    last_ts = ets
+
+                if run_requests:
+                    context.log.info(
+                        f"Found {len(run_requests)} new message(s) on topic '{topic}' (via resource '{resource_key}')"
+                    )
+                    return SensorResult(
+                        run_requests=run_requests,
+                        cursor=last_id,
+                        asset_events=_observation(len(run_requests), last_id, last_ts),
+                    )
+                return SensorResult(skip_reason=f"No new messages on topic '{topic}' (via resource '{resource_key}')")
+
+            # ── kafka-python native path ────────────────────────────────────
             try:
                 from kafka import KafkaConsumer, TopicPartition
-                from kafka.errors import KafkaError
+                from kafka.errors import KafkaError  # noqa: F401
             except ImportError:
                 return SensorResult(
                     skip_reason="kafka-python is not installed. Run: pip install kafka-python"
@@ -191,6 +293,8 @@ class KafkaMonitorSensorComponent(Component, Model, Resolvable):
 
             run_requests = []
             new_cursor_data = dict(cursor_data)
+            last_event_id: Optional[str] = None
+            last_event_ts = None
 
             try:
                 consumer = KafkaConsumer(**consumer_config)
@@ -232,14 +336,16 @@ class KafkaMonitorSensorComponent(Component, Model, Resolvable):
                                 run_key=f"{topic}-{message.partition}-{offset}",
                                 run_config={
                                     "ops": {
-                                        "config": {
-                                            "topic": topic,
-                                            "partition": message.partition,
-                                            "offset": offset,
-                                            "key": key,
-                                            "value": value,
-                                            "timestamp_ms": timestamp_ms,
-                                            "bootstrap_servers": bootstrap_servers,
+                                        op_name: {
+                                            "config": {
+                                                "topic": topic,
+                                                "partition": message.partition,
+                                                "offset": offset,
+                                                "key": key,
+                                                "value": value,
+                                                "timestamp_ms": timestamp_ms,
+                                                "bootstrap_servers": bootstrap_servers,
+                                            }
                                         }
                                     }
                                 },
@@ -249,6 +355,8 @@ class KafkaMonitorSensorComponent(Component, Model, Resolvable):
                         # Track the next offset to consume (offset + 1)
                         new_cursor_data[partition_key] = offset + 1
                         messages_consumed += 1
+                        last_event_id = f"{message.partition}-{offset}"
+                        last_event_ts = timestamp_ms
 
                 except StopIteration:
                     # consumer_timeout_ms reached — no more messages
@@ -265,6 +373,7 @@ class KafkaMonitorSensorComponent(Component, Model, Resolvable):
                 return SensorResult(
                     run_requests=run_requests,
                     cursor=json.dumps(new_cursor_data),
+                    asset_events=_observation(len(run_requests), last_event_id, last_event_ts),
                 )
 
             return SensorResult(skip_reason=f"No new messages on topic '{topic}'")

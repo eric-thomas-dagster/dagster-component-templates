@@ -9,6 +9,8 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from dagster import (
+    AssetKey,
+    AssetObservation,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -124,6 +126,29 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
         ),
     )
 
+    op_name: Optional[str] = Field(
+        default="config",
+        description=(
+            "Op name to key the run_config under. Emitted as "
+            "`{'ops': {op_name: {'config': {...}}}}`. Defaults to 'config' for "
+            "backward compat, but if the target job's op is not named 'config' "
+            "(e.g. an @asset or @multi_asset with a custom name), set this to "
+            "the actual op name — otherwise Dagster rejects the run config with "
+            "'Received unexpected config entry \"config\" at path root:ops'."
+        ),
+    )
+
+    source_asset_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional asset key (e.g. 's3_landing_zone') to receive an "
+            "AssetObservation on every tick that yields new objects. Metadata "
+            "includes bucket, prefix, new_objects, last_key, last_modified — "
+            "lets an observable-source asset in the graph show a live timeline "
+            "of object arrivals in the Dagster UI."
+        ),
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         sensor_name = self.sensor_name
         bucket_name = self.bucket_name
@@ -137,6 +162,8 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
         partition_mode = (self.partition_mode or "run_config").lower()
         dynamic_partitions_name = self.dynamic_partitions_name
         partition_key_template = self.partition_key_template or "{key}"
+        op_name = self.op_name or "config"
+        source_asset_key = self.source_asset_key
 
         if partition_mode not in ("run_config", "dynamic_partition", "both"):
             raise ValueError(
@@ -198,6 +225,8 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
             run_requests = []
             new_partition_keys: list = []
             latest_time = last_processed_time
+            last_key: Optional[str] = None
+            last_modified_iso: Optional[str] = None
             from dagster import AddDynamicPartitionsRequest  # local import — only needed for non-default modes
 
             try:
@@ -241,7 +270,7 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
                                     run_key=f"{bucket_name}/{key}-{etag}",
                                     partition_key=partition_key,
                                     run_config=(
-                                        {"ops": {"config": config_block}}
+                                        {"ops": {op_name: {"config": config_block}}}
                                         if partition_mode == "both" else None
                                     ),
                                 )
@@ -250,11 +279,13 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
                             run_requests.append(
                                 RunRequest(
                                     run_key=f"{bucket_name}/{key}-{etag}",
-                                    run_config={"ops": {"config": config_block}},
+                                    run_config={"ops": {op_name: {"config": config_block}}},
                                 )
                             )
 
                         latest_time = max(latest_time, last_modified)
+                        last_key = key
+                        last_modified_iso = last_modified.isoformat()
 
             except Exception as e:
                 context.log.error(f"Error listing S3 objects in {bucket_name}/{prefix}: {e}")
@@ -272,10 +303,24 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
                     )]
                     if new_partition_keys and dynamic_partitions_name else []
                 )
+                asset_events = (
+                    [AssetObservation(
+                        asset_key=AssetKey.from_user_string(source_asset_key),
+                        metadata={
+                            "bucket": bucket_name,
+                            "prefix": prefix,
+                            "new_objects": len(run_requests),
+                            "last_key": last_key or "",
+                            "last_modified": last_modified_iso or "",
+                        },
+                    )]
+                    if source_asset_key else []
+                )
                 return SensorResult(
                     run_requests=run_requests,
                     dynamic_partitions_requests=dynamic_partitions_requests,
                     cursor=latest_time.isoformat(),
+                    asset_events=asset_events,
                 )
 
             return SensorResult(skip_reason="No new S3 objects found")

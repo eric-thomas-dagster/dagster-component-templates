@@ -219,6 +219,20 @@ class BigQueryExportToGcsAssetComponent(Component, Model, Resolvable):
             except ImportError:
                 raise ImportError("pip install google-cloud-bigquery google-cloud-storage google-auth")
 
+            # Partition-aware destination URI:
+            #   destination_uri: "gs://bucket/exports/{partition_key}/data_*.parquet"
+            # renders to "gs://bucket/exports/2025-01-15/data_*.parquet" on the
+            # 2025-01-15 partition. Templates without {partition_key} pass through
+            # unchanged. Safe on unpartitioned assets.
+            partition_key = context.partition_key if context.has_partition_key else None
+            if partition_key and "{partition_key}" in destination_uri:
+                resolved_destination = destination_uri.replace("{partition_key}", str(partition_key))
+                context.log.info(
+                    f"partition-aware export: partition_key={partition_key!r} → {resolved_destination}"
+                )
+            else:
+                resolved_destination = destination_uri
+
             sa_creds = service_account.Credentials.from_service_account_info(creds_dict)
             bq = bigquery.Client(credentials=sa_creds, project=project_id, location=location)
 
@@ -226,8 +240,8 @@ class BigQueryExportToGcsAssetComponent(Component, Model, Resolvable):
             if not overwrite:
                 gcs = storage.Client(credentials=sa_creds, project=project_id)
                 # Strip protocol + wildcard.
-                if destination_uri.startswith("gs://"):
-                    no_scheme = destination_uri[len("gs://"):]
+                if resolved_destination.startswith("gs://"):
+                    no_scheme = resolved_destination[len("gs://"):]
                     bkt_name, _, prefix = no_scheme.partition("/")
                     prefix_for_check = prefix.split("*")[0] if "*" in prefix else prefix
                     existing = list(gcs.list_blobs(bkt_name, prefix=prefix_for_check, max_results=1))
@@ -258,9 +272,9 @@ class BigQueryExportToGcsAssetComponent(Component, Model, Resolvable):
                         job_config.field_delimiter = csv_field_delimiter
                     job_config.print_header = csv_print_header
 
-                context.log.info(f"BQ EXTRACT {source_table_id} → {destination_uri} ({bq_format})")
+                context.log.info(f"BQ EXTRACT {source_table_id} → {resolved_destination} ({bq_format})")
                 job = bq.extract_table(
-                    source_table_id, destination_uris=destination_uri, job_config=job_config,
+                    source_table_id, destination_uris=resolved_destination, job_config=job_config,
                 )
                 job.result()
                 source_descr = source_table_id
@@ -282,7 +296,7 @@ class BigQueryExportToGcsAssetComponent(Component, Model, Resolvable):
                     raise ValueError(f"source_query references missing placeholder {e}; available: {list(query_params.keys())}")
 
                 opts = [
-                    f"uri={json.dumps(destination_uri).replace(chr(34), chr(39))}",
+                    f"uri={json.dumps(resolved_destination).replace(chr(34), chr(39))}",
                     f"format={json.dumps(bq_format).replace(chr(34), chr(39))}",
                     f"overwrite={'true' if overwrite else 'false'}",
                 ]
@@ -293,7 +307,7 @@ class BigQueryExportToGcsAssetComponent(Component, Model, Resolvable):
                         opts.append(f"field_delimiter={json.dumps(csv_field_delimiter).replace(chr(34), chr(39))}")
                     opts.append(f"header={'true' if csv_print_header else 'false'}")
                 ddl = f"EXPORT DATA OPTIONS({', '.join(opts)}) AS\n{rendered_query}"
-                context.log.info(f"BQ EXPORT DATA → {destination_uri} ({bq_format})")
+                context.log.info(f"BQ EXPORT DATA → {resolved_destination} ({bq_format})")
                 job = bq.query(ddl)
                 job.result()
                 source_descr = "<query>"
@@ -305,7 +319,7 @@ class BigQueryExportToGcsAssetComponent(Component, Model, Resolvable):
             object_rows = []
             try:
                 gcs = storage.Client(credentials=sa_creds, project=project_id)
-                no_scheme = destination_uri[len("gs://"):]
+                no_scheme = resolved_destination[len("gs://"):]
                 bkt_name, _, prefix = no_scheme.partition("/")
                 prefix_for_list = prefix.split("*")[0] if "*" in prefix else prefix
                 for blob in gcs.list_blobs(bkt_name, prefix=prefix_for_list, max_results=100):

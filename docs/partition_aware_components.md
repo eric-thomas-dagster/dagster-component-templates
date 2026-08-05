@@ -401,7 +401,7 @@ Setting `partitions_def` on these via `post_processing` will silently produce th
 | `AzureSearchQueryComponent` | [assets/sources/azure_search_query](assets/sources/azure_search_query) |
 | `AzureTableReaderComponent` | [assets/sources/azure_table_reader](assets/sources/azure_table_reader) |
 | `BicepAssetComponent` | [assets/infrastructure/bicep_asset](assets/infrastructure/bicep_asset) |
-| `BigQueryExportToGcsAssetComponent` | [assets/sinks/bigquery_export_to_gcs_asset](assets/sinks/bigquery_export_to_gcs_asset) |
+| `BigQueryExportToGcsAssetComponent` (v0.10.51 — partition-aware output URI) | [assets/sinks/bigquery_export_to_gcs_asset](assets/sinks/bigquery_export_to_gcs_asset) |
 | `BigQueryLoadFromGcsAssetComponent` | [assets/ingestion/bigquery_load_from_gcs_asset](assets/ingestion/bigquery_load_from_gcs_asset) |
 | `BigQueryMLPredictAssetComponent` | [assets/ai/bigquery_ml_predict_asset](assets/ai/bigquery_ml_predict_asset) |
 | `BigQueryMLTrainAssetComponent` | [assets/ai/bigquery_ml_train_asset](assets/ai/bigquery_ml_train_asset) |

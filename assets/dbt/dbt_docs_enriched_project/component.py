@@ -12,14 +12,50 @@ from the dbt manifest that is not captured by default:
 - dbt model access level (public / protected / private)
 - Language (sql vs python models)
 - doc block contents referenced by nodes
+- Per-model partitions_def read from `meta.dagster.partitions_def`
+- Per-model automation_condition read from `meta.dagster.automation_condition`
 
 This component is a thin subclass of DbtProjectComponent — all dbt execution,
-asset key mapping, partitions, and check generation work identically.
+asset key mapping, and check generation work identically.
+
+Per-model partitioning:
+
+    ```yaml
+    # dbt model schema.yml
+    - name: fct_fuel_margin_daily
+      config:
+        meta:
+          dagster:
+            partitions_def:
+              type: daily
+              start_date: "2025-08-01"
+    ```
+
+    Supported types: `daily`, `hourly`, `weekly`, `monthly`, `static`,
+    `dynamic`. Models without this meta field remain unpartitioned. See
+    `_partitions_def_from_meta` for the full shape.
+
+Per-model automation_condition:
+
+    ```yaml
+    - name: fct_daily_pnl
+      config:
+        meta:
+          dagster:
+            automation_condition:
+              preset: eager
+              # OR: preset: on_deploy_if_code_changed
+              # OR: cron: "0 9 * * *"
+    ```
+
+    Shares the preset vocabulary of AutomationConditionApplicatorComponent
+    (`eager`, `on_missing`, `any_downstream_conditions`,
+    `on_deploy_if_code_changed`, or a bare `cron:`).
 """
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 import dagster as dg
 from pydantic import Field
@@ -70,6 +106,143 @@ def _get_str_meta(metadata: dict, key: str) -> Optional[str]:
     if hasattr(val, "text"):
         return val.text
     return str(val)
+
+
+def _partitions_def_from_meta(meta: Mapping[str, Any]) -> Optional[Any]:
+    """Convert a `meta.dagster.partitions_def` dict from a dbt manifest node
+    into a concrete Dagster PartitionsDefinition. Returns None if the shape
+    is invalid, absent, or references an unsupported type.
+
+    Supported YAML shapes (matching Dagster's declarative PartitionsDefinitionModels):
+
+        partitions_def:
+          type: daily
+          start_date: "2025-01-01"
+          end_date: null              # optional
+          timezone: "America/New_York"  # optional
+          minute_offset: 0            # optional
+          hour_offset: 0              # optional
+
+        partitions_def:
+          type: hourly
+          start_date: "2025-01-01-00:00"
+          # + end_date / timezone / minute_offset (same as daily)
+
+        partitions_def:
+          type: weekly
+          start_date: "2025-01-06"
+          # + end_date / timezone / minute_offset / hour_offset / day_offset
+
+        partitions_def:
+          type: monthly
+          start_date: "2025-01-01"
+          # + end_date / timezone / minute_offset / hour_offset / day_offset
+
+        partitions_def:
+          type: static
+          values: ["US", "CA", "MX"]
+
+        partitions_def:
+          type: dynamic
+          name: filenames
+    """
+    if not meta or not isinstance(meta, Mapping):
+        return None
+    ptype = meta.get("type")
+    if not ptype:
+        return None
+    try:
+        if ptype == "daily":
+            return dg.DailyPartitionsDefinition(
+                start_date=meta["start_date"],
+                end_date=meta.get("end_date"),
+                timezone=meta.get("timezone"),
+                minute_offset=meta.get("minute_offset", 0),
+                hour_offset=meta.get("hour_offset", 0),
+            )
+        if ptype == "hourly":
+            return dg.HourlyPartitionsDefinition(
+                start_date=meta["start_date"],
+                end_date=meta.get("end_date"),
+                timezone=meta.get("timezone"),
+                minute_offset=meta.get("minute_offset", 0),
+            )
+        if ptype == "weekly":
+            return dg.WeeklyPartitionsDefinition(
+                start_date=meta["start_date"],
+                end_date=meta.get("end_date"),
+                timezone=meta.get("timezone"),
+                minute_offset=meta.get("minute_offset", 0),
+                hour_offset=meta.get("hour_offset", 0),
+                day_offset=meta.get("day_offset", 0),
+            )
+        if ptype == "monthly":
+            return dg.MonthlyPartitionsDefinition(
+                start_date=meta["start_date"],
+                end_date=meta.get("end_date"),
+                timezone=meta.get("timezone"),
+                minute_offset=meta.get("minute_offset", 0),
+                hour_offset=meta.get("hour_offset", 0),
+                day_offset=meta.get("day_offset", 1),
+            )
+        if ptype == "static":
+            values = meta.get("values")
+            if not values:
+                return None
+            return dg.StaticPartitionsDefinition(list(values))
+        if ptype == "dynamic":
+            name = meta.get("name")
+            if not name:
+                return None
+            return dg.DynamicPartitionsDefinition(name=name)
+    except (KeyError, TypeError, ValueError):
+        return None
+    return None
+
+
+def _automation_condition_from_meta(meta: Mapping[str, Any]) -> Optional[Any]:
+    """Convert a `meta.dagster.automation_condition` dict from a dbt manifest
+    node into a concrete AutomationCondition. Returns None on invalid shape.
+
+    Supported shapes (mirrors the AutomationConditionApplicatorComponent
+    preset vocabulary):
+
+        automation_condition:
+          preset: eager                       # or on_missing / any_downstream_conditions
+
+        automation_condition:
+          preset: on_deploy_if_code_changed   # synthetic composite
+
+        automation_condition:
+          cron: "0 9 * * *"
+    """
+    if not meta or not isinstance(meta, Mapping):
+        return None
+    # Preset shortcut
+    preset = meta.get("preset")
+    if preset:
+        # Synthetic composite — mirrors the applicator's Shape 2 preset path.
+        if preset == "on_deploy_if_code_changed":
+            return (
+                dg.AutomationCondition.code_version_changed().since_last_handled()
+                & ~dg.AutomationCondition.in_progress()
+            )
+        method = getattr(dg.AutomationCondition, preset, None)
+        if method is None or not callable(method):
+            return None
+        try:
+            result = method()
+        except Exception:
+            return None
+        return result if isinstance(result, dg.AutomationCondition) else None
+    # Explicit cron
+    cron = meta.get("cron")
+    if cron:
+        try:
+            return dg.AutomationCondition.on_cron(cron)
+        except Exception:
+            return None
+    return None
 
 
 try:
@@ -301,10 +474,20 @@ try:
                     if resolved_blocks:
                         extra["dbt_docs/doc_blocks"] = dg.MetadataValue.json(resolved_blocks)
 
-            if not extra:
-                return spec
+            # meta.dagster.partitions_def / .automation_condition — per-model
+            # config that keeps partitioning + automation in the dbt project.
+            dagster_meta = node.get("meta", {}).get("dagster", {}) or {}
+            per_model_partitions = _partitions_def_from_meta(dagster_meta.get("partitions_def") or {})
+            per_model_automation = _automation_condition_from_meta(dagster_meta.get("automation_condition") or {})
 
-            return spec.merge_attributes(metadata=extra)
+            enriched = spec
+            if extra:
+                enriched = enriched.merge_attributes(metadata=extra)
+            if per_model_partitions is not None:
+                enriched = enriched.replace_attributes(partitions_def=per_model_partitions)
+            if per_model_automation is not None:
+                enriched = enriched.replace_attributes(automation_condition=per_model_automation)
+            return enriched
 
         # ------------------------------------------------------------------
         # Override build_defs_from_state

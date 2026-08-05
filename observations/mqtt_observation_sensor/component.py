@@ -31,6 +31,22 @@ class MqttObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             ),
         )
         def _mqtt_obs(context: SensorEvaluationContext, **_resources):
+            # ── Resource-backed path (v0.10.46) ─────────────────────────────
+            if resource_key:
+                _rk_client = getattr(context.resources, resource_key, None)
+                if _rk_client is None:
+                    return SensorResult(skip_reason=f"resource '{resource_key}' not found on context")
+                try:
+                    _rk_observed = dict(_rk_client.observe(_self.topic))
+                except Exception as _rk_e:
+                    context.log.error(f"resource '{resource_key}'.observe failed: {_rk_e}")
+                    return SensorResult(skip_reason=f"resource observe failed: {_rk_e}")
+                _rk_dv = str(_rk_observed.pop("data_version", ""))
+                return SensorResult(asset_events=[AssetObservation(
+                    asset_key=AssetKey.from_user_string(_self.asset_key),
+                    metadata=_rk_observed,
+                    tags={DATA_VERSION_TAG: _rk_dv} if _rk_dv else None,
+                )])
             try:
                 import paho.mqtt.client as mqtt
             except ImportError:

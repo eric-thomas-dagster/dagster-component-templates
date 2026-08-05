@@ -210,6 +210,16 @@ class KafkaMonitorSensorComponent(Component, Model, Resolvable):
                     ets = event.get("ts")
                     src = event.get("source", topic)
                     payload = event.get("payload")
+                    payload_str = payload if isinstance(payload, str) else json.dumps(payload)
+                    # Try to derive partition/offset from id if formatted "partition-offset"
+                    partition_val, offset_val = 0, 0
+                    if "-" in eid:
+                        p, _, o = eid.rpartition("-")
+                        try:
+                            partition_val = int(p)
+                            offset_val = int(o)
+                        except ValueError:
+                            pass
                     run_requests.append(
                         RunRequest(
                             run_key=f"{topic}-{eid}",
@@ -217,14 +227,19 @@ class KafkaMonitorSensorComponent(Component, Model, Resolvable):
                                 "ops": {
                                     op_name: {
                                         "config": {
+                                            # Native kafka shape (backward compat)
                                             "topic": topic,
+                                            "partition": partition_val,
+                                            "offset": offset_val,
+                                            "key": "",
+                                            "value": payload_str,
+                                            "timestamp_ms": ets if isinstance(ets, int) else 0,
+                                            "bootstrap_servers": bootstrap_servers,
+                                            # Resource-contract shape
                                             "id": eid,
                                             "ts": ets,
                                             "source": src,
-                                            "payload": (
-                                                payload if isinstance(payload, str)
-                                                else json.dumps(payload)
-                                            ),
+                                            "payload": payload_str,
                                         }
                                     }
                                 }
@@ -338,6 +353,7 @@ class KafkaMonitorSensorComponent(Component, Model, Resolvable):
                                     "ops": {
                                         op_name: {
                                             "config": {
+                                                # Native kafka shape (backward compat)
                                                 "topic": topic,
                                                 "partition": message.partition,
                                                 "offset": offset,
@@ -345,6 +361,11 @@ class KafkaMonitorSensorComponent(Component, Model, Resolvable):
                                                 "value": value,
                                                 "timestamp_ms": timestamp_ms,
                                                 "bootstrap_servers": bootstrap_servers,
+                                                # Resource-contract shape (parity w/ demo-mode)
+                                                "id": f"{message.partition}-{offset}",
+                                                "ts": timestamp_ms,
+                                                "source": topic,
+                                                "payload": value,
                                             }
                                         }
                                     }

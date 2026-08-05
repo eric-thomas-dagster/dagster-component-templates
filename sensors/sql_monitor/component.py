@@ -189,9 +189,12 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
                     ets = event.get("ts")
                     src = event.get("source", table_name)
                     payload = event.get("payload") or {}
+                    payload_dict = dict(payload) if not isinstance(payload, str) else {}
                     serialized = payload if isinstance(payload, str) else json.dumps(
-                        {k: str(v) for k, v in dict(payload).items()}
+                        {k: str(v) for k, v in payload_dict.items()}
                     )
+                    columns_json = json.dumps(list(payload_dict.keys()))
+                    watermark_str = str(ets) if ets is not None else ""
                     run_requests.append(
                         RunRequest(
                             run_key=f"{table_name}-{eid}",
@@ -199,11 +202,16 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
                                 "ops": {
                                     op_name: {
                                         "config": {
+                                            # Native SQL shape (backward compat)
                                             "table_name": table_name,
+                                            "watermark_column": str(watermark_column),
+                                            "watermark_value": watermark_str,
+                                            "row_id_column": str(id_column),
                                             "row_id": eid,
-                                            "watermark_value": str(ets) if ets is not None else "",
-                                            "source": src,
                                             "row": serialized,
+                                            "columns": columns_json,
+                                            # Resource-contract shape
+                                            "source": src,
                                         }
                                     }
                                 }
@@ -298,13 +306,16 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
                                     "ops": {
                                         op_name: {
                                             "config": {
+                                                # Native SQL shape (backward compat)
                                                 "table_name": table_name,
-                                                "watermark_column": watermark_column,
+                                                "watermark_column": str(watermark_column),
                                                 "watermark_value": str(watermark_val),
-                                                "row_id_column": id_column,
+                                                "row_id_column": str(id_column),
                                                 "row_id": row_id,
                                                 "row": json.dumps(serializable_row),
                                                 "columns": json.dumps(list(row_dict.keys())),
+                                                # Resource-contract shape (parity w/ demo-mode)
+                                                "source": table_name,
                                             }
                                         }
                                     }

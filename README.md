@@ -248,6 +248,40 @@ attributes:
 
 ---
 
+## Per-asset config via `post_processing:`
+
+Every asset-emitting component in this library supports `post_processing:` — a base-component YAML block that lets you attach any `AssetSpec` attribute (freshness_policy, automation_condition, tags, owners, kinds, group_name, description, code_version, partitions_def) to specific assets **without editing the component's source or writing Python**. The `target:` field accepts the full Dagster asset-selection language (hierarchical groups, `is:external`, `kind:dbt`, tag/kind selectors, boolean composition, and legacy fnmatch globs).
+
+**This is the recommended path for per-asset overrides.** Reach for `post_processing:` before `translation:` templates (which only handle model-typed fields) or splitting components (which fights dagster-dbt's input tracking).
+
+```yaml
+type: dagster_community_components.<AnyAssetEmittingComponent>
+attributes: {...}
+
+post_processing:
+  assets:
+    - target: 'group:"marts/*"'          # hierarchical group wildcard
+      attributes:
+        automation_condition: "{{ dg.AutomationCondition.eager() }}"
+
+    - target: "kind:dbt and tag:tier=gold"
+      attributes:
+        freshness_policy:
+          maximum_lag_minutes: 30
+
+    - target: "*"
+      attributes:
+        owners: ["data-platform@company.com"]
+```
+
+**Attributes always safe on every component**: `automation_condition`, `freshness_policy`, `owners`, `tags`, `kinds`, `group_name`, `description`, `code_version` — pure metadata, no compute contract.
+
+**`partitions_def` requires a partition-aware compute path**: 332 of 573 asset-emitting components read `context.partition_key` in their compute (safe). 241 do not — declaring partitions on those via `post_processing` will silently produce the same data every partition. See [`docs/partition_aware_components.md`](docs/partition_aware_components.md) for the full list.
+
+Canonical example: [`DbtDocsEnrichedProjectComponent`](assets/dbt/dbt_docs_enriched_project/README.md) — its class docstring shows the shape end-to-end, including reading `meta.dagster.partitions_def` directly from a dbt model's `schema.yml` (v0.10.49+).
+
+---
+
 ## Sensor → Asset Pairing
 
 Most sensors are designed to trigger a companion ingestion asset. The sensor detects new data and fires a `RunRequest` with source info in `run_config`; the asset reads and ingests it.

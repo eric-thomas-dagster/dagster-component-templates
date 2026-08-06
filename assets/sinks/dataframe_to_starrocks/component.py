@@ -87,6 +87,15 @@ class DataframeToStarRocksComponent(dg.Component, dg.Model, dg.Resolvable):
             ),
         )
         def _asset(context: dg.AssetExecutionContext, upstream: Any) -> dg.MaterializeResult:
+            # Partition-aware target table:
+            #   table: "events_{partition_key}" → "events_2025-01-15" on 2025-01-15.
+            partition_key = context.partition_key if context.has_partition_key else None
+            if partition_key and "{partition_key}" in _self.table:
+                resolved_table = _self.table.replace("{partition_key}", str(partition_key))
+                context.log.info(f"partition-aware StarRocks write: partition_key={partition_key!r} → table={resolved_table}")
+            else:
+                resolved_table = _self.table
+
             # partition bridge dict-concat: when an unpartitioned
             # asset consumes a partitioned upstream, Dagster's IO
             # manager loads ALL partitions as a dict; concat to
@@ -106,7 +115,7 @@ class DataframeToStarRocksComponent(dg.Component, dg.Model, dg.Resolvable):
                 raise RuntimeError(f"StarRocks creds missing: set {_self.host_env_var} + {_self.username_env_var}.")
 
             scheme = "https" if _self.ssl else "http"
-            url = f"{scheme}://{host}:{_self.http_port}/api/{_self.database}/{_self.table}/_stream_load"
+            url = f"{scheme}://{host}:{_self.http_port}/api/{_self.database}/{resolved_table}/_stream_load"
 
             buf = io.BytesIO()
             if _self.format == "csv":
@@ -120,7 +129,7 @@ class DataframeToStarRocksComponent(dg.Component, dg.Model, dg.Resolvable):
                     "column_separator": _self.column_separator,
                     "line_delimiter": _self.line_delimiter,
                     "Expect": "100-continue",
-                    "label": f"dagster_{context.run.run_id}_{_self.table}",
+                    "label": f"dagster_{context.run.run_id}_{resolved_table}",
                 }
             elif _self.format == "json":
                 upstream.to_json(buf, orient="records", lines=False)
@@ -129,7 +138,7 @@ class DataframeToStarRocksComponent(dg.Component, dg.Model, dg.Resolvable):
                     "format": "json",
                     "strip_outer_array": "true",
                     "Expect": "100-continue",
-                    "label": f"dagster_{context.run.run_id}_{_self.table}",
+                    "label": f"dagster_{context.run.run_id}_{resolved_table}",
                 }
             else:
                 raise ValueError(f"format must be 'csv' or 'json'; got {_self.format!r}.")
@@ -154,7 +163,7 @@ class DataframeToStarRocksComponent(dg.Component, dg.Model, dg.Resolvable):
                 "starrocks/filtered_rows": dg.MetadataValue.int(int(result.get("NumberFilteredRows", 0))),
                 "starrocks/total_rows": dg.MetadataValue.int(int(result.get("NumberTotalRows", 0))),
                 "starrocks/load_time_ms": dg.MetadataValue.int(int(result.get("LoadTimeMs", 0))),
-                "starrocks_table": f"{_self.database}.{_self.table}",
+                "starrocks_table": f"{_self.database}.{resolved_table}",
             }
             if result.get("ErrorURL"):
                 metadata["starrocks_error_url"] = dg.MetadataValue.url(result["ErrorURL"])

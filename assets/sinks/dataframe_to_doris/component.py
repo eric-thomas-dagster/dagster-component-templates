@@ -114,6 +114,15 @@ class DataframeToDorisComponent(dg.Component, dg.Model, dg.Resolvable):
             ),
         )
         def _asset(context: dg.AssetExecutionContext, upstream: Any) -> dg.MaterializeResult:
+            # Partition-aware target table:
+            #   table: "events_{partition_key}" → "events_2025-01-15" on 2025-01-15.
+            partition_key = context.partition_key if context.has_partition_key else None
+            if partition_key and "{partition_key}" in _self.table:
+                resolved_table = _self.table.replace("{partition_key}", str(partition_key))
+                context.log.info(f"partition-aware Doris write: partition_key={partition_key!r} → table={resolved_table}")
+            else:
+                resolved_table = _self.table
+
             # partition bridge dict-concat: when an unpartitioned
             # asset consumes a partitioned upstream, Dagster's IO
             # manager loads ALL partitions as a dict; concat to
@@ -137,7 +146,7 @@ class DataframeToDorisComponent(dg.Component, dg.Model, dg.Resolvable):
             scheme = "https" if _self.ssl else "http"
             url = (
                 f"{scheme}://{host}:{_self.http_port}/api/{_self.database}/"
-                f"{_self.table}/_stream_load"
+                f"{resolved_table}/_stream_load"
             )
 
             # Optional: replace mode requires DELETE before INSERT.
@@ -173,7 +182,7 @@ class DataframeToDorisComponent(dg.Component, dg.Model, dg.Resolvable):
                     "column_separator": _self.column_separator,
                     "line_delimiter": _self.line_delimiter,
                     "Expect": "100-continue",
-                    "label": f"dagster_{context.run.run_id}_{_self.table}",
+                    "label": f"dagster_{context.run.run_id}_{resolved_table}",
                 }
             elif _self.format == "json":
                 # Doris Stream Load expects JSON array or jsonpaths-mapped lines.
@@ -183,7 +192,7 @@ class DataframeToDorisComponent(dg.Component, dg.Model, dg.Resolvable):
                     "format": "json",
                     "strip_outer_array": "true",
                     "Expect": "100-continue",
-                    "label": f"dagster_{context.run.run_id}_{_self.table}",
+                    "label": f"dagster_{context.run.run_id}_{resolved_table}",
                 }
             else:
                 raise ValueError(f"format must be 'csv' or 'json'; got {_self.format!r}.")
@@ -220,7 +229,7 @@ class DataframeToDorisComponent(dg.Component, dg.Model, dg.Resolvable):
                 "doris/filtered_rows": dg.MetadataValue.int(filtered),
                 "doris/total_rows": dg.MetadataValue.int(total),
                 "doris/load_time_ms": dg.MetadataValue.int(load_ms),
-                "doris_table": f"{_self.database}.{_self.table}",
+                "doris_table": f"{_self.database}.{resolved_table}",
             }
             if result.get("ErrorURL"):
                 metadata["doris_error_url"] = dg.MetadataValue.url(result["ErrorURL"])

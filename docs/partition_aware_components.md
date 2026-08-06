@@ -1,20 +1,16 @@
 # Partition-awareness audit
 
-**Applies to**: `dagster-community-components` v0.10.49+.
+**Applies to**: `dagster-community-components` v0.10.52+.
 
 **Why this matters**: `post_processing.attributes.partitions_def` declares an asset as partitioned in the Dagster catalog, but the *compute* path has to know how to scope work to a single partition (`context.partition_key`). If the component's compute ignores partition context, every partition materializes the same data — a silent correctness bug.
 
-This table lists which components' compute paths are partition-aware today. Setting `partitions_def` via `post_processing` on a component in the **✅ safe** column is production-ready. On a component in the **❌ not yet** column, the asset renders as partitioned in the UI but produces incorrect data.
-
-## Detection method
-
-A component is classed **partition-aware** if its `component.py` references `context.partition_key`, `partition_key_range`, `partition_key_start`, or `partition_key_end`. False negatives are possible for components that delegate to a shared helper — file a docs PR if you spot one.
-
 ## Summary
 
-- **✅ Safe** (compute is partition-aware): **300** components
+- **✅ Safe** (compute is partition-aware): **305** components
 - **✅ Safe** (external assets, no compute — metadata-only): **32** components
-- **❌ Not yet** (compute ignores partition context): **241** components
+- **❌ Not yet** (compute ignores partition context): **236** components
+
+**Progress vs v0.10.50**: +5 partition-aware sinks in v0.10.51-v0.10.52. See [`partition_awareness_sweep.md`](partition_awareness_sweep.md) for the full wave plan.
 
 ---
 
@@ -39,6 +35,7 @@ A component is classed **partition-aware** if its `component.py` references `con
 | `AutoFieldComponent` | [assets/transforms/auto_field](assets/transforms/auto_field) |
 | `BankStatementExtractorComponent` | [assets/ai/bank_statement_extractor](assets/ai/bank_statement_extractor) |
 | `BigQueryCreateTableFromQueryAssetComponent` | [assets/transforms/bigquery_create_table_from_query_asset](assets/transforms/bigquery_create_table_from_query_asset) |
+| `BigQueryExportToGcsAssetComponent` | [assets/sinks/bigquery_export_to_gcs_asset](assets/sinks/bigquery_export_to_gcs_asset) |
 | `BigQueryQueryAssetComponent` | [assets/source/bigquery_query_asset](assets/source/bigquery_query_asset) |
 | `BoundingBoxFilterComponent` | [assets/analytics/bounding_box_filter](assets/analytics/bounding_box_filter) |
 | `CRMDataStandardizerComponent` | [assets/analytics/crm_data_standardizer](assets/analytics/crm_data_standardizer) |
@@ -77,9 +74,11 @@ A component is classed **partition-aware** if its `component.py` references `con
 | `DataframeToAdlsComponent` | [assets/sinks/dataframe_to_adls](assets/sinks/dataframe_to_adls) |
 | `DataframeToAvroComponent` | [assets/sinks/dataframe_to_avro](assets/sinks/dataframe_to_avro) |
 | `DataframeToBigqueryComponent` | [assets/sinks/dataframe_to_bigquery](assets/sinks/dataframe_to_bigquery) |
+| `DataframeToClickHouseComponent` | [assets/sinks/dataframe_to_clickhouse](assets/sinks/dataframe_to_clickhouse) |
 | `DataframeToCsvComponent` | [assets/sinks/dataframe_to_csv](assets/sinks/dataframe_to_csv) |
 | `DataframeToDatabricksComponent` | [assets/sinks/dataframe_to_databricks](assets/sinks/dataframe_to_databricks) |
 | `DataframeToDeltaTableComponent` | [assets/sinks/dataframe_to_delta_table](assets/sinks/dataframe_to_delta_table) |
+| `DataframeToDorisComponent` | [assets/sinks/dataframe_to_doris](assets/sinks/dataframe_to_doris) |
 | `DataframeToExcelComponent` | [assets/sinks/dataframe_to_excel](assets/sinks/dataframe_to_excel) |
 | `DataframeToGcsComponent` | [assets/sinks/dataframe_to_gcs](assets/sinks/dataframe_to_gcs) |
 | `DataframeToIcebergTableComponent` | [assets/sinks/dataframe_to_iceberg_table](assets/sinks/dataframe_to_iceberg_table) |
@@ -87,7 +86,9 @@ A component is classed **partition-aware** if its `component.py` references `con
 | `DataframeToParquetComponent` | [assets/sinks/dataframe_to_parquet](assets/sinks/dataframe_to_parquet) |
 | `DataframeToRedshiftComponent` | [assets/sinks/dataframe_to_redshift](assets/sinks/dataframe_to_redshift) |
 | `DataframeToS3Component` | [assets/sinks/dataframe_to_s3](assets/sinks/dataframe_to_s3) |
+| `DataframeToSnowflakeBulkComponent` | [assets/sinks/dataframe_to_snowflake_bulk](assets/sinks/dataframe_to_snowflake_bulk) |
 | `DataframeToSnowflakeComponent` | [assets/sinks/dataframe_to_snowflake](assets/sinks/dataframe_to_snowflake) |
+| `DataframeToStarRocksComponent` | [assets/sinks/dataframe_to_starrocks](assets/sinks/dataframe_to_starrocks) |
 | `DataframeToTableComponent` | [assets/sinks/dataframe_to_table](assets/sinks/dataframe_to_table) |
 | `DataframeUnion` | [assets/transforms/dataframe_union](assets/transforms/dataframe_union) |
 | `DatetimeParser` | [assets/transforms/datetime_parser](assets/transforms/datetime_parser) |
@@ -366,7 +367,7 @@ A component is classed **partition-aware** if its `component.py` references `con
 
 ## ❌ Not yet — compute ignores partition context
 
-Setting `partitions_def` on these via `post_processing` will silently produce the same data for every partition. Use `post_processing.attributes.tags` / `.owners` / `.freshness_policy` / etc. — those are always safe. **Partition support is future work** — a component here needs its compute function taught to read `context.partition_key` and scope its query / read / write accordingly.
+Setting `partitions_def` on these via `post_processing` will silently produce the same data for every partition. Use `post_processing.attributes.tags` / `.owners` / `.freshness_policy` / etc. instead — those are always safe.
 
 | Component class | Path |
 |---|---|
@@ -401,7 +402,6 @@ Setting `partitions_def` on these via `post_processing` will silently produce th
 | `AzureSearchQueryComponent` | [assets/sources/azure_search_query](assets/sources/azure_search_query) |
 | `AzureTableReaderComponent` | [assets/sources/azure_table_reader](assets/sources/azure_table_reader) |
 | `BicepAssetComponent` | [assets/infrastructure/bicep_asset](assets/infrastructure/bicep_asset) |
-| `BigQueryExportToGcsAssetComponent` (v0.10.51 — partition-aware output URI) | [assets/sinks/bigquery_export_to_gcs_asset](assets/sinks/bigquery_export_to_gcs_asset) |
 | `BigQueryLoadFromGcsAssetComponent` | [assets/ingestion/bigquery_load_from_gcs_asset](assets/ingestion/bigquery_load_from_gcs_asset) |
 | `BigQueryMLPredictAssetComponent` | [assets/ai/bigquery_ml_predict_asset](assets/ai/bigquery_ml_predict_asset) |
 | `BigQueryMLTrainAssetComponent` | [assets/ai/bigquery_ml_train_asset](assets/ai/bigquery_ml_train_asset) |
@@ -438,8 +438,6 @@ Setting `partitions_def` on these via `post_processing` will silently produce th
 | `DataframeFromPrometheusComponent` | [assets/sources/dataframe_from_prometheus](assets/sources/dataframe_from_prometheus) |
 | `DataframeFromYxdbComponent` | [assets/sources/dataframe_from_yxdb](assets/sources/dataframe_from_yxdb) |
 | `DataframeToAzureTableComponent` | [assets/sinks/dataframe_to_azure_table](assets/sinks/dataframe_to_azure_table) |
-| `DataframeToClickHouseComponent` | [assets/sinks/dataframe_to_clickhouse](assets/sinks/dataframe_to_clickhouse) |
-| `DataframeToDorisComponent` | [assets/sinks/dataframe_to_doris](assets/sinks/dataframe_to_doris) |
 | `DataframeToDynatraceEventsComponent` | [assets/sinks/dataframe_to_dynatrace_events](assets/sinks/dataframe_to_dynatrace_events) |
 | `DataframeToEventHubComponent` | [assets/sinks/dataframe_to_eventhub](assets/sinks/dataframe_to_eventhub) |
 | `DataframeToFabricLakehouseComponent` | [assets/sinks/dataframe_to_fabric_lakehouse](assets/sinks/dataframe_to_fabric_lakehouse) |
@@ -453,8 +451,6 @@ Setting `partitions_def` on these via `post_processing` will silently produce th
 | `DataframeToPrometheusComponent` | [assets/sinks/dataframe_to_prometheus](assets/sinks/dataframe_to_prometheus) |
 | `DataframeToSentryComponent` | [assets/sinks/dataframe_to_sentry](assets/sinks/dataframe_to_sentry) |
 | `DataframeToServiceBusComponent` | [assets/sinks/dataframe_to_servicebus](assets/sinks/dataframe_to_servicebus) |
-| `DataframeToSnowflakeBulkComponent` | [assets/sinks/dataframe_to_snowflake_bulk](assets/sinks/dataframe_to_snowflake_bulk) |
-| `DataframeToStarRocksComponent` | [assets/sinks/dataframe_to_starrocks](assets/sinks/dataframe_to_starrocks) |
 | `DataframeToVictoriaMetricsComponent` | [assets/sinks/dataframe_to_victoriametrics](assets/sinks/dataframe_to_victoriametrics) |
 | `DataplexDqScanResultsAssetComponent` | [assets/source/dataplex_dq_scan_results_asset](assets/source/dataplex_dq_scan_results_asset) |
 | `DockerContainerAssetComponent` | [assets/infrastructure/docker_container_asset](assets/infrastructure/docker_container_asset) |

@@ -88,6 +88,16 @@ class DataframeToClickHouseComponent(dg.Component, dg.Model, dg.Resolvable):
             ),
         )
         def _asset(context: dg.AssetExecutionContext, upstream: Any) -> dg.MaterializeResult:
+            # Partition-aware target table:
+            #   table: "events_{partition_key}" → "events_2025-01-15" on 2025-01-15.
+            # Templates without {partition_key} pass through unchanged.
+            partition_key = context.partition_key if context.has_partition_key else None
+            if partition_key and "{partition_key}" in _self.table:
+                resolved_table = _self.table.replace("{partition_key}", str(partition_key))
+                context.log.info(f"partition-aware ClickHouse write: partition_key={partition_key!r} → table={resolved_table}")
+            else:
+                resolved_table = _self.table
+
             # partition bridge dict-concat: when an unpartitioned
             # asset consumes a partitioned upstream, Dagster's IO
             # manager loads ALL partitions as a dict; concat to
@@ -124,15 +134,15 @@ class DataframeToClickHouseComponent(dg.Component, dg.Model, dg.Resolvable):
                 df = df[_self.column_names]
 
             context.log.info(
-                f"ClickHouse insert: {_self.database}.{_self.table} "
+                f"ClickHouse insert: {_self.database}.{resolved_table} "
                 f"({len(df)} rows, {len(df.columns)} cols)"
             )
-            client.insert_df(table=_self.table, df=df, database=_self.database)
+            client.insert_df(table=resolved_table, df=df, database=_self.database)
 
             # Quick row-count check via SELECT count() for the metadata.
             try:
                 total_rows = client.query(
-                    f"SELECT count() FROM {_self.database}.{_self.table}"
+                    f"SELECT count() FROM {_self.database}.{resolved_table}"
                 ).result_rows[0][0]
             except Exception:
                 total_rows = None
@@ -140,7 +150,7 @@ class DataframeToClickHouseComponent(dg.Component, dg.Model, dg.Resolvable):
             metadata: Dict[str, Any] = {
                 "row_count": dg.MetadataValue.int(len(df)),
                 "column_count": dg.MetadataValue.int(len(df.columns)),
-                "clickhouse_table": f"{_self.database}.{_self.table}",
+                "clickhouse_table": f"{_self.database}.{resolved_table}",
             }
             if total_rows is not None:
                 metadata["clickhouse/table_total_rows"] = dg.MetadataValue.int(int(total_rows))

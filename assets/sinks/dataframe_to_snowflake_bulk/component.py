@@ -133,6 +133,16 @@ class DataframeToSnowflakeBulkComponent(Component, Model, Resolvable):
             retry_policy=retry_policy,
         )
         def _asset(context: AssetExecutionContext, upstream: Any) -> MaterializeResult:
+            # Partition-aware table name:
+            #   table: "orders_{partition_key}"  → "orders_2025-01-15" on 2025-01-15.
+            # Templates without {partition_key} pass through unchanged.
+            partition_key = context.partition_key if context.has_partition_key else None
+            if partition_key and "{partition_key}" in table:
+                resolved_table = table.replace("{partition_key}", str(partition_key)).upper()
+                context.log.info(f"partition-aware write: partition_key={partition_key!r} → table={resolved_table}")
+            else:
+                resolved_table = table
+
             # Defensive Output/MaterializeResult unwrap — see summarize for the rationale.
             # Tolerates upstream authors who annotate `-> Output` or
             # return `Output(value=df, ...)` / `MaterializeResult(value=df)`.
@@ -173,13 +183,13 @@ class DataframeToSnowflakeBulkComponent(Component, Model, Resolvable):
                 return MaterializeResult(metadata={
                     "row_count": MetadataValue.int(0),
                     "dagster/row_count": MetadataValue.int(0),
-                    "table": MetadataValue.text(table),
+                    "table": MetadataValue.text(resolved_table),
                 })
 
             qualified_table = ".".join(
-                p for p in (database, schema, table) if p
+                p for p in (database, schema, resolved_table) if p
             )
-            stage_name = f"@~/{table.lower()}_{uuid.uuid4().hex[:12]}"
+            stage_name = f"@~/{resolved_table.lower()}_{uuid.uuid4().hex[:12]}"
 
             conn = snowflake.connector.connect(**conn_kwargs)
             cur = conn.cursor()
@@ -236,7 +246,7 @@ class DataframeToSnowflakeBulkComponent(Component, Model, Resolvable):
                         copy_seconds = time.time() - tc
 
                     elif mode == "merge":
-                        staging = f"{table}_STG_{uuid.uuid4().hex[:8].upper()}"
+                        staging = f"{resolved_table}_STG_{uuid.uuid4().hex[:8].upper()}"
                         qualified_staging = ".".join(
                             p for p in (database, schema, staging) if p
                         )

@@ -34,10 +34,27 @@ def _asset(context: AssetExecutionContext):
 
 Every reference to the destination inside the compute becomes `resolved_destination`. Field declarations, `partitions_def=...` on the `@asset` decorator, and metadata emission are unchanged.
 
+## Design update (v0.10.53) — three patterns, per-family default
+
+After shipping Waves 1a + 1b it became clear the `{partition_key}`-in-table-name pattern is only ONE of three legitimate shapes. See [`partition_patterns.md`](partition_patterns.md) for the full design:
+
+| Pattern | Default for | How enabled |
+|---|---|---|
+| **A — Per-partition table/path** | Object stores | `{partition_key}` in destination field |
+| **B — Single table, partition_column** | **Warehouses (recommended default)** | New `partition_column: str` field on the sink |
+| **C — Straight append** | Streaming / event sinks | Neither A nor B set — pre-sweep behavior preserved |
+
+Sinks that already support Pattern A (`{partition_key}` templating) as of v0.10.51-52:
+`bigquery_export_to_gcs_asset`, `dataframe_to_snowflake_bulk`, `dataframe_to_clickhouse`, `dataframe_to_starrocks`, `dataframe_to_doris`.
+
+Sinks that also support Pattern B as of v0.10.53:
+`dataframe_to_snowflake_bulk`, `dataframe_to_clickhouse`, `dataframe_to_starrocks`, `dataframe_to_doris`. (Warehouse sinks — the analytics customer's default.)
+
 ## Waves
 
-- **Wave 1a (v0.10.51)** — Pilot on `bigquery_export_to_gcs_asset` to establish the pattern + this doc.
-- **Wave 1b** — Remaining ~8 real DataFrame → destination sinks: `dataframe_to_azure_table`, `dataframe_to_kusto`, `dataframe_to_fabric_lakehouse`, `dataframe_to_odata`, `bigtable_writer_asset`, `firestore_writer_asset`, `dataframe_to_clickhouse` (via table name templating), `dataframe_to_snowflake_bulk`. Each: substitute `{partition_key}` into the target table/URI field.
+- **Wave 1a (v0.10.51)** — Pilot on `bigquery_export_to_gcs_asset` establishes Pattern A.
+- **Wave 1b (v0.10.52)** — 4 warehouse sinks (snowflake / clickhouse / starrocks / doris) support Pattern A.
+- **Wave 1c (v0.10.53)** — Same 4 warehouse sinks now support Pattern B (`partition_column`). See [`partition_patterns.md`](partition_patterns.md) for the design rationale.
 - **Wave 2** — ~50 transforms + AI components in the 143-declared-but-not-used group. For most, compute is already correct via upstream IO-manager slicing; the fix is threading `partition_key` into output metadata + logging + any per-run cache keys.
 - **Wave 3** — ~75 misc analytics/ingestion/sources in the 143 group. Semantics vary; per-component design.
 - **Wave 4** — The 98 "no field at all" components. Add `partition_type` field + wiring where partitioning makes semantic sense; skip infrastructure / catalog agents / notification sinks that are inherently one-shot.

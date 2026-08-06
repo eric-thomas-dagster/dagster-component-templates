@@ -70,6 +70,19 @@ class DataframeToSnowflakeBulkComponent(Component, Model, Resolvable):
         description="Delete staged files after successful COPY (recommended).",
     )
 
+    partition_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "When set AND the asset is partitioned, appends this column to every "
+            "row with the current partition key as its value. Enables the "
+            "single-table + partition_column analytics pattern "
+            "(WHERE partition_date = '2025-01-15') without needing per-partition "
+            "tables. Prefer this over `{partition_key}` templating in the `table:` "
+            "field for warehouse sinks — analytics queries stay clean. "
+            "See docs/partition_patterns.md."
+        ),
+    )
+
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners")
     asset_tags: Optional[Dict[str, str]] = Field(default=None, description="Additional asset tags")
@@ -133,13 +146,17 @@ class DataframeToSnowflakeBulkComponent(Component, Model, Resolvable):
             retry_policy=retry_policy,
         )
         def _asset(context: AssetExecutionContext, upstream: Any) -> MaterializeResult:
-            # Partition-aware table name:
-            #   table: "orders_{partition_key}"  → "orders_2025-01-15" on 2025-01-15.
-            # Templates without {partition_key} pass through unchanged.
+            # Partition awareness — two patterns supported:
+            #   1. `table: "orders_{partition_key}"` → per-partition table (Pattern A).
+            #   2. `partition_column: partition_date` → append the column with the
+            #      partition key on every row, single table shared across partitions
+            #      (Pattern B — recommended default for warehouses).
+            # Neither set → straight append (Pattern C — pre-sweep behavior).
+            # See docs/partition_patterns.md for the design rationale.
             partition_key = context.partition_key if context.has_partition_key else None
             if partition_key and "{partition_key}" in table:
                 resolved_table = table.replace("{partition_key}", str(partition_key)).upper()
-                context.log.info(f"partition-aware write: partition_key={partition_key!r} → table={resolved_table}")
+                context.log.info(f"partition-aware write (Pattern A): partition_key={partition_key!r} → table={resolved_table}")
             else:
                 resolved_table = table
 
@@ -175,6 +192,18 @@ class DataframeToSnowflakeBulkComponent(Component, Model, Resolvable):
                 conn_kwargs["warehouse"] = warehouse
             if role:
                 conn_kwargs["role"] = role
+
+            # Pattern B — append partition_column with the partition key value.
+            # Applied AFTER dict-concat above so a single column lands even when
+            # upstream comes through as a dict from a partitioned parent.
+            if partition_key and self.partition_column:
+                pcol = self.partition_column
+                if pcol in upstream.columns:
+                    context.log.warning(
+                        f"partition_column={pcol!r} already exists in upstream — overwriting with partition_key={partition_key!r}"
+                    )
+                upstream = upstream.assign(**{pcol: str(partition_key)})
+                context.log.info(f"partition-aware write (Pattern B): added column {pcol!r}={partition_key!r} to {len(upstream)} rows")
 
             n_rows = len(upstream)
             n_cols = len(upstream.columns)

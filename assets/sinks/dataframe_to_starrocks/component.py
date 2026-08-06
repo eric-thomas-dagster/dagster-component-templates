@@ -70,6 +70,18 @@ class DataframeToStarRocksComponent(dg.Component, dg.Model, dg.Resolvable):
     tags: Optional[Dict[str, str]] = Field(default=None, description="Catalog tags.")
     kinds: Optional[List[str]] = Field(default=None, description="Asset kinds (auto-includes 'starrocks').")
 
+    partition_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "When set AND the asset is partitioned, appends this column to every "
+            "row with the current partition key as its value. Enables the "
+            "single-table + partition_column analytics pattern "
+            "(WHERE partition_date = '2025-01-15') without needing per-partition "
+            "tables. Prefer this over `{partition_key}` templating in the `table:` "
+            "field for warehouse sinks — analytics queries stay clean. "
+            "See docs/partition_patterns.md."
+        ),
+    )
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         kinds = set(self.kinds) if self.kinds else set()
@@ -96,6 +108,7 @@ class DataframeToStarRocksComponent(dg.Component, dg.Model, dg.Resolvable):
             else:
                 resolved_table = _self.table
 
+
             # partition bridge dict-concat: when an unpartitioned
             # asset consumes a partitioned upstream, Dagster's IO
             # manager loads ALL partitions as a dict; concat to
@@ -103,6 +116,14 @@ class DataframeToStarRocksComponent(dg.Component, dg.Model, dg.Resolvable):
             if isinstance(upstream, dict):
                 _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
                 upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
+            if partition_key and _self.partition_column:
+                if _self.partition_column in upstream.columns:
+                    context.log.warning(
+                        f"partition_column={_self.partition_column!r} already in upstream — overwriting"
+                    )
+                upstream = upstream.assign(**{_self.partition_column: str(partition_key)})
+                context.log.info(f"partition-aware write (Pattern B): added column {_self.partition_column!r}={partition_key!r} to {len(upstream)} rows")
+
             try:
                 import requests
             except ImportError:

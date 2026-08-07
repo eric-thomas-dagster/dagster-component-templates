@@ -391,6 +391,298 @@ def _do_importance(model, step: dict, target: str, features: list, context):
     )
 
 
+# ── Feature engineering — 6 more ops ──────────────────────────────────
+
+def _do_missing_indicator(df, step: dict, target: str, features: list, context):
+    """Add boolean columns flagging null presence for each named column."""
+    cols = step.get("columns") or features
+    suffix = step.get("suffix", "_is_missing")
+    out = df.copy()
+    for c in cols:
+        out[f"{c}{suffix}"] = out[c].isna()
+    return out
+
+
+def _do_quantile_transformer(df, step: dict, target: str, features: list, context):
+    """sklearn QuantileTransformer — reshape features to a uniform/normal distribution."""
+    from sklearn.preprocessing import QuantileTransformer
+    cols = step.get("columns") or features
+    output_distribution = step.get("output_distribution", "uniform")
+    n_quantiles = step.get("n_quantiles", 1000)
+    qt = QuantileTransformer(output_distribution=output_distribution,
+                             n_quantiles=min(n_quantiles, len(df)))
+    out = df.copy()
+    out[cols] = qt.fit_transform(out[cols])
+    return out
+
+
+def _do_power_transformer(df, step: dict, target: str, features: list, context):
+    """sklearn PowerTransformer — Yeo-Johnson (default) or Box-Cox to make more Gaussian."""
+    from sklearn.preprocessing import PowerTransformer
+    cols = step.get("columns") or features
+    method = step.get("method", "yeo-johnson")
+    standardize = step.get("standardize", True)
+    pt = PowerTransformer(method=method, standardize=standardize)
+    out = df.copy()
+    out[cols] = pt.fit_transform(out[cols])
+    return out
+
+
+def _do_tfidf(df, step: dict, target: str, features: list, context):
+    """sklearn TfidfVectorizer on a text column → adds tfidf_* columns."""
+    import pandas as pd
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    text_column = step["text_column"]
+    max_features = step.get("max_features", 100)
+    ngram_range = tuple(step.get("ngram_range", [1, 1]))
+    stop_words = step.get("stop_words")
+    vec = TfidfVectorizer(max_features=max_features, ngram_range=ngram_range, stop_words=stop_words)
+    mat = vec.fit_transform(df[text_column].fillna("").astype(str))
+    names = [f"tfidf_{term}" for term in vec.get_feature_names_out()]
+    tfidf_df = pd.DataFrame(mat.toarray(), columns=names, index=df.index)
+    context.log.info(f"TF-IDF on {text_column!r} → {len(names)} features")
+    return df.join(tfidf_df)
+
+
+def _do_hashing_vectorizer(df, step: dict, target: str, features: list, context):
+    """sklearn HashingVectorizer on a text column → adds hash_0..hash_N columns.
+    Stateless (no vocabulary fit) — good for streaming / very large corpora."""
+    import pandas as pd
+    from sklearn.feature_extraction.text import HashingVectorizer
+    text_column = step["text_column"]
+    n_features = step.get("n_features", 128)
+    ngram_range = tuple(step.get("ngram_range", [1, 1]))
+    vec = HashingVectorizer(n_features=n_features, ngram_range=ngram_range, alternate_sign=False)
+    mat = vec.fit_transform(df[text_column].fillna("").astype(str))
+    names = [f"hash_{i}" for i in range(n_features)]
+    hash_df = pd.DataFrame(mat.toarray(), columns=names, index=df.index)
+    return df.join(hash_df)
+
+
+def _do_lag_features(df, step: dict, target: str, features: list, context):
+    """Add lag columns from a value column — for time-series feature engineering."""
+    value_column = step["value_column"]
+    lags = step.get("lags", [1, 7, 30])
+    group_by = step.get("group_by")   # optional: compute lags within groups
+    out = df.copy()
+    if group_by:
+        for lag in lags:
+            out[f"{value_column}_lag_{lag}"] = out.groupby(group_by)[value_column].shift(lag)
+    else:
+        for lag in lags:
+            out[f"{value_column}_lag_{lag}"] = out[value_column].shift(lag)
+    return out
+
+
+def _do_rolling_window(df, step: dict, target: str, features: list, context):
+    """Add rolling-window aggregates from a value column — mean / std / min / max / sum."""
+    value_column = step["value_column"]
+    windows = step.get("windows", [7, 30])
+    aggs = step.get("aggregations", ["mean", "std"])
+    group_by = step.get("group_by")
+    out = df.copy()
+    for w in windows:
+        for agg in aggs:
+            col = f"{value_column}_roll_{w}_{agg}"
+            if group_by:
+                out[col] = out.groupby(group_by)[value_column].transform(lambda x: getattr(x.rolling(w, min_periods=1), agg)())
+            else:
+                out[col] = getattr(out[value_column].rolling(w, min_periods=1), agg)()
+    return out
+
+
+# ── Feature selection — 3 ops ──────────────────────────────────────────
+
+def _do_variance_threshold(df, step: dict, target: str, features: list, context):
+    """Drop features with variance below a threshold."""
+    from sklearn.feature_selection import VarianceThreshold
+    cols = step.get("columns") or features
+    threshold = step.get("threshold", 0.0)
+    vt = VarianceThreshold(threshold=threshold)
+    vt.fit(df[cols])
+    kept = [c for c, keep in zip(cols, vt.get_support()) if keep]
+    dropped = set(cols) - set(kept)
+    if dropped:
+        context.log.info(f"variance_threshold dropped {len(dropped)} low-variance features: {sorted(dropped)}")
+    return df[[c for c in df.columns if c not in dropped]].copy()
+
+
+def _do_correlation_filter(df, step: dict, target: str, features: list, context):
+    """Drop features that are highly correlated with each other (upper-triangle drop)."""
+    cols = step.get("columns") or features
+    threshold = step.get("threshold", 0.95)
+    method = step.get("method", "pearson")   # pearson | spearman | kendall
+    corr = df[cols].corr(method=method).abs()
+    upper = corr.where(_upper_triangle_mask(corr))
+    to_drop = [c for c in upper.columns if (upper[c] > threshold).any()]
+    if to_drop:
+        context.log.info(f"correlation_filter dropped {len(to_drop)} correlated features (>{threshold}, {method}): {to_drop}")
+    return df.drop(columns=to_drop)
+
+
+def _upper_triangle_mask(corr):
+    import numpy as np
+    return np.triu(np.ones(corr.shape, dtype=bool), k=1)
+
+
+def _do_mutual_info_selection(df, step: dict, target: str, features: list, context):
+    """Keep top-K features by mutual information with the target."""
+    cols = step.get("columns") or features
+    k = step.get("k", 20)
+    task = step.get("task_type", "classification")
+    if task == "classification":
+        from sklearn.feature_selection import mutual_info_classif as mi_func
+    else:
+        from sklearn.feature_selection import mutual_info_regression as mi_func
+    scores = mi_func(df[cols], df[target], random_state=step.get("random_state", 42))
+    ranked = sorted(zip(cols, scores), key=lambda p: p[1], reverse=True)
+    keep = [c for c, _ in ranked[:k]]
+    drop = [c for c in cols if c not in keep]
+    if drop:
+        context.log.info(f"mutual_info_selection kept top {k} features; dropped {len(drop)}")
+    return df.drop(columns=drop)
+
+
+# ── Hyperparameter tuning — 2 ops (produce a model) ────────────────────
+
+def _do_grid_search(df, step: dict, target: str, features: list, context):
+    """sklearn GridSearchCV — returns the best fitted estimator."""
+    from sklearn.model_selection import GridSearchCV
+    output_col = step.get("split_column", "split")
+    train_df = df[df[output_col] == "train"] if output_col in df.columns else df
+
+    cls = _resolve_model_class(step.get("model_type"), step.get("sklearn_class"), step.get("task_type", "classification"))
+    base_params = step.get("base_params", {}) or {}
+    param_grid = step["param_grid"]
+    cv = step.get("cv", 5)
+    scoring = step.get("scoring")
+    n_jobs = step.get("n_jobs", -1)
+    gs = GridSearchCV(cls(**base_params), param_grid=param_grid, cv=cv, scoring=scoring, n_jobs=n_jobs, refit=True)
+    gs.fit(train_df[features], train_df[target])
+    context.log.info(f"grid_search: best_params={gs.best_params_}, best_score={gs.best_score_:.4f}")
+    return gs.best_estimator_
+
+
+def _do_random_search(df, step: dict, target: str, features: list, context):
+    """sklearn RandomizedSearchCV — returns the best fitted estimator."""
+    from sklearn.model_selection import RandomizedSearchCV
+    output_col = step.get("split_column", "split")
+    train_df = df[df[output_col] == "train"] if output_col in df.columns else df
+
+    cls = _resolve_model_class(step.get("model_type"), step.get("sklearn_class"), step.get("task_type", "classification"))
+    base_params = step.get("base_params", {}) or {}
+    param_distributions = step["param_distributions"]
+    n_iter = step.get("n_iter", 20)
+    cv = step.get("cv", 5)
+    scoring = step.get("scoring")
+    n_jobs = step.get("n_jobs", -1)
+    random_state = step.get("random_state", 42)
+    rs = RandomizedSearchCV(
+        cls(**base_params), param_distributions=param_distributions, n_iter=n_iter,
+        cv=cv, scoring=scoring, n_jobs=n_jobs, random_state=random_state, refit=True,
+    )
+    rs.fit(train_df[features], train_df[target])
+    context.log.info(f"random_search: best_params={rs.best_params_}, best_score={rs.best_score_:.4f}")
+    return rs.best_estimator_
+
+
+# ── Model apply — 3 more (evaluate + confusion + shap) ─────────────────
+
+def _do_evaluate(model, df, step: dict, target: str, features: list, context):
+    """Emit a standard metrics DataFrame for the given task_type.
+
+    Classification: accuracy, precision, recall, f1, roc_auc (if binary).
+    Regression: mae, rmse, r2, explained_variance.
+    """
+    import pandas as pd
+    task = step.get("task_type", "classification")
+    y_true = df[target]
+    y_pred = df["predicted"] if "predicted" in df.columns else model.predict(df[features])
+    metrics = {}
+    if task == "classification":
+        from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+        metrics["accuracy"] = accuracy_score(y_true, y_pred)
+        avg = step.get("average", "weighted")
+        for name, fn in [("precision", precision_score), ("recall", recall_score), ("f1", f1_score)]:
+            metrics[name] = fn(y_true, y_pred, average=avg, zero_division=0)
+        # ROC-AUC only for binary problems where the model exposes predict_proba
+        try:
+            from sklearn.metrics import roc_auc_score
+            if hasattr(model, "predict_proba"):
+                proba = model.predict_proba(df[features])
+                if proba.shape[1] == 2:
+                    metrics["roc_auc"] = roc_auc_score(y_true, proba[:, 1])
+                else:
+                    metrics["roc_auc_ovr"] = roc_auc_score(y_true, proba, multi_class="ovr", average=avg)
+        except Exception:
+            pass
+    else:
+        from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score, explained_variance_score
+        metrics["mae"] = mean_absolute_error(y_true, y_pred)
+        mse = mean_squared_error(y_true, y_pred)
+        metrics["mse"] = mse
+        metrics["rmse"] = mse ** 0.5
+        metrics["r2"] = r2_score(y_true, y_pred)
+        metrics["explained_variance"] = explained_variance_score(y_true, y_pred)
+    return pd.DataFrame({"metric": list(metrics.keys()), "value": list(metrics.values())})
+
+
+def _do_confusion_matrix(model, df, step: dict, target: str, features: list, context):
+    """Emit the confusion matrix as a DataFrame (rows=true, cols=predicted)."""
+    import pandas as pd
+    from sklearn.metrics import confusion_matrix
+    y_true = df[target]
+    y_pred = df["predicted"] if "predicted" in df.columns else model.predict(df[features])
+    labels = sorted(set(y_true) | set(y_pred))
+    matrix = confusion_matrix(y_true, y_pred, labels=labels)
+    return pd.DataFrame(matrix, index=[f"true_{l}" for l in labels], columns=[f"pred_{l}" for l in labels]).reset_index().rename(columns={"index": "label"})
+
+
+def _do_shap_values(model, df, step: dict, target: str, features: list, context):
+    """Per-row SHAP values as a DataFrame with columns shap_<feature>."""
+    import pandas as pd
+    try:
+        import shap
+    except ImportError:
+        raise ImportError("shap_values op requires `shap`: pip install shap")
+    n_sample = step.get("sample_size", min(len(df), 500))
+    df_sample = df.sample(n=n_sample, random_state=step.get("random_state", 42)) if len(df) > n_sample else df
+    explainer_type = step.get("explainer", "tree")   # tree | kernel | linear
+    if explainer_type == "tree":
+        explainer = shap.TreeExplainer(model)
+    elif explainer_type == "linear":
+        explainer = shap.LinearExplainer(model, df_sample[features])
+    else:
+        explainer = shap.KernelExplainer(model.predict, df_sample[features])
+    shap_vals = explainer.shap_values(df_sample[features])
+    if isinstance(shap_vals, list):
+        # Multi-class case — average absolute SHAP across classes.
+        import numpy as np
+        shap_vals = np.mean([abs(sv) for sv in shap_vals], axis=0)
+    return pd.DataFrame(shap_vals, columns=[f"shap_{f}" for f in features], index=df_sample.index).reset_index(drop=True)
+
+
+# ── Model persistence — 1 op (side effect + returns metadata DF) ───────
+
+def _do_save_model(model, step: dict, target: str, features: list, context):
+    """Persist a fitted model to disk via joblib. Returns a DataFrame with
+    save metadata so it can be used as an asset output if desired."""
+    import pandas as pd
+    import joblib
+    import time
+    from pathlib import Path
+    path = step["path"]
+    joblib.dump(model, path)
+    size = Path(path).stat().st_size
+    context.log.info(f"save_model: {type(model).__name__} → {path} ({size:,} bytes)")
+    return pd.DataFrame([{
+        "path": path,
+        "size_bytes": size,
+        "model_class": f"{type(model).__module__}.{type(model).__name__}",
+        "saved_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+    }])
+
+
 def _do_cross_validate(df, step: dict, target: str, features: list, context):
     import pandas as pd
     from sklearn.model_selection import cross_validate
@@ -417,30 +709,54 @@ def _do_cross_validate(df, step: dict, target: str, features: list, context):
 
 # Ops that produce a DataFrame given a DataFrame input.
 _FRAME_OPS = {
-    "impute":              _do_impute,
-    "scale":               _do_scale,
-    "one_hot_encode":      _do_one_hot_encode,
-    "label_encode":        _do_label_encode,
-    "tile_binning":        _do_tile_binning,
-    "outlier_clip":        _do_outlier_clip,
-    "filter":              _do_filter,
-    "select":              _do_select,
-    "date_features":       _do_date_features,
-    "polynomial_features": _do_polynomial_features,
-    "pca":                 _do_pca,
-    "split":               _do_split,
-    "cross_validate":      _do_cross_validate,
+    # Preprocessing
+    "impute":                 _do_impute,
+    "scale":                  _do_scale,
+    "one_hot_encode":         _do_one_hot_encode,
+    "label_encode":           _do_label_encode,
+    "tile_binning":           _do_tile_binning,
+    "outlier_clip":           _do_outlier_clip,
+    "missing_indicator":      _do_missing_indicator,
+    "quantile_transformer":   _do_quantile_transformer,
+    "power_transformer":      _do_power_transformer,
+    # Selection + generation
+    "filter":                 _do_filter,
+    "select":                 _do_select,
+    "date_features":          _do_date_features,
+    "polynomial_features":    _do_polynomial_features,
+    "pca":                    _do_pca,
+    # Text features
+    "tfidf":                  _do_tfidf,
+    "hashing_vectorizer":     _do_hashing_vectorizer,
+    # Feature selection
+    "variance_threshold":     _do_variance_threshold,
+    "correlation_filter":     _do_correlation_filter,
+    "mutual_info_selection":  _do_mutual_info_selection,
+    # Time-series
+    "lag_features":           _do_lag_features,
+    "rolling_window":         _do_rolling_window,
+    # Split + evaluate
+    "split":                  _do_split,
+    "cross_validate":         _do_cross_validate,
 }
 # Ops that produce a model given a DataFrame input.
-_MODEL_TRAIN_OPS = {"train"}
+_MODEL_TRAIN_OPS = {
+    "train":         _do_train,
+    "grid_search":   _do_grid_search,
+    "random_search": _do_random_search,
+}
 # Ops that take a model + DataFrame and produce a DataFrame.
 _MODEL_APPLY_OPS = {
-    "predict":       _do_predict,
-    "predict_proba": _do_predict_proba,
+    "predict":          _do_predict,
+    "predict_proba":    _do_predict_proba,
+    "evaluate":         _do_evaluate,
+    "confusion_matrix": _do_confusion_matrix,
+    "shap_values":      _do_shap_values,
 }
 # Ops that take a model alone.
 _MODEL_ONLY_OPS = {
     "importance":    _do_importance,
+    "save_model":    _do_save_model,
 }
 
 
@@ -467,7 +783,7 @@ def _run_step(step: dict, state: Dict[str, Any], target: str, features: list, co
         )
     elif op in _MODEL_TRAIN_OPS:
         source_id = step.get("source") or _last_frame_id(state)
-        model = _do_train(state[source_id], step, target, features, context)
+        model = _MODEL_TRAIN_OPS[op](state[source_id], step, target, features, context)
         state[step_id] = model
         context.log.info(f"step {step_id!r} ({op}) → model {type(model).__name__}")
     elif op in _MODEL_APPLY_OPS:

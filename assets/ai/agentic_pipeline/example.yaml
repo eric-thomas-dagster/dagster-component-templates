@@ -1,0 +1,74 @@
+type: dagster_community_components.AgenticPipelineComponent
+attributes:
+  asset_name_prefix: research_bot
+  group_name: agents
+
+  source:
+    kind: literal
+    text: "Explain in 3-4 sentences how attention works in transformer language models."
+
+  steps:
+    # Step 1 — router picks the best specialist LLM for this input.
+    - id: routed
+      op: route
+      router:
+        model: gpt-4o-mini
+        api_key_env_var: OPENAI_API_KEY
+      specialists:
+        - name: technical
+          description: "Handles deep CS / ML / systems questions. Precise, formula-friendly."
+          model: gpt-4o
+          api_key_env_var: OPENAI_API_KEY
+          system_prompt: "You are a senior ML engineer. Give concise, precise technical answers."
+        - name: general
+          description: "General knowledge, everyday questions, non-technical topics."
+          model: gpt-4o-mini
+          api_key_env_var: OPENAI_API_KEY
+          system_prompt: "You are a helpful assistant. Explain clearly."
+      fallback: general
+
+    # Step 2 — critique_loop: drafter revises against a critic's feedback.
+    - id: critiqued
+      op: critique_loop
+      source: routed
+      drafter:
+        model: gpt-4o
+        api_key_env_var: OPENAI_API_KEY
+        system_prompt: "You are a technical writer. Rewrite for clarity while preserving accuracy."
+      critic:
+        model: gpt-4o
+        api_key_env_var: OPENAI_API_KEY
+        system_prompt: "Critique the draft for clarity, correctness, and concision. Be specific."
+      iterations: 2
+
+    # Step 3 — debate: two proposers, arbitrator picks the stronger version.
+    - id: debated
+      op: debate
+      source: critiqued
+      proposers:
+        - model: gpt-4o
+          api_key_env_var: OPENAI_API_KEY
+          system_prompt: "Rewrite the input to be more accessible to a beginner. Keep it correct."
+          temperature: 0.7
+        - model: gpt-4o
+          api_key_env_var: OPENAI_API_KEY
+          system_prompt: "Rewrite the input to be more precise / rigorous. Keep it approachable."
+          temperature: 0.7
+      arbitrator:
+        model: gpt-4o
+        api_key_env_var: OPENAI_API_KEY
+        system_prompt: "Pick the proposal that best balances clarity + correctness for a technical reader."
+
+    # Step 4 — synthesize the three artifacts into a single final answer.
+    - id: final
+      op: synthesize
+      sources: [routed, critiqued, debated]
+      model: gpt-4o
+      api_key_env_var: OPENAI_API_KEY
+      system_prompt: "You are a senior editor. Combine the labeled sections into a single polished response."
+      max_tokens: 1024
+
+  outputs:
+    assets: [routed, critiqued, debated, final]
+    text_sinks:
+      - {from: final, path: /tmp/agentic_pipeline_final.txt}

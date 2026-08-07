@@ -1,0 +1,6 @@
+litellm>=1.30.0
+requests
+# Provider client SDKs (installed on demand by litellm; add explicitly if you want pin control):
+#   openai
+#   anthropic
+#   google-generativeai

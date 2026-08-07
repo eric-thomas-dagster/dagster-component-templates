@@ -635,6 +635,58 @@
       ]
     },
     {
+      "id": "agentic_pipeline",
+      "name": "AgenticPipeline",
+      "path": "assets/ai/agentic_pipeline",
+      "category": "ai",
+      "author": "Dagster Community",
+      "version": "1.0.0",
+      "description": "One YAML, whole agentic pipeline \u2014 source + steps + outputs. 5 ops (llm_call, route, debate, critique_loop, synthesize) covering single completions, multi-agent selection, N-proposer consensus, drafter/critic iteration, and fan-in synthesis. LiteLLM-backed \u2014 any provider (OpenAI, Anthropic, Gemini, Groq, Bedrock, Ollama, ...). Sibling of ml_pipeline for the LLM domain.",
+      "tags": [
+        "ai",
+        "llm",
+        "agent",
+        "pipeline",
+        "multi-agent",
+        "litellm",
+        "standardized"
+      ],
+      "produces": [
+        "asset"
+      ],
+      "dependencies": {
+        "pip": [
+          "litellm>=1.30.0",
+          "requests"
+        ]
+      },
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agentic_pipeline/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agentic_pipeline/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agentic_pipeline/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agentic_pipeline/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agentic_pipeline/schema.json",
+      "agent_hints": {
+        "when_to_use": "User wants a standardized multi-step agentic workflow shape (route \u2192 refine \u2192 debate \u2192 synthesize) declared in one YAML. Covers the compose-multiple-agent-shapes case in a single component. Sibling of ml_pipeline / polars_pipeline / warehouse_pipeline for the LLM domain.",
+        "typical_upstream": "Literal text prompt, a fetched URL / doc, a file, or another Dagster asset (via upstream_asset source).",
+        "typical_downstream": "Text sinks (files), JSON sinks (full step dicts w/ router reasoning + all proposals + critique history), or downstream Dagster assets that consume the emitted step-output dicts.",
+        "example_prompts": [
+          "Build an agentic pipeline that routes an incoming ticket to the right specialist agent, then critiques and refines the answer, then synthesizes a final response.",
+          "Standardized multi-agent workflow with router + debate + critique loop \u2014 all in one YAML.",
+          "Multi-step LLM pipeline where a cheap router picks a specialist, then multiple proposers debate the answer, then an arbitrator picks the winner."
+        ],
+        "side_effects": "Calls LLM providers (OpenAI / Anthropic / etc. depending on `model:` string). Optionally writes text or JSON sinks to disk. Emits multiple named asset outputs from one component.",
+        "requires_pip": [
+          "litellm>=1.30.0",
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "last_validated": "2026-08-07",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agentic_pipeline/example.yaml"
+      }
+    },
+    {
       "id": "airbyte_assets",
       "name": "AirbyteAssets",
       "category": "integration",

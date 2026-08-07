@@ -119,6 +119,25 @@ def _ingest(source_config: dict, context) -> Any:
     if kind == "dataframe":
         # In-process DataFrame supplied programmatically (used from Python instantiation).
         return source_config["dataframe"]
+    if kind == "warehouse_query":
+        # Execute SQL via a Dagster resource that exposes .get_engine() (SQLAlchemy)
+        # OR .get_connection() (DB-API). Works out-of-the-box with the community
+        # resources: postgres_resource, mysql_resource, mssql_resource,
+        # snowflake_resource, bigquery_resource, and any custom resource that
+        # implements the same interface.
+        resource_key = source_config["resource_key"]
+        sql = source_config["sql"]
+        resource = getattr(context.resources, resource_key)
+        if hasattr(resource, "get_engine"):
+            engine = resource.get_engine()
+            return pd.read_sql(sql, engine)
+        if hasattr(resource, "get_connection"):
+            conn = resource.get_connection()
+            return pd.read_sql(sql, conn)
+        raise ValueError(
+            f"resource {resource_key!r} must expose .get_engine() (SQLAlchemy) "
+            f"or .get_connection() (DB-API); got {type(resource).__name__}"
+        )
     raise ValueError(f"unsupported source kind: {kind!r}")
 
 
@@ -205,6 +224,57 @@ def _do_filter(df, step: dict, target: str, features: list, context):
 def _do_select(df, step: dict, target: str, features: list, context):
     cols = step["columns"]
     return df[cols].copy()
+
+
+def _do_date_features(df, step: dict, target: str, features: list, context):
+    """Extract year/month/day/weekday/hour from a datetime column."""
+    import pandas as pd
+    column = step["column"]
+    parts = step.get("parts") or ["year", "month", "day", "weekday"]
+    out = df.copy()
+    dt = pd.to_datetime(out[column], errors="coerce")
+    for part in parts:
+        out[f"{column}_{part}"] = getattr(dt.dt, part) if part != "weekday" else dt.dt.weekday
+    if step.get("drop_original", False):
+        out = out.drop(columns=[column])
+    return out
+
+
+def _do_polynomial_features(df, step: dict, target: str, features: list, context):
+    """sklearn PolynomialFeatures on named columns."""
+    import pandas as pd
+    from sklearn.preprocessing import PolynomialFeatures
+    cols = step.get("columns") or features
+    degree = step.get("degree", 2)
+    interaction_only = step.get("interaction_only", False)
+    include_bias = step.get("include_bias", False)
+    poly = PolynomialFeatures(
+        degree=degree, interaction_only=interaction_only, include_bias=include_bias,
+    )
+    out = df.copy()
+    poly_arr = poly.fit_transform(out[cols])
+    names = poly.get_feature_names_out(cols)
+    poly_df = pd.DataFrame(poly_arr, columns=names, index=out.index)
+    # Preserve original columns; the new poly cols get an underscored prefix.
+    return out.join(poly_df.drop(columns=[c for c in cols if c in poly_df.columns], errors="ignore"))
+
+
+def _do_pca(df, step: dict, target: str, features: list, context):
+    """PCA dimensionality reduction — replaces features with PC1..PCn."""
+    import pandas as pd
+    from sklearn.decomposition import PCA
+    cols = step.get("columns") or features
+    n_components = step.get("n_components", 2)
+    pca = PCA(n_components=n_components, random_state=step.get("random_state", 42))
+    arr = pca.fit_transform(df[cols])
+    pc_names = [f"pc{i+1}" for i in range(n_components)]
+    out = df.copy()
+    for name, values in zip(pc_names, arr.T):
+        out[name] = values
+    if step.get("drop_original", False):
+        out = out.drop(columns=cols)
+    context.log.info(f"PCA {len(cols)}→{n_components} — explained variance: {pca.explained_variance_ratio_}")
+    return out
 
 
 def _do_split(df, step: dict, target: str, features: list, context):
@@ -316,16 +386,19 @@ def _do_cross_validate(df, step: dict, target: str, features: list, context):
 
 # Ops that produce a DataFrame given a DataFrame input.
 _FRAME_OPS = {
-    "impute":        _do_impute,
-    "scale":         _do_scale,
-    "one_hot_encode": _do_one_hot_encode,
-    "label_encode":  _do_label_encode,
-    "tile_binning":  _do_tile_binning,
-    "outlier_clip":  _do_outlier_clip,
-    "filter":        _do_filter,
-    "select":        _do_select,
-    "split":         _do_split,
-    "cross_validate": _do_cross_validate,
+    "impute":              _do_impute,
+    "scale":               _do_scale,
+    "one_hot_encode":      _do_one_hot_encode,
+    "label_encode":        _do_label_encode,
+    "tile_binning":        _do_tile_binning,
+    "outlier_clip":        _do_outlier_clip,
+    "filter":              _do_filter,
+    "select":              _do_select,
+    "date_features":       _do_date_features,
+    "polynomial_features": _do_polynomial_features,
+    "pca":                 _do_pca,
+    "split":               _do_split,
+    "cross_validate":      _do_cross_validate,
 }
 # Ops that produce a model given a DataFrame input.
 _MODEL_TRAIN_OPS = {"train"}
@@ -439,6 +512,17 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
         outputs = dict(self.outputs)
         asset_ids: List[str] = list(outputs.get("assets", []))
         csv_sinks: List[Dict[str, Any]] = list(outputs.get("csv_sinks", []) or [])
+        parquet_sinks: List[Dict[str, Any]] = list(outputs.get("parquet_sinks", []) or [])
+        table_sinks: List[Dict[str, Any]] = list(outputs.get("table_sinks", []) or [])
+
+        # Auto-detect required Dagster resource keys from source + table_sinks —
+        # customer never has to list them explicitly.
+        required_resource_keys = set()
+        if source_config.get("kind") == "warehouse_query":
+            required_resource_keys.add(source_config["resource_key"])
+        for sink in table_sinks:
+            required_resource_keys.add(sink["resource_key"])
+
         group_name = self.group_name or "ml"
         kinds = list(self.kinds or ["python", "ml"])
         tags = dict(self.tags or {})
@@ -469,6 +553,7 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             outs=outs,
             name=f"{prefix}_pipeline",
             ins=ins or None,
+            required_resource_keys=required_resource_keys or None,
         )
         def _pipeline(context: dg.AssetExecutionContext, **kwargs):
             # Ingest — either from an upstream asset input OR by fetching a URL / file.
@@ -495,6 +580,41 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     raise ValueError(f"csv_sinks: unknown step id {from_id!r}")
                 state[from_id].to_csv(path, index=False)
                 context.log.info(f"csv_sink {from_id!r} → {path}")
+
+            # Write Parquet sinks — same shape as csv_sinks.
+            for sink in parquet_sinks:
+                from_id = sink["from"]
+                path = sink["path"]
+                if from_id not in state:
+                    raise ValueError(f"parquet_sinks: unknown step id {from_id!r}")
+                state[from_id].to_parquet(path, index=False)
+                context.log.info(f"parquet_sink {from_id!r} → {path}")
+
+            # Write Table sinks — via a Dagster resource. Same interface as
+            # source: kind=warehouse_query — resource exposes .get_engine() or
+            # .get_connection(). if_exists = 'replace' | 'append' (defaults to
+            # 'append' — safer default; explicit 'replace' truncates).
+            for sink in table_sinks:
+                from_id = sink["from"]
+                resource_key = sink["resource_key"]
+                table = sink["table"]
+                schema = sink.get("schema")
+                if_exists = sink.get("if_exists", "append")
+                if from_id not in state:
+                    raise ValueError(f"table_sinks: unknown step id {from_id!r}")
+                resource = getattr(context.resources, resource_key)
+                if hasattr(resource, "get_engine"):
+                    engine = resource.get_engine()
+                elif hasattr(resource, "get_connection"):
+                    engine = resource.get_connection()
+                else:
+                    raise ValueError(
+                        f"resource {resource_key!r} must expose .get_engine() or .get_connection()"
+                    )
+                state[from_id].to_sql(
+                    table, engine, schema=schema, if_exists=if_exists, index=False,
+                )
+                context.log.info(f"table_sink {from_id!r} → {schema+'.' if schema else ''}{table} (via {resource_key}, {if_exists})")
 
             # Return the values of the assets in the order of outs.
             missing = [aid for aid in asset_ids if aid not in state]

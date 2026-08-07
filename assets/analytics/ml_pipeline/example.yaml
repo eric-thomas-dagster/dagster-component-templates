@@ -1,0 +1,43 @@
+type: dagster_community_components.MLPipelineComponent
+attributes:
+  asset_name_prefix: wine_ml
+  group_name: ml
+
+  source:
+    kind: url
+    url: "https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/winequality-red.csv"
+    delimiter: ";"
+
+  target_column: quality
+  feature_columns:
+    - "fixed acidity"
+    - "volatile acidity"
+    - "citric acid"
+    - "residual sugar"
+    - "chlorides"
+    - "free sulfur dioxide"
+    - "total sulfur dioxide"
+    - "density"
+    - "pH"
+    - "sulphates"
+    - "alcohol"
+
+  steps:
+    - {id: scaled,  op: scale, method: standard}
+    - {id: split,   op: split, test_size: 0.2, stratify_column: quality, random_state: 42}
+    - {id: trained, op: train, model_type: decision_tree, task_type: classification,
+                    params: {max_depth: 6, random_state: 42}}
+    - {id: preds,   op: predict, model: trained, input: scaled}
+    - {id: metrics, op: evaluate, model: trained, input: preds, task_type: classification}
+    - {id: imp,     op: importance, model: trained}
+    - {id: cv,      op: cross_validate, source: scaled,
+                    model_type: decision_tree, task_type: classification,
+                    params: {max_depth: 6, random_state: 42}, cv: 5}
+
+  outputs:
+    assets: [preds, metrics, imp, cv]
+    csv_sinks:
+      - {from: preds,   path: /tmp/wine_predictions.csv}
+      - {from: metrics, path: /tmp/wine_metrics.csv}
+      - {from: imp,     path: /tmp/wine_importance.csv}
+      - {from: cv,      path: /tmp/wine_cv.csv}

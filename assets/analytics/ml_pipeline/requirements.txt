@@ -1,0 +1,11 @@
+pandas
+scikit-learn
+requests
+joblib
+# Optional deps enabled by specific ops:
+#   shap                   — required by the `shap_values` op
+#   xgboost                — for sklearn_class: "xgboost.XGBClassifier" / XGBRegressor
+#   lightgbm               — for sklearn_class: "lightgbm.LGBMClassifier" / LGBMRegressor
+#   sqlalchemy + a DB driver — required when source.kind = warehouse_query
+#     (psycopg2-binary for postgres, snowflake-sqlalchemy for snowflake,
+#      pymysql / pymssql / google-cloud-bigquery-sqlalchemy for others)

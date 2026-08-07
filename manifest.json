@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-07-31",
+  "last_updated": "2026-08-07",
   "components": [
     {
       "id": "ab_controls",
@@ -24612,6 +24612,62 @@
       }
     },
     {
+      "id": "ml_pipeline",
+      "name": "MLPipeline",
+      "path": "assets/analytics/ml_pipeline",
+      "category": "analytics",
+      "author": "Dagster Community",
+      "version": "1.0.0",
+      "description": "End-to-end ML pipeline in one YAML \u2014 27 ops covering feature engineering, hyperparameter tuning, evaluation, interpretability, model persistence. Any sklearn / XGBoost / LightGBM estimator via sklearn_class:. Warehouse-connected via any Dagster resource. Partition-aware.",
+      "tags": [
+        "analytics",
+        "ml",
+        "sklearn",
+        "xgboost",
+        "pipeline",
+        "one-yaml",
+        "standardized"
+      ],
+      "produces": [
+        "asset"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "scikit-learn",
+          "requests",
+          "joblib"
+        ]
+      },
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ml_pipeline/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ml_pipeline/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ml_pipeline/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ml_pipeline/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ml_pipeline/schema.json",
+      "agent_hints": {
+        "when_to_use": "User wants a standardized ML pipeline shape (source \u2192 feature-eng \u2192 split \u2192 train \u2192 evaluate \u2192 sinks) declared in one YAML. Covers the 80% ML case (tabular data, sklearn/xgboost/lightgbm models). Sibling of polars_pipeline / warehouse_pipeline / pyspark_pipeline for the ML domain.",
+        "typical_upstream": "A warehouse table (via warehouse_query source), a CSV URL / file, or another Dagster asset (via upstream_asset source).",
+        "typical_downstream": "Warehouse tables (predictions, feature importance), CSVs / parquet files (side outputs), saved model artifacts (joblib), or downstream inference services.",
+        "example_prompts": [
+          "Build an ML pipeline that trains a decision tree on my Snowflake customer_features table and writes predictions back.",
+          "Standardized ML pipeline with grid search + SHAP interpretability + saved model artifact \u2014 all in one YAML.",
+          "Wine ML pipeline: fetch UCI dataset, scale features, split, train, cross-validate, write CSVs."
+        ],
+        "side_effects": "Writes to disk (csv/parquet/joblib sinks) or a warehouse (table_sinks via Dagster resources). Emits multiple named asset outputs from one component.",
+        "requires_pip": [
+          "pandas",
+          "scikit-learn",
+          "requests",
+          "joblib"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "last_validated": "2026-08-07",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/wine_ml_pipeline_component.md"
+      }
+    },
+    {
       "id": "mlflow_experiment_sensor",
       "name": "MLflowExperimentSensor",
       "category": "sensor",
@@ -42816,5 +42872,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 960
+  "total": 961
 }

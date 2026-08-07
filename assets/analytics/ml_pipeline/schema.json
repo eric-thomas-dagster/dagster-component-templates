@@ -1,0 +1,36 @@
+{
+  "component_type": "dagster_community_components.MLPipelineComponent",
+  "description": "Standardized end-to-end ML pipeline in one YAML — source + steps + outputs. 27 ops covering feature engineering, hyperparameter tuning, evaluation, interpretability, and model persistence. Any sklearn/XGBoost/LightGBM estimator via sklearn_class: escape hatch. Warehouse-connected via any Dagster resource. Partition-aware.",
+  "category": "analytics",
+  "icon": "Workflow",
+  "x-dagster-io": {
+    "inputs":  {"type": "any",       "description": "Source data — URL, file, warehouse SQL, or upstream asset (kind = url|file|warehouse_query|upstream_asset)."},
+    "outputs": {"type": "dataframe", "description": "One or more first-class asset outputs (declared via outputs.assets: [step_ids]), plus optional csv / parquet / table sinks."}
+  },
+  "attributes": {
+    "asset_name_prefix":  {"type": "string", "required": true, "label": "Asset Name Prefix",
+                           "description": "Prefix for emitted asset names. Each step listed in outputs.assets becomes '{prefix}_{step_id}'."},
+
+    "source":             {"type": "object", "required": true, "label": "Source",
+                           "description": "Data source. kind = url | file | warehouse_query | upstream_asset. warehouse_query requires resource_key + sql; auto-detects the required_resource_keys."},
+
+    "target_column":      {"type": "string", "required": true, "label": "Target Column",
+                           "description": "Column to predict / cluster on."},
+
+    "feature_columns":    {"type": "array",  "required": true, "label": "Feature Columns", "items": {"type": "string"},
+                           "description": "Feature columns fed to train/predict/cross_validate."},
+
+    "steps":              {"type": "array",  "required": true, "label": "Steps", "items": {"type": "object"},
+                           "description": "Ordered pipeline steps. Each: {id, op, ...op-specific args}. Steps chain by id — a step with `source:` (or `input:`, `model:`) points at another step's output; omit `source:` and it defaults to the most recent DataFrame in state. 27 ops available across preprocessing / feature-engineering / selection / time-series / split / train / evaluate / interpret / persist."},
+
+    "outputs":            {"type": "object", "required": true, "label": "Outputs",
+                           "description": "Output declaration. Shape: {assets: [<step_ids>], csv_sinks: [], parquet_sinks: [], table_sinks: []}. `assets:` step outputs become first-class Dagster assets; sinks are side effects. All sink paths are `{partition_key}`-aware; table_sinks accept a `partition_column:` for the analytics-friendly single-table pattern."},
+
+    "group_name":         {"type": "string", "label": "Group Name", "description": "Group name for emitted assets. Default: 'ml'."},
+    "kinds":              {"type": "array",  "label": "Kinds", "items": {"type": "string"},
+                           "description": "Asset kinds. Default: ['python', 'ml']."},
+    "tags":               {"type": "object", "label": "Tags", "description": "Additional tags for the emitted assets."},
+    "owners":             {"type": "array",  "label": "Owners", "items": {"type": "string"}},
+    "description":        {"type": "string", "label": "Description", "description": "Description on the emitted assets."}
+  }
+}

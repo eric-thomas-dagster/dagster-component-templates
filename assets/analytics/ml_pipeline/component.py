@@ -368,7 +368,7 @@ def _run_step(step: dict, state: Dict[str, Any], target: str, features: list, co
         context.log.info(f"step {step_id!r} ({op}) → model {type(model).__name__}")
     elif op in _MODEL_APPLY_OPS:
         model_id = step["model"]
-        on_id = step.get("on") or _last_frame_id(state)
+        on_id = step.get("input") or _last_frame_id(state)
         df = _MODEL_APPLY_OPS[op](state[model_id], state[on_id], step, target, features, context)
         state[step_id] = df
         context.log.info(f"step {step_id!r} ({op}) → DataFrame ({len(df)} rows)")

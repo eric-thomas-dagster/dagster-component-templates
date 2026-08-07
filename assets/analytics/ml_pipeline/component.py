@@ -101,17 +101,44 @@ def _resolve_model_class(model_type: Optional[str], sklearn_class: Optional[str]
 
 # ── Ingestion executors ────────────────────────────────────────────────
 
-def _ingest(source_config: dict, context) -> Any:
-    """Return a pandas DataFrame from the source config."""
+def _apply_partition_template(s: str, partition_key: Optional[str]) -> str:
+    """Substitute `{partition_key}` and `{partition_date}` in a string template.
+
+    Safe for non-partitioned assets (returns the string unchanged if partition_key
+    is None or the template has no placeholders). Wraps in a try/format_map so
+    unknown placeholders are preserved as literals rather than raising.
+    """
+    if not partition_key or not s or "{" not in s:
+        return s
+    class _SafeDict(dict):
+        def __missing__(self, key):  # pragma: no cover - defensive
+            return "{" + key + "}"
+    try:
+        return s.format_map(_SafeDict({
+            "partition_key": str(partition_key),
+            "partition_date": str(partition_key),
+        }))
+    except Exception:
+        return s
+
+
+def _ingest(source_config: dict, context, partition_key: Optional[str] = None) -> Any:
+    """Return a pandas DataFrame from the source config.
+
+    Partition-aware: `{partition_key}` placeholders in `url` / `path` / `sql`
+    are substituted from `context.partition_key` at compute time.
+    """
     import pandas as pd
     kind = source_config.get("kind", "url")
     if kind == "url":
         import requests
-        resp = requests.get(source_config["url"], timeout=60)
+        url = _apply_partition_template(source_config["url"], partition_key)
+        resp = requests.get(url, timeout=60)
         resp.raise_for_status()
         return pd.read_csv(StringIO(resp.text), sep=source_config.get("delimiter", ","))
     if kind == "file":
-        return pd.read_csv(source_config["path"], sep=source_config.get("delimiter", ","))
+        path = _apply_partition_template(source_config["path"], partition_key)
+        return pd.read_csv(path, sep=source_config.get("delimiter", ","))
     if kind == "upstream_asset":
         # Loaded by Dagster via IO manager and passed as an arg to the pipeline;
         # this function is only called for kind=url|file. See build_defs wiring.
@@ -125,8 +152,12 @@ def _ingest(source_config: dict, context) -> Any:
         # resources: postgres_resource, mysql_resource, mssql_resource,
         # snowflake_resource, bigquery_resource, and any custom resource that
         # implements the same interface.
+        #
+        # Partition-aware: `{partition_key}` in `sql:` gets substituted before
+        # execution. Enables per-partition SQL like:
+        #   sql: "SELECT * FROM events WHERE event_date = '{partition_key}'"
         resource_key = source_config["resource_key"]
-        sql = source_config["sql"]
+        sql = _apply_partition_template(source_config["sql"], partition_key)
         resource = getattr(context.resources, resource_key)
         if hasattr(resource, "get_engine"):
             engine = resource.get_engine()
@@ -556,12 +587,19 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             required_resource_keys=required_resource_keys or None,
         )
         def _pipeline(context: dg.AssetExecutionContext, **kwargs):
-            # Ingest — either from an upstream asset input OR by fetching a URL / file.
+            # Partition-aware compute: read context.partition_key once + thread
+            # into ingest + sink templates. Safe on unpartitioned assets
+            # (partition_key is None; substitutions become no-ops).
+            partition_key = context.partition_key if context.has_partition_key else None
+            if partition_key:
+                context.log.info(f"partition-aware materialization: partition_key={partition_key!r}")
+
+            # Ingest — either from an upstream asset input OR by fetching a URL / file / SQL.
             if source_config.get("kind") == "upstream_asset":
                 initial_frame = kwargs["source"]
                 context.log.info(f"ingested {len(initial_frame)} rows from upstream asset")
             else:
-                initial_frame = _ingest(source_config, context)
+                initial_frame = _ingest(source_config, context, partition_key=partition_key)
                 context.log.info(
                     f"ingested {len(initial_frame)} rows via {source_config.get('kind', 'url')}"
                 )
@@ -573,9 +611,10 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 _run_step(step, state, target, features, context)
 
             # Write CSV sinks — side effects, not first-class assets.
+            # Path is partition-aware via `{partition_key}` templating.
             for sink in csv_sinks:
                 from_id = sink["from"]
-                path = sink["path"]
+                path = _apply_partition_template(sink["path"], partition_key)
                 if from_id not in state:
                     raise ValueError(f"csv_sinks: unknown step id {from_id!r}")
                 state[from_id].to_csv(path, index=False)
@@ -584,24 +623,42 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             # Write Parquet sinks — same shape as csv_sinks.
             for sink in parquet_sinks:
                 from_id = sink["from"]
-                path = sink["path"]
+                path = _apply_partition_template(sink["path"], partition_key)
                 if from_id not in state:
                     raise ValueError(f"parquet_sinks: unknown step id {from_id!r}")
                 state[from_id].to_parquet(path, index=False)
                 context.log.info(f"parquet_sink {from_id!r} → {path}")
 
-            # Write Table sinks — via a Dagster resource. Same interface as
-            # source: kind=warehouse_query — resource exposes .get_engine() or
-            # .get_connection(). if_exists = 'replace' | 'append' (defaults to
-            # 'append' — safer default; explicit 'replace' truncates).
+            # Write Table sinks — via a Dagster resource. Two partition patterns:
+            #   Pattern A (per-partition-table): put `{partition_key}` in `table:`
+            #     table: "predictions_{partition_key}"  → predictions_2025_01_15
+            #   Pattern B (single table + partition column): set `partition_column:`
+            #     partition_column: partition_date  → appends this column to every
+            #     row with the partition_key value. Analytics queries stay clean
+            #     (WHERE partition_date = ...).
+            # Both patterns can combine with `if_exists: append` for streaming or
+            # `if_exists: replace` for idempotent per-partition writes.
             for sink in table_sinks:
                 from_id = sink["from"]
                 resource_key = sink["resource_key"]
-                table = sink["table"]
+                table = _apply_partition_template(sink["table"], partition_key)
                 schema = sink.get("schema")
                 if_exists = sink.get("if_exists", "append")
+                partition_col = sink.get("partition_column")
                 if from_id not in state:
                     raise ValueError(f"table_sinks: unknown step id {from_id!r}")
+
+                df_to_write = state[from_id]
+                if partition_key and partition_col:
+                    if partition_col in df_to_write.columns:
+                        context.log.warning(
+                            f"partition_column={partition_col!r} already in {from_id!r} — overwriting"
+                        )
+                    df_to_write = df_to_write.assign(**{partition_col: str(partition_key)})
+                    context.log.info(
+                        f"table_sink Pattern B: added column {partition_col!r}={partition_key!r} to {len(df_to_write)} rows"
+                    )
+
                 resource = getattr(context.resources, resource_key)
                 if hasattr(resource, "get_engine"):
                     engine = resource.get_engine()
@@ -611,7 +668,7 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     raise ValueError(
                         f"resource {resource_key!r} must expose .get_engine() or .get_connection()"
                     )
-                state[from_id].to_sql(
+                df_to_write.to_sql(
                     table, engine, schema=schema, if_exists=if_exists, index=False,
                 )
                 context.log.info(f"table_sink {from_id!r} → {schema+'.' if schema else ''}{table} (via {resource_key}, {if_exists})")

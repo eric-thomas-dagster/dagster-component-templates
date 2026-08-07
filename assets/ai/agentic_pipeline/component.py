@@ -63,6 +63,8 @@ The `assets:` list picks which step outputs become first-class Dagster
 assets; each is emitted as a dict with the full op output preserved.
 """
 import os
+import time
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import dagster as dg
@@ -145,7 +147,9 @@ def _completion(
     if tool_choice:
         kwargs["tool_choice"] = tool_choice
 
+    call_started_at = time.time()
     response = litellm.completion(**kwargs)
+    latency_ms = int((time.time() - call_started_at) * 1000)
     msg = response.choices[0].message
     content = msg.content or ""
 
@@ -167,7 +171,30 @@ def _completion(
             except (TypeError, ValueError):
                 usage = None
 
-    return {"content": content, "tool_calls": tool_calls_out, "usage": usage}
+    # LiteLLM ships a maintained pricing table; fall back to None on providers
+    # it doesn't know about (self-hosted / niche models).
+    cost_usd = None
+    try:
+        cost_usd = float(litellm.completion_cost(completion_response=response))
+    except Exception:
+        cost_usd = None
+
+    tokens_total = None
+    if usage is not None:
+        # Both litellm and openai use the same key name.
+        tt = usage.get("total_tokens")
+        if isinstance(tt, (int, float)):
+            tokens_total = int(tt)
+
+    return {
+        "content": content,
+        "tool_calls": tool_calls_out,
+        "usage": usage,
+        "cost_usd": cost_usd,
+        "latency_ms": latency_ms,
+        "tokens_total": tokens_total,
+        "temperature": temperature,
+    }
 
 
 def _get_source_text(state: Dict[str, Any], source_id: str) -> str:
@@ -189,13 +216,33 @@ def _last_step_id(state: Dict[str, Any]) -> str:
 
 # ── Op executors ─────────────────────────────────────────────────────
 
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _sum_cost(*results) -> Optional[float]:
+    xs = [r.get("cost_usd") for r in results if r and r.get("cost_usd") is not None]
+    return round(sum(xs), 6) if xs else None
+
+
+def _sum_latency(*results) -> int:
+    return sum((r.get("latency_ms") or 0) for r in results if r)
+
+
+def _sum_tokens(*results) -> Optional[int]:
+    xs = [r.get("tokens_total") for r in results if r and r.get("tokens_total") is not None]
+    return sum(xs) if xs else None
+
+
 def _do_llm_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     """Single LLM call. Uses source step's text as user prompt (or prompt_template with {text})."""
+    materialized_at = _now_iso()
     source_id = step.get("source", _last_step_id(state))
     src_text = _get_source_text(state, source_id)
 
     prompt_template = step.get("prompt_template", "{text}")
     user_prompt = prompt_template.replace("{text}", src_text)
+    temperature = step.get("temperature", 0.0)
 
     result = _completion(
         model=step["model"],
@@ -203,14 +250,21 @@ def _do_llm_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         user_prompt=user_prompt,
         api_key_env_var=step.get("api_key_env_var"),
         api_base_env_var=step.get("api_base_env_var"),
-        temperature=step.get("temperature", 0.0),
+        temperature=temperature,
         max_tokens=step.get("max_tokens", 2048),
     )
     return {
         "text": result["content"],
         "model": step["model"],
+        "model_fingerprint": f"{step['model']}@t{temperature}",
+        "materialized_at": materialized_at,
+        "cost_usd": _sum_cost(result),
+        "latency_ms": _sum_latency(result),
+        "tokens_total": _sum_tokens(result),
+        "n_llm_calls": 1,
         "usage": result["usage"],
         "prompt": user_prompt,
+        "op": "llm_call",
     }
 
 
@@ -223,6 +277,7 @@ def _do_route(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     """
     import json
 
+    materialized_at = _now_iso()
     source_id = step.get("source", _last_step_id(state))
     src_text = _get_source_text(state, source_id)
 
@@ -319,7 +374,14 @@ def _do_route(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         "routing_source": routing_source,
         "router_model": router["model"],
         "specialist_model": specialist["model"],
+        "model_fingerprint": f"{router['model']}→{specialist['model']}",
+        "materialized_at": materialized_at,
+        "cost_usd": _sum_cost(router_result, specialist_result),
+        "latency_ms": _sum_latency(router_result, specialist_result),
+        "tokens_total": _sum_tokens(router_result, specialist_result),
+        "n_llm_calls": 2,
         "usage": {"router": router_result["usage"], "specialist": specialist_result["usage"]},
+        "op": "route",
     }
 
 
@@ -331,6 +393,7 @@ def _do_debate(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     """
     import json
 
+    materialized_at = _now_iso()
     source_id = step.get("source", _last_step_id(state))
     src_text = _get_source_text(state, source_id)
 
@@ -344,6 +407,7 @@ def _do_debate(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
 
     proposals = []
     proposer_usage = []
+    proposer_results = []
     for i, p in enumerate(proposers):
         context.log.info(f"[debate] proposer {i} ({p['model']}) writing proposal")
         r = _completion(
@@ -357,6 +421,7 @@ def _do_debate(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         )
         proposals.append({"index": i, "model": p["model"], "text": r["content"]})
         proposer_usage.append(r["usage"])
+        proposer_results.append(r)
 
     # Arbitrator picks via function call (one tool per proposal index).
     tools = []
@@ -421,6 +486,7 @@ def _do_debate(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     winner = proposals[winner_index]
     context.log.info(f"[debate] winner=proposal {winner_index} ({winner['model']})")
 
+    proposer_models = ",".join(p["model"] for p in proposers)
     return {
         "text": winner["text"],
         "winner_index": winner_index,
@@ -428,7 +494,14 @@ def _do_debate(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         "arbitrator_reasoning": arb_reasoning,
         "all_proposals": proposals,
         "arbitrator_model": arbitrator["model"],
+        "model_fingerprint": f"[{proposer_models}]→{arbitrator['model']}",
+        "materialized_at": materialized_at,
+        "cost_usd": _sum_cost(*proposer_results, arb_result),
+        "latency_ms": _sum_latency(*proposer_results, arb_result),
+        "tokens_total": _sum_tokens(*proposer_results, arb_result),
+        "n_llm_calls": len(proposer_results) + 1,
         "usage": {"proposers": proposer_usage, "arbitrator": arb_result["usage"]},
+        "op": "debate",
     }
 
 
@@ -439,6 +512,7 @@ def _do_critique_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
     critic:    {model, [system_prompt, api_key_env_var, temperature, max_tokens]}
     iterations: 2   (number of critique/revise cycles; >=1)
     """
+    materialized_at = _now_iso()
     source_id = step.get("source", _last_step_id(state))
     src_text = _get_source_text(state, source_id)
 
@@ -447,6 +521,8 @@ def _do_critique_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
     iterations = int(step.get("iterations", 2))
     if iterations < 1:
         raise ValueError(f"critique_loop iterations must be >=1; got {iterations}")
+
+    all_llm_results = []
 
     context.log.info(
         f"[critique_loop:{step.get('id', '?')}] drafter={drafter['model']} "
@@ -467,6 +543,7 @@ def _do_critique_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
     history = [{"iteration": 0, "phase": "initial_draft", "text": current_draft}]
     drafter_usage = [draft_result["usage"]]
     critic_usage = []
+    all_llm_results.append(draft_result)
 
     for i in range(iterations):
         # Critic reviews.
@@ -489,6 +566,7 @@ def _do_critique_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
         critique = critique_result["content"]
         history.append({"iteration": i + 1, "phase": "critique", "text": critique})
         critic_usage.append(critique_result["usage"])
+        all_llm_results.append(critique_result)
 
         # Drafter revises.
         revise_prompt = (
@@ -509,6 +587,7 @@ def _do_critique_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
         current_draft = revise_result["content"]
         history.append({"iteration": i + 1, "phase": "revised_draft", "text": current_draft})
         drafter_usage.append(revise_result["usage"])
+        all_llm_results.append(revise_result)
 
     return {
         "text": current_draft,
@@ -516,7 +595,14 @@ def _do_critique_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
         "history": history,
         "drafter_model": drafter["model"],
         "critic_model": critic["model"],
+        "model_fingerprint": f"{drafter['model']}//{critic['model']}×{iterations}",
+        "materialized_at": materialized_at,
+        "cost_usd": _sum_cost(*all_llm_results),
+        "latency_ms": _sum_latency(*all_llm_results),
+        "tokens_total": _sum_tokens(*all_llm_results),
+        "n_llm_calls": len(all_llm_results),
         "usage": {"drafter": drafter_usage, "critic": critic_usage},
+        "op": "critique_loop",
     }
 
 
@@ -527,6 +613,7 @@ def _do_synthesize(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]
     model, [system_prompt, api_key_env_var, temperature, max_tokens]
     prompt_template: default uses labeled sections.
     """
+    materialized_at = _now_iso()
     source_ids = step.get("sources") or []
     if not source_ids:
         raise ValueError("synthesize requires `sources: [step_id, ...]` (>=1 id)")
@@ -541,6 +628,7 @@ def _do_synthesize(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]
         "You have {n_sources} labeled sections below. Synthesize them into a single coherent response.\n\n{combined}",
     )
     user_prompt = prompt_template.replace("{combined}", combined).replace("{n_sources}", str(len(source_ids)))
+    temperature = step.get("temperature", 0.0)
 
     result = _completion(
         model=step["model"],
@@ -548,7 +636,7 @@ def _do_synthesize(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]
         user_prompt=user_prompt,
         api_key_env_var=step.get("api_key_env_var"),
         api_base_env_var=step.get("api_base_env_var"),
-        temperature=step.get("temperature", 0.0),
+        temperature=temperature,
         max_tokens=step.get("max_tokens", 4096),
     )
 
@@ -556,7 +644,14 @@ def _do_synthesize(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]
         "text": result["content"],
         "sources_used": list(source_ids),
         "model": step["model"],
+        "model_fingerprint": f"{step['model']}@t{temperature}",
+        "materialized_at": materialized_at,
+        "cost_usd": _sum_cost(result),
+        "latency_ms": _sum_latency(result),
+        "tokens_total": _sum_tokens(result),
+        "n_llm_calls": 1,
         "usage": result["usage"],
+        "op": "synthesize",
     }
 
 
@@ -667,20 +762,28 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             raise ValueError("outputs.assets must list at least one step id.")
 
         group_name = self.group_name or "agents"
-        kinds = list(self.kinds or ["llm", "agent", "pipeline"])
-        tags = dict(self.tags or {})
-        for k in kinds:
-            tags[f"dagster/kind/{k}"] = ""
+        base_kinds = list(self.kinds or ["llm", "agent"])
+        base_tags = dict(self.tags or {})
 
-        outs = {
-            f"{prefix}_{aid}": dg.AssetOut(
+        # Map step id → op so we can add the op name to that asset's kinds.
+        # Router → kinds: [..., 'router'] etc. Lets users filter the asset
+        # catalog by "show me every debate step" or "every route step".
+        op_by_id = {s.get("id"): s.get("op") for s in steps if s.get("id") and s.get("op")}
+
+        outs = {}
+        for aid in asset_ids:
+            per_asset_tags = dict(base_tags)
+            for k in base_kinds:
+                per_asset_tags[f"dagster/kind/{k}"] = ""
+            op = op_by_id.get(aid)
+            if op:
+                per_asset_tags[f"dagster/kind/{op}"] = ""
+            outs[f"{prefix}_{aid}"] = dg.AssetOut(
                 group_name=group_name,
                 description=self.description,
                 owners=self.owners or None,
-                tags=tags,
+                tags=per_asset_tags,
             )
-            for aid in asset_ids
-        }
 
         ins: Dict[str, dg.AssetIn] = {}
         if source_config.get("kind") == "upstream_asset":
@@ -748,23 +851,59 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 raise ValueError(f"outputs.assets references unknown step ids: {missing}")
 
             # Add materialization metadata for each asset output.
+            #
+            # Every step surfaces a common core of metadata (text, cost_usd,
+            # latency_ms, model_fingerprint, materialized_at, n_llm_calls, op,
+            # partition_key) — this is what makes Dagster's asset history the
+            # thing you browse instead of job logs. Op-specific fields
+            # (router_reasoning, all_proposals, history) come after.
             for aid in asset_ids:
                 entry = state[aid]
                 md: Dict[str, Any] = {}
                 if isinstance(entry, dict):
                     text = entry.get("text", "")
-                    md[f"{aid}_text"] = dg.MetadataValue.md(text[:2000] if text else "_(empty)_")
+                    md[f"{aid}__text"] = dg.MetadataValue.md(text[:2000] if text else "_(empty)_")
+
+                    # Typed core fields — these show up prominently in the UI
+                    # and are filterable across the asset's materialization history.
+                    # Numeric fields — Dagster+ Insights turns these into
+                    # dashboardable time-series with per-metric alerts.
+                    if entry.get("cost_usd") is not None:
+                        md[f"{aid}__cost_usd"] = dg.MetadataValue.float(float(entry["cost_usd"]))
+                    if entry.get("latency_ms") is not None:
+                        md[f"{aid}__latency_ms"] = dg.MetadataValue.int(int(entry["latency_ms"]))
+                    if entry.get("tokens_total") is not None:
+                        md[f"{aid}__tokens_total"] = dg.MetadataValue.int(int(entry["tokens_total"]))
+                    if entry.get("n_llm_calls") is not None:
+                        md[f"{aid}__n_llm_calls"] = dg.MetadataValue.int(int(entry["n_llm_calls"]))
+                    if entry.get("model_fingerprint"):
+                        md[f"{aid}__model_fingerprint"] = dg.MetadataValue.text(str(entry["model_fingerprint"]))
+                    if entry.get("materialized_at"):
+                        try:
+                            md[f"{aid}__materialized_at"] = dg.MetadataValue.timestamp(
+                                datetime.fromisoformat(entry["materialized_at"])
+                            )
+                        except (TypeError, ValueError):
+                            md[f"{aid}__materialized_at"] = dg.MetadataValue.text(str(entry["materialized_at"]))
+                    if entry.get("op"):
+                        md[f"{aid}__op"] = dg.MetadataValue.text(str(entry["op"]))
+                    if partition_key is not None:
+                        md[f"{aid}__partition_key"] = dg.MetadataValue.text(str(partition_key))
+
+                    # Op-specific rich fields (JSON blobs the UI renders inline).
                     for k, v in entry.items():
-                        if k == "text":
+                        if k in ("text", "cost_usd", "latency_ms", "tokens_total",
+                                 "n_llm_calls", "model_fingerprint",
+                                 "materialized_at", "op"):
                             continue
                         if k == "usage" and v is not None:
-                            md[f"{aid}_usage"] = dg.MetadataValue.json(v)
+                            md[f"{aid}__usage"] = dg.MetadataValue.json(v)
                         elif k == "all_proposals" and v is not None:
-                            md[f"{aid}_proposals"] = dg.MetadataValue.json(v)
+                            md[f"{aid}__proposals"] = dg.MetadataValue.json(v)
                         elif k == "history" and v is not None:
-                            md[f"{aid}_history"] = dg.MetadataValue.json(v)
+                            md[f"{aid}__history"] = dg.MetadataValue.json(v)
                         elif isinstance(v, (str, int, float, bool)):
-                            md[f"{aid}_{k}"] = dg.MetadataValue.text(str(v))
+                            md[f"{aid}__{k}"] = dg.MetadataValue.text(str(v))
                 context.add_output_metadata(md, output_name=f"{prefix}_{aid}")
 
             return tuple(state[aid] for aid in asset_ids)

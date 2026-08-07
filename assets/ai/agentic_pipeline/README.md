@@ -4,6 +4,37 @@
 
 Standardize what an agentic pipeline looks like across your org. `source` + `steps` + `outputs`. Reviewers scan a fixed schema, CI validates against one shape, new hires learn one file and can build any agentic workflow.
 
+## Why Dagster (not just a job runner)
+
+Any workflow tool can *run* a chain of LLM calls. What Dagster does that Prefect / Airflow / a plain script doesn't:
+
+**Every step is a versioned asset with typed metadata.** Every step's output is a first-class asset in the catalog. Click it, see every past materialization: what the router picked, arbitrator reasoning, cost, latency, model, timestamp — **no log-grepping**. Prefect gives you a job run; Dagster gives you a browsable, filterable decision history per asset per partition.
+
+**Rich, typed metadata on every materialization** (all present by default — no configuration):
+
+| Field | Type | What Dagster does with it |
+|---|---|---|
+| `<step>__text` | `MarkdownMetadataValue` | Renders the agent's output inline in the asset UI. |
+| `<step>__cost_usd` | `FloatMetadataValue` | **Dagster+ Insights** turns it into a dashboardable time-series and per-metric alerts (`alert if cost > $10 in 1h`). |
+| `<step>__latency_ms` | `IntMetadataValue` | Same — plot latency over time, alert on regressions. |
+| `<step>__tokens_total` | `IntMetadataValue` | Same — token budget monitoring. |
+| `<step>__n_llm_calls` | `IntMetadataValue` | Same — track fan-out drift. |
+| `<step>__model_fingerprint` | `TextMetadataValue` | e.g. `gpt-4o-mini→gpt-4o` — spot when a partition was rerun with a different model. |
+| `<step>__materialized_at` | `TimestampMetadataValue` | When the LLM call fired. Rerun-from-cache vs. fresh call is visible. |
+| `<step>__op` | `TextMetadataValue` | Which pipeline op (route / debate / critique_loop / ...). |
+| `<step>__partition_key` | `TextMetadataValue` | Echoes the partition for easy filtering. |
+| `<step>__proposals` | `JsonMetadataValue` | (debate op) Every proposal, with its model + text. |
+| `<step>__history` | `JsonMetadataValue` | (critique_loop) Full drafter/critic transcript across iterations. |
+| `<step>__router_reasoning` | `TextMetadataValue` | (route op) Why the router picked this specialist. |
+
+**Per-step kinds — filter the catalog by pipeline op.** Every asset gets its op name as a `kind` tag (`route`, `debate`, `critique_loop`, `synthesize`, `llm_call`). Filter the catalog to "show me every debate step across every pipeline" — impossible with job-based tools.
+
+**Partitions — time-travel to any decision.** `{partition_key}` in your source text / URL / file path templates at compute time. Every partition's materialization is independently browsable. "What did the pipeline decide for `2026-03-05`?" is one click, not a log-search.
+
+**Dagster+ Insights** (Dagster+ only). Because `cost_usd`, `latency_ms`, `tokens_total`, `n_llm_calls` are typed numeric metadata, Insights automatically turns them into custom metrics — no code, no export pipeline, no separate observability system. Set an alert on "any pipeline whose median cost per partition exceeds $0.50" in the UI. In Prefect, that's a manual export → Grafana → alertmanager pipeline you build yourself.
+
+**Lineage — the pipeline connects to your data graph.** Use `kind: upstream_asset` on the source, and the pipeline's inputs show as parents in the asset graph. Prefect flows have no such graph.
+
 ## Quick example
 
 ```yaml

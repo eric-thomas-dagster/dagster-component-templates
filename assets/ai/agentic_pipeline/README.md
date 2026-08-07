@@ -15,10 +15,10 @@ Any workflow tool can *run* a chain of LLM calls. What Dagster does that Prefect
 | Field | Type | What Dagster does with it |
 |---|---|---|
 | `<step>__text` | `MarkdownMetadataValue` | Renders the agent's output inline in the asset UI. |
-| `<step>__cost_usd` | `FloatMetadataValue` | **Dagster+ Insights** turns it into a dashboardable time-series and per-metric alerts (`alert if cost > $10 in 1h`). |
-| `<step>__latency_ms` | `IntMetadataValue` | Same — plot latency over time, alert on regressions. |
-| `<step>__tokens_total` | `IntMetadataValue` | Same — token budget monitoring. |
-| `<step>__n_llm_calls` | `IntMetadataValue` | Same — track fan-out drift. |
+| `<step>__cost_usd` | `FloatMetadataValue` | Promote to a **Dagster+ Insights** custom metric via the UI; once promoted, dashboards + per-metric alerts follow (`alert if cost > $10 in 1h`). |
+| `<step>__latency_ms` | `IntMetadataValue` | Same — promote via UI, then plot latency over time / alert on regressions. |
+| `<step>__tokens_total` | `IntMetadataValue` | Same — promote via UI, then set token budget alerts. |
+| `<step>__n_llm_calls` | `IntMetadataValue` | Same — promote via UI, then track fan-out drift. |
 | `<step>__model_fingerprint` | `TextMetadataValue` | e.g. `gpt-4o-mini→gpt-4o` — spot when a partition was rerun with a different model. |
 | `<step>__materialized_at` | `TimestampMetadataValue` | When the LLM call fired. Rerun-from-cache vs. fresh call is visible. |
 | `<step>__op` | `TextMetadataValue` | Which pipeline op (route / debate / critique_loop / ...). |
@@ -31,7 +31,7 @@ Any workflow tool can *run* a chain of LLM calls. What Dagster does that Prefect
 
 **Partitions — time-travel to any decision.** `{partition_key}` in your source text / URL / file path templates at compute time. Every partition's materialization is independently browsable. "What did the pipeline decide for `2026-03-05`?" is one click, not a log-search.
 
-**Dagster+ Insights** (Dagster+ only). Because `cost_usd`, `latency_ms`, `tokens_total`, `n_llm_calls` are typed numeric metadata, Insights automatically turns them into custom metrics — no code, no export pipeline, no separate observability system. Set an alert on "any pipeline whose median cost per partition exceeds $0.50" in the UI. In Prefect, that's a manual export → Grafana → alertmanager pipeline you build yourself.
+**Dagster+ Insights** (Dagster+ only). Because `cost_usd`, `latency_ms`, `tokens_total`, `n_llm_calls` ship as typed numeric metadata, you can **promote any of them into a custom Insights metric from the Dagster+ UI** — a few clicks, no code, no separate observability pipeline. Once promoted, each metric gets a dashboardable time-series and configurable alerts (`alert if any pipeline's median cost per partition exceeds $0.50`). In Prefect you'd first instrument the numeric values yourself, then build the whole export → Grafana → alertmanager pipeline before you could even define the alert.
 
 **Lineage — the pipeline connects to your data graph.** Use `kind: upstream_asset` on the source, and the pipeline's inputs show as parents in the asset graph. Prefect flows have no such graph.
 

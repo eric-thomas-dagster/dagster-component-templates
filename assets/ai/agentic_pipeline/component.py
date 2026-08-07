@@ -823,13 +823,18 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             for step in steps:
                 _run_step(step, state, context)
 
-            # Text sinks (partition-aware paths).
+            # Text sinks (partition-aware paths). Creates parent dirs so
+            # {partition_key}-templated subdirs Just Work — matters both
+            # locally and for Serverless container filesystems.
             for sink in text_sinks:
                 from_id = sink["from"]
                 path = _apply_partition_template(sink["path"], partition_key)
                 if from_id not in state:
                     raise ValueError(f"text_sinks: unknown step id {from_id!r}")
                 text = state[from_id].get("text", "") if isinstance(state[from_id], dict) else str(state[from_id])
+                parent = os.path.dirname(path)
+                if parent:
+                    os.makedirs(parent, exist_ok=True)
                 with open(path, "w") as f:
                     f.write(text)
                 context.log.info(f"text_sink {from_id!r} → {path}")
@@ -841,6 +846,9 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 path = _apply_partition_template(sink["path"], partition_key)
                 if from_id not in state:
                     raise ValueError(f"json_sinks: unknown step id {from_id!r}")
+                parent = os.path.dirname(path)
+                if parent:
+                    os.makedirs(parent, exist_ok=True)
                 with open(path, "w") as f:
                     json.dump(state[from_id], f, indent=2, default=str)
                 context.log.info(f"json_sink {from_id!r} → {path}")

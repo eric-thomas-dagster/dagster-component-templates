@@ -79,6 +79,14 @@ class TestModelConstruction:
                 "comparison": "lt", "threshold": 100,
             }),
             ("absence", {"asset_keys": ["a"], "max_gap_minutes": 90}),
+            ("log_pattern", {"pattern": r"OOMKilled"}),
+            ("asset_value_change", {
+                "asset_key": "a", "metadata_key": "row_count",
+                "direction": "decrease", "min_delta_pct": 50,
+            }),
+            ("backfill_status", {"status": "FAILED"}),
+            ("sensor_failing", {"target_sensor_name": "ingest_sensor"}),
+            ("concurrency_hit", {"max_queued": 20}),
             ("sqs_poll", {"queue_url": "https://sqs.example.com/q"}),
         ]
         for type_name, fields in triggers:
@@ -93,6 +101,11 @@ class TestModelConstruction:
                 "asset_check_failed": comp_mod.AssetCheckFailedTrigger,
                 "metric_threshold": comp_mod.MetricThresholdTrigger,
                 "absence": comp_mod.AbsenceTrigger,
+                "log_pattern": comp_mod.LogPatternTrigger,
+                "asset_value_change": comp_mod.AssetValueChangeTrigger,
+                "backfill_status": comp_mod.BackfillStatusTrigger,
+                "sensor_failing": comp_mod.SensorFailingTrigger,
+                "concurrency_hit": comp_mod.ConcurrencyHitTrigger,
                 "sqs_poll": comp_mod.SqsPollTrigger,
             }[type_name]
             obj = cls(**fields)
@@ -160,7 +173,7 @@ class TestSensorEmission:
         assert "test_automation__schedule_1" in names
         assert "test_automation__asset_materialized_2" in names
 
-    def test_all_11_trigger_types_emit_sensors(self):
+    def test_all_16_trigger_types_emit_sensors(self):
         """One sensor per trigger, for every trigger type."""
         triggers = [
             {"type": "run_status", "status": "FAILURE"},
@@ -174,10 +187,16 @@ class TestSensorEmission:
             {"type": "metric_threshold", "asset_key": "a", "metadata_key": "row_count",
              "comparison": "lt", "threshold": 100},
             {"type": "absence", "asset_keys": ["a"], "max_gap_minutes": 90},
+            {"type": "log_pattern", "pattern": "OOMKilled"},
+            {"type": "asset_value_change", "asset_key": "a", "metadata_key": "row_count",
+             "direction": "decrease", "min_delta_pct": 50},
+            {"type": "backfill_status", "status": "FAILED"},
+            {"type": "sensor_failing", "target_sensor_name": "ingest_sensor"},
+            {"type": "concurrency_hit", "max_queued": 20},
             {"type": "sqs_poll", "queue_url": "https://sqs.example.com/q"},
         ]
         defs = self._build_defs(triggers)
-        assert len(list(defs.sensors)) == 11
+        assert len(list(defs.sensors)) == 16
 
 
 # ── Template rendering ───────────────────────────────────────────────────
@@ -529,7 +548,7 @@ class TestComposition:
 
 class TestEndToEnd:
     def test_full_component_with_every_trigger_type(self):
-        """The 11-trigger project loads."""
+        """The 16-trigger project loads."""
         component = comp_mod.EventAutomationComponent(
             name="all_triggers",
             when=[
@@ -544,12 +563,18 @@ class TestEndToEnd:
                 {"type": "metric_threshold", "asset_key": "a", "metadata_key": "rc",
                  "comparison": "lt", "threshold": 10},
                 {"type": "absence", "asset_keys": ["a"], "max_gap_minutes": 60},
+                {"type": "log_pattern", "pattern": "OOMKilled"},
+                {"type": "asset_value_change", "asset_key": "a", "metadata_key": "rc",
+                 "direction": "any", "min_delta_pct": 25},
+                {"type": "backfill_status", "status": "FAILED"},
+                {"type": "sensor_failing", "target_sensor_name": "s"},
+                {"type": "concurrency_hit", "max_queued": 10},
                 {"type": "sqs_poll", "queue_url": "https://sqs"},
             ],
             then=[{"type": "emit_event", "asset_key": "marker"}],
         )
         defs = component.build_defs(None)
-        assert len(list(defs.sensors)) == 11
+        assert len(list(defs.sensors)) == 16
 
     def test_full_component_with_every_action_type(self):
         """Every action type at least parses + runs without crashing."""

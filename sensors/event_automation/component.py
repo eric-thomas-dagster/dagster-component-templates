@@ -18,6 +18,11 @@ Triggers (`when:`):
   - `asset_check_failed`   — a named asset check evaluated to FAILURE
   - `metric_threshold`     — numeric metadata on a materialization crossed a threshold
   - `absence`              — dead-man's switch: asset didn't materialize in a window
+  - `log_pattern`          — regex match on run log lines
+  - `asset_value_change`   — numeric metadata delta across two consecutive materializations
+  - `backfill_status`      — partition backfill entered a state (COMPLETED/FAILED/…)
+  - `sensor_failing`       — a target sensor has been failing N consecutive ticks
+  - `concurrency_hit`      — count of queued/running runs exceeded a threshold
   - `all_of` (compound)    — AND-composition: fire only when N sub-triggers all fire
                              within a window (with_seconds)
 
@@ -395,6 +400,74 @@ class AbsenceTrigger(_TriggerBase):
     minimum_interval_seconds: int = Field(default=300)
 
 
+class LogPatternTrigger(_TriggerBase):
+    """Fires when a recent run's log line matches a regex.
+
+    Watches finished runs (SUCCESS + FAILURE); scans their event log for
+    LOG lines matching `pattern`. Cursor tracks last-checked run id so we
+    don't rescan the same run twice.
+    """
+    type: Literal["log_pattern"] = "log_pattern"
+    pattern: str = Field(description="Regex pattern to match against log message text.")
+    job_name: Optional[str] = Field(default=None, description="Optional job filter.")
+    minimum_interval_seconds: int = Field(default=60)
+
+
+class AssetValueChangeTrigger(_TriggerBase):
+    """Fires when a numeric metadata value changes between two consecutive
+    materializations of an asset by more than `min_delta` or `min_delta_pct`.
+
+    Comparison: `increase` fires only on rise, `decrease` only on drop,
+    `any` fires on either direction.
+    """
+    type: Literal["asset_value_change"] = "asset_value_change"
+    asset_key: str = Field(description="Asset key to watch.")
+    metadata_key: str = Field(description="Numeric metadata key to compare across materializations.")
+    direction: str = Field(default="any", description="increase | decrease | any")
+    min_delta: Optional[float] = Field(default=None, description="Absolute delta threshold.")
+    min_delta_pct: Optional[float] = Field(
+        default=None, description="Percentage delta threshold (0-100). Fires when |Δ|/prev > this."
+    )
+    minimum_interval_seconds: int = Field(default=60)
+
+
+class BackfillStatusTrigger(_TriggerBase):
+    """Fires when a partition backfill enters a specific state.
+
+    Cursor tracks last-seen backfill id so a given state transition fires
+    exactly once.
+    """
+    type: Literal["backfill_status"] = "backfill_status"
+    status: str = Field(description="COMPLETED | FAILED | CANCELED | REQUESTED")
+    job_name: Optional[str] = Field(default=None, description="Optional job filter.")
+    minimum_interval_seconds: int = Field(default=60)
+
+
+class SensorFailingTrigger(_TriggerBase):
+    """Meta-trigger: fires when a target sensor has failed N ticks in a row.
+
+    Useful for surfacing broken sensors — if the sensor daemon is polling
+    `my_ingest_sensor` and it errors 5x consecutively, alert.
+    """
+    type: Literal["sensor_failing"] = "sensor_failing"
+    target_sensor_name: str = Field(description="Name of the sensor to monitor.")
+    consecutive_failures: int = Field(default=3, description="Number of consecutive failures to fire on.")
+    minimum_interval_seconds: int = Field(default=120)
+
+
+class ConcurrencyHitTrigger(_TriggerBase):
+    """Fires when the count of queued/running runs exceeds a threshold.
+
+    Optional tag filter lets you scope to a specific job / partition family
+    / pool.
+    """
+    type: Literal["concurrency_hit"] = "concurrency_hit"
+    max_queued: int = Field(description="Fire when queued+running count > this.")
+    tag_key: Optional[str] = Field(default=None, description="Filter to runs carrying this tag key.")
+    tag_value: Optional[str] = Field(default=None, description="Filter to runs carrying this tag=value.")
+    minimum_interval_seconds: int = Field(default=60)
+
+
 class SqsPollTrigger(_TriggerBase):
     """Poll an AWS SQS queue. Fires when messages are received (up to
     max_messages per tick). Each message becomes one automation firing —
@@ -470,6 +543,11 @@ Trigger = Union[
     AssetCheckFailedTrigger,
     MetricThresholdTrigger,
     AbsenceTrigger,
+    LogPatternTrigger,
+    AssetValueChangeTrigger,
+    BackfillStatusTrigger,
+    SensorFailingTrigger,
+    ConcurrencyHitTrigger,
     SqsPollTrigger,
     AllOfTrigger,
     AnyOfTrigger,
@@ -1341,6 +1419,296 @@ def _build_absence_sensor(
     )
 
 
+def _build_log_pattern_sensor(
+    name: str, trigger: LogPatternTrigger, actions: List[Action], default_status: dg.DefaultSensorStatus
+) -> dg.SensorDefinition:
+    import re as _re
+    pattern = _re.compile(trigger.pattern)
+
+    def _sensor_fn(context: dg.SensorEvaluationContext):
+        instance = context.instance
+        # Cursor = comma-separated list of already-scanned run ids
+        seen = set((context.cursor or "").split(",")) if context.cursor else set()
+        seen.discard("")
+        # Look at recent finished runs
+        recent = instance.get_runs(
+            filters=dg.RunsFilter(statuses=[dg.DagsterRunStatus.SUCCESS, dg.DagsterRunStatus.FAILURE]),
+            limit=20,
+        )
+        all_requests = []
+        newly_scanned = []
+        for run in recent:
+            if run.run_id in seen:
+                continue
+            if trigger.job_name and run.job_name != trigger.job_name:
+                newly_scanned.append(run.run_id)
+                continue
+            newly_scanned.append(run.run_id)
+            # Fetch log records for the run
+            try:
+                logs = instance.all_logs(run.run_id)
+            except Exception:
+                continue
+            matched_msg = None
+            for entry in logs:
+                msg = getattr(entry, "user_message", "") or getattr(entry, "message", "") or ""
+                if not msg:
+                    continue
+                if pattern.search(msg):
+                    matched_msg = msg
+                    break
+            if matched_msg is None:
+                continue
+            tokens = _default_tokens(
+                event_type="log_pattern_matched",
+                run_id=run.run_id,
+                job_name=run.job_name or "",
+                status=run.status.value,
+                message=matched_msg[:500],
+            )
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+        # Cap cursor size at 500 run ids
+        merged = list(seen | set(newly_scanned))[-500:]
+        context.update_cursor(",".join(merged))
+        return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("no matches")
+
+    return dg.SensorDefinition(
+        name=name,
+        evaluation_fn=_sensor_fn,
+        minimum_interval_seconds=trigger.minimum_interval_seconds,
+        default_status=default_status,
+    )
+
+
+def _build_asset_value_change_sensor(
+    name: str, trigger: AssetValueChangeTrigger, actions: List[Action], default_status: dg.DefaultSensorStatus
+) -> dg.SensorDefinition:
+    def _extract_numeric(mval):
+        if mval is None:
+            return None
+        for attr in ("value", "float_value", "int_value"):
+            if hasattr(mval, attr):
+                try:
+                    return float(getattr(mval, attr))
+                except (TypeError, ValueError):
+                    return None
+        try:
+            return float(mval)
+        except (TypeError, ValueError):
+            return None
+
+    def _sensor_fn(context: dg.SensorEvaluationContext):
+        instance = context.instance
+        asset_key = dg.AssetKey.from_user_string(trigger.asset_key)
+        last_seen_id = int(context.cursor) if (context.cursor or "").isdigit() else 0
+        # Fetch most recent 2 materializations (ascending)
+        records = []
+        if hasattr(instance, "fetch_materializations"):
+            fetched = instance.fetch_materializations(
+                records_filter=asset_key, limit=10, ascending=False
+            )
+            records = list(getattr(fetched, "records", []) or [])
+        if len(records) < 2:
+            return dg.SkipReason("need at least 2 materializations")
+        # `records` is descending; [0] = current, [1] = previous
+        rec_cur, rec_prev = records[0], records[1]
+        rid_cur = getattr(rec_cur, "storage_id", 0)
+        if rid_cur <= last_seen_id:
+            return dg.SkipReason("already checked latest materialization")
+        mat_cur = rec_cur.asset_materialization
+        mat_prev = rec_prev.asset_materialization
+        if mat_cur is None or mat_prev is None:
+            return dg.SkipReason("materialization missing")
+        v_cur = _extract_numeric((mat_cur.metadata or {}).get(trigger.metadata_key))
+        v_prev = _extract_numeric((mat_prev.metadata or {}).get(trigger.metadata_key))
+        if v_cur is None or v_prev is None:
+            context.update_cursor(str(rid_cur))
+            return dg.SkipReason(f"metadata key '{trigger.metadata_key}' not numeric in both")
+        delta = v_cur - v_prev
+        # Direction filter
+        if trigger.direction == "increase" and delta <= 0:
+            context.update_cursor(str(rid_cur))
+            return dg.SkipReason(f"delta {delta} not an increase")
+        if trigger.direction == "decrease" and delta >= 0:
+            context.update_cursor(str(rid_cur))
+            return dg.SkipReason(f"delta {delta} not a decrease")
+        # Magnitude filter
+        magnitude_hit = False
+        if trigger.min_delta is not None and abs(delta) >= trigger.min_delta:
+            magnitude_hit = True
+        if trigger.min_delta_pct is not None and v_prev != 0:
+            pct = abs(delta) / abs(v_prev) * 100
+            if pct >= trigger.min_delta_pct:
+                magnitude_hit = True
+        if not magnitude_hit and (trigger.min_delta is not None or trigger.min_delta_pct is not None):
+            context.update_cursor(str(rid_cur))
+            return dg.SkipReason(f"delta {delta} below thresholds")
+        context.update_cursor(str(rid_cur))
+        tokens = _default_tokens(
+            event_type="asset_value_change",
+            asset_key=trigger.asset_key,
+            status=trigger.direction,
+            message=f"{trigger.metadata_key}: {v_prev} → {v_cur} (Δ={delta:+.2f})",
+        )
+        requests_out = _run_actions(actions, tokens, context.log, instance=instance)
+        return dg.SensorResult(run_requests=requests_out) if requests_out else None
+
+    return dg.SensorDefinition(
+        name=name,
+        evaluation_fn=_sensor_fn,
+        minimum_interval_seconds=trigger.minimum_interval_seconds,
+        default_status=default_status,
+    )
+
+
+def _build_backfill_status_sensor(
+    name: str, trigger: BackfillStatusTrigger, actions: List[Action], default_status: dg.DefaultSensorStatus
+) -> dg.SensorDefinition:
+    def _sensor_fn(context: dg.SensorEvaluationContext):
+        instance = context.instance
+        seen = set((context.cursor or "").split(",")) if context.cursor else set()
+        seen.discard("")
+        try:
+            backfills = instance.get_backfills(limit=50)
+        except Exception:
+            return dg.SkipReason("get_backfills unavailable")
+        all_requests = []
+        newly_seen = []
+        for bf in backfills:
+            bf_id = getattr(bf, "backfill_id", None) or getattr(bf, "id", None) or ""
+            if not bf_id or bf_id in seen:
+                continue
+            newly_seen.append(bf_id)
+            status_val = getattr(bf, "status", None)
+            status_str = getattr(status_val, "value", None) or str(status_val) if status_val else ""
+            if status_str != trigger.status:
+                continue
+            # Job name may be on `bf.job_name` or elsewhere
+            bf_job = getattr(bf, "job_name", None) or getattr(bf, "asset_selection", "") or ""
+            if trigger.job_name and bf_job != trigger.job_name:
+                continue
+            tokens = _default_tokens(
+                event_type="backfill_status",
+                run_id=str(bf_id),
+                job_name=bf_job,
+                status=status_str,
+                message=f"Backfill {bf_id} → {status_str}",
+            )
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+        merged = list(seen | set(newly_seen))[-200:]
+        context.update_cursor(",".join(merged))
+        return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("no matching backfill events")
+
+    return dg.SensorDefinition(
+        name=name,
+        evaluation_fn=_sensor_fn,
+        minimum_interval_seconds=trigger.minimum_interval_seconds,
+        default_status=default_status,
+    )
+
+
+def _build_sensor_failing_sensor(
+    name: str, trigger: SensorFailingTrigger, actions: List[Action], default_status: dg.DefaultSensorStatus
+) -> dg.SensorDefinition:
+    def _sensor_fn(context: dg.SensorEvaluationContext):
+        instance = context.instance
+        # Fetch ticks for the target sensor via instigator state
+        try:
+            all_state = instance.all_instigator_state()
+            target = next((s for s in all_state if s.name == trigger.target_sensor_name), None)
+            if target is None:
+                return dg.SkipReason(f"target sensor '{trigger.target_sensor_name}' not found")
+            ticks = instance.get_ticks(
+                origin_id=target.instigator_origin_id if hasattr(target, "instigator_origin_id") else target.origin_id,
+                selector_id=getattr(target, "selector_id", None),
+                limit=trigger.consecutive_failures + 2,
+            )
+        except Exception as exc:
+            return dg.SkipReason(f"get_ticks unavailable: {exc}")
+        if len(ticks) < trigger.consecutive_failures:
+            return dg.SkipReason(f"only {len(ticks)} ticks recorded")
+        # Ticks are descending; the newest N should all be FAILURE
+        recent = ticks[:trigger.consecutive_failures]
+        all_failed = all(
+            (getattr(t, "status", None) and getattr(t.status, "value", "") == "FAILURE")
+            for t in recent
+        )
+        if not all_failed:
+            return dg.SkipReason(f"not {trigger.consecutive_failures} consecutive failures")
+        # Fire — but only once per streak. Cursor = timestamp of the newest tick.
+        newest_ts = str(int(getattr(recent[0], "timestamp", 0) or 0))
+        if context.cursor == newest_ts:
+            return dg.SkipReason("already fired for this failure streak")
+        context.update_cursor(newest_ts)
+        tokens = _default_tokens(
+            event_type="sensor_failing",
+            job_name=trigger.target_sensor_name,
+            status="FAILING",
+            message=f"Sensor '{trigger.target_sensor_name}' failed {trigger.consecutive_failures} ticks in a row",
+        )
+        requests_out = _run_actions(actions, tokens, context.log, instance=instance)
+        return dg.SensorResult(run_requests=requests_out) if requests_out else None
+
+    return dg.SensorDefinition(
+        name=name,
+        evaluation_fn=_sensor_fn,
+        minimum_interval_seconds=trigger.minimum_interval_seconds,
+        default_status=default_status,
+    )
+
+
+def _build_concurrency_hit_sensor(
+    name: str, trigger: ConcurrencyHitTrigger, actions: List[Action], default_status: dg.DefaultSensorStatus
+) -> dg.SensorDefinition:
+    def _sensor_fn(context: dg.SensorEvaluationContext):
+        instance = context.instance
+        active = instance.get_runs(
+            filters=dg.RunsFilter(
+                statuses=[
+                    dg.DagsterRunStatus.QUEUED,
+                    dg.DagsterRunStatus.STARTING,
+                    dg.DagsterRunStatus.STARTED,
+                ]
+            ),
+            limit=1000,
+        )
+        matches = active
+        if trigger.tag_key:
+            def _has_tag(r):
+                for k, v in (r.tags or {}).items():
+                    if k != trigger.tag_key:
+                        continue
+                    return (trigger.tag_value is None) or (v == trigger.tag_value)
+                return False
+            matches = [r for r in active if _has_tag(r)]
+        count = len(matches)
+        if count <= trigger.max_queued:
+            return dg.SkipReason(f"{count} active <= {trigger.max_queued}")
+        # Once-per-crossing: only fire when we go from ≤ threshold to > threshold
+        last_over = context.cursor == "over"
+        if last_over:
+            return dg.SkipReason(f"still over ({count})")
+        context.update_cursor("over")
+        # Reset cursor when we drop back below — done via next tick's skip path
+        # (this sensor doesn't get to run the update on skip; user can re-arm
+        # manually if needed)
+        tokens = _default_tokens(
+            event_type="concurrency_hit",
+            status="crossed",
+            message=f"{count} runs active (limit {trigger.max_queued})"
+                    + (f" [tag {trigger.tag_key}={trigger.tag_value or '*'}]" if trigger.tag_key else ""),
+        )
+        requests_out = _run_actions(actions, tokens, context.log, instance=instance)
+        return dg.SensorResult(run_requests=requests_out) if requests_out else None
+
+    return dg.SensorDefinition(
+        name=name,
+        evaluation_fn=_sensor_fn,
+        minimum_interval_seconds=trigger.minimum_interval_seconds,
+        default_status=default_status,
+    )
+
+
 def _build_sqs_poll_sensor(
     name: str, trigger: SqsPollTrigger, actions: List[Action], default_status: dg.DefaultSensorStatus
 ) -> dg.SensorDefinition:
@@ -1606,6 +1974,16 @@ class EventAutomationComponent(dg.Component, dg.Model, dg.Resolvable):
                 sensors.append(_build_metric_threshold_sensor(child_name, trigger, self.then, sensor_status))
             elif isinstance(trigger, AbsenceTrigger):
                 sensors.append(_build_absence_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, LogPatternTrigger):
+                sensors.append(_build_log_pattern_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, AssetValueChangeTrigger):
+                sensors.append(_build_asset_value_change_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, BackfillStatusTrigger):
+                sensors.append(_build_backfill_status_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, SensorFailingTrigger):
+                sensors.append(_build_sensor_failing_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, ConcurrencyHitTrigger):
+                sensors.append(_build_concurrency_hit_sensor(child_name, trigger, self.then, sensor_status))
             elif isinstance(trigger, SqsPollTrigger):
                 sensors.append(_build_sqs_poll_sensor(child_name, trigger, self.then, sensor_status))
             elif isinstance(trigger, (AllOfTrigger, AnyOfTrigger)):

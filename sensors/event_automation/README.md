@@ -2,7 +2,7 @@
 
 Prefect-Automations-style declarative event → action wiring in one YAML component. Each `when: … then: …` block becomes a real Dagster sensor under the covers; no Python needed for common trigger-action shapes.
 
-**Surface: 22 trigger types + 17 action types + AND/OR compound composition (one level of nesting).**
+**Surface: 35 trigger types + 17 action types + AND/OR compound composition (one level of nesting).**
 
 ## Why
 

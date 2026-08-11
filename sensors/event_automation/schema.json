@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.EventAutomationComponent",
-  "description": "Prefect-Automations-style declarative event → action wiring in one YAML component. 22 trigger types (run_status / asset_materialized / schedule / http_poll / freshness_violation / run_duration / run_stuck / asset_check_failed / metric_threshold / absence / log_pattern / asset_value_change / backfill_status / sensor_failing / concurrency_hit / sqs_poll) fan out to 17 action types (materialize / launch_job / webhook / slack / pagerduty / discord / emit_event / cancel_run / retry_run / email / teams / opsgenie / mattermost / toggle_sensor / toggle_schedule / sns / sqs). Compound triggers (all_of + any_of, one level of nesting) support real AND/OR logic. All under real Dagster sensors — no Python needed for common trigger-action shapes.",
+  "description": "Prefect-Automations-style declarative event → action wiring in one YAML component. 35 trigger types (run_status / asset_materialized / schedule / http_poll / freshness_violation / run_duration / run_stuck / asset_check_failed / metric_threshold / absence / log_pattern / asset_value_change / backfill_status / sensor_failing / concurrency_hit / sqs_poll) fan out to 17 action types (materialize / launch_job / webhook / slack / pagerduty / discord / emit_event / cancel_run / retry_run / email / teams / opsgenie / mattermost / toggle_sensor / toggle_schedule / sns / sqs). Compound triggers (all_of + any_of, one level of nesting) support real AND/OR logic. All under real Dagster sensors — no Python needed for common trigger-action shapes.",
   "category": "sensor",
   "icon": "Bell",
   "x-dagster-io": {
@@ -247,6 +247,144 @@
               "minimum_interval_seconds": {"type": "integer", "default": 60}
             },
             "required": ["type", "max_queued"]
+          },
+          {
+            "title": "hook_fired — a Dagster hook (@success_hook / @failure_hook) executed",
+            "properties": {
+              "type": {"const": "hook_fired"},
+              "hook_name_pattern": {"type": "string"},
+              "on_status": {"type": "string", "enum": ["ANY", "SUCCESS", "FAILURE"], "default": "ANY"},
+              "job_name": {"type": "string"},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type"]
+          },
+          {
+            "title": "asset_partition_materialized — specific asset PARTITION materialized",
+            "properties": {
+              "type": {"const": "asset_partition_materialized"},
+              "asset_keys": {"type": "array", "items": {"type": "string"}},
+              "partition_key": {"type": "string", "description": "Exact partition match."},
+              "partition_key_pattern": {"type": "string", "description": "Regex on partition key."},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type", "asset_keys"]
+          },
+          {
+            "title": "run_reexecution — a run was re-executed (retry audit)",
+            "properties": {
+              "type": {"const": "run_reexecution"},
+              "job_name": {"type": "string"},
+              "strategy": {"type": "string", "enum": ["from_failure", "all_steps"]},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type"]
+          },
+          {
+            "title": "asset_wipe — materialization history wiped (destructive audit)",
+            "properties": {
+              "type": {"const": "asset_wipe"},
+              "asset_keys": {"type": "array", "items": {"type": "string"}, "description": "Watch these. None = any wipe."},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type"]
+          },
+          {
+            "title": "config_override — run launched with non-default config (change-tracking)",
+            "properties": {
+              "type": {"const": "config_override"},
+              "job_name": {"type": "string"},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type"]
+          },
+          {
+            "title": "tag_set — run carries specific tag key/value (audit + routing)",
+            "properties": {
+              "type": {"const": "tag_set"},
+              "tag_key": {"type": "string"},
+              "tag_value": {"type": "string", "description": "Exact value. Omit = any value."},
+              "tag_value_pattern": {"type": "string", "description": "Regex on value."},
+              "on_status": {"type": "string", "default": "STARTED"},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type", "tag_key"]
+          },
+          {
+            "title": "unhandled_exception — run-level unhandled exception (infra crash)",
+            "properties": {
+              "type": {"const": "unhandled_exception"},
+              "job_name": {"type": "string"},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type"]
+          },
+          {
+            "title": "asset_check_severity — asset check evaluations at specific severity",
+            "properties": {
+              "type": {"const": "asset_check_severity"},
+              "severity": {"type": "string", "enum": ["WARN", "ERROR"]},
+              "check_names": {"type": "array", "items": {"type": "string"}},
+              "asset_keys": {"type": "array", "items": {"type": "string"}},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type", "severity"]
+          },
+          {
+            "title": "op_output — a specific op yielded output (STEP_OUTPUT event)",
+            "properties": {
+              "type": {"const": "op_output"},
+              "step_key_pattern": {"type": "string", "description": "Regex on step key."},
+              "output_name": {"type": "string"},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type", "step_key_pattern"]
+          },
+          {
+            "title": "materialization_planned — pre-materialization event (warm caches, etc.)",
+            "properties": {
+              "type": {"const": "materialization_planned"},
+              "asset_keys": {"type": "array", "items": {"type": "string"}},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type", "asset_keys"]
+          },
+          {
+            "title": "asset_check_started — asset check evaluation started",
+            "properties": {
+              "type": {"const": "asset_check_started"},
+              "check_names": {"type": "array", "items": {"type": "string"}},
+              "asset_keys": {"type": "array", "items": {"type": "string"}},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type"]
+          },
+          {
+            "title": "insights_metric — Dagster+ Insights custom metric crossed threshold",
+            "properties": {
+              "type": {"const": "insights_metric"},
+              "metric_name": {"type": "string", "description": "Dagster+ Insights metric name."},
+              "comparison": {"type": "string", "enum": ["gt", "gte", "lt", "lte", "eq", "neq"]},
+              "threshold": {"type": "number"},
+              "deployment": {"type": "string", "default": "prod"},
+              "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
+              "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
+              "minimum_interval_seconds": {"type": "integer", "default": 300}
+            },
+            "required": ["type", "metric_name", "comparison", "threshold"]
+          },
+          {
+            "title": "dagster_plus_audit — Dagster+ audit log event matching filter",
+            "properties": {
+              "type": {"const": "dagster_plus_audit"},
+              "event_type_pattern": {"type": "string", "description": "Regex on audit event type."},
+              "actor_pattern": {"type": "string", "description": "Regex on actor email/ID."},
+              "deployment": {"type": "string", "default": "prod"},
+              "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
+              "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
+              "minimum_interval_seconds": {"type": "integer", "default": 300}
+            },
+            "required": ["type"]
           },
           {
             "title": "sqs_poll — poll an AWS SQS queue for messages",

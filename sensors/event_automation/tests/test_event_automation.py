@@ -86,6 +86,19 @@ class TestModelConstruction:
             ("asset_observation", {"asset_keys": ["a"]}),
             ("step_error", {"job_name": "j", "exception_pattern": r".*Timeout.*"}),
             ("metadata_match", {"asset_key": "a", "metadata_key": "status", "equals": "stale"}),
+            ("hook_fired", {"on_status": "FAILURE"}),
+            ("asset_partition_materialized", {"asset_keys": ["a"], "partition_key": "2024-01-15"}),
+            ("run_reexecution", {"job_name": "j"}),
+            ("asset_wipe", {}),
+            ("config_override", {"job_name": "j"}),
+            ("tag_set", {"tag_key": "priority", "tag_value": "P0"}),
+            ("unhandled_exception", {"job_name": "j"}),
+            ("asset_check_severity", {"severity": "WARN"}),
+            ("op_output", {"step_key_pattern": ".*etl.*"}),
+            ("materialization_planned", {"asset_keys": ["a"]}),
+            ("asset_check_started", {"check_names": ["row_count_positive"]}),
+            ("insights_metric", {"metric_name": "cost_per_run", "comparison": "gt", "threshold": 5.0}),
+            ("dagster_plus_audit", {"event_type_pattern": "permission.*"}),
             ("asset_value_change", {
                 "asset_key": "a", "metadata_key": "row_count",
                 "direction": "decrease", "min_delta_pct": 50,
@@ -114,6 +127,19 @@ class TestModelConstruction:
                 "asset_observation": comp_mod.AssetObservationTrigger,
                 "step_error": comp_mod.StepErrorTrigger,
                 "metadata_match": comp_mod.MetadataMatchTrigger,
+                "hook_fired": comp_mod.HookFiredTrigger,
+                "asset_partition_materialized": comp_mod.AssetPartitionMaterializedTrigger,
+                "run_reexecution": comp_mod.RunReexecutionTrigger,
+                "asset_wipe": comp_mod.AssetWipeTrigger,
+                "config_override": comp_mod.ConfigOverrideTrigger,
+                "tag_set": comp_mod.TagSetTrigger,
+                "unhandled_exception": comp_mod.UnhandledExceptionTrigger,
+                "asset_check_severity": comp_mod.AssetCheckSeverityTrigger,
+                "op_output": comp_mod.OpOutputTrigger,
+                "materialization_planned": comp_mod.MaterializationPlannedTrigger,
+                "asset_check_started": comp_mod.AssetCheckStartedTrigger,
+                "insights_metric": comp_mod.InsightsMetricThresholdTrigger,
+                "dagster_plus_audit": comp_mod.DagsterPlusAuditTrigger,
                 "asset_value_change": comp_mod.AssetValueChangeTrigger,
                 "backfill_status": comp_mod.BackfillStatusTrigger,
                 "sensor_failing": comp_mod.SensorFailingTrigger,
@@ -185,7 +211,7 @@ class TestSensorEmission:
         assert "test_automation__schedule_1" in names
         assert "test_automation__asset_materialized_2" in names
 
-    def test_all_22_trigger_types_emit_sensors(self):
+    def test_all_35_trigger_types_emit_sensors(self):
         """One sensor per trigger, for every trigger type."""
         triggers = [
             {"type": "run_status", "status": "FAILURE"},
@@ -206,6 +232,19 @@ class TestSensorEmission:
             {"type": "asset_observation", "asset_keys": ["a"]},
             {"type": "step_error", "job_name": "j"},
             {"type": "metadata_match", "asset_key": "a", "metadata_key": "status", "equals": "stale"},
+            {"type": "hook_fired", "on_status": "FAILURE"},
+            {"type": "asset_partition_materialized", "asset_keys": ["a"], "partition_key": "2024-01-15"},
+            {"type": "run_reexecution"},
+            {"type": "asset_wipe"},
+            {"type": "config_override"},
+            {"type": "tag_set", "tag_key": "priority", "tag_value": "P0"},
+            {"type": "unhandled_exception"},
+            {"type": "asset_check_severity", "severity": "WARN"},
+            {"type": "op_output", "step_key_pattern": ".*"},
+            {"type": "materialization_planned", "asset_keys": ["a"]},
+            {"type": "asset_check_started"},
+            {"type": "insights_metric", "metric_name": "cost_per_run", "comparison": "gt", "threshold": 5.0},
+            {"type": "dagster_plus_audit"},
             {"type": "asset_value_change", "asset_key": "a", "metadata_key": "row_count",
              "direction": "decrease", "min_delta_pct": 50},
             {"type": "backfill_status", "status": "FAILED"},
@@ -214,7 +253,7 @@ class TestSensorEmission:
             {"type": "sqs_poll", "queue_url": "https://sqs.example.com/q"},
         ]
         defs = self._build_defs(triggers)
-        assert len(list(defs.sensors)) == 22
+        assert len(list(defs.sensors)) == 35
 
 
 # ── Template rendering ───────────────────────────────────────────────────
@@ -895,6 +934,19 @@ class TestEndToEnd:
                 {"type": "asset_observation", "asset_keys": ["a"]},
                 {"type": "step_error"},
                 {"type": "metadata_match", "asset_key": "a", "metadata_key": "status", "regex": "stale|error"},
+                {"type": "hook_fired"},
+                {"type": "asset_partition_materialized", "asset_keys": ["a"], "partition_key": "x"},
+                {"type": "run_reexecution"},
+                {"type": "asset_wipe"},
+                {"type": "config_override"},
+                {"type": "tag_set", "tag_key": "env"},
+                {"type": "unhandled_exception"},
+                {"type": "asset_check_severity", "severity": "WARN"},
+                {"type": "op_output", "step_key_pattern": ".*"},
+                {"type": "materialization_planned", "asset_keys": ["a"]},
+                {"type": "asset_check_started"},
+                {"type": "insights_metric", "metric_name": "cost", "comparison": "gt", "threshold": 5.0},
+                {"type": "dagster_plus_audit"},
                 {"type": "asset_value_change", "asset_key": "a", "metadata_key": "rc",
                  "direction": "any", "min_delta_pct": 25},
                 {"type": "backfill_status", "status": "FAILED"},
@@ -905,7 +957,7 @@ class TestEndToEnd:
             then=[{"type": "emit_event", "asset_key": "marker"}],
         )
         defs = component.build_defs(None)
-        assert len(list(defs.sensors)) == 22
+        assert len(list(defs.sensors)) == 35
 
     def test_full_component_with_every_action_type(self):
         """Every action type at least parses + runs without crashing."""

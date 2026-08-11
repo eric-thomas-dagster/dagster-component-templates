@@ -488,6 +488,186 @@ class MetadataMatchTrigger(_TriggerBase):
     minimum_interval_seconds: int = Field(default=60)
 
 
+class HookFiredTrigger(_TriggerBase):
+    """Fires when a Dagster hook (@success_hook / @failure_hook) executes.
+
+    Distinct from step_error — hooks capture success paths too, and are per-op
+    not per-step. Filters by hook_name (regex) and status.
+    """
+    type: Literal["hook_fired"] = "hook_fired"
+    hook_name_pattern: Optional[str] = Field(default=None, description="Regex on hook name.")
+    on_status: str = Field(default="ANY", description="ANY | SUCCESS | FAILURE — which hook completions fire.")
+    job_name: Optional[str] = Field(default=None)
+    minimum_interval_seconds: int = Field(default=60)
+
+
+class AssetPartitionMaterializedTrigger(_TriggerBase):
+    """Fires when a specific asset PARTITION is materialized.
+
+    Distinct from asset_materialized — filters to a partition key or partition
+    key regex (partition family). Common use: "alert only when the 2024-Q1
+    partition of revenue lands", or "notify when any Snowflake partition lands
+    for the customer_events asset".
+    """
+    type: Literal["asset_partition_materialized"] = "asset_partition_materialized"
+    asset_keys: List[str] = Field(description="Asset keys to watch.")
+    partition_key: Optional[str] = Field(default=None, description="Exact partition match.")
+    partition_key_pattern: Optional[str] = Field(default=None, description="Regex on partition key.")
+    minimum_interval_seconds: int = Field(default=60)
+
+
+class RunReexecutionTrigger(_TriggerBase):
+    """Fires when a run is re-executed (retry) — audit trail for retry actions.
+
+    Detects runs with `parent_run_id` set (marker that this is a re-execution).
+    Optional job_name filter + strategy filter (from_failure / all_steps).
+    """
+    type: Literal["run_reexecution"] = "run_reexecution"
+    job_name: Optional[str] = Field(default=None)
+    strategy: Optional[str] = Field(default=None, description="Filter to from_failure | all_steps.")
+    minimum_interval_seconds: int = Field(default=60)
+
+
+class AssetWipeTrigger(_TriggerBase):
+    """Fires on ASSET_WIPED events — destructive audit signal.
+
+    Someone deleted materialization history for an asset. Rare + important.
+    """
+    type: Literal["asset_wipe"] = "asset_wipe"
+    asset_keys: Optional[List[str]] = Field(
+        default=None, description="Watch these asset keys. None = any wipe."
+    )
+    minimum_interval_seconds: int = Field(default=60)
+
+
+class ConfigOverrideTrigger(_TriggerBase):
+    """Fires when a run is launched with a non-default config override.
+
+    Change-tracking signal: someone launched with `run_config` that differs from
+    the default. Useful for audit + change-control workflows.
+    """
+    type: Literal["config_override"] = "config_override"
+    job_name: Optional[str] = Field(default=None)
+    minimum_interval_seconds: int = Field(default=60)
+
+
+class TagSetTrigger(_TriggerBase):
+    """Fires when a run carries a specific tag key/value.
+
+    Useful for audit + routing: `env=prod-hotfix`, `owner=user123`, `priority=P0`.
+    """
+    type: Literal["tag_set"] = "tag_set"
+    tag_key: str = Field(description="Tag key to watch for.")
+    tag_value: Optional[str] = Field(default=None, description="Optional exact value. None = any value.")
+    tag_value_pattern: Optional[str] = Field(default=None, description="Optional regex on value.")
+    on_status: str = Field(default="STARTED", description="Which run status transitions to check.")
+    minimum_interval_seconds: int = Field(default=60)
+
+
+class UnhandledExceptionTrigger(_TriggerBase):
+    """Fires on run-level unhandled exceptions distinct from step failures.
+
+    RunFailure with the `failure_reason` marked as unexpected — captures
+    infrastructure crashes / process kills that aren't step-level errors.
+    """
+    type: Literal["unhandled_exception"] = "unhandled_exception"
+    job_name: Optional[str] = Field(default=None)
+    minimum_interval_seconds: int = Field(default=60)
+
+
+class AssetCheckSeverityTrigger(_TriggerBase):
+    """Fires on asset check evaluations at a specific severity level.
+
+    Variant of asset_check_failed with severity filter — lets you separate
+    WARN from ERROR handling in different automations.
+    """
+    type: Literal["asset_check_severity"] = "asset_check_severity"
+    severity: str = Field(description="WARN | ERROR")
+    check_names: Optional[List[str]] = Field(default=None)
+    asset_keys: Optional[List[str]] = Field(default=None)
+    minimum_interval_seconds: int = Field(default=60)
+
+
+class OpOutputTrigger(_TriggerBase):
+    """Fires when a specific op yields output (STEP_OUTPUT event).
+
+    Fine-grained — most people want asset_materialized instead. Useful for
+    non-asset op-based workflows.
+    """
+    type: Literal["op_output"] = "op_output"
+    step_key_pattern: str = Field(description="Regex on step key.")
+    output_name: Optional[str] = Field(default=None, description="Optional output name filter.")
+    minimum_interval_seconds: int = Field(default=60)
+
+
+class MaterializationPlannedTrigger(_TriggerBase):
+    """Fires on ASSET_MATERIALIZATION_PLANNED events (before materialization).
+
+    Useful for pre-materialization side-effects (warm caches, pre-provision
+    downstream resources, notify observers before the write lands).
+    """
+    type: Literal["materialization_planned"] = "materialization_planned"
+    asset_keys: List[str] = Field(description="Asset keys to watch.")
+    minimum_interval_seconds: int = Field(default=60)
+
+
+class AssetCheckStartedTrigger(_TriggerBase):
+    """Fires on ASSET_CHECK_EVALUATION_STARTED events.
+
+    Mirror of asset_check_failed but on start — useful for "check is running
+    slowly" scenarios (pair with an all_of + timer to alert if not completed).
+    """
+    type: Literal["asset_check_started"] = "asset_check_started"
+    check_names: Optional[List[str]] = Field(default=None)
+    asset_keys: Optional[List[str]] = Field(default=None)
+    minimum_interval_seconds: int = Field(default=60)
+
+
+class InsightsMetricThresholdTrigger(_TriggerBase):
+    """Dagster+ only. Fires when a Dagster+ Insights custom metric crosses a threshold.
+
+    Queries the Dagster+ GraphQL API for the named metric's most-recent value
+    and fires when it satisfies the comparison. EXTENDS Dagster+ (programmatic
+    reaction) rather than replacing its native alerting UI.
+
+    Requires:
+      - DAGSTER_CLOUD_ORGANIZATION env var (or the org config the daemon
+        uses to talk to the control plane)
+      - DAGSTER_CLOUD_API_TOKEN env var with metrics-read permission
+      - Deployment name (defaults to prod)
+    """
+    type: Literal["insights_metric"] = "insights_metric"
+    metric_name: str = Field(description="Dagster+ Insights metric name (custom or built-in).")
+    comparison: str = Field(description="gt | gte | lt | lte | eq | neq")
+    threshold: float = Field()
+    deployment: str = Field(default="prod")
+    org_env_var: str = Field(default="DAGSTER_CLOUD_ORGANIZATION")
+    token_env_var: str = Field(default="DAGSTER_CLOUD_API_TOKEN")
+    minimum_interval_seconds: int = Field(default=300)
+
+
+class DagsterPlusAuditTrigger(_TriggerBase):
+    """Dagster+ only. Fires on audit-log events matching a filter.
+
+    Queries the Dagster+ GraphQL API for audit log entries (RBAC changes,
+    permission grants, config edits, secret changes). Compliance + security
+    workflows can react programmatically (Slack the security team on prod
+    permission change, log to an external SIEM, etc.).
+    """
+    type: Literal["dagster_plus_audit"] = "dagster_plus_audit"
+    event_type_pattern: Optional[str] = Field(
+        default=None,
+        description="Optional regex on audit event type (e.g. 'permission.*grant', 'secret.*').",
+    )
+    actor_pattern: Optional[str] = Field(
+        default=None, description="Optional regex on actor email / user id."
+    )
+    deployment: str = Field(default="prod")
+    org_env_var: str = Field(default="DAGSTER_CLOUD_ORGANIZATION")
+    token_env_var: str = Field(default="DAGSTER_CLOUD_API_TOKEN")
+    minimum_interval_seconds: int = Field(default=300)
+
+
 class CodeLocationStatusTrigger(_TriggerBase):
     """Fires when a code location enters an unhealthy state.
 
@@ -691,6 +871,19 @@ Trigger = Union[
     AssetObservationTrigger,
     StepErrorTrigger,
     MetadataMatchTrigger,
+    HookFiredTrigger,
+    AssetPartitionMaterializedTrigger,
+    RunReexecutionTrigger,
+    AssetWipeTrigger,
+    ConfigOverrideTrigger,
+    TagSetTrigger,
+    UnhandledExceptionTrigger,
+    AssetCheckSeverityTrigger,
+    OpOutputTrigger,
+    MaterializationPlannedTrigger,
+    AssetCheckStartedTrigger,
+    InsightsMetricThresholdTrigger,
+    DagsterPlusAuditTrigger,
     AssetValueChangeTrigger,
     BackfillStatusTrigger,
     SensorFailingTrigger,
@@ -1682,6 +1875,554 @@ def _build_log_pattern_sensor(
     )
 
 
+def _event_log_scan(instance, event_type, last_seen_id, limit=100):
+    """Shared helper: scan event log for a specific event type after cursor.
+    Returns (records, max_storage_id_seen)."""
+    from dagster._core.events import DagsterEventType
+    try:
+        etype = event_type if isinstance(event_type, DagsterEventType) else getattr(DagsterEventType, event_type)
+        records = instance.event_log_storage.get_event_records(
+            event_records_filter=dg.EventRecordsFilter(
+                event_type=etype,
+                after_cursor=last_seen_id if last_seen_id else None,
+            ),
+            limit=limit,
+            ascending=True,
+        )
+        return list(records)
+    except Exception:
+        return []
+
+
+def _build_generic_event_sensor(
+    name: str,
+    event_type: str,
+    filter_fn,
+    token_builder,
+    actions: List[Action],
+    minimum_interval_seconds: int,
+    default_status: dg.DefaultSensorStatus,
+) -> dg.SensorDefinition:
+    """Factory for the common shape: scan event log for `event_type`, apply
+    `filter_fn(record) -> bool`, build tokens via `token_builder(record)`,
+    fire actions on match."""
+    def _sensor_fn(context: dg.SensorEvaluationContext):
+        instance = context.instance
+        last_seen_id = int(context.cursor) if (context.cursor or "").isdigit() else 0
+        records = _event_log_scan(instance, event_type, last_seen_id)
+        all_requests = []
+        max_id = last_seen_id
+        for rec in records:
+            rid = getattr(rec, "storage_id", 0)
+            if rid > max_id:
+                max_id = rid
+            try:
+                if not filter_fn(rec):
+                    continue
+                tokens = token_builder(rec)
+            except Exception as exc:
+                context.log.warning(f"filter/token error: {exc}")
+                continue
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+        if max_id > last_seen_id:
+            context.update_cursor(str(max_id))
+        return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("no matches")
+
+    return dg.SensorDefinition(
+        name=name,
+        evaluation_fn=_sensor_fn,
+        minimum_interval_seconds=minimum_interval_seconds,
+        default_status=default_status,
+    )
+
+
+def _build_hook_fired_sensor(name, trigger, actions, default_status):
+    import re as _re
+    hook_re = _re.compile(trigger.hook_name_pattern) if trigger.hook_name_pattern else None
+    def filter_fn(rec):
+        entry = getattr(rec, "event_log_entry", None) or rec
+        evt = getattr(entry, "dagster_event", None)
+        if evt is None:
+            return False
+        hook_data = evt.event_specific_data
+        hook_name = getattr(hook_data, "hook_name", "") or ""
+        # HOOK_COMPLETED events carry status implicitly; HOOK_ERRORED for failures
+        etype_name = getattr(evt, "event_type_value", "")
+        if hook_re and not hook_re.search(hook_name):
+            return False
+        if trigger.on_status == "SUCCESS" and "ERROR" in etype_name:
+            return False
+        if trigger.on_status == "FAILURE" and "ERROR" not in etype_name:
+            return False
+        return True
+    def token_builder(rec):
+        entry = getattr(rec, "event_log_entry", None) or rec
+        evt = entry.dagster_event
+        hook_data = evt.event_specific_data
+        return _default_tokens(
+            event_type="hook_fired",
+            run_id=entry.run_id or "",
+            job_name=getattr(hook_data, "hook_name", "") or "",
+            status=getattr(evt, "event_type_value", ""),
+            message=f"Hook {getattr(hook_data, 'hook_name', '')} fired",
+        )
+    # Scan HOOK_COMPLETED (dagster ships both HOOK_COMPLETED / HOOK_ERRORED)
+    return _build_generic_event_sensor(
+        name, "HOOK_COMPLETED", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status
+    )
+
+
+def _build_asset_partition_materialized_sensor(name, trigger, actions, default_status):
+    import re as _re
+    watched = {dg.AssetKey.from_user_string(k) for k in trigger.asset_keys}
+    partition_re = _re.compile(trigger.partition_key_pattern) if trigger.partition_key_pattern else None
+    def filter_fn(rec):
+        entry = getattr(rec, "event_log_entry", None) or rec
+        evt = entry.dagster_event
+        if evt is None:
+            return False
+        mat = evt.event_specific_data
+        asset_key = getattr(mat, "asset_key", None)
+        if asset_key not in watched:
+            return False
+        partition = getattr(mat, "partition", None)
+        if trigger.partition_key and partition != trigger.partition_key:
+            return False
+        if partition_re and (partition is None or not partition_re.search(partition)):
+            return False
+        return True
+    def token_builder(rec):
+        entry = getattr(rec, "event_log_entry", None) or rec
+        evt = entry.dagster_event
+        mat = evt.event_specific_data
+        asset_key = getattr(mat, "asset_key")
+        partition = getattr(mat, "partition", None) or ""
+        return _default_tokens(
+            event_type="asset_partition_materialized",
+            asset_key=asset_key.to_user_string(),
+            status=partition,
+            message=f"{asset_key.to_user_string()} partition '{partition}' materialized",
+        )
+    return _build_generic_event_sensor(
+        name, "ASSET_MATERIALIZATION", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status
+    )
+
+
+def _build_run_reexecution_sensor(name, trigger, actions, default_status):
+    def _sensor_fn(context: dg.SensorEvaluationContext):
+        instance = context.instance
+        seen = set((context.cursor or "").split(",")) if context.cursor else set()
+        seen.discard("")
+        recent = instance.get_runs(limit=50)
+        all_requests = []
+        newly_seen = []
+        for run in recent:
+            if run.run_id in seen:
+                continue
+            newly_seen.append(run.run_id)
+            parent = getattr(run, "parent_run_id", None) or getattr(run, "root_run_id", None)
+            if not parent:
+                continue
+            if trigger.job_name and run.job_name != trigger.job_name:
+                continue
+            if trigger.strategy:
+                # Strategy is typically stored in tags
+                tag = (run.tags or {}).get("dagster/resume_retry", "")
+                if trigger.strategy == "from_failure" and tag != "from_failure":
+                    continue
+            tokens = _default_tokens(
+                event_type="run_reexecution",
+                run_id=run.run_id,
+                job_name=run.job_name or "",
+                message=f"Re-execution of {parent[:8]} → {run.run_id[:8]}",
+            )
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+        merged = list(seen | set(newly_seen))[-500:]
+        context.update_cursor(",".join(merged))
+        return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("no reexecutions")
+
+    return dg.SensorDefinition(
+        name=name, evaluation_fn=_sensor_fn,
+        minimum_interval_seconds=trigger.minimum_interval_seconds, default_status=default_status,
+    )
+
+
+def _build_asset_wipe_sensor(name, trigger, actions, default_status):
+    watched = {dg.AssetKey.from_user_string(k) for k in (trigger.asset_keys or [])} if trigger.asset_keys else None
+    def filter_fn(rec):
+        entry = getattr(rec, "event_log_entry", None) or rec
+        evt = entry.dagster_event
+        if evt is None:
+            return False
+        if watched is None:
+            return True
+        wipe_data = evt.event_specific_data
+        asset_key = getattr(wipe_data, "asset_key", None)
+        return asset_key in watched
+    def token_builder(rec):
+        entry = getattr(rec, "event_log_entry", None) or rec
+        evt = entry.dagster_event
+        wipe_data = evt.event_specific_data
+        asset_key = getattr(wipe_data, "asset_key", None)
+        return _default_tokens(
+            event_type="asset_wipe",
+            asset_key=asset_key.to_user_string() if asset_key else "",
+            status="WIPED",
+            message="Asset materialization history wiped",
+        )
+    return _build_generic_event_sensor(
+        name, "ASSET_WIPED", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status
+    )
+
+
+def _build_config_override_sensor(name, trigger, actions, default_status):
+    def _sensor_fn(context: dg.SensorEvaluationContext):
+        instance = context.instance
+        seen = set((context.cursor or "").split(",")) if context.cursor else set()
+        seen.discard("")
+        recent = instance.get_runs(limit=50)
+        all_requests = []
+        newly_seen = []
+        for run in recent:
+            if run.run_id in seen:
+                continue
+            newly_seen.append(run.run_id)
+            if trigger.job_name and run.job_name != trigger.job_name:
+                continue
+            run_config = getattr(run, "run_config", None) or {}
+            if not run_config:
+                continue
+            # Heuristic: any non-empty run_config likely means an override
+            tokens = _default_tokens(
+                event_type="config_override",
+                run_id=run.run_id,
+                job_name=run.job_name or "",
+                message=f"Run {run.run_id[:8]} launched with config override ({len(run_config)} keys)",
+            )
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+        merged = list(seen | set(newly_seen))[-500:]
+        context.update_cursor(",".join(merged))
+        return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("no overrides")
+
+    return dg.SensorDefinition(
+        name=name, evaluation_fn=_sensor_fn,
+        minimum_interval_seconds=trigger.minimum_interval_seconds, default_status=default_status,
+    )
+
+
+def _build_tag_set_sensor(name, trigger, actions, default_status):
+    import re as _re
+    val_re = _re.compile(trigger.tag_value_pattern) if trigger.tag_value_pattern else None
+
+    def _sensor_fn(context: dg.SensorEvaluationContext):
+        instance = context.instance
+        seen = set((context.cursor or "").split(",")) if context.cursor else set()
+        seen.discard("")
+        recent = instance.get_runs(limit=100)
+        all_requests = []
+        newly_seen = []
+        for run in recent:
+            if run.run_id in seen:
+                continue
+            newly_seen.append(run.run_id)
+            tags = run.tags or {}
+            if trigger.tag_key not in tags:
+                continue
+            v = tags[trigger.tag_key]
+            if trigger.tag_value is not None and v != trigger.tag_value:
+                continue
+            if val_re and not val_re.search(v):
+                continue
+            tokens = _default_tokens(
+                event_type="tag_set",
+                run_id=run.run_id,
+                job_name=run.job_name or "",
+                status=v,
+                message=f"Run {run.run_id[:8]} has {trigger.tag_key}={v}",
+            )
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+        merged = list(seen | set(newly_seen))[-500:]
+        context.update_cursor(",".join(merged))
+        return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("no matching tags")
+
+    return dg.SensorDefinition(
+        name=name, evaluation_fn=_sensor_fn,
+        minimum_interval_seconds=trigger.minimum_interval_seconds, default_status=default_status,
+    )
+
+
+def _build_unhandled_exception_sensor(name, trigger, actions, default_status):
+    def filter_fn(rec):
+        entry = getattr(rec, "event_log_entry", None) or rec
+        evt = getattr(entry, "dagster_event", None)
+        if evt is None:
+            return False
+        # Run failure with unexpected error (not step-level)
+        failure_data = evt.event_specific_data
+        error = getattr(failure_data, "error", None) or getattr(failure_data, "failure_error", None)
+        # Only fire if there's no step_key (i.e., it's a run-level unhandled)
+        if getattr(evt, "step_key", None):
+            return False
+        return error is not None
+    def token_builder(rec):
+        entry = getattr(rec, "event_log_entry", None) or rec
+        evt = entry.dagster_event
+        failure_data = evt.event_specific_data
+        error = getattr(failure_data, "error", None) or getattr(failure_data, "failure_error", None)
+        msg = getattr(error, "message", "") if error else ""
+        return _default_tokens(
+            event_type="unhandled_exception",
+            run_id=entry.run_id or "",
+            status="FAILURE",
+            message=(msg or "Run failed with unhandled exception")[:500],
+        )
+    return _build_generic_event_sensor(
+        name, "PIPELINE_FAILURE", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status
+    )
+
+
+def _build_asset_check_severity_sensor(name, trigger, actions, default_status):
+    watched_checks = set(trigger.check_names or [])
+    watched_assets = {dg.AssetKey.from_user_string(k) for k in (trigger.asset_keys or [])} if trigger.asset_keys else None
+    def filter_fn(rec):
+        entry = getattr(rec, "event_log_entry", None) or rec
+        evt = getattr(entry, "dagster_event", None)
+        if evt is None:
+            return False
+        eval_data = evt.event_specific_data
+        severity = getattr(eval_data, "severity", None)
+        sev_str = getattr(severity, "value", None) or str(severity or "")
+        if sev_str != trigger.severity:
+            return False
+        check_name = getattr(eval_data, "check_name", "") or ""
+        if watched_checks and check_name not in watched_checks:
+            return False
+        asset_key = getattr(eval_data, "asset_key", None)
+        if watched_assets and asset_key not in watched_assets:
+            return False
+        return True
+    def token_builder(rec):
+        entry = getattr(rec, "event_log_entry", None) or rec
+        evt = entry.dagster_event
+        eval_data = evt.event_specific_data
+        check_name = getattr(eval_data, "check_name", "") or ""
+        asset_key = getattr(eval_data, "asset_key", None)
+        return _default_tokens(
+            event_type="asset_check_severity",
+            asset_key=asset_key.to_user_string() if asset_key else "",
+            status=trigger.severity,
+            message=f"Check '{check_name}' at severity {trigger.severity}",
+        )
+    return _build_generic_event_sensor(
+        name, "ASSET_CHECK_EVALUATION", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status
+    )
+
+
+def _build_op_output_sensor(name, trigger, actions, default_status):
+    import re as _re
+    step_re = _re.compile(trigger.step_key_pattern)
+    def filter_fn(rec):
+        entry = getattr(rec, "event_log_entry", None) or rec
+        evt = getattr(entry, "dagster_event", None)
+        if evt is None:
+            return False
+        step_key = getattr(evt, "step_key", "") or ""
+        if not step_re.search(step_key):
+            return False
+        if trigger.output_name:
+            out = evt.event_specific_data
+            output_name = getattr(out, "output_name", None) or ""
+            if output_name != trigger.output_name:
+                return False
+        return True
+    def token_builder(rec):
+        entry = getattr(rec, "event_log_entry", None) or rec
+        evt = entry.dagster_event
+        return _default_tokens(
+            event_type="op_output",
+            run_id=entry.run_id or "",
+            asset_key=getattr(evt, "step_key", "") or "",
+            message=f"Step {getattr(evt, 'step_key', '')} yielded output",
+        )
+    return _build_generic_event_sensor(
+        name, "STEP_OUTPUT", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status
+    )
+
+
+def _build_materialization_planned_sensor(name, trigger, actions, default_status):
+    watched = {dg.AssetKey.from_user_string(k) for k in trigger.asset_keys}
+    def filter_fn(rec):
+        entry = getattr(rec, "event_log_entry", None) or rec
+        evt = getattr(entry, "dagster_event", None)
+        if evt is None:
+            return False
+        plan_data = evt.event_specific_data
+        asset_key = getattr(plan_data, "asset_key", None)
+        return asset_key in watched
+    def token_builder(rec):
+        entry = getattr(rec, "event_log_entry", None) or rec
+        evt = entry.dagster_event
+        plan_data = evt.event_specific_data
+        asset_key = getattr(plan_data, "asset_key", None)
+        return _default_tokens(
+            event_type="materialization_planned",
+            asset_key=asset_key.to_user_string() if asset_key else "",
+            message=f"Planned materialization for {asset_key.to_user_string() if asset_key else ''}",
+        )
+    return _build_generic_event_sensor(
+        name, "ASSET_MATERIALIZATION_PLANNED", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status
+    )
+
+
+def _build_asset_check_started_sensor(name, trigger, actions, default_status):
+    watched_checks = set(trigger.check_names or [])
+    watched_assets = {dg.AssetKey.from_user_string(k) for k in (trigger.asset_keys or [])} if trigger.asset_keys else None
+    def filter_fn(rec):
+        entry = getattr(rec, "event_log_entry", None) or rec
+        evt = getattr(entry, "dagster_event", None)
+        if evt is None:
+            return False
+        planned_data = evt.event_specific_data
+        check_name = getattr(planned_data, "check_name", "") or ""
+        if watched_checks and check_name not in watched_checks:
+            return False
+        asset_key = getattr(planned_data, "asset_key", None)
+        if watched_assets and asset_key not in watched_assets:
+            return False
+        return True
+    def token_builder(rec):
+        entry = getattr(rec, "event_log_entry", None) or rec
+        evt = entry.dagster_event
+        planned_data = evt.event_specific_data
+        return _default_tokens(
+            event_type="asset_check_started",
+            asset_key=getattr(planned_data.asset_key, "to_user_string", lambda: "")() if getattr(planned_data, "asset_key", None) else "",
+            message=f"Check '{getattr(planned_data, 'check_name', '')}' started",
+        )
+    return _build_generic_event_sensor(
+        name, "ASSET_CHECK_EVALUATION_PLANNED", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status
+    )
+
+
+def _dagster_plus_graphql(query: str, org: str, token: str, deployment: str = "prod"):
+    """Shared helper for Dagster+ GraphQL queries. Returns response dict or raises."""
+    import json as _json
+    import urllib.request
+    url = f"https://{org}.dagster.plus/{deployment}/graphql"
+    req = urllib.request.Request(
+        url,
+        data=_json.dumps({"query": query}).encode(),
+        headers={"Content-Type": "application/json", "Dagster-Cloud-Api-Token": token},
+    )
+    return _json.loads(urllib.request.urlopen(req, timeout=10).read())
+
+
+def _build_insights_metric_sensor(name, trigger, actions, default_status):
+    ops = {
+        "gt": lambda v, t: v > t, "gte": lambda v, t: v >= t,
+        "lt": lambda v, t: v < t, "lte": lambda v, t: v <= t,
+        "eq": lambda v, t: v == t, "neq": lambda v, t: v != t,
+    }
+    cmp_fn = ops.get(trigger.comparison)
+
+    def _sensor_fn(context: dg.SensorEvaluationContext):
+        if cmp_fn is None:
+            return dg.SkipReason(f"unsupported comparison '{trigger.comparison}'")
+        org = os.environ.get(trigger.org_env_var, "")
+        token = os.environ.get(trigger.token_env_var, "")
+        if not (org and token):
+            return dg.SkipReason(f"{trigger.org_env_var} / {trigger.token_env_var} not set")
+        # Query Insights for the latest value of `metric_name`. The exact
+        # GraphQL shape has changed across Dagster+ versions; we use a common
+        # pattern + no-op on failure so a schema shift doesn't crash the sensor.
+        q = f'{{ metricsForDeployment(metricName: "{trigger.metric_name}") {{ latestValue }} }}'
+        try:
+            resp = _dagster_plus_graphql(q, org, token, trigger.deployment)
+        except Exception as exc:
+            return dg.SkipReason(f"Insights GraphQL query failed: {exc}")
+        data = (resp.get("data") or {}).get("metricsForDeployment") or {}
+        val = data.get("latestValue")
+        if val is None:
+            return dg.SkipReason(f"metric '{trigger.metric_name}' not found or empty")
+        try:
+            val_f = float(val)
+        except (TypeError, ValueError):
+            return dg.SkipReason(f"metric value '{val}' not numeric")
+        if not cmp_fn(val_f, trigger.threshold):
+            return dg.SkipReason(f"{val_f} not {trigger.comparison} {trigger.threshold}")
+        # Once-per-crossing cursor
+        crossed_key = f"{val_f}"
+        if context.cursor == crossed_key:
+            return dg.SkipReason("already alerted for this value")
+        context.update_cursor(crossed_key)
+        tokens = _default_tokens(
+            event_type="insights_metric",
+            status=trigger.metric_name,
+            message=f"{trigger.metric_name}={val_f} {trigger.comparison} {trigger.threshold}",
+        )
+        requests_out = _run_actions(actions, tokens, context.log, instance=context.instance)
+        return dg.SensorResult(run_requests=requests_out) if requests_out else None
+
+    return dg.SensorDefinition(
+        name=name, evaluation_fn=_sensor_fn,
+        minimum_interval_seconds=trigger.minimum_interval_seconds, default_status=default_status,
+    )
+
+
+def _build_dagster_plus_audit_sensor(name, trigger, actions, default_status):
+    import re as _re
+    etype_re = _re.compile(trigger.event_type_pattern) if trigger.event_type_pattern else None
+    actor_re = _re.compile(trigger.actor_pattern) if trigger.actor_pattern else None
+
+    def _sensor_fn(context: dg.SensorEvaluationContext):
+        org = os.environ.get(trigger.org_env_var, "")
+        token = os.environ.get(trigger.token_env_var, "")
+        if not (org and token):
+            return dg.SkipReason(f"{trigger.org_env_var} / {trigger.token_env_var} not set")
+        last_seen_id = context.cursor or ""
+        # Audit log query. GraphQL name varies — we query the common
+        # `auditLogEntriesOrError` shape + no-op on failure.
+        q = '{ auditLogEntriesOrError { ... on AuditLogEntries { entries { id timestamp eventType actor { email } details } } } }'
+        try:
+            resp = _dagster_plus_graphql(q, org, token, trigger.deployment)
+        except Exception as exc:
+            return dg.SkipReason(f"audit log GraphQL query failed: {exc}")
+        entries = ((resp.get("data") or {}).get("auditLogEntriesOrError") or {}).get("entries") or []
+        # Newest first — walk backwards to fire in chronological order
+        new_entries = []
+        for entry in entries:
+            eid = str(entry.get("id", ""))
+            if eid == last_seen_id:
+                break
+            new_entries.append(entry)
+        new_entries.reverse()
+        all_requests = []
+        max_id = last_seen_id
+        for entry in new_entries:
+            etype = entry.get("eventType", "")
+            actor = (entry.get("actor") or {}).get("email", "") or ""
+            if etype_re and not etype_re.search(etype):
+                continue
+            if actor_re and not actor_re.search(actor):
+                continue
+            tokens = _default_tokens(
+                event_type="dagster_plus_audit",
+                status=etype,
+                job_name=actor,
+                message=f"Audit: {actor} → {etype} ({entry.get('details', '')})",
+            )
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=context.instance))
+            max_id = str(entry.get("id", max_id))
+        if max_id != last_seen_id:
+            context.update_cursor(max_id)
+        return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("no matching audit entries")
+
+    return dg.SensorDefinition(
+        name=name, evaluation_fn=_sensor_fn,
+        minimum_interval_seconds=trigger.minimum_interval_seconds, default_status=default_status,
+    )
+
+
 def _build_code_location_status_sensor(
     name: str, trigger: CodeLocationStatusTrigger, actions: List[Action], default_status: dg.DefaultSensorStatus
 ) -> dg.SensorDefinition:
@@ -2590,6 +3331,32 @@ class EventAutomationComponent(dg.Component, dg.Model, dg.Resolvable):
                 sensors.append(_build_step_error_sensor(child_name, trigger, self.then, sensor_status))
             elif isinstance(trigger, MetadataMatchTrigger):
                 sensors.append(_build_metadata_match_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, HookFiredTrigger):
+                sensors.append(_build_hook_fired_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, AssetPartitionMaterializedTrigger):
+                sensors.append(_build_asset_partition_materialized_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, RunReexecutionTrigger):
+                sensors.append(_build_run_reexecution_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, AssetWipeTrigger):
+                sensors.append(_build_asset_wipe_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, ConfigOverrideTrigger):
+                sensors.append(_build_config_override_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, TagSetTrigger):
+                sensors.append(_build_tag_set_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, UnhandledExceptionTrigger):
+                sensors.append(_build_unhandled_exception_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, AssetCheckSeverityTrigger):
+                sensors.append(_build_asset_check_severity_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, OpOutputTrigger):
+                sensors.append(_build_op_output_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, MaterializationPlannedTrigger):
+                sensors.append(_build_materialization_planned_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, AssetCheckStartedTrigger):
+                sensors.append(_build_asset_check_started_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, InsightsMetricThresholdTrigger):
+                sensors.append(_build_insights_metric_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, DagsterPlusAuditTrigger):
+                sensors.append(_build_dagster_plus_audit_sensor(child_name, trigger, self.then, sensor_status))
             elif isinstance(trigger, AssetValueChangeTrigger):
                 sensors.append(_build_asset_value_change_sensor(child_name, trigger, self.then, sensor_status))
             elif isinstance(trigger, BackfillStatusTrigger):

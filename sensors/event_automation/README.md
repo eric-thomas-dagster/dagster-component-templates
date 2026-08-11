@@ -4,6 +4,14 @@ Prefect-Automations-style declarative event → action wiring in one YAML compon
 
 **Surface: 35 trigger types + 17 action types + AND/OR compound composition (one level of nesting).**
 
+## Triggers (35)
+
+`run_status` · `asset_materialized` · `schedule` · `http_poll` · `freshness_violation` · `run_duration` · `run_stuck` · `asset_check_failed` · `metric_threshold` · `absence` · `log_pattern` · `daemon_heartbeat` · `code_location_status` · `run_startup_slow` · `asset_observation` · `step_error` · `metadata_match` · `asset_value_change` · `backfill_status` · `sensor_failing` · `concurrency_hit` · `hook_fired` · `asset_partition_materialized` · `run_reexecution` · `asset_wipe` · `config_override` · `tag_set` · `unhandled_exception` · `asset_check_severity` · `op_output` · `materialization_planned` · `asset_check_started` · `insights_metric` (Dagster+) · `dagster_plus_audit` (Dagster+) · `sqs_poll` · `all_of` (compound) · `any_of` (compound)
+
+## Actions (17)
+
+`materialize` · `launch_job` · `cancel_run` · `retry_run` · `toggle_sensor` · `toggle_schedule` · `webhook` · `slack` · `pagerduty` · `opsgenie` · `discord` · `teams` · `mattermost` · `email` · `sns` · `sqs` · `emit_event`
+
 ## Why
 
 Prefect's Automations UI is a first-class surface where any trigger → any action is composable, no code required. Dagster has all the underlying primitives — sensors, `AutomationCondition`, run-status sensors, asset checks, freshness policies — but they're Python-first. This component collapses the common trigger-action patterns into a single YAML shape that renders in the components UI, so ops-heavy teams can wire glue without dropping to Python.
@@ -31,7 +39,7 @@ attributes:
 - Compound triggers `all_of` / `any_of` → **AND** / explicit OR with one level of nesting
 - Each trigger emits its own Dagster sensor; all share the same action bundle
 
-## Triggers (35)
+## Trigger reference
 
 ### State-based
 
@@ -387,7 +395,7 @@ Reads as: **(job_a failed OR job_b failed) AND freshness violated within 1 hour*
 
 **`any_of`** — OR inside a compound. At the top of `when:`, multiple triggers are already OR; use `any_of` only when nested inside `all_of`.
 
-## Actions (17)
+## Action reference
 
 Every action gets template tokens: `{event_type}`, `{run_id}`, `{job_name}`, `{asset_key}`, `{status}`, `{timestamp}`, `{message}`, `{url}`.
 

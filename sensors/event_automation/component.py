@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import os
 import time
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import dagster as dg
 from pydantic import Field
@@ -250,8 +250,74 @@ Action = Union[
 
 # ── Trigger models ─────────────────────────────────────────────────────────
 
+class ThrottleConfig(dg.Model):
+    """Rate-limit + suppression rules for a trigger.
+
+    Keeps sensors from spamming downstream endpoints when the same event
+    fires repeatedly. Attach `throttle:` to any trigger; the trigger's
+    fire path checks it before running actions.
+
+    Strategies:
+      - `silence` (default) — drop fires within cooldown / over max_per_hour
+      - `summarize` — buffer fires; flush a single "N events, first at X,
+                     last at Y" alert after `flush_after_seconds`
+      - `first_last` — fire first + last of a burst, drop middle
+      - `llm` — ask an LLM whether to fire, given the current event +
+               recent event history. Cached briefly to avoid LLM spam.
+
+    Scoping via `dedup_key_template` — each rendered dedup key gets its own
+    throttle state. Default: throttle applies globally per trigger.
+    """
+    min_seconds_between_fires: Optional[int] = Field(
+        default=None,
+        description="Cooldown: drop fires within this many seconds of the last fire.",
+    )
+    max_per_hour: Optional[int] = Field(
+        default=None,
+        description="Rolling-window cap: drop fires that would exceed N per hour.",
+    )
+    dedup_key_template: Optional[str] = Field(
+        default=None,
+        description=(
+            "Template for the dedup key — throttle state is per-key. "
+            "Supports the standard template tokens. Default: whole trigger."
+        ),
+    )
+    strategy: str = Field(
+        default="silence",
+        description="silence | summarize | first_last | llm",
+    )
+    flush_after_seconds: int = Field(
+        default=600,
+        description="For summarize / first_last: how long to accumulate before flushing.",
+    )
+    # LLM strategy fields (only used when strategy=llm)
+    llm_provider: str = Field(default="openai", description="openai | anthropic")
+    llm_model: str = Field(default="gpt-4o-mini")
+    llm_api_key_env_var: str = Field(default="OPENAI_API_KEY")
+    llm_prompt_template: str = Field(
+        default=(
+            "You are an on-call paging engineer. Given this incoming alert and "
+            "recent alert history for the same dedup key, decide whether to page.\n\n"
+            "Current alert:\n{message}\n\nRecent alerts (last hour):\n{recent}\n\n"
+            "Answer strictly with 'YES: <one-line reason>' or 'NO: <one-line reason>'."
+        ),
+        description="Prompt template. {message} + {recent} are substituted with alert info.",
+    )
+    llm_decision_cache_seconds: int = Field(
+        default=60,
+        description="Cache the LLM's YES/NO decision for this dedup key for this many seconds.",
+    )
+
+
 class _TriggerBase(dg.Model):
     """Base for all triggers — every trigger needs a `type` discriminator."""
+    # Optional per-trigger throttle. All triggers inherit this — it's opt-in
+    # via presence of `throttle:` in the YAML.
+    throttle: Optional[ThrottleConfig] = Field(
+        default=None,
+        description="Optional rate-limit + suppression rules. See ThrottleConfig.",
+    )
 
 
 class RunStatusTrigger(_TriggerBase):
@@ -1206,9 +1272,209 @@ def _http_call(method: str, url: str, headers=None, body=None, timeout_seconds: 
             logger.warning(f"{method.upper()} {url} failed: {exc}")
 
 
-def _run_actions(actions: List[Action], tokens: Dict[str, Any], logger, instance=None) -> List[dg.RunRequest]:
+# Module-level throttle state — persists across ticks in the same daemon
+# process, resets on process restart. Keyed by "sensor_name:dedup_key".
+# Each value: {"last_ts": float, "count_hour": int, "hour_start": float,
+#              "buffer": [tokens...], "buffer_first_ts": float,
+#              "llm_last": {"decision": bool, "ts": float}}
+_THROTTLE_STATE: Dict[str, Dict[str, Any]] = {}
+
+
+def _throttle_key(sensor_name: str, throttle: ThrottleConfig, tokens: Dict[str, Any]) -> str:
+    """Build a state key for this trigger + dedup_key_template combo."""
+    if throttle.dedup_key_template:
+        dedup = _render_template(throttle.dedup_key_template, tokens)
+    else:
+        dedup = "*"
+    return f"{sensor_name}:{dedup}"
+
+
+def _apply_throttle(
+    throttle: ThrottleConfig,
+    tokens: Dict[str, Any],
+    sensor_name: str,
+    logger,
+) -> "Tuple[bool, Dict[str, Any]]":
+    """Decide whether this fire should proceed given throttle rules.
+
+    Returns (should_fire, tokens). When strategy is `summarize` or
+    `first_last`, `tokens` may be replaced with an aggregate summary that
+    the actions should send instead of the raw current event.
+    """
+    now = time.time()
+    key = _throttle_key(sensor_name, throttle, tokens)
+    state = _THROTTLE_STATE.setdefault(key, {})
+
+    # ── max_per_hour rolling window ────────────────────────────────
+    if throttle.max_per_hour:
+        hour_start = state.get("hour_start", 0.0)
+        if now - hour_start > 3600:
+            state["hour_start"] = now
+            state["count_hour"] = 0
+        if state.get("count_hour", 0) >= throttle.max_per_hour:
+            logger.info(f"[throttle:{key}] max_per_hour={throttle.max_per_hour} hit, dropping")
+            return (False, tokens)
+
+    # ── min_seconds_between_fires cooldown ─────────────────────────
+    if throttle.min_seconds_between_fires:
+        last_ts = state.get("last_ts", 0.0)
+        if now - last_ts < throttle.min_seconds_between_fires:
+            # In cooldown — behavior depends on strategy
+            if throttle.strategy == "silence":
+                logger.info(f"[throttle:{key}] cooldown, dropping (silence)")
+                return (False, tokens)
+            elif throttle.strategy in ("summarize", "first_last"):
+                # Buffer this event; flush later
+                buf = state.setdefault("buffer", [])
+                buf.append({"ts": now, "tokens": dict(tokens)})
+                state.setdefault("buffer_first_ts", now)
+                logger.info(f"[throttle:{key}] cooldown, buffered ({len(buf)} pending)")
+                return (False, tokens)
+            elif throttle.strategy == "llm":
+                # Fall through to LLM check even during cooldown
+                pass
+
+    # ── summarize/first_last: check if buffer is ready to flush ────
+    if throttle.strategy in ("summarize", "first_last") and state.get("buffer"):
+        first_ts = state.get("buffer_first_ts", now)
+        if now - first_ts >= throttle.flush_after_seconds:
+            buf = state["buffer"]
+            summarized = _summarize_tokens(buf, tokens, throttle.strategy)
+            state["buffer"] = []
+            state["buffer_first_ts"] = 0.0
+            state["last_ts"] = now
+            state["count_hour"] = state.get("count_hour", 0) + 1
+            logger.info(f"[throttle:{key}] flushing {len(buf)}-event summary")
+            return (True, summarized)
+
+    # ── LLM strategy ────────────────────────────────────────────────
+    if throttle.strategy == "llm":
+        cached = state.get("llm_last")
+        if cached and (now - cached["ts"]) < throttle.llm_decision_cache_seconds:
+            if not cached["decision"]:
+                logger.info(f"[throttle:{key}] LLM cached NO, dropping")
+                return (False, tokens)
+        else:
+            recent = state.get("recent_alerts", [])
+            recent = [r for r in recent if now - r["ts"] < 3600][-10:]
+            state["recent_alerts"] = recent + [{"ts": now, "msg": tokens.get("message", "")}]
+            decision = _ask_llm_should_fire(throttle, tokens, recent, logger)
+            state["llm_last"] = {"decision": decision, "ts": now}
+            if not decision:
+                logger.info(f"[throttle:{key}] LLM said NO, dropping")
+                return (False, tokens)
+
+    # ── Fire — update state ─────────────────────────────────────────
+    state["last_ts"] = now
+    state["count_hour"] = state.get("count_hour", 0) + 1
+    return (True, tokens)
+
+
+def _summarize_tokens(buffer: List[Dict[str, Any]], current: Dict[str, Any], strategy: str) -> Dict[str, Any]:
+    """Fold a buffer of accumulated events into a single token set for
+    the summary fire."""
+    if not buffer:
+        return current
+    count = len(buffer) + 1  # buffer + current
+    first = buffer[0]["tokens"]
+    last = current
+    summary = dict(last)
+    summary["event_type"] = f"{summary.get('event_type', '')}_summary_{strategy}"
+    summary["message"] = (
+        f"[{count}× in the last window] "
+        f"First: {first.get('message', '')[:100]} @ ts={int(buffer[0]['ts'])}. "
+        f"Last: {last.get('message', '')[:100]} @ ts={int(time.time())}."
+    )
+    return summary
+
+
+def _ask_llm_should_fire(
+    throttle: ThrottleConfig,
+    tokens: Dict[str, Any],
+    recent: List[Dict[str, Any]],
+    logger,
+) -> bool:
+    """Ask an LLM to decide YES/NO. Falls back to True on any error."""
+    api_key = os.environ.get(throttle.llm_api_key_env_var, "")
+    if not api_key:
+        logger.warning(f"[throttle:llm] {throttle.llm_api_key_env_var} not set — defaulting to YES")
+        return True
+    recent_str = "\n".join(f"  - {r['ts']}: {r['msg'][:200]}" for r in recent) or "(none)"
+    prompt = _render_template(
+        throttle.llm_prompt_template,
+        {**tokens, "recent": recent_str, "message": tokens.get("message", "")},
+    )
+    try:
+        if throttle.llm_provider == "openai":
+            return _openai_yes_no(throttle.llm_model, api_key, prompt, logger)
+        elif throttle.llm_provider == "anthropic":
+            return _anthropic_yes_no(throttle.llm_model, api_key, prompt, logger)
+        else:
+            logger.warning(f"[throttle:llm] unknown provider '{throttle.llm_provider}' — defaulting to YES")
+            return True
+    except Exception as exc:
+        logger.warning(f"[throttle:llm] LLM call failed: {exc} — defaulting to YES")
+        return True
+
+
+def _openai_yes_no(model: str, api_key: str, prompt: str, logger) -> bool:
+    import urllib.request
+    import json as _json
+    body = _json.dumps({
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 100,
+        "temperature": 0.0,
+    }).encode()
+    req = urllib.request.Request(
+        "https://api.openai.com/v1/chat/completions",
+        data=body,
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
+    )
+    resp = _json.loads(urllib.request.urlopen(req, timeout=15).read())
+    answer = (resp.get("choices", [{}])[0].get("message", {}).get("content", "") or "").strip()
+    logger.info(f"[throttle:llm/openai] decision: {answer[:200]}")
+    return answer.upper().startswith("YES")
+
+
+def _anthropic_yes_no(model: str, api_key: str, prompt: str, logger) -> bool:
+    import urllib.request
+    import json as _json
+    body = _json.dumps({
+        "model": model,
+        "max_tokens": 100,
+        "messages": [{"role": "user", "content": prompt}],
+    }).encode()
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages",
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+        },
+    )
+    resp = _json.loads(urllib.request.urlopen(req, timeout=15).read())
+    answer = (resp.get("content", [{}])[0].get("text", "") or "").strip()
+    logger.info(f"[throttle:llm/anthropic] decision: {answer[:200]}")
+    return answer.upper().startswith("YES")
+
+
+def _run_actions(
+    actions: List[Action],
+    tokens: Dict[str, Any],
+    logger,
+    instance=None,
+    throttle: Optional[ThrottleConfig] = None,
+    sensor_name: str = "",
+) -> List[dg.RunRequest]:
     """Execute every action. Collect RunRequests (materialize / launch_job)
-    for return; side-effect actions execute inline."""
+    for return; side-effect actions execute inline. If `throttle` is set,
+    apply the throttle gate before firing."""
+    if throttle:
+        should_fire, tokens = _apply_throttle(throttle, tokens, sensor_name or "unnamed", logger)
+        if not should_fire:
+            return []
     requests_out = []
     for action in actions:
         try:
@@ -1239,7 +1505,7 @@ def _build_run_status_sensor(
             status=trigger.status,
             message=f"Run {run.run_id} for {run.job_name} → {trigger.status}",
         )
-        requests_out = _run_actions(actions, tokens, context.log, instance=context.instance)
+        requests_out = _run_actions(actions, tokens, context.log, instance=context.instance, throttle=trigger.throttle, sensor_name=name)
         # run_status_sensor supports yielding RunRequests
         if requests_out:
             return dg.SensorResult(run_requests=requests_out)
@@ -1268,7 +1534,7 @@ def _build_asset_materialized_sensor(
                 run_id=record.run_id if hasattr(record, "run_id") else "",
                 message=f"Asset {asset_key.to_user_string()} materialized",
             )
-            all_requests.extend(_run_actions(actions, tokens, context.log, instance=context.instance))
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=context.instance, throttle=trigger.throttle, sensor_name=name))
         if fired:
             context.advance_all_cursors()
             return dg.SensorResult(run_requests=all_requests) if all_requests else None
@@ -1313,7 +1579,7 @@ def _build_schedule_sensor(
             timestamp=int(prev_fire.timestamp()),
             message=f"Schedule fired: {trigger.cron}",
         )
-        requests_out = _run_actions(actions, tokens, context.log, instance=context.instance)
+        requests_out = _run_actions(actions, tokens, context.log, instance=context.instance, throttle=trigger.throttle, sensor_name=name)
         return dg.SensorResult(run_requests=requests_out) if requests_out else None
 
     return dg.SensorDefinition(
@@ -1343,7 +1609,7 @@ def _build_http_poll_sensor(
                 tokens = _default_tokens(
                     event_type="http_poll", url=trigger.url, status=str(resp.status_code)
                 )
-                return dg.SensorResult(run_requests=_run_actions(actions, tokens, context.log, instance=context.instance))
+                return dg.SensorResult(run_requests=_run_actions(actions, tokens, context.log, instance=context.instance, throttle=trigger.throttle, sensor_name=name))
             return dg.SkipReason(f"HTTP {resp.status_code}")
         if trigger.condition == "json_path_present":
             if not trigger.json_path:
@@ -1356,7 +1622,7 @@ def _build_http_poll_sensor(
                     tokens = _default_tokens(
                         event_type="http_poll", url=trigger.url, message=f"json_path={obj}"
                     )
-                    return dg.SensorResult(run_requests=_run_actions(actions, tokens, context.log, instance=context.instance))
+                    return dg.SensorResult(run_requests=_run_actions(actions, tokens, context.log, instance=context.instance, throttle=trigger.throttle, sensor_name=name))
             except Exception:
                 pass
             return dg.SkipReason(f"json_path '{trigger.json_path}' empty or missing")
@@ -1369,7 +1635,7 @@ def _build_http_poll_sensor(
         tokens = _default_tokens(
             event_type="http_poll", url=trigger.url, status=str(resp.status_code)
         )
-        return dg.SensorResult(run_requests=_run_actions(actions, tokens, context.log, instance=context.instance))
+        return dg.SensorResult(run_requests=_run_actions(actions, tokens, context.log, instance=context.instance, throttle=trigger.throttle, sensor_name=name))
 
     return dg.SensorDefinition(
         name=name,
@@ -1406,7 +1672,7 @@ def _build_freshness_sensor(
                 status="stale",
                 message=msg,
             )
-            all_requests.extend(_run_actions(actions, tokens, context.log, instance=context.instance))
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=context.instance, throttle=trigger.throttle, sensor_name=name))
         return dg.SensorResult(run_requests=all_requests) if all_requests else None
 
     return dg.SensorDefinition(
@@ -1449,7 +1715,7 @@ def _build_run_duration_sensor(
             status=status,
             message=f"Run {run.run_id[:8]} took {duration:.1f}s (limit {trigger.max_duration_seconds}s)",
         )
-        requests_out = _run_actions(actions, tokens, context.log, instance=context.instance)
+        requests_out = _run_actions(actions, tokens, context.log, instance=context.instance, throttle=trigger.throttle, sensor_name=name)
         return dg.SensorResult(run_requests=requests_out) if requests_out else None
 
     # Return both — but SensorDefinition list is what we hand back. We wrap them
@@ -1497,7 +1763,7 @@ def _build_run_stuck_sensor(
                 status="RUNNING",
                 message=f"Run {run.run_id[:8]} running for {duration:.1f}s (limit {trigger.max_running_seconds}s)",
             )
-            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance, throttle=trigger.throttle, sensor_name=name))
         if stuck_ids:
             context.update_cursor(json.dumps(already_alerted))
             return dg.SensorResult(run_requests=all_requests) if all_requests else None
@@ -1563,7 +1829,7 @@ def _build_asset_check_failed_sensor(
                 message=f"Check '{check_name}' FAILED on {asset_key_str}",
                 status="FAILED",
             )
-            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance, throttle=trigger.throttle, sensor_name=name))
             rid = getattr(rec, "storage_id", 0)
             if rid > max_id:
                 max_id = rid
@@ -1638,7 +1904,7 @@ def _build_metric_threshold_sensor(
                 status="crossed",
                 message=f"{trigger.metadata_key}={v_float} {trigger.comparison} {trigger.threshold}",
             )
-            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance, throttle=trigger.throttle, sensor_name=name))
             rid = getattr(rec, "storage_id", 0)
             if rid > max_id:
                 max_id = rid
@@ -1693,7 +1959,7 @@ def _build_absence_sensor(
                 status="missing",
                 message=f"{key_str} has not materialized in {gap_min:.1f}min (limit {trigger.max_gap_minutes}min)",
             )
-            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance, throttle=trigger.throttle, sensor_name=name))
         if alerts:
             context.update_cursor(json.dumps(already_alerted))
             return dg.SensorResult(run_requests=all_requests) if all_requests else None
@@ -1810,7 +2076,7 @@ def _build_log_pattern_sensor(
                 status=run.status.value,
                 message=matched_msg,
             )
-            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance, throttle=trigger.throttle, sensor_name=name))
         merged = list(seen | set(newly_scanned))[-500:]
         context.update_cursor(",".join(merged))
         return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("no matches")
@@ -1871,7 +2137,7 @@ def _build_generic_event_sensor(
             except Exception as exc:
                 context.log.warning(f"filter/token error: {exc}")
                 continue
-            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance, throttle=trigger.throttle, sensor_name=name))
         if max_id > last_seen_id:
             context.update_cursor(str(max_id))
         return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("no matches")
@@ -1984,7 +2250,7 @@ def _build_run_reexecution_sensor(name, trigger, actions, default_status):
                 job_name=run.job_name or "",
                 message=f"Re-execution of {parent[:8]} → {run.run_id[:8]}",
             )
-            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance, throttle=trigger.throttle, sensor_name=name))
         merged = list(seen | set(newly_seen))[-500:]
         context.update_cursor(",".join(merged))
         return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("no reexecutions")
@@ -2047,7 +2313,7 @@ def _build_config_override_sensor(name, trigger, actions, default_status):
                 job_name=run.job_name or "",
                 message=f"Run {run.run_id[:8]} launched with config override ({len(run_config)} keys)",
             )
-            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance, throttle=trigger.throttle, sensor_name=name))
         merged = list(seen | set(newly_seen))[-500:]
         context.update_cursor(",".join(merged))
         return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("no overrides")
@@ -2088,7 +2354,7 @@ def _build_tag_set_sensor(name, trigger, actions, default_status):
                 status=v,
                 message=f"Run {run.run_id[:8]} has {trigger.tag_key}={v}",
             )
-            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance, throttle=trigger.throttle, sensor_name=name))
         merged = list(seen | set(newly_seen))[-500:]
         context.update_cursor(",".join(merged))
         return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("no matching tags")
@@ -2364,7 +2630,7 @@ def _build_insights_metric_sensor(name, trigger, actions, default_status):
             status=trigger.metric_name,
             message=f"{trigger.metric_name}={val_f} {trigger.comparison} {trigger.threshold}",
         )
-        requests_out = _run_actions(actions, tokens, context.log, instance=context.instance)
+        requests_out = _run_actions(actions, tokens, context.log, instance=context.instance, throttle=trigger.throttle, sensor_name=name)
         return dg.SensorResult(run_requests=requests_out) if requests_out else None
 
     return dg.SensorDefinition(
@@ -2441,7 +2707,7 @@ def _build_dagster_plus_audit_sensor(name, trigger, actions, default_status):
                 timestamp=int(ts),
                 message=f"Audit: {actor} → {etype} (deployment={entry.get('deploymentName') or ''})",
             )
-            all_requests.extend(_run_actions(actions, tokens, context.log, instance=context.instance))
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=context.instance, throttle=trigger.throttle, sensor_name=name))
             if ts > max_ts:
                 max_ts = ts
         if max_ts > last_ts:
@@ -2520,7 +2786,7 @@ def _build_code_location_status_sensor(
                 job_name=loc_name,
                 message=f"Code location {loc_name} → {status_str}: {reason}",
             )
-            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance, throttle=trigger.throttle, sensor_name=name))
         context.update_cursor(json.dumps(already_alerted))
         return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("all locations healthy")
 
@@ -2575,7 +2841,7 @@ def _build_run_startup_slow_sensor(
                 job_name=run.job_name or "",
                 message=f"Run {run.run_id[:8]} took {startup:.1f}s to start (limit {trigger.max_startup_seconds}s)",
             )
-            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance, throttle=trigger.throttle, sensor_name=name))
         # Cap cursor size at 200 run ids
         capped = list(already_alerted)[-200:]
         context.update_cursor(json.dumps(capped))
@@ -2625,7 +2891,7 @@ def _build_asset_observation_sensor(
                 asset_key=asset_key.to_user_string(),
                 message=f"Observation on {asset_key.to_user_string()}",
             )
-            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance, throttle=trigger.throttle, sensor_name=name))
             rid = getattr(rec, "storage_id", 0)
             if rid > max_id:
                 max_id = rid
@@ -2701,7 +2967,7 @@ def _build_step_error_sensor(
                 status="FAILURE",
                 message=(exc_msg or f"Step {step_key} failed")[:500],
             )
-            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance, throttle=trigger.throttle, sensor_name=name))
             rid = getattr(rec, "storage_id", 0)
             if rid > max_id:
                 max_id = rid
@@ -2785,7 +3051,7 @@ def _build_metadata_match_sensor(
                     status=val_str[:100],
                     message=f"{trigger.metadata_key}={val_str}",
                 )
-                all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+                all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance, throttle=trigger.throttle, sensor_name=name))
                 rid = getattr(rec, "storage_id", 0)
                 if rid > max_id:
                     max_id = rid
@@ -2842,7 +3108,7 @@ def _build_daemon_heartbeat_sensor(
                 status=daemon_type,
                 message=f"{daemon_type} daemon has not heartbeat in {age:.1f}s (limit {trigger.max_seconds_since_heartbeat}s)",
             )
-            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance, throttle=trigger.throttle, sensor_name=name))
         context.update_cursor(json.dumps(already_alerted))
         return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("all daemons healthy")
 
@@ -2924,7 +3190,7 @@ def _build_asset_value_change_sensor(
             status=trigger.direction,
             message=f"{trigger.metadata_key}: {v_prev} → {v_cur} (Δ={delta:+.2f})",
         )
-        requests_out = _run_actions(actions, tokens, context.log, instance=instance)
+        requests_out = _run_actions(actions, tokens, context.log, instance=instance, throttle=trigger.throttle, sensor_name=name)
         return dg.SensorResult(run_requests=requests_out) if requests_out else None
 
     return dg.SensorDefinition(
@@ -2968,7 +3234,7 @@ def _build_backfill_status_sensor(
                 status=status_str,
                 message=f"Backfill {bf_id} → {status_str}",
             )
-            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance, throttle=trigger.throttle, sensor_name=name))
         merged = list(seen | set(newly_seen))[-200:]
         context.update_cursor(",".join(merged))
         return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("no matching backfill events")
@@ -3020,7 +3286,7 @@ def _build_sensor_failing_sensor(
             status="FAILING",
             message=f"Sensor '{trigger.target_sensor_name}' failed {trigger.consecutive_failures} ticks in a row",
         )
-        requests_out = _run_actions(actions, tokens, context.log, instance=instance)
+        requests_out = _run_actions(actions, tokens, context.log, instance=instance, throttle=trigger.throttle, sensor_name=name)
         return dg.SensorResult(run_requests=requests_out) if requests_out else None
 
     return dg.SensorDefinition(
@@ -3072,7 +3338,7 @@ def _build_concurrency_hit_sensor(
             message=f"{count} runs active (limit {trigger.max_queued})"
                     + (f" [tag {trigger.tag_key}={trigger.tag_value or '*'}]" if trigger.tag_key else ""),
         )
-        requests_out = _run_actions(actions, tokens, context.log, instance=instance)
+        requests_out = _run_actions(actions, tokens, context.log, instance=instance, throttle=trigger.throttle, sensor_name=name)
         return dg.SensorResult(run_requests=requests_out) if requests_out else None
 
     return dg.SensorDefinition(
@@ -3112,7 +3378,7 @@ def _build_sqs_poll_sensor(
                 message=body,
                 url=trigger.queue_url,
             )
-            all_requests.extend(_run_actions(actions, tokens, context.log, instance=context.instance))
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=context.instance, throttle=trigger.throttle, sensor_name=name))
             if trigger.delete_after:
                 try:
                     client.delete_message(
@@ -3168,7 +3434,7 @@ def _build_compound_sensor(
             message=f"Compound {trigger.type} fired ({len(trigger.triggers)} sub-triggers)"
                     + (f" within {within}s" if is_all_of else ""),
         )
-        requests_out = _run_actions(actions, tokens, context.log, instance=instance)
+        requests_out = _run_actions(actions, tokens, context.log, instance=instance, throttle=trigger.throttle, sensor_name=name)
         # Reset cursor on all_of so we don't immediately re-fire
         if is_all_of:
             context.update_cursor(json.dumps({}))

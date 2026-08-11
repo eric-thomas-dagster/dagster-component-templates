@@ -2,7 +2,7 @@
 
 Prefect-Automations-style declarative event → action wiring in one YAML component. Each `when: … then: …` block becomes a real Dagster sensor under the covers; no Python needed for common trigger-action shapes.
 
-**Surface: 16 trigger types + 17 action types + AND/OR compound composition (one level of nesting).**
+**Surface: 22 trigger types + 17 action types + AND/OR compound composition (one level of nesting).**
 
 ## Why
 
@@ -152,12 +152,46 @@ attributes:
   # min_delta: 500               # absolute alternative
 ```
 
-**`log_pattern`** — regex match on run log lines. Catches issues that a raw run_status doesn't (runs that "succeed" with warnings, OOMs, or specific stack traces).
+**`log_pattern`** — regex match on run log lines. Catches issues that a raw run_status doesn't (runs that "succeed" with warnings, OOMs, or specific stack traces). `sources` controls which log streams get scanned:
+
+- `events` (default) — dagster event log entries (context.log.info/warning/error calls + framework messages + tracebacks)
+- `stdout` / `stderr` — raw compute_log_manager output (K8s / ECS / Docker container stdout+stderr). Catches OOMKilled + kernel panics + oomkill traces that never made it to the dagster logger.
 
 ```yaml
 - type: log_pattern
   pattern: "OOMKilled|OutOfMemoryError|MemoryError"
+  sources: [events, stderr]       # default: [events]
   job_name: prod_ingest           # optional
+```
+
+**`asset_observation`** — an `AssetObservation` event was emitted. Distinct from `asset_materialized` — observations record signals about an asset without producing a new materialization (freshness updates, external system state, DQ checks).
+
+```yaml
+- type: asset_observation
+  asset_keys: [external_status_asset, upstream_health]
+```
+
+**`step_error`** — an op step raised an exception (STEP_FAILURE event). Fires at the step level even when the run overall succeeds (retries, downstream steps that recover). Fires multiple times per run if multiple steps fail.
+
+```yaml
+- type: step_error
+  job_name: prod_ingest                   # optional
+  step_key_pattern: ".*etl.*"             # optional regex
+  exception_pattern: "OOMKilled|Timeout"  # optional regex
+```
+
+**`metadata_match`** — materialization/observation carries specific metadata. Three shapes:
+
+- `metadata_key` alone → fires when the key is present (any value)
+- `metadata_key` + `equals` → fires when key == equals
+- `metadata_key` + `regex` → fires when str(value) matches regex
+
+```yaml
+- type: metadata_match
+  asset_key: hourly_summary
+  metadata_key: quality_grade
+  regex: "poor|failed"                    # or `equals: "poor"`
+  include_observations: true              # default: true
 ```
 
 ### Reliability / meta
@@ -185,6 +219,33 @@ attributes:
   max_queued: 50
   tag_key: dagster/job            # optional
   tag_value: heavy_batch          # optional
+```
+
+### Platform / infra
+
+**`daemon_heartbeat`** — a Dagster daemon / Dagster+ agent stopped heartbeating. Covers OSS daemons (SENSOR / SCHEDULER / QUEUED_RUN_COORDINATOR / BACKFILL / ASSET / FRESHNESS) and Dagster+ Hybrid agents (Docker / K8s / ECS / ACR — they report through the same daemon interface). Once-per-outage semantics.
+
+```yaml
+- type: daemon_heartbeat
+  daemon_type: SENSOR              # optional — filter to specific daemon type
+  max_seconds_since_heartbeat: 120
+```
+
+**`code_location_status`** — a code location entered an unhealthy state. Catches `dg plus deploy` failures, dependency drift, long-tail load times.
+
+```yaml
+- type: code_location_status
+  on_status: UNHEALTHY             # ERROR | LOADING | TIMED_OUT | UNHEALTHY
+  max_seconds_loading: 300         # only used with on_status=LOADING
+  location_name_pattern: "prod-.*" # optional
+```
+
+**`run_startup_slow`** — captures "compute took too long to spin up" (pex load on Serverless, docker pull + container start on Hybrid, K8s pod scheduling delays, ECS task placement waits, resource-init hangs). Distinct from `run_stuck` — this measures QUEUED/STARTING → STARTED latency.
+
+```yaml
+- type: run_startup_slow
+  max_startup_seconds: 120         # fire when creation → STARTED > 2min
+  job_name: heavy_batch            # optional
 ```
 
 ### Composite (AND / OR)

@@ -79,7 +79,13 @@ class TestModelConstruction:
                 "comparison": "lt", "threshold": 100,
             }),
             ("absence", {"asset_keys": ["a"], "max_gap_minutes": 90}),
-            ("log_pattern", {"pattern": r"OOMKilled"}),
+            ("log_pattern", {"pattern": r"OOMKilled", "sources": ["events", "stderr"]}),
+            ("daemon_heartbeat", {"daemon_type": "SENSOR", "max_seconds_since_heartbeat": 120}),
+            ("code_location_status", {"on_status": "ERROR"}),
+            ("run_startup_slow", {"max_startup_seconds": 120}),
+            ("asset_observation", {"asset_keys": ["a"]}),
+            ("step_error", {"job_name": "j", "exception_pattern": r".*Timeout.*"}),
+            ("metadata_match", {"asset_key": "a", "metadata_key": "status", "equals": "stale"}),
             ("asset_value_change", {
                 "asset_key": "a", "metadata_key": "row_count",
                 "direction": "decrease", "min_delta_pct": 50,
@@ -102,6 +108,12 @@ class TestModelConstruction:
                 "metric_threshold": comp_mod.MetricThresholdTrigger,
                 "absence": comp_mod.AbsenceTrigger,
                 "log_pattern": comp_mod.LogPatternTrigger,
+                "daemon_heartbeat": comp_mod.DaemonHeartbeatTrigger,
+                "code_location_status": comp_mod.CodeLocationStatusTrigger,
+                "run_startup_slow": comp_mod.RunStartupSlowTrigger,
+                "asset_observation": comp_mod.AssetObservationTrigger,
+                "step_error": comp_mod.StepErrorTrigger,
+                "metadata_match": comp_mod.MetadataMatchTrigger,
                 "asset_value_change": comp_mod.AssetValueChangeTrigger,
                 "backfill_status": comp_mod.BackfillStatusTrigger,
                 "sensor_failing": comp_mod.SensorFailingTrigger,
@@ -173,7 +185,7 @@ class TestSensorEmission:
         assert "test_automation__schedule_1" in names
         assert "test_automation__asset_materialized_2" in names
 
-    def test_all_16_trigger_types_emit_sensors(self):
+    def test_all_22_trigger_types_emit_sensors(self):
         """One sensor per trigger, for every trigger type."""
         triggers = [
             {"type": "run_status", "status": "FAILURE"},
@@ -187,7 +199,13 @@ class TestSensorEmission:
             {"type": "metric_threshold", "asset_key": "a", "metadata_key": "row_count",
              "comparison": "lt", "threshold": 100},
             {"type": "absence", "asset_keys": ["a"], "max_gap_minutes": 90},
-            {"type": "log_pattern", "pattern": "OOMKilled"},
+            {"type": "log_pattern", "pattern": "OOMKilled", "sources": ["events", "stderr"]},
+            {"type": "daemon_heartbeat", "max_seconds_since_heartbeat": 120},
+            {"type": "code_location_status", "on_status": "ERROR"},
+            {"type": "run_startup_slow", "max_startup_seconds": 120},
+            {"type": "asset_observation", "asset_keys": ["a"]},
+            {"type": "step_error", "job_name": "j"},
+            {"type": "metadata_match", "asset_key": "a", "metadata_key": "status", "equals": "stale"},
             {"type": "asset_value_change", "asset_key": "a", "metadata_key": "row_count",
              "direction": "decrease", "min_delta_pct": 50},
             {"type": "backfill_status", "status": "FAILED"},
@@ -196,7 +214,7 @@ class TestSensorEmission:
             {"type": "sqs_poll", "queue_url": "https://sqs.example.com/q"},
         ]
         defs = self._build_defs(triggers)
-        assert len(list(defs.sensors)) == 16
+        assert len(list(defs.sensors)) == 22
 
 
 # ── Template rendering ───────────────────────────────────────────────────
@@ -337,6 +355,313 @@ class TestHttpPollTrigger:
         ctx = make_context(cursor=expected_hash)
         result = unwrap(sensor._evaluation_fn(ctx))
         assert hasattr(result, "skip_message")
+
+
+# ── New trigger evaluation tests ─────────────────────────────────────────
+
+class TestLogPatternTrigger:
+    def test_fires_on_matching_log_line(self):
+        trigger = comp_mod.LogPatternTrigger(pattern="OOMKilled")
+        actions = [comp_mod.MaterializeAction(asset_keys=["recovery"])]
+        sensor = comp_mod._build_log_pattern_sensor(
+            "test", trigger, actions, comp_mod.dg.DefaultSensorStatus.STOPPED
+        )
+        ctx = make_context()
+        run = make_run(run_id="r1", job_name="prod", status="FAILURE")
+        ctx.instance.get_runs.return_value = [run]
+        entry = MagicMock()
+        entry.user_message = "OOMKilled: process killed by OOM"
+        entry.message = ""
+        ctx.instance.all_logs.return_value = [entry]
+        result = unwrap(sensor._evaluation_fn(ctx))
+        assert result is not None
+        assert hasattr(result, "run_requests")
+
+    def test_skips_when_no_match(self):
+        trigger = comp_mod.LogPatternTrigger(pattern="OOMKilled")
+        sensor = comp_mod._build_log_pattern_sensor(
+            "test", trigger, [], comp_mod.dg.DefaultSensorStatus.STOPPED
+        )
+        ctx = make_context()
+        ctx.instance.get_runs.return_value = [make_run()]
+        entry = MagicMock()
+        entry.user_message = "everything is fine"
+        entry.message = ""
+        ctx.instance.all_logs.return_value = [entry]
+        result = unwrap(sensor._evaluation_fn(ctx))
+        assert hasattr(result, "skip_message")
+
+    def test_sources_parsed(self):
+        """Passing sources=['events', 'stdout', 'stderr'] resolves without error."""
+        trigger = comp_mod.LogPatternTrigger(
+            pattern="OOMKilled", sources=["events", "stdout", "stderr"]
+        )
+        assert "stdout" in trigger.sources
+        assert "stderr" in trigger.sources
+
+
+class TestDaemonHeartbeatTrigger:
+    def test_fires_on_stale_daemon(self):
+        trigger = comp_mod.DaemonHeartbeatTrigger(max_seconds_since_heartbeat=60)
+        actions = [comp_mod.MaterializeAction(asset_keys=["alert"])]
+        sensor = comp_mod._build_daemon_heartbeat_sensor(
+            "test", trigger, actions, comp_mod.dg.DefaultSensorStatus.STOPPED
+        )
+        ctx = make_context()
+        stale_hb = MagicMock()
+        stale_hb.timestamp = time.time() - 200  # 200s ago > 60s
+        stale_status = MagicMock()
+        stale_status.last_heartbeat = stale_hb
+        ctx.instance.get_daemon_statuses.return_value = {"SENSOR": stale_status}
+        result = unwrap(sensor._evaluation_fn(ctx))
+        assert result is not None
+        assert hasattr(result, "run_requests")
+
+    def test_skips_healthy_daemon(self):
+        trigger = comp_mod.DaemonHeartbeatTrigger(max_seconds_since_heartbeat=60)
+        sensor = comp_mod._build_daemon_heartbeat_sensor(
+            "test", trigger, [], comp_mod.dg.DefaultSensorStatus.STOPPED
+        )
+        ctx = make_context()
+        fresh_hb = MagicMock()
+        fresh_hb.timestamp = time.time() - 5  # 5s ago — fine
+        fresh_status = MagicMock()
+        fresh_status.last_heartbeat = fresh_hb
+        ctx.instance.get_daemon_statuses.return_value = {"SENSOR": fresh_status}
+        result = unwrap(sensor._evaluation_fn(ctx))
+        assert hasattr(result, "skip_message")
+
+    def test_daemon_type_filter(self):
+        trigger = comp_mod.DaemonHeartbeatTrigger(
+            daemon_type="SCHEDULER", max_seconds_since_heartbeat=60
+        )
+        sensor = comp_mod._build_daemon_heartbeat_sensor(
+            "test", trigger, [], comp_mod.dg.DefaultSensorStatus.STOPPED
+        )
+        ctx = make_context()
+        # SENSOR is stale but we're filtered to SCHEDULER only
+        stale_hb = MagicMock()
+        stale_hb.timestamp = time.time() - 500
+        stale_status = MagicMock()
+        stale_status.last_heartbeat = stale_hb
+        ctx.instance.get_daemon_statuses.return_value = {"SENSOR": stale_status}
+        result = unwrap(sensor._evaluation_fn(ctx))
+        assert hasattr(result, "skip_message")
+
+
+class TestCodeLocationStatusTrigger:
+    def test_fires_on_error_status(self):
+        trigger = comp_mod.CodeLocationStatusTrigger(on_status="ERROR")
+        actions = [comp_mod.MaterializeAction(asset_keys=["alert"])]
+        sensor = comp_mod._build_code_location_status_sensor(
+            "test", trigger, actions, comp_mod.dg.DefaultSensorStatus.STOPPED
+        )
+        ctx = make_context()
+        broken_snap = MagicMock()
+        broken_snap.location_name = "prod-loc"
+        broken_snap.load_status = MagicMock(value="ERROR")
+        broken_snap.load_error = "ImportError: no module 'foo'"
+        # Try dict-of-name shape first
+        ctx.instance.get_code_location_snapshots.return_value = {"prod-loc": broken_snap}
+        # Ensure other candidate methods are absent
+        ctx.instance.all_code_location_snapshots.side_effect = Exception("not this one")
+        result = unwrap(sensor._evaluation_fn(ctx))
+        assert result is not None
+        assert hasattr(result, "run_requests")
+
+    def test_skips_when_all_api_candidates_raise(self):
+        """Every candidate API on the instance raises → SkipReason, not crash."""
+        trigger = comp_mod.CodeLocationStatusTrigger(on_status="ERROR")
+        sensor = comp_mod._build_code_location_status_sensor(
+            "test", trigger, [], comp_mod.dg.DefaultSensorStatus.STOPPED
+        )
+        ctx = make_context()
+        # Configure candidates to raise so the outer loop falls through
+        ctx.instance.get_code_location_snapshots.side_effect = Exception("nope")
+        ctx.instance.all_code_location_snapshots.side_effect = Exception("nope")
+        ctx.instance.workspace_snapshot.side_effect = Exception("nope")
+        result = unwrap(sensor._evaluation_fn(ctx))
+        assert hasattr(result, "skip_message")
+
+
+class TestRunStartupSlowTrigger:
+    def test_fires_when_startup_over_threshold(self):
+        trigger = comp_mod.RunStartupSlowTrigger(max_startup_seconds=60)
+        actions = [comp_mod.MaterializeAction(asset_keys=["alert"])]
+        sensor = comp_mod._build_run_startup_slow_sensor(
+            "test", trigger, actions, comp_mod.dg.DefaultSensorStatus.STOPPED
+        )
+        ctx = make_context()
+        run = MagicMock()
+        run.run_id = "r-slow"
+        run.job_name = "j"
+        run.create_timestamp = 1000
+        run.start_time = 1200  # 200s startup > 60s
+        ctx.instance.get_runs.return_value = [run]
+        result = unwrap(sensor._evaluation_fn(ctx))
+        assert result is not None
+        assert hasattr(result, "run_requests")
+
+    def test_skips_fast_startup(self):
+        trigger = comp_mod.RunStartupSlowTrigger(max_startup_seconds=60)
+        sensor = comp_mod._build_run_startup_slow_sensor(
+            "test", trigger, [], comp_mod.dg.DefaultSensorStatus.STOPPED
+        )
+        ctx = make_context()
+        run = MagicMock()
+        run.run_id = "r-fast"
+        run.job_name = "j"
+        run.create_timestamp = 1000
+        run.start_time = 1005  # 5s — well under
+        ctx.instance.get_runs.return_value = [run]
+        result = unwrap(sensor._evaluation_fn(ctx))
+        assert hasattr(result, "skip_message")
+
+
+class TestAssetObservationTrigger:
+    def test_fires_on_matching_observation(self):
+        trigger = comp_mod.AssetObservationTrigger(asset_keys=["external_status"])
+        actions = [comp_mod.MaterializeAction(asset_keys=["dependent"])]
+        sensor = comp_mod._build_asset_observation_sensor(
+            "test", trigger, actions, comp_mod.dg.DefaultSensorStatus.STOPPED
+        )
+        ctx = make_context()
+        # Craft a fake event record for an observation
+        rec = MagicMock()
+        rec.storage_id = 42
+        obs_data = MagicMock()
+        obs_data.asset_key = comp_mod.dg.AssetKey.from_user_string("external_status")
+        rec.event_log_entry.dagster_event.event_specific_data = obs_data
+        ctx.instance.event_log_storage.get_event_records.return_value = [rec]
+        result = unwrap(sensor._evaluation_fn(ctx))
+        assert result is not None
+        assert hasattr(result, "run_requests")
+
+    def test_skips_unrelated_observations(self):
+        trigger = comp_mod.AssetObservationTrigger(asset_keys=["watched_asset"])
+        sensor = comp_mod._build_asset_observation_sensor(
+            "test", trigger, [], comp_mod.dg.DefaultSensorStatus.STOPPED
+        )
+        ctx = make_context()
+        rec = MagicMock()
+        rec.storage_id = 1
+        obs_data = MagicMock()
+        obs_data.asset_key = comp_mod.dg.AssetKey.from_user_string("other_asset")
+        rec.event_log_entry.dagster_event.event_specific_data = obs_data
+        ctx.instance.event_log_storage.get_event_records.return_value = [rec]
+        result = unwrap(sensor._evaluation_fn(ctx))
+        assert hasattr(result, "skip_message")
+
+
+class TestStepErrorTrigger:
+    def test_fires_on_step_failure(self):
+        trigger = comp_mod.StepErrorTrigger()
+        actions = [comp_mod.MaterializeAction(asset_keys=["alert"])]
+        sensor = comp_mod._build_step_error_sensor(
+            "test", trigger, actions, comp_mod.dg.DefaultSensorStatus.STOPPED
+        )
+        ctx = make_context()
+        rec = MagicMock()
+        rec.storage_id = 100
+        entry = MagicMock()
+        entry.run_id = "r1"
+        evt = MagicMock()
+        evt.step_key = "my_op"
+        error = MagicMock()
+        error.message = "ValueError: bad input"
+        evt.event_specific_data.error = error
+        entry.dagster_event = evt
+        rec.event_log_entry = entry
+        ctx.instance.event_log_storage.get_event_records.return_value = [rec]
+        result = unwrap(sensor._evaluation_fn(ctx))
+        assert result is not None
+        assert hasattr(result, "run_requests")
+
+    def test_exception_pattern_filter(self):
+        trigger = comp_mod.StepErrorTrigger(exception_pattern="TimeoutError")
+        sensor = comp_mod._build_step_error_sensor(
+            "test", trigger, [], comp_mod.dg.DefaultSensorStatus.STOPPED
+        )
+        ctx = make_context()
+        rec = MagicMock()
+        rec.storage_id = 100
+        entry = MagicMock()
+        entry.run_id = "r1"
+        evt = MagicMock()
+        evt.step_key = "my_op"
+        error = MagicMock()
+        error.message = "ValueError: not a timeout"
+        evt.event_specific_data.error = error
+        entry.dagster_event = evt
+        rec.event_log_entry = entry
+        ctx.instance.event_log_storage.get_event_records.return_value = [rec]
+        result = unwrap(sensor._evaluation_fn(ctx))
+        assert hasattr(result, "skip_message")
+
+
+class TestMetadataMatchTrigger:
+    def test_fires_on_exact_match(self):
+        trigger = comp_mod.MetadataMatchTrigger(
+            asset_key="hourly", metadata_key="quality_grade", equals="poor"
+        )
+        actions = [comp_mod.MaterializeAction(asset_keys=["alert"])]
+        sensor = comp_mod._build_metadata_match_sensor(
+            "test", trigger, actions, comp_mod.dg.DefaultSensorStatus.STOPPED
+        )
+        ctx = make_context()
+        rec = MagicMock()
+        rec.storage_id = 50
+        entry = MagicMock()
+        evt = MagicMock()
+        data = MagicMock()
+        data.asset_key = comp_mod.dg.AssetKey.from_user_string("hourly")
+        mat = MagicMock()
+        # Metadata value with .text attribute
+        mval = MagicMock()
+        mval.value = "poor"
+        mat.metadata = {"quality_grade": mval}
+        data.materialization = mat
+        data.asset_observation = None
+        evt.event_specific_data = data
+        entry.dagster_event = evt
+        rec.event_log_entry = entry
+        ctx.instance.event_log_storage.get_event_records.return_value = [rec]
+        result = unwrap(sensor._evaluation_fn(ctx))
+        assert result is not None
+        assert hasattr(result, "run_requests")
+
+    def test_skips_non_match(self):
+        trigger = comp_mod.MetadataMatchTrigger(
+            asset_key="hourly", metadata_key="quality_grade", equals="poor"
+        )
+        sensor = comp_mod._build_metadata_match_sensor(
+            "test", trigger, [], comp_mod.dg.DefaultSensorStatus.STOPPED
+        )
+        ctx = make_context()
+        rec = MagicMock()
+        rec.storage_id = 50
+        entry = MagicMock()
+        evt = MagicMock()
+        data = MagicMock()
+        data.asset_key = comp_mod.dg.AssetKey.from_user_string("hourly")
+        mat = MagicMock()
+        mval = MagicMock()
+        mval.value = "good"  # doesn't match "poor"
+        mat.metadata = {"quality_grade": mval}
+        data.materialization = mat
+        data.asset_observation = None
+        evt.event_specific_data = data
+        entry.dagster_event = evt
+        rec.event_log_entry = entry
+        ctx.instance.event_log_storage.get_event_records.return_value = [rec]
+        result = unwrap(sensor._evaluation_fn(ctx))
+        assert hasattr(result, "skip_message")
+
+    def test_regex_match(self):
+        trigger = comp_mod.MetadataMatchTrigger(
+            asset_key="hourly", metadata_key="status", regex="stale|error"
+        )
+        assert trigger.regex == "stale|error"
 
 
 # ── Action executors ─────────────────────────────────────────────────────
@@ -563,7 +888,13 @@ class TestEndToEnd:
                 {"type": "metric_threshold", "asset_key": "a", "metadata_key": "rc",
                  "comparison": "lt", "threshold": 10},
                 {"type": "absence", "asset_keys": ["a"], "max_gap_minutes": 60},
-                {"type": "log_pattern", "pattern": "OOMKilled"},
+                {"type": "log_pattern", "pattern": "OOMKilled", "sources": ["events", "stdout", "stderr"]},
+                {"type": "daemon_heartbeat", "daemon_type": "SENSOR", "max_seconds_since_heartbeat": 90},
+                {"type": "code_location_status", "on_status": "UNHEALTHY"},
+                {"type": "run_startup_slow", "max_startup_seconds": 60},
+                {"type": "asset_observation", "asset_keys": ["a"]},
+                {"type": "step_error"},
+                {"type": "metadata_match", "asset_key": "a", "metadata_key": "status", "regex": "stale|error"},
                 {"type": "asset_value_change", "asset_key": "a", "metadata_key": "rc",
                  "direction": "any", "min_delta_pct": 25},
                 {"type": "backfill_status", "status": "FAILED"},
@@ -574,7 +905,7 @@ class TestEndToEnd:
             then=[{"type": "emit_event", "asset_key": "marker"}],
         )
         defs = component.build_defs(None)
-        assert len(list(defs.sensors)) == 16
+        assert len(list(defs.sensors)) == 22
 
     def test_full_component_with_every_action_type(self):
         """Every action type at least parses + runs without crashing."""

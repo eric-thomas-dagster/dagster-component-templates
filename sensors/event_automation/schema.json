@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.EventAutomationComponent",
-  "description": "Prefect-Automations-style declarative event → action wiring in one YAML component. 16 trigger types (run_status / asset_materialized / schedule / http_poll / freshness_violation / run_duration / run_stuck / asset_check_failed / metric_threshold / absence / log_pattern / asset_value_change / backfill_status / sensor_failing / concurrency_hit / sqs_poll) fan out to 17 action types (materialize / launch_job / webhook / slack / pagerduty / discord / emit_event / cancel_run / retry_run / email / teams / opsgenie / mattermost / toggle_sensor / toggle_schedule / sns / sqs). Compound triggers (all_of + any_of, one level of nesting) support real AND/OR logic. All under real Dagster sensors — no Python needed for common trigger-action shapes.",
+  "description": "Prefect-Automations-style declarative event → action wiring in one YAML component. 22 trigger types (run_status / asset_materialized / schedule / http_poll / freshness_violation / run_duration / run_stuck / asset_check_failed / metric_threshold / absence / log_pattern / asset_value_change / backfill_status / sensor_failing / concurrency_hit / sqs_poll) fan out to 17 action types (materialize / launch_job / webhook / slack / pagerduty / discord / emit_event / cancel_run / retry_run / email / teams / opsgenie / mattermost / toggle_sensor / toggle_schedule / sns / sqs). Compound triggers (all_of + any_of, one level of nesting) support real AND/OR logic. All under real Dagster sensors — no Python needed for common trigger-action shapes.",
   "category": "sensor",
   "icon": "Bell",
   "x-dagster-io": {
@@ -125,14 +125,84 @@
             "required": ["type", "asset_keys", "max_gap_minutes"]
           },
           {
-            "title": "log_pattern — regex match on run log lines",
+            "title": "log_pattern — regex match on run log lines (events + stdout + stderr)",
             "properties": {
               "type": {"const": "log_pattern"},
               "pattern": {"type": "string", "description": "Regex pattern to match against log message text."},
               "job_name": {"type": "string", "description": "Optional job filter."},
+              "sources": {
+                "type": "array",
+                "items": {"type": "string", "enum": ["events", "stdout", "stderr"]},
+                "default": ["events"],
+                "description": "Which log streams to scan. events = dagster user_message logs. stdout/stderr = compute_log_manager raw process output (K8s / ECS / Docker container output)."
+              },
               "minimum_interval_seconds": {"type": "integer", "default": 60}
             },
             "required": ["type", "pattern"]
+          },
+          {
+            "title": "daemon_heartbeat — Dagster daemon / agent stopped heartbeating",
+            "properties": {
+              "type": {"const": "daemon_heartbeat"},
+              "daemon_type": {"type": "string", "description": "Filter to daemon type (SENSOR / SCHEDULER / …). None = all."},
+              "max_seconds_since_heartbeat": {"type": "integer", "default": 120},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type"]
+          },
+          {
+            "title": "code_location_status — code location failed or stuck loading",
+            "properties": {
+              "type": {"const": "code_location_status"},
+              "on_status": {"type": "string", "enum": ["ERROR", "LOADING", "TIMED_OUT", "UNHEALTHY"]},
+              "max_seconds_loading": {"type": "integer", "default": 300, "description": "For on_status=LOADING: fire when location has been LOADING > this."},
+              "location_name_pattern": {"type": "string", "description": "Optional regex on location name."},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type", "on_status"]
+          },
+          {
+            "title": "run_startup_slow — run took too long to start (compute spinup)",
+            "properties": {
+              "type": {"const": "run_startup_slow"},
+              "max_startup_seconds": {"type": "integer", "description": "Fire when time from run creation to STARTED > this."},
+              "job_name": {"type": "string"},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type", "max_startup_seconds"]
+          },
+          {
+            "title": "asset_observation — AssetObservation event emitted",
+            "properties": {
+              "type": {"const": "asset_observation"},
+              "asset_keys": {"type": "array", "items": {"type": "string"}},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type", "asset_keys"]
+          },
+          {
+            "title": "step_error — op step raised an exception (step-level)",
+            "properties": {
+              "type": {"const": "step_error"},
+              "job_name": {"type": "string"},
+              "step_key_pattern": {"type": "string", "description": "Optional regex on step key."},
+              "exception_pattern": {"type": "string", "description": "Optional regex on exception message."},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type"]
+          },
+          {
+            "title": "metadata_match — materialization/observation carries specific metadata",
+            "properties": {
+              "type": {"const": "metadata_match"},
+              "asset_key": {"type": "string"},
+              "metadata_key": {"type": "string"},
+              "equals": {"type": "string", "description": "Exact-match value. Mutually exclusive with regex."},
+              "regex": {"type": "string", "description": "Regex on str(value). Mutually exclusive with equals."},
+              "include_observations": {"type": "boolean", "default": true, "description": "True = match on materializations AND observations."},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type", "asset_key", "metadata_key"]
           },
           {
             "title": "asset_value_change — numeric metadata Δ across materializations",

@@ -18,7 +18,13 @@ Triggers (`when:`):
   - `asset_check_failed`   — a named asset check evaluated to FAILURE
   - `metric_threshold`     — numeric metadata on a materialization crossed a threshold
   - `absence`              — dead-man's switch: asset didn't materialize in a window
-  - `log_pattern`          — regex match on run log lines
+  - `log_pattern`          — regex match on run log lines (events / stdout / stderr)
+  - `daemon_heartbeat`     — Dagster daemon / Dagster+ agent stopped heartbeating
+  - `code_location_status` — code location failed to load / stuck loading / errored
+  - `run_startup_slow`     — run took too long from creation to STARTED (compute spinup)
+  - `asset_observation`    — an AssetObservation event was emitted (distinct from materialization)
+  - `step_error`           — an op step raised an exception (step-level, not run-level)
+  - `metadata_match`       — materialization/observation carries specific metadata key=value
   - `asset_value_change`   — numeric metadata delta across two consecutive materializations
   - `backfill_status`      — partition backfill entered a state (COMPLETED/FAILED/…)
   - `sensor_failing`       — a target sensor has been failing N consecutive ticks
@@ -403,13 +409,148 @@ class AbsenceTrigger(_TriggerBase):
 class LogPatternTrigger(_TriggerBase):
     """Fires when a recent run's log line matches a regex.
 
-    Watches finished runs (SUCCESS + FAILURE); scans their event log for
-    LOG lines matching `pattern`. Cursor tracks last-checked run id so we
-    don't rescan the same run twice.
+    Watches finished runs (SUCCESS + FAILURE); scans logs for `pattern`.
+    Cursor tracks last-checked run ids so we don't rescan the same run twice.
+
+    `sources` controls which log streams get scanned:
+      - `events` (default) — dagster event log entries (context.log.info/warning/
+        error calls inside ops, framework messages like STEP_FAILURE + tracebacks)
+      - `stdout` / `stderr` — raw compute log manager output (K8s / ECS / Docker
+        container stdout+stderr from your ops). Catches OOMKilled / kernel panics
+        / oomkill traces that never made it to the dagster logger. Works against
+        whatever compute_log_manager the deployment configures (Dagster+ managed
+        for Serverless, S3/GCS/Azure for Hybrid, local files for OSS).
     """
     type: Literal["log_pattern"] = "log_pattern"
     pattern: str = Field(description="Regex pattern to match against log message text.")
     job_name: Optional[str] = Field(default=None, description="Optional job filter.")
+    sources: List[str] = Field(
+        default=["events"],
+        description="Which log streams to scan. events | stdout | stderr (any combination).",
+    )
+    minimum_interval_seconds: int = Field(default=60)
+
+
+class AssetObservationTrigger(_TriggerBase):
+    """Fires when an AssetObservation event is emitted for named asset(s).
+
+    Distinct from `asset_materialized` — observations record signals about an
+    asset without producing a new materialization (freshness updates, external
+    system state, quality checks). Ideal for reacting to observation-driven
+    workflows (e.g., an external_asset that a sensor observes hourly).
+    """
+    type: Literal["asset_observation"] = "asset_observation"
+    asset_keys: List[str] = Field(description="Asset keys whose observations trigger.")
+    minimum_interval_seconds: int = Field(default=60)
+
+
+class StepErrorTrigger(_TriggerBase):
+    """Fires when an op step raises an exception (STEP_FAILURE event).
+
+    Distinct from `run_status FAILURE` — catches errors at the step level even
+    when the run overall succeeds (retries, hooks, downstream steps that
+    recover). Also fires MULTIPLE times per run if multiple steps fail.
+    """
+    type: Literal["step_error"] = "step_error"
+    job_name: Optional[str] = Field(default=None, description="Optional job filter.")
+    step_key_pattern: Optional[str] = Field(
+        default=None,
+        description="Optional regex on step key (e.g. '.*etl.*'). None = any step.",
+    )
+    exception_pattern: Optional[str] = Field(
+        default=None,
+        description="Optional regex on exception message. None = any exception.",
+    )
+    minimum_interval_seconds: int = Field(default=60)
+
+
+class MetadataMatchTrigger(_TriggerBase):
+    """Fires when a materialization or observation event carries specific metadata.
+
+    Three shapes:
+      - `metadata_key` alone → fires when the key is present (any value)
+      - `metadata_key` + `equals` → fires when key == equals (string comparison)
+      - `metadata_key` + `regex` → fires when str(value) matches regex
+
+    Useful for reacting to categorical metadata (`status=stale`, `env=prod`,
+    `severity=high`) that numeric-comparison triggers (`metric_threshold`,
+    `asset_value_change`) can't capture.
+    """
+    type: Literal["metadata_match"] = "metadata_match"
+    asset_key: str = Field(description="Asset key to watch.")
+    metadata_key: str = Field(description="Metadata key to match on.")
+    equals: Optional[str] = Field(default=None, description="Exact-match string value.")
+    regex: Optional[str] = Field(default=None, description="Regex on str(value). Mutually exclusive with equals.")
+    include_observations: bool = Field(
+        default=True,
+        description="True = match on materializations AND observations. False = materializations only.",
+    )
+    minimum_interval_seconds: int = Field(default=60)
+
+
+class CodeLocationStatusTrigger(_TriggerBase):
+    """Fires when a code location enters an unhealthy state.
+
+    States:
+      - `ERROR` — the location failed to load (Python import error, dependency
+        conflict, resource init failure)
+      - `LOADING` — location is stuck loading for > `max_seconds_loading`
+      - `TIMED_OUT` — location load exceeded the deployment's timeout
+
+    Once-per-transition semantics via cursor. Reliable signal for `dg plus
+    deploy` failures, dependency drift, or long-tail load times.
+    """
+    type: Literal["code_location_status"] = "code_location_status"
+    on_status: str = Field(description="ERROR | LOADING | TIMED_OUT | UNHEALTHY (any of ERROR / TIMED_OUT)")
+    max_seconds_loading: int = Field(
+        default=300,
+        description="For on_status=LOADING: fire when a location has been LOADING > this.",
+    )
+    location_name_pattern: Optional[str] = Field(
+        default=None,
+        description="Optional regex on location name (e.g. 'prod-*'). None = all locations.",
+    )
+    minimum_interval_seconds: int = Field(default=60)
+
+
+class RunStartupSlowTrigger(_TriggerBase):
+    """Fires when a run stayed in QUEUED / STARTING state for too long before
+    reaching STARTED — captures "compute took too long to spin up" (pex load
+    on Serverless, docker pull + container start on Hybrid, K8s pod scheduling
+    delays, ECS task placement waits, resource-init hangs).
+
+    Distinct from `run_stuck` which watches active RUNNING duration. This one
+    catches startup latency specifically.
+    """
+    type: Literal["run_startup_slow"] = "run_startup_slow"
+    max_startup_seconds: int = Field(
+        description="Fire when time from run creation to STARTED > this."
+    )
+    job_name: Optional[str] = Field(default=None, description="Optional job filter.")
+    minimum_interval_seconds: int = Field(default=60)
+
+
+class DaemonHeartbeatTrigger(_TriggerBase):
+    """Fires when a Dagster daemon / Dagster+ agent has stopped heartbeating.
+
+    Watches `instance.get_daemon_statuses()` for the named daemon type (or all).
+    A daemon is considered stale when its last heartbeat is older than
+    `max_seconds_since_heartbeat`. Once-per-outage semantics via cursor.
+
+    Common daemon types to watch: SENSOR / SCHEDULER / QUEUED_RUN_COORDINATOR /
+    BACKFILL / ASSET / FRESHNESS. Dagster+ Hybrid agents also report through the
+    daemon interface — this catches "the K8s / ECS / Docker agent died" via the
+    same primitive that catches "the OSS sensor daemon died".
+    """
+    type: Literal["daemon_heartbeat"] = "daemon_heartbeat"
+    daemon_type: Optional[str] = Field(
+        default=None,
+        description="Filter to a specific daemon type (e.g. SENSOR, SCHEDULER). None = all daemons.",
+    )
+    max_seconds_since_heartbeat: int = Field(
+        default=120,
+        description="Fire when a daemon hasn't heartbeat in this many seconds.",
+    )
     minimum_interval_seconds: int = Field(default=60)
 
 
@@ -544,6 +685,12 @@ Trigger = Union[
     MetricThresholdTrigger,
     AbsenceTrigger,
     LogPatternTrigger,
+    DaemonHeartbeatTrigger,
+    CodeLocationStatusTrigger,
+    RunStartupSlowTrigger,
+    AssetObservationTrigger,
+    StepErrorTrigger,
+    MetadataMatchTrigger,
     AssetValueChangeTrigger,
     BackfillStatusTrigger,
     SensorFailingTrigger,
@@ -1424,13 +1571,74 @@ def _build_log_pattern_sensor(
 ) -> dg.SensorDefinition:
     import re as _re
     pattern = _re.compile(trigger.pattern)
+    scan_events = "events" in trigger.sources
+    scan_stdout = "stdout" in trigger.sources
+    scan_stderr = "stderr" in trigger.sources
+
+    def _scan_events(instance, run_id: str):
+        """Scan dagster event log (user_message field)."""
+        try:
+            logs = instance.all_logs(run_id)
+        except Exception:
+            return None
+        for entry in logs:
+            msg = getattr(entry, "user_message", "") or getattr(entry, "message", "") or ""
+            if msg and pattern.search(msg):
+                return ("events", msg[:500])
+        return None
+
+    def _scan_compute(instance, run_id: str, io_type: str):
+        """Scan compute_log_manager output (raw stdout/stderr from ops).
+
+        API surface varies by Dagster version + compute log manager backend
+        (Dagster+ managed / S3 / GCS / Azure / local files). We try the modern
+        `get_log_data` API first; fall back to `read_logs` shape if needed.
+        Silently no-ops on any exception — a broken compute log fetch shouldn't
+        block the whole sensor tick.
+        """
+        try:
+            from dagster._core.storage.captured_log_manager import ComputeIOType
+            io_enum = getattr(ComputeIOType, io_type.upper(), None)
+            if io_enum is None:
+                return None
+        except ImportError:
+            return None
+        # Fetch step keys for this run to build log_keys
+        try:
+            step_stats = instance.get_run_step_stats(run_id)
+        except Exception:
+            return None
+        for step in step_stats:
+            step_key = getattr(step, "step_key", None)
+            if not step_key:
+                continue
+            log_key = [run_id, "compute_logs", step_key]
+            try:
+                clm = instance.compute_log_manager
+                if hasattr(clm, "get_log_data"):
+                    log_data = clm.get_log_data(log_key)
+                    stream = getattr(log_data, io_type, b"") or b""
+                elif hasattr(clm, "read_logs_file"):
+                    log_data = clm.read_logs_file(run_id, step_key, io_enum)
+                    stream = getattr(log_data, "data", b"") or b""
+                else:
+                    continue
+                text = stream.decode("utf-8", errors="replace") if isinstance(stream, (bytes, bytearray)) else str(stream)
+                if pattern.search(text):
+                    # Return a short excerpt around the first match
+                    m = pattern.search(text)
+                    if m:
+                        start = max(0, m.start() - 80)
+                        end = min(len(text), m.end() + 80)
+                        return (io_type, text[start:end])
+            except Exception:
+                continue
+        return None
 
     def _sensor_fn(context: dg.SensorEvaluationContext):
         instance = context.instance
-        # Cursor = comma-separated list of already-scanned run ids
         seen = set((context.cursor or "").split(",")) if context.cursor else set()
         seen.discard("")
-        # Look at recent finished runs
         recent = instance.get_runs(
             filters=dg.RunsFilter(statuses=[dg.DagsterRunStatus.SUCCESS, dg.DagsterRunStatus.FAILURE]),
             limit=20,
@@ -1444,33 +1652,427 @@ def _build_log_pattern_sensor(
                 newly_scanned.append(run.run_id)
                 continue
             newly_scanned.append(run.run_id)
-            # Fetch log records for the run
-            try:
-                logs = instance.all_logs(run.run_id)
-            except Exception:
+            hit = None
+            if scan_events:
+                hit = _scan_events(instance, run.run_id)
+            if hit is None and scan_stdout:
+                hit = _scan_compute(instance, run.run_id, "stdout")
+            if hit is None and scan_stderr:
+                hit = _scan_compute(instance, run.run_id, "stderr")
+            if hit is None:
                 continue
-            matched_msg = None
-            for entry in logs:
-                msg = getattr(entry, "user_message", "") or getattr(entry, "message", "") or ""
-                if not msg:
-                    continue
-                if pattern.search(msg):
-                    matched_msg = msg
-                    break
-            if matched_msg is None:
-                continue
+            source, matched_msg = hit
             tokens = _default_tokens(
-                event_type="log_pattern_matched",
+                event_type=f"log_pattern_matched_{source}",
                 run_id=run.run_id,
                 job_name=run.job_name or "",
                 status=run.status.value,
-                message=matched_msg[:500],
+                message=matched_msg,
             )
             all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
-        # Cap cursor size at 500 run ids
         merged = list(seen | set(newly_scanned))[-500:]
         context.update_cursor(",".join(merged))
         return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("no matches")
+
+    return dg.SensorDefinition(
+        name=name,
+        evaluation_fn=_sensor_fn,
+        minimum_interval_seconds=trigger.minimum_interval_seconds,
+        default_status=default_status,
+    )
+
+
+def _build_code_location_status_sensor(
+    name: str, trigger: CodeLocationStatusTrigger, actions: List[Action], default_status: dg.DefaultSensorStatus
+) -> dg.SensorDefinition:
+    import re as _re
+    loc_re = _re.compile(trigger.location_name_pattern) if trigger.location_name_pattern else None
+
+    def _sensor_fn(context: dg.SensorEvaluationContext):
+        instance = context.instance
+        # Instance API for workspace / code location snapshots varies across
+        # Dagster versions. Try multiple candidates and no-op on failure.
+        snapshots = None
+        for candidate in ("get_code_location_snapshots", "all_code_location_snapshots", "workspace_snapshot"):
+            fn = getattr(instance, candidate, None)
+            if fn:
+                try:
+                    snapshots = fn()
+                    break
+                except Exception:
+                    continue
+        if snapshots is None:
+            return dg.SkipReason("code location snapshot API unavailable on this instance")
+        try:
+            already_alerted = json.loads(context.cursor) if context.cursor else {}
+        except Exception:
+            already_alerted = {}
+        now = time.time()
+        alerts = []
+        # Snapshots shape varies — try dict-of-name→snapshot or list-of-snapshots
+        items = snapshots.items() if hasattr(snapshots, "items") else enumerate(snapshots)
+        want_error = trigger.on_status in ("ERROR", "UNHEALTHY", "TIMED_OUT")
+        want_loading = trigger.on_status == "LOADING"
+        for _key, snap in items:
+            loc_name = getattr(snap, "location_name", None) or getattr(snap, "name", None) or str(_key)
+            if loc_re and not loc_re.search(loc_name):
+                continue
+            load_status = getattr(snap, "load_status", None) or getattr(snap, "status", None)
+            status_str = getattr(load_status, "value", None) or str(load_status) if load_status else ""
+            load_ts = getattr(snap, "load_timestamp", None) or getattr(snap, "start_time", None) or 0
+            error = getattr(snap, "load_error", None) or getattr(snap, "error", None)
+            fire = False
+            reason = ""
+            if want_error and (status_str in ("ERROR", "TIMED_OUT") or error):
+                fire = True
+                reason = str(error)[:300] if error else status_str
+            elif want_loading and status_str == "LOADING":
+                age = now - float(load_ts or 0)
+                if age > trigger.max_seconds_loading:
+                    fire = True
+                    reason = f"loading for {age:.1f}s (limit {trigger.max_seconds_loading}s)"
+            if not fire:
+                # Reset once-alerted so a future transition can fire again
+                already_alerted.pop(loc_name, None)
+                continue
+            key = f"{loc_name}:{status_str}"
+            if already_alerted.get(key):
+                continue
+            already_alerted[key] = now
+            alerts.append((loc_name, status_str, reason))
+        all_requests = []
+        for loc_name, status_str, reason in alerts:
+            tokens = _default_tokens(
+                event_type="code_location_status",
+                status=status_str,
+                job_name=loc_name,
+                message=f"Code location {loc_name} → {status_str}: {reason}",
+            )
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+        context.update_cursor(json.dumps(already_alerted))
+        return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("all locations healthy")
+
+    return dg.SensorDefinition(
+        name=name,
+        evaluation_fn=_sensor_fn,
+        minimum_interval_seconds=trigger.minimum_interval_seconds,
+        default_status=default_status,
+    )
+
+
+def _build_run_startup_slow_sensor(
+    name: str, trigger: RunStartupSlowTrigger, actions: List[Action], default_status: dg.DefaultSensorStatus
+) -> dg.SensorDefinition:
+    def _sensor_fn(context: dg.SensorEvaluationContext):
+        instance = context.instance
+        try:
+            already_alerted = set(json.loads(context.cursor)) if context.cursor else set()
+        except Exception:
+            already_alerted = set()
+        # Look at runs that have started recently — check the gap between
+        # creation timestamp and start_time
+        recent = instance.get_runs(
+            filters=dg.RunsFilter(
+                statuses=[dg.DagsterRunStatus.STARTED, dg.DagsterRunStatus.SUCCESS, dg.DagsterRunStatus.FAILURE]
+            ),
+            limit=50,
+        )
+        alerts = []
+        for run in recent:
+            if run.run_id in already_alerted:
+                continue
+            if trigger.job_name and run.job_name != trigger.job_name:
+                continue
+            create_ts = getattr(run, "create_timestamp", None) or getattr(run, "creation_timestamp", None)
+            start_ts = getattr(run, "start_time", None)
+            if not (create_ts and start_ts):
+                continue
+            try:
+                startup = float(start_ts) - float(create_ts)
+            except (TypeError, ValueError):
+                continue
+            if startup <= trigger.max_startup_seconds:
+                continue
+            alerts.append((run, startup))
+            already_alerted.add(run.run_id)
+        all_requests = []
+        for run, startup in alerts:
+            tokens = _default_tokens(
+                event_type="run_startup_slow",
+                run_id=run.run_id,
+                job_name=run.job_name or "",
+                message=f"Run {run.run_id[:8]} took {startup:.1f}s to start (limit {trigger.max_startup_seconds}s)",
+            )
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+        # Cap cursor size at 200 run ids
+        capped = list(already_alerted)[-200:]
+        context.update_cursor(json.dumps(capped))
+        return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("no slow startups")
+
+    return dg.SensorDefinition(
+        name=name,
+        evaluation_fn=_sensor_fn,
+        minimum_interval_seconds=trigger.minimum_interval_seconds,
+        default_status=default_status,
+    )
+
+
+def _build_asset_observation_sensor(
+    name: str, trigger: AssetObservationTrigger, actions: List[Action], default_status: dg.DefaultSensorStatus
+) -> dg.SensorDefinition:
+    def _sensor_fn(context: dg.SensorEvaluationContext):
+        from dagster._core.events import DagsterEventType
+        instance = context.instance
+        last_seen_id = int(context.cursor) if (context.cursor or "").isdigit() else 0
+        watched = {dg.AssetKey.from_user_string(k) for k in trigger.asset_keys}
+        # Fetch recent ASSET_OBSERVATION events
+        try:
+            records = instance.event_log_storage.get_event_records(
+                event_records_filter=dg.EventRecordsFilter(
+                    event_type=DagsterEventType.ASSET_OBSERVATION,
+                    after_cursor=last_seen_id if last_seen_id else None,
+                ),
+                limit=100,
+                ascending=True,
+            )
+        except Exception as exc:
+            return dg.SkipReason(f"event fetch failed: {exc}")
+        all_requests = []
+        max_id = last_seen_id
+        for rec in records:
+            entry = getattr(rec, "event_log_entry", None) or rec
+            evt = getattr(entry, "dagster_event", None)
+            if evt is None:
+                continue
+            obs = evt.event_specific_data
+            asset_key = getattr(obs, "asset_key", None)
+            if asset_key is None or asset_key not in watched:
+                continue
+            tokens = _default_tokens(
+                event_type="asset_observation",
+                asset_key=asset_key.to_user_string(),
+                message=f"Observation on {asset_key.to_user_string()}",
+            )
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+            rid = getattr(rec, "storage_id", 0)
+            if rid > max_id:
+                max_id = rid
+        if max_id > last_seen_id:
+            context.update_cursor(str(max_id))
+        return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("no observations")
+
+    return dg.SensorDefinition(
+        name=name,
+        evaluation_fn=_sensor_fn,
+        minimum_interval_seconds=trigger.minimum_interval_seconds,
+        default_status=default_status,
+    )
+
+
+def _build_step_error_sensor(
+    name: str, trigger: StepErrorTrigger, actions: List[Action], default_status: dg.DefaultSensorStatus
+) -> dg.SensorDefinition:
+    import re as _re
+    step_re = _re.compile(trigger.step_key_pattern) if trigger.step_key_pattern else None
+    exc_re = _re.compile(trigger.exception_pattern) if trigger.exception_pattern else None
+
+    def _sensor_fn(context: dg.SensorEvaluationContext):
+        from dagster._core.events import DagsterEventType
+        instance = context.instance
+        last_seen_id = int(context.cursor) if (context.cursor or "").isdigit() else 0
+        try:
+            records = instance.event_log_storage.get_event_records(
+                event_records_filter=dg.EventRecordsFilter(
+                    event_type=DagsterEventType.STEP_FAILURE,
+                    after_cursor=last_seen_id if last_seen_id else None,
+                ),
+                limit=100,
+                ascending=True,
+            )
+        except Exception as exc:
+            return dg.SkipReason(f"event fetch failed: {exc}")
+        all_requests = []
+        max_id = last_seen_id
+        for rec in records:
+            entry = getattr(rec, "event_log_entry", None) or rec
+            evt = getattr(entry, "dagster_event", None)
+            if evt is None:
+                continue
+            step_key = getattr(evt, "step_key", None) or ""
+            run_id = getattr(entry, "run_id", "") or ""
+            # Get the run to filter by job_name
+            if trigger.job_name:
+                try:
+                    run = instance.get_run_by_id(run_id)
+                    if run is None or run.job_name != trigger.job_name:
+                        rid = getattr(rec, "storage_id", 0)
+                        max_id = max(max_id, rid)
+                        continue
+                except Exception:
+                    continue
+            if step_re and not step_re.search(step_key):
+                rid = getattr(rec, "storage_id", 0)
+                max_id = max(max_id, rid)
+                continue
+            # Extract exception message
+            failure_data = evt.event_specific_data
+            error = getattr(failure_data, "error", None)
+            exc_msg = getattr(error, "message", "") if error else ""
+            if exc_re and not exc_re.search(exc_msg or ""):
+                rid = getattr(rec, "storage_id", 0)
+                max_id = max(max_id, rid)
+                continue
+            tokens = _default_tokens(
+                event_type="step_error",
+                run_id=run_id,
+                asset_key=step_key,
+                status="FAILURE",
+                message=(exc_msg or f"Step {step_key} failed")[:500],
+            )
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+            rid = getattr(rec, "storage_id", 0)
+            if rid > max_id:
+                max_id = rid
+        if max_id > last_seen_id:
+            context.update_cursor(str(max_id))
+        return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("no step errors")
+
+    return dg.SensorDefinition(
+        name=name,
+        evaluation_fn=_sensor_fn,
+        minimum_interval_seconds=trigger.minimum_interval_seconds,
+        default_status=default_status,
+    )
+
+
+def _build_metadata_match_sensor(
+    name: str, trigger: MetadataMatchTrigger, actions: List[Action], default_status: dg.DefaultSensorStatus
+) -> dg.SensorDefinition:
+    import re as _re
+    value_re = _re.compile(trigger.regex) if trigger.regex else None
+    equals_val = trigger.equals
+
+    def _extract(mval):
+        if mval is None:
+            return None
+        for attr in ("value", "text", "url", "path", "float_value", "int_value"):
+            if hasattr(mval, attr):
+                v = getattr(mval, attr)
+                if v is not None:
+                    return v
+        return mval
+
+    def _sensor_fn(context: dg.SensorEvaluationContext):
+        from dagster._core.events import DagsterEventType
+        instance = context.instance
+        last_seen_id = int(context.cursor) if (context.cursor or "").isdigit() else 0
+        watched = dg.AssetKey.from_user_string(trigger.asset_key)
+        event_types = [DagsterEventType.ASSET_MATERIALIZATION]
+        if trigger.include_observations:
+            event_types.append(DagsterEventType.ASSET_OBSERVATION)
+        all_requests = []
+        max_id = last_seen_id
+        for etype in event_types:
+            try:
+                records = instance.event_log_storage.get_event_records(
+                    event_records_filter=dg.EventRecordsFilter(
+                        event_type=etype,
+                        after_cursor=last_seen_id if last_seen_id else None,
+                    ),
+                    limit=50,
+                    ascending=True,
+                )
+            except Exception:
+                continue
+            for rec in records:
+                entry = getattr(rec, "event_log_entry", None) or rec
+                evt = getattr(entry, "dagster_event", None)
+                if evt is None:
+                    continue
+                data = evt.event_specific_data
+                asset_key = getattr(data, "asset_key", None)
+                if asset_key != watched:
+                    continue
+                # Find the materialization / observation object
+                mat = getattr(data, "materialization", None) or getattr(data, "asset_observation", None) or data
+                meta = getattr(mat, "metadata", None) or {}
+                mval = meta.get(trigger.metadata_key)
+                if mval is None:
+                    continue
+                extracted = _extract(mval)
+                if extracted is None:
+                    continue
+                val_str = str(extracted)
+                if equals_val is not None and val_str != equals_val:
+                    continue
+                if value_re is not None and not value_re.search(val_str):
+                    continue
+                tokens = _default_tokens(
+                    event_type="metadata_match",
+                    asset_key=trigger.asset_key,
+                    status=val_str[:100],
+                    message=f"{trigger.metadata_key}={val_str}",
+                )
+                all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+                rid = getattr(rec, "storage_id", 0)
+                if rid > max_id:
+                    max_id = rid
+        if max_id > last_seen_id:
+            context.update_cursor(str(max_id))
+        return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("no metadata matches")
+
+    return dg.SensorDefinition(
+        name=name,
+        evaluation_fn=_sensor_fn,
+        minimum_interval_seconds=trigger.minimum_interval_seconds,
+        default_status=default_status,
+    )
+
+
+def _build_daemon_heartbeat_sensor(
+    name: str, trigger: DaemonHeartbeatTrigger, actions: List[Action], default_status: dg.DefaultSensorStatus
+) -> dg.SensorDefinition:
+    def _sensor_fn(context: dg.SensorEvaluationContext):
+        instance = context.instance
+        try:
+            statuses = instance.get_daemon_statuses()
+        except Exception as exc:
+            return dg.SkipReason(f"get_daemon_statuses unavailable: {exc}")
+        # statuses is dict {daemon_type: DaemonStatus}
+        try:
+            already_alerted = json.loads(context.cursor) if context.cursor else {}
+        except Exception:
+            already_alerted = {}
+        now = time.time()
+        stale = []
+        for daemon_type, status in (statuses.items() if hasattr(statuses, "items") else []):
+            if trigger.daemon_type and daemon_type != trigger.daemon_type:
+                continue
+            last_hb = getattr(status, "last_heartbeat", None)
+            if last_hb is None:
+                continue
+            ts = getattr(last_hb, "timestamp", None) or getattr(last_hb, "run_timestamp", None) or 0
+            try:
+                ts_float = float(ts)
+            except (TypeError, ValueError):
+                continue
+            age = now - ts_float
+            if age > trigger.max_seconds_since_heartbeat:
+                # Once-per-outage: only fire if last-alerted timestamp is older
+                if already_alerted.get(daemon_type, 0) >= ts_float:
+                    continue
+                stale.append((daemon_type, age))
+                already_alerted[daemon_type] = now
+        all_requests = []
+        for daemon_type, age in stale:
+            tokens = _default_tokens(
+                event_type="daemon_stale",
+                status=daemon_type,
+                message=f"{daemon_type} daemon has not heartbeat in {age:.1f}s (limit {trigger.max_seconds_since_heartbeat}s)",
+            )
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance))
+        context.update_cursor(json.dumps(already_alerted))
+        return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("all daemons healthy")
 
     return dg.SensorDefinition(
         name=name,
@@ -1976,6 +2578,18 @@ class EventAutomationComponent(dg.Component, dg.Model, dg.Resolvable):
                 sensors.append(_build_absence_sensor(child_name, trigger, self.then, sensor_status))
             elif isinstance(trigger, LogPatternTrigger):
                 sensors.append(_build_log_pattern_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, DaemonHeartbeatTrigger):
+                sensors.append(_build_daemon_heartbeat_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, CodeLocationStatusTrigger):
+                sensors.append(_build_code_location_status_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, RunStartupSlowTrigger):
+                sensors.append(_build_run_startup_slow_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, AssetObservationTrigger):
+                sensors.append(_build_asset_observation_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, StepErrorTrigger):
+                sensors.append(_build_step_error_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, MetadataMatchTrigger):
+                sensors.append(_build_metadata_match_sensor(child_name, trigger, self.then, sensor_status))
             elif isinstance(trigger, AssetValueChangeTrigger):
                 sensors.append(_build_asset_value_change_sensor(child_name, trigger, self.then, sensor_status))
             elif isinstance(trigger, BackfillStatusTrigger):

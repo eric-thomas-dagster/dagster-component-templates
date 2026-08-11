@@ -13346,7 +13346,7 @@
       "id": "event_automation",
       "name": "Event Automation",
       "category": "sensor",
-      "description": "Prefect-Automations-style declarative event \u2192 action wiring in one YAML component. 16 trigger types (run_status / asset_materialized / schedule / http_poll / freshness_violation / run_duration / run_stuck / asset_check_failed / metric_threshold / absence / log_pattern / asset_value_change / backfill_status / sensor_failing / concurrency_hit / sqs_poll) fan out to 17 action types (materialize / launch_job / webhook / slack / pagerduty / discord / emit_event / cancel_run / retry_run / email / teams / opsgenie / mattermost / toggle_sensor / toggle_schedule / sns / sqs). Compound triggers (all_of + any_of, one level of nesting) support real AND/OR logic. All under real Dagster sensors \u2014 no Python needed for common trigger-action wiring.",
+      "description": "Prefect-Automations-style declarative event \u2192 action wiring in one YAML component. 22 trigger types (run_status / asset_materialized / asset_observation / schedule / http_poll / freshness_violation / run_duration / run_stuck / run_startup_slow / asset_check_failed / step_error / metric_threshold / metadata_match / asset_value_change / absence / log_pattern (events + stdout + stderr) / daemon_heartbeat / code_location_status / backfill_status / sensor_failing / concurrency_hit / sqs_poll) fan out to 17 action types (materialize / launch_job / webhook / slack / pagerduty / discord / emit_event / cancel_run / retry_run / email / teams / opsgenie / mattermost / toggle_sensor / toggle_schedule / sns / sqs). Compound triggers (all_of + any_of, one level of nesting) support real AND/OR logic. All under real Dagster sensors \u2014 no Python needed. Comprehensive pytest suite (56 tests). Covers OSS Dagster + Dagster+ Serverless + Dagster+ Hybrid (K8s / ECS / Docker / ACR agents).",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "sensors/event_automation",
@@ -13359,7 +13359,13 @@
         "compound",
         "cancel-run",
         "log-pattern",
-        "meta-observability"
+        "meta-observability",
+        "platform-health",
+        "code-location",
+        "daemon-heartbeat",
+        "compute-logs",
+        "k8s",
+        "ecs"
       ],
       "dependencies": {
         "pip": [
@@ -13378,7 +13384,7 @@
         "last_validated": "2026-08-11"
       },
       "agent_hints": {
-        "when_to_use": "User wants a single YAML surface to wire event triggers (run failures, materializations, cron, HTTP polls, freshness violations, run-duration alerts, asset check failures, metric thresholds, absences, log-pattern matches on run logs, asset-value changes between materializations, backfill status transitions, sensor-failure meta-observability, concurrency-hit guardrails, SQS messages) to actions (materialize/launch_job/webhook/slack/pagerduty/discord/email/teams/opsgenie/mattermost/sns/sqs/cancel_run/retry_run/toggle_sensor/toggle_schedule). Compound AND/OR (`all_of` + `any_of`) supported with one level of nesting. Prefect-Automations analog for Dagster. Use when the customer explicitly needs no-code alerting on failure, migrating Prefect automations, wanting a UI-editable automation surface, or chaining event sources to Dagster runs.",
+        "when_to_use": "User wants a single YAML surface to wire event triggers (run failures / durations / stuck / slow startup, asset materializations / observations / check failures, metric thresholds / metadata matches / value changes, freshness violations / absences, log-pattern matches on events + stdout + stderr, daemon or Dagster+ agent heartbeat failures, code location load errors, backfill status transitions, sensor failure meta-observability, concurrency-hit guardrails, step-level errors, SQS messages) to actions (materialize / launch_job / webhook / slack / pagerduty / discord / email / teams / opsgenie / mattermost / sns / sqs / cancel_run / retry_run / toggle_sensor / toggle_schedule). Compound AND/OR supported with one level of nesting. Prefect-Automations analog for Dagster covering all Dagster+ platform events (Serverless + Hybrid K8s/ECS/Docker agents).",
         "typical_upstream": "Any Dagster job or asset that emits run-status events / materializations. External HTTP endpoints (for http_poll). AWS SQS queues (for sqs_poll). Also: existing sensor components in the registry (kafka_monitor, s3_monitor, eventhubs_monitor, etc.) can serve as trigger sources \u2014 point EventAutomation at the asset those sensors materialize via `asset_materialized`.",
         "typical_downstream": "Alerting channels: Slack / PagerDuty / Discord / Teams / OpsGenie / Mattermost / email. AWS SNS + SQS for cross-service event fanout. Dagster jobs and assets for launch_job + materialize + retry_run + cancel_run. Webhook receivers for arbitrary integrations. Other Dagster sensors/schedules via toggle_sensor / toggle_schedule.",
         "outputs": "One Dagster sensor per non-schedule trigger. Sensors fire the configured actions when triggered. Materialize / launch_job / retry_run actions emit real RunRequests; side-effect actions (alerts, cancel, toggle, sns/sqs) run inline.",
@@ -13401,12 +13407,18 @@
           "migrate my Prefect automations to Dagster",
           "dead-man's switch for hourly ingest job",
           "fire when an asset hasn't materialized in 2 hours",
-          "OOM alert via log pattern OOMKilled",
+          "OOM alert via log pattern OOMKilled in stderr",
           "alert on 20% drop in revenue via asset_value_change",
           "PagerDuty when a backfill fails",
           "notify when a sensor has been failing 5 ticks in a row",
           "cancel runs when active queue exceeds 100 for job X",
-          "meta-observability: alert when the ingest sensor is broken"
+          "meta-observability: alert when the ingest sensor is broken",
+          "alert when the Dagster+ agent stops heartbeating",
+          "PagerDuty when a code location fails to load",
+          "alert when a run takes more than 60 seconds to start (compute spinup)",
+          "fire when a specific asset check emits observation status=stale",
+          "alert on step-level TimeoutError even if run overall succeeds",
+          "watch for OOMKilled in K8s container stderr logs"
         ]
       },
       "produces": [

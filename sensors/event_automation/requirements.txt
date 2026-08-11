@@ -1,2 +1,5 @@
 requests
 croniter
+# boto3 is optional — only needed for sqs_poll trigger + sns / sqs actions.
+# Uncomment (or `pip install boto3`) if you use any AWS-flavored primitive.
+# boto3

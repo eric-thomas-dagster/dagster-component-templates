@@ -1,10 +1,12 @@
 # EventAutomationComponent
 
-Prefect-Automations-style declarative event → action wiring in one YAML component. Each `when: … then: …` block becomes a real Dagster sensor / schedule under the covers; no Python needed for common trigger-action shapes.
+Prefect-Automations-style declarative event → action wiring in one YAML component. Each `when: … then: …` block becomes a real Dagster sensor under the covers; no Python needed for common trigger-action shapes.
+
+**Surface: 11 trigger types + 17 action types + AND/OR compound composition (one level of nesting).**
 
 ## Why
 
-Prefect's Automations page (`/v3/concepts/automations`) is a UI-first surface where any trigger → any action is composable, no code required. Dagster has all the underlying primitives — sensors, `AutomationCondition`, run-status sensors, freshness policies, asset checks — but they're Python-first. This component collapses the common trigger-action patterns into a single YAML shape that renders in the components UI, so ops-heavy teams can wire glue without dropping to Python.
+Prefect's Automations UI is a first-class surface where any trigger → any action is composable, no code required. Dagster has all the underlying primitives — sensors, `AutomationCondition`, run-status sensors, asset checks, freshness policies — but they're Python-first. This component collapses the common trigger-action patterns into a single YAML shape that renders in the components UI, so ops-heavy teams can wire glue without dropping to Python.
 
 ## Shape
 
@@ -24,15 +26,16 @@ attributes:
 
 **Composition semantics:**
 
-- Multiple `when:` triggers → OR (any fires the automation)
-- Multiple `then:` actions → all run when triggered (sequential, best-effort)
-- Each trigger emits its own Dagster primitive (sensor / schedule); all share the same action bundle
+- Multiple `when:` triggers → **OR** (any fires the automation)
+- Multiple `then:` actions → all run when triggered, sequential, best-effort
+- Compound triggers `all_of` / `any_of` → **AND** / explicit OR with one level of nesting
+- Each trigger emits its own Dagster sensor; all share the same action bundle
 
-## Triggers
+## Triggers (11)
 
-### `run_status`
+### State-based
 
-Fires when a Dagster run finishes with the given status. Optionally filter to a specific job.
+**`run_status`** — job / asset run finished with specific status.
 
 ```yaml
 - type: run_status
@@ -40,18 +43,33 @@ Fires when a Dagster run finishes with the given status. Optionally filter to a 
   job_name: hourly_ingest  # optional; omit = any job
 ```
 
-### `asset_materialized`
-
-Fires when any of the named assets are materialized.
+**`asset_materialized`** — any of the named assets get materialized.
 
 ```yaml
 - type: asset_materialized
   asset_keys: [raw_data, staging_data]
 ```
 
-### `schedule`
+**`run_duration`** — a run finished, and duration exceeded a threshold.
 
-Cron trigger. Also gives you a purely cron-driven "kick something off" shape in YAML without writing a schedule in Python.
+```yaml
+- type: run_duration
+  max_duration_seconds: 1800     # 30 minutes
+  job_name: nightly_etl          # optional
+  on_status: SUCCESS             # ANY | SUCCESS | FAILURE
+```
+
+**`run_stuck`** — an active run has been running too long. Polls active runs each tick; fires once per stuck run.
+
+```yaml
+- type: run_stuck
+  max_running_seconds: 3600      # 1 hour
+  job_name: hourly_ingest        # optional
+```
+
+### Time-based
+
+**`schedule`** — cron trigger. Also gives you a purely cron-driven "kick something off" shape in YAML without writing a schedule in Python.
 
 ```yaml
 - type: schedule
@@ -59,9 +77,9 @@ Cron trigger. Also gives you a purely cron-driven "kick something off" shape in 
   execution_timezone: America/New_York   # default: UTC
 ```
 
-### `http_poll`
+### External
 
-Poll a URL and fire on one of three conditions:
+**`http_poll`** — poll a URL and fire on one of three conditions:
 
 - `response_changed` (default) — fire when the response body differs from prior poll (hashed cursor)
 - `status_ok` — fire on any HTTP 2xx (every tick)
@@ -76,44 +94,193 @@ Poll a URL and fire on one of three conditions:
   json_path: "pending"    # required for json_path_present
 ```
 
-### `freshness_violation`
+**`sqs_poll`** — poll an AWS SQS queue. Each message becomes one automation firing; `{message}` template token is the raw body. Messages deleted after successful action execution by default.
 
-Fire when any of the named assets haven't been materialized recently enough.
+```yaml
+- type: sqs_poll
+  queue_url: "https://sqs.us-east-1.amazonaws.com/123456789012/my-queue"
+  region: us-east-1
+  max_messages: 10          # SQS API max 10 per receive
+  minimum_interval_seconds: 30
+  delete_after: true
+```
+
+### Data quality
+
+**`freshness_violation`** — asset stale beyond `max_age_minutes` (ongoing DQ signal).
 
 ```yaml
 - type: freshness_violation
   asset_keys: [hourly_summary]
   max_age_minutes: 60
-  minimum_interval_seconds: 300
 ```
 
-## Actions
+**`absence`** — dead-man's switch: named asset has NOT materialized in the last `max_gap_minutes` (was expected but didn't happen). Fires once per gap.
 
-Every action gets access to template tokens: `{event_type}`, `{run_id}`, `{job_name}`, `{asset_key}`, `{status}`, `{timestamp}`, `{message}`, `{url}`.
+```yaml
+- type: absence
+  asset_keys: [hourly_ingest_run]
+  max_gap_minutes: 90
+```
 
-### `materialize`
+**`asset_check_failed`** — named asset check(s) evaluated to FAILURE. Watches the event log.
 
-Launch a materialization run.
+```yaml
+- type: asset_check_failed
+  check_names: [row_count_positive, revenue_non_negative]  # omit = any check
+  asset_keys: [transactions]                                # optional
+```
+
+**`metric_threshold`** — numeric metadata on a materialization crossed a threshold.
+
+```yaml
+- type: metric_threshold
+  asset_key: hourly_summary
+  metadata_key: row_count
+  comparison: lt              # gt | gte | lt | lte | eq | neq
+  threshold: 100
+```
+
+### Composite (AND / OR)
+
+**`all_of`** — AND-composition. Fires only when ALL sub-triggers have fired within `within_seconds`. Sub-triggers can be any leaf trigger OR an `any_of` (giving you `all_of([leaf, any_of(...)])` — two levels of nesting).
+
+```yaml
+- type: all_of
+  within_seconds: 3600
+  triggers:
+    - type: any_of                  # nested OR
+      triggers:
+        - type: run_status
+          status: FAILURE
+          job_name: job_a
+        - type: run_status
+          status: FAILURE
+          job_name: job_b
+    - type: freshness_violation
+      asset_keys: [hourly_summary]
+      max_age_minutes: 120
+```
+
+Reads as: **(job_a failed OR job_b failed) AND freshness violated within 1 hour**.
+
+**`any_of`** — OR inside a compound. At the top of `when:`, multiple triggers are already OR; use `any_of` only when nested inside `all_of`.
+
+## Actions (17)
+
+Every action gets template tokens: `{event_type}`, `{run_id}`, `{job_name}`, `{asset_key}`, `{status}`, `{timestamp}`, `{message}`, `{url}`.
+
+### Dagster runs
+
+**`materialize`** — launch a materialization run.
 
 ```yaml
 - type: materialize
   asset_keys: [derived_data]
-  partition_key: "2024-01-15"    # optional
+  partition_key: "2024-01-15"
 ```
 
-### `launch_job`
-
-Launch a job.
+**`launch_job`** — launch a job.
 
 ```yaml
 - type: launch_job
   job_name: cleanup
-  tags: {priority: high}         # optional
+  tags: {priority: high}
 ```
 
-### `webhook`
+**`cancel_run`** — terminate a run via `instance.run_launcher.terminate(run_id)`.
 
-Arbitrary HTTP call with a templated body.
+```yaml
+- type: cancel_run
+  which: triggering             # triggering | all_matching
+  job_name_filter: long_job     # only used when which=all_matching
+```
+
+**`retry_run`** — re-execute a failed run. Best-effort — needs workspace context, works better in Dagster+ than raw dg-core.
+
+```yaml
+- type: retry_run
+  strategy: from_failure        # from_failure | all_steps
+```
+
+**`toggle_sensor`** / **`toggle_schedule`** — flip InstigatorStatus for a sensor / schedule by name.
+
+```yaml
+- type: toggle_sensor
+  sensor_name: ingest_sensor
+  action: stop                  # start | stop
+```
+
+### Alerts
+
+**`slack`** — Slack incoming-webhook.
+
+```yaml
+- type: slack
+  webhook_url_env_var: SLACK_WEBHOOK_URL
+  message: "🚨 {job_name} failed (run_id={run_id})"
+  channel: "#alerts"
+  username: "Dagster"
+  icon_emoji: ":robot_face:"
+```
+
+**`pagerduty`** — PagerDuty Events API v2 with dedup + severity.
+
+```yaml
+- type: pagerduty
+  routing_key_env_var: PAGERDUTY_ROUTING_KEY
+  severity: error       # critical | error | warning | info
+  summary_template: "Prod {job_name} failed"
+  dedup_key_template: "prod-failure:{job_name}"
+  event_action: trigger # trigger | acknowledge | resolve
+```
+
+**`opsgenie`** — OpsGenie Alerts API.
+
+```yaml
+- type: opsgenie
+  api_key_env_var: OPSGENIE_KEY
+  priority: P1              # P1 | P2 | P3 | P4 | P5
+  message_template: "Dagster: {event_type} on {job_name}"
+  dedup_key_template: "prod-failure:{job_name}"
+```
+
+**`discord`** / **`teams`** / **`mattermost`** — webhook-driven chat alerts.
+
+```yaml
+- type: teams
+  webhook_url_env_var: TEAMS_WEBHOOK_URL
+  message: "Dagster: {event_type} on {job_name}"
+  title: "Prod alert"
+
+- type: discord
+  webhook_url_env_var: DISCORD_WEBHOOK_URL
+  message: "Dagster: {event_type} on {job_name}"
+
+- type: mattermost
+  webhook_url_env_var: MATTERMOST_URL
+  message: "Dagster: {event_type} on {job_name}"
+  channel: "#alerts"
+```
+
+**`email`** — SMTP alert (stdlib `smtplib`, no extra deps).
+
+```yaml
+- type: email
+  smtp_host_env_var: SMTP_HOST
+  smtp_port_env_var: SMTP_PORT      # optional, default 587
+  smtp_user_env_var: SMTP_USER
+  smtp_password_env_var: SMTP_PASSWORD
+  from_addr: "alerts@example.com"
+  to: ["oncall@example.com", "team@example.com"]
+  subject_template: "Dagster: {event_type} {job_name}"
+  body_template: "Run {run_id} — {message}"
+  use_tls: true
+```
+
+### External integrations
+
+**`webhook`** — arbitrary HTTP call.
 
 ```yaml
 - type: webhook
@@ -124,45 +291,28 @@ Arbitrary HTTP call with a templated body.
   timeout_seconds: 15
 ```
 
-### `slack`
-
-Slack incoming-webhook alert. The webhook URL is read from an env var so it stays out of your repo.
+**`sns`** — publish to AWS SNS topic. Optional deps: `boto3`.
 
 ```yaml
-- type: slack
-  webhook_url_env_var: SLACK_WEBHOOK_URL
-  message: "🚨 Prod failure on {job_name} (run_id={run_id})"
-  channel: "#alerts"    # advanced Slack webhooks only
-  username: "Dagster"   # optional
-  icon_emoji: ":robot_face:"   # optional
+- type: sns
+  topic_arn: "arn:aws:sns:us-east-1:123456789012:dagster-alerts"
+  region: us-east-1
+  subject_template: "Dagster: {event_type}"
+  message_template: "{job_name} → {status}"
 ```
 
-### `pagerduty`
-
-PagerDuty Events API v2. Dedup key coalesces repeat firings.
+**`sqs`** — send message to AWS SQS queue. Optional deps: `boto3`.
 
 ```yaml
-- type: pagerduty
-  routing_key_env_var: PAGERDUTY_ROUTING_KEY
-  severity: error       # critical | error | warning | info
-  summary_template: "Dagster: prod {job_name} failed"
-  dedup_key_template: "prod-failure:{job_name}"
-  event_action: trigger # trigger | acknowledge | resolve
+- type: sqs
+  queue_url: "https://sqs.us-east-1.amazonaws.com/123456789012/dagster-out"
+  region: us-east-1
+  body_template: '{"event":"{event_type}","job":"{job_name}"}'
+  message_group_id: "dagster-events"        # FIFO only
+  message_deduplication_id_template: "{event_type}:{run_id}"
 ```
 
-### `discord`
-
-Discord webhook alert.
-
-```yaml
-- type: discord
-  webhook_url_env_var: DISCORD_WEBHOOK_URL
-  message: "Dagster: {event_type} on {job_name}"
-```
-
-### `emit_event`
-
-Emit a Dagster asset observation for downstream sensors to react to.
+**`emit_event`** — logs an emission for downstream sensor chaining.
 
 ```yaml
 - type: emit_event
@@ -172,102 +322,200 @@ Emit a Dagster asset observation for downstream sensors to react to.
     ts: "{timestamp}"
 ```
 
-## Common shapes
+## Common recipes
 
 ### Alert-on-failure
 
 ```yaml
-type: dagster_community_components.EventAutomationComponent
-attributes:
-  name: alert_on_prod_failure
-  when:
-    - type: run_status
-      status: FAILURE
-      job_name: hourly_ingest
-  then:
-    - type: slack
-      webhook_url_env_var: SLACK_WEBHOOK_URL
-      message: "🚨 {job_name} failed: {run_id}"
-    - type: pagerduty
-      routing_key_env_var: PAGERDUTY_ROUTING_KEY
-      severity: error
-      summary_template: "Prod {job_name} failed"
+name: alert_on_prod_failure
+when:
+  - type: run_status
+    status: FAILURE
+    job_name: hourly_ingest
+then:
+  - type: slack
+    webhook_url_env_var: SLACK_WEBHOOK_URL
+    message: "🚨 {job_name} failed: {run_id}"
+  - type: pagerduty
+    routing_key_env_var: PAGERDUTY_ROUTING_KEY
+    severity: error
 ```
 
-### Reprocess-on-upstream-change
+### Kill long-running runs
 
 ```yaml
+name: kill_stuck_runs
+when:
+  - type: run_stuck
+    max_running_seconds: 1800   # 30 minutes
+then:
+  - type: cancel_run
+    which: triggering
+  - type: pagerduty
+    routing_key_env_var: PD_KEY
+    severity: warning
+    summary_template: "Killed stuck run {run_id[:8]} of {job_name}"
+```
+
+### Reprocess on upstream change
+
+```yaml
+name: reprocess_on_raw_update
+when:
+  - type: asset_materialized
+    asset_keys: [raw_data]
+then:
+  - type: materialize
+    asset_keys: [derived_data, aggregated_data]
+```
+
+### Freshness → auto-heal + escalate
+
+```yaml
+name: stale_summary_heal
+when:
+  - type: freshness_violation
+    asset_keys: [hourly_summary]
+    max_age_minutes: 90
+then:
+  - type: materialize
+    asset_keys: [hourly_summary]     # self-heal
+  - type: pagerduty
+    routing_key_env_var: PD_KEY
+    severity: warning
+    summary_template: "{asset_key} stale — {message}"
+```
+
+### Multi-signal outage (nested compound)
+
+```yaml
+name: outage_correlation
+when:
+  - type: all_of
+    within_seconds: 3600
+    triggers:
+      - type: any_of
+        triggers:
+          - type: run_status
+            status: FAILURE
+            job_name: job_a
+          - type: run_status
+            status: FAILURE
+            job_name: job_b
+      - type: freshness_violation
+        asset_keys: [hourly_summary]
+        max_age_minutes: 120
+then:
+  - type: opsgenie
+    api_key_env_var: OPSGENIE_KEY
+    priority: P1
+    message_template: "Multi-signal outage: {message}"
+```
+
+### External queue → Dagster runs (AWS)
+
+```yaml
+name: aws_bridge
+when:
+  - type: sqs_poll
+    queue_url: "https://sqs.us-east-1.amazonaws.com/12345/ingest-jobs"
+    max_messages: 10
+then:
+  - type: launch_job
+    job_name: process_batch
+  - type: sns
+    topic_arn: "arn:aws:sns:us-east-1:12345:dagster-events"
+    message_template: "Processed SQS: {message}"
+```
+
+### Cron heartbeat
+
+```yaml
+name: hourly_heartbeat
+when:
+  - type: schedule
+    cron: "0 * * * *"
+then:
+  - type: webhook
+    url: "https://uptime.example.com/hourly-heartbeat"
+    method: GET
+```
+
+### DQ escalation ladder
+
+```yaml
+name: dq_escalation
+when:
+  - type: asset_check_failed
+    check_names: [row_count_positive]
+then:
+  - type: slack
+    webhook_url_env_var: SLACK_URL
+    message: "DQ failure: {message}"
+  - type: emit_event
+    asset_key: dq_incident_marker
+
+# Then a second automation reacts to sustained DQ failures via compound:
+---
+name: dq_escalation_p1
+when:
+  - type: all_of
+    within_seconds: 900
+    triggers:
+      - type: asset_check_failed
+        check_names: [row_count_positive]
+      - type: asset_check_failed
+        check_names: [revenue_non_negative]
+then:
+  - type: opsgenie
+    api_key_env_var: OPSGENIE_KEY
+    priority: P1
+```
+
+## Existing sensor components as trigger sources
+
+The registry has ~50 dedicated sensor components (`kafka_monitor`, `s3_monitor`, `eventhubs_monitor`, `redis_streams_sensor`, `mqtt_monitor`, `gcs_monitor`, `adls_monitor`, `pagerduty_incident_sensor`, `airbyte_sync_sensor`, `dbt_cloud_job_sensor`, `zendesk_ticket_sensor`, ...). They emit RunRequests when their target fires.
+
+**Pattern:** point the dedicated sensor at an asset. Then use EventAutomation's `asset_materialized` trigger to react to that asset. This gives you the specialized event source + EventAutomation's alerting fanout in the same YAML surface.
+
+```yaml
+# The dedicated sensor materializes an asset when new S3 objects appear.
+type: dagster_community_components.S3MonitorSensorComponent
+attributes:
+  bucket: my-bucket
+  prefix: incoming/
+  materialize_assets: [new_s3_object]
+---
+# EventAutomation reacts to the materialization + fans out to alerts + jobs.
 type: dagster_community_components.EventAutomationComponent
 attributes:
-  name: reprocess_on_raw_update
+  name: on_new_s3_upload
   when:
     - type: asset_materialized
-      asset_keys: [raw_data]
-  then:
-    - type: materialize
-      asset_keys: [derived_data, aggregated_data]
-```
-
-### Cron + webhook (heartbeat pattern)
-
-```yaml
-type: dagster_community_components.EventAutomationComponent
-attributes:
-  name: hourly_heartbeat
-  when:
-    - type: schedule
-      cron: "0 * * * *"
-  then:
-    - type: webhook
-      url: "https://uptime.example.com/hourly-heartbeat"
-      method: GET
-```
-
-### Freshness → escalate
-
-```yaml
-type: dagster_community_components.EventAutomationComponent
-attributes:
-  name: stale_data_escalation
-  when:
-    - type: freshness_violation
-      asset_keys: [hourly_summary]
-      max_age_minutes: 90
-  then:
-    - type: pagerduty
-      routing_key_env_var: PD_ROUTING_KEY
-      severity: warning
-      summary_template: "{asset_key} is stale — {message}"
-    - type: materialize
-      asset_keys: [hourly_summary]     # attempt self-heal
-```
-
-### External queue → job launch
-
-```yaml
-type: dagster_community_components.EventAutomationComponent
-attributes:
-  name: react_to_external_queue
-  when:
-    - type: http_poll
-      url: "https://api.example.com/pending-batches"
-      condition: json_path_present
-      json_path: "pending"
-      minimum_interval_seconds: 30
+      asset_keys: [new_s3_object]
   then:
     - type: launch_job
-      job_name: process_batch
-      tags: {source: external_queue}
+      job_name: process_new_object
+    - type: slack
+      webhook_url_env_var: SLACK_URL
+      message: "New S3 object at {asset_key}"
 ```
+
+Not every event source needs a wrapper trigger inside EventAutomation — the existing sensor components ARE the right primitives. EventAutomation is the "declarative event fanout" layer on top.
 
 ## Overlap with Dagster+ paid features
 
-Dagster+ has native notifications / alerting as a paid feature. This component intentionally duplicates the alerting surface (Slack / PagerDuty / Discord / webhook) so teams on the OSS Dagster path can still get alert-on-failure without a Dagster+ Pro seat. If you're already on Dagster+ Pro, the native notifications UI is better — one less moving piece to keep in code.
+Dagster+ Pro ships native Slack/PagerDuty/email alerting as a paid feature. This component intentionally duplicates the alerting surface so:
+
+- **OSS Dagster** users get alert-on-failure without a Dagster+ Pro seat
+- **Dagster+ Serverless** entry-tier users get the same
+- **Prefect migrators** port their Automations 1:1 without changing plans
+
+If you're already on Dagster+ Pro, the native notifications UI is more polished — one less moving piece in code. This component's value is the "same shape as Prefect Automations, works everywhere Dagster runs" story.
 
 ## Non-Prefect wins
 
-Under the hood every trigger is a real Dagster sensor / schedule, so:
-
-- **Every automation appears in the Dagster+ UI** — sensors tab, schedules tab, run history, materialization events. Not a separate "automations" mini-app.
-- **Materialize / launch_job actions emit real `RunRequest`s** — same execution path as any Dagster run, same lineage, same run history.
-- **Composable with the rest of your project** — the emitted sensors and schedules can be referenced by name from other components / assets / selectors.
+- **Every automation appears in the Dagster+ UI** — sensors tab, run history, materialization events. Not a separate mini-app.
+- **Materialize / launch_job actions emit real `RunRequest`s** — same execution path as any Dagster run, same lineage.
+- **Cancel + retry actions call the SDK directly** — `instance.run_launcher.terminate()` + `instance.create_reexecuted_run()`.
+- **Composable with the rest of your project** — dropped into `defs.yaml` alongside anything else, participates in the same UI.

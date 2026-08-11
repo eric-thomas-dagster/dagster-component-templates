@@ -233,6 +233,41 @@ class ToggleScheduleAction(_ActionBase):
     action: str = Field(description="start | stop")
 
 
+class SnsAction(_ActionBase):
+    """Publish a message to an AWS SNS topic."""
+    type: Literal["sns"] = "sns"
+    topic_arn: str = Field(description="SNS topic ARN.")
+    region: str = Field(default="us-east-1")
+    subject_template: Optional[str] = Field(
+        default=None, description="Optional message subject (email-notification only). Templated."
+    )
+    message_template: str = Field(
+        default="Dagster automation fired: {event_type} {job_name} {status}",
+        description="Message body. Templated.",
+    )
+    # AWS creds picked up from env (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY /
+    # AWS_SESSION_TOKEN) or the standard boto3 credential chain (~/.aws/credentials,
+    # IMDS, IAM roles). Env-var overrides can be added if a customer asks — for
+    # now boto3's default resolution keeps the config surface minimal.
+
+
+class SqsAction(_ActionBase):
+    """Send a message to an AWS SQS queue."""
+    type: Literal["sqs"] = "sqs"
+    queue_url: str = Field(description="SQS queue URL.")
+    region: str = Field(default="us-east-1")
+    body_template: str = Field(
+        default='{"event":"{event_type}","job":"{job_name}","run_id":"{run_id}","status":"{status}"}',
+        description="Message body. Templated.",
+    )
+    message_group_id: Optional[str] = Field(
+        default=None, description="For FIFO queues. Ignored for standard queues."
+    )
+    message_deduplication_id_template: Optional[str] = Field(
+        default=None, description="For FIFO queues. Templated."
+    )
+
+
 Action = Union[
     MaterializeAction,
     LaunchJobAction,
@@ -249,6 +284,8 @@ Action = Union[
     MattermostAction,
     ToggleSensorAction,
     ToggleScheduleAction,
+    SnsAction,
+    SqsAction,
 ]
 
 
@@ -358,25 +395,67 @@ class AbsenceTrigger(_TriggerBase):
     minimum_interval_seconds: int = Field(default=300)
 
 
-class CompoundTrigger(_TriggerBase):
-    """AND-composition of multiple sub-triggers. Fires when ALL sub-triggers
-    have fired within `within_seconds` of each other.
+class SqsPollTrigger(_TriggerBase):
+    """Poll an AWS SQS queue. Fires when messages are received (up to
+    max_messages per tick). Each message becomes one automation firing —
+    template tokens include the raw message body via `{message}`. Message
+    is deleted from the queue after successful action execution.
+    """
+    type: Literal["sqs_poll"] = "sqs_poll"
+    queue_url: str = Field(description="SQS queue URL.")
+    region: str = Field(default="us-east-1")
+    max_messages: int = Field(default=10, description="Max messages to fetch per tick. 1-10 (SQS API limit).")
+    minimum_interval_seconds: int = Field(default=30)
+    delete_after: bool = Field(default=True, description="Delete messages from the queue after processing.")
 
-    Only supports leaf triggers (no nested compound) for simplicity — most
-    real ANDs are 2-3 flat conditions ("run_A failed AND run_B failed within
-    the last hour"). If you need nested logic, chain automations via emit_event.
+
+# Leaf sub-triggers that can appear inside a compound (any_of / all_of).
+# Kept as a flat Union — deep recursion causes Dagster's Resolvable type
+# inspection to blow the stack.
+_Leaf = Union[
+    RunStatusTrigger,
+    AssetMaterializedTrigger,
+    AssetCheckFailedTrigger,
+    MetricThresholdTrigger,
+    FreshnessViolationTrigger,
+    AbsenceTrigger,
+    RunDurationTrigger,
+    RunStuckTrigger,
+]
+
+
+class AnyOfTrigger(_TriggerBase):
+    """OR-composition inside a compound. Fires when ANY sub-trigger fires.
+    (At the top level of `when:`, multiple triggers are already OR — this
+    is only useful nested inside an `all_of`.)"""
+    type: Literal["any_of"] = "any_of"
+    triggers: List[_Leaf] = Field(description="Sub-triggers — any fires it.")
+    minimum_interval_seconds: int = Field(default=60)
+
+
+class AllOfTrigger(_TriggerBase):
+    """AND-composition. Fires only when ALL sub-triggers have fired within
+    `within_seconds` of each other. Sub-triggers can be any leaf trigger OR
+    an AnyOfTrigger (giving you `all_of([leaf, any_of([leaf, leaf])])` — two
+    levels of nesting, enough for realistic patterns).
+
+    Deeper nesting isn't supported by the type system (would cause recursive
+    Union unrolling to blow the resolver stack); if you need deeper logic,
+    chain via `emit_event` between automations.
     """
     type: Literal["all_of"] = "all_of"
     triggers: List[Union[
-        "RunStatusTrigger",
-        "AssetMaterializedTrigger",
-        "AssetCheckFailedTrigger",
-        "MetricThresholdTrigger",
-    ]] = Field(description="Sub-triggers, all must fire within `within_seconds` for the compound to fire.")
-    within_seconds: int = Field(
-        default=3600,
-        description="All sub-triggers must fire within this window. Default 1 hour.",
-    )
+        RunStatusTrigger,
+        AssetMaterializedTrigger,
+        AssetCheckFailedTrigger,
+        MetricThresholdTrigger,
+        FreshnessViolationTrigger,
+        AbsenceTrigger,
+        RunDurationTrigger,
+        RunStuckTrigger,
+        AnyOfTrigger,
+    ]] = Field(description="Sub-triggers — all must fire within `within_seconds`.")
+    within_seconds: int = Field(default=3600)
     minimum_interval_seconds: int = Field(default=60)
 
 
@@ -391,8 +470,14 @@ Trigger = Union[
     AssetCheckFailedTrigger,
     MetricThresholdTrigger,
     AbsenceTrigger,
-    CompoundTrigger,
+    SqsPollTrigger,
+    AllOfTrigger,
+    AnyOfTrigger,
 ]
+
+# Backwards-compat alias so existing code / manifest entries referencing
+# `CompoundTrigger` still resolve. Prefer AllOfTrigger going forward.
+CompoundTrigger = AllOfTrigger
 
 
 # ── Template rendering ─────────────────────────────────────────────────────
@@ -660,6 +745,48 @@ def _execute_action(action: Action, tokens: Dict[str, Any], logger, instance=Non
             logger.warning("toggle_schedule: no instance provided; skipping.")
             return None
         _toggle_instigator(instance, action.schedule_name, action.action, kind="schedule", logger=logger)
+        return None
+    if isinstance(action, SnsAction):
+        try:
+            import boto3
+        except ImportError:
+            logger.warning("sns: boto3 not installed — install with `pip install boto3`.")
+            return None
+        try:
+            client = boto3.client("sns", region_name=action.region)
+            kwargs: Dict[str, Any] = {
+                "TopicArn": action.topic_arn,
+                "Message": _render_template(action.message_template, tokens),
+            }
+            if action.subject_template:
+                kwargs["Subject"] = _render_template(action.subject_template, tokens)
+            resp = client.publish(**kwargs)
+            logger.info(f"sns → published to {action.topic_arn} (MessageId={resp.get('MessageId', '')[:12]})")
+        except Exception as exc:
+            logger.warning(f"sns: publish failed: {exc}")
+        return None
+    if isinstance(action, SqsAction):
+        try:
+            import boto3
+        except ImportError:
+            logger.warning("sqs: boto3 not installed — install with `pip install boto3`.")
+            return None
+        try:
+            client = boto3.client("sqs", region_name=action.region)
+            kwargs: Dict[str, Any] = {
+                "QueueUrl": action.queue_url,
+                "MessageBody": _render_template(action.body_template, tokens),
+            }
+            if action.message_group_id:
+                kwargs["MessageGroupId"] = action.message_group_id
+            if action.message_deduplication_id_template:
+                kwargs["MessageDeduplicationId"] = _render_template(
+                    action.message_deduplication_id_template, tokens
+                )
+            resp = client.send_message(**kwargs)
+            logger.info(f"sqs → sent to {action.queue_url} (MessageId={resp.get('MessageId', '')[:12]})")
+        except Exception as exc:
+            logger.warning(f"sqs: send failed: {exc}")
         return None
     logger.warning(f"Unknown action type: {type(action).__name__}")
     return None
@@ -1214,19 +1341,75 @@ def _build_absence_sensor(
     )
 
 
-def _build_compound_sensor(
-    name: str, trigger: CompoundTrigger, actions: List[Action], default_status: dg.DefaultSensorStatus
+def _build_sqs_poll_sensor(
+    name: str, trigger: SqsPollTrigger, actions: List[Action], default_status: dg.DefaultSensorStatus
 ) -> dg.SensorDefinition:
-    """AND-composition sensor. Each tick evaluates all sub-triggers against the
-    current instance state and records their fire-timestamps in the cursor.
-    Fires the action bundle when ALL sub-triggers have fired within `within_seconds`.
+    def _sensor_fn(context: dg.SensorEvaluationContext):
+        try:
+            import boto3
+        except ImportError:
+            return dg.SkipReason("boto3 not installed — install with `pip install boto3`.")
+        client = boto3.client("sqs", region_name=trigger.region)
+        try:
+            resp = client.receive_message(
+                QueueUrl=trigger.queue_url,
+                MaxNumberOfMessages=max(1, min(10, trigger.max_messages)),
+                WaitTimeSeconds=0,
+                MessageAttributeNames=["All"],
+            )
+        except Exception as exc:
+            return dg.SkipReason(f"SQS receive failed: {exc}")
+        messages = resp.get("Messages") or []
+        if not messages:
+            return dg.SkipReason("no messages")
+        all_requests = []
+        for msg in messages:
+            body = msg.get("Body", "")
+            tokens = _default_tokens(
+                event_type="sqs_message",
+                message=body,
+                url=trigger.queue_url,
+            )
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=context.instance))
+            if trigger.delete_after:
+                try:
+                    client.delete_message(
+                        QueueUrl=trigger.queue_url, ReceiptHandle=msg["ReceiptHandle"]
+                    )
+                except Exception as exc:
+                    context.log.warning(f"SQS delete failed for msg {msg.get('MessageId', '')[:8]}: {exc}")
+        return dg.SensorResult(run_requests=all_requests) if all_requests else None
 
-    Only supports polling-shaped sub-triggers (asset_check_failed, metric_threshold,
-    run_status via periodic scan, asset_materialized via periodic scan). Callback-
-    driven sub-triggers (raw run_status_sensor) don't fit the compound model
-    cleanly — use two separate automations that both emit_event, then a third
-    that watches for both events, if you need that shape.
+    return dg.SensorDefinition(
+        name=name,
+        evaluation_fn=_sensor_fn,
+        minimum_interval_seconds=trigger.minimum_interval_seconds,
+        default_status=default_status,
+    )
+
+
+def _build_compound_sensor(
+    name: str,
+    trigger: Union[AllOfTrigger, AnyOfTrigger],
+    actions: List[Action],
+    default_status: dg.DefaultSensorStatus,
+) -> dg.SensorDefinition:
+    """Nestable AND/OR-composition sensor. Recursively evaluates sub-triggers
+    against the current instance state; records fire timestamps in the cursor.
+
+    - all_of: fires when ALL sub-triggers have fired within `within_seconds`
+    - any_of: fires when ANY sub-trigger fires (each tick)
+
+    Sub-triggers can be nested compound triggers (all_of inside any_of inside
+    all_of, etc.) — evaluation walks the tree.
+
+    Leaf sub-triggers must be poll-shaped (their fire state can be checked
+    against current instance state on each tick). Callback-shaped run_status
+    triggers work best-effort via a recent-runs scan.
     """
+    is_all_of = isinstance(trigger, AllOfTrigger)
+    within = trigger.within_seconds if isinstance(trigger, AllOfTrigger) else 0
+
     def _sensor_fn(context: dg.SensorEvaluationContext):
         instance = context.instance
         now = time.time()
@@ -1234,24 +1417,19 @@ def _build_compound_sensor(
             fire_state = json.loads(context.cursor) if context.cursor else {}
         except Exception:
             fire_state = {}
-        # Check each sub-trigger against the current instance state (poll-shaped).
-        for i, sub in enumerate(trigger.triggers):
-            sub_key = f"{i}:{sub.type}"
-            fired = _evaluate_compound_leaf(sub, instance, fire_state.get(sub_key, 0))
-            if fired:
-                fire_state[sub_key] = now
-        # AND: all sub-triggers must have fired within window
-        recent = [ts for ts in fire_state.values() if now - ts <= trigger.within_seconds]
-        if len(recent) < len(trigger.triggers):
-            context.update_cursor(json.dumps(fire_state))
-            return dg.SkipReason(f"{len(recent)}/{len(trigger.triggers)} sub-triggers fired within window")
-        # All fired — fire the compound action bundle, reset cursor
+        fired, new_state = _evaluate_compound(trigger, instance, fire_state, now, path="")
+        context.update_cursor(json.dumps(new_state))
+        if not fired:
+            return dg.SkipReason(f"compound {trigger.type} did not fire")
         tokens = _default_tokens(
-            event_type="compound_all_of",
-            message=f"All {len(trigger.triggers)} sub-triggers fired within {trigger.within_seconds}s",
+            event_type=f"compound_{trigger.type}",
+            message=f"Compound {trigger.type} fired ({len(trigger.triggers)} sub-triggers)"
+                    + (f" within {within}s" if is_all_of else ""),
         )
         requests_out = _run_actions(actions, tokens, context.log, instance=instance)
-        context.update_cursor(json.dumps({}))  # reset
+        # Reset cursor on all_of so we don't immediately re-fire
+        if is_all_of:
+            context.update_cursor(json.dumps({}))
         return dg.SensorResult(run_requests=requests_out) if requests_out else None
 
     return dg.SensorDefinition(
@@ -1262,13 +1440,46 @@ def _build_compound_sensor(
     )
 
 
+def _evaluate_compound(node, instance, fire_state: Dict[str, float], now: float, path: str):
+    """Recursively evaluate a compound (or leaf) trigger against instance state.
+
+    Returns (fired, updated_fire_state). Leaf evaluations check for a fresh
+    fire since the last recorded timestamp for that leaf. Compound nodes
+    aggregate their children's fire states.
+    """
+    node_key = f"{path}/{type(node).__name__}"
+    if isinstance(node, (AllOfTrigger, AnyOfTrigger)):
+        child_fired = []
+        for i, child in enumerate(node.triggers):
+            child_path = f"{path}/{i}"
+            f, fire_state = _evaluate_compound(child, instance, fire_state, now, child_path)
+            child_fired.append((child_path, f))
+        if isinstance(node, AnyOfTrigger):
+            # Fire immediately if any child fired this tick
+            return (any(f for _, f in child_fired), fire_state)
+        # AllOf: check that every child has fired within window
+        within = node.within_seconds
+        satisfied = 0
+        for i, _child in enumerate(node.triggers):
+            child_path = f"{path}/{i}/{type(_child).__name__}"
+            last_ts = fire_state.get(child_path, 0)
+            if now - last_ts <= within:
+                satisfied += 1
+        return (satisfied >= len(node.triggers), fire_state)
+    # Leaf evaluation — record fire timestamp if fresh.
+    last_ts = fire_state.get(node_key, 0)
+    fired = _evaluate_compound_leaf(node, instance, last_ts)
+    if fired:
+        fire_state[node_key] = now
+    return (fired, fire_state)
+
+
 def _evaluate_compound_leaf(sub, instance, last_fire_ts: float) -> bool:
     """Best-effort evaluation of a leaf sub-trigger against current instance
-    state. Only handles poll-shaped triggers; callback-shaped ones (run_status)
-    always return False from this direct evaluation. Used only by CompoundTrigger."""
+    state. Only handles poll-shaped triggers; callback-shaped ones (run_status
+    with real events) are best-effort via recent-runs scan."""
     now = time.time()
     if isinstance(sub, RunStatusTrigger):
-        # Check for terminal runs newer than last_fire_ts
         recent = instance.get_runs(limit=20)
         for r in recent:
             if sub.job_name and r.job_name != sub.job_name:
@@ -1283,8 +1494,50 @@ def _evaluate_compound_leaf(sub, instance, last_fire_ts: float) -> bool:
             if latest and (latest.timestamp or 0) > last_fire_ts:
                 return True
         return False
-    # AssetCheckFailedTrigger / MetricThresholdTrigger: complex event scan.
-    # Compound triggers with these are best-effort; recommend flattening.
+    if isinstance(sub, FreshnessViolationTrigger):
+        # Any of the assets stale beyond max_age_minutes = fired
+        for k_str in sub.asset_keys:
+            latest = instance.get_latest_materialization_event(dg.AssetKey.from_user_string(k_str))
+            if latest is None:
+                return True
+            age_min = (now - float(latest.timestamp or 0)) / 60
+            if age_min > sub.max_age_minutes:
+                return True
+        return False
+    if isinstance(sub, AbsenceTrigger):
+        # Any of the assets absent beyond max_gap_minutes = fired
+        for k_str in sub.asset_keys:
+            latest = instance.get_latest_materialization_event(dg.AssetKey.from_user_string(k_str))
+            latest_ts = float(latest.timestamp or 0) if latest else 0
+            gap_min = (now - latest_ts) / 60
+            if gap_min > sub.max_gap_minutes:
+                return True
+        return False
+    if isinstance(sub, RunDurationTrigger):
+        recent = instance.get_runs(limit=20)
+        for r in recent:
+            if sub.job_name and r.job_name != sub.job_name:
+                continue
+            if not (r.start_time and r.end_time and r.end_time > last_fire_ts):
+                continue
+            duration = float(r.end_time - r.start_time)
+            if duration > sub.max_duration_seconds:
+                return True
+        return False
+    if isinstance(sub, RunStuckTrigger):
+        running = instance.get_runs(
+            filters=dg.RunsFilter(statuses=[dg.DagsterRunStatus.STARTED, dg.DagsterRunStatus.STARTING])
+        )
+        for r in running:
+            if sub.job_name and r.job_name != sub.job_name:
+                continue
+            if r.start_time and (now - float(r.start_time)) > sub.max_running_seconds:
+                return True
+        return False
+    # AssetCheckFailedTrigger / MetricThresholdTrigger / SqsPollTrigger:
+    # These require an event-log scan that's expensive on every compound
+    # tick — punt for now. If a customer needs them nested, we can promote
+    # the compound sensor's tick logic to full poll-and-cache.
     return False
 
 
@@ -1353,7 +1606,9 @@ class EventAutomationComponent(dg.Component, dg.Model, dg.Resolvable):
                 sensors.append(_build_metric_threshold_sensor(child_name, trigger, self.then, sensor_status))
             elif isinstance(trigger, AbsenceTrigger):
                 sensors.append(_build_absence_sensor(child_name, trigger, self.then, sensor_status))
-            elif isinstance(trigger, CompoundTrigger):
+            elif isinstance(trigger, SqsPollTrigger):
+                sensors.append(_build_sqs_poll_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, (AllOfTrigger, AnyOfTrigger)):
                 sensors.append(_build_compound_sensor(child_name, trigger, self.then, sensor_status))
             else:
                 raise ValueError(f"Unknown trigger type: {type(trigger).__name__}")

@@ -1,39 +1,39 @@
 {
   "component_type": "dagster_component_templates.EventAutomationComponent",
-  "description": "Prefect-Automations-style declarative event → action wiring in one YAML component. Triggers (run_status / asset_materialized / schedule / http_poll / freshness_violation) fan out to actions (materialize / launch_job / webhook / slack / pagerduty / discord). All under real Dagster sensors + schedules; no Python needed for common trigger-action shapes.",
+  "description": "Prefect-Automations-style declarative event → action wiring in one YAML component. 11 trigger types (run_status / asset_materialized / schedule / http_poll / freshness_violation / run_duration / run_stuck / asset_check_failed / metric_threshold / absence / sqs_poll) fan out to 17 action types (materialize / launch_job / webhook / slack / pagerduty / discord / emit_event / cancel_run / retry_run / email / teams / opsgenie / mattermost / toggle_sensor / toggle_schedule / sns / sqs). Compound triggers (all_of + any_of, one level of nesting) support real AND/OR logic. All under real Dagster sensors — no Python needed for common trigger-action shapes.",
   "category": "sensor",
   "icon": "Bell",
   "x-dagster-io": {
     "outputs": {
-      "type": "Sensor + Schedule",
-      "description": "One Dagster sensor per non-schedule trigger, one Dagster schedule per schedule trigger, all calling the same action bundle when they fire."
+      "type": "Sensor",
+      "description": "One Dagster sensor per non-schedule trigger, all calling the same action bundle when they fire."
     }
   },
   "attributes": {
     "name": {
       "type": "string",
       "label": "Automation Name",
-      "description": "Automation name — prefix for generated sensor / schedule names.",
+      "description": "Automation name — prefix for generated sensor names.",
       "required": true
     },
     "when": {
       "type": "array",
       "label": "Triggers",
-      "description": "Triggers that fire the automation. OR semantics — any fires it. Each element is one of: run_status, asset_materialized, schedule, http_poll, freshness_violation. Discriminator: `type`.",
+      "description": "Triggers that fire the automation. OR semantics — any fires it. Discriminator: `type`.",
       "items": {
         "type": "object",
         "oneOf": [
           {
-            "title": "run_status",
+            "title": "run_status — job / asset run finished with specific status",
             "properties": {
               "type": {"const": "run_status"},
-              "status": {"type": "string", "enum": ["SUCCESS", "FAILURE", "CANCELED", "STARTED"]},
-              "job_name": {"type": "string", "description": "Optional job filter."}
+              "status": {"type": "string", "enum": ["SUCCESS", "FAILURE", "CANCELED", "STARTED"], "description": "Run status to fire on."},
+              "job_name": {"type": "string", "description": "Optional job filter. Omit = any job."}
             },
             "required": ["type", "status"]
           },
           {
-            "title": "asset_materialized",
+            "title": "asset_materialized — named assets got materialized",
             "properties": {
               "type": {"const": "asset_materialized"},
               "asset_keys": {"type": "array", "items": {"type": "string"}}
@@ -41,36 +41,123 @@
             "required": ["type", "asset_keys"]
           },
           {
-            "title": "schedule",
+            "title": "schedule — cron trigger",
             "properties": {
               "type": {"const": "schedule"},
-              "cron": {"type": "string"},
+              "cron": {"type": "string", "description": "Cron expression, e.g. '0 * * * *'."},
               "execution_timezone": {"type": "string", "default": "UTC"}
             },
             "required": ["type", "cron"]
           },
           {
-            "title": "http_poll",
+            "title": "http_poll — poll a URL, fire on condition",
             "properties": {
               "type": {"const": "http_poll"},
               "url": {"type": "string"},
               "method": {"type": "string", "default": "GET"},
               "headers": {"type": "object"},
-              "minimum_interval_seconds": {"type": "integer", "default": 60, "minimum": 10},
+              "minimum_interval_seconds": {"type": "integer", "default": 60, "description": "Seconds between polls. Minimum 10."},
               "condition": {"type": "string", "enum": ["response_changed", "status_ok", "json_path_present"], "default": "response_changed"},
-              "json_path": {"type": "string"}
+              "json_path": {"type": "string", "description": "Required for condition=json_path_present. Dotted path into the JSON response."}
             },
             "required": ["type", "url"]
           },
           {
-            "title": "freshness_violation",
+            "title": "freshness_violation — asset stale beyond max_age",
             "properties": {
               "type": {"const": "freshness_violation"},
               "asset_keys": {"type": "array", "items": {"type": "string"}},
-              "max_age_minutes": {"type": "integer"},
-              "minimum_interval_seconds": {"type": "integer", "default": 300, "minimum": 60}
+              "max_age_minutes": {"type": "integer", "description": "Fire if latest materialization is older than this."},
+              "minimum_interval_seconds": {"type": "integer", "default": 300}
             },
             "required": ["type", "asset_keys", "max_age_minutes"]
+          },
+          {
+            "title": "run_duration — run finished + duration > threshold",
+            "properties": {
+              "type": {"const": "run_duration"},
+              "max_duration_seconds": {"type": "integer", "description": "Fire when total run duration > this."},
+              "job_name": {"type": "string", "description": "Optional job filter."},
+              "on_status": {"type": "string", "enum": ["ANY", "SUCCESS", "FAILURE"], "default": "ANY"}
+            },
+            "required": ["type", "max_duration_seconds"]
+          },
+          {
+            "title": "run_stuck — active run running too long",
+            "properties": {
+              "type": {"const": "run_stuck"},
+              "max_running_seconds": {"type": "integer", "description": "Fire when a run has been RUNNING for > this."},
+              "job_name": {"type": "string", "description": "Optional job filter."},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type", "max_running_seconds"]
+          },
+          {
+            "title": "asset_check_failed — reactive data quality",
+            "properties": {
+              "type": {"const": "asset_check_failed"},
+              "check_names": {"type": "array", "items": {"type": "string"}, "description": "Names of checks to watch. Omit = any check failure."},
+              "asset_keys": {"type": "array", "items": {"type": "string"}, "description": "Optional asset key filter."},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type"]
+          },
+          {
+            "title": "metric_threshold — numeric metadata crossed threshold",
+            "properties": {
+              "type": {"const": "metric_threshold"},
+              "asset_key": {"type": "string"},
+              "metadata_key": {"type": "string", "description": "Numeric metadata key on the materialization (e.g. 'row_count')."},
+              "comparison": {"type": "string", "enum": ["gt", "gte", "lt", "lte", "eq", "neq"]},
+              "threshold": {"type": "number"},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type", "asset_key", "metadata_key", "comparison", "threshold"]
+          },
+          {
+            "title": "absence — dead-man's switch (no materialization in window)",
+            "properties": {
+              "type": {"const": "absence"},
+              "asset_keys": {"type": "array", "items": {"type": "string"}},
+              "max_gap_minutes": {"type": "integer", "description": "Fire if no materialization in this many minutes."},
+              "minimum_interval_seconds": {"type": "integer", "default": 300}
+            },
+            "required": ["type", "asset_keys", "max_gap_minutes"]
+          },
+          {
+            "title": "sqs_poll — poll an AWS SQS queue for messages",
+            "properties": {
+              "type": {"const": "sqs_poll"},
+              "queue_url": {"type": "string"},
+              "region": {"type": "string", "default": "us-east-1"},
+              "max_messages": {"type": "integer", "default": 10, "minimum": 1, "maximum": 10},
+              "minimum_interval_seconds": {"type": "integer", "default": 30},
+              "delete_after": {"type": "boolean", "default": true}
+            },
+            "required": ["type", "queue_url"]
+          },
+          {
+            "title": "all_of — AND-composition, fire when all sub-triggers fire within window",
+            "properties": {
+              "type": {"const": "all_of"},
+              "triggers": {
+                "type": "array",
+                "description": "Leaf sub-triggers OR one level of any_of. Deeper nesting isn't supported by the type system.",
+                "items": {"type": "object"}
+              },
+              "within_seconds": {"type": "integer", "default": 3600},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type", "triggers"]
+          },
+          {
+            "title": "any_of — OR-composition inside a compound (nested-only)",
+            "properties": {
+              "type": {"const": "any_of"},
+              "triggers": {"type": "array", "items": {"type": "object"}},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type", "triggers"]
           }
         ]
       },
@@ -79,12 +166,12 @@
     "then": {
       "type": "array",
       "label": "Actions",
-      "description": "Actions to run when a trigger fires. All run, sequentially. Each element is one of: materialize, launch_job, webhook, slack, pagerduty, discord, emit_event. Discriminator: `type`.",
+      "description": "Actions to run when a trigger fires. All run, sequentially. Discriminator: `type`.",
       "items": {
         "type": "object",
         "oneOf": [
           {
-            "title": "materialize",
+            "title": "materialize — launch materialization for named assets",
             "properties": {
               "type": {"const": "materialize"},
               "asset_keys": {"type": "array", "items": {"type": "string"}},
@@ -93,7 +180,7 @@
             "required": ["type", "asset_keys"]
           },
           {
-            "title": "launch_job",
+            "title": "launch_job — launch a job",
             "properties": {
               "type": {"const": "launch_job"},
               "job_name": {"type": "string"},
@@ -102,22 +189,22 @@
             "required": ["type", "job_name"]
           },
           {
-            "title": "webhook",
+            "title": "webhook — arbitrary HTTP call with templated body",
             "properties": {
               "type": {"const": "webhook"},
               "url": {"type": "string"},
               "method": {"type": "string", "default": "POST"},
               "headers": {"type": "object"},
-              "body_template": {"type": "string"},
+              "body_template": {"type": "string", "description": "Supports {event_type}, {run_id}, {job_name}, {asset_key}, {status}, {timestamp}, {message}, {url} tokens."},
               "timeout_seconds": {"type": "integer", "default": 15}
             },
             "required": ["type", "url"]
           },
           {
-            "title": "slack",
+            "title": "slack — Slack incoming-webhook alert",
             "properties": {
               "type": {"const": "slack"},
-              "webhook_url_env_var": {"type": "string"},
+              "webhook_url_env_var": {"type": "string", "description": "Env var holding the Slack webhook URL."},
               "channel": {"type": "string"},
               "message": {"type": "string", "default": "Dagster automation fired: {event_type} {job_name} {status}"},
               "username": {"type": "string"},
@@ -126,19 +213,19 @@
             "required": ["type", "webhook_url_env_var"]
           },
           {
-            "title": "pagerduty",
+            "title": "pagerduty — PagerDuty Events API v2",
             "properties": {
               "type": {"const": "pagerduty"},
               "routing_key_env_var": {"type": "string"},
               "severity": {"type": "string", "enum": ["critical", "error", "warning", "info"], "default": "error"},
-              "summary_template": {"type": "string"},
+              "summary_template": {"type": "string", "default": "Dagster: {event_type} on {job_name} — {status}"},
               "dedup_key_template": {"type": "string"},
               "event_action": {"type": "string", "enum": ["trigger", "acknowledge", "resolve"], "default": "trigger"}
             },
             "required": ["type", "routing_key_env_var"]
           },
           {
-            "title": "discord",
+            "title": "discord — Discord webhook alert",
             "properties": {
               "type": {"const": "discord"},
               "webhook_url_env_var": {"type": "string"},
@@ -147,13 +234,119 @@
             "required": ["type", "webhook_url_env_var"]
           },
           {
-            "title": "emit_event",
+            "title": "emit_event — log emission for downstream sensor chaining",
             "properties": {
               "type": {"const": "emit_event"},
               "asset_key": {"type": "string"},
               "metadata_template": {"type": "object"}
             },
             "required": ["type", "asset_key"]
+          },
+          {
+            "title": "cancel_run — terminate a run",
+            "properties": {
+              "type": {"const": "cancel_run"},
+              "which": {"type": "string", "enum": ["triggering", "all_matching"], "default": "triggering"},
+              "job_name_filter": {"type": "string", "description": "Only used when which=all_matching."}
+            },
+            "required": ["type"]
+          },
+          {
+            "title": "retry_run — re-execute a failed run",
+            "properties": {
+              "type": {"const": "retry_run"},
+              "strategy": {"type": "string", "enum": ["from_failure", "all_steps"], "default": "from_failure"}
+            },
+            "required": ["type"]
+          },
+          {
+            "title": "email — SMTP email alert (stdlib smtplib)",
+            "properties": {
+              "type": {"const": "email"},
+              "smtp_host_env_var": {"type": "string"},
+              "smtp_port_env_var": {"type": "string"},
+              "smtp_user_env_var": {"type": "string"},
+              "smtp_password_env_var": {"type": "string"},
+              "from_addr": {"type": "string"},
+              "to": {"type": "array", "items": {"type": "string"}},
+              "subject_template": {"type": "string", "default": "Dagster: {event_type} {job_name} {status}"},
+              "body_template": {"type": "string"},
+              "use_tls": {"type": "boolean", "default": true}
+            },
+            "required": ["type", "smtp_host_env_var", "smtp_user_env_var", "smtp_password_env_var", "from_addr", "to"]
+          },
+          {
+            "title": "teams — Microsoft Teams webhook alert",
+            "properties": {
+              "type": {"const": "teams"},
+              "webhook_url_env_var": {"type": "string"},
+              "message": {"type": "string", "default": "Dagster automation fired: {event_type} {job_name} {status}"},
+              "title": {"type": "string"}
+            },
+            "required": ["type", "webhook_url_env_var"]
+          },
+          {
+            "title": "opsgenie — OpsGenie Alerts API",
+            "properties": {
+              "type": {"const": "opsgenie"},
+              "api_key_env_var": {"type": "string"},
+              "priority": {"type": "string", "enum": ["P1", "P2", "P3", "P4", "P5"], "default": "P3"},
+              "message_template": {"type": "string", "default": "Dagster: {event_type} on {job_name} — {status}"},
+              "dedup_key_template": {"type": "string"}
+            },
+            "required": ["type", "api_key_env_var"]
+          },
+          {
+            "title": "mattermost — Mattermost webhook alert",
+            "properties": {
+              "type": {"const": "mattermost"},
+              "webhook_url_env_var": {"type": "string"},
+              "message": {"type": "string", "default": "Dagster automation fired: {event_type} {job_name} {status}"},
+              "channel": {"type": "string"},
+              "username": {"type": "string"}
+            },
+            "required": ["type", "webhook_url_env_var"]
+          },
+          {
+            "title": "toggle_sensor — start / stop a Dagster sensor by name",
+            "properties": {
+              "type": {"const": "toggle_sensor"},
+              "sensor_name": {"type": "string"},
+              "action": {"type": "string", "enum": ["start", "stop"]}
+            },
+            "required": ["type", "sensor_name", "action"]
+          },
+          {
+            "title": "toggle_schedule — start / stop a Dagster schedule by name",
+            "properties": {
+              "type": {"const": "toggle_schedule"},
+              "schedule_name": {"type": "string"},
+              "action": {"type": "string", "enum": ["start", "stop"]}
+            },
+            "required": ["type", "schedule_name", "action"]
+          },
+          {
+            "title": "sns — publish to AWS SNS topic",
+            "properties": {
+              "type": {"const": "sns"},
+              "topic_arn": {"type": "string"},
+              "region": {"type": "string", "default": "us-east-1"},
+              "subject_template": {"type": "string"},
+              "message_template": {"type": "string", "default": "Dagster automation fired: {event_type} {job_name} {status}"}
+            },
+            "required": ["type", "topic_arn"]
+          },
+          {
+            "title": "sqs — send message to AWS SQS queue",
+            "properties": {
+              "type": {"const": "sqs"},
+              "queue_url": {"type": "string"},
+              "region": {"type": "string", "default": "us-east-1"},
+              "body_template": {"type": "string"},
+              "message_group_id": {"type": "string", "description": "For FIFO queues."},
+              "message_deduplication_id_template": {"type": "string", "description": "For FIFO queues, templated."}
+            },
+            "required": ["type", "queue_url"]
           }
         ]
       },
@@ -162,7 +355,7 @@
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "description": "RUNNING | STOPPED for the generated sensors / schedules.",
+      "description": "RUNNING | STOPPED for the generated sensors.",
       "enum": ["RUNNING", "STOPPED"],
       "default": "STOPPED"
     },

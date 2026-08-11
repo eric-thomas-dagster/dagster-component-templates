@@ -13346,7 +13346,7 @@
       "id": "event_automation",
       "name": "Event Automation",
       "category": "sensor",
-      "description": "Prefect-Automations-style declarative event \u2192 action wiring in one YAML component. 35 trigger types spanning run lifecycle (run_status/duration/stuck/startup_slow/reexecution/unhandled_exception/config_override/tag_set), asset events (materialized/observation/partition_materialized/materialization_planned/wipe/check_failed/check_started/check_severity), data quality (metric_threshold/metadata_match/asset_value_change/freshness_violation/absence), platform health (daemon_heartbeat/code_location_status/sensor_failing/concurrency_hit), errors + logs (step_error/hook_fired/log_pattern with events+stdout+stderr), Dagster+ integrations (insights_metric/dagster_plus_audit via GraphQL), and external (schedule/http_poll/sqs_poll/op_output). Fans out to 17 action types (materialize/launch_job/webhook/slack/pagerduty/discord/emit_event/cancel_run/retry_run/email/teams/opsgenie/mattermost/toggle_sensor/toggle_schedule/sns/sqs). Compound triggers (all_of + any_of, one level of nesting) support real AND/OR logic. All under real Dagster sensors \u2014 no Python needed. Comprehensive pytest suite (56 tests). Self-contained: everything lives in component.py.",
+      "description": "35 declarative triggers \u2192 17 actions in one YAML component. Prefect-Automations analog on top of real Dagster sensors.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "sensors/event_automation",

@@ -1,60 +1,8 @@
-"""EventAutomationComponent.
+"""EventAutomationComponent — 35 declarative triggers → 17 actions in one YAML component.
 
-Prefect-Automations-style declarative event → action wiring, as ONE Dagster
-component. Ship many `when: … then: …` blocks in YAML and each one becomes
-a real Dagster primitive (sensor / schedule / run_status_sensor) under the
-covers. No Python required for common trigger-action wiring.
-
-Triggers (`when:`):
-  - `run_status`           — a job / asset finishes with a specific status
-  - `asset_materialized`   — any of the named assets get materialized
-  - `schedule`             — cron expression (also gives you the classic
-                             "just kick something off on cron" shape via YAML)
-  - `http_poll`            — periodically GET a URL and fire on non-empty
-                             / condition match
-  - `freshness_violation`  — an asset hasn't been materialized recently enough
-  - `run_duration`         — a run finished, and duration exceeded a threshold
-  - `run_stuck`            — an active run has been running for too long
-  - `asset_check_failed`   — a named asset check evaluated to FAILURE
-  - `metric_threshold`     — numeric metadata on a materialization crossed a threshold
-  - `absence`              — dead-man's switch: asset didn't materialize in a window
-  - `log_pattern`          — regex match on run log lines (events / stdout / stderr)
-  - `daemon_heartbeat`     — Dagster daemon / Dagster+ agent stopped heartbeating
-  - `code_location_status` — code location failed to load / stuck loading / errored
-  - `run_startup_slow`     — run took too long from creation to STARTED (compute spinup)
-  - `asset_observation`    — an AssetObservation event was emitted (distinct from materialization)
-  - `step_error`           — an op step raised an exception (step-level, not run-level)
-  - `metadata_match`       — materialization/observation carries specific metadata key=value
-  - `asset_value_change`   — numeric metadata delta across two consecutive materializations
-  - `backfill_status`      — partition backfill entered a state (COMPLETED/FAILED/…)
-  - `sensor_failing`       — a target sensor has been failing N consecutive ticks
-  - `concurrency_hit`      — count of queued/running runs exceeded a threshold
-  - `all_of` (compound)    — AND-composition: fire only when N sub-triggers all fire
-                             within a window (with_seconds)
-
-Actions (`then:`):
-  - `materialize`      — launch a materialization run for named assets
-  - `launch_job`       — launch a job
-  - `webhook`          — POST / GET / PUT arbitrary URL, templated body
-  - `slack`            — Slack incoming-webhook alert
-  - `pagerduty`        — PagerDuty Events API v2 alert
-  - `discord`          — Discord webhook alert
-  - `emit_event`       — emit a Dagster asset observation for downstream sensors
-  - `cancel_run`       — terminate the triggering run (or all matching)
-  - `retry_run`        — re-execute a failed run (best-effort — needs workspace context)
-  - `email`            — SMTP email alert (stdlib smtplib, no extra deps)
-  - `teams`            — Microsoft Teams incoming-webhook alert
-  - `opsgenie`         — OpsGenie Alert API
-  - `mattermost`       — Mattermost incoming-webhook alert
-  - `toggle_sensor`    — start / stop a Dagster sensor by name
-  - `toggle_schedule`  — start / stop a Dagster schedule by name
-
-Composition semantics:
-  - Multiple triggers in one automation → OR (any fires it)
-  - Multiple actions in one automation → all run when fired (sequential)
-  - Alert-style actions (slack, pagerduty, discord, webhook) get access to
-    the event context via `{event_type}`, `{run_id}`, `{job_name}`,
-    `{asset_key}`, `{status}`, `{timestamp}`, `{message}` template tokens.
+Prefect-Automations analog on top of real Dagster sensors. Full trigger + action
+catalog, compound AND/OR semantics, and recipes are in the README:
+https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/event_automation/README.md
 """
 
 from __future__ import annotations

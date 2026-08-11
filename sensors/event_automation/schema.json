@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.EventAutomationComponent",
-  "description": "Prefect-Automations-style declarative event → action wiring in one YAML component. 35 trigger types (run_status / asset_materialized / schedule / http_poll / freshness_violation / run_duration / run_stuck / asset_check_failed / metric_threshold / absence / log_pattern / asset_value_change / backfill_status / sensor_failing / concurrency_hit / sqs_poll) fan out to 17 action types (materialize / launch_job / webhook / slack / pagerduty / discord / emit_event / cancel_run / retry_run / email / teams / opsgenie / mattermost / toggle_sensor / toggle_schedule / sns / sqs). Compound triggers (all_of + any_of, one level of nesting) support real AND/OR logic. All under real Dagster sensors — no Python needed for common trigger-action shapes.",
+  "description": "35 declarative triggers → 17 actions in one YAML component. Prefect-Automations analog on top of real Dagster sensors.",
   "category": "sensor",
   "icon": "Bell",
   "x-dagster-io": {

@@ -614,6 +614,22 @@
       },
       "required": true
     },
+    "_throttle_shape": {
+      "type": "object",
+      "description": "Optional throttle config attached to any trigger via `throttle:`.",
+      "properties": {
+        "min_seconds_between_fires": {"type": "integer", "description": "Cooldown between successful fires."},
+        "max_per_hour": {"type": "integer", "description": "Rolling-window hard cap."},
+        "dedup_key_template": {"type": "string", "description": "Templated dedup key for state scoping."},
+        "strategy": {"type": "string", "enum": ["silence", "summarize", "first_last", "llm"], "default": "silence"},
+        "flush_after_seconds": {"type": "integer", "default": 600, "description": "For summarize / first_last: buffer window."},
+        "llm_provider": {"type": "string", "enum": ["openai", "anthropic"], "default": "openai"},
+        "llm_model": {"type": "string", "default": "gpt-4o-mini"},
+        "llm_api_key_env_var": {"type": "string", "default": "OPENAI_API_KEY"},
+        "llm_prompt_template": {"type": "string", "description": "Custom prompt. Tokens: {message}, {recent}, plus standard tokens."},
+        "llm_decision_cache_seconds": {"type": "integer", "default": 60}
+      }
+    },
     "default_status": {
       "type": "string",
       "label": "Default Status",

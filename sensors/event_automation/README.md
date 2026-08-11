@@ -453,6 +453,82 @@ Reads as: **(job_a failed OR job_b failed) AND freshness violated within 1 hour*
 
 **`any_of`** — OR inside a compound. At the top of `when:`, multiple triggers are already OR; use `any_of` only when nested inside `all_of`.
 
+## Throttle / rate-limit / suppression
+
+Every trigger supports an optional `throttle:` block. Keeps sensors from spamming Slack/PagerDuty/webhooks when the same event fires repeatedly.
+
+```yaml
+- type: run_status
+  status: FAILURE
+  throttle:
+    min_seconds_between_fires: 300     # cooldown between successful fires
+    max_per_hour: 4                    # rolling-window cap
+    dedup_key_template: "{job_name}"   # scope per key (default: whole trigger)
+    strategy: silence                  # silence | summarize | first_last | llm
+```
+
+**Fields:**
+
+| Field | Meaning |
+|---|---|
+| `min_seconds_between_fires` | Drop fires that happen within this cooldown of the last fire |
+| `max_per_hour` | Rolling-window hard cap — drop fires that would exceed this in the last hour |
+| `dedup_key_template` | Rendered template becomes the state key. Default: whole trigger (`*`). Use `"{job_name}"`, `"{asset_key}"`, `"{event_type}:{status}"`, etc. |
+| `strategy` | See below |
+| `flush_after_seconds` | For `summarize` / `first_last`: buffer window |
+
+### Strategies
+
+**`silence`** (default) — Simplest: drop fires during cooldown or over the hourly cap.
+
+```yaml
+throttle:
+  min_seconds_between_fires: 300
+  strategy: silence
+```
+
+**`summarize`** — Buffer events during the flush window, then fire ONE summary: `"[N× in the last window] First: <msg> @ ts=X. Last: <msg> @ ts=Y."`
+
+```yaml
+throttle:
+  strategy: summarize
+  flush_after_seconds: 600
+  dedup_key_template: "{job_name}"
+```
+
+**`first_last`** — Fire the first + last of a burst, drop the middle. Good for "started/resolved" pairs.
+
+```yaml
+throttle:
+  strategy: first_last
+  flush_after_seconds: 300
+```
+
+**`llm`** — Ask an LLM to decide YES/NO based on the current alert + recent history for the same dedup key. Falls back to YES (fire) on any API error.
+
+```yaml
+throttle:
+  strategy: llm
+  llm_provider: openai              # openai | anthropic
+  llm_model: gpt-4o-mini
+  llm_api_key_env_var: OPENAI_API_KEY
+  llm_prompt_template: |
+    You are the on-call paging engineer.
+    Alert: {message}
+    Recent alerts: {recent}
+    Should I page? Consider: is it business hours? Is this recurring?
+    Answer 'YES: <reason>' or 'NO: <reason>'.
+  llm_decision_cache_seconds: 60    # cache the YES/NO for this key
+```
+
+The LLM decision is cached briefly per dedup key so a flood of the same event doesn't spam the LLM.
+
+### State semantics
+
+- **State scope**: module-level dict, keyed by `sensor_name:dedup_key`
+- **Persistence**: survives across ticks in the same daemon process, **resets on process restart** — planned + acceptable ("throttle resets after deploy" is defensible semantics)
+- **No cursor conflicts**: throttle state is separate from each sensor's own cursor state
+
 ## Action reference
 
 Every action gets template tokens: `{event_type}`, `{run_id}`, `{job_name}`, `{asset_key}`, `{status}`, `{timestamp}`, `{message}`, `{url}`.

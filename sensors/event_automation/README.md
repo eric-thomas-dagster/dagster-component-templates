@@ -31,7 +31,7 @@ attributes:
 - Compound triggers `all_of` / `any_of` → **AND** / explicit OR with one level of nesting
 - Each trigger emits its own Dagster sensor; all share the same action bundle
 
-## Triggers (11)
+## Triggers (35)
 
 ### State-based
 
@@ -246,6 +246,120 @@ attributes:
 - type: run_startup_slow
   max_startup_seconds: 120         # fire when creation → STARTED > 2min
   job_name: heavy_batch            # optional
+```
+
+### Audit + compliance
+
+**`run_reexecution`** — a run was re-executed (has `parent_run_id` set). Audit trail for retry actions. Optional `job_name` + `strategy` (from_failure / all_steps) filters.
+
+```yaml
+- type: run_reexecution
+  job_name: prod_pipeline
+  strategy: from_failure           # optional
+```
+
+**`config_override`** — a run was launched with non-default `run_config`. Change-tracking + audit workflows.
+
+```yaml
+- type: config_override
+  job_name: prod_pipeline           # optional
+```
+
+**`tag_set`** — a run carries a specific tag key (with optional value or regex). Useful for audit + routing: `env=prod-hotfix`, `priority=P0`, `owner=user123`.
+
+```yaml
+- type: tag_set
+  tag_key: priority
+  tag_value: P0                    # optional exact
+  # tag_value_pattern: "P[0-1]"    # or regex
+```
+
+**`unhandled_exception`** — run-level unhandled exception distinct from step-level errors. Catches infrastructure crashes / OOM kills that terminate the run process before any step-level error is emitted.
+
+```yaml
+- type: unhandled_exception
+  job_name: prod_pipeline           # optional
+```
+
+**`asset_wipe`** — someone deleted materialization history for an asset. Rare + important audit signal.
+
+```yaml
+- type: asset_wipe
+  asset_keys: [customer_revenue]    # optional; omit = any wipe
+```
+
+### Fine-grained event
+
+**`hook_fired`** — a `@success_hook` / `@failure_hook` executed. Distinct from `step_error` — hooks capture success paths too, and are per-op not per-step.
+
+```yaml
+- type: hook_fired
+  hook_name_pattern: ".*prod.*"     # optional regex
+  on_status: FAILURE                # ANY | SUCCESS | FAILURE
+```
+
+**`asset_partition_materialized`** — a specific asset PARTITION was materialized. Distinct from `asset_materialized` — filters to an exact partition key or partition family regex.
+
+```yaml
+- type: asset_partition_materialized
+  asset_keys: [daily_revenue]
+  partition_key: "2024-01-15"       # exact match
+  # partition_key_pattern: "2024-Q1-.*"   # or regex
+```
+
+**`op_output`** — a specific op yielded output (STEP_OUTPUT event). Fine-grained; useful for non-asset op-based workflows.
+
+```yaml
+- type: op_output
+  step_key_pattern: ".*etl.*"
+  output_name: cleaned_data         # optional
+```
+
+**`materialization_planned`** — an `ASSET_MATERIALIZATION_PLANNED` event was emitted (before materialization). Useful for pre-materialization side-effects (warm caches, pre-provision downstream resources).
+
+```yaml
+- type: materialization_planned
+  asset_keys: [expensive_ml_model]
+```
+
+**`asset_check_started`** — an asset check evaluation started. Mirror of `asset_check_failed` but on start. Pair with a timer to alert on "slow check".
+
+```yaml
+- type: asset_check_started
+  check_names: [row_count_positive]
+  asset_keys: [customer_events]     # optional
+```
+
+**`asset_check_severity`** — asset check evaluations at a specific severity level. Variant of `asset_check_failed` with severity filter (WARN vs ERROR) so you can separate handling.
+
+```yaml
+- type: asset_check_severity
+  severity: WARN                    # WARN | ERROR
+  check_names: [null_rate_check]
+```
+
+### Dagster+ integrations
+
+These EXTEND Dagster+ (programmatic reaction via GraphQL) rather than replacing its native alerting UI. Require `DAGSTER_CLOUD_ORGANIZATION` + `DAGSTER_CLOUD_API_TOKEN` env vars.
+
+**`insights_metric`** — a Dagster+ Insights custom metric crossed a threshold. Queries the Dagster+ GraphQL API for the metric's latest value. Once-per-crossing cursor.
+
+```yaml
+- type: insights_metric
+  metric_name: cost_per_run
+  comparison: gt                    # gt | gte | lt | lte | eq | neq
+  threshold: 5.00
+  deployment: prod                  # default: prod
+  org_env_var: DAGSTER_CLOUD_ORGANIZATION
+  token_env_var: DAGSTER_CLOUD_API_TOKEN
+```
+
+**`dagster_plus_audit`** — a Dagster+ audit log event matched a filter. Compliance + security workflows can react programmatically (Slack the security team on prod permission change, log to external SIEM).
+
+```yaml
+- type: dagster_plus_audit
+  event_type_pattern: "permission.*grant|secret.*"  # optional regex
+  actor_pattern: ".*@company.com"                   # optional regex
 ```
 
 ### Composite (AND / OR)

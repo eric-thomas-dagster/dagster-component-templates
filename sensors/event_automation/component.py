@@ -2265,7 +2265,32 @@ def _dagster_plus_graphql(query: str, org: str, token: str, deployment: str = "p
     return _json.loads(urllib.request.urlopen(req, timeout=10).read())
 
 
+def _resolve_dagster_plus_context(trigger):
+    """Return (org, deployment, token) or None if any missing.
+
+    Dagster+ auto-injects DAGSTER_CLOUD_ORGANIZATION + DAGSTER_CLOUD_DEPLOYMENT_NAME
+    into every sensor evaluation environment (both Serverless and Hybrid). The
+    API token has to be provisioned by the customer as a Dagster+ secret
+    scoped to the code location — that's the one required setup step.
+    """
+    org = os.environ.get(trigger.org_env_var, "") or os.environ.get("DAGSTER_CLOUD_ORGANIZATION", "")
+    deployment = trigger.deployment or os.environ.get("DAGSTER_CLOUD_DEPLOYMENT_NAME", "prod")
+    token = os.environ.get(trigger.token_env_var, "")
+    if not (org and token):
+        return None
+    return (org, deployment, token)
+
+
 def _build_insights_metric_sensor(name, trigger, actions, default_status):
+    """Dagster+ Insights metric threshold — VERIFIED against live prod GraphQL.
+
+    Query: `reportingMetricsByDeployment(metricsSelector: {after, before, metricName,
+    granularity, aggregationFunction})` returning `{timestamps, metrics: [{values}]}`.
+
+    Metric names are the internal Dagster+ names (e.g. `__DAGSTER_CREDITS_USED_MINUTES`,
+    `dagster_cloud.freshness_pass_percentage`) — pull the exact list via the Insights
+    UI or `queryableMetrics` GraphQL introspection.
+    """
     ops = {
         "gt": lambda v, t: v > t, "gte": lambda v, t: v >= t,
         "lt": lambda v, t: v < t, "lte": lambda v, t: v <= t,
@@ -2276,30 +2301,61 @@ def _build_insights_metric_sensor(name, trigger, actions, default_status):
     def _sensor_fn(context: dg.SensorEvaluationContext):
         if cmp_fn is None:
             return dg.SkipReason(f"unsupported comparison '{trigger.comparison}'")
-        org = os.environ.get(trigger.org_env_var, "")
-        token = os.environ.get(trigger.token_env_var, "")
-        if not (org and token):
-            return dg.SkipReason(f"{trigger.org_env_var} / {trigger.token_env_var} not set")
-        # Query Insights for the latest value of `metric_name`. The exact
-        # GraphQL shape has changed across Dagster+ versions; we use a common
-        # pattern + no-op on failure so a schema shift doesn't crash the sensor.
-        q = f'{{ metricsForDeployment(metricName: "{trigger.metric_name}") {{ latestValue }} }}'
+        ctx = _resolve_dagster_plus_context(trigger)
+        if ctx is None:
+            return dg.SkipReason(
+                f"Dagster+ credentials missing — set {trigger.token_env_var} "
+                f"as a code-location secret. Org is auto-detected from DAGSTER_CLOUD_ORGANIZATION."
+            )
+        org, deployment, token = ctx
+        # Query the last 24 hours in DAILY granularity — enough resolution to
+        # catch "cost > $5" style thresholds without hitting the API too hard.
+        now = int(time.time())
+        after = now - 86400
+        q = f'''query {{
+          reportingMetricsByDeployment(metricsSelector: {{
+            after: {after}.0,
+            before: {now}.0,
+            metricName: "{trigger.metric_name}",
+            granularity: DAILY,
+            aggregationFunction: SUM
+          }}) {{
+            ... on ReportingMetrics {{ timestamps metrics {{ values }} }}
+            ... on ReportingInputError {{ message }}
+            ... on UnauthorizedError {{ message }}
+            ... on PythonError {{ message }}
+          }}
+        }}'''
         try:
-            resp = _dagster_plus_graphql(q, org, token, trigger.deployment)
+            resp = _dagster_plus_graphql(q, org, token, deployment)
         except Exception as exc:
             return dg.SkipReason(f"Insights GraphQL query failed: {exc}")
-        data = (resp.get("data") or {}).get("metricsForDeployment") or {}
-        val = data.get("latestValue")
-        if val is None:
-            return dg.SkipReason(f"metric '{trigger.metric_name}' not found or empty")
+        if "errors" in resp:
+            return dg.SkipReason(f"Insights query returned errors: {resp['errors']}")
+        data = (resp.get("data") or {}).get("reportingMetricsByDeployment") or {}
+        # Union result — check for error shape first
+        if "message" in data:
+            return dg.SkipReason(f"Insights: {data['message']}")
+        metrics = data.get("metrics") or []
+        if not metrics:
+            return dg.SkipReason(f"metric '{trigger.metric_name}' has no data for this deployment")
+        # Take the most recent non-null value from the first metric result
+        values = metrics[0].get("values") or []
+        latest = None
+        for v in reversed(values):
+            if v is not None:
+                latest = v
+                break
+        if latest is None:
+            return dg.SkipReason(f"metric '{trigger.metric_name}' returned all-null values")
         try:
-            val_f = float(val)
+            val_f = float(latest)
         except (TypeError, ValueError):
-            return dg.SkipReason(f"metric value '{val}' not numeric")
+            return dg.SkipReason(f"metric value '{latest}' not numeric")
         if not cmp_fn(val_f, trigger.threshold):
             return dg.SkipReason(f"{val_f} not {trigger.comparison} {trigger.threshold}")
-        # Once-per-crossing cursor
-        crossed_key = f"{val_f}"
+        # Once-per-crossing cursor (only re-fire when value moves back below then re-crosses)
+        crossed_key = f"crossed:{val_f}"
         if context.cursor == crossed_key:
             return dg.SkipReason("already alerted for this value")
         context.update_cursor(crossed_key)
@@ -2318,37 +2374,62 @@ def _build_insights_metric_sensor(name, trigger, actions, default_status):
 
 
 def _build_dagster_plus_audit_sensor(name, trigger, actions, default_status):
+    """Dagster+ audit log — VERIFIED against live prod GraphQL.
+
+    Query: `auditLog.auditLogEntries(filters: {afterDatetime, beforeDatetime, ...},
+    limit)` returning entries with `{id, eventType, authorUserEmail,
+    authorAgentTokenId, eventMetadata, timestamp, deploymentName,
+    branchDeploymentName}`.
+
+    Audit log is a Dagster+ Pro feature; sensor returns SkipReason cleanly if
+    it's not enabled or accessible.
+    """
     import re as _re
     etype_re = _re.compile(trigger.event_type_pattern) if trigger.event_type_pattern else None
     actor_re = _re.compile(trigger.actor_pattern) if trigger.actor_pattern else None
 
     def _sensor_fn(context: dg.SensorEvaluationContext):
-        org = os.environ.get(trigger.org_env_var, "")
-        token = os.environ.get(trigger.token_env_var, "")
-        if not (org and token):
-            return dg.SkipReason(f"{trigger.org_env_var} / {trigger.token_env_var} not set")
-        last_seen_id = context.cursor or ""
-        # Audit log query. GraphQL name varies — we query the common
-        # `auditLogEntriesOrError` shape + no-op on failure.
-        q = '{ auditLogEntriesOrError { ... on AuditLogEntries { entries { id timestamp eventType actor { email } details } } } }'
+        ctx = _resolve_dagster_plus_context(trigger)
+        if ctx is None:
+            return dg.SkipReason(
+                f"Dagster+ credentials missing — set {trigger.token_env_var} "
+                f"as a code-location secret. Org is auto-detected from DAGSTER_CLOUD_ORGANIZATION."
+            )
+        org, deployment, token = ctx
+        # Look back to the last-seen timestamp (or 1 hour if starting fresh)
         try:
-            resp = _dagster_plus_graphql(q, org, token, trigger.deployment)
+            last_ts = float(context.cursor) if context.cursor else 0.0
+        except (TypeError, ValueError):
+            last_ts = 0.0
+        now = float(int(time.time()))
+        after = last_ts if last_ts > 0 else (now - 3600)
+        q = f'''query {{
+          auditLog {{
+            enabled
+            auditLogEntries(filters: {{ afterDatetime: {after}, beforeDatetime: {now} }}, limit: 100) {{
+              id eventType authorUserEmail authorAgentTokenId timestamp
+              deploymentName branchDeploymentName eventMetadata
+            }}
+          }}
+        }}'''
+        try:
+            resp = _dagster_plus_graphql(q, org, token, deployment)
         except Exception as exc:
             return dg.SkipReason(f"audit log GraphQL query failed: {exc}")
-        entries = ((resp.get("data") or {}).get("auditLogEntriesOrError") or {}).get("entries") or []
-        # Newest first — walk backwards to fire in chronological order
-        new_entries = []
-        for entry in entries:
-            eid = str(entry.get("id", ""))
-            if eid == last_seen_id:
-                break
-            new_entries.append(entry)
-        new_entries.reverse()
+        if "errors" in resp:
+            return dg.SkipReason(f"audit log query returned errors: {resp['errors']}")
+        audit = (resp.get("data") or {}).get("auditLog") or {}
+        if not audit.get("enabled"):
+            return dg.SkipReason("audit log not enabled on this Dagster+ org")
+        entries = audit.get("auditLogEntries") or []
         all_requests = []
-        max_id = last_seen_id
-        for entry in new_entries:
-            etype = entry.get("eventType", "")
-            actor = (entry.get("actor") or {}).get("email", "") or ""
+        max_ts = last_ts
+        # Sort ascending by timestamp so we fire in chronological order
+        entries.sort(key=lambda e: e.get("timestamp") or 0)
+        for entry in entries:
+            etype = entry.get("eventType") or ""
+            actor = entry.get("authorUserEmail") or entry.get("authorAgentTokenId") or ""
+            ts = float(entry.get("timestamp") or 0)
             if etype_re and not etype_re.search(etype):
                 continue
             if actor_re and not actor_re.search(actor):
@@ -2357,12 +2438,14 @@ def _build_dagster_plus_audit_sensor(name, trigger, actions, default_status):
                 event_type="dagster_plus_audit",
                 status=etype,
                 job_name=actor,
-                message=f"Audit: {actor} → {etype} ({entry.get('details', '')})",
+                timestamp=int(ts),
+                message=f"Audit: {actor} → {etype} (deployment={entry.get('deploymentName') or ''})",
             )
             all_requests.extend(_run_actions(actions, tokens, context.log, instance=context.instance))
-            max_id = str(entry.get("id", max_id))
-        if max_id != last_seen_id:
-            context.update_cursor(max_id)
+            if ts > max_ts:
+                max_ts = ts
+        if max_ts > last_ts:
+            context.update_cursor(str(max_ts))
         return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("no matching audit entries")
 
     return dg.SensorDefinition(

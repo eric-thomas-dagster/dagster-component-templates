@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.EventAutomationComponent",
-  "description": "Prefect-Automations-style declarative event → action wiring in one YAML component. 11 trigger types (run_status / asset_materialized / schedule / http_poll / freshness_violation / run_duration / run_stuck / asset_check_failed / metric_threshold / absence / sqs_poll) fan out to 17 action types (materialize / launch_job / webhook / slack / pagerduty / discord / emit_event / cancel_run / retry_run / email / teams / opsgenie / mattermost / toggle_sensor / toggle_schedule / sns / sqs). Compound triggers (all_of + any_of, one level of nesting) support real AND/OR logic. All under real Dagster sensors — no Python needed for common trigger-action shapes.",
+  "description": "Prefect-Automations-style declarative event → action wiring in one YAML component. 16 trigger types (run_status / asset_materialized / schedule / http_poll / freshness_violation / run_duration / run_stuck / asset_check_failed / metric_threshold / absence / log_pattern / asset_value_change / backfill_status / sensor_failing / concurrency_hit / sqs_poll) fan out to 17 action types (materialize / launch_job / webhook / slack / pagerduty / discord / emit_event / cancel_run / retry_run / email / teams / opsgenie / mattermost / toggle_sensor / toggle_schedule / sns / sqs). Compound triggers (all_of + any_of, one level of nesting) support real AND/OR logic. All under real Dagster sensors — no Python needed for common trigger-action shapes.",
   "category": "sensor",
   "icon": "Bell",
   "x-dagster-io": {
@@ -123,6 +123,60 @@
               "minimum_interval_seconds": {"type": "integer", "default": 300}
             },
             "required": ["type", "asset_keys", "max_gap_minutes"]
+          },
+          {
+            "title": "log_pattern — regex match on run log lines",
+            "properties": {
+              "type": {"const": "log_pattern"},
+              "pattern": {"type": "string", "description": "Regex pattern to match against log message text."},
+              "job_name": {"type": "string", "description": "Optional job filter."},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type", "pattern"]
+          },
+          {
+            "title": "asset_value_change — numeric metadata Δ across materializations",
+            "properties": {
+              "type": {"const": "asset_value_change"},
+              "asset_key": {"type": "string"},
+              "metadata_key": {"type": "string", "description": "Numeric metadata key to compare across materializations."},
+              "direction": {"type": "string", "enum": ["any", "increase", "decrease"], "default": "any"},
+              "min_delta": {"type": "number", "description": "Absolute delta threshold."},
+              "min_delta_pct": {"type": "number", "description": "Percentage delta threshold (0-100). Fires when |Δ|/prev > this."},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type", "asset_key", "metadata_key"]
+          },
+          {
+            "title": "backfill_status — partition backfill entered a state",
+            "properties": {
+              "type": {"const": "backfill_status"},
+              "status": {"type": "string", "enum": ["COMPLETED", "FAILED", "CANCELED", "REQUESTED"]},
+              "job_name": {"type": "string", "description": "Optional job filter."},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type", "status"]
+          },
+          {
+            "title": "sensor_failing — target sensor has failed N consecutive ticks",
+            "properties": {
+              "type": {"const": "sensor_failing"},
+              "target_sensor_name": {"type": "string", "description": "Name of the sensor to monitor."},
+              "consecutive_failures": {"type": "integer", "default": 3, "description": "Number of consecutive failures to fire on."},
+              "minimum_interval_seconds": {"type": "integer", "default": 120}
+            },
+            "required": ["type", "target_sensor_name"]
+          },
+          {
+            "title": "concurrency_hit — active-run count exceeded threshold",
+            "properties": {
+              "type": {"const": "concurrency_hit"},
+              "max_queued": {"type": "integer", "description": "Fire when queued+running count > this."},
+              "tag_key": {"type": "string", "description": "Optional tag filter."},
+              "tag_value": {"type": "string", "description": "Optional tag value filter."},
+              "minimum_interval_seconds": {"type": "integer", "default": 60}
+            },
+            "required": ["type", "max_queued"]
           },
           {
             "title": "sqs_poll — poll an AWS SQS queue for messages",

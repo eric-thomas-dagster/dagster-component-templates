@@ -2,7 +2,7 @@
 
 Prefect-Automations-style declarative event → action wiring in one YAML component. Each `when: … then: …` block becomes a real Dagster sensor under the covers; no Python needed for common trigger-action shapes.
 
-**Surface: 11 trigger types + 17 action types + AND/OR compound composition (one level of nesting).**
+**Surface: 16 trigger types + 17 action types + AND/OR compound composition (one level of nesting).**
 
 ## Why
 
@@ -139,6 +139,52 @@ attributes:
   metadata_key: row_count
   comparison: lt              # gt | gte | lt | lte | eq | neq
   threshold: 100
+```
+
+**`asset_value_change`** — numeric metadata Δ between two consecutive materializations. Direction filter (`increase` / `decrease` / `any`), absolute delta OR percentage delta.
+
+```yaml
+- type: asset_value_change
+  asset_key: hourly_summary
+  metadata_key: row_count
+  direction: decrease            # any | increase | decrease
+  min_delta_pct: 25              # fires when |Δ|/prev > 25%
+  # min_delta: 500               # absolute alternative
+```
+
+**`log_pattern`** — regex match on run log lines. Catches issues that a raw run_status doesn't (runs that "succeed" with warnings, OOMs, or specific stack traces).
+
+```yaml
+- type: log_pattern
+  pattern: "OOMKilled|OutOfMemoryError|MemoryError"
+  job_name: prod_ingest           # optional
+```
+
+### Reliability / meta
+
+**`backfill_status`** — a partition backfill entered a state.
+
+```yaml
+- type: backfill_status
+  status: FAILED                  # COMPLETED | FAILED | CANCELED | REQUESTED
+  job_name: daily_ingest          # optional
+```
+
+**`sensor_failing`** — a target sensor has been failing N consecutive ticks (meta-observability for broken sensors).
+
+```yaml
+- type: sensor_failing
+  target_sensor_name: kafka_ingest_sensor
+  consecutive_failures: 5
+```
+
+**`concurrency_hit`** — queued+running run count exceeded a threshold. Optional tag filter.
+
+```yaml
+- type: concurrency_hit
+  max_queued: 50
+  tag_key: dagster/job            # optional
+  tag_value: heavy_batch          # optional
 ```
 
 ### Composite (AND / OR)
@@ -410,6 +456,84 @@ then:
     api_key_env_var: OPSGENIE_KEY
     priority: P1
     message_template: "Multi-signal outage: {message}"
+```
+
+### OOM detection via log_pattern
+
+```yaml
+name: oom_alert
+when:
+  - type: log_pattern
+    pattern: "OOMKilled|OutOfMemoryError|Killed process"
+then:
+  - type: pagerduty
+    routing_key_env_var: PD_KEY
+    severity: error
+    summary_template: "OOM in {job_name} (run {run_id})"
+```
+
+### Traffic drop detection via asset_value_change
+
+```yaml
+name: revenue_drop_alert
+when:
+  - type: asset_value_change
+    asset_key: daily_revenue
+    metadata_key: total
+    direction: decrease
+    min_delta_pct: 20                # fires on 20%+ drop
+then:
+  - type: slack
+    webhook_url_env_var: SLACK_URL
+    message: "📉 Revenue dropped: {message}"
+```
+
+### Failed backfill → OpsGenie
+
+```yaml
+name: backfill_failure_alert
+when:
+  - type: backfill_status
+    status: FAILED
+then:
+  - type: opsgenie
+    api_key_env_var: OPSGENIE_KEY
+    priority: P2
+    message_template: "Backfill {run_id} failed: {message}"
+```
+
+### Broken-sensor detection (meta-observability)
+
+```yaml
+name: watch_ingest_sensor
+when:
+  - type: sensor_failing
+    target_sensor_name: kafka_ingest_sensor
+    consecutive_failures: 5
+then:
+  - type: pagerduty
+    routing_key_env_var: PD_KEY
+    severity: warning
+    summary_template: "kafka_ingest_sensor failing 5 ticks — check daemon logs"
+```
+
+### Concurrency-hit → cancel + alert
+
+```yaml
+name: overload_guardrail
+when:
+  - type: concurrency_hit
+    max_queued: 100
+    tag_key: dagster/job
+    tag_value: heavy_batch
+then:
+  - type: cancel_run
+    which: all_matching
+    job_name_filter: heavy_batch
+  - type: opsgenie
+    api_key_env_var: OPSGENIE_KEY
+    priority: P1
+    message_template: "Queue overloaded: {message}"
 ```
 
 ### External queue → Dagster runs (AWS)

@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-08-07",
+  "last_updated": "2026-08-11",
   "components": [
     {
       "id": "ab_controls",
@@ -13340,6 +13340,57 @@
       "produces": [
         "asset",
         "asset_check"
+      ]
+    },
+    {
+      "id": "event_automation",
+      "name": "Event Automation",
+      "category": "sensor",
+      "description": "Prefect-Automations-style declarative event \u2192 action wiring in one YAML component. Triggers (run_status / asset_materialized / schedule / http_poll / freshness_violation) fan out to actions (materialize / launch_job / webhook / slack / pagerduty / discord / emit_event). All under real Dagster sensors; no Python needed for common trigger-action wiring.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/event_automation",
+      "tags": [
+        "automation",
+        "alerts",
+        "sensors",
+        "prefect-parity"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests",
+          "croniter"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/event_automation/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/event_automation/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/event_automation/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/event_automation/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/event_automation/requirements.txt",
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/event_automation.md",
+        "last_validated": "2026-08-11"
+      },
+      "agent_hints": {
+        "when_to_use": "User wants a single YAML surface to wire event triggers (run failures, materializations, cron, HTTP polls, freshness violations) to actions (materialize/launch_job/webhook/slack/pagerduty/discord). Prefect-Automations analog for Dagster. Use when the customer explicitly needs no-code alerting on failure, or is migrating Prefect automations.",
+        "typical_upstream": "Any Dagster job or asset that emits run-status events / materializations. Or an external HTTP endpoint (for http_poll triggers).",
+        "typical_downstream": "Slack / PagerDuty / Discord channels for alerting shapes. Dagster jobs / assets for the launch_job + materialize action shapes. Webhook receivers for arbitrary integrations.",
+        "outputs": "One Dagster sensor per non-schedule trigger. Sensors fire the configured actions when triggered.",
+        "requires_pip": [
+          "requests",
+          "croniter"
+        ],
+        "example_prompts": [
+          "alert Slack when my prod job fails",
+          "PagerDuty on freshness violation for hourly_summary",
+          "kick off cleanup job when raw_data materializes",
+          "cron-driven heartbeat that hits a webhook",
+          "migrate my Prefect automations to Dagster"
+        ]
+      },
+      "produces": [
+        "sensor"
       ]
     },
     {

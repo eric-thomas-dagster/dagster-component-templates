@@ -327,6 +327,7 @@ _CLASS_PATHS: dict[str, str] = {
     "EnhancedDataQualityChecks": "asset_checks/enhanced_data_quality_checks/component.py",
     "EntityExtractorComponent": "assets/ai/entity_extractor/component.py",
     "EtsForecastComponent": "assets/transforms/ets_forecast/component.py",
+    "EventAutomationComponent": "sensors/event_automation/component.py",
     "EventDataStandardizerComponent": "assets/analytics/event_data_standardizer/component.py",
     "EventHubsMonitorSensorComponent": "sensors/eventhubs_monitor/component.py",
     "EventHubsObservationSensorComponent": "observations/eventhubs_observation_sensor/component.py",

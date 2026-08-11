@@ -1,0 +1,18 @@
+type: dagster_community_components.EventAutomationComponent
+attributes:
+  name: alert_on_prod_failure
+  description: "Slack + PagerDuty on any run failure of the hourly_ingest job."
+  default_status: RUNNING
+  when:
+    - type: run_status
+      status: FAILURE
+      job_name: hourly_ingest
+  then:
+    - type: slack
+      webhook_url_env_var: SLACK_WEBHOOK_URL
+      message: "🚨 Prod failure on {job_name} (run_id={run_id})"
+    - type: pagerduty
+      routing_key_env_var: PAGERDUTY_ROUTING_KEY
+      severity: error
+      summary_template: "Prod job {job_name} failed"
+      dedup_key_template: "prod-failure:{job_name}"

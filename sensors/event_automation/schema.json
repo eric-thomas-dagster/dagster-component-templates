@@ -1,0 +1,175 @@
+{
+  "component_type": "dagster_component_templates.EventAutomationComponent",
+  "description": "Prefect-Automations-style declarative event → action wiring in one YAML component. Triggers (run_status / asset_materialized / schedule / http_poll / freshness_violation) fan out to actions (materialize / launch_job / webhook / slack / pagerduty / discord). All under real Dagster sensors + schedules; no Python needed for common trigger-action shapes.",
+  "category": "sensor",
+  "icon": "Bell",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "Sensor + Schedule",
+      "description": "One Dagster sensor per non-schedule trigger, one Dagster schedule per schedule trigger, all calling the same action bundle when they fire."
+    }
+  },
+  "attributes": {
+    "name": {
+      "type": "string",
+      "label": "Automation Name",
+      "description": "Automation name — prefix for generated sensor / schedule names.",
+      "required": true
+    },
+    "when": {
+      "type": "array",
+      "label": "Triggers",
+      "description": "Triggers that fire the automation. OR semantics — any fires it. Each element is one of: run_status, asset_materialized, schedule, http_poll, freshness_violation. Discriminator: `type`.",
+      "items": {
+        "type": "object",
+        "oneOf": [
+          {
+            "title": "run_status",
+            "properties": {
+              "type": {"const": "run_status"},
+              "status": {"type": "string", "enum": ["SUCCESS", "FAILURE", "CANCELED", "STARTED"]},
+              "job_name": {"type": "string", "description": "Optional job filter."}
+            },
+            "required": ["type", "status"]
+          },
+          {
+            "title": "asset_materialized",
+            "properties": {
+              "type": {"const": "asset_materialized"},
+              "asset_keys": {"type": "array", "items": {"type": "string"}}
+            },
+            "required": ["type", "asset_keys"]
+          },
+          {
+            "title": "schedule",
+            "properties": {
+              "type": {"const": "schedule"},
+              "cron": {"type": "string"},
+              "execution_timezone": {"type": "string", "default": "UTC"}
+            },
+            "required": ["type", "cron"]
+          },
+          {
+            "title": "http_poll",
+            "properties": {
+              "type": {"const": "http_poll"},
+              "url": {"type": "string"},
+              "method": {"type": "string", "default": "GET"},
+              "headers": {"type": "object"},
+              "minimum_interval_seconds": {"type": "integer", "default": 60, "minimum": 10},
+              "condition": {"type": "string", "enum": ["response_changed", "status_ok", "json_path_present"], "default": "response_changed"},
+              "json_path": {"type": "string"}
+            },
+            "required": ["type", "url"]
+          },
+          {
+            "title": "freshness_violation",
+            "properties": {
+              "type": {"const": "freshness_violation"},
+              "asset_keys": {"type": "array", "items": {"type": "string"}},
+              "max_age_minutes": {"type": "integer"},
+              "minimum_interval_seconds": {"type": "integer", "default": 300, "minimum": 60}
+            },
+            "required": ["type", "asset_keys", "max_age_minutes"]
+          }
+        ]
+      },
+      "required": true
+    },
+    "then": {
+      "type": "array",
+      "label": "Actions",
+      "description": "Actions to run when a trigger fires. All run, sequentially. Each element is one of: materialize, launch_job, webhook, slack, pagerduty, discord, emit_event. Discriminator: `type`.",
+      "items": {
+        "type": "object",
+        "oneOf": [
+          {
+            "title": "materialize",
+            "properties": {
+              "type": {"const": "materialize"},
+              "asset_keys": {"type": "array", "items": {"type": "string"}},
+              "partition_key": {"type": "string"}
+            },
+            "required": ["type", "asset_keys"]
+          },
+          {
+            "title": "launch_job",
+            "properties": {
+              "type": {"const": "launch_job"},
+              "job_name": {"type": "string"},
+              "tags": {"type": "object"}
+            },
+            "required": ["type", "job_name"]
+          },
+          {
+            "title": "webhook",
+            "properties": {
+              "type": {"const": "webhook"},
+              "url": {"type": "string"},
+              "method": {"type": "string", "default": "POST"},
+              "headers": {"type": "object"},
+              "body_template": {"type": "string"},
+              "timeout_seconds": {"type": "integer", "default": 15}
+            },
+            "required": ["type", "url"]
+          },
+          {
+            "title": "slack",
+            "properties": {
+              "type": {"const": "slack"},
+              "webhook_url_env_var": {"type": "string"},
+              "channel": {"type": "string"},
+              "message": {"type": "string", "default": "Dagster automation fired: {event_type} {job_name} {status}"},
+              "username": {"type": "string"},
+              "icon_emoji": {"type": "string"}
+            },
+            "required": ["type", "webhook_url_env_var"]
+          },
+          {
+            "title": "pagerduty",
+            "properties": {
+              "type": {"const": "pagerduty"},
+              "routing_key_env_var": {"type": "string"},
+              "severity": {"type": "string", "enum": ["critical", "error", "warning", "info"], "default": "error"},
+              "summary_template": {"type": "string"},
+              "dedup_key_template": {"type": "string"},
+              "event_action": {"type": "string", "enum": ["trigger", "acknowledge", "resolve"], "default": "trigger"}
+            },
+            "required": ["type", "routing_key_env_var"]
+          },
+          {
+            "title": "discord",
+            "properties": {
+              "type": {"const": "discord"},
+              "webhook_url_env_var": {"type": "string"},
+              "message": {"type": "string", "default": "Dagster automation fired: {event_type} {job_name} {status}"}
+            },
+            "required": ["type", "webhook_url_env_var"]
+          },
+          {
+            "title": "emit_event",
+            "properties": {
+              "type": {"const": "emit_event"},
+              "asset_key": {"type": "string"},
+              "metadata_template": {"type": "object"}
+            },
+            "required": ["type", "asset_key"]
+          }
+        ]
+      },
+      "required": true
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "RUNNING | STOPPED for the generated sensors / schedules.",
+      "enum": ["RUNNING", "STOPPED"],
+      "default": "STOPPED"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Free-form description shown in the UI."
+    }
+  }
+}

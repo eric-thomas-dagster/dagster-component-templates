@@ -6,11 +6,69 @@ Prefect-Automations-style declarative event → action wiring in one YAML compon
 
 ## Triggers (35)
 
-`run_status` · `asset_materialized` · `schedule` · `http_poll` · `freshness_violation` · `run_duration` · `run_stuck` · `asset_check_failed` · `metric_threshold` · `absence` · `log_pattern` · `daemon_heartbeat` · `code_location_status` · `run_startup_slow` · `asset_observation` · `step_error` · `metadata_match` · `asset_value_change` · `backfill_status` · `sensor_failing` · `concurrency_hit` · `hook_fired` · `asset_partition_materialized` · `run_reexecution` · `asset_wipe` · `config_override` · `tag_set` · `unhandled_exception` · `asset_check_severity` · `op_output` · `materialization_planned` · `asset_check_started` · `insights_metric` (Dagster+) · `dagster_plus_audit` (Dagster+) · `sqs_poll` · `all_of` (compound) · `any_of` (compound)
+| Type | Fires on |
+|---|---|
+| `run_status` | Any run finishing with `SUCCESS/FAILURE/CANCELED/STARTED` |
+| `asset_materialized` | Named assets get materialized |
+| `schedule` | Cron (schedule → sensor with cron gating) |
+| `http_poll` | Poll a URL; fires on response change, HTTP 2xx, or JSON path non-empty |
+| `freshness_violation` | Asset stale beyond `max_age_minutes` (ongoing DQ) |
+| `run_duration` | Run finished + duration > threshold (slow-run detector) |
+| `run_stuck` | Active run running > threshold (once-per-run guard) |
+| `asset_check_failed` | Named asset check evaluated FAILURE |
+| `metric_threshold` | Numeric metadata crossed a threshold (gt/gte/lt/lte/eq/neq) |
+| `absence` | Dead-man's switch: no materialization in `max_gap_minutes` |
+| `log_pattern` | Regex match on run log lines (events / stdout / stderr — covers K8s / ECS container output) |
+| `daemon_heartbeat` | Dagster daemon / Dagster+ agent stopped heartbeating |
+| `code_location_status` | Code location failed to load / stuck loading / errored |
+| `run_startup_slow` | Run took too long from creation to STARTED (compute spinup) |
+| `asset_observation` | AssetObservation event emitted (distinct from materialization) |
+| `step_error` | Op step raised an exception (step-level, not run-level; fires N times per multi-error run) |
+| `metadata_match` | Materialization/observation carries specific metadata key=value (or key/regex) |
+| `asset_value_change` | Numeric metadata Δ across two consecutive materializations |
+| `backfill_status` | Partition backfill entered a state (COMPLETED/FAILED/CANCELED/REQUESTED) |
+| `sensor_failing` | Target sensor failed N consecutive ticks (meta-observability) |
+| `concurrency_hit` | Active-run count > threshold, optional tag filter |
+| `hook_fired` | `@success_hook` / `@failure_hook` executed (per-op, distinct from step_error) |
+| `asset_partition_materialized` | Specific asset **partition** materialized (partition_key or partition_key_pattern) |
+| `run_reexecution` | Run was re-executed (retry audit trail) |
+| `asset_wipe` | Materialization history wiped (destructive audit) |
+| `config_override` | Run launched with non-default config (change-tracking) |
+| `tag_set` | Run carries specific tag key/value (audit + routing) |
+| `unhandled_exception` | Run-level unhandled exception (infra crash, distinct from step_error) |
+| `asset_check_severity` | Asset check at WARN vs ERROR (separates severity handling) |
+| `op_output` | Specific op yielded output (STEP_OUTPUT event) |
+| `materialization_planned` | Pre-materialization event (warm caches, pre-provision downstream) |
+| `asset_check_started` | Asset check evaluation started (pair with timer for "slow check" alerts) |
+| `insights_metric` | **Dagster+ only.** Insights custom metric crossed threshold via GraphQL |
+| `dagster_plus_audit` | **Dagster+ only.** Audit log event (RBAC, config, secrets) via GraphQL |
+| `sqs_poll` | Poll an AWS SQS queue, fire per message |
+| `all_of` | AND compound (all sub-triggers fire within `within_seconds`) |
+| `any_of` | OR compound (nested inside `all_of` only) |
 
 ## Actions (17)
 
-`materialize` · `launch_job` · `cancel_run` · `retry_run` · `toggle_sensor` · `toggle_schedule` · `webhook` · `slack` · `pagerduty` · `opsgenie` · `discord` · `teams` · `mattermost` · `email` · `sns` · `sqs` · `emit_event`
+| Type | Effect |
+|---|---|
+| `materialize` | Launch a materialization run |
+| `launch_job` | Launch a job |
+| `cancel_run` | Terminate a run (`instance.run_launcher.terminate`) |
+| `retry_run` | Re-execute a failed run |
+| `toggle_sensor` | Start/stop a sensor by name |
+| `toggle_schedule` | Start/stop a schedule by name |
+| `webhook` | Arbitrary HTTP call with templated body |
+| `slack` | Slack incoming-webhook alert |
+| `pagerduty` | PagerDuty Events API v2 |
+| `opsgenie` | OpsGenie Alerts API |
+| `discord` | Discord webhook alert |
+| `teams` | Microsoft Teams webhook |
+| `mattermost` | Mattermost webhook |
+| `email` | SMTP alert (stdlib smtplib) |
+| `sns` | Publish to AWS SNS topic |
+| `sqs` | Send to AWS SQS queue |
+| `emit_event` | Log emission for downstream sensor chaining |
+
+**Template tokens available in every action:** `{event_type}`, `{run_id}`, `{job_name}`, `{asset_key}`, `{status}`, `{timestamp}`, `{message}`, `{url}`.
 
 ## Why
 

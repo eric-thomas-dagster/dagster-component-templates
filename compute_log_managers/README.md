@@ -123,11 +123,13 @@ But this is optional — the standalone copy-paste path above is the recommended
 
 ### Making a custom CLM available to the agent image (Dagster+ Hybrid)
 
-Two paths:
+Three paths, from leanest to easiest:
 
-1. **Package it and pip-install into both images (recommended for teams).** Wrap the two files in a tiny local `pyproject.toml`, publish to your internal PyPI (or install from a git URL), and `pip install <your-clm-package>` in both your code-location image AND a custom agent image built from `dagster/dagster-cloud-agent`. Two images to update, one source of truth. Helm-managed agents can pin the pip install via the agent's `extraPipInstalls` / equivalent values.
+1. **Bake the two files directly into a custom agent image (leanest).** Start from `dagster/dagster-cloud-agent`, `COPY` your two CLM files onto its Python path in the Dockerfile, install any runtime deps (`requests` for splunk/otlp), deploy that image as your agent. Zero extra Python packages installed; just the ~600-line file itself. Recommended when you want to keep the agent image slim.
 
-2. **Bake the files directly into a custom agent image.** Start from `dagster/dagster-cloud-agent`, `COPY` your two CLM files onto its Python path in the Dockerfile, deploy that image as your agent. Simpler than pip-packaging if you're already customizing your agent image for other reasons.
+2. **Package the two files as a tiny local pip package and install into both images.** Wrap them in a minimal `pyproject.toml` (deps: `dagster`, `requests`), publish to your internal PyPI (or install from a git URL), and `pip install <your-clm-package>` in both your code-location image AND a custom agent image built from `dagster/dagster-cloud-agent`. Helm-managed agents can pin the install via the agent's `extraPipInstalls` / equivalent values. Recommended when a team already has an internal-PyPI pattern.
+
+3. **`pip install dagster-community-components` into both images.** Simplest one-line change — the CLM class is available under `dagster_community_components.compute_log_managers.splunk` (or `.otlp` / `.tee`) with no image-Dockerfile edits beyond the pip line. **The tradeoff is footprint**: this package pulls in dependencies for every component in the registry (dataframe transforms, ~950 assets/sinks/integrations, LLM adapters, etc.) — a lot of surface area to install and audit for one compute log manager. Fine if you're already using other community components, wasteful otherwise.
 
 **Alternative: skip the custom CLM entirely with `show_url_only: true`.** The shipped `dagster_aws.s3.S3ComputeLogManager` / `dagster_azure.blob.AzureBlobComputeLogManager` / `dagster_gcp.gcs.GCSComputeLogManager` accept `show_url_only: true` — Dagster+ never sees log contents, the run page just links out to the object in your bucket. This is a **Helm-values-only change** and needs no image work at all. Good when compliance / retention is the goal and a link-out UI is acceptable. Reach for Tee when you want *both* the bucket copy AND the Dagster+ inline log viewer.
 

@@ -419,12 +419,15 @@
             "required": ["type"]
           },
           {
-            "title": "insights_metric — Dagster+ Insights custom metric crossed threshold",
+            "title": "insights_metric — Dagster+ Insights time-window aggregate crossed threshold",
             "properties": {
               "type": {"const": "insights_metric"},
               "metric_name": {"type": "string", "description": "Dagster+ Insights metric name."},
               "comparison": {"type": "string", "enum": ["gt", "gte", "lt", "lte", "eq", "neq"]},
               "threshold": {"type": "number"},
+              "granularity": {"type": "string", "enum": ["HOURLY", "DAILY", "WEEKLY", "MONTHLY"], "default": "DAILY", "description": "Time bucket size."},
+              "aggregation": {"type": "string", "enum": ["SUM", "AVERAGE", "MIN", "MAX"], "default": "SUM", "description": "How values within a bucket combine."},
+              "lookback_hours": {"type": "integer", "default": 24, "description": "Hours of history to fetch."},
               "deployment": {"type": "string", "default": "prod"},
               "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
               "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},

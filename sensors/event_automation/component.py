@@ -860,15 +860,24 @@ class AssetCheckStartedTrigger(_TriggerBase):
 
 
 class InsightsMetricThresholdTrigger(_TriggerBase):
-    """Dagster+ only. Fires when a Dagster+ Insights custom metric crosses a threshold.
+    """Dagster+ only. Fires when a time-window-aggregated Insights metric crosses a threshold.
 
-    Queries the Dagster+ GraphQL API for the named metric's most-recent value
-    and fires when it satisfies the comparison. EXTENDS Dagster+ (programmatic
-    reaction) rather than replacing its native alerting UI.
+    Differentiated from `metric_threshold`: `metric_threshold` reads a single
+    materialization event's metadata and fires on that per-event value. This
+    trigger queries Dagster+ Insights (Victoria Metrics under the hood) for
+    a *time-window aggregate* — so you can alert on trend shape rather than
+    single-event crossings:
+
+      - "Daily AVG of row_count over the last 7 days dropped below 100"
+      - "Weekly SUM of Snowflake credits used exceeded 1000"
+      - "Hourly MAX of run duration crossed 300 seconds"
+
+    Also the right entry point for platform-computed metrics that don't exist
+    as raw materialization metadata: run counts, credit spend, storage bytes,
+    freshness pass %, etc.
 
     Requires:
-      - DAGSTER_CLOUD_ORGANIZATION env var (or the org config the daemon
-        uses to talk to the control plane)
+      - DAGSTER_CLOUD_ORGANIZATION env var (auto-injected in Dagster+ runtime)
       - DAGSTER_CLOUD_API_TOKEN env var with metrics-read permission
       - Deployment name (defaults to prod)
     """
@@ -876,6 +885,21 @@ class InsightsMetricThresholdTrigger(_TriggerBase):
     metric_name: str = Field(description="Dagster+ Insights metric name (custom or built-in).")
     comparison: str = Field(description="gt | gte | lt | lte | eq | neq")
     threshold: float = Field()
+    granularity: str = Field(
+        default="DAILY",
+        description="HOURLY | DAILY | WEEKLY | MONTHLY — the bucket size Victoria Metrics aggregates into.",
+    )
+    aggregation: str = Field(
+        default="SUM",
+        description=(
+            "SUM | AVERAGE | MIN | MAX — how values within a bucket are combined. "
+            "For 'trend shape' use AVERAGE; for 'total this window' use SUM."
+        ),
+    )
+    lookback_hours: int = Field(
+        default=24,
+        description="How many hours of history to fetch. Tune to your granularity (24 for HOURLY, 168 for DAILY, etc.).",
+    )
     deployment: str = Field(default="prod")
     org_env_var: str = Field(default="DAGSTER_CLOUD_ORGANIZATION")
     token_env_var: str = Field(default="DAGSTER_CLOUD_API_TOKEN")
@@ -3223,17 +3247,18 @@ def _build_insights_metric_sensor(name, trigger, actions, default_status):
                 f"as a code-location secret. Org is auto-detected from DAGSTER_CLOUD_ORGANIZATION."
             )
         org, deployment, token = ctx
-        # Query the last 24 hours in DAILY granularity — enough resolution to
-        # catch "cost > $5" style thresholds without hitting the API too hard.
+        # User-configured granularity + aggregation + lookback — the whole
+        # point of this trigger vs metric_threshold is time-window aggregate
+        # comparison via Insights (Victoria Metrics under the hood).
         now = int(time.time())
-        after = now - 86400
+        after = now - max(1, trigger.lookback_hours) * 3600
         q = f'''query {{
           reportingMetricsByDeployment(metricsSelector: {{
             after: {after}.0,
             before: {now}.0,
             metricName: "{trigger.metric_name}",
-            granularity: DAILY,
-            aggregationFunction: SUM
+            granularity: {trigger.granularity},
+            aggregationFunction: {trigger.aggregation}
           }}) {{
             ... on ReportingMetrics {{ timestamps metrics {{ values }} }}
             ... on ReportingInputError {{ message }}
@@ -3349,12 +3374,18 @@ def _build_dagster_plus_audit_sensor(name, trigger, actions, default_status):
                 continue
             if actor_re and not actor_re.search(actor):
                 continue
+            deployment_name = entry.get("deploymentName") or ""
             tokens = _default_tokens(
                 event_type="dagster_plus_audit",
+                # Dedicated audit tokens (natural naming for templates)
+                audit_event_type=etype,
+                actor=actor,
+                deployment=deployment_name,
+                # Legacy token-squatting kept for backward compat
                 status=etype,
                 job_name=actor,
                 timestamp=int(ts),
-                message=f"Audit: {actor} → {etype} (deployment={entry.get('deploymentName') or ''})",
+                message=f"Audit: {actor} → {etype} (deployment={deployment_name})",
             )
             all_requests.extend(_run_actions(actions, tokens, context.log, instance=context.instance, throttle=trigger.throttle, sensor_name=name))
             if ts > max_ts:

@@ -527,25 +527,31 @@ Emits `{partition_key}` (the whole key) plus `{partition_<dim>}` tokens (e.g. `{
 
 These EXTEND Dagster+ (programmatic reaction via GraphQL) rather than replacing its native alerting UI. Require `DAGSTER_CLOUD_ORGANIZATION` + `DAGSTER_CLOUD_API_TOKEN` env vars.
 
-**`insights_metric`** — a Dagster+ Insights custom metric crossed a threshold. Queries the Dagster+ GraphQL API for the metric's latest value. Once-per-crossing cursor.
+**`insights_metric`** — a Dagster+ Insights **time-window aggregate** crossed a threshold. Distinct from `metric_threshold`, which fires on a single materialization's raw metadata. This queries Dagster+ Insights (Victoria Metrics under the hood) for aggregations over a configurable time window — so you can alert on trend shape ("weekly average", "daily p95") rather than single-event crossings. Also the entry point for platform-computed metrics that don't exist as raw materialization metadata (credit spend, run duration aggregates, freshness pass %).
 
 ```yaml
 - type: insights_metric
-  metric_name: cost_per_run
-  comparison: gt                    # gt | gte | lt | lte | eq | neq
-  threshold: 5.00
-  deployment: prod                  # default: prod
+  metric_name: hourly_summary.row_count   # promoted via Insights UI, or Dagster+ built-in
+  comparison: lt                          # gt | gte | lt | lte | eq | neq
+  threshold: 100
+  granularity: DAILY                      # HOURLY | DAILY | WEEKLY | MONTHLY (Victoria Metrics bucket)
+  aggregation: AVERAGE                    # SUM | AVERAGE | MIN | MAX (how bucket values combine)
+  lookback_hours: 168                     # how many hours of history to fetch (168 = 7 days)
+  deployment: prod                        # default: prod
   org_env_var: DAGSTER_CLOUD_ORGANIZATION
   token_env_var: DAGSTER_CLOUD_API_TOKEN
 ```
 
-**`dagster_plus_audit`** — a Dagster+ audit log event matched a filter. Compliance + security workflows can react programmatically (Slack the security team on prod permission change, log to external SIEM).
+**`dagster_plus_audit`** — a Dagster+ audit log event matched a filter. Dagster+ Alerts doesn't cover audit-log events, so this is the programmatic hook: SOC2 / SIEM feeds, security-team Slack on prod RBAC changes, secret-rotation notifications, config-change tracking.
 
 ```yaml
 - type: dagster_plus_audit
-  event_type_pattern: "permission.*grant|secret.*"  # optional regex
-  actor_pattern: ".*@company.com"                   # optional regex
+  event_type_pattern: "permission.*grant|role.*change"   # optional regex on audit event type
+  actor_pattern: ".*@company.com"                        # optional regex on actor email
+  deployment: prod                                       # default: prod
 ```
+
+Emits dedicated tokens: `{audit_event_type}` (e.g. `permission.grant`), `{actor}` (the user email or agent token id that took the action), `{deployment}` (which deployment the event happened in) — plus the standard token surface. Handy for SIEM webhooks that need structured fields.
 
 ### Composite (AND / OR)
 

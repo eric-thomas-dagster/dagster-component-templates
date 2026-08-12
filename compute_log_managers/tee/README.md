@@ -106,6 +106,54 @@ compute_logs:
 
 Per step in the Dagster UI: "View logs in Splunk →" button (Splunk is index 0). Logs are ALSO uploaded to Dagster+'s storage so the inline UI viewer works against the Dagster+-cached copy.
 
+## Example — your own object storage + Dagster+ (recover the inline UI viewer)
+
+**The problem this solves.** If you configure `dagster.yaml` with only your own object storage (Azure Blob / S3 / GCS), the Dagster+ UI can only surface a *link* to the external storage — the inline log viewer stops working, because Dagster+ has no cached copy to render. That's a real regression in developer experience: every "look at this run's logs" click becomes a redirect + auth prompt + external tab.
+
+**Tee fixes this cleanly.** Configure one Tee that writes to both your object storage (for long-term retention / compliance / your own SIEM ingest) AND Dagster+'s managed storage (for the inline UI viewer + fast dev iteration). Same log, two destinations, and the UI viewer stays first-class.
+
+Azure Blob + Dagster+:
+
+```yaml
+compute_logs:
+  module: <your_pkg>.compute_log_managers.tee
+  class: TeeComputeLogManager
+  config:
+    local_dir: /tmp/dagster_compute_logs
+    display_manager_index: 1              # let Dagster+ own the display URL — inline viewer works
+    managers:
+      - module: dagster_azure.blob.compute_log_manager
+        class: AzureBlobComputeLogManager
+        config:
+          storage_account: myacme
+          container: dagster-compute-logs
+          secret_credential: {env: AZURE_STORAGE_KEY}
+          prefix: prod/
+      - module: dagster_cloud.storage.compute_logs
+        class: CloudComputeLogManager
+        config: {}
+```
+
+Same shape for S3 or GCS — just swap the first inner manager:
+
+```yaml
+# S3 variant — first inner is:
+      - module: dagster_aws.s3.compute_log_manager
+        class: S3ComputeLogManager
+        config:
+          bucket: dagster-compute-logs
+          prefix: prod/
+
+# GCS variant — first inner is:
+      - module: dagster_gcp.gcs.compute_log_manager
+        class: GCSComputeLogManager
+        config:
+          bucket: dagster-compute-logs
+          prefix: prod/
+```
+
+`display_manager_index: 1` selects Dagster+ as the display manager so the UI keeps the inline viewer (with its cached copy). Set `display_manager_index: 0` if you'd rather have the UI link out to your object storage (matches the behavior you'd get if you only configured the object storage manager).
+
 ## Example — S3 + Splunk + Datadog OTLP
 
 ```yaml

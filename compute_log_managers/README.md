@@ -17,7 +17,7 @@ A Dagster instance has **exactly one** compute log manager. The default `LocalCo
 |---|---|---|
 | [`splunk.SplunkComputeLogManager`](splunk/) | Streams op stdout/stderr to Splunk HEC. UI surfaces "View in Splunk →" deep-links per step. | Customers running Dagster OSS who want compute logs in Splunk and never touching Dagster+. Or Dagster+ customers who need a Splunk copy for compliance — compose via Tee. |
 | [`otlp.OtlpComputeLogManager`](otlp/) | Streams op stdout/stderr via OTLP/HTTP to any OTel-compatible backend (Splunk via Splunk OTel Collector, Datadog, Honeycomb, Sumo, Loki, CloudWatch, ...). | Customers who already run an OTel Collector or want vendor portability. One config swap = different backend. |
-| [`tee.TeeComputeLogManager`](tee/) | Composes N inner CLMs. Fan-out writes, first-success reads. | Sending to multiple destinations from one `dagster.yaml`. Common case: Splunk + Dagster+. |
+| [`tee.TeeComputeLogManager`](tee/) | Composes N inner CLMs. Fan-out writes, first-success reads. | Sending to multiple destinations from one `dagster.yaml`. Common cases: **your object storage (Azure Blob / S3 / GCS) + Dagster+** to keep the Dagster+ UI's inline log viewer working when you also send to your own bucket; Splunk + Dagster+ for compliance dual-write. |
 
 ### HEC direct vs OTLP — which Splunk path?
 

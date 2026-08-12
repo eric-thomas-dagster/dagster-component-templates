@@ -110,15 +110,27 @@ from dagster_community_components.compute_log_managers.splunk import SplunkCompu
 
 But this is optional — the standalone copy-paste path above is the recommended install for customers who only want the compute log manager and nothing else.
 
-## Where `dagster.yaml` lives + where the CLM code needs to be importable
+## Where the config goes + where the CLM code needs to be importable
 
-The `compute_logs:` YAML block goes into your `dagster.yaml`. **The CLM class itself is instantiated by the run worker at step-finish time** — so the Python module needs to be importable from whichever image runs job steps. Since you copied the files into `src/<your_pkg>/`, they're already part of your project code — they ship with your code-location image automatically.
+**Config goes on the agent.** Set the `compute_logs:` block in the agent's `dagster.yaml`, or (Helm-deployed agents) in the Helm values under `computeLogs.custom` (`module` / `class` / `config`). Default for Dagster+ is `CloudComputeLogManager` writing to a Dagster+-managed S3 bucket; drop in `dagster.NoOpComputeLogManager` if you want to disable forwarding to Dagster+ entirely.
 
-| Deployment | `dagster.yaml` location | Where the CLM code needs to be |
+**Where the CLM class has to be importable depends on whether it's shipped or custom:**
+
+| CLM origin | Where it needs to live | Rollout effort |
 |---|---|---|
-| OSS local dev | `$DAGSTER_HOME/dagster.yaml` | Local Python env |
-| OSS production | Baked into daemon / webserver / user-code images | Same images that load `dagster.yaml` |
-| **Dagster+ Hybrid** | Instance config, applied via deployment settings or the agent config | **Code-location image** (built from your project — the run worker uses this image and calls the CLM after each step). No agent-image modification needed. |
-| **Dagster+ Serverless** | Instance config, applied via deployment settings / `dagster_cloud.yaml` | Code-location image (built from your project by Dagster+ Serverless). |
+| **Shipped** (`dagster_aws.s3` / `dagster_azure.blob` / `dagster_gcp.gcs` / `dagster_cloud.storage.compute_logs` / `dagster.NoOpComputeLogManager`) | Already in the Dagster+ Hybrid agent image. Also already in a standard code-location image via the corresponding pip package if you installed it. | **Helm upgrade only** — no image rebuild. Just edit Helm values / agent `dagster.yaml` and roll the agent. |
+| **Custom** (**Splunk / OTLP / Tee in this folder, or anything you wrote**) | Importable in **both** the code-location image (run worker instantiates it after each step) AND the agent image (loads `dagster.yaml`). Copying the two files into `src/<your_pkg>/` covers the code-location image automatically. The agent image needs one extra step — see below. | Helm upgrade + agent-image work. |
 
-After changing `dagster.yaml`, restart / redeploy whatever loads it (`dagster-daemon` + `dagster-webserver` on OSS; the deployment / code location on Dagster+) so the new manager takes effect.
+### Making a custom CLM available to the agent image (Dagster+ Hybrid)
+
+Two paths:
+
+1. **Package it and pip-install into both images (recommended for teams).** Wrap the two files in a tiny local `pyproject.toml`, publish to your internal PyPI (or install from a git URL), and `pip install <your-clm-package>` in both your code-location image AND a custom agent image built from `dagster/dagster-cloud-agent`. Two images to update, one source of truth. Helm-managed agents can pin the pip install via the agent's `extraPipInstalls` / equivalent values.
+
+2. **Bake the files directly into a custom agent image.** Start from `dagster/dagster-cloud-agent`, `COPY` your two CLM files onto its Python path in the Dockerfile, deploy that image as your agent. Simpler than pip-packaging if you're already customizing your agent image for other reasons.
+
+**Alternative: skip the custom CLM entirely with `show_url_only: true`.** The shipped `dagster_aws.s3.S3ComputeLogManager` / `dagster_azure.blob.AzureBlobComputeLogManager` / `dagster_gcp.gcs.GCSComputeLogManager` accept `show_url_only: true` — Dagster+ never sees log contents, the run page just links out to the object in your bucket. This is a **Helm-values-only change** and needs no image work at all. Good when compliance / retention is the goal and a link-out UI is acceptable. Reach for Tee when you want *both* the bucket copy AND the Dagster+ inline log viewer.
+
+### Dagster+ Serverless
+
+Custom CLMs are constrained on Serverless — Dagster+ manages the agent, so you can't add packages to it. Use a shipped CLM (with `show_url_only: true` if you want a bucket link-out pattern), or contact Dagster support.

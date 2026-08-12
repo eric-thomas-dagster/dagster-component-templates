@@ -144,8 +144,8 @@ compute_logs:
   config: {...}
 ```
 
-**Where the CLM code needs to be importable:**
-The CLM class is instantiated by the run worker at step-finish time — so the module needs to be importable from the image that runs job steps. In Dagster+ Hybrid AND Serverless, that's your **code-location image** (built from your project). Since you copied the files into `src/<your_pkg>/`, they ship with the code-location image automatically — no agent-image modification needed. On OSS, whichever image loads `dagster.yaml` (daemon / webserver / user-code containers) needs the module in its Python env.
+**Where the config + code need to live (Dagster+ Hybrid):**
+The `compute_logs:` config goes on the **agent** (agent's `dagster.yaml` or Helm values under `computeLogs.custom`). The CLM class itself has to be importable in **both** the code-location image AND the agent image, because this is a custom CLM (not one shipped in `dagster-aws` / `dagster-azure` / `dagster-gcp` / `dagster-cloud`). Copying the files into `src/<your_pkg>/` covers the code-location image; the agent image needs one extra step — see [Making a custom CLM available to the agent image](../README.md#making-a-custom-clm-available-to-the-agent-image-dagster-hybrid) in the parent README.
 
 ### 1. Stand up an OTel Collector (or use a hosted one)
 

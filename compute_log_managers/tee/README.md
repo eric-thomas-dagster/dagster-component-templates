@@ -76,8 +76,10 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-compone
 - `dagster_cloud.storage.compute_logs.CloudComputeLogManager` — resolves as long as `dagster-cloud` is installed (default on Dagster+).
 - **The custom compute log managers you copy in** (e.g. splunk / otlp from this repo) — also need to be at their copied path. Point Tee's `managers[i].module` at your own package path (e.g. `my_dagster_project.compute_log_managers.splunk`), NOT `dagster_community_components.compute_log_managers.splunk`.
 
-**Where the CLM code needs to be importable:**
-The CLM class is instantiated by the run worker at step-finish time — so the module needs to be importable from the image that runs job steps. In Dagster+ Hybrid AND Serverless, that's your **code-location image** (built from your project). Since you copied the files into `src/<your_pkg>/`, they ship with the code-location image automatically — no agent-image modification needed. Every inner manager Tee wraps has the same requirement.
+**Where the config + code need to live (Dagster+ Hybrid):**
+The `compute_logs:` config goes on the **agent** (agent's `dagster.yaml` or Helm values under `computeLogs.custom`). Tee itself is a custom CLM, so it has to be importable in **both** the code-location image AND the agent image. Copying the files into `src/<your_pkg>/` covers the code-location image; the agent image needs one extra step — see [Making a custom CLM available to the agent image](../README.md#making-a-custom-clm-available-to-the-agent-image-dagster-hybrid) in the parent README. Every inner manager Tee wraps has the same requirement: shipped ones (`dagster_aws.s3`, `dagster_azure.blob`, `dagster_gcp.gcs`, `dagster_cloud.storage.compute_logs`) are already in both images; custom inner managers need the same treatment as Tee.
+
+**Alternative for the "own object storage + link-out UI" case:** if you don't need the Dagster+ inline log viewer, skip Tee entirely and set `show_url_only: true` on the shipped S3 / Blob / GCS manager — no custom CLM, no image work, Helm-values change only. Use Tee only when you specifically want *both* the bucket copy AND the Dagster+ inline viewer.
 
 ## Example — Splunk + Dagster+
 

@@ -107,6 +107,46 @@ If `splunk_web_url` is unset, no deep-link is rendered and the UI shows the stub
 
 ## Setup
 
+### 0. Install the manager into your Dagster+ project (no pip package required)
+
+This is a **self-contained single file** — you don't need to `pip install dagster-community-components`. Copy the two files into your project and reference the copied module path from `dagster.yaml`.
+
+**Drop these two files** into your project. Namespace them wherever fits; `src/<your_pkg>/compute_log_managers/splunk/` is a clean default for `create-dagster` projects:
+
+- [`compute_log_manager.py`](https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/compute_log_managers/splunk/compute_log_manager.py) → `src/<your_pkg>/compute_log_managers/splunk/compute_log_manager.py`
+- [`__init__.py`](https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/compute_log_managers/splunk/__init__.py) → `src/<your_pkg>/compute_log_managers/splunk/__init__.py`
+
+Quick fetch:
+
+```bash
+mkdir -p src/<your_pkg>/compute_log_managers/splunk
+curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/compute_log_managers/splunk/compute_log_manager.py \
+  -o src/<your_pkg>/compute_log_managers/splunk/compute_log_manager.py
+curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/compute_log_managers/splunk/__init__.py \
+  -o src/<your_pkg>/compute_log_managers/splunk/__init__.py
+```
+
+**Runtime deps** — install `requests` into whatever environment loads `dagster.yaml`:
+
+```bash
+pip install requests
+# or via uv:  uv add requests
+```
+
+**Point `dagster.yaml` at your copied module** (see step 2 below) — use your own package path, NOT `dagster_community_components`:
+
+```yaml
+compute_logs:
+  module: <your_pkg>.compute_log_managers.splunk
+  class: SplunkComputeLogManager
+  config: {...}
+```
+
+**Where `dagster.yaml` lives:**
+- Dagster+ Hybrid → agent container (bake the copied files into the agent image; the daemon needs to `import <your_pkg>.compute_log_managers.splunk`)
+- Dagster+ Serverless → configure via `dagster_cloud.yaml` / deployment settings; the files ship with your code-location container
+- OSS → `$DAGSTER_HOME/dagster.yaml`
+
 ### 1. Configure HEC on the Splunk side
 
 In Splunk Web → **Settings → Data inputs → HTTP Event Collector**:
@@ -123,9 +163,12 @@ In Splunk Web → **Settings → Data inputs → HTTP Event Collector**:
 
 ### 2. Add to `dagster.yaml`
 
+Use whichever `module:` path matches how you installed the manager in step 0 — your own package (recommended) or the pip package:
+
 ```yaml
 compute_logs:
-  module: dagster_community_components.compute_log_managers.splunk
+  module: <your_pkg>.compute_log_managers.splunk    # standalone copy (recommended)
+  # module: dagster_community_components.compute_log_managers.splunk    # alt: pip package
   class: SplunkComputeLogManager
   config:
     hec_url: https://splunk.acme.com:8088/services/collector

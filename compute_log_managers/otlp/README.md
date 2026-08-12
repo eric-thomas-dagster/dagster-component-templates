@@ -109,6 +109,46 @@ display_url_template: "https://grafana.acme.com/explore?left=%7B%22queries%22%3A
 
 ## Setup
 
+### 0. Install the manager into your Dagster+ project (no pip package required)
+
+This is a **self-contained single file** — you don't need to `pip install dagster-community-components`. Copy the two files into your project and reference the copied module path from `dagster.yaml`.
+
+**Drop these two files** into your project. Namespace them wherever fits; `src/<your_pkg>/compute_log_managers/otlp/` is a clean default for `create-dagster` projects:
+
+- [`compute_log_manager.py`](https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/compute_log_managers/otlp/compute_log_manager.py) → `src/<your_pkg>/compute_log_managers/otlp/compute_log_manager.py`
+- [`__init__.py`](https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/compute_log_managers/otlp/__init__.py) → `src/<your_pkg>/compute_log_managers/otlp/__init__.py`
+
+Quick fetch:
+
+```bash
+mkdir -p src/<your_pkg>/compute_log_managers/otlp
+curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/compute_log_managers/otlp/compute_log_manager.py \
+  -o src/<your_pkg>/compute_log_managers/otlp/compute_log_manager.py
+curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/compute_log_managers/otlp/__init__.py \
+  -o src/<your_pkg>/compute_log_managers/otlp/__init__.py
+```
+
+**Runtime deps** — install `requests` into whatever environment loads `dagster.yaml`:
+
+```bash
+pip install requests
+# or via uv:  uv add requests
+```
+
+**Point `dagster.yaml` at your copied module** (see step 2 below) — use your own package path, NOT `dagster_community_components`:
+
+```yaml
+compute_logs:
+  module: <your_pkg>.compute_log_managers.otlp
+  class: OtlpComputeLogManager
+  config: {...}
+```
+
+**Where `dagster.yaml` lives:**
+- Dagster+ Hybrid → agent container (bake the copied files into the agent image; the daemon needs to `import <your_pkg>.compute_log_managers.otlp`)
+- Dagster+ Serverless → configure via `dagster_cloud.yaml` / deployment settings; the files ship with your code-location container
+- OSS → `$DAGSTER_HOME/dagster.yaml`
+
 ### 1. Stand up an OTel Collector (or use a hosted one)
 
 Most observability vendors offer a hosted OTLP endpoint. Examples:
@@ -145,9 +185,12 @@ service:
 
 ### 2. Add to `dagster.yaml`
 
+Use whichever `module:` path matches how you installed the manager in step 0 — your own package (recommended) or the pip package:
+
 ```yaml
 compute_logs:
-  module: dagster_community_components.compute_log_managers.otlp
+  module: <your_pkg>.compute_log_managers.otlp    # standalone copy (recommended)
+  # module: dagster_community_components.compute_log_managers.otlp    # alt: pip package
   class: OtlpComputeLogManager
   config:
     otlp_endpoint: http://otel-collector.svc:4318

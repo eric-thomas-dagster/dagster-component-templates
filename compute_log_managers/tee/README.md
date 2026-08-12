@@ -49,17 +49,51 @@ Set it explicitly when you want either:
 
 The Tee value is shared with every inner manager — Tee patches each inner's `_local_manager` at construction so there's a single source of truth on disk. Inner `local_dir` config is **ignored**.
 
+## Install into your Dagster+ project (no pip package required)
+
+This is a **self-contained single file** — you don't need to `pip install dagster-community-components`. Copy the two files into your project and reference the copied module path from `dagster.yaml`.
+
+**Drop these two files** into your project. Namespace them wherever fits; `src/<your_pkg>/compute_log_managers/tee/` is a clean default for `create-dagster` projects:
+
+- [`compute_log_manager.py`](https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/compute_log_managers/tee/compute_log_manager.py) → `src/<your_pkg>/compute_log_managers/tee/compute_log_manager.py`
+- [`__init__.py`](https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/compute_log_managers/tee/__init__.py) → `src/<your_pkg>/compute_log_managers/tee/__init__.py`
+
+Quick fetch:
+
+```bash
+mkdir -p src/<your_pkg>/compute_log_managers/tee
+curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/compute_log_managers/tee/compute_log_manager.py \
+  -o src/<your_pkg>/compute_log_managers/tee/compute_log_manager.py
+curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/compute_log_managers/tee/__init__.py \
+  -o src/<your_pkg>/compute_log_managers/tee/__init__.py
+```
+
+**Runtime deps**: none — `pyyaml` is already a transitive Dagster dep. Nothing to `pip install`.
+
+**Important — inner managers must be importable too.** Tee dynamically imports each inner manager listed under `managers:` by its `module:` string. Every one has to resolve at import time. So:
+
+- `dagster_cloud.storage.compute_logs.CloudComputeLogManager` — resolves as long as `dagster-cloud` is installed (default on Dagster+).
+- **The custom compute log managers you copy in** (e.g. splunk / otlp from this repo) — also need to be at their copied path. Point Tee's `managers[i].module` at your own package path (e.g. `my_dagster_project.compute_log_managers.splunk`), NOT `dagster_community_components.compute_log_managers.splunk`.
+
+**Where `dagster.yaml` lives:**
+- Dagster+ Hybrid → agent container (bake copied files into the agent image)
+- Dagster+ Serverless → `dagster_cloud.yaml` / deployment settings; copied files ship with the code-location container
+- OSS → `$DAGSTER_HOME/dagster.yaml`
+
 ## Example — Splunk + Dagster+
+
+Use whichever `module:` paths match how you installed each manager — your own package (recommended) or the pip package:
 
 ```yaml
 compute_logs:
-  module: dagster_community_components.compute_log_managers.tee
+  module: <your_pkg>.compute_log_managers.tee    # standalone copy (recommended)
+  # module: dagster_community_components.compute_log_managers.tee    # alt: pip package
   class: TeeComputeLogManager
   config:
     local_dir: /tmp/dagster_compute_logs
     display_manager_index: 0
     managers:
-      - module: dagster_community_components.compute_log_managers.splunk
+      - module: <your_pkg>.compute_log_managers.splunk    # matches your copied path
         class: SplunkComputeLogManager
         config:
           hec_url: https://splunk.acme.com:8088/services/collector
@@ -76,7 +110,7 @@ Per step in the Dagster UI: "View logs in Splunk →" button (Splunk is index 0)
 
 ```yaml
 compute_logs:
-  module: dagster_community_components.compute_log_managers.tee
+  module: <your_pkg>.compute_log_managers.tee
   class: TeeComputeLogManager
   config:
     local_dir: /tmp/dagster_compute_logs
@@ -88,13 +122,13 @@ compute_logs:
         config:
           bucket: dagster-compute-logs
           prefix: prod/
-      - module: dagster_community_components.compute_log_managers.splunk
+      - module: <your_pkg>.compute_log_managers.splunk
         class: SplunkComputeLogManager
         config:
           hec_url: https://splunk.acme.com:8088/services/collector
           hec_token: {env: SPLUNK_HEC_TOKEN}
-      - module: dagster_community_components.compute_log_managers.otlp
-        class: OtlpComputeLogManager  # (future — see ../otlp/)
+      - module: <your_pkg>.compute_log_managers.otlp
+        class: OtlpComputeLogManager
         config: {...}
 ```
 

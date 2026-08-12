@@ -48,28 +48,75 @@ Both touch Splunk. They operate at different layers:
 
 Use both if you need both. They're complementary, not redundant.
 
-## Setup
+## Install — no `dagster-community-components` pip package required
 
-Compute log managers are configured in `dagster.yaml`. Drop the YAML block above into:
+**Every compute log manager in this folder is a self-contained single file** (plus a tiny `__init__.py`). Zero cross-file imports, no dependency on any other part of `dagster-community-components` beyond Dagster itself. Customers who want a single manager can copy two files into their own Dagster+ project and reference the copied module path from `dagster.yaml` — no wheel install of this package required.
 
-- **OSS local dev**: `$DAGSTER_HOME/dagster.yaml`
-- **OSS deployments**: same file, baked into the agent / daemon / webserver image
-- **Dagster+ Hybrid**: agent-side `dagster.yaml`, mounted into the agent container
+### The 4-step recipe
 
-After editing, restart `dagster-daemon` + `dagster-webserver` + any user-code containers so the new manager takes effect.
+1. **Copy the two files** for the manager you want into a directory anywhere in a Python module path Dagster can import. For a standard `create-dagster` project, `src/<your_pkg>/compute_log_managers/<name>/` works cleanly:
 
-## Pip packaging
+   ```
+   src/my_dagster_project/compute_log_managers/splunk/
+   ├── __init__.py             # from splunk/__init__.py
+   └── compute_log_manager.py  # from splunk/compute_log_manager.py
+   ```
 
-These ship inside the `dagster-community-components` wheel and import as:
+   Direct raw-file URLs (also linked from each per-manager README):
+
+   - **splunk**: [`compute_log_manager.py`](https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/compute_log_managers/splunk/compute_log_manager.py) + [`__init__.py`](https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/compute_log_managers/splunk/__init__.py)
+   - **otlp**: [`compute_log_manager.py`](https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/compute_log_managers/otlp/compute_log_manager.py) + [`__init__.py`](https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/compute_log_managers/otlp/__init__.py)
+   - **tee**: [`compute_log_manager.py`](https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/compute_log_managers/tee/compute_log_manager.py) + [`__init__.py`](https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/compute_log_managers/tee/__init__.py)
+
+2. **`pip install` the runtime deps** (per manager) into whatever environment loads `dagster.yaml`:
+
+   | Manager | Runtime deps |
+   |---|---|
+   | splunk | `requests` |
+   | otlp   | `requests` |
+   | tee    | *(none — `pyyaml` is already a transitive Dagster dep)* |
+
+3. **Point `dagster.yaml` at the copied module path** — use your own package name, not `dagster_community_components`:
+
+   ```yaml
+   compute_logs:
+     module: my_dagster_project.compute_log_managers.splunk    # ← your path
+     class: SplunkComputeLogManager
+     config:
+       hec_url: https://splunk.acme.com:8088/services/collector
+       hec_token: {env: SPLUNK_HEC_TOKEN}
+       # ... (see per-manager README for full field list)
+   ```
+
+4. **Restart Dagster** (`dagster-daemon` + `dagster-webserver` + user-code containers) so the new manager takes effect.
+
+### Where `dagster.yaml` lives per Dagster+ deployment shape
+
+- **OSS local dev** — `$DAGSTER_HOME/dagster.yaml`.
+- **Dagster+ Hybrid** — on the **agent** container, not the code-location container. Bake the copied files into the agent image, or mount them, so the daemon's Python can `import my_dagster_project.compute_log_managers.splunk`. Restart the agent to pick up changes.
+- **Dagster+ Serverless** — compute-log-manager configuration goes through your deployment settings / `dagster_cloud.yaml`. The copied files need to ship with your code-location container image.
+
+### Tee caveat — inner managers must be importable too
+
+`TeeComputeLogManager` dynamically imports each inner manager by its `module:` string. If you copy Tee, every manager listed under `managers:` must resolve at import time — either via pip install (e.g. `dagster_cloud.storage.compute_logs` for `CloudComputeLogManager` when `dagster-cloud` is installed) or via its own copied path in your project.
+
+### Alternative: pip install the whole package (only if you want other community components too)
+
+If you're already using other components from `dagster-community-components` in the same project, the manager classes are also available under:
 
 ```python
 from dagster_community_components.compute_log_managers.splunk import SplunkComputeLogManager
-from dagster_community_components.compute_log_managers.tee import TeeComputeLogManager
 ```
 
-But you don't need to import them in Python code — `dagster.yaml` does the import via `module` + `class` strings. The package just needs to be installed in whatever environment loads `dagster.yaml`.
+But this is optional — the standalone copy-paste path above is the recommended install for customers who only want the compute log manager and nothing else.
 
-Optional runtime deps:
+## Where `dagster.yaml` lives
 
-- `requests` for the Splunk HEC POST path. Standard in most Python environments — but if you're shipping a minimal image, `pip install dagster-community-components[splunk]` pulls it explicitly (see `pyproject.toml`).
-- `pyyaml` for the Tee CLM's inner-manager rehydration (already a transitive dep via Dagster).
+After installing (via either path above), the `compute_logs:` YAML block goes into your `dagster.yaml`. Location depends on the deployment shape:
+
+- **OSS local dev**: `$DAGSTER_HOME/dagster.yaml`
+- **OSS production**: same file, baked into the agent / daemon / webserver container image
+- **Dagster+ Hybrid**: agent-side `dagster.yaml`, mounted into the agent container
+- **Dagster+ Serverless**: configure via `dagster_cloud.yaml` / deployment settings; the manager code ships with your code-location container image
+
+After editing, restart `dagster-daemon` + `dagster-webserver` + any user-code containers so the new manager takes effect.

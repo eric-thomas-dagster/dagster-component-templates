@@ -1606,3 +1606,105 @@ class TestMonitoredJobsMixin:
             comp_mod.dg.DefaultSensorStatus.STOPPED,
         )
         assert sensor.name == "cross_duration_alert"
+
+
+class TestPartitionKey:
+    """Verify partition_key on MaterializeAction:
+      - accepts string form (rendered via template)
+      - accepts dict form (built as MultiPartitionKey)
+      - single-dim + multi-dim partitions surface in tokens
+    """
+
+    def test_none_passes_through(self):
+        assert comp_mod._resolve_partition_key(None, {}) is None
+
+    def test_string_template_rendered(self):
+        """String form gets `{partition_key}` substituted from tokens."""
+        tokens = {"partition_key": "2024-01-15"}
+        assert comp_mod._resolve_partition_key("{partition_key}", tokens) == "2024-01-15"
+
+    def test_string_literal_pass_through(self):
+        """String with no substitution tokens just passes through."""
+        assert comp_mod._resolve_partition_key("2024-01-15", {}) == "2024-01-15"
+
+    def test_dict_builds_multi_partition_key(self):
+        """Dict form → MultiPartitionKey with each value templated."""
+        tokens = {"partition_date": "2024-01-15", "partition_region": "us"}
+        result = comp_mod._resolve_partition_key(
+            {"date": "{partition_date}", "region": "{partition_region}"}, tokens
+        )
+        assert isinstance(result, comp_mod.dg.MultiPartitionKey)
+        assert result.keys_by_dimension == {"date": "2024-01-15", "region": "us"}
+
+    def test_dict_static_values(self):
+        """Dict form with literal values (no templates)."""
+        result = comp_mod._resolve_partition_key(
+            {"date": "2024-01-15", "region": "us"}, {}
+        )
+        assert isinstance(result, comp_mod.dg.MultiPartitionKey)
+        assert result.keys_by_dimension == {"date": "2024-01-15", "region": "us"}
+
+    def test_split_multi_partition_from_key_object(self):
+        """_split_multi_partition unpacks a real MultiPartitionKey."""
+        mpk = comp_mod.dg.MultiPartitionKey({"date": "2024-01-15", "region": "us"})
+        assert comp_mod._split_multi_partition(mpk) == {"date": "2024-01-15", "region": "us"}
+
+    def test_split_multi_partition_single_dim_returns_none(self):
+        """Plain string partition has no dimension info."""
+        assert comp_mod._split_multi_partition("2024-01-15") is None
+
+    def test_split_multi_partition_none(self):
+        assert comp_mod._split_multi_partition(None) is None
+
+    def test_materialize_action_accepts_string(self):
+        """Backward-compat: string form still parses."""
+        action = comp_mod.MaterializeAction(
+            asset_keys=["derived_data"], partition_key="{partition_key}"
+        )
+        assert action.partition_key == "{partition_key}"
+
+    def test_materialize_action_accepts_dict(self):
+        """New: dict form parses for multi-dim partitions."""
+        action = comp_mod.MaterializeAction(
+            asset_keys=["derived_data"],
+            partition_key={"date": "{partition_date}", "region": "{partition_region}"},
+        )
+        assert action.partition_key == {
+            "date": "{partition_date}",
+            "region": "{partition_region}",
+        }
+
+    def test_asset_partition_materialized_trigger_accepts_dict(self):
+        """Filter by dict for multi-dim partition matching."""
+        trigger = comp_mod.AssetPartitionMaterializedTrigger(
+            asset_keys=["derived_data"],
+            partition_key={"region": "us"},   # wildcard the date dimension
+        )
+        assert trigger.partition_key == {"region": "us"}
+
+    def test_default_tokens_includes_partition_key(self):
+        """partition_key is now part of the default token surface."""
+        tokens = comp_mod._default_tokens("test_event")
+        assert "partition_key" in tokens
+        assert tokens["partition_key"] == ""
+
+    def test_materialize_action_dict_renders_partition_key_end_to_end(self):
+        """End-to-end: dict-form MaterializeAction with template tokens
+        produces a RunRequest whose partition_key is a MultiPartitionKey."""
+        action = comp_mod.MaterializeAction(
+            asset_keys=["derived_data"],
+            partition_key={"date": "{partition_date}", "region": "{partition_region}"},
+        )
+        tokens = comp_mod._default_tokens(
+            event_type="asset_partition_materialized",
+            asset_key="derived_data",
+            partition_date="2024-01-15",
+            partition_region="us",
+        )
+        rr = comp_mod._execute_action(action, tokens, MagicMock())
+        assert isinstance(rr, comp_mod.dg.RunRequest)
+        assert isinstance(rr.partition_key, comp_mod.dg.MultiPartitionKey)
+        assert rr.partition_key.keys_by_dimension == {
+            "date": "2024-01-15",
+            "region": "us",
+        }

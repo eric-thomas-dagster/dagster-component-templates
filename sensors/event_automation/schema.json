@@ -317,8 +317,14 @@
             "properties": {
               "type": {"const": "asset_partition_materialized"},
               "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."},
-              "partition_key": {"type": "string", "description": "Exact partition match."},
-              "partition_key_pattern": {"type": "string", "description": "Regex on partition key."},
+              "partition_key": {
+                "oneOf": [
+                  {"type": "string", "description": "Exact partition match — single-dim (e.g. '2024-01-15')."},
+                  {"type": "object", "additionalProperties": {"type": "string"}, "description": "Multi-dim partition filter — one entry per dimension. Unspecified dims wildcard (e.g. {region: 'us'} matches every date for region=us)."}
+                ],
+                "description": "Exact partition match. String for single-dim, object for MultiPartitionsDefinition."
+              },
+              "partition_key_pattern": {"type": "string", "description": "Regex on partition key (string form only)."},
               "minimum_interval_seconds": {"type": "integer", "default": 60}
             },
             "required": ["type", "asset_keys"]
@@ -490,7 +496,13 @@
             "properties": {
               "type": {"const": "materialize"},
               "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."},
-              "partition_key": {"type": "string"}
+              "partition_key": {
+                "oneOf": [
+                  {"type": "string", "description": "Single-dim partition. Values run through template rendering — use '{partition_key}' to pull from the triggering event."},
+                  {"type": "object", "additionalProperties": {"type": "string"}, "description": "MultiPartitionsDefinition — one entry per dimension. Values templated (e.g. {date: '{partition_date}', region: '{partition_region}'})."}
+                ],
+                "description": "Optional partition to materialize. String OR dict; values templated with trigger tokens."
+              }
             },
             "required": ["type", "asset_keys"]
           },

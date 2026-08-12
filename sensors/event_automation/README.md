@@ -68,7 +68,7 @@ Prefect-Automations-style declarative event → action wiring in one YAML compon
 | `sqs` | Send to AWS SQS queue |
 | `emit_event` | Log emission for downstream sensor chaining |
 
-**Template tokens available in every action:** `{event_type}`, `{run_id}`, `{job_name}`, `{asset_key}`, `{status}`, `{timestamp}`, `{message}`, `{url}`.
+**Template tokens available in every action:** `{event_type}`, `{run_id}`, `{job_name}`, `{asset_key}`, `{partition_key}`, `{status}`, `{timestamp}`, `{message}`, `{url}`. Partition-emitting triggers also expose per-dimension tokens like `{partition_date}` / `{partition_region}` when the event is on a `MultiPartitionsDefinition`.
 
 ## Throttle / noise-reduction (11)
 
@@ -477,11 +477,20 @@ Set `only_final_failures: true` when the op has a `RetryPolicy` — otherwise ev
 **`asset_partition_materialized`** — a specific asset PARTITION was materialized. Distinct from `asset_materialized` — filters to an exact partition key or partition family regex.
 
 ```yaml
+# Single-dim: exact match or regex
 - type: asset_partition_materialized
   asset_keys: [daily_revenue]
   partition_key: "2024-01-15"       # exact match
   # partition_key_pattern: "2024-Q1-.*"   # or regex
+
+# Multi-dim (MultiPartitionsDefinition): dict; unspecified dims wildcard
+- type: asset_partition_materialized
+  asset_keys: [regional_revenue]
+  partition_key:
+    region: "us"                    # matches every date for region=us
 ```
+
+Emits `{partition_key}` (the whole key) plus `{partition_<dim>}` tokens (e.g. `{partition_date}`, `{partition_region}`) so downstream actions can template dynamic per-partition values.
 
 **`op_output`** — a specific op yielded output (STEP_OUTPUT event). Fine-grained; useful for non-asset op-based workflows.
 
@@ -731,10 +740,25 @@ Every action gets template tokens: `{event_type}`, `{run_id}`, `{job_name}`, `{a
 **`materialize`** — launch a materialization run.
 
 ```yaml
+# Single-dim partition — usually you want the partition FROM the event, not a hardcode
+- type: materialize
+  asset_keys: [derived_data]
+  partition_key: "{partition_key}"        # pulled from triggering event's tokens
+
+# Multi-dim (MultiPartitionsDefinition) — dict form, each dim optionally templated
+- type: materialize
+  asset_keys: [derived_data]
+  partition_key:
+    date: "{partition_date}"
+    region: "{partition_region}"
+
+# Literal — rare; only when you want the SAME partition every time the trigger fires
 - type: materialize
   asset_keys: [derived_data]
   partition_key: "2024-01-15"
 ```
+
+`partition_key` values run through template rendering. The trigger tokens include `{partition_key}` (the whole key as a string) plus per-dimension tokens like `{partition_date}` / `{partition_region}` when the source event was on a `MultiPartitionsDefinition`.
 
 **`launch_job`** — launch a job.
 

@@ -25,7 +25,17 @@ class _ActionBase(dg.Model):
 class MaterializeAction(_ActionBase):
     type: Literal["materialize"] = "materialize"
     asset_keys: List[str] = Field(description="Asset keys to materialize.")
-    partition_key: Optional[str] = Field(default=None, description="Optional partition to materialize.")
+    partition_key: Optional[Union[str, Dict[str, str]]] = Field(
+        default=None,
+        description=(
+            "Optional partition to materialize. String form for single-dim "
+            "partitions (e.g. '2024-01-15') or a template like "
+            "'{partition_key}' to pull from the triggering event. Dict form "
+            "for MultiPartitionsDefinition — one entry per dimension (e.g. "
+            "{date: '{partition_date}', region: '{partition_region}'}). "
+            "Values run through template rendering."
+        ),
+    )
 
 
 class LaunchJobAction(_ActionBase):
@@ -708,8 +718,16 @@ class AssetPartitionMaterializedTrigger(_TriggerBase):
             "string / fnmatch glob."
         )
     )
-    partition_key: Optional[str] = Field(default=None, description="Exact partition match.")
-    partition_key_pattern: Optional[str] = Field(default=None, description="Regex on partition key.")
+    partition_key: Optional[Union[str, Dict[str, str]]] = Field(
+        default=None,
+        description=(
+            "Exact partition match. String form for single-dim partitions "
+            "('2024-01-15'). Dict form for MultiPartitionsDefinition — one "
+            "entry per dimension, unspecified dims wildcard "
+            "(e.g. {region: 'us'} matches every date for region=us)."
+        ),
+    )
+    partition_key_pattern: Optional[str] = Field(default=None, description="Regex on partition key (string form).")
     minimum_interval_seconds: int = Field(default=60)
 
 
@@ -1128,12 +1146,60 @@ def _render_template(template: str, tokens: Dict[str, Any]) -> str:
     return result
 
 
+def _split_multi_partition(partition) -> Optional[Dict[str, str]]:
+    """Return a {dim: value} dict for a MultiPartitionKey, else None.
+
+    Handles both real `MultiPartitionKey` (has `.keys_by_dimension`) and the
+    pipe-delimited string form dagster uses when serialized. Returns None
+    for single-dim / missing partitions."""
+    if partition is None:
+        return None
+    # Real MultiPartitionKey exposes .keys_by_dimension
+    keys_by_dim = getattr(partition, "keys_by_dimension", None)
+    if keys_by_dim:
+        return dict(keys_by_dim)
+    # Fallback: pipe-delimited string form. We can't recover dim names from
+    # the string alone — caller may still want the raw pieces, but without
+    # names they're not useful, so we return None.
+    return None
+
+
+def _resolve_partition_key(spec, tokens: Dict[str, Any]):
+    """Resolve a partition_key spec against the current tokens.
+
+    Accepts:
+      - None → returns None (no partition)
+      - str → rendered via `_render_template` (so '{partition_key}' pulls
+        from the triggering event's tokens)
+      - Dict[str, str] → each value rendered, then wrapped in
+        `MultiPartitionKey({dim: value, ...})` for
+        MultiPartitionsDefinition targets
+
+    Templating uses the standard trigger tokens plus per-dimension tokens
+    like `partition_<dim>` that partition-aware triggers emit.
+    """
+    if spec is None:
+        return None
+    if isinstance(spec, dict):
+        rendered = {k: _render_template(str(v), tokens) for k, v in spec.items()}
+        try:
+            return dg.MultiPartitionKey(rendered)
+        except Exception:
+            # Older dagster path or unexpected shape — fall back to a
+            # pipe-joined string in dim-sorted order (dagster's internal form)
+            return "|".join(rendered[k] for k in sorted(rendered))
+    if isinstance(spec, str):
+        return _render_template(spec, tokens)
+    return spec
+
+
 def _default_tokens(event_type: str, **extras) -> Dict[str, Any]:
     return {
         "event_type": event_type,
         "run_id": "",
         "job_name": "",
         "asset_key": "",
+        "partition_key": "",
         "status": "",
         "timestamp": int(time.time()),
         "message": "",
@@ -1151,10 +1217,11 @@ def _execute_action(action: Action, tokens: Dict[str, Any], logger, instance=Non
     toggle_schedule). SDK-driven actions (cancel_run, retry_run, toggle_*) require
     the caller to pass `instance`."""
     if isinstance(action, MaterializeAction):
+        partition_key = _resolve_partition_key(action.partition_key, tokens)
         return dg.RunRequest(
             run_key=f"{tokens.get('run_id', '')}-{action.asset_keys[0]}"[:120] or None,
             asset_selection=[dg.AssetKey.from_user_string(k) for k in action.asset_keys],
-            partition_key=action.partition_key,
+            partition_key=partition_key,
             tags={"triggered_by": "event_automation", "event_type": tokens.get("event_type", "")},
         )
     if isinstance(action, LaunchJobAction):
@@ -2059,12 +2126,16 @@ def _build_asset_materialized_sensor(
             if record is None:
                 continue
             fired = True
+            partition = getattr(record, "partition_key", None) or getattr(record, "partition", None) or ""
             tokens = _default_tokens(
                 event_type="asset_materialized",
                 asset_key=asset_key.to_user_string(),
                 run_id=record.run_id if hasattr(record, "run_id") else "",
+                partition_key=str(partition),
                 message=f"Asset {asset_key.to_user_string()} materialized",
             )
+            for dim, val in (_split_multi_partition(partition) or {}).items():
+                tokens[f"partition_{dim}"] = val
             all_requests.extend(_run_actions(actions, tokens, context.log, instance=context.instance, throttle=trigger.throttle, sensor_name=name))
         if fired:
             context.advance_all_cursors()
@@ -2757,9 +2828,19 @@ def _build_asset_partition_materialized_sensor(name, trigger, actions, default_s
         if asset_key not in watched:
             return False
         partition = getattr(mat, "partition", None)
-        if trigger.partition_key and partition != trigger.partition_key:
-            return False
-        if partition_re and (partition is None or not partition_re.search(partition)):
+        if trigger.partition_key is not None:
+            if isinstance(trigger.partition_key, dict):
+                # Multi-dim filter: every specified dim must match; unspecified dims wildcard
+                dims = _split_multi_partition(partition)
+                if dims is None:
+                    return False
+                for k, v in trigger.partition_key.items():
+                    if dims.get(k) != v:
+                        return False
+            else:
+                if partition != trigger.partition_key:
+                    return False
+        if partition_re and (partition is None or not partition_re.search(str(partition))):
             return False
         return True
     def token_builder(rec):
@@ -2768,12 +2849,18 @@ def _build_asset_partition_materialized_sensor(name, trigger, actions, default_s
         mat = evt.event_specific_data
         asset_key = getattr(mat, "asset_key")
         partition = getattr(mat, "partition", None) or ""
-        return _default_tokens(
+        tokens = _default_tokens(
             event_type="asset_partition_materialized",
             asset_key=asset_key.to_user_string(),
-            status=partition,
+            status=str(partition),
+            partition_key=str(partition),
             message=f"{asset_key.to_user_string()} partition '{partition}' materialized",
         )
+        # Expose each dimension as its own token so downstream actions can
+        # template `partition_date` / `partition_region` / etc.
+        for dim, val in (_split_multi_partition(partition) or {}).items():
+            tokens[f"partition_{dim}"] = val
+        return tokens
     return _build_generic_event_sensor(
         name, "ASSET_MATERIALIZATION", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status
     )
@@ -3035,11 +3122,16 @@ def _build_materialization_planned_sensor(name, trigger, actions, default_status
         evt = entry.dagster_event
         plan_data = evt.event_specific_data
         asset_key = getattr(plan_data, "asset_key", None)
-        return _default_tokens(
+        partition = getattr(plan_data, "partition", None) or ""
+        tokens = _default_tokens(
             event_type="materialization_planned",
             asset_key=asset_key.to_user_string() if asset_key else "",
+            partition_key=str(partition),
             message=f"Planned materialization for {asset_key.to_user_string() if asset_key else ''}",
         )
+        for dim, val in (_split_multi_partition(partition) or {}).items():
+            tokens[f"partition_{dim}"] = val
+        return tokens
     return _build_generic_event_sensor(
         name, "ASSET_MATERIALIZATION_PLANNED", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status
     )

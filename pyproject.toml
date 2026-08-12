@@ -102,8 +102,10 @@ include = [
 # explicitly via these extras:
 #   pip install dagster-community-components[splunk]
 #   pip install dagster-community-components[otlp]
-#   pip install dagster-community-components[compute-log-managers]
+#   pip install dagster-community-components[tee]                  # no extra runtime deps; provided for symmetry
+#   pip install dagster-community-components[compute-log-managers] # bundle: splunk + otlp + tee
 [project.optional-dependencies]
 splunk = ["requests>=2.28"]
 otlp = ["requests>=2.28"]
+tee = []
 compute-log-managers = ["requests>=2.28"]

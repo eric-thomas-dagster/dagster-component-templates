@@ -129,7 +129,16 @@ Three paths, from leanest to easiest:
 
 2. **Package the two files as a tiny local pip package and install into both images.** Wrap them in a minimal `pyproject.toml` (deps: `dagster`, `requests`), publish to your internal PyPI (or install from a git URL), and `pip install <your-clm-package>` in both your code-location image AND a custom agent image built from `dagster/dagster-cloud-agent`. Helm-managed agents can pin the install via the agent's `extraPipInstalls` / equivalent values. Recommended when a team already has an internal-PyPI pattern.
 
-3. **`pip install dagster-community-components` into both images.** Simplest one-line change — the CLM class is available under `dagster_community_components.compute_log_managers.splunk` (or `.otlp` / `.tee`) with no image-Dockerfile edits beyond the pip line. **The tradeoff is footprint**: this package pulls in dependencies for every component in the registry (dataframe transforms, ~950 assets/sinks/integrations, LLM adapters, etc.) — a lot of surface area to install and audit for one compute log manager. Fine if you're already using other community components, wasteful otherwise.
+3. **`pip install dagster-community-components[<extra>]` into both images.** Simplest one-line change. The base package's runtime deps are minimal (`dagster` + `pandas`) — per-component optional deps aren't pulled in unless you ask for them via extras:
+
+   ```bash
+   pip install dagster-community-components[splunk]                # adds requests
+   pip install dagster-community-components[otlp]                  # adds requests
+   pip install dagster-community-components[tee]                   # no extra runtime deps (symmetry)
+   pip install dagster-community-components[compute-log-managers]  # bundle: splunk + otlp + tee
+   ```
+
+   The CLM classes are then available under `dagster_community_components.compute_log_managers.splunk` / `.otlp` / `.tee`. The wheel itself contains the full component registry, but nothing else installs unless you install its extra. Fine option if you'd rather manage this via `pip` than by copying files around.
 
 **Alternative: skip the custom CLM entirely with `show_url_only: true`.** The shipped `dagster_aws.s3.S3ComputeLogManager` / `dagster_azure.blob.AzureBlobComputeLogManager` / `dagster_gcp.gcs.GCSComputeLogManager` accept `show_url_only: true` — Dagster+ never sees log contents, the run page just links out to the object in your bucket. This is a **Helm-values-only change** and needs no image work at all. Good when compliance / retention is the goal and a link-out UI is acceptable. Reach for Tee when you want *both* the bucket copy AND the Dagster+ inline log viewer.
 

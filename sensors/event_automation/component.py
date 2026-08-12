@@ -259,7 +259,10 @@ class ReloadCodeLocationAction(_ActionBase):
     )
     org_env_var: str = Field(default="DAGSTER_CLOUD_ORGANIZATION")
     token_env_var: str = Field(default="DAGSTER_CLOUD_API_TOKEN")
-    deployment: str = Field(default="prod")
+    deployment: Optional[str] = Field(
+        default=None,
+        description="Deployment name. Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod' if neither is set.",
+    )
 
 
 class RefreshDefsStateAction(_ActionBase):
@@ -280,7 +283,10 @@ class RefreshDefsStateAction(_ActionBase):
     )
     org_env_var: str = Field(default="DAGSTER_CLOUD_ORGANIZATION")
     token_env_var: str = Field(default="DAGSTER_CLOUD_API_TOKEN")
-    deployment: str = Field(default="prod")
+    deployment: Optional[str] = Field(
+        default=None,
+        description="Deployment name. Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod' if neither is set.",
+    )
 
 
 class SetConcurrencyLimitAction(_ActionBase):
@@ -319,7 +325,10 @@ class SetAutoMaterializePausedAction(_ActionBase):
     paused: bool = Field(description="True = pause, False = unpause.")
     org_env_var: str = Field(default="DAGSTER_CLOUD_ORGANIZATION")
     token_env_var: str = Field(default="DAGSTER_CLOUD_API_TOKEN")
-    deployment: str = Field(default="prod")
+    deployment: Optional[str] = Field(
+        default=None,
+        description="Deployment name. Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod' if neither is set.",
+    )
 
 
 class MuteAlertPolicyAction(_ActionBase):
@@ -334,7 +343,10 @@ class MuteAlertPolicyAction(_ActionBase):
     mute_for_seconds: int = Field(description="Duration to mute (seconds).")
     org_env_var: str = Field(default="DAGSTER_CLOUD_ORGANIZATION")
     token_env_var: str = Field(default="DAGSTER_CLOUD_API_TOKEN")
-    deployment: str = Field(default="prod")
+    deployment: Optional[str] = Field(
+        default=None,
+        description="Deployment name. Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod' if neither is set.",
+    )
 
 
 class ResumeBackfillAction(_ActionBase):
@@ -346,7 +358,10 @@ class ResumeBackfillAction(_ActionBase):
     backfill_id: str = Field(description="Backfill ID. Templated (use '{run_id}' — backfill_status trigger emits the backfill id there).")
     org_env_var: str = Field(default="DAGSTER_CLOUD_ORGANIZATION")
     token_env_var: str = Field(default="DAGSTER_CLOUD_API_TOKEN")
-    deployment: str = Field(default="prod")
+    deployment: Optional[str] = Field(
+        default=None,
+        description="Deployment name. Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod' if neither is set.",
+    )
 
 
 class CancelBackfillAction(_ActionBase):
@@ -355,7 +370,10 @@ class CancelBackfillAction(_ActionBase):
     backfill_id: str = Field(description="Backfill ID. Templated.")
     org_env_var: str = Field(default="DAGSTER_CLOUD_ORGANIZATION")
     token_env_var: str = Field(default="DAGSTER_CLOUD_API_TOKEN")
-    deployment: str = Field(default="prod")
+    deployment: Optional[str] = Field(
+        default=None,
+        description="Deployment name. Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod' if neither is set.",
+    )
 
 
 class ReexecuteBackfillAction(_ActionBase):
@@ -368,7 +386,10 @@ class ReexecuteBackfillAction(_ActionBase):
     )
     org_env_var: str = Field(default="DAGSTER_CLOUD_ORGANIZATION")
     token_env_var: str = Field(default="DAGSTER_CLOUD_API_TOKEN")
-    deployment: str = Field(default="prod")
+    deployment: Optional[str] = Field(
+        default=None,
+        description="Deployment name. Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod' if neither is set.",
+    )
 
 
 class AddDynamicPartitionAction(_ActionBase):
@@ -1077,7 +1098,10 @@ class InsightsMetricThresholdTrigger(_TriggerBase):
             "'key:\"marts/orders\"'. Unset = deployment-wide."
         ),
     )
-    deployment: str = Field(default="prod")
+    deployment: Optional[str] = Field(
+        default=None,
+        description="Deployment name. Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod' if neither is set.",
+    )
     org_env_var: str = Field(default="DAGSTER_CLOUD_ORGANIZATION")
     token_env_var: str = Field(default="DAGSTER_CLOUD_API_TOKEN")
     minimum_interval_seconds: int = Field(default=300)
@@ -1151,7 +1175,10 @@ class DagsterPlusAuditTrigger(_TriggerBase):
         default=None,
         description="Optional regex on actor email / user id (client-side).",
     )
-    deployment: str = Field(default="prod")
+    deployment: Optional[str] = Field(
+        default=None,
+        description="Deployment name. Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod' if neither is set.",
+    )
     org_env_var: str = Field(default="DAGSTER_CLOUD_ORGANIZATION")
     token_env_var: str = Field(default="DAGSTER_CLOUD_API_TOKEN")
     minimum_interval_seconds: int = Field(default=300)
@@ -1844,22 +1871,29 @@ def _execute_action(action: Action, tokens: Dict[str, Any], logger, instance=Non
 def _dagster_plus_mutation(action, mutation: str, logger, label: str) -> None:
     """Fire a Dagster+ GraphQL mutation. Non-fatal on failure — logs a warning.
 
+    Uses the same context resolver as the triggers so the auto-injected
+    DAGSTER_CLOUD_ORGANIZATION + DAGSTER_CLOUD_DEPLOYMENT_NAME work without
+    any configuration in the Dagster+ runtime. Only the API token needs to
+    be provisioned as a code-location secret.
+
     Actions that use this: reload_code_location, refresh_defs_state,
     set_auto_materialize_paused, mute_alert_policy, backfill controls.
     """
-    org = os.environ.get(action.org_env_var, "")
-    token = os.environ.get(action.token_env_var, "")
-    if not org or not token:
+    ctx = _resolve_dagster_plus_context(action)
+    if ctx is None:
         logger.warning(
-            f"{label}: {action.org_env_var} or {action.token_env_var} not set — skipping."
+            f"{label}: Dagster+ credentials missing — set {action.token_env_var} "
+            f"as a code-location secret. Org + deployment auto-detected from "
+            f"DAGSTER_CLOUD_ORGANIZATION / DAGSTER_CLOUD_DEPLOYMENT_NAME."
         )
         return
+    org, deployment, token = ctx
     try:
-        resp = _dagster_plus_graphql(mutation, org, token, action.deployment)
+        resp = _dagster_plus_graphql(mutation, org, token, deployment)
         if "errors" in resp:
             logger.warning(f"{label}: mutation returned errors: {resp['errors']}")
         else:
-            logger.info(f"{label} → OK")
+            logger.info(f"{label} → OK ({deployment})")
     except Exception as exc:
         logger.warning(f"{label}: mutation failed: {exc}")
 

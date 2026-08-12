@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.EventAutomationComponent",
-  "description": "35 declarative triggers → 17 actions in one YAML component. Prefect-Automations analog on top of real Dagster sensors.",
+  "description": "35 declarative triggers → 27 actions in one YAML component. Prefect-Automations analog on top of real Dagster sensors + Dagster+ GraphQL mutations.",
   "category": "sensor",
   "icon": "Bell",
   "x-dagster-io": {
@@ -429,7 +429,7 @@
               "aggregation": {"type": "string", "enum": ["SUM", "AVERAGE", "MIN", "MAX"], "default": "SUM", "description": "How values within a bucket combine."},
               "lookback_hours": {"type": "integer", "default": 24, "description": "Hours of history to fetch."},
               "asset_selection": {"type": "string", "description": "Optional Dagster asset-selection string, resolved server-side ('group:X', 'tag:foo=bar', 'kind:Y', 'is:external', 'key:\"path/to/asset\"'). Unset = deployment-wide."},
-              "deployment": {"type": "string", "default": "prod"},
+              "deployment": {"type": "string", "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."},
               "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
               "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
               "minimum_interval_seconds": {"type": "integer", "default": 300}
@@ -472,7 +472,7 @@
               "is_branch_deployment": {"type": "boolean", "description": "Server-side filter: true = branch deployments only, false = main only, null = both."},
               "event_type_pattern": {"type": "string", "description": "Client-side regex on audit event type (applied after event_types push-down)."},
               "actor_pattern": {"type": "string", "description": "Client-side regex on actor email/ID."},
-              "deployment": {"type": "string", "default": "prod"},
+              "deployment": {"type": "string", "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."},
               "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
               "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
               "minimum_interval_seconds": {"type": "integer", "default": 300}
@@ -716,7 +716,7 @@
               "location_name": {"type": "string", "description": "Location to reload. Templated. Unset = reload whole workspace."},
               "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
               "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
-              "deployment": {"type": "string", "default": "prod"}
+              "deployment": {"type": "string", "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."}
             },
             "required": ["type"]
           },
@@ -728,7 +728,7 @@
               "defs_state_key": {"type": "string", "description": "Optional specific state key (uses refreshComponentState). Templated."},
               "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
               "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
-              "deployment": {"type": "string", "default": "prod"}
+              "deployment": {"type": "string", "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."}
             },
             "required": ["type", "location_name"]
           },
@@ -757,7 +757,7 @@
               "paused": {"type": "boolean", "description": "true = pause, false = unpause."},
               "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
               "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
-              "deployment": {"type": "string", "default": "prod"}
+              "deployment": {"type": "string", "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."}
             },
             "required": ["type", "paused"]
           },
@@ -769,7 +769,7 @@
               "mute_for_seconds": {"type": "integer", "description": "Duration to mute."},
               "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
               "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
-              "deployment": {"type": "string", "default": "prod"}
+              "deployment": {"type": "string", "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."}
             },
             "required": ["type", "alert_policy_id", "mute_for_seconds"]
           },
@@ -780,7 +780,7 @@
               "backfill_id": {"type": "string", "description": "Backfill ID. Templated."},
               "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
               "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
-              "deployment": {"type": "string", "default": "prod"}
+              "deployment": {"type": "string", "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."}
             },
             "required": ["type", "backfill_id"]
           },
@@ -791,7 +791,7 @@
               "backfill_id": {"type": "string", "description": "Backfill ID. Templated."},
               "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
               "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
-              "deployment": {"type": "string", "default": "prod"}
+              "deployment": {"type": "string", "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."}
             },
             "required": ["type", "backfill_id"]
           },
@@ -803,7 +803,7 @@
               "from_failure": {"type": "boolean", "default": true, "description": "true = FROM_FAILURE (only failed partitions); false = ALL_STEPS."},
               "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
               "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
-              "deployment": {"type": "string", "default": "prod"}
+              "deployment": {"type": "string", "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."}
             },
             "required": ["type", "backfill_id"]
           },

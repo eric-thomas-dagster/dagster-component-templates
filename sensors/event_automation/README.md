@@ -94,12 +94,13 @@ Prefect-Automations-style declarative event → action wiring in one YAML compon
 
 ## Dagster+ authentication
 
-Several triggers and actions call the Dagster+ GraphQL API. They all use the same two env vars, resolved at sensor-tick time by `os.environ.get()` (not the Pydantic config schema — this is runtime lookup):
+Several triggers and actions call the Dagster+ GraphQL API. The Dagster+ runtime injects two env vars for you automatically — **the only thing you have to provision is the API token as a code-location secret**:
 
-| Env var | Purpose |
-|---|---|
-| `DAGSTER_CLOUD_ORGANIZATION` | Your Dagster+ org slug (e.g. `acme-corp`). **Auto-injected by Dagster+ Serverless / Hybrid runtimes** — no config needed there. |
-| `DAGSTER_CLOUD_API_TOKEN` | User or agent API token. Must be provisioned as a code-location secret in Dagster+ (Settings → Secrets, or via `dagster-cloud secret`). |
+| Env var | Purpose | Source |
+|---|---|---|
+| `DAGSTER_CLOUD_ORGANIZATION` | Your Dagster+ org slug (e.g. `acme-corp`). | **Auto-injected** by Dagster+ Serverless / Hybrid into every user-code container. |
+| `DAGSTER_CLOUD_DEPLOYMENT_NAME` | Deployment name (`prod`, `staging`, a branch-deployment name, etc). | **Auto-injected** by Dagster+ — sensors running in a `dev` deployment target `dev` automatically. |
+| `DAGSTER_CLOUD_API_TOKEN` | User / agent / service-user API token. | **You provision** this — Dagster+ Settings → Secrets, or via `dagster-cloud secret`. |
 
 **Which triggers need it:** `insights_metric`, `dagster_plus_audit`.
 
@@ -107,11 +108,11 @@ Several triggers and actions call the Dagster+ GraphQL API. They all use the sam
 
 **Token permissions:** the minimum scope depends on the action — `metrics-read` for `insights_metric`, `audit-read` for `dagster_plus_audit`, and workspace-admin-equivalent for the recovery mutations (`reload_code_location`, `set_auto_materialize_paused`, backfill controls). For a dedicated alerts code location that fires all these actions, an agent token with full deployment access is the simplest pattern.
 
-**Deployment scoping:** each Dagster+ trigger/action takes an optional `deployment: prod` field (default). Override per-trigger/action to target a specific branch deployment or non-prod deployment.
+**Deployment scoping:** by default we auto-detect from `DAGSTER_CLOUD_DEPLOYMENT_NAME` — so a sensor running in `dev` targets `dev`, one running in `prod` targets `prod`, no config needed. Override per-trigger/action with `deployment: <name>` to force a specific target (useful if a prod-deployed sensor should observe a branch deployment).
 
-**Failure mode:** if either env var is missing at fire time, the trigger returns `SkipReason("... credentials missing")` and the action logs a warning and no-ops. Nothing crashes; nothing fires. Good for OSS-flavored deployments where you want the YAML to load cleanly even without Dagster+ configured.
+**Failure mode:** if the token is missing at fire time, the trigger returns `SkipReason("... credentials missing")` and the action logs a warning and no-ops. Nothing crashes; nothing fires. Good for OSS-flavored deployments where you want the YAML to load cleanly even without Dagster+ configured.
 
-You can override the env var names via `org_env_var` / `token_env_var` fields on every Dagster+ trigger and action if you need a different variable naming convention.
+You can override the env var names via `org_env_var` / `token_env_var` fields on every Dagster+ trigger and action if you need a different naming convention.
 
 ## Throttle / noise-reduction (11)
 

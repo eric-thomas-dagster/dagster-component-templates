@@ -100,6 +100,86 @@ attributes:
 | `critique_loop` | drafter → critic → drafter, N times | Drafter writes; critic reviews; drafter revises. Refinement loop. |
 | `synthesize` | 1 LLM merges N upstream step texts | Combine multiple prior step outputs into one coherent response. Fan-in. |
 
+### Common fields (every step)
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `id` | ✅ | — | Step id — referenced by `source:` / `sources:` on downstream steps and by `outputs.assets:`. |
+| `op` | ✅ | — | One of `llm_call` / `route` / `debate` / `critique_loop` / `synthesize`. |
+| `source` |  | Most recent step | Prior step id whose text feeds this step. `synthesize` uses `sources:` (plural, list) instead. |
+
+### LLM sub-config (used inside every op)
+
+The router / specialist / drafter / critic / proposer / arbitrator / synthesizer sub-blocks all take the same shape:
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `model` | ✅ | — | LiteLLM model string (`gpt-4o`, `claude-haiku-4-5-20251001`, `gemini/gemini-2.5-flash`, `ollama/llama3.2`, `bedrock/…`, `groq/…`, …). |
+| `api_key_env_var` |  | Provider default (e.g. `OPENAI_API_KEY`) | Env var holding the provider's API key. |
+| `api_base_env_var` |  | — | Env var holding a custom base URL (self-hosted, proxies, Azure OpenAI). |
+| `system_prompt` |  | — | System prompt for this LLM's persona. |
+| `temperature` |  | `0.0` | Sampling temperature. |
+| `max_tokens` |  | `2048` | Max completion tokens. |
+
+### `op: llm_call`
+
+Single completion. LLM sub-config lives inline on the step (no `model` nesting).
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `model` | ✅ | — | LiteLLM model string. |
+| `api_key_env_var` |  | Provider default | Env var holding API key. |
+| `system_prompt` |  | — | System prompt. |
+| `prompt_template` |  | `"{text}"` | Template around the source's text; `{text}` is the source text, standard `{partition_key}` etc. tokens also substituted. |
+| `temperature` |  | `0.0` | Sampling temperature. |
+| `max_tokens` |  | `2048` | Max completion tokens. |
+| `api_base_env_var` |  | — | Custom base URL env var. |
+
+### `op: route`
+
+Router LLM picks a specialist by name via tool-call; specialist LLM answers.
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `router` | ✅ | — | LLM sub-config for the router — see above. |
+| `specialists` | ✅ | — | List of specialist LLMs (2+). Each: `{name, description, model, ...LLM sub-config}`. `name` must be a valid identifier (used as a tool-call name); `description` seeds the router's routing decision. |
+| `fallback` |  | — | Specialist name to fall back to if the router can't pick. If unset and the router fails, an exception is raised. |
+| `include_reasoning` |  | `true` | If true, the router asks for a free-text `reasoning` field alongside the tool call and surfaces it as the `router_reasoning` metadata field. |
+
+### `op: debate`
+
+Proposers each write a proposal; arbitrator judges + picks a winner.
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `proposers` | ✅ | — | List of LLM sub-configs (2+). Each proposer sees the source text + any `system_prompt` on it (that's where you seed each proposer's persona / argument). |
+| `arbitrator` | ✅ | — | LLM sub-config for the judge. Sees the source + all proposals and picks `winner_index`. Surfaces `arbitrator_reasoning`. |
+
+### `op: critique_loop`
+
+Drafter writes; critic reviews; drafter revises; repeat.
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `drafter` | ✅ | — | LLM sub-config for the drafter. |
+| `critic` | ✅ | — | LLM sub-config for the critic. |
+| `iterations` | ✅ | — | Number of drafter → critic → drafter cycles. Total LLM calls = `2 * iterations + 1`. |
+
+### `op: synthesize`
+
+One LLM merges the outputs of N prior steps into a single response. This is the fan-in shape.
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `sources` | ✅ | — | List of prior step ids to merge (replaces the singular `source:`). |
+| `model` | ✅ | — | LiteLLM model string. |
+| `api_key_env_var` |  | Provider default | Env var holding API key. |
+| `system_prompt` |  | — | System prompt. |
+| `prompt_template` |  | Auto-composes source texts | Template for the merge. Each source appears as `{<step_id>_text}` in the template. |
+| `temperature` |  | `0.0` | Sampling temperature. |
+| `max_tokens` |  | `2048` | Max completion tokens. |
+| `api_base_env_var` |  | — | Custom base URL env var. |
+
 ## State model
 
 Every step's output is a dict `{text: str, ...op-specific fields}`. Steps read text from a prior step by `source:` id; omit `source:` and it defaults to the most recent step. This is the same "chain by id" pattern as `ml_pipeline`.
@@ -123,20 +203,60 @@ Each step (router, specialist, drafter, critic, proposer, arbitrator) picks its 
 
 ## Sources — where the input comes from
 
-| kind | Config | Use case |
+| kind | When to use |
+|---|---|
+| `literal` | Static prompt, quick demos |
+| `file` | Prompt / doc from disk |
+| `url` | Fetch a public document / API response |
+| `upstream_asset` | Chain the pipeline downstream of any other Dagster asset |
+
+All string fields on sources support `{partition_key}` substitution — a partitioned pipeline reads a different file / URL / literal per partition.
+
+### `kind: literal`
+
+| Field | Required | Description |
 |---|---|---|
-| `literal` | `{kind: literal, text: "..."}` | Static prompt, quick demos |
-| `file` | `{kind: file, path: /path/to.txt}` | Prompt / doc from disk |
-| `url` | `{kind: url, url: https://...}` | Fetch a public document / API response |
-| `upstream_asset` | `{kind: upstream_asset, upstream_asset_key: raw/text}` | Chain the pipeline downstream of any other Dagster asset |
+| `kind` | ✅ | `literal` |
+| `text` | ✅ | Static text used as the pipeline's initial input. `{partition_key}` templated. |
+
+### `kind: file`
+
+| Field | Required | Description |
+|---|---|---|
+| `kind` | ✅ | `file` |
+| `path` | ✅ | Filesystem path. `{partition_key}` templated (`questions/{partition_key}.txt`). Relative paths resolve against the code-location's working directory. |
+
+### `kind: url`
+
+| Field | Required | Description |
+|---|---|---|
+| `kind` | ✅ | `url` |
+| `url` | ✅ | URL to fetch. `{partition_key}` templated. Response body becomes the source text. |
+| `headers` |  | Optional `{header: value}` map. Values `{partition_key}`-templated. |
+
+### `kind: upstream_asset`
+
+| Field | Required | Description |
+|---|---|---|
+| `kind` | ✅ | `upstream_asset` |
+| `upstream_asset_key` | ✅ | Asset key of the Dagster asset to load. Its output becomes the pipeline's initial source text — the pipeline's inputs then show as parents in the asset graph. |
 
 ## Sinks — where the outputs go
 
-| kind | Config | Notes |
+The `outputs:` block has three keys — `assets:` (required), and optional `text_sinks:` / `json_sinks:` for side-effect writes to disk.
+
+| Sink | Required | Description |
 |---|---|---|
-| `assets` (required) | `[step_id, step_id, ...]` | Step outputs become first-class Dagster assets |
-| `text_sinks` | `[{from: step_id, path: /tmp/out.txt}]` | Writes step's text field. Path is `{partition_key}`-aware |
-| `json_sinks` | `[{from: step_id, path: /tmp/out.json}]` | Writes full step dict (metadata, usage, history). Path is `{partition_key}`-aware |
+| `assets` | ✅ | List of step ids whose outputs become first-class Dagster assets. Each emits the full step dict as materialization metadata (text, cost, latency, tokens, model, reasoning, proposals, history, etc.). |
+| `text_sinks` |  | Writes each listed step's `text` field to disk. Path is `{partition_key}`-aware. Parent dir auto-created. |
+| `json_sinks` |  | Writes each listed step's full dict (all metadata + usage + history) to disk as JSON. Path is `{partition_key}`-aware. Parent dir auto-created. |
+
+### `text_sinks[]` / `json_sinks[]` entry
+
+| Field | Required | Description |
+|---|---|---|
+| `from` | ✅ | Step id whose output to write. |
+| `path` | ✅ | Filesystem path. `{partition_key}` templated. Relative paths resolve against the code-location's working directory. |
 
 ## Partitioning
 
@@ -170,3 +290,28 @@ post_processing:
 | **Compose several of the above shapes into one pipeline** | **`agentic_pipeline` (this)** |
 
 This is the "compose it all yourself in one YAML" alternative — the AI-side match to `ml_pipeline` for the ML domain.
+
+[//]: # (FIELDS:START - auto-generated by tools/regen_readme_fields.py)
+
+## Fields
+
+### Required
+
+| Field | Type | Description |
+|---|---|---|
+| `asset_name_prefix` | `str` | Prefix for emitted asset names. Each step in outputs.assets becomes '{prefix}_{step_id}'. |
+| `source` | `Dict[str, Any]` | Data source. Shapes: {kind: literal, text: '...'} \| {kind: file, path: '...'} \| {kind: url, url: '...'} \| {kind: upstream_asset, upstream_asset_key: '...'}. All string fields are {partition_key}-templated. |
+| `steps` | `List[Dict[str, Any]]` | Ordered pipeline steps. Each step: {id, op, ...op-specific args}. Steps chain by id — a step with `source: <id>` reads that step's text; omit `source:` and it defaults to the most recent step's text. 5 ops: llm_call \| route \| debate \| critique_loop \| synthesize. |
+| `outputs` | `Dict[str, Any]` | Output declaration. Shape: {assets: [<step_ids>], text_sinks: [{from, path}], json_sinks: [{from, path}]}. `assets:` step outputs become first-class Dagster assets; `text_sinks:` writes step text to disk; `json_sinks:` writes full step dict. |
+
+### Catalog metadata
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `group_name` | `str` | `"agents"` | Group name for emitted assets. |
+| `kinds` | `List[str]` | — | Asset kinds. Default: ['llm', 'agent', 'pipeline']. |
+| `tags` | `Dict[str, str]` | — | Additional tags on emitted assets. |
+| `owners` | `List[str]` | — | Asset owners. |
+| `description` | `str` | — | Description on emitted assets. |
+
+[//]: # (FIELDS:END)

@@ -110,13 +110,15 @@ from dagster_community_components.compute_log_managers.splunk import SplunkCompu
 
 But this is optional — the standalone copy-paste path above is the recommended install for customers who only want the compute log manager and nothing else.
 
-## Where `dagster.yaml` lives
+## Where `dagster.yaml` lives + where the CLM code needs to be importable
 
-After installing (via either path above), the `compute_logs:` YAML block goes into your `dagster.yaml`. Location depends on the deployment shape:
+The `compute_logs:` YAML block goes into your `dagster.yaml`. **The CLM class itself is instantiated by the run worker at step-finish time** — so the Python module needs to be importable from whichever image runs job steps. Since you copied the files into `src/<your_pkg>/`, they're already part of your project code — they ship with your code-location image automatically.
 
-- **OSS local dev**: `$DAGSTER_HOME/dagster.yaml`
-- **OSS production**: same file, baked into the agent / daemon / webserver container image
-- **Dagster+ Hybrid**: agent-side `dagster.yaml`, mounted into the agent container
-- **Dagster+ Serverless**: configure via `dagster_cloud.yaml` / deployment settings; the manager code ships with your code-location container image
+| Deployment | `dagster.yaml` location | Where the CLM code needs to be |
+|---|---|---|
+| OSS local dev | `$DAGSTER_HOME/dagster.yaml` | Local Python env |
+| OSS production | Baked into daemon / webserver / user-code images | Same images that load `dagster.yaml` |
+| **Dagster+ Hybrid** | Instance config, applied via deployment settings or the agent config | **Code-location image** (built from your project — the run worker uses this image and calls the CLM after each step). No agent-image modification needed. |
+| **Dagster+ Serverless** | Instance config, applied via deployment settings / `dagster_cloud.yaml` | Code-location image (built from your project by Dagster+ Serverless). |
 
-After editing, restart `dagster-daemon` + `dagster-webserver` + any user-code containers so the new manager takes effect.
+After changing `dagster.yaml`, restart / redeploy whatever loads it (`dagster-daemon` + `dagster-webserver` on OSS; the deployment / code location on Dagster+) so the new manager takes effect.

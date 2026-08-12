@@ -76,10 +76,8 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-compone
 - `dagster_cloud.storage.compute_logs.CloudComputeLogManager` — resolves as long as `dagster-cloud` is installed (default on Dagster+).
 - **The custom compute log managers you copy in** (e.g. splunk / otlp from this repo) — also need to be at their copied path. Point Tee's `managers[i].module` at your own package path (e.g. `my_dagster_project.compute_log_managers.splunk`), NOT `dagster_community_components.compute_log_managers.splunk`.
 
-**Where `dagster.yaml` lives:**
-- Dagster+ Hybrid → agent container (bake copied files into the agent image)
-- Dagster+ Serverless → `dagster_cloud.yaml` / deployment settings; copied files ship with the code-location container
-- OSS → `$DAGSTER_HOME/dagster.yaml`
+**Where the CLM code needs to be importable:**
+The CLM class is instantiated by the run worker at step-finish time — so the module needs to be importable from the image that runs job steps. In Dagster+ Hybrid AND Serverless, that's your **code-location image** (built from your project). Since you copied the files into `src/<your_pkg>/`, they ship with the code-location image automatically — no agent-image modification needed. Every inner manager Tee wraps has the same requirement.
 
 ## Example — Splunk + Dagster+
 

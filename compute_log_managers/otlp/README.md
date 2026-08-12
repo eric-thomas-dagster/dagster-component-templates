@@ -144,10 +144,8 @@ compute_logs:
   config: {...}
 ```
 
-**Where `dagster.yaml` lives:**
-- Dagster+ Hybrid → agent container (bake the copied files into the agent image; the daemon needs to `import <your_pkg>.compute_log_managers.otlp`)
-- Dagster+ Serverless → configure via `dagster_cloud.yaml` / deployment settings; the files ship with your code-location container
-- OSS → `$DAGSTER_HOME/dagster.yaml`
+**Where the CLM code needs to be importable:**
+The CLM class is instantiated by the run worker at step-finish time — so the module needs to be importable from the image that runs job steps. In Dagster+ Hybrid AND Serverless, that's your **code-location image** (built from your project). Since you copied the files into `src/<your_pkg>/`, they ship with the code-location image automatically — no agent-image modification needed. On OSS, whichever image loads `dagster.yaml` (daemon / webserver / user-code containers) needs the module in its Python env.
 
 ### 1. Stand up an OTel Collector (or use a hosted one)
 

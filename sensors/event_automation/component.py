@@ -876,6 +876,15 @@ class InsightsMetricThresholdTrigger(_TriggerBase):
     as raw materialization metadata: run counts, credit spend, storage bytes,
     freshness pass %, etc.
 
+    Scope:
+      - `asset_selection` — Dagster selection string, resolved server-side by
+        `reportingMetricsByAssetSelection`. Covers group / tag / kind /
+        asset-key targeting via one field ('group:marts and tag:tier=gold',
+        'kind:dbt', 'is:external', 'key:"marts/orders"'). Verified live
+        against the Dagster+ prod GraphQL.
+      - (default, no scope set) — deployment-wide via
+        `reportingMetricsByDeployment`.
+
     Requires:
       - DAGSTER_CLOUD_ORGANIZATION env var (auto-injected in Dagster+ runtime)
       - DAGSTER_CLOUD_API_TOKEN env var with metrics-read permission
@@ -900,6 +909,14 @@ class InsightsMetricThresholdTrigger(_TriggerBase):
         default=24,
         description="How many hours of history to fetch. Tune to your granularity (24 for HOURLY, 168 for DAILY, etc.).",
     )
+    asset_selection: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional Dagster asset-selection string, resolved server-side. "
+            "E.g. 'group:marts and tag:tier=gold', 'kind:dbt', 'is:external', "
+            "'key:\"marts/orders\"'. Unset = deployment-wide."
+        ),
+    )
     deployment: str = Field(default="prod")
     org_env_var: str = Field(default="DAGSTER_CLOUD_ORGANIZATION")
     token_env_var: str = Field(default="DAGSTER_CLOUD_API_TOKEN")
@@ -909,18 +926,70 @@ class InsightsMetricThresholdTrigger(_TriggerBase):
 class DagsterPlusAuditTrigger(_TriggerBase):
     """Dagster+ only. Fires on audit-log events matching a filter.
 
-    Queries the Dagster+ GraphQL API for audit log entries (RBAC changes,
-    permission grants, config edits, secret changes). Compliance + security
-    workflows can react programmatically (Slack the security team on prod
-    permission change, log to an external SIEM, etc.).
+    Dagster+ Alerts does NOT cover audit-log events — this trigger fills the
+    gap. Compliance + security workflows can react programmatically: RBAC
+    changes → Slack the security team, secret rotations → SIEM webhook,
+    deployment changes → Splunk, etc.
+
+    Verified against live Dagster+ GraphQL. Filters push down server-side
+    where possible (`event_types`, `user_emails`, `deployment_names`,
+    `is_branch_deployment`); regex patterns run client-side after fetch.
+
+    Real audit event types (42 total, grouped):
+
+    - **RBAC / users**: CHANGE_USER_PERMISSIONS, CREATE_SERVICE_USER,
+      UPDATE_SERVICE_USER, DELETE_SERVICE_USER, CHANGE_SERVICE_USER_PERMISSIONS
+    - **Tokens**: CREATE_USER_TOKEN, REVOKE_USER_TOKEN, CREATE_AGENT_TOKEN,
+      REVOKE_AGENT_TOKEN, UPDATE_AGENT_TOKEN_PERMISSIONS,
+      CREATE_SERVICE_TOKEN, REVOKE_SERVICE_TOKEN, PUT_REVOKE_TOKEN
+    - **Secrets**: CREATE_SECRET, UPDATE_SECRET, DELETE_SECRET
+    - **Deployments**: CREATE_DEPLOYMENT, DELETE_DEPLOYMENT,
+      UPDATE_DEPLOYMENT_SETTINGS
+    - **Code locations**: CREATE_CODE_LOCATION, UPDATE_CODE_LOCATION,
+      DELETE_CODE_LOCATION, REDEPLOY_SERVERLESS_AGENT
+    - **Automation**: UPDATE_SCHEDULE, UPDATE_SENSOR, SET_AUTO_MATERIALIZE_PAUSED,
+      LAUNCH_RUN, LAUNCH_BACKFILL
+    - **Alerts (meta!)**: MODIFY_ALERT_POLICIES, SET_ALERT_POLICY_MUTE_UNTIL
+    - **Org**: CREATE_ORGANIZATION_SUBDOMAIN, DELETE_ORGANIZATION_SUBDOMAIN,
+      UPDATE_SUBSCRIPTION_PLAN, UPDATE_SUBSCRIPTION_TYPE
+    - **Auth**: LOG_IN, IFRAME_LOG_IN
+
+    Prefer `event_types` (server-side, exact enum) over `event_type_pattern`
+    (client-side regex) when your target set is fixed.
     """
     type: Literal["dagster_plus_audit"] = "dagster_plus_audit"
+    # Server-side push-down filters (verified against live GraphQL schema)
+    event_types: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Server-side filter: list of AuditLogEventType enum values to include "
+            "(e.g. ['CREATE_SECRET', 'UPDATE_SECRET', 'DELETE_SECRET']). "
+            "Prefer this over event_type_pattern when your target set is fixed."
+        ),
+    )
+    user_emails: Optional[List[str]] = Field(
+        default=None,
+        description="Server-side filter: list of actor emails to include.",
+    )
+    deployment_names: Optional[List[str]] = Field(
+        default=None,
+        description="Server-side filter: which deployments to include (e.g. ['prod']).",
+    )
+    is_branch_deployment: Optional[bool] = Field(
+        default=None,
+        description="Server-side filter: True = branch deployments only, False = main only, None = both.",
+    )
+    # Client-side regex filters (kept for pattern flexibility)
     event_type_pattern: Optional[str] = Field(
         default=None,
-        description="Optional regex on audit event type (e.g. 'permission.*grant', 'secret.*').",
+        description=(
+            "Optional regex on audit event type (e.g. 'permission.*grant', "
+            "'secret.*'). Applied client-side AFTER event_types push-down."
+        ),
     )
     actor_pattern: Optional[str] = Field(
-        default=None, description="Optional regex on actor email / user id."
+        default=None,
+        description="Optional regex on actor email / user id (client-side).",
     )
     deployment: str = Field(default="prod")
     org_env_var: str = Field(default="DAGSTER_CLOUD_ORGANIZATION")
@@ -3252,33 +3321,47 @@ def _build_insights_metric_sensor(name, trigger, actions, default_status):
         # comparison via Insights (Victoria Metrics under the hood).
         now = int(time.time())
         after = now - max(1, trigger.lookback_hours) * 3600
-        q = f'''query {{
-          reportingMetricsByDeployment(metricsSelector: {{
-            after: {after}.0,
-            before: {now}.0,
-            metricName: "{trigger.metric_name}",
-            granularity: {trigger.granularity},
-            aggregationFunction: {trigger.aggregation}
-          }}) {{
-            ... on ReportingMetrics {{ timestamps metrics {{ values }} }}
-            ... on ReportingInputError {{ message }}
-            ... on UnauthorizedError {{ message }}
-            ... on PythonError {{ message }}
-          }}
-        }}'''
+        selector = (
+            f'metricsSelector: {{ after: {after}.0, before: {now}.0, '
+            f'metricName: "{trigger.metric_name}", '
+            f'granularity: {trigger.granularity}, '
+            f'aggregationFunction: {trigger.aggregation} }}'
+        )
+        # Pick the right scoped query. Sibling queries all return the same
+        # union response shape (ReportingMetrics / ReportingInputError / etc.),
+        # so downstream parsing is identical.
+        response_fragment = '''{
+            ... on ReportingMetrics { timestamps metrics { values } }
+            ... on ReportingInputError { message }
+            ... on UnauthorizedError { message }
+            ... on PythonError { message }
+          }'''
+        if trigger.asset_selection:
+            _sel = trigger.asset_selection.replace('"', '\\"')
+            q = (f'query {{ reportingMetricsByAssetSelection('
+                 f'metricsFilter: {{ assetSelection: "{_sel}" }}, {selector}) '
+                 f'{response_fragment} }}')
+        else:
+            q = (f'query {{ reportingMetricsByDeployment({selector}) '
+                 f'{response_fragment} }}')
         try:
             resp = _dagster_plus_graphql(q, org, token, deployment)
         except Exception as exc:
             return dg.SkipReason(f"Insights GraphQL query failed: {exc}")
         if "errors" in resp:
             return dg.SkipReason(f"Insights query returned errors: {resp['errors']}")
-        data = (resp.get("data") or {}).get("reportingMetricsByDeployment") or {}
+        # Which top-level query key we used depends on the scope
+        if trigger.asset_selection:
+            query_key = "reportingMetricsByAssetSelection"
+        else:
+            query_key = "reportingMetricsByDeployment"
+        data = (resp.get("data") or {}).get(query_key) or {}
         # Union result — check for error shape first
         if "message" in data:
             return dg.SkipReason(f"Insights: {data['message']}")
         metrics = data.get("metrics") or []
         if not metrics:
-            return dg.SkipReason(f"metric '{trigger.metric_name}' has no data for this deployment")
+            return dg.SkipReason(f"metric '{trigger.metric_name}' has no data for this scope")
         # Take the most recent non-null value from the first metric result
         values = metrics[0].get("values") or []
         latest = None
@@ -3343,10 +3426,25 @@ def _build_dagster_plus_audit_sensor(name, trigger, actions, default_status):
             last_ts = 0.0
         now = float(int(time.time()))
         after = last_ts if last_ts > 0 else (now - 3600)
+        # Build push-down filter list — GraphQL enum values are unquoted;
+        # string list values are quoted. Skip any filter that isn't set.
+        filter_parts = [f"afterDatetime: {after}", f"beforeDatetime: {now}"]
+        if trigger.event_types:
+            enums = ", ".join(str(e) for e in trigger.event_types)
+            filter_parts.append(f"eventTypes: [{enums}]")
+        if trigger.user_emails:
+            emails = ", ".join(f'"{e}"' for e in trigger.user_emails)
+            filter_parts.append(f"userEmails: [{emails}]")
+        if trigger.deployment_names:
+            deps = ", ".join(f'"{d}"' for d in trigger.deployment_names)
+            filter_parts.append(f"deploymentNames: [{deps}]")
+        if trigger.is_branch_deployment is not None:
+            filter_parts.append(f"isBranchDeployment: {str(trigger.is_branch_deployment).lower()}")
+        filter_str = ", ".join(filter_parts)
         q = f'''query {{
           auditLog {{
             enabled
-            auditLogEntries(filters: {{ afterDatetime: {after}, beforeDatetime: {now} }}, limit: 100) {{
+            auditLogEntries(filters: {{ {filter_str} }}, limit: 100) {{
               id eventType authorUserEmail authorAgentTokenId timestamp
               deploymentName branchDeploymentName eventMetadata
             }}

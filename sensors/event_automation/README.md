@@ -527,7 +527,7 @@ Emits `{partition_key}` (the whole key) plus `{partition_<dim>}` tokens (e.g. `{
 
 These EXTEND Dagster+ (programmatic reaction via GraphQL) rather than replacing its native alerting UI. Require `DAGSTER_CLOUD_ORGANIZATION` + `DAGSTER_CLOUD_API_TOKEN` env vars.
 
-**`insights_metric`** — a Dagster+ Insights **time-window aggregate** crossed a threshold. Distinct from `metric_threshold`, which fires on a single materialization's raw metadata. This queries Dagster+ Insights (Victoria Metrics under the hood) for aggregations over a configurable time window — so you can alert on trend shape ("weekly average", "daily p95") rather than single-event crossings. Also the entry point for platform-computed metrics that don't exist as raw materialization metadata (credit spend, run duration aggregates, freshness pass %).
+**`insights_metric`** — a Dagster+ Insights **time-window aggregate** crossed a threshold. Distinct from `metric_threshold`, which fires on a single materialization's raw metadata. This queries Dagster+ Insights (Victoria Metrics under the hood) for aggregations over a configurable time window — alert on trend shape ("weekly average", "daily p95") rather than single-event crossings. Also the entry point for platform-computed metrics that don't exist as raw materialization metadata (credit spend, run duration aggregates, freshness pass %).
 
 ```yaml
 - type: insights_metric
@@ -536,22 +536,49 @@ These EXTEND Dagster+ (programmatic reaction via GraphQL) rather than replacing 
   threshold: 100
   granularity: DAILY                      # HOURLY | DAILY | WEEKLY | MONTHLY (Victoria Metrics bucket)
   aggregation: AVERAGE                    # SUM | AVERAGE | MIN | MAX (how bucket values combine)
-  lookback_hours: 168                     # how many hours of history to fetch (168 = 7 days)
-  deployment: prod                        # default: prod
+  lookback_hours: 168                     # how many hours of history (168 = 7 days)
+  # Optional scoping via Dagster asset-selection syntax (server-side resolved
+  # via reportingMetricsByAssetSelection). Unset = deployment-wide.
+  asset_selection: "group:marts and tag:tier=gold"
+  deployment: prod
   org_env_var: DAGSTER_CLOUD_ORGANIZATION
   token_env_var: DAGSTER_CLOUD_API_TOKEN
 ```
+
+The `asset_selection` field is a Dagster asset-selection string resolved server-side by the `reportingMetricsByAssetSelection` GraphQL query — the same selection surface Dagster's UI uses. Covers group / tag / kind / asset-key targeting via one field (`group:marts and tag:tier=gold`, `kind:dbt`, `is:external`, `key:"marts/orders"`). Verified against live prod GraphQL.
 
 **`dagster_plus_audit`** — a Dagster+ audit log event matched a filter. Dagster+ Alerts doesn't cover audit-log events, so this is the programmatic hook: SOC2 / SIEM feeds, security-team Slack on prod RBAC changes, secret-rotation notifications, config-change tracking.
 
 ```yaml
 - type: dagster_plus_audit
-  event_type_pattern: "permission.*grant|role.*change"   # optional regex on audit event type
-  actor_pattern: ".*@company.com"                        # optional regex on actor email
-  deployment: prod                                       # default: prod
+  # Server-side push-down filters (verified live) — prefer these over regex
+  event_types:                                           # exact enum match
+    - CREATE_SECRET
+    - UPDATE_SECRET
+    - DELETE_SECRET
+    - CHANGE_USER_PERMISSIONS
+  user_emails: ["alice@company.com", "bob@company.com"]  # actor filter
+  deployment_names: ["prod"]
+  is_branch_deployment: false                            # main deployments only
+  # Client-side regex (applied after push-down)
+  event_type_pattern: ".*SECRET.*"                       # optional
+  actor_pattern: ".*@company.com"                        # optional
+  deployment: prod
 ```
 
-Emits dedicated tokens: `{audit_event_type}` (e.g. `permission.grant`), `{actor}` (the user email or agent token id that took the action), `{deployment}` (which deployment the event happened in) — plus the standard token surface. Handy for SIEM webhooks that need structured fields.
+**Real audit event types (42 total, verified via live GraphQL introspection):**
+
+- **RBAC / users** — `CHANGE_USER_PERMISSIONS`, `CREATE_SERVICE_USER`, `UPDATE_SERVICE_USER`, `DELETE_SERVICE_USER`, `CHANGE_SERVICE_USER_PERMISSIONS`
+- **Tokens** — `CREATE_USER_TOKEN`, `REVOKE_USER_TOKEN`, `CREATE_AGENT_TOKEN`, `REVOKE_AGENT_TOKEN`, `UPDATE_AGENT_TOKEN_PERMISSIONS`, `CREATE_SERVICE_TOKEN`, `REVOKE_SERVICE_TOKEN`, `PUT_REVOKE_TOKEN`
+- **Secrets** — `CREATE_SECRET`, `UPDATE_SECRET`, `DELETE_SECRET`
+- **Deployments** — `CREATE_DEPLOYMENT`, `DELETE_DEPLOYMENT`, `UPDATE_DEPLOYMENT_SETTINGS`
+- **Code locations** — `CREATE_CODE_LOCATION`, `UPDATE_CODE_LOCATION`, `DELETE_CODE_LOCATION`, `REDEPLOY_SERVERLESS_AGENT`
+- **Automation** — `UPDATE_SCHEDULE`, `UPDATE_SENSOR`, `SET_AUTO_MATERIALIZE_PAUSED`, `LAUNCH_RUN`, `LAUNCH_BACKFILL`
+- **Alerts (meta!)** — `MODIFY_ALERT_POLICIES`, `SET_ALERT_POLICY_MUTE_UNTIL`
+- **Org** — `CREATE_ORGANIZATION_SUBDOMAIN`, `DELETE_ORGANIZATION_SUBDOMAIN`, `UPDATE_SUBSCRIPTION_PLAN`, `UPDATE_SUBSCRIPTION_TYPE`
+- **Auth** — `LOG_IN`, `IFRAME_LOG_IN`
+
+Emits tokens: `{audit_event_type}` (e.g. `CREATE_SECRET`), `{actor}` (the user email or agent token id that took the action), `{deployment}` (which deployment) — plus the standard token surface. Handy for SIEM webhooks that need structured fields.
 
 ### Composite (AND / OR)
 

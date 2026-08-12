@@ -1,4 +1,4 @@
-"""EventAutomationComponent — 35 declarative triggers → 17 actions in one YAML component.
+"""EventAutomationComponent — 35 declarative triggers → 27 actions in one YAML component.
 
 Prefect-Automations analog on top of real Dagster sensors. Full trigger + action
 catalog, compound AND/OR semantics, and recipes are in the README:
@@ -237,6 +237,155 @@ class SqsAction(_ActionBase):
     )
 
 
+# ── Tier 1 ops / self-healing actions ─────────────────────────────────────
+# These wrap Dagster+ GraphQL mutations or the instance API. Verified live
+# against Dagster+ prod GraphQL introspection (see 42-mutation catalog).
+
+
+class ReloadCodeLocationAction(_ActionBase):
+    """Dagster+ only. Reload a specific code location or the whole workspace.
+
+    Pair with `code_location_status: ERROR` for auto-recovery — a bad deploy
+    that broke the location gets automatically reloaded (which retries load
+    and can recover if the root cause was a transient dep-install issue).
+    """
+    type: Literal["reload_code_location"] = "reload_code_location"
+    location_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "Location to reload. Templated (use '{location_name}' to pull from "
+            "trigger tokens). If unset, reloads the whole workspace."
+        ),
+    )
+    org_env_var: str = Field(default="DAGSTER_CLOUD_ORGANIZATION")
+    token_env_var: str = Field(default="DAGSTER_CLOUD_API_TOKEN")
+    deployment: str = Field(default="prod")
+
+
+class RefreshDefsStateAction(_ActionBase):
+    """Dagster+ only. Refresh definitions state for a code location.
+
+    Use with StateBackedComponent-shaped assets (planned catalogs, LLM plans,
+    dynamic asset graphs) that cache derived state — trigger a refresh on
+    schedule or when upstream state signals staleness.
+    """
+    type: Literal["refresh_defs_state"] = "refresh_defs_state"
+    location_name: str = Field(description="Code location to refresh. Templated.")
+    defs_state_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional specific state key. If set, calls `refreshComponentState`; "
+            "if unset, calls `refreshDefsState` (refresh everything in the location)."
+        ),
+    )
+    org_env_var: str = Field(default="DAGSTER_CLOUD_ORGANIZATION")
+    token_env_var: str = Field(default="DAGSTER_CLOUD_API_TOKEN")
+    deployment: str = Field(default="prod")
+
+
+class SetConcurrencyLimitAction(_ActionBase):
+    """Adjust a concurrency pool limit dynamically.
+
+    Works on OSS (uses `instance.event_log_storage.set_concurrency_slots`).
+    Common use: scheduled scaling (bump warehouse pool during business hours,
+    drop overnight) or reactive (concurrency_hit fires → auto-bump).
+    """
+    type: Literal["set_concurrency_limit"] = "set_concurrency_limit"
+    concurrency_key: str = Field(description="Pool name. Templated.")
+    limit: int = Field(description="New slot count (integer).")
+
+
+class FreeConcurrencySlotsAction(_ActionBase):
+    """Release concurrency slots stuck by a crashed run/step.
+
+    Works on OSS (uses `instance.event_log_storage.free_concurrency_slots_for_run`
+    or `.free_concurrency_slots`). Pair with `run_stuck` trigger for auto-recovery.
+    """
+    type: Literal["free_concurrency_slots"] = "free_concurrency_slots"
+    run_id: str = Field(
+        description="Run whose slots to release. Templated (use '{run_id}' from trigger).",
+    )
+    step_key: Optional[str] = Field(
+        default=None, description="Optional specific step key to release. Templated.",
+    )
+
+
+class SetAutoMaterializePausedAction(_ActionBase):
+    """Dagster+ only. Globally pause / unpause AutoMaterialize (Declarative Automation).
+
+    Use for maintenance windows, incident freezes, cost-spike breakers.
+    """
+    type: Literal["set_auto_materialize_paused"] = "set_auto_materialize_paused"
+    paused: bool = Field(description="True = pause, False = unpause.")
+    org_env_var: str = Field(default="DAGSTER_CLOUD_ORGANIZATION")
+    token_env_var: str = Field(default="DAGSTER_CLOUD_API_TOKEN")
+    deployment: str = Field(default="prod")
+
+
+class MuteAlertPolicyAction(_ActionBase):
+    """Dagster+ only. Temporarily mute a Dagster+ Alerts policy.
+
+    Pair with `maintenance_windows` throttle or `schedule` trigger to silence
+    noisy alerts during planned quiet periods — cross-cuts across Dagster+
+    Alerts + event_automation for full-suite silencing.
+    """
+    type: Literal["mute_alert_policy"] = "mute_alert_policy"
+    alert_policy_id: str = Field(description="Dagster+ alert policy ID.")
+    mute_for_seconds: int = Field(description="Duration to mute (seconds).")
+    org_env_var: str = Field(default="DAGSTER_CLOUD_ORGANIZATION")
+    token_env_var: str = Field(default="DAGSTER_CLOUD_API_TOKEN")
+    deployment: str = Field(default="prod")
+
+
+class ResumeBackfillAction(_ActionBase):
+    """Resume a paused partition backfill.
+
+    Pair with `backfill_status: FAILED` + a resolver trigger for auto-retry loops.
+    """
+    type: Literal["resume_backfill"] = "resume_backfill"
+    backfill_id: str = Field(description="Backfill ID. Templated (use '{run_id}' — backfill_status trigger emits the backfill id there).")
+    org_env_var: str = Field(default="DAGSTER_CLOUD_ORGANIZATION")
+    token_env_var: str = Field(default="DAGSTER_CLOUD_API_TOKEN")
+    deployment: str = Field(default="prod")
+
+
+class CancelBackfillAction(_ActionBase):
+    """Cancel a partition backfill in progress."""
+    type: Literal["cancel_backfill"] = "cancel_backfill"
+    backfill_id: str = Field(description="Backfill ID. Templated.")
+    org_env_var: str = Field(default="DAGSTER_CLOUD_ORGANIZATION")
+    token_env_var: str = Field(default="DAGSTER_CLOUD_API_TOKEN")
+    deployment: str = Field(default="prod")
+
+
+class ReexecuteBackfillAction(_ActionBase):
+    """Dagster+ only. Re-execute a failed partition backfill (`reexecutePartitionBackfill`)."""
+    type: Literal["reexecute_backfill"] = "reexecute_backfill"
+    backfill_id: str = Field(description="Parent backfill ID. Templated.")
+    from_failure: bool = Field(
+        default=True,
+        description="True = re-run only failed partitions; False = re-run everything.",
+    )
+    org_env_var: str = Field(default="DAGSTER_CLOUD_ORGANIZATION")
+    token_env_var: str = Field(default="DAGSTER_CLOUD_API_TOKEN")
+    deployment: str = Field(default="prod")
+
+
+class AddDynamicPartitionAction(_ActionBase):
+    """Add a new dynamic partition to a DynamicPartitionsDefinition.
+
+    Works on OSS via `instance.add_dynamic_partitions()`. Pair with any
+    trigger emitting a natural partition key (S3 file drop, Kafka message,
+    HTTP poll response) to programmatically register the partition without
+    a separate sensor.
+    """
+    type: Literal["add_dynamic_partition"] = "add_dynamic_partition"
+    partitions_def_name: str = Field(description="DynamicPartitionsDefinition name.")
+    partition_key: str = Field(
+        description="Partition key to add. Templated ('{partition_key}' or a custom token).",
+    )
+
+
 Action = Union[
     MaterializeAction,
     LaunchJobAction,
@@ -255,6 +404,17 @@ Action = Union[
     ToggleScheduleAction,
     SnsAction,
     SqsAction,
+    # Tier 1 ops / self-healing
+    ReloadCodeLocationAction,
+    RefreshDefsStateAction,
+    SetConcurrencyLimitAction,
+    FreeConcurrencySlotsAction,
+    SetAutoMaterializePausedAction,
+    MuteAlertPolicyAction,
+    ResumeBackfillAction,
+    CancelBackfillAction,
+    ReexecuteBackfillAction,
+    AddDynamicPartitionAction,
 ]
 
 
@@ -1584,8 +1744,124 @@ def _execute_action(action: Action, tokens: Dict[str, Any], logger, instance=Non
         except Exception as exc:
             logger.warning(f"sqs: send failed: {exc}")
         return None
+    # ── Tier 1 ops / self-healing actions ─────────────────────────────
+    if isinstance(action, ReloadCodeLocationAction):
+        loc = _render_template(action.location_name, tokens) if action.location_name else None
+        if loc:
+            _dagster_plus_mutation(
+                action, f'mutation {{ reloadRepositoryLocation(repositoryLocationName: "{loc}") '
+                        f'{{ __typename }} }}', logger, f"reload_code_location({loc})",
+            )
+        else:
+            _dagster_plus_mutation(
+                action, 'mutation { reloadWorkspace { __typename } }', logger, "reload_workspace",
+            )
+        return None
+    if isinstance(action, RefreshDefsStateAction):
+        loc = _render_template(action.location_name, tokens)
+        if action.defs_state_key:
+            key = _render_template(action.defs_state_key, tokens)
+            m = (f'mutation {{ refreshComponentState(defsStateKey: "{key}", '
+                 f'locationName: "{loc}") {{ __typename }} }}')
+            label = f"refresh_component_state({loc}/{key})"
+        else:
+            m = f'mutation {{ refreshDefsState(locationName: "{loc}") {{ __typename }} }}'
+            label = f"refresh_defs_state({loc})"
+        _dagster_plus_mutation(action, m, logger, label)
+        return None
+    if isinstance(action, SetConcurrencyLimitAction):
+        if instance is None:
+            logger.warning("set_concurrency_limit: no instance provided; skipping.")
+            return None
+        key = _render_template(action.concurrency_key, tokens)
+        try:
+            instance.event_log_storage.set_concurrency_slots(key, action.limit)
+            logger.info(f"set_concurrency_limit → {key} = {action.limit}")
+        except Exception as exc:
+            logger.warning(f"set_concurrency_limit failed: {exc}")
+        return None
+    if isinstance(action, FreeConcurrencySlotsAction):
+        if instance is None:
+            logger.warning("free_concurrency_slots: no instance provided; skipping.")
+            return None
+        rid = _render_template(action.run_id, tokens)
+        step = _render_template(action.step_key, tokens) if action.step_key else None
+        try:
+            if step:
+                instance.event_log_storage.free_concurrency_slots(run_id=rid, step_key=step)
+                logger.info(f"free_concurrency_slots → run={rid[:8]} step={step}")
+            else:
+                instance.event_log_storage.free_concurrency_slots_for_run(run_id=rid)
+                logger.info(f"free_concurrency_slots → run={rid[:8]}")
+        except Exception as exc:
+            logger.warning(f"free_concurrency_slots failed: {exc}")
+        return None
+    if isinstance(action, SetAutoMaterializePausedAction):
+        m = (f'mutation {{ setAutoMaterializePaused(paused: '
+             f'{"true" if action.paused else "false"}) }}')
+        _dagster_plus_mutation(action, m, logger,
+                               f"set_auto_materialize_paused({action.paused})")
+        return None
+    if isinstance(action, MuteAlertPolicyAction):
+        m = (f'mutation {{ setAlertPolicyMuteUntil('
+             f'alertPolicyId: "{action.alert_policy_id}", '
+             f'muteForSeconds: {action.mute_for_seconds}) {{ __typename }} }}')
+        _dagster_plus_mutation(action, m, logger,
+                               f"mute_alert_policy({action.alert_policy_id}, {action.mute_for_seconds}s)")
+        return None
+    if isinstance(action, ResumeBackfillAction):
+        bid = _render_template(action.backfill_id, tokens)
+        m = f'mutation {{ resumePartitionBackfill(backfillId: "{bid}") {{ __typename }} }}'
+        _dagster_plus_mutation(action, m, logger, f"resume_backfill({bid})")
+        return None
+    if isinstance(action, CancelBackfillAction):
+        bid = _render_template(action.backfill_id, tokens)
+        m = f'mutation {{ cancelPartitionBackfill(backfillId: "{bid}") {{ __typename }} }}'
+        _dagster_plus_mutation(action, m, logger, f"cancel_backfill({bid})")
+        return None
+    if isinstance(action, ReexecuteBackfillAction):
+        bid = _render_template(action.backfill_id, tokens)
+        strategy = "FROM_FAILURE" if action.from_failure else "ALL_STEPS"
+        m = (f'mutation {{ reexecutePartitionBackfill(reexecutionParams: '
+             f'{{ parentRunId: "{bid}", strategy: {strategy} }}) {{ __typename }} }}')
+        _dagster_plus_mutation(action, m, logger, f"reexecute_backfill({bid}, {strategy})")
+        return None
+    if isinstance(action, AddDynamicPartitionAction):
+        if instance is None:
+            logger.warning("add_dynamic_partition: no instance provided; skipping.")
+            return None
+        key = _render_template(action.partition_key, tokens)
+        try:
+            instance.add_dynamic_partitions(action.partitions_def_name, [key])
+            logger.info(f"add_dynamic_partition → {action.partitions_def_name}={key}")
+        except Exception as exc:
+            logger.warning(f"add_dynamic_partition failed: {exc}")
+        return None
     logger.warning(f"Unknown action type: {type(action).__name__}")
     return None
+
+
+def _dagster_plus_mutation(action, mutation: str, logger, label: str) -> None:
+    """Fire a Dagster+ GraphQL mutation. Non-fatal on failure — logs a warning.
+
+    Actions that use this: reload_code_location, refresh_defs_state,
+    set_auto_materialize_paused, mute_alert_policy, backfill controls.
+    """
+    org = os.environ.get(action.org_env_var, "")
+    token = os.environ.get(action.token_env_var, "")
+    if not org or not token:
+        logger.warning(
+            f"{label}: {action.org_env_var} or {action.token_env_var} not set — skipping."
+        )
+        return
+    try:
+        resp = _dagster_plus_graphql(mutation, org, token, action.deployment)
+        if "errors" in resp:
+            logger.warning(f"{label}: mutation returned errors: {resp['errors']}")
+        else:
+            logger.info(f"{label} → OK")
+    except Exception as exc:
+        logger.warning(f"{label}: mutation failed: {exc}")
 
 
 def _toggle_instigator(instance, name: str, action_str: str, kind: str, logger) -> None:

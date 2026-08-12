@@ -708,6 +708,113 @@
               "message_deduplication_id_template": {"type": "string", "description": "For FIFO queues, templated."}
             },
             "required": ["type", "queue_url"]
+          },
+          {
+            "title": "reload_code_location — reload a Dagster+ code location (or whole workspace)",
+            "properties": {
+              "type": {"const": "reload_code_location"},
+              "location_name": {"type": "string", "description": "Location to reload. Templated. Unset = reload whole workspace."},
+              "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
+              "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
+              "deployment": {"type": "string", "default": "prod"}
+            },
+            "required": ["type"]
+          },
+          {
+            "title": "refresh_defs_state — refresh Dagster+ definitions state for a code location",
+            "properties": {
+              "type": {"const": "refresh_defs_state"},
+              "location_name": {"type": "string", "description": "Code location. Templated."},
+              "defs_state_key": {"type": "string", "description": "Optional specific state key (uses refreshComponentState). Templated."},
+              "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
+              "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
+              "deployment": {"type": "string", "default": "prod"}
+            },
+            "required": ["type", "location_name"]
+          },
+          {
+            "title": "set_concurrency_limit — dynamically adjust a pool's slot count",
+            "properties": {
+              "type": {"const": "set_concurrency_limit"},
+              "concurrency_key": {"type": "string", "description": "Pool name. Templated."},
+              "limit": {"type": "integer", "description": "New slot count."}
+            },
+            "required": ["type", "concurrency_key", "limit"]
+          },
+          {
+            "title": "free_concurrency_slots — release slots stuck by a crashed run/step",
+            "properties": {
+              "type": {"const": "free_concurrency_slots"},
+              "run_id": {"type": "string", "description": "Run whose slots to release. Templated (use '{run_id}')."},
+              "step_key": {"type": "string", "description": "Optional specific step key. Templated."}
+            },
+            "required": ["type", "run_id"]
+          },
+          {
+            "title": "set_auto_materialize_paused — globally pause/unpause Declarative Automation (Dagster+)",
+            "properties": {
+              "type": {"const": "set_auto_materialize_paused"},
+              "paused": {"type": "boolean", "description": "true = pause, false = unpause."},
+              "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
+              "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
+              "deployment": {"type": "string", "default": "prod"}
+            },
+            "required": ["type", "paused"]
+          },
+          {
+            "title": "mute_alert_policy — temporarily mute a Dagster+ Alerts policy",
+            "properties": {
+              "type": {"const": "mute_alert_policy"},
+              "alert_policy_id": {"type": "string", "description": "Dagster+ alert policy ID."},
+              "mute_for_seconds": {"type": "integer", "description": "Duration to mute."},
+              "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
+              "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
+              "deployment": {"type": "string", "default": "prod"}
+            },
+            "required": ["type", "alert_policy_id", "mute_for_seconds"]
+          },
+          {
+            "title": "resume_backfill — resume a paused partition backfill",
+            "properties": {
+              "type": {"const": "resume_backfill"},
+              "backfill_id": {"type": "string", "description": "Backfill ID. Templated."},
+              "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
+              "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
+              "deployment": {"type": "string", "default": "prod"}
+            },
+            "required": ["type", "backfill_id"]
+          },
+          {
+            "title": "cancel_backfill — cancel a partition backfill in progress",
+            "properties": {
+              "type": {"const": "cancel_backfill"},
+              "backfill_id": {"type": "string", "description": "Backfill ID. Templated."},
+              "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
+              "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
+              "deployment": {"type": "string", "default": "prod"}
+            },
+            "required": ["type", "backfill_id"]
+          },
+          {
+            "title": "reexecute_backfill — re-execute a failed partition backfill",
+            "properties": {
+              "type": {"const": "reexecute_backfill"},
+              "backfill_id": {"type": "string", "description": "Parent backfill ID. Templated."},
+              "from_failure": {"type": "boolean", "default": true, "description": "true = FROM_FAILURE (only failed partitions); false = ALL_STEPS."},
+              "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
+              "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
+              "deployment": {"type": "string", "default": "prod"}
+            },
+            "required": ["type", "backfill_id"]
+          },
+          {
+            "title": "add_dynamic_partition — register a new dynamic partition programmatically",
+            "properties": {
+              "type": {"const": "add_dynamic_partition"},
+              "partitions_def_name": {"type": "string", "description": "DynamicPartitionsDefinition name."},
+              "partition_key": {"type": "string", "description": "Partition key to add. Templated."}
+            },
+            "required": ["type", "partitions_def_name", "partition_key"]
           }
         ]
       },

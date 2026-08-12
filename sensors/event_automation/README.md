@@ -2,7 +2,7 @@
 
 Prefect-Automations-style declarative event → action wiring in one YAML component. Each `when: … then: …` block becomes a real Dagster sensor under the covers; no Python needed for common trigger-action shapes.
 
-**Surface: 35 trigger types + 17 action types + AND/OR compound composition (one level of nesting).**
+**Surface: 35 trigger types + 27 action types + AND/OR compound composition (one level of nesting).**
 
 ## Triggers (35)
 
@@ -46,16 +46,12 @@ Prefect-Automations-style declarative event → action wiring in one YAML compon
 | `all_of` | AND compound (all sub-triggers fire within `within_seconds`) |
 | `any_of` | OR compound (nested inside `all_of` only) |
 
-## Actions (17)
+## Actions (27)
+
+**Alerting / external** (11):
 
 | Type | Effect |
 |---|---|
-| `materialize` | Launch a materialization run |
-| `launch_job` | Launch a job |
-| `cancel_run` | Terminate a run (`instance.run_launcher.terminate`) |
-| `retry_run` | Re-execute a failed run |
-| `toggle_sensor` | Start/stop a sensor by name |
-| `toggle_schedule` | Start/stop a schedule by name |
 | `webhook` | Arbitrary HTTP call with templated body |
 | `slack` | Slack incoming-webhook alert |
 | `pagerduty` | PagerDuty Events API v2 |
@@ -68,7 +64,54 @@ Prefect-Automations-style declarative event → action wiring in one YAML compon
 | `sqs` | Send to AWS SQS queue |
 | `emit_event` | Log emission for downstream sensor chaining |
 
+**Dagster runs / automation** (6):
+
+| Type | Effect |
+|---|---|
+| `materialize` | Launch a materialization run |
+| `launch_job` | Launch a job |
+| `cancel_run` | Terminate a run (`instance.run_launcher.terminate`) |
+| `retry_run` | Re-execute a failed run |
+| `toggle_sensor` | Start/stop a sensor by name |
+| `toggle_schedule` | Start/stop a schedule by name |
+
+**Ops / self-healing** (10) — pair with triggers for auto-recovery loops:
+
+| Type | Effect | Requires |
+|---|---|---|
+| `reload_code_location` | Reload a broken code location (or whole workspace) | Dagster+ token |
+| `refresh_defs_state` | Refresh defs state for StateBackedComponent-shaped assets | Dagster+ token |
+| `set_concurrency_limit` | Adjust a pool's slot count (scheduled scaling / reactive bump) | — (works on OSS) |
+| `free_concurrency_slots` | Release slots stuck by a crashed run/step | — (works on OSS) |
+| `set_auto_materialize_paused` | Globally pause/unpause Declarative Automation | Dagster+ token |
+| `mute_alert_policy` | Temporarily mute a Dagster+ Alerts policy | Dagster+ token |
+| `resume_backfill` | Resume a paused partition backfill | Dagster+ token |
+| `cancel_backfill` | Cancel a partition backfill | Dagster+ token |
+| `reexecute_backfill` | Re-execute a failed backfill (FROM_FAILURE or ALL_STEPS) | Dagster+ token |
+| `add_dynamic_partition` | Register a new dynamic partition programmatically | — (works on OSS) |
+
 **Template tokens available in every action:** `{event_type}`, `{run_id}`, `{job_name}`, `{asset_key}`, `{partition_key}`, `{status}`, `{timestamp}`, `{message}`, `{url}`. Partition-emitting triggers also expose per-dimension tokens like `{partition_date}` / `{partition_region}` when the event is on a `MultiPartitionsDefinition`.
+
+## Dagster+ authentication
+
+Several triggers and actions call the Dagster+ GraphQL API. They all use the same two env vars, resolved at sensor-tick time by `os.environ.get()` (not the Pydantic config schema — this is runtime lookup):
+
+| Env var | Purpose |
+|---|---|
+| `DAGSTER_CLOUD_ORGANIZATION` | Your Dagster+ org slug (e.g. `acme-corp`). **Auto-injected by Dagster+ Serverless / Hybrid runtimes** — no config needed there. |
+| `DAGSTER_CLOUD_API_TOKEN` | User or agent API token. Must be provisioned as a code-location secret in Dagster+ (Settings → Secrets, or via `dagster-cloud secret`). |
+
+**Which triggers need it:** `insights_metric`, `dagster_plus_audit`.
+
+**Which actions need it:** `reload_code_location`, `refresh_defs_state`, `set_auto_materialize_paused`, `mute_alert_policy`, `resume_backfill`, `cancel_backfill`, `reexecute_backfill`.
+
+**Token permissions:** the minimum scope depends on the action — `metrics-read` for `insights_metric`, `audit-read` for `dagster_plus_audit`, and workspace-admin-equivalent for the recovery mutations (`reload_code_location`, `set_auto_materialize_paused`, backfill controls). For a dedicated alerts code location that fires all these actions, an agent token with full deployment access is the simplest pattern.
+
+**Deployment scoping:** each Dagster+ trigger/action takes an optional `deployment: prod` field (default). Override per-trigger/action to target a specific branch deployment or non-prod deployment.
+
+**Failure mode:** if either env var is missing at fire time, the trigger returns `SkipReason("... credentials missing")` and the action logs a warning and no-ops. Nothing crashes; nothing fires. Good for OSS-flavored deployments where you want the YAML to load cleanly even without Dagster+ configured.
+
+You can override the env var names via `org_env_var` / `token_env_var` fields on every Dagster+ trigger and action if you need a different variable naming convention.
 
 ## Throttle / noise-reduction (11)
 

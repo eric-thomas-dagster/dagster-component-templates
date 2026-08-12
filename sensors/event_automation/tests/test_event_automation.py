@@ -1067,10 +1067,192 @@ class TestEndToEnd:
                 {"type": "toggle_schedule", "schedule_name": "s", "action": "stop"},
                 {"type": "sns", "topic_arn": "arn:sns:x"},
                 {"type": "sqs", "queue_url": "https://sqs"},
+                # Tier 1 ops / self-healing
+                {"type": "reload_code_location", "location_name": "loc_a"},
+                {"type": "refresh_defs_state", "location_name": "loc_a"},
+                {"type": "set_concurrency_limit", "concurrency_key": "snowflake", "limit": 10},
+                {"type": "free_concurrency_slots", "run_id": "{run_id}"},
+                {"type": "set_auto_materialize_paused", "paused": True},
+                {"type": "mute_alert_policy", "alert_policy_id": "policy_1", "mute_for_seconds": 3600},
+                {"type": "resume_backfill", "backfill_id": "bf_1"},
+                {"type": "cancel_backfill", "backfill_id": "bf_1"},
+                {"type": "reexecute_backfill", "backfill_id": "bf_1", "from_failure": True},
+                {"type": "add_dynamic_partition", "partitions_def_name": "hours", "partition_key": "2024-01-15"},
             ],
         )
         defs = component.build_defs(None)
         assert len(list(defs.sensors)) == 1
+
+
+class TestOpsActions:
+    """Tier 1 self-healing actions — verify they parse, execute without
+    crashing, and call the right GraphQL / instance API."""
+
+    def test_reload_code_location_targets_specific_location(self):
+        """When location_name set, uses reloadRepositoryLocation."""
+        action = comp_mod.ReloadCodeLocationAction(location_name="prod_ingest")
+        calls = []
+        with patch.dict("os.environ", {"DAGSTER_CLOUD_ORGANIZATION": "org", "DAGSTER_CLOUD_API_TOKEN": "t"}):
+            with patch.object(comp_mod, "_dagster_plus_graphql", side_effect=lambda q, *a: calls.append(q) or {"data": {"reloadRepositoryLocation": {"__typename": "OK"}}}):
+                comp_mod._execute_action(action, {"run_id": "r"}, MagicMock())
+        assert len(calls) == 1
+        assert "reloadRepositoryLocation" in calls[0]
+        assert '"prod_ingest"' in calls[0]
+
+    def test_reload_code_location_unset_reloads_workspace(self):
+        """Without location_name, uses reloadWorkspace."""
+        action = comp_mod.ReloadCodeLocationAction()
+        calls = []
+        with patch.dict("os.environ", {"DAGSTER_CLOUD_ORGANIZATION": "org", "DAGSTER_CLOUD_API_TOKEN": "t"}):
+            with patch.object(comp_mod, "_dagster_plus_graphql", side_effect=lambda q, *a: calls.append(q) or {"data": {}}):
+                comp_mod._execute_action(action, {}, MagicMock())
+        assert "reloadWorkspace" in calls[0]
+
+    def test_reload_code_location_templated_from_token(self):
+        """location_name supports template substitution from trigger tokens."""
+        action = comp_mod.ReloadCodeLocationAction(location_name="{location_name}")
+        calls = []
+        with patch.dict("os.environ", {"DAGSTER_CLOUD_ORGANIZATION": "org", "DAGSTER_CLOUD_API_TOKEN": "t"}):
+            with patch.object(comp_mod, "_dagster_plus_graphql", side_effect=lambda q, *a: calls.append(q) or {"data": {}}):
+                comp_mod._execute_action(action, {"location_name": "detected_broken_location"}, MagicMock())
+        assert '"detected_broken_location"' in calls[0]
+
+    def test_refresh_defs_state_whole_location(self):
+        """No defs_state_key → refreshDefsState."""
+        action = comp_mod.RefreshDefsStateAction(location_name="loc")
+        calls = []
+        with patch.dict("os.environ", {"DAGSTER_CLOUD_ORGANIZATION": "org", "DAGSTER_CLOUD_API_TOKEN": "t"}):
+            with patch.object(comp_mod, "_dagster_plus_graphql", side_effect=lambda q, *a: calls.append(q) or {"data": {}}):
+                comp_mod._execute_action(action, {}, MagicMock())
+        assert "refreshDefsState" in calls[0]
+
+    def test_refresh_defs_state_specific_key(self):
+        """defs_state_key set → refreshComponentState."""
+        action = comp_mod.RefreshDefsStateAction(location_name="loc", defs_state_key="planned_catalog")
+        calls = []
+        with patch.dict("os.environ", {"DAGSTER_CLOUD_ORGANIZATION": "org", "DAGSTER_CLOUD_API_TOKEN": "t"}):
+            with patch.object(comp_mod, "_dagster_plus_graphql", side_effect=lambda q, *a: calls.append(q) or {"data": {}}):
+                comp_mod._execute_action(action, {}, MagicMock())
+        assert "refreshComponentState" in calls[0]
+        assert '"planned_catalog"' in calls[0]
+
+    def test_set_concurrency_limit_calls_instance_api(self):
+        """Uses instance.event_log_storage.set_concurrency_slots (OSS-friendly)."""
+        action = comp_mod.SetConcurrencyLimitAction(concurrency_key="snowflake_pool", limit=25)
+        instance = MagicMock()
+        comp_mod._execute_action(action, {}, MagicMock(), instance=instance)
+        instance.event_log_storage.set_concurrency_slots.assert_called_once_with("snowflake_pool", 25)
+
+    def test_set_concurrency_limit_templated_key(self):
+        """concurrency_key supports template substitution."""
+        action = comp_mod.SetConcurrencyLimitAction(concurrency_key="{job_name}_pool", limit=10)
+        instance = MagicMock()
+        comp_mod._execute_action(action, {"job_name": "hourly_ingest"}, MagicMock(), instance=instance)
+        instance.event_log_storage.set_concurrency_slots.assert_called_once_with("hourly_ingest_pool", 10)
+
+    def test_set_concurrency_limit_no_instance_warns(self):
+        """Without instance, action logs a warning and does nothing."""
+        action = comp_mod.SetConcurrencyLimitAction(concurrency_key="k", limit=1)
+        logger = MagicMock()
+        comp_mod._execute_action(action, {}, logger, instance=None)
+        assert logger.warning.called
+
+    def test_free_concurrency_slots_run_scope(self):
+        """Without step_key, uses free_concurrency_slots_for_run."""
+        action = comp_mod.FreeConcurrencySlotsAction(run_id="{run_id}")
+        instance = MagicMock()
+        comp_mod._execute_action(action, {"run_id": "abc123"}, MagicMock(), instance=instance)
+        instance.event_log_storage.free_concurrency_slots_for_run.assert_called_once_with(run_id="abc123")
+
+    def test_free_concurrency_slots_step_scope(self):
+        """With step_key, uses free_concurrency_slots."""
+        action = comp_mod.FreeConcurrencySlotsAction(run_id="abc", step_key="etl_op")
+        instance = MagicMock()
+        comp_mod._execute_action(action, {}, MagicMock(), instance=instance)
+        instance.event_log_storage.free_concurrency_slots.assert_called_once_with(run_id="abc", step_key="etl_op")
+
+    def test_set_auto_materialize_paused_true(self):
+        action = comp_mod.SetAutoMaterializePausedAction(paused=True)
+        calls = []
+        with patch.dict("os.environ", {"DAGSTER_CLOUD_ORGANIZATION": "org", "DAGSTER_CLOUD_API_TOKEN": "t"}):
+            with patch.object(comp_mod, "_dagster_plus_graphql", side_effect=lambda q, *a: calls.append(q) or {"data": {}}):
+                comp_mod._execute_action(action, {}, MagicMock())
+        assert "setAutoMaterializePaused(paused: true)" in calls[0]
+
+    def test_set_auto_materialize_paused_false(self):
+        action = comp_mod.SetAutoMaterializePausedAction(paused=False)
+        calls = []
+        with patch.dict("os.environ", {"DAGSTER_CLOUD_ORGANIZATION": "org", "DAGSTER_CLOUD_API_TOKEN": "t"}):
+            with patch.object(comp_mod, "_dagster_plus_graphql", side_effect=lambda q, *a: calls.append(q) or {"data": {}}):
+                comp_mod._execute_action(action, {}, MagicMock())
+        assert "setAutoMaterializePaused(paused: false)" in calls[0]
+
+    def test_mute_alert_policy(self):
+        action = comp_mod.MuteAlertPolicyAction(alert_policy_id="p_123", mute_for_seconds=3600)
+        calls = []
+        with patch.dict("os.environ", {"DAGSTER_CLOUD_ORGANIZATION": "org", "DAGSTER_CLOUD_API_TOKEN": "t"}):
+            with patch.object(comp_mod, "_dagster_plus_graphql", side_effect=lambda q, *a: calls.append(q) or {"data": {}}):
+                comp_mod._execute_action(action, {}, MagicMock())
+        assert "setAlertPolicyMuteUntil" in calls[0]
+        assert '"p_123"' in calls[0]
+        assert "3600" in calls[0]
+
+    def test_resume_backfill(self):
+        action = comp_mod.ResumeBackfillAction(backfill_id="{run_id}")
+        calls = []
+        with patch.dict("os.environ", {"DAGSTER_CLOUD_ORGANIZATION": "org", "DAGSTER_CLOUD_API_TOKEN": "t"}):
+            with patch.object(comp_mod, "_dagster_plus_graphql", side_effect=lambda q, *a: calls.append(q) or {"data": {}}):
+                comp_mod._execute_action(action, {"run_id": "bf_42"}, MagicMock())
+        assert "resumePartitionBackfill" in calls[0]
+        assert '"bf_42"' in calls[0]
+
+    def test_cancel_backfill(self):
+        action = comp_mod.CancelBackfillAction(backfill_id="bf_1")
+        calls = []
+        with patch.dict("os.environ", {"DAGSTER_CLOUD_ORGANIZATION": "org", "DAGSTER_CLOUD_API_TOKEN": "t"}):
+            with patch.object(comp_mod, "_dagster_plus_graphql", side_effect=lambda q, *a: calls.append(q) or {"data": {}}):
+                comp_mod._execute_action(action, {}, MagicMock())
+        assert "cancelPartitionBackfill" in calls[0]
+
+    def test_reexecute_backfill_from_failure(self):
+        action = comp_mod.ReexecuteBackfillAction(backfill_id="bf_1", from_failure=True)
+        calls = []
+        with patch.dict("os.environ", {"DAGSTER_CLOUD_ORGANIZATION": "org", "DAGSTER_CLOUD_API_TOKEN": "t"}):
+            with patch.object(comp_mod, "_dagster_plus_graphql", side_effect=lambda q, *a: calls.append(q) or {"data": {}}):
+                comp_mod._execute_action(action, {}, MagicMock())
+        assert "reexecutePartitionBackfill" in calls[0]
+        assert "FROM_FAILURE" in calls[0]
+
+    def test_reexecute_backfill_all_steps(self):
+        action = comp_mod.ReexecuteBackfillAction(backfill_id="bf_1", from_failure=False)
+        calls = []
+        with patch.dict("os.environ", {"DAGSTER_CLOUD_ORGANIZATION": "org", "DAGSTER_CLOUD_API_TOKEN": "t"}):
+            with patch.object(comp_mod, "_dagster_plus_graphql", side_effect=lambda q, *a: calls.append(q) or {"data": {}}):
+                comp_mod._execute_action(action, {}, MagicMock())
+        assert "ALL_STEPS" in calls[0]
+
+    def test_add_dynamic_partition(self):
+        action = comp_mod.AddDynamicPartitionAction(
+            partitions_def_name="s3_files", partition_key="{partition_key}"
+        )
+        instance = MagicMock()
+        comp_mod._execute_action(
+            action, {"partition_key": "orders_2024_01_15.csv"}, MagicMock(), instance=instance
+        )
+        instance.add_dynamic_partitions.assert_called_once_with("s3_files", ["orders_2024_01_15.csv"])
+
+    def test_dagster_plus_mutation_missing_creds_no_call(self):
+        """Actions that need Dagster+ credentials skip cleanly when env vars are unset."""
+        action = comp_mod.MuteAlertPolicyAction(alert_policy_id="p", mute_for_seconds=60)
+        calls = []
+        with patch.dict("os.environ", {}, clear=False):
+            # Ensure both env vars are unset
+            import os
+            os.environ.pop("DAGSTER_CLOUD_ORGANIZATION", None)
+            os.environ.pop("DAGSTER_CLOUD_API_TOKEN", None)
+            with patch.object(comp_mod, "_dagster_plus_graphql", side_effect=lambda *a: calls.append(a) or {"data": {}}):
+                comp_mod._execute_action(action, {}, MagicMock())
+        assert len(calls) == 0, "Should skip GraphQL call when creds missing"
 
 
 # ── Throttle / suppression tests ────────────────────────────────────────

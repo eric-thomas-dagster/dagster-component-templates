@@ -13346,7 +13346,7 @@
       "id": "event_automation",
       "name": "Event Automation",
       "category": "sensor",
-      "description": "35 declarative triggers \u2192 17 actions in one YAML component with per-trigger throttle / rate-limit / suppression: silence, summarize, first_last, LLM-decides, escalate ladder, auto_resolve, business_hours, maintenance windows, correlation suppression, retry-aware step failures. Prefect-Automations analog on top of real Dagster sensors.",
+      "description": "35 declarative triggers \u2192 27 actions (alerting + Dagster runs + ops / self-healing) in one YAML component with per-trigger throttle / rate-limit / suppression: silence, summarize, first_last, LLM-decides, escalate ladder, auto_resolve, business_hours, maintenance windows, correlation suppression, retry-aware step failures. Prefect-Automations analog on top of real Dagster sensors + Dagster+ GraphQL mutations.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "sensors/event_automation",
@@ -13382,9 +13382,12 @@
         "prefect-parity",
         "rate-limit",
         "rbac",
+        "recovery",
+        "reload-code-location",
         "retry-aware",
         "run-audit",
         "run-tags",
+        "self-healing",
         "sensors",
         "throttle"
       ],
@@ -13458,7 +13461,15 @@
           "don't page on step failures that will be retried by the op's RetryPolicy",
           "target assets by group / tag / kind / glob via asset-selection syntax",
           "filter to P0 prod runs via run_tags: {priority: P0}",
-          "deploy alerts in a dedicated code location that watches every prod location"
+          "deploy alerts in a dedicated code location that watches every prod location",
+          "self-healing: auto-reload code locations that break, escalate if reload doesn't work",
+          "auto-free stuck concurrency slots + retry when a run gets stuck",
+          "scheduled scaling: bump snowflake pool 10 → 50 during business hours",
+          "cost breaker: pause AutoMaterialize when daily Insights credits exceed threshold",
+          "auto-retry failed backfills once, escalate if second attempt also fails",
+          "mute Dagster+ Alerts policies during scheduled maintenance windows",
+          "SOC2 audit-log feed: RBAC change → security-team Slack + SIEM webhook",
+          "add a dynamic partition when a new file drops on S3 / a manifest URL"
         ]
       },
       "produces": [

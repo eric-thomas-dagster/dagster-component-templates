@@ -1,0 +1,37 @@
+# SyntheticPromptGeneratorComponent — three v1 modes for emitting prompt text.
+# Pick ONE mode per instance; the modes are mutually exclusive.
+
+# ── Mode A: literal per-key mapping ────────────────────────────────────
+# Each key becomes a static partition; the mapped string is that partition's output.
+type: dagster_community_components.SyntheticPromptGeneratorComponent
+attributes:
+  asset_name: research_topics
+  prompts:
+    attention: "Explain how transformer attention works in ~200 words."
+    rag:       "How does retrieval-augmented generation improve LLM factuality?"
+    rnn:       "Compare RNN vs Transformer architectures for sequence modeling."
+  group_name: prompts
+  description: "Three research prompts, one per partition, for the agentic pipeline demo."
+
+---
+
+# ── Mode B: topics + template ──────────────────────────────────────────
+# Each topic becomes a static partition; the template is rendered per topic.
+# Substitutes {topic} and {partition_key} (same value in this mode).
+type: dagster_community_components.SyntheticPromptGeneratorComponent
+attributes:
+  asset_name: benchmark_prompts
+  topics:
+    - "sorting algorithms"
+    - "graph traversal"
+    - "dynamic programming"
+  template: "Give a clear introductory explanation of {topic}, then a small worked example. ~300 words."
+
+---
+
+# ── Mode C: fixed single prompt (unpartitioned) ────────────────────────
+# One string, no partitions. Handy for quickstart / smoke tests.
+type: dagster_community_components.SyntheticPromptGeneratorComponent
+attributes:
+  asset_name: hello_world_prompt
+  prompt: "Explain how transformer attention works."

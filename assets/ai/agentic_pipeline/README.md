@@ -141,6 +141,93 @@ uv run dg dev
 
 Costs ~$0.001 per full run (10 LLM calls × `gpt-4o-mini`). See the walkthrough for the partition demo, sink layout, and the Dagster+ Insights promotion recipe.
 
+## Second example — chain downstream of another Dagster asset
+
+The `upstream_asset` source is the most valuable pattern because it wires the pipeline into your existing data graph. The pipeline shows up as a downstream node of whatever asset produced the text — full lineage from raw source through the whole agentic reasoning chain to the final sink.
+
+The cleanest way to try this is with the sibling `SyntheticPromptGeneratorComponent` — a partition-aware `str`-emitting prompt asset built specifically to snap into `source: {kind: upstream_asset, ...}`.
+
+**Two-file project layout:**
+
+`defs/prompts/defs.yaml` — emits a `str`-valued asset, one prompt per partition:
+
+```yaml
+type: dagster_community_components.SyntheticPromptGeneratorComponent
+attributes:
+  asset_name: research_topics
+  prompts:
+    attention: "Explain how transformer attention works in ~200 words."
+    rag:       "How does retrieval-augmented generation improve LLM factuality?"
+    rnn:       "Compare RNN vs Transformer architectures for sequence modeling."
+```
+
+`defs/pipeline/defs.yaml` — the agentic pipeline consumes it:
+
+```yaml
+type: dagster_community_components.AgenticPipelineComponent
+attributes:
+  asset_name_prefix: analysis
+  source:
+    kind: upstream_asset
+    upstream_asset_key: research_topics       # <-- wires to the prompt asset
+  steps:
+    - id: routed
+      op: route
+      router: {model: gpt-4o-mini, api_key_env_var: OPENAI_API_KEY}
+      specialists:
+        - {name: technical, description: "CS / ML questions.",
+           model: gpt-4o, api_key_env_var: OPENAI_API_KEY,
+           system_prompt: "You are a senior ML engineer."}
+        - {name: general, description: "General topics.",
+           model: gpt-4o-mini, api_key_env_var: OPENAI_API_KEY,
+           system_prompt: "You are a helpful assistant."}
+      fallback: general
+    - id: critiqued
+      op: critique_loop
+      source: routed
+      drafter: {model: gpt-4o, api_key_env_var: OPENAI_API_KEY}
+      critic:  {model: gpt-4o, api_key_env_var: OPENAI_API_KEY}
+      iterations: 2
+  outputs:
+    assets: [routed, critiqued]
+    text_sinks:
+      - {from: critiqued, path: "out/{partition_key}.md"}
+```
+
+Asset graph across the two defs files (both files share the same partition set — Dagster stitches the partitioned dependency automatically):
+
+```
+   research_topics                 (SyntheticPromptGeneratorComponent)
+        │  static partitions: [attention, rag, rnn]
+        │  each partition → the mapped prompt string
+        ▼
+   analysis_routed                 (AgenticPipelineComponent, op: route)
+        │
+        ▼
+   analysis_critiqued              (op: critique_loop)
+        │
+        ▼
+   out/{partition_key}.md          (text_sink, one file per partition)
+```
+
+Materialize one partition, then backfill all three:
+
+```bash
+uv run dg launch --assets '*' --partition attention
+uv run dg launch --assets '*' --partition rag
+uv run dg launch --assets '*' --partition rnn
+```
+
+Now iterating on prompts is a one-file YAML edit (add/remove/rename keys under `prompts:`) instead of a code change — and every prompt / decision / draft lives as a browsable Dagster asset with typed metadata.
+
+**Alternative source shapes:**
+
+- **Wikipedia / any HTTP source** — replace `SyntheticPromptGeneratorComponent` with a custom asset that returns a `str` (Wikipedia REST summary, an internal doc, a slack message body, etc.). The `upstream_asset` source accepts a `str` or a dict with a `text` key; anything else gets `str()`'d.
+- **`file` source** — if the prompts already exist on disk, skip both components and use `source: {kind: file, path: "prompts/{partition_key}.txt"}` directly on the pipeline.
+- **`literal` source** — one hardcoded prompt for a quickstart / smoke test (the Quick Example above).
+
+See [`SyntheticPromptGeneratorComponent`](../../source/synthetic_prompt_generator/) for the three v1 modes (literal per-key mapping, template + topics, fixed single prompt) and the v2 roadmap (LLM- / local-ML-driven prompt synthesis).
+
 ## Op menu (v1 = 5)
 
 | op | Shape | What it does |

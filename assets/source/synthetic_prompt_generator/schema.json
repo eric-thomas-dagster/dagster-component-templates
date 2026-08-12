@@ -1,0 +1,49 @@
+{
+  "component_type": "dagster_community_components.SyntheticPromptGeneratorComponent",
+  "description": "Emit prompt text strings for LLM demos. Three v1 modes: literal per-key mapping, template+topics, or a fixed single prompt. Sibling of synthetic_image_generator / synthetic_audio_generator / synthetic_pdf_generator / synthetic_video_generator.",
+  "category": "source",
+  "icon": "ChatBubble",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "Asset",
+      "description": "One str-valued asset. Partitioned when prompts:/topics: is used; unpartitioned when prompt: is used."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name.",
+      "required": true
+    },
+    "prompts": {
+      "type": "object",
+      "additionalProperties": {"type": "string"},
+      "description": "Mode A: {partition_key: prompt_text} mapping. Each key becomes a static partition; the mapped text is the partition's output. Mutually exclusive with `topics`+`template` and `prompt`."
+    },
+    "topics": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Mode B: list of topics. Each becomes a static partition. Requires `template`."
+    },
+    "template": {
+      "type": "string",
+      "description": "Mode B: template rendered per topic. `{topic}` and `{partition_key}` substituted with the topic value."
+    },
+    "prompt": {
+      "type": "string",
+      "description": "Mode C: unpartitioned single-string prompt. Mutually exclusive with the two partitioned modes."
+    },
+    "description": {"type": "string"},
+    "group_name": {"type": "string", "default": "prompts"},
+    "kinds": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Asset kinds. Default: ['prompt', 'synthetic']."
+    },
+    "tags": {"type": "object", "additionalProperties": {"type": "string"}},
+    "owners": {"type": "array", "items": {"type": "string"}},
+    "deps": {"type": "array", "items": {"type": "string"}}
+  }
+}
+

@@ -914,6 +914,7 @@ _CLASS_PATHS: dict[str, str] = {
     "SyntheticDataGeneratorComponent": "assets/ai/synthetic_data_generator/component.py",
     "SyntheticImageGeneratorComponent": "assets/source/synthetic_image_generator/component.py",
     "SyntheticPdfGeneratorComponent": "assets/source/synthetic_pdf_generator/component.py",
+    "SyntheticPromptGeneratorComponent": "assets/source/synthetic_prompt_generator/component.py",
     "SyntheticVideoGeneratorComponent": "assets/source/synthetic_video_generator/component.py",
     "TSCovariateForecastComponent": "assets/analytics/ts_covariate_forecast/component.py",
     "TableauAssetsComponent": "integrations/tableau_assets/component.py",

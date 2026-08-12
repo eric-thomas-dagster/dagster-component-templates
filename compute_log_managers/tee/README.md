@@ -4,6 +4,7 @@ A Dagster instance has exactly one compute log manager. `TeeComputeLogManager` c
 
 Common use cases:
 
+- **Your object storage (Azure Blob / S3 / GCS) + Dagster+** — keep the Dagster+ UI's inline log viewer working when you also send to your own bucket for long-term retention / compliance. Configuring only your bucket leaves the UI with a link, no inline viewer — Tee gives you both. See [example below](#example--your-own-object-storage--dagster-recover-the-inline-ui-viewer).
 - **Splunk + Dagster+** — OSS-managed SIEM compliance, plus Dagster+'s inline UI viewer
 - **S3 + Splunk** — long-term archive in S3, real-time alerting in Splunk
 - **S3 + OTLP Collector** — archive in S3, observability stack receives via OTel

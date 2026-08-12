@@ -250,6 +250,20 @@ Action = Union[
 
 # ── Trigger models ─────────────────────────────────────────────────────────
 
+class MaintenanceWindow(dg.Model):
+    """A scheduled quiet period. During this window, matching fires are suppressed."""
+    from_ts: str = Field(description="ISO8601 start (e.g. '2024-01-15T02:00:00Z').")
+    to_ts: str = Field(description="ISO8601 end.")
+    reason: Optional[str] = Field(default=None, description="Free-form reason shown in logs.")
+
+
+class EscalationTier(dg.Model):
+    """One tier of an escalation ladder. When fire count crosses `after_fires`,
+    ONLY the actions at these indices in the `then:` list fire."""
+    after_fires: int = Field(description="Fire count threshold (0 = first fire).")
+    action_indices: List[int] = Field(description="Indices into the automation's `then:` list to execute.")
+
+
 class ThrottleConfig(dg.Model):
     """Rate-limit + suppression rules for a trigger.
 
@@ -285,7 +299,7 @@ class ThrottleConfig(dg.Model):
     )
     strategy: str = Field(
         default="silence",
-        description="silence | summarize | first_last | llm",
+        description="silence | summarize | first_last | llm | escalate | auto_resolve",
     )
     flush_after_seconds: int = Field(
         default=600,
@@ -308,6 +322,46 @@ class ThrottleConfig(dg.Model):
         default=60,
         description="Cache the LLM's YES/NO decision for this dedup key for this many seconds.",
     )
+    # Business-hours gating (single window, day-of-week filter optional)
+    business_hours_only: Optional[str] = Field(
+        default=None,
+        description=(
+            "Only fire during this daily window. Format: 'HH:MM-HH:MM tz' or "
+            "'HH:MM-HH:MM tz mon,tue,wed,thu,fri'. Timezone must be a valid "
+            "IANA name (e.g. America/New_York, UTC)."
+        ),
+    )
+    # Maintenance windows — list of scheduled quiet periods
+    maintenance_windows: Optional[List[MaintenanceWindow]] = Field(
+        default=None,
+        description="Scheduled quiet periods. Fires within any listed window are suppressed.",
+    )
+    # Correlation suppression — drop this trigger if any of these sensor names
+    # fired within `correlation_within_seconds`. Uses cross-sensor state.
+    correlation_suppress_sensors: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Sensor names whose recent fires suppress THIS trigger. Substring match "
+            "on the emitted sensor name (e.g. 'daemon_heartbeat' matches "
+            "'ops_alerts__daemon_heartbeat_0'). Use for root-cause suppression."
+        ),
+    )
+    correlation_within_seconds: int = Field(
+        default=300,
+        description="Correlation lookback window.",
+    )
+    # Escalation ladder — strategy=escalate. Each tier picks WHICH actions fire.
+    escalation_ladder: Optional[List[EscalationTier]] = Field(
+        default=None,
+        description="For strategy=escalate: fire count → which action indices execute.",
+    )
+    # Auto-resolve — strategy=auto_resolve. On subsequent tick where the
+    # underlying condition CLEARS, emit a paired 'resolved' event with tokens
+    # {event_type=..._resolved, message='Resolved after N sec'}.
+    auto_resolve_message: str = Field(
+        default="✅ Resolved after {duration_seconds}s ({fire_count} fires)",
+        description="Message template for the paired resolve fire.",
+    )
 
 
 class _TriggerBase(dg.Model):
@@ -320,7 +374,89 @@ class _TriggerBase(dg.Model):
     )
 
 
-class RunStatusTrigger(_TriggerBase):
+class _RunFilterMixin(dg.Model):
+    """Adds glob + tag filters to run-based triggers.
+
+    Composed alongside `_TriggerBase`; run-based sensors call
+    `_run_matches_filters()` at event time to apply these on top of the
+    existing `job_name` exact-match.
+    """
+    job_name_pattern: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional fnmatch glob on the run's job_name (e.g. 'prod_*'). "
+            "Composes with `job_name` — both must match if both are set."
+        ),
+    )
+    run_tags: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "Optional run-tag filter. Every listed key=value must be present "
+            "in the run's tags (e.g. {priority: P0, team: data-platform})."
+        ),
+    )
+
+
+class MonitoredJob(dg.Model):
+    """One entry in a `monitored_jobs` list — references a job in another
+    code location. The default repository name matches the `create-dagster`
+    convention (`__repository__`) so most users only need to supply
+    `location` and `job`."""
+    location: str = Field(description="Code location name.")
+    job: str = Field(description="Job name.")
+    repository: str = Field(
+        default="__repository__",
+        description="Repository name. Defaults to __repository__ (create-dagster convention).",
+    )
+
+
+class _MonitoredJobsMixin(dg.Model):
+    """Adds cross-code-location targeting to triggers that use
+    `@run_status_sensor`. Without either field, the sensor watches jobs in
+    its OWN code location only. With them, the sensor subscribes to run
+    events from the named locations — the natural pattern is a dedicated
+    'alerts' code location that observes every prod location's runs."""
+    monitored_locations: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Watch every job in these code locations. E.g. ['prod_ingest', "
+            "'prod_analytics']. Composes with `monitored_jobs` (union)."
+        ),
+    )
+    monitored_jobs: Optional[List[MonitoredJob]] = Field(
+        default=None,
+        description=(
+            "Watch specific jobs by (location, repository, job). Use when "
+            "you want a narrower target than a whole location."
+        ),
+    )
+
+
+def _build_monitored_jobs_arg(
+    monitored_locations: Optional[List[str]],
+    monitored_jobs: Optional[List[MonitoredJob]],
+):
+    """Convert component fields to the list expected by `@run_status_sensor`'s
+    `monitored_jobs` param. Returns None when nothing is set (sensor watches
+    its own code location by default)."""
+    if not monitored_locations and not monitored_jobs:
+        return None
+    from dagster import CodeLocationSelector, JobSelector
+    result: List[Any] = []
+    for loc in monitored_locations or []:
+        result.append(CodeLocationSelector(location_name=loc))
+    for m in monitored_jobs or []:
+        result.append(
+            JobSelector(
+                location_name=m.location,
+                repository_name=m.repository,
+                job_name=m.job,
+            )
+        )
+    return result or None
+
+
+class RunStatusTrigger(_MonitoredJobsMixin, _RunFilterMixin, _TriggerBase):
     type: Literal["run_status"] = "run_status"
     status: str = Field(description="SUCCESS | FAILURE | CANCELED | STARTED")
     job_name: Optional[str] = Field(
@@ -331,7 +467,14 @@ class RunStatusTrigger(_TriggerBase):
 
 class AssetMaterializedTrigger(_TriggerBase):
     type: Literal["asset_materialized"] = "asset_materialized"
-    asset_keys: List[str] = Field(description="Asset keys to watch for materializations.")
+    asset_keys: Union[List[str], str] = Field(
+        description=(
+            "Asset keys to watch. Accepts a list of keys or a Dagster "
+            "asset-selection string (`group:X`, `tag:foo=bar`, `kind:Y`, "
+            "`is:external`, boolean composition, or fnmatch glob like "
+            "`marts/*`). Resolved against sibling assets at build_defs time."
+        )
+    )
 
 
 class ScheduleTrigger(_TriggerBase):
@@ -359,12 +502,18 @@ class HttpPollTrigger(_TriggerBase):
 
 class FreshnessViolationTrigger(_TriggerBase):
     type: Literal["freshness_violation"] = "freshness_violation"
-    asset_keys: List[str] = Field(description="Asset keys to check for freshness violations.")
+    asset_keys: Union[List[str], str] = Field(
+        description=(
+            "Asset keys to check. Accepts a list of keys or a Dagster "
+            "asset-selection string (`group:X`, `tag:foo=bar`, `kind:Y`, "
+            "boolean composition, or `marts/*` glob)."
+        )
+    )
     max_age_minutes: int = Field(description="Fail if the asset's latest materialization is older than this.")
     minimum_interval_seconds: int = Field(default=300)
 
 
-class RunDurationTrigger(_TriggerBase):
+class RunDurationTrigger(_MonitoredJobsMixin, _RunFilterMixin, _TriggerBase):
     """Fires when a run finishes and its duration exceeded a threshold."""
     type: Literal["run_duration"] = "run_duration"
     max_duration_seconds: int = Field(description="Fire when total run duration > this.")
@@ -375,7 +524,7 @@ class RunDurationTrigger(_TriggerBase):
     )
 
 
-class RunStuckTrigger(_TriggerBase):
+class RunStuckTrigger(_RunFilterMixin, _TriggerBase):
     """Fires when an active (still-running) run has been running for too long."""
     type: Literal["run_stuck"] = "run_stuck"
     max_running_seconds: int = Field(description="Fire when a run has been RUNNING/STARTED for > this.")
@@ -389,8 +538,12 @@ class AssetCheckFailedTrigger(_TriggerBase):
     check_names: Optional[List[str]] = Field(
         default=None, description="Names of checks to watch. None = any check failure."
     )
-    asset_keys: Optional[List[str]] = Field(
-        default=None, description="Optional asset key filter. None = any asset."
+    asset_keys: Optional[Union[List[str], str]] = Field(
+        default=None,
+        description=(
+            "Optional asset key filter. None = any asset. Accepts a list or "
+            "a Dagster asset-selection string / fnmatch glob."
+        ),
     )
     minimum_interval_seconds: int = Field(default=60)
 
@@ -415,7 +568,12 @@ class AbsenceTrigger(_TriggerBase):
     (e.g. hourly job stopped emitting).
     """
     type: Literal["absence"] = "absence"
-    asset_keys: List[str] = Field(description="Asset keys that should have materialized recently.")
+    asset_keys: Union[List[str], str] = Field(
+        description=(
+            "Asset keys expected to have materialized recently. Accepts a "
+            "list or a Dagster asset-selection string / fnmatch glob."
+        )
+    )
     max_gap_minutes: int = Field(description="Fire if no materialization in this many minutes.")
     minimum_interval_seconds: int = Field(default=300)
 
@@ -454,16 +612,26 @@ class AssetObservationTrigger(_TriggerBase):
     workflows (e.g., an external_asset that a sensor observes hourly).
     """
     type: Literal["asset_observation"] = "asset_observation"
-    asset_keys: List[str] = Field(description="Asset keys whose observations trigger.")
+    asset_keys: Union[List[str], str] = Field(
+        description=(
+            "Asset keys whose observations trigger. Accepts a list or a "
+            "Dagster asset-selection string / fnmatch glob."
+        )
+    )
     minimum_interval_seconds: int = Field(default=60)
 
 
-class StepErrorTrigger(_TriggerBase):
+class StepErrorTrigger(_RunFilterMixin, _TriggerBase):
     """Fires when an op step raises an exception (STEP_FAILURE event).
 
     Distinct from `run_status FAILURE` — catches errors at the step level even
     when the run overall succeeds (retries, hooks, downstream steps that
     recover). Also fires MULTIPLE times per run if multiple steps fail.
+
+    When ops have a `RetryPolicy` (or the job has one), STEP_FAILURE events
+    fire on every intermediate attempt. Set `only_final_failures: true` to
+    silence intermediate attempts and only fire when Dagster has stopped
+    retrying (step is in terminal FAILURE with no further attempts pending).
     """
     type: Literal["step_error"] = "step_error"
     job_name: Optional[str] = Field(default=None, description="Optional job filter.")
@@ -474,6 +642,16 @@ class StepErrorTrigger(_TriggerBase):
     exception_pattern: Optional[str] = Field(
         default=None,
         description="Optional regex on exception message. None = any exception.",
+    )
+    only_final_failures: bool = Field(
+        default=False,
+        description=(
+            "When True, filter out failures that will be retried. Checks the "
+            "step's current status via instance.get_run_step_stats — only "
+            "fires when the step is definitively FAILURE and no retry is "
+            "pending. Recommended for ops with a RetryPolicy — prevents "
+            "alerting on transient failures that a retry recovers."
+        ),
     )
     minimum_interval_seconds: int = Field(default=60)
 
@@ -502,7 +680,7 @@ class MetadataMatchTrigger(_TriggerBase):
     minimum_interval_seconds: int = Field(default=60)
 
 
-class HookFiredTrigger(_TriggerBase):
+class HookFiredTrigger(_RunFilterMixin, _TriggerBase):
     """Fires when a Dagster hook (@success_hook / @failure_hook) executes.
 
     Distinct from step_error — hooks capture success paths too, and are per-op
@@ -524,7 +702,12 @@ class AssetPartitionMaterializedTrigger(_TriggerBase):
     for the customer_events asset".
     """
     type: Literal["asset_partition_materialized"] = "asset_partition_materialized"
-    asset_keys: List[str] = Field(description="Asset keys to watch.")
+    asset_keys: Union[List[str], str] = Field(
+        description=(
+            "Asset keys to watch. Accepts a list or a Dagster asset-selection "
+            "string / fnmatch glob."
+        )
+    )
     partition_key: Optional[str] = Field(default=None, description="Exact partition match.")
     partition_key_pattern: Optional[str] = Field(default=None, description="Regex on partition key.")
     minimum_interval_seconds: int = Field(default=60)
@@ -548,8 +731,12 @@ class AssetWipeTrigger(_TriggerBase):
     Someone deleted materialization history for an asset. Rare + important.
     """
     type: Literal["asset_wipe"] = "asset_wipe"
-    asset_keys: Optional[List[str]] = Field(
-        default=None, description="Watch these asset keys. None = any wipe."
+    asset_keys: Optional[Union[List[str], str]] = Field(
+        default=None,
+        description=(
+            "Watch these asset keys. None = any wipe. Accepts a list or a "
+            "Dagster asset-selection string / fnmatch glob."
+        ),
     )
     minimum_interval_seconds: int = Field(default=60)
 
@@ -598,7 +785,13 @@ class AssetCheckSeverityTrigger(_TriggerBase):
     type: Literal["asset_check_severity"] = "asset_check_severity"
     severity: str = Field(description="WARN | ERROR")
     check_names: Optional[List[str]] = Field(default=None)
-    asset_keys: Optional[List[str]] = Field(default=None)
+    asset_keys: Optional[Union[List[str], str]] = Field(
+        default=None,
+        description=(
+            "Optional asset filter. Accepts a list or a Dagster "
+            "asset-selection string / fnmatch glob."
+        ),
+    )
     minimum_interval_seconds: int = Field(default=60)
 
 
@@ -621,7 +814,12 @@ class MaterializationPlannedTrigger(_TriggerBase):
     downstream resources, notify observers before the write lands).
     """
     type: Literal["materialization_planned"] = "materialization_planned"
-    asset_keys: List[str] = Field(description="Asset keys to watch.")
+    asset_keys: Union[List[str], str] = Field(
+        description=(
+            "Asset keys to watch. Accepts a list or a Dagster asset-selection "
+            "string / fnmatch glob."
+        )
+    )
     minimum_interval_seconds: int = Field(default=60)
 
 
@@ -633,7 +831,13 @@ class AssetCheckStartedTrigger(_TriggerBase):
     """
     type: Literal["asset_check_started"] = "asset_check_started"
     check_names: Optional[List[str]] = Field(default=None)
-    asset_keys: Optional[List[str]] = Field(default=None)
+    asset_keys: Optional[Union[List[str], str]] = Field(
+        default=None,
+        description=(
+            "Optional asset filter. Accepts a list or a Dagster "
+            "asset-selection string / fnmatch glob."
+        ),
+    )
     minimum_interval_seconds: int = Field(default=60)
 
 
@@ -707,7 +911,7 @@ class CodeLocationStatusTrigger(_TriggerBase):
     minimum_interval_seconds: int = Field(default=60)
 
 
-class RunStartupSlowTrigger(_TriggerBase):
+class RunStartupSlowTrigger(_RunFilterMixin, _TriggerBase):
     """Fires when a run stayed in QUEUED / STARTING state for too long before
     reaching STARTED — captures "compute took too long to spin up" (pex load
     on Serverless, docker pull + container start on Hybrid, K8s pod scheduling
@@ -1272,12 +1476,121 @@ def _http_call(method: str, url: str, headers=None, body=None, timeout_seconds: 
             logger.warning(f"{method.upper()} {url} failed: {exc}")
 
 
+# ── Selection resolution ──────────────────────────────────────────────
+# Fields like `asset_keys` accept `Union[List[str], str]` where the string
+# form is either:
+#   - a Dagster asset-selection expression (`group:X`, `tag:foo=bar`,
+#     `kind:Y`, `is:external`, boolean composition), resolved via
+#     `AssetSelection.from_string()` against the sibling asset graph
+#   - a bare fnmatch glob (`marts/*`) matched against discovered keys
+#   - a single literal (backward compat)
+# For run-based triggers, `job_name_pattern` is fnmatch on the run's
+# `job_name`; `run_tags` is exact-match on the run's tags.
+
+def _discover_sibling_assets(
+    context,
+) -> "Tuple[Optional[Any], List[str]]":
+    """Discover assets defined in the same defs folder as this component.
+
+    Returns (sibling_defs, discovered_key_strings). Used to resolve
+    asset-selection strings into concrete asset keys at build_defs time.
+    Matches the enhanced_data_quality_checks pattern.
+    """
+    try:
+        parent_path = getattr(getattr(context, "path", None), "parent", None)
+        if parent_path is None:
+            return (None, [])
+        sibling_defs = context.build_defs(parent_path)
+        if sibling_defs is None:
+            return (None, [])
+        discovered: List[str] = []
+        if getattr(sibling_defs, "assets", None):
+            for assets_def in sibling_defs.assets:
+                for k in assets_def.keys:
+                    discovered.append(k.to_user_string())
+        return (sibling_defs, discovered)
+    except Exception:
+        return (None, [])
+
+
+def _resolve_asset_keys(
+    target: "Union[List[str], str]",
+    sibling_defs=None,
+    discovered_keys: Optional[List[str]] = None,
+) -> List[str]:
+    """Resolve target into a concrete list of asset-key strings.
+
+    - `List[str]` → returned as-is
+    - `str` → try `AssetSelection.from_string()` against sibling asset
+      graph; then fnmatch fallback against discovered keys; else return
+      `[target]` as a single literal (backward compat for single-key strings).
+    """
+    if isinstance(target, list):
+        return list(target)
+    if not isinstance(target, str):
+        return []
+    # 1. Dagster selection language
+    if sibling_defs is not None:
+        try:
+            graph = sibling_defs.resolve_asset_graph()
+            matched = dg.AssetSelection.from_string(target).resolve(graph)
+            if matched:
+                return sorted(k.to_user_string() for k in matched)
+        except Exception:
+            pass
+    # 2. Fnmatch against discovered keys
+    if discovered_keys:
+        import fnmatch as _fnmatch
+        matched_glob = [k for k in discovered_keys if _fnmatch.fnmatch(k, target)]
+        if matched_glob:
+            return sorted(matched_glob)
+    # 3. Single-literal fallback
+    return [target]
+
+
+def _run_matches_filters(
+    run,
+    job_name: Optional[str],
+    job_name_pattern: Optional[str],
+    run_tags: Optional[Dict[str, str]],
+) -> bool:
+    """Return True if run matches all specified filters.
+
+    - `job_name` → exact-match on run.job_name
+    - `job_name_pattern` → fnmatch (e.g. 'prod_*') on run.job_name
+    - `run_tags` → every key/value must be present in run.tags
+    """
+    if job_name and getattr(run, "job_name", None) != job_name:
+        return False
+    if job_name_pattern:
+        import fnmatch as _fnmatch
+        if not _fnmatch.fnmatch(getattr(run, "job_name", "") or "", job_name_pattern):
+            return False
+    if run_tags:
+        actual_tags = getattr(run, "tags", None) or {}
+        for k, v in run_tags.items():
+            if actual_tags.get(k) != v:
+                return False
+    return True
+
+
 # Module-level throttle state — persists across ticks in the same daemon
 # process, resets on process restart. Keyed by "sensor_name:dedup_key".
 # Each value: {"last_ts": float, "count_hour": int, "hour_start": float,
 #              "buffer": [tokens...], "buffer_first_ts": float,
 #              "llm_last": {"decision": bool, "ts": float}}
 _THROTTLE_STATE: Dict[str, Dict[str, Any]] = {}
+# Cross-sensor fire log for correlation-based suppression.
+# Each entry: (unix_ts, sensor_name). Bounded via _GLOBAL_FIRE_LOG_MAX.
+_GLOBAL_FIRE_LOG: List[Tuple[float, str]] = []
+_GLOBAL_FIRE_LOG_MAX = 500
+
+
+def _record_global_fire(sensor_name: str, now: float) -> None:
+    """Append a fire to the cross-sensor log; truncate to bound."""
+    _GLOBAL_FIRE_LOG.append((now, sensor_name))
+    if len(_GLOBAL_FIRE_LOG) > _GLOBAL_FIRE_LOG_MAX:
+        del _GLOBAL_FIRE_LOG[: len(_GLOBAL_FIRE_LOG) - _GLOBAL_FIRE_LOG_MAX]
 
 
 def _throttle_key(sensor_name: str, throttle: ThrottleConfig, tokens: Dict[str, Any]) -> str:
@@ -1289,21 +1602,160 @@ def _throttle_key(sensor_name: str, throttle: ThrottleConfig, tokens: Dict[str, 
     return f"{sensor_name}:{dedup}"
 
 
+_WEEKDAY_MAP = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
+
+
+def _parse_business_hours(spec: str) -> Tuple[int, int, str, Optional[List[int]]]:
+    """Parse 'HH:MM-HH:MM tz [day,day,...]' into (start_min, end_min, tz, weekdays).
+
+    Raises ValueError on malformed input.
+    """
+    parts = spec.strip().split()
+    if len(parts) < 2:
+        raise ValueError(f"business_hours_only needs 'HH:MM-HH:MM tz [days]', got '{spec}'")
+    window, tz_name = parts[0], parts[1]
+    start_str, _, end_str = window.partition("-")
+    sh, _, sm = start_str.partition(":")
+    eh, _, em = end_str.partition(":")
+    start_min = int(sh) * 60 + int(sm or 0)
+    end_min = int(eh) * 60 + int(em or 0)
+    weekdays: Optional[List[int]] = None
+    if len(parts) >= 3:
+        weekdays = []
+        for day in parts[2].split(","):
+            key = day.strip().lower()[:3]
+            if key in _WEEKDAY_MAP:
+                weekdays.append(_WEEKDAY_MAP[key])
+    return start_min, end_min, tz_name, weekdays
+
+
+def _is_in_business_hours(now_ts: float, spec: str) -> bool:
+    """True if now_ts falls in the daily window (and optional day-of-week list)."""
+    try:
+        start_min, end_min, tz_name, weekdays = _parse_business_hours(spec)
+    except Exception:
+        return True  # malformed spec — fail open
+    try:
+        from datetime import datetime, timezone
+        try:
+            from zoneinfo import ZoneInfo
+            tz = ZoneInfo(tz_name) if tz_name.upper() != "UTC" else timezone.utc
+        except Exception:
+            tz = timezone.utc
+        local = datetime.fromtimestamp(now_ts, tz=tz)
+        cur_min = local.hour * 60 + local.minute
+        if weekdays is not None and local.weekday() not in weekdays:
+            return False
+        if start_min <= end_min:
+            return start_min <= cur_min < end_min
+        # Overnight window (e.g. 22:00-06:00)
+        return cur_min >= start_min or cur_min < end_min
+    except Exception:
+        return True
+
+
+def _is_in_maintenance_window(now_ts: float, windows: List[MaintenanceWindow]) -> Optional[MaintenanceWindow]:
+    """Return the first window that now_ts falls inside, or None."""
+    from datetime import datetime
+    for w in windows:
+        try:
+            start = datetime.fromisoformat(w.from_ts.replace("Z", "+00:00")).timestamp()
+            end = datetime.fromisoformat(w.to_ts.replace("Z", "+00:00")).timestamp()
+            if start <= now_ts < end:
+                return w
+        except Exception:
+            continue
+    return None
+
+
+def _correlated_fire_exists(
+    throttle: ThrottleConfig, now: float
+) -> Optional[str]:
+    """Return the name of a recently-fired correlated sensor (substring match), or None."""
+    if not throttle.correlation_suppress_sensors:
+        return None
+    cutoff = now - throttle.correlation_within_seconds
+    for ts, name in reversed(_GLOBAL_FIRE_LOG):
+        if ts < cutoff:
+            break
+        for needle in throttle.correlation_suppress_sensors:
+            if needle in name:
+                return name
+    return None
+
+
+def _escalation_indices(
+    ladder: List[EscalationTier], fire_count: int
+) -> Optional[List[int]]:
+    """Given fire_count (0-indexed), return the action indices for the highest
+    tier whose `after_fires` is <= fire_count. None means 'no tier matched'."""
+    matched: Optional[EscalationTier] = None
+    for tier in sorted(ladder, key=lambda t: t.after_fires):
+        if fire_count >= tier.after_fires:
+            matched = tier
+        else:
+            break
+    return matched.action_indices if matched else None
+
+
 def _apply_throttle(
     throttle: ThrottleConfig,
     tokens: Dict[str, Any],
     sensor_name: str,
     logger,
-) -> "Tuple[bool, Dict[str, Any]]":
+) -> "Tuple[bool, Dict[str, Any], Optional[List[int]]]":
     """Decide whether this fire should proceed given throttle rules.
 
-    Returns (should_fire, tokens). When strategy is `summarize` or
-    `first_last`, `tokens` may be replaced with an aggregate summary that
-    the actions should send instead of the raw current event.
+    Returns (should_fire, tokens, action_indices_filter). When strategy is
+    `summarize` or `first_last`, `tokens` may be replaced with an aggregate
+    summary. When strategy is `escalate`, `action_indices_filter` is a list
+    of indices into the trigger's action list to execute (None = all).
     """
     now = time.time()
     key = _throttle_key(sensor_name, throttle, tokens)
     state = _THROTTLE_STATE.setdefault(key, {})
+
+    # ── Business hours gate ───────────────────────────────────────
+    if throttle.business_hours_only and not _is_in_business_hours(now, throttle.business_hours_only):
+        logger.info(f"[throttle:{key}] outside business_hours ({throttle.business_hours_only}), dropping")
+        return (False, tokens, None)
+
+    # ── Maintenance window gate ───────────────────────────────────
+    if throttle.maintenance_windows:
+        window = _is_in_maintenance_window(now, throttle.maintenance_windows)
+        if window is not None:
+            reason = window.reason or f"{window.from_ts} → {window.to_ts}"
+            logger.info(f"[throttle:{key}] in maintenance window ({reason}), dropping")
+            return (False, tokens, None)
+
+    # ── Correlation suppression ───────────────────────────────────
+    correlated = _correlated_fire_exists(throttle, now)
+    if correlated is not None:
+        logger.info(f"[throttle:{key}] correlated fire from '{correlated}' within {throttle.correlation_within_seconds}s, dropping")
+        return (False, tokens, None)
+
+    # ── Auto-resolve: emit paired resolve when condition returns ──
+    # For auto_resolve, the CALLER is expected to invoke _apply_throttle
+    # only when the underlying condition is TRUE (fires). If we were in a
+    # fired state and the caller drops back to False, we emit a resolve.
+    # Since throttle is checked only on real fires, the resolve pathway
+    # is handled at the sensor level via _check_auto_resolve() below.
+    if throttle.strategy == "auto_resolve":
+        # Mark the condition as active; reset "resolved_sent" flag.
+        state["auto_resolve_active"] = True
+        state["auto_resolve_first_fire_ts"] = state.get("auto_resolve_first_fire_ts") or now
+        state["auto_resolve_last_fire_ts"] = now
+        state["auto_resolve_fire_count"] = state.get("auto_resolve_fire_count", 0) + 1
+        state["resolved_sent"] = False
+        # Cooldown between fires for auto_resolve
+        if throttle.min_seconds_between_fires:
+            last_ts = state.get("last_ts", 0.0)
+            if now - last_ts < throttle.min_seconds_between_fires:
+                logger.info(f"[throttle:{key}] auto_resolve in cooldown, dropping duplicate fire")
+                return (False, tokens, None)
+        state["last_ts"] = now
+        state["count_hour"] = state.get("count_hour", 0) + 1
+        return (True, tokens, None)
 
     # ── max_per_hour rolling window ────────────────────────────────
     if throttle.max_per_hour:
@@ -1313,7 +1765,7 @@ def _apply_throttle(
             state["count_hour"] = 0
         if state.get("count_hour", 0) >= throttle.max_per_hour:
             logger.info(f"[throttle:{key}] max_per_hour={throttle.max_per_hour} hit, dropping")
-            return (False, tokens)
+            return (False, tokens, None)
 
     # ── min_seconds_between_fires cooldown ─────────────────────────
     if throttle.min_seconds_between_fires:
@@ -1322,16 +1774,16 @@ def _apply_throttle(
             # In cooldown — behavior depends on strategy
             if throttle.strategy == "silence":
                 logger.info(f"[throttle:{key}] cooldown, dropping (silence)")
-                return (False, tokens)
+                return (False, tokens, None)
             elif throttle.strategy in ("summarize", "first_last"):
                 # Buffer this event; flush later
                 buf = state.setdefault("buffer", [])
                 buf.append({"ts": now, "tokens": dict(tokens)})
                 state.setdefault("buffer_first_ts", now)
                 logger.info(f"[throttle:{key}] cooldown, buffered ({len(buf)} pending)")
-                return (False, tokens)
-            elif throttle.strategy == "llm":
-                # Fall through to LLM check even during cooldown
+                return (False, tokens, None)
+            elif throttle.strategy in ("llm", "escalate"):
+                # Fall through: LLM checks + escalation tier bumping happen below
                 pass
 
     # ── summarize/first_last: check if buffer is ready to flush ────
@@ -1345,7 +1797,8 @@ def _apply_throttle(
             state["last_ts"] = now
             state["count_hour"] = state.get("count_hour", 0) + 1
             logger.info(f"[throttle:{key}] flushing {len(buf)}-event summary")
-            return (True, summarized)
+            _record_global_fire(sensor_name, now)
+            return (True, summarized, None)
 
     # ── LLM strategy ────────────────────────────────────────────────
     if throttle.strategy == "llm":
@@ -1353,7 +1806,7 @@ def _apply_throttle(
         if cached and (now - cached["ts"]) < throttle.llm_decision_cache_seconds:
             if not cached["decision"]:
                 logger.info(f"[throttle:{key}] LLM cached NO, dropping")
-                return (False, tokens)
+                return (False, tokens, None)
         else:
             recent = state.get("recent_alerts", [])
             recent = [r for r in recent if now - r["ts"] < 3600][-10:]
@@ -1362,12 +1815,73 @@ def _apply_throttle(
             state["llm_last"] = {"decision": decision, "ts": now}
             if not decision:
                 logger.info(f"[throttle:{key}] LLM said NO, dropping")
-                return (False, tokens)
+                return (False, tokens, None)
+
+    # ── Escalation strategy — pick tier by fire count ──────────────
+    action_indices: Optional[List[int]] = None
+    if throttle.strategy == "escalate":
+        prior_fires = state.get("escalate_fire_count", 0)
+        if throttle.escalation_ladder:
+            action_indices = _escalation_indices(throttle.escalation_ladder, prior_fires)
+            if action_indices is None:
+                logger.info(f"[throttle:{key}] escalate: no tier matched at fire_count={prior_fires}, dropping")
+                return (False, tokens, None)
+            logger.info(f"[throttle:{key}] escalate: fire #{prior_fires} → action indices {action_indices}")
+        state["escalate_fire_count"] = prior_fires + 1
 
     # ── Fire — update state ─────────────────────────────────────────
     state["last_ts"] = now
     state["count_hour"] = state.get("count_hour", 0) + 1
-    return (True, tokens)
+    _record_global_fire(sensor_name, now)
+    return (True, tokens, action_indices)
+
+
+def _check_auto_resolve(
+    throttle: Optional[ThrottleConfig],
+    sensor_name: str,
+    logger,
+) -> Optional[Dict[str, Any]]:
+    """Called at the top of a sensor tick BEFORE checking the underlying
+    condition. If the condition was previously fired (auto_resolve_active)
+    but has been stale (no fire this tick after cooldown), emit a paired
+    resolve event and clear the active flag. Returns tokens for the
+    resolve fire, or None.
+
+    NOTE: This is a best-effort heuristic — since sensor logic can't know
+    "condition is no longer true", we key off staleness: if the last fire
+    was more than 2× cooldown ago and we haven't yet sent a resolve, emit.
+    """
+    if throttle is None or throttle.strategy != "auto_resolve":
+        return None
+    now = time.time()
+    key = f"{sensor_name}:*"  # global for the sensor
+    state = _THROTTLE_STATE.get(key)
+    if not state or not state.get("auto_resolve_active"):
+        return None
+    if state.get("resolved_sent"):
+        return None
+    stale_after = max((throttle.min_seconds_between_fires or 60) * 2, 120)
+    last_fire = state.get("auto_resolve_last_fire_ts", 0.0)
+    if now - last_fire < stale_after:
+        return None
+    first_fire = state.get("auto_resolve_first_fire_ts", last_fire)
+    fire_count = state.get("auto_resolve_fire_count", 1)
+    duration = int(last_fire - first_fire)
+    resolve_tokens = _default_tokens(
+        event_type="auto_resolved",
+        message=_render_template(
+            throttle.auto_resolve_message,
+            {"duration_seconds": duration, "fire_count": fire_count},
+        ),
+        duration_seconds=duration,
+        fire_count=fire_count,
+    )
+    state["auto_resolve_active"] = False
+    state["auto_resolve_first_fire_ts"] = 0.0
+    state["auto_resolve_fire_count"] = 0
+    state["resolved_sent"] = True
+    logger.info(f"[throttle:{key}] auto_resolve: emitting paired resolve after {duration}s / {fire_count} fires")
+    return resolve_tokens
 
 
 def _summarize_tokens(buffer: List[Dict[str, Any]], current: Dict[str, Any], strategy: str) -> Dict[str, Any]:
@@ -1470,13 +1984,19 @@ def _run_actions(
 ) -> List[dg.RunRequest]:
     """Execute every action. Collect RunRequests (materialize / launch_job)
     for return; side-effect actions execute inline. If `throttle` is set,
-    apply the throttle gate before firing."""
+    apply the throttle gate before firing. When escalate strategy selects
+    a subset of actions, only those indices execute."""
+    action_indices_filter: Optional[List[int]] = None
     if throttle:
-        should_fire, tokens = _apply_throttle(throttle, tokens, sensor_name or "unnamed", logger)
+        should_fire, tokens, action_indices_filter = _apply_throttle(
+            throttle, tokens, sensor_name or "unnamed", logger
+        )
         if not should_fire:
             return []
     requests_out = []
-    for action in actions:
+    for idx, action in enumerate(actions):
+        if action_indices_filter is not None and idx not in action_indices_filter:
+            continue
         try:
             req = _execute_action(action, tokens, logger, instance=instance)
             if req is not None:
@@ -1492,11 +2012,22 @@ def _build_run_status_sensor(
     name: str, trigger: RunStatusTrigger, actions: List[Action], default_status: dg.DefaultSensorStatus
 ) -> dg.SensorDefinition:
     status_enum = getattr(dg.DagsterRunStatus, trigger.status.upper())
+    monitored = _build_monitored_jobs_arg(trigger.monitored_locations, trigger.monitored_jobs)
 
-    @dg.run_status_sensor(name=name, run_status=status_enum, default_status=default_status)
+    decorator_kwargs = {
+        "name": name,
+        "run_status": status_enum,
+        "default_status": default_status,
+    }
+    if monitored is not None:
+        decorator_kwargs["monitored_jobs"] = monitored
+
+    @dg.run_status_sensor(**decorator_kwargs)
     def _sensor(context: dg.RunStatusSensorContext):
         run = context.dagster_run
-        if trigger.job_name and run.job_name != trigger.job_name:
+        if not _run_matches_filters(
+            run, trigger.job_name, trigger.job_name_pattern, trigger.run_tags
+        ):
             return
         tokens = _default_tokens(
             event_type=f"run_{trigger.status.lower()}",
@@ -1688,18 +2219,27 @@ def _build_run_duration_sensor(
 ) -> dg.SensorDefinition:
     # Watch both SUCCESS + FAILURE terminal states; filter in the fn.
     terminal_statuses = [dg.DagsterRunStatus.SUCCESS, dg.DagsterRunStatus.FAILURE]
+    monitored = _build_monitored_jobs_arg(trigger.monitored_locations, trigger.monitored_jobs)
 
-    @dg.run_status_sensor(name=name, run_status=dg.DagsterRunStatus.SUCCESS, default_status=default_status)
+    success_kwargs = {"name": name, "run_status": dg.DagsterRunStatus.SUCCESS, "default_status": default_status}
+    fail_kwargs = {"name": f"{name}__fail", "run_status": dg.DagsterRunStatus.FAILURE, "default_status": default_status}
+    if monitored is not None:
+        success_kwargs["monitored_jobs"] = monitored
+        fail_kwargs["monitored_jobs"] = monitored
+
+    @dg.run_status_sensor(**success_kwargs)
     def _on_success(context: dg.RunStatusSensorContext):
         return _handle(context, "SUCCESS")
 
-    @dg.run_status_sensor(name=f"{name}__fail", run_status=dg.DagsterRunStatus.FAILURE, default_status=default_status)
+    @dg.run_status_sensor(**fail_kwargs)
     def _on_failure(context: dg.RunStatusSensorContext):
         return _handle(context, "FAILURE")
 
     def _handle(context: dg.RunStatusSensorContext, status: str):
         run = context.dagster_run
-        if trigger.job_name and run.job_name != trigger.job_name:
+        if not _run_matches_filters(
+            run, trigger.job_name, trigger.job_name_pattern, trigger.run_tags
+        ):
             return None
         if trigger.on_status != "ANY" and status != trigger.on_status:
             return None
@@ -1744,7 +2284,9 @@ def _build_run_stuck_sensor(
         all_requests = []
         stuck_ids = []
         for run in running:
-            if trigger.job_name and run.job_name != trigger.job_name:
+            if not _run_matches_filters(
+                run, trigger.job_name, trigger.job_name_pattern, trigger.run_tags
+            ):
                 continue
             start = run.start_time or now
             duration = now - float(start)
@@ -2131,7 +2673,12 @@ def _build_generic_event_sensor(
             if rid > max_id:
                 max_id = rid
             try:
-                if not filter_fn(rec):
+                # filter_fn may take (rec) or (rec, instance) — try 2-arg first
+                try:
+                    match = filter_fn(rec, instance)
+                except TypeError:
+                    match = filter_fn(rec)
+                if not match:
                     continue
                 tokens = token_builder(rec)
             except Exception as exc:
@@ -2153,7 +2700,7 @@ def _build_generic_event_sensor(
 def _build_hook_fired_sensor(name, trigger, actions, default_status):
     import re as _re
     hook_re = _re.compile(trigger.hook_name_pattern) if trigger.hook_name_pattern else None
-    def filter_fn(rec):
+    def filter_fn(rec, instance):
         entry = getattr(rec, "event_log_entry", None) or rec
         evt = getattr(entry, "dagster_event", None)
         if evt is None:
@@ -2168,6 +2715,16 @@ def _build_hook_fired_sensor(name, trigger, actions, default_status):
             return False
         if trigger.on_status == "FAILURE" and "ERROR" not in etype_name:
             return False
+        # Apply run-based filters if any are set
+        if trigger.job_name or trigger.job_name_pattern or trigger.run_tags:
+            try:
+                run = instance.get_run_by_id(getattr(entry, "run_id", "") or "")
+                if run is None or not _run_matches_filters(
+                    run, trigger.job_name, trigger.job_name_pattern, trigger.run_tags
+                ):
+                    return False
+            except Exception:
+                pass
         return True
     def token_builder(rec):
         entry = getattr(rec, "event_log_entry", None) or rec
@@ -2819,7 +3376,9 @@ def _build_run_startup_slow_sensor(
         for run in recent:
             if run.run_id in already_alerted:
                 continue
-            if trigger.job_name and run.job_name != trigger.job_name:
+            if not _run_matches_filters(
+                run, trigger.job_name, trigger.job_name_pattern, trigger.run_tags
+            ):
                 continue
             create_ts = getattr(run, "create_timestamp", None) or getattr(run, "creation_timestamp", None)
             start_ts = getattr(run, "start_time", None)
@@ -2938,11 +3497,13 @@ def _build_step_error_sensor(
                 continue
             step_key = getattr(evt, "step_key", None) or ""
             run_id = getattr(entry, "run_id", "") or ""
-            # Get the run to filter by job_name
-            if trigger.job_name:
+            # Filter by run's job_name / job_name_pattern / run_tags
+            if trigger.job_name or trigger.job_name_pattern or trigger.run_tags:
                 try:
                     run = instance.get_run_by_id(run_id)
-                    if run is None or run.job_name != trigger.job_name:
+                    if run is None or not _run_matches_filters(
+                        run, trigger.job_name, trigger.job_name_pattern, trigger.run_tags
+                    ):
                         rid = getattr(rec, "storage_id", 0)
                         max_id = max(max_id, rid)
                         continue
@@ -2960,6 +3521,33 @@ def _build_step_error_sensor(
                 rid = getattr(rec, "storage_id", 0)
                 max_id = max(max_id, rid)
                 continue
+            # Retry-aware: skip attempts that will be retried. We check the
+            # step's *current* status — if Dagster shows it as anything other
+            # than FAILURE (e.g. RETRY_REQUESTED, IN_PROGRESS, SUCCESS), a
+            # retry is pending or has already recovered the step.
+            if trigger.only_final_failures:
+                try:
+                    stats = instance.get_run_step_stats(run_id, step_keys=[step_key])
+                    if not stats:
+                        # No stats yet — retry may still be pending; skip
+                        # this cursor so we re-evaluate next tick.
+                        continue
+                    stat_status = getattr(stats[0], "status", None)
+                    status_name = getattr(stat_status, "name", str(stat_status)).upper()
+                    if status_name != "FAILURE":
+                        # Step is running, succeeded via retry, or awaiting
+                        # retry — this attempt isn't final; skip. Don't
+                        # advance cursor so we re-check next tick.
+                        context.log.info(
+                            f"[step_error:{step_key}] skipping non-final failure "
+                            f"(current status: {status_name}) — waiting for retries to finish"
+                        )
+                        continue
+                except Exception as exc:
+                    context.log.warning(
+                        f"[step_error:{step_key}] could not verify final status "
+                        f"({exc}) — firing anyway"
+                    )
             tokens = _default_tokens(
                 event_type="step_error",
                 run_id=run_id,
@@ -3585,12 +4173,29 @@ class EventAutomationComponent(dg.Component, dg.Model, dg.Resolvable):
     default_status: str = Field(default="STOPPED", description="RUNNING | STOPPED for the generated sensors / schedules.")
     description: Optional[str] = Field(default=None, description="Free-form description shown in the UI.")
 
+    def _normalize_asset_selectors(self, triggers, sibling_defs, discovered_keys):
+        """Walk triggers (including nested compounds) and replace any
+        `asset_keys: str` value with the resolved concrete list. Backward
+        compat: existing `List[str]` values pass through untouched."""
+        for trig in triggers:
+            if isinstance(trig, (AllOfTrigger, AnyOfTrigger)):
+                self._normalize_asset_selectors(trig.triggers, sibling_defs, discovered_keys)
+                continue
+            keys = getattr(trig, "asset_keys", None)
+            if isinstance(keys, str):
+                trig.asset_keys = _resolve_asset_keys(keys, sibling_defs, discovered_keys)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         sensor_status = (
             dg.DefaultSensorStatus.RUNNING
             if self.default_status.upper() == "RUNNING"
             else dg.DefaultSensorStatus.STOPPED
         )
+        # Resolve asset-selection strings on every trigger to concrete key
+        # lists, using the sibling assets in the same defs folder. Backward
+        # compat: list values pass through untouched.
+        sibling_defs, discovered_keys = _discover_sibling_assets(context)
+        self._normalize_asset_selectors(self.when, sibling_defs, discovered_keys)
         sensors: List[dg.SensorDefinition] = []
         for i, trigger in enumerate(self.when):
             child_name = f"{self.name}__{trigger.type}_{i}"

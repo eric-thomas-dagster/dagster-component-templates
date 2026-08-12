@@ -70,6 +70,113 @@ Prefect-Automations-style declarative event → action wiring in one YAML compon
 
 **Template tokens available in every action:** `{event_type}`, `{run_id}`, `{job_name}`, `{asset_key}`, `{status}`, `{timestamp}`, `{message}`, `{url}`.
 
+## Throttle / noise-reduction (11)
+
+Every trigger takes an optional `throttle:` block. Rate-limit, suppress by context, or drive escalation ladders — full reference in **[Throttle / rate-limit / suppression](#throttle--rate-limit--suppression)** below.
+
+| Field | Kind | Effect |
+|---|---|---|
+| `min_seconds_between_fires` | rate-limit | Cooldown between successful fires |
+| `max_per_hour` | rate-limit | Rolling-window hard cap |
+| `dedup_key_template` | scoping | Templated key scopes throttle state (per-job, per-asset, per-severity) |
+| `strategy: silence` | strategy | Default — drop fires during cooldown or over cap |
+| `strategy: summarize` | strategy | Buffer + fire ONE `[N× in window]` summary |
+| `strategy: first_last` | strategy | Fire first + last of a burst, drop the middle |
+| `strategy: llm` | strategy | LLM decides YES/NO per event (OpenAI / Anthropic), cached |
+| `strategy: escalate` | strategy | Fire count → subset of `then:` actions (Slack → +PD → +execs) |
+| `strategy: auto_resolve` | strategy | Pair every alert with a synthetic "resolved" event |
+| `business_hours_only` | suppression | Only fire during a daily window (with tz + weekday filter) |
+| `maintenance_windows` | suppression | Skip fires inside scheduled ISO8601 quiet periods |
+| `correlation_suppress_sensors` | suppression | Suppress when a listed sensor fired recently (root-cause) |
+
+Plus a retry-aware flag on `step_error` triggers: **`only_final_failures: true`** filters out attempts that will be retried by the op's `RetryPolicy`.
+
+## Deploying as a dedicated alerts code location
+
+The recommended pattern is a single `alerts_location` code location that observes every prod location — one team owns escalation logic, no changes to prod locations to add a new alert.
+
+**What works from a dedicated location (the majority of triggers):** anything that scans `instance.event_log_storage` reads events from every code location, so these all work: `asset_materialized`, `asset_observation`, `freshness_violation`, `absence`, `materialization_planned`, `asset_partition_materialized`, `asset_wipe`, `metadata_match`, `metric_threshold`, `asset_value_change`, `log_pattern`, `step_error`, `op_output`, `hook_fired`, `unhandled_exception`, `asset_check_failed` / `_severity` / `_started`, `insights_metric`, `dagster_plus_audit`, `daemon_heartbeat`, `code_location_status`, `sensor_failure`, `concurrency_hit`, `backfill_status`, `run_reexecution`, `config_override`, `tag_set`, `run_stuck`, `run_startup_slow`, plus the external ones (`http_poll`, `sqs_poll`, `schedule`).
+
+**Three caveats:**
+
+1. **`run_status` and `run_duration` use `@run_status_sensor`**, which by default watches only jobs in its own repository. Set `monitored_locations` or `monitored_jobs` to observe other locations:
+
+   ```yaml
+   when:
+     - type: run_status
+       status: FAILURE
+       monitored_locations: [prod_ingest, prod_analytics]   # watch every job in these locations
+   ```
+
+   Or pick specific jobs:
+
+   ```yaml
+   when:
+     - type: run_status
+       status: FAILURE
+       monitored_jobs:
+         - location: prod_ingest
+           job: hourly_ingest
+         - location: prod_analytics
+           job: dbt_run
+           repository: __repository__     # optional; defaults to __repository__ (create-dagster convention)
+   ```
+
+   The two fields compose as a union. Same shape on `run_duration`.
+
+2. **Asset-selection *strings* only resolve against sibling assets** in the same defs folder. In a dedicated alerts location with no sibling assets, `asset_keys: "group:marts"` won't find anything. Options:
+   - Use explicit lists: `asset_keys: [marts/orders, marts/customers]` — works cross-location because the event-log lookup is by raw key.
+   - Or drop `external_asset` stubs in the alerts location so selectors have something to resolve against.
+
+3. **Actions must be addressable from the alerts location.** Alerting actions (`slack`, `pagerduty`, `webhook`, `email`, `teams`, `opsgenie`, `discord`, `mattermost`, `sns`, `sqs`) have no cross-location concerns. `cancel_run` / `retry_run` work by run_id (always cross-location OK). `materialize` / `launch_job` need the target job/asset to be visible to the launcher — on Dagster+ this Just Works since all locations share one instance; on OSS it depends on your workspace configuration.
+
+**Layout for a dedicated alerts location:**
+
+```
+alerts_location/
+├── pyproject.toml
+├── src/alerts_location/
+│   └── defs/
+│       ├── prod_run_failures/defs.yaml    # EventAutomationComponent
+│       ├── freshness_slas/defs.yaml       # EventAutomationComponent
+│       └── platform_health/defs.yaml      # EventAutomationComponent
+```
+
+Each `defs.yaml` uses `monitored_locations` on `run_status` / `run_duration` triggers; other trigger types work without configuration.
+
+## Targeting: selection syntax + run filters
+
+Both asset-based and run-based triggers accept richer targeting than a bare literal — use the same shape Dagster's UI uses.
+
+**Asset-based triggers** (`asset_materialized`, `asset_observation`, `freshness_violation`, `absence`, `asset_check_failed`, `asset_check_severity`, `asset_check_started`, `asset_partition_materialized`, `materialization_planned`, `asset_wipe`): `asset_keys` accepts either an explicit list OR a single Dagster asset-selection string. Selectors are resolved at `build_defs` time against sibling assets in the same defs folder.
+
+| Form | Example |
+|---|---|
+| Explicit list | `asset_keys: [marts/orders, marts/customers]` |
+| Group | `asset_keys: "group:marts"` |
+| Tag | `asset_keys: "tag:tier=gold"` |
+| Kind | `asset_keys: "kind:dbt"` |
+| Type filter | `asset_keys: "is:external"` |
+| Boolean composition | `asset_keys: "group:marts and tag:critical"` |
+| Fnmatch glob | `asset_keys: "marts/*"` |
+| Single literal (backward compat) | `asset_keys: "hourly_summary"` |
+
+**Run-based triggers** (`run_status`, `run_duration`, `run_stuck`, `run_startup_slow`, `step_error`, `hook_fired`): three complementary filters that AND together.
+
+| Field | Semantics | Example |
+|---|---|---|
+| `job_name` | exact match | `job_name: hourly_ingest` |
+| `job_name_pattern` | fnmatch glob | `job_name_pattern: "prod_*"` |
+| `run_tags` | every listed key=value must be present in the run's tags | `run_tags: {priority: P0, team: data-platform}` |
+
+```yaml
+- type: run_status
+  status: FAILURE
+  job_name_pattern: "prod_*"
+  run_tags:
+    priority: P0
+```
+
 ## Why
 
 Prefect's Automations UI is a first-class surface where any trigger → any action is composable, no code required. Dagster has all the underlying primitives — sensors, `AutomationCondition`, run-status sensors, asset checks, freshness policies — but they're Python-first. This component collapses the common trigger-action patterns into a single YAML shape that renders in the components UI, so ops-heavy teams can wire glue without dropping to Python.
@@ -244,7 +351,10 @@ attributes:
   job_name: prod_ingest                   # optional
   step_key_pattern: ".*etl.*"             # optional regex
   exception_pattern: "OOMKilled|Timeout"  # optional regex
+  only_final_failures: true               # skip attempts that will be retried
 ```
+
+Set `only_final_failures: true` when the op has a `RetryPolicy` — otherwise every intermediate attempt fires a pager. Under the hood, the sensor checks `instance.get_run_step_stats()` at fire time and only pages when the step's current status is definitively FAILURE (not `RETRY_REQUESTED` / `IN_PROGRESS` / `SUCCESS`). `run_status: FAILURE` already fires only on terminal runs, so this flag is specific to step-level failures.
 
 **`metadata_match`** — materialization/observation carries specific metadata. Three shapes:
 
@@ -464,7 +574,7 @@ Every trigger supports an optional `throttle:` block. Keeps sensors from spammin
     min_seconds_between_fires: 300     # cooldown between successful fires
     max_per_hour: 4                    # rolling-window cap
     dedup_key_template: "{job_name}"   # scope per key (default: whole trigger)
-    strategy: silence                  # silence | summarize | first_last | llm
+    strategy: silence                  # silence | summarize | first_last | llm | escalate | auto_resolve
 ```
 
 **Fields:**
@@ -523,11 +633,94 @@ throttle:
 
 The LLM decision is cached briefly per dedup key so a flood of the same event doesn't spam the LLM.
 
+**`escalate`** — Fire count drives which subset of your `then:` list runs. Tier 0 might be Slack; tier 1 adds PagerDuty; tier 2 pages the whole team.
+
+```yaml
+- type: run_status
+  status: FAILURE
+  throttle:
+    strategy: escalate
+    escalation_ladder:
+      - after_fires: 0     # first fire → slack only
+        action_indices: [0]
+      - after_fires: 3     # after 3 fires → slack + pagerduty
+        action_indices: [0, 1]
+      - after_fires: 10    # after 10 fires → slack + pagerduty + email exec
+        action_indices: [0, 1, 2]
+then:
+  - type: slack
+    webhook_url_env_var: SLACK_WEBHOOK
+  - type: pagerduty
+    routing_key_env_var: PD_KEY
+  - type: email
+    smtp_host_env_var: SMTP_HOST
+    to: [execs@company.com]
+```
+
+`action_indices` refer to positions in the `then:` list (0-based). Fire count persists across ticks per dedup key.
+
+**`auto_resolve`** — Emits a paired "resolved" event once the underlying condition clears. Great for pager alerts where you want the "up again" notification without a second sensor.
+
+```yaml
+- type: http_poll
+  url: https://api.example.com/health
+  status_matches: 5xx
+  throttle:
+    strategy: auto_resolve
+    min_seconds_between_fires: 60
+    auto_resolve_message: "✅ health OK — was down {duration_seconds}s ({fire_count} fires)"
+then:
+  - type: slack
+    webhook_url_env_var: SLACK_WEBHOOK
+    message: "{event_type} — {message}"
+```
+
+On a subsequent tick where the condition is no longer firing (nothing has fired for ~2× the cooldown), a synthetic event with `event_type=auto_resolved` runs the same actions. Downstream Slack templates get `{duration_seconds}` and `{fire_count}` tokens.
+
+### Suppression: business hours / maintenance / correlation
+
+Three gates that run BEFORE cooldown/rate/strategy checks. Any gate matching = fire dropped.
+
+**`business_hours_only`** — Only fire during the given daily window (optionally scoped to weekdays).
+
+```yaml
+throttle:
+  business_hours_only: "09:00-17:00 America/New_York mon,tue,wed,thu,fri"
+```
+
+Format: `HH:MM-HH:MM tz [days]`. Timezone is any IANA name (`America/New_York`, `UTC`, etc.). Days are optional; if omitted, all 7 days match. Overnight windows work (`22:00-06:00`).
+
+**`maintenance_windows`** — Scheduled quiet periods. Fires during any listed ISO8601 window are suppressed with a log line naming the reason.
+
+```yaml
+throttle:
+  maintenance_windows:
+    - from_ts: "2024-01-15T02:00:00Z"
+      to_ts: "2024-01-15T06:00:00Z"
+      reason: "quarterly warehouse rebuild"
+    - from_ts: "2024-01-20T00:00:00Z"
+      to_ts: "2024-01-20T04:00:00Z"
+      reason: "planned deploy"
+```
+
+**`correlation_suppress_sensors`** — Root-cause suppression. If any of the listed sensor names fired in the correlation window, drop this fire. Useful when a daemon-down sensor should silence 20 downstream "X is broken" alerts.
+
+```yaml
+throttle:
+  correlation_suppress_sensors:
+    - "daemon_heartbeat"        # substring match on sensor name
+    - "code_location_status"
+  correlation_within_seconds: 300
+```
+
+Substring match, so `daemon_heartbeat` matches the auto-generated name `ops_alerts__daemon_heartbeat_0`. Cross-sensor state lives in a bounded module-level fire log (500 most recent fires across all sensors).
+
 ### State semantics
 
 - **State scope**: module-level dict, keyed by `sensor_name:dedup_key`
 - **Persistence**: survives across ticks in the same daemon process, **resets on process restart** — planned + acceptable ("throttle resets after deploy" is defensible semantics)
 - **No cursor conflicts**: throttle state is separate from each sensor's own cursor state
+- **Cross-sensor state**: correlation uses a bounded (500 entries) global fire log
 
 ## Action reference
 

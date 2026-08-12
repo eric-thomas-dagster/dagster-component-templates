@@ -637,6 +637,90 @@ class TestStepErrorTrigger:
         result = unwrap(sensor._evaluation_fn(ctx))
         assert hasattr(result, "skip_message")
 
+    def test_only_final_failures_skips_non_final(self):
+        """When step status is not FAILURE (e.g. retry pending, in-progress),
+        with only_final_failures=True, we skip the fire."""
+        trigger = comp_mod.StepErrorTrigger(only_final_failures=True)
+        actions = [comp_mod.MaterializeAction(asset_keys=["alert"])]
+        sensor = comp_mod._build_step_error_sensor(
+            "test", trigger, actions, comp_mod.dg.DefaultSensorStatus.STOPPED
+        )
+        ctx = make_context()
+        rec = MagicMock()
+        rec.storage_id = 100
+        entry = MagicMock()
+        entry.run_id = "r1"
+        evt = MagicMock()
+        evt.step_key = "my_op"
+        error = MagicMock()
+        error.message = "transient error"
+        evt.event_specific_data.error = error
+        entry.dagster_event = evt
+        rec.event_log_entry = entry
+        ctx.instance.event_log_storage.get_event_records.return_value = [rec]
+        # Simulate: step is currently in RETRY_REQUESTED state (retry pending)
+        stat = MagicMock()
+        stat.status.name = "RETRY_REQUESTED"
+        ctx.instance.get_run_step_stats.return_value = [stat]
+        result = unwrap(sensor._evaluation_fn(ctx))
+        # Fire should be skipped
+        assert hasattr(result, "skip_message")
+
+    def test_only_final_failures_fires_when_terminal(self):
+        """When step status IS FAILURE (all retries exhausted),
+        with only_final_failures=True, we still fire."""
+        trigger = comp_mod.StepErrorTrigger(only_final_failures=True)
+        actions = [comp_mod.MaterializeAction(asset_keys=["alert"])]
+        sensor = comp_mod._build_step_error_sensor(
+            "test", trigger, actions, comp_mod.dg.DefaultSensorStatus.STOPPED
+        )
+        ctx = make_context()
+        rec = MagicMock()
+        rec.storage_id = 100
+        entry = MagicMock()
+        entry.run_id = "r1"
+        evt = MagicMock()
+        evt.step_key = "my_op"
+        error = MagicMock()
+        error.message = "final error"
+        evt.event_specific_data.error = error
+        entry.dagster_event = evt
+        rec.event_log_entry = entry
+        ctx.instance.event_log_storage.get_event_records.return_value = [rec]
+        # Simulate: step FINALLY failed after all retries exhausted
+        stat = MagicMock()
+        stat.status.name = "FAILURE"
+        ctx.instance.get_run_step_stats.return_value = [stat]
+        result = unwrap(sensor._evaluation_fn(ctx))
+        assert result is not None
+        assert hasattr(result, "run_requests")
+
+    def test_only_final_failures_default_off_fires_immediately(self):
+        """Default only_final_failures=False → don't check step stats, fire immediately."""
+        trigger = comp_mod.StepErrorTrigger()  # only_final_failures defaults to False
+        actions = [comp_mod.MaterializeAction(asset_keys=["alert"])]
+        sensor = comp_mod._build_step_error_sensor(
+            "test", trigger, actions, comp_mod.dg.DefaultSensorStatus.STOPPED
+        )
+        ctx = make_context()
+        rec = MagicMock()
+        rec.storage_id = 100
+        entry = MagicMock()
+        entry.run_id = "r1"
+        evt = MagicMock()
+        evt.step_key = "my_op"
+        error = MagicMock()
+        error.message = "any error"
+        evt.event_specific_data.error = error
+        entry.dagster_event = evt
+        rec.event_log_entry = entry
+        ctx.instance.event_log_storage.get_event_records.return_value = [rec]
+        result = unwrap(sensor._evaluation_fn(ctx))
+        assert result is not None
+        assert hasattr(result, "run_requests")
+        # get_run_step_stats should NOT have been called
+        ctx.instance.get_run_step_stats.assert_not_called()
+
 
 class TestMetadataMatchTrigger:
     def test_fires_on_exact_match(self):
@@ -987,3 +1071,538 @@ class TestEndToEnd:
         )
         defs = component.build_defs(None)
         assert len(list(defs.sensors)) == 1
+
+
+# ── Throttle / suppression tests ────────────────────────────────────────
+
+class TestThrottleSuppression:
+    """Covers the 5 noise-reduction throttle features:
+    business_hours_only, maintenance_windows, correlation_suppress_sensors,
+    escalation_ladder, auto_resolve."""
+
+    def _fresh_state(self):
+        """Wipe module-level throttle state between tests."""
+        comp_mod._THROTTLE_STATE.clear()
+        comp_mod._GLOBAL_FIRE_LOG.clear()
+
+    # ── Business hours ────────────────────────────────────────
+
+    def test_business_hours_parse(self):
+        """Parser handles time, tz, and day-of-week list."""
+        start, end, tz, days = comp_mod._parse_business_hours("09:00-17:00 America/New_York mon,tue,wed,thu,fri")
+        assert start == 9 * 60
+        assert end == 17 * 60
+        assert tz == "America/New_York"
+        assert days == [0, 1, 2, 3, 4]
+
+    def test_business_hours_parse_no_days(self):
+        """Days field is optional."""
+        start, end, tz, days = comp_mod._parse_business_hours("22:00-06:00 UTC")
+        assert start == 22 * 60
+        assert end == 6 * 60
+        assert days is None
+
+    def test_business_hours_gate_inside(self):
+        """Fire allowed when now falls in the daily window."""
+        self._fresh_state()
+        throttle = comp_mod.ThrottleConfig(business_hours_only="00:00-23:59 UTC")
+        should_fire, _, _ = comp_mod._apply_throttle(throttle, {"message": "test"}, "s", MagicMock())
+        assert should_fire is True
+
+    def test_business_hours_gate_outside(self):
+        """Fire dropped when outside the window."""
+        self._fresh_state()
+        # Pick a window that's guaranteed to be closed: 00:00-00:00 (empty window)
+        # Instead use a specific time check via patching time.time
+        throttle = comp_mod.ThrottleConfig(business_hours_only="03:00-03:01 UTC")
+        # Patch time to be 12:00 UTC — outside 03:00-03:01
+        with patch.object(comp_mod.time, "time", return_value=_utc_hour_ts(12)):
+            should_fire, _, _ = comp_mod._apply_throttle(throttle, {"message": "test"}, "s", MagicMock())
+        assert should_fire is False
+
+    def test_business_hours_overnight_window(self):
+        """22:00-06:00 style window works across midnight."""
+        # 23:00 UTC should be inside 22:00-06:00
+        assert comp_mod._is_in_business_hours(_utc_hour_ts(23), "22:00-06:00 UTC") is True
+        # 12:00 UTC should be outside
+        assert comp_mod._is_in_business_hours(_utc_hour_ts(12), "22:00-06:00 UTC") is False
+
+    def test_business_hours_malformed_fails_open(self):
+        """Bad spec doesn't crash — errs on the side of firing."""
+        assert comp_mod._is_in_business_hours(time.time(), "not-a-window") is True
+
+    # ── Maintenance windows ────────────────────────────────────
+
+    def test_maintenance_window_suppresses(self):
+        """Fire dropped when now is inside a maintenance window."""
+        self._fresh_state()
+        now = time.time()
+        window = comp_mod.MaintenanceWindow(
+            from_ts=_ts_iso(now - 60),
+            to_ts=_ts_iso(now + 3600),
+            reason="deploy",
+        )
+        throttle = comp_mod.ThrottleConfig(maintenance_windows=[window])
+        should_fire, _, _ = comp_mod._apply_throttle(throttle, {"message": "t"}, "s", MagicMock())
+        assert should_fire is False
+
+    def test_maintenance_window_expires(self):
+        """Window in the past no longer suppresses."""
+        self._fresh_state()
+        now = time.time()
+        window = comp_mod.MaintenanceWindow(
+            from_ts=_ts_iso(now - 7200),
+            to_ts=_ts_iso(now - 3600),
+        )
+        throttle = comp_mod.ThrottleConfig(maintenance_windows=[window])
+        should_fire, _, _ = comp_mod._apply_throttle(throttle, {"message": "t"}, "s", MagicMock())
+        assert should_fire is True
+
+    def test_maintenance_window_bad_iso_skipped(self):
+        """Malformed windows are skipped, not crashed."""
+        self._fresh_state()
+        window = comp_mod.MaintenanceWindow(from_ts="oops", to_ts="also-oops")
+        throttle = comp_mod.ThrottleConfig(maintenance_windows=[window])
+        should_fire, _, _ = comp_mod._apply_throttle(throttle, {"message": "t"}, "s", MagicMock())
+        assert should_fire is True
+
+    # ── Correlation suppression ────────────────────────────────
+
+    def test_correlation_suppress_matches_recent_fire(self):
+        """If a correlated sensor fired recently, this one gets dropped."""
+        self._fresh_state()
+        # Simulate a recent fire on the root-cause sensor
+        comp_mod._record_global_fire("ops_alerts__daemon_heartbeat_0", time.time() - 30)
+        throttle = comp_mod.ThrottleConfig(
+            correlation_suppress_sensors=["daemon_heartbeat"],
+            correlation_within_seconds=300,
+        )
+        should_fire, _, _ = comp_mod._apply_throttle(
+            throttle, {"message": "downstream alert"}, "downstream_sensor", MagicMock()
+        )
+        assert should_fire is False
+
+    def test_correlation_suppress_ignores_stale_fires(self):
+        """Fires older than the window don't suppress."""
+        self._fresh_state()
+        comp_mod._record_global_fire("root_cause", time.time() - 3600)
+        throttle = comp_mod.ThrottleConfig(
+            correlation_suppress_sensors=["root_cause"],
+            correlation_within_seconds=60,
+        )
+        should_fire, _, _ = comp_mod._apply_throttle(throttle, {"message": "t"}, "s", MagicMock())
+        assert should_fire is True
+
+    def test_successful_fire_records_to_global_log(self):
+        """Firing appends to _GLOBAL_FIRE_LOG so downstream sensors can correlate."""
+        self._fresh_state()
+        throttle = comp_mod.ThrottleConfig()
+        comp_mod._apply_throttle(throttle, {"message": "t"}, "sensor_a", MagicMock())
+        assert len(comp_mod._GLOBAL_FIRE_LOG) == 1
+        assert comp_mod._GLOBAL_FIRE_LOG[0][1] == "sensor_a"
+
+    def test_global_fire_log_bounded(self):
+        """Log is truncated to _GLOBAL_FIRE_LOG_MAX to prevent unbounded growth."""
+        self._fresh_state()
+        for i in range(comp_mod._GLOBAL_FIRE_LOG_MAX + 100):
+            comp_mod._record_global_fire(f"s{i}", time.time())
+        assert len(comp_mod._GLOBAL_FIRE_LOG) == comp_mod._GLOBAL_FIRE_LOG_MAX
+
+    # ── Escalation ladder ─────────────────────────────────────
+
+    def test_escalation_first_fire_uses_lowest_tier(self):
+        """Fire #0 → tier with after_fires=0."""
+        self._fresh_state()
+        ladder = [
+            comp_mod.EscalationTier(after_fires=0, action_indices=[0]),
+            comp_mod.EscalationTier(after_fires=3, action_indices=[0, 1]),
+            comp_mod.EscalationTier(after_fires=10, action_indices=[0, 1, 2]),
+        ]
+        throttle = comp_mod.ThrottleConfig(strategy="escalate", escalation_ladder=ladder)
+        should_fire, _, indices = comp_mod._apply_throttle(throttle, {"message": "t"}, "s", MagicMock())
+        assert should_fire is True
+        assert indices == [0]
+
+    def test_escalation_climbs_tiers(self):
+        """Fires 0, 1, 2 use tier[0]; fire 3+ uses tier[1]; fire 10+ uses tier[2]."""
+        self._fresh_state()
+        ladder = [
+            comp_mod.EscalationTier(after_fires=0, action_indices=[0]),
+            comp_mod.EscalationTier(after_fires=3, action_indices=[0, 1]),
+            comp_mod.EscalationTier(after_fires=10, action_indices=[0, 1, 2]),
+        ]
+        throttle = comp_mod.ThrottleConfig(strategy="escalate", escalation_ladder=ladder)
+        seen_indices = []
+        for _ in range(12):
+            _, _, ai = comp_mod._apply_throttle(throttle, {"message": "t"}, "s", MagicMock())
+            seen_indices.append(ai)
+        # Fires 0,1,2 → [0]; fires 3-9 → [0,1]; fires 10,11 → [0,1,2]
+        assert seen_indices[0] == [0]
+        assert seen_indices[2] == [0]
+        assert seen_indices[3] == [0, 1]
+        assert seen_indices[9] == [0, 1]
+        assert seen_indices[10] == [0, 1, 2]
+        assert seen_indices[11] == [0, 1, 2]
+
+    def test_escalation_no_tier_matches_drops(self):
+        """If ladder starts at after_fires=5 and prior_fires=0, fire is dropped."""
+        self._fresh_state()
+        ladder = [comp_mod.EscalationTier(after_fires=5, action_indices=[0])]
+        throttle = comp_mod.ThrottleConfig(strategy="escalate", escalation_ladder=ladder)
+        should_fire, _, _ = comp_mod._apply_throttle(throttle, {"message": "t"}, "s", MagicMock())
+        assert should_fire is False
+
+    def test_run_actions_filters_by_escalation_indices(self):
+        """_run_actions honors the action_indices filter — only listed actions run."""
+        self._fresh_state()
+        # Build 3 webhook actions; only index 0 should fire on first tick
+        actions = [
+            comp_mod.WebhookAction(url="https://example.com/1"),
+            comp_mod.WebhookAction(url="https://example.com/2"),
+            comp_mod.WebhookAction(url="https://example.com/3"),
+        ]
+        ladder = [comp_mod.EscalationTier(after_fires=0, action_indices=[0])]
+        throttle = comp_mod.ThrottleConfig(strategy="escalate", escalation_ladder=ladder)
+        executed_urls = []
+
+        def fake_execute(action, tokens, logger, instance=None):
+            executed_urls.append(action.url)
+            return None
+
+        with patch.object(comp_mod, "_execute_action", side_effect=fake_execute):
+            comp_mod._run_actions(
+                actions, {"message": "t"}, MagicMock(), throttle=throttle, sensor_name="s"
+            )
+        assert executed_urls == ["https://example.com/1"]
+
+    # ── Auto-resolve ──────────────────────────────────────────
+
+    def test_auto_resolve_fires_and_records_state(self):
+        """auto_resolve strategy fires on first tick and records 'active' state."""
+        self._fresh_state()
+        throttle = comp_mod.ThrottleConfig(strategy="auto_resolve", min_seconds_between_fires=60)
+        should_fire, _, _ = comp_mod._apply_throttle(throttle, {"message": "t"}, "s", MagicMock())
+        assert should_fire is True
+        state = comp_mod._THROTTLE_STATE["s:*"]
+        assert state["auto_resolve_active"] is True
+        assert state["auto_resolve_fire_count"] == 1
+
+    def test_auto_resolve_check_emits_resolve_after_staleness(self):
+        """After the fire is stale (2x cooldown), _check_auto_resolve emits a paired resolve."""
+        self._fresh_state()
+        throttle = comp_mod.ThrottleConfig(strategy="auto_resolve", min_seconds_between_fires=1)
+        # Trigger initial fire
+        comp_mod._apply_throttle(throttle, {"message": "down"}, "s", MagicMock())
+        # Backdate the state to look stale
+        state = comp_mod._THROTTLE_STATE["s:*"]
+        state["auto_resolve_last_fire_ts"] = time.time() - 999
+        state["auto_resolve_first_fire_ts"] = time.time() - 1000
+        resolve = comp_mod._check_auto_resolve(throttle, "s", MagicMock())
+        assert resolve is not None
+        assert resolve["event_type"] == "auto_resolved"
+        assert "Resolved after" in resolve["message"]
+        # Second call returns None (already sent)
+        assert comp_mod._check_auto_resolve(throttle, "s", MagicMock()) is None
+
+    def test_auto_resolve_check_no_fire_no_resolve(self):
+        """Without a prior fire, _check_auto_resolve returns None."""
+        self._fresh_state()
+        throttle = comp_mod.ThrottleConfig(strategy="auto_resolve")
+        assert comp_mod._check_auto_resolve(throttle, "s", MagicMock()) is None
+
+    def test_auto_resolve_check_ignores_non_auto_resolve(self):
+        """Only auto_resolve strategy is eligible."""
+        self._fresh_state()
+        throttle = comp_mod.ThrottleConfig(strategy="silence")
+        assert comp_mod._check_auto_resolve(throttle, "s", MagicMock()) is None
+
+
+# ── Helpers for throttle tests ────────────────────────────────────────
+
+def _utc_hour_ts(hour: int) -> float:
+    """Return a UTC timestamp for today at HH:00:00."""
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    return now.replace(hour=hour, minute=0, second=0, microsecond=0).timestamp()
+
+
+def _ts_iso(ts: float) -> str:
+    """Format a unix ts as ISO8601 UTC string."""
+    from datetime import datetime, timezone
+    return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+# ── Selection syntax + run filter tests ────────────────────────────────
+
+class TestAssetKeySelection:
+    """Verify Union[List[str], str] on asset_keys works: explicit list,
+    fnmatch glob, and single-literal fallback."""
+
+    def test_list_pass_through(self):
+        """Explicit list is returned as-is."""
+        result = comp_mod._resolve_asset_keys(["marts/orders", "marts/customers"])
+        assert result == ["marts/orders", "marts/customers"]
+
+    def test_single_literal_no_siblings(self):
+        """String with no sibling defs falls back to single-literal."""
+        result = comp_mod._resolve_asset_keys("marts/orders")
+        assert result == ["marts/orders"]
+
+    def test_fnmatch_against_discovered(self):
+        """Bare fnmatch glob resolves against discovered_keys."""
+        discovered = ["marts/orders", "marts/customers", "staging/raw_events"]
+        result = comp_mod._resolve_asset_keys("marts/*", discovered_keys=discovered)
+        assert set(result) == {"marts/orders", "marts/customers"}
+
+    def test_fnmatch_no_match_falls_through(self):
+        """When fnmatch matches nothing, return the single literal (backward compat)."""
+        discovered = ["marts/orders"]
+        result = comp_mod._resolve_asset_keys("no_match", discovered_keys=discovered)
+        assert result == ["no_match"]
+
+    def test_asset_materialized_trigger_accepts_list(self):
+        """Backward compat: list of asset keys still parses."""
+        trigger = comp_mod.AssetMaterializedTrigger(asset_keys=["a", "b"])
+        assert trigger.asset_keys == ["a", "b"]
+
+    def test_asset_materialized_trigger_accepts_string(self):
+        """New: single string is accepted."""
+        trigger = comp_mod.AssetMaterializedTrigger(asset_keys="group:analytics")
+        assert trigger.asset_keys == "group:analytics"
+
+    def test_freshness_violation_accepts_string(self):
+        """FreshnessViolationTrigger accepts selection string."""
+        trigger = comp_mod.FreshnessViolationTrigger(
+            asset_keys="tag:tier=gold", max_age_minutes=60
+        )
+        assert trigger.asset_keys == "tag:tier=gold"
+
+    def test_absence_trigger_accepts_string(self):
+        """AbsenceTrigger accepts selection string."""
+        trigger = comp_mod.AbsenceTrigger(
+            asset_keys="marts/*",
+            max_gap_minutes=60,
+        )
+        assert trigger.asset_keys == "marts/*"
+
+    def test_asset_check_failed_optional_string(self):
+        """AssetCheckFailedTrigger's optional asset_keys accepts string."""
+        trigger = comp_mod.AssetCheckFailedTrigger(asset_keys="group:critical")
+        assert trigger.asset_keys == "group:critical"
+
+    def test_normalization_via_component_build_defs(self):
+        """Component's build_defs walks triggers and normalizes string
+        selectors to concrete lists. When no siblings are discovered, falls
+        back to single-literal."""
+        component = comp_mod.EventAutomationComponent(
+            name="test_norm",
+            when=[
+                {"type": "asset_materialized", "asset_keys": "marts/*"},
+                {"type": "freshness_violation", "asset_keys": ["a", "b"], "max_age_minutes": 60},
+            ],
+            then=[{"type": "materialize", "asset_keys": ["target"]}],
+        )
+        # Simulate no sibling defs (context.build_defs returns None)
+        ctx = MagicMock()
+        ctx.path.parent = MagicMock()
+        ctx.build_defs.return_value = None
+        component.build_defs(ctx)
+        # String selector → single-literal fallback
+        assert component.when[0].asset_keys == ["marts/*"]
+        # List selector → unchanged
+        assert component.when[1].asset_keys == ["a", "b"]
+
+
+class TestRunFilterMixin:
+    """Verify the _RunFilterMixin fields (job_name_pattern, run_tags) are
+    accepted by the 6 run-based triggers and applied via _run_matches_filters."""
+
+    def test_run_status_trigger_accepts_mixin_fields(self):
+        trigger = comp_mod.RunStatusTrigger(
+            status="FAILURE",
+            job_name_pattern="prod_*",
+            run_tags={"priority": "P0"},
+        )
+        assert trigger.job_name_pattern == "prod_*"
+        assert trigger.run_tags == {"priority": "P0"}
+
+    def test_step_error_trigger_accepts_mixin_fields(self):
+        trigger = comp_mod.StepErrorTrigger(
+            job_name_pattern="etl_*",
+            run_tags={"team": "data"},
+        )
+        assert trigger.job_name_pattern == "etl_*"
+
+    def test_run_matches_filters_exact_job_name(self):
+        run = MagicMock(job_name="my_job", tags={})
+        assert comp_mod._run_matches_filters(run, "my_job", None, None) is True
+        assert comp_mod._run_matches_filters(run, "other", None, None) is False
+
+    def test_run_matches_filters_fnmatch_pattern(self):
+        run = MagicMock(job_name="prod_ingest", tags={})
+        assert comp_mod._run_matches_filters(run, None, "prod_*", None) is True
+        assert comp_mod._run_matches_filters(run, None, "dev_*", None) is False
+
+    def test_run_matches_filters_run_tags(self):
+        run = MagicMock(job_name="j", tags={"priority": "P0", "team": "data"})
+        # All specified tags match
+        assert comp_mod._run_matches_filters(
+            run, None, None, {"priority": "P0"}
+        ) is True
+        # Multiple tags all match
+        assert comp_mod._run_matches_filters(
+            run, None, None, {"priority": "P0", "team": "data"}
+        ) is True
+        # One tag mismatches
+        assert comp_mod._run_matches_filters(
+            run, None, None, {"priority": "P1"}
+        ) is False
+        # Tag missing
+        assert comp_mod._run_matches_filters(
+            run, None, None, {"missing": "x"}
+        ) is False
+
+    def test_run_matches_filters_combined(self):
+        """job_name + job_name_pattern + run_tags all compose as AND."""
+        run = MagicMock(job_name="prod_ingest", tags={"priority": "P0"})
+        assert comp_mod._run_matches_filters(
+            run, None, "prod_*", {"priority": "P0"}
+        ) is True
+        # Pattern matches but tag doesn't
+        assert comp_mod._run_matches_filters(
+            run, None, "prod_*", {"priority": "P1"}
+        ) is False
+
+    def test_run_matches_filters_no_filters(self):
+        """No filters → always matches."""
+        run = MagicMock(job_name="anything", tags={})
+        assert comp_mod._run_matches_filters(run, None, None, None) is True
+
+    def test_run_status_sensor_builds_with_mixin_fields(self):
+        """Full-stack: RunStatusTrigger with mixin fields builds a valid
+        SensorDefinition (the eval fn is wired to `_run_matches_filters`,
+        which is tested directly above)."""
+        trigger = comp_mod.RunStatusTrigger(
+            status="FAILURE",
+            job_name_pattern="prod_*",
+            run_tags={"priority": "P0"},
+        )
+        sensor = comp_mod._build_run_status_sensor(
+            "test", trigger, [comp_mod.MaterializeAction(asset_keys=["a"])],
+            comp_mod.dg.DefaultSensorStatus.STOPPED,
+        )
+        assert sensor.name == "test"
+
+    def test_step_error_sensor_builds_with_mixin_fields(self):
+        """Full-stack: StepErrorTrigger with mixin fields builds cleanly."""
+        trigger = comp_mod.StepErrorTrigger(
+            job_name_pattern="etl_*",
+            run_tags={"team": "data-platform"},
+        )
+        sensor = comp_mod._build_step_error_sensor(
+            "test", trigger, [], comp_mod.dg.DefaultSensorStatus.STOPPED,
+        )
+        assert sensor.name == "test"
+
+    def test_all_run_based_triggers_expose_mixin_fields(self):
+        """Every run-based trigger inherits _RunFilterMixin — schema surface
+        should include the two new fields on all 6 classes."""
+        run_trigger_classes = [
+            comp_mod.RunStatusTrigger,
+            comp_mod.RunDurationTrigger,
+            comp_mod.RunStuckTrigger,
+            comp_mod.StepErrorTrigger,
+            comp_mod.HookFiredTrigger,
+            comp_mod.RunStartupSlowTrigger,
+        ]
+        for cls in run_trigger_classes:
+            fields = cls.model_fields
+            assert "job_name_pattern" in fields, f"{cls.__name__} missing job_name_pattern"
+            assert "run_tags" in fields, f"{cls.__name__} missing run_tags"
+
+
+class TestMonitoredJobsMixin:
+    """Verify cross-code-location targeting: monitored_locations +
+    monitored_jobs on RunStatusTrigger + RunDurationTrigger convert into
+    the `monitored_jobs` param of @run_status_sensor."""
+
+    def test_run_status_accepts_monitored_locations(self):
+        trigger = comp_mod.RunStatusTrigger(
+            status="FAILURE",
+            monitored_locations=["prod_ingest", "prod_analytics"],
+        )
+        assert trigger.monitored_locations == ["prod_ingest", "prod_analytics"]
+
+    def test_run_status_accepts_monitored_jobs(self):
+        trigger = comp_mod.RunStatusTrigger(
+            status="FAILURE",
+            monitored_jobs=[
+                {"location": "prod_ingest", "job": "hourly_ingest"},
+                {"location": "prod_analytics", "job": "dbt_run", "repository": "__repository__"},
+            ],
+        )
+        assert len(trigger.monitored_jobs) == 2
+        assert trigger.monitored_jobs[0].location == "prod_ingest"
+        assert trigger.monitored_jobs[0].job == "hourly_ingest"
+        # Default repository is filled in
+        assert trigger.monitored_jobs[0].repository == "__repository__"
+
+    def test_run_duration_inherits_monitored_fields(self):
+        trigger = comp_mod.RunDurationTrigger(
+            max_duration_seconds=60,
+            monitored_locations=["prod"],
+        )
+        assert trigger.monitored_locations == ["prod"]
+
+    def test_build_monitored_jobs_arg_returns_none_when_empty(self):
+        """Backward compat: no fields set → sensor watches its own location."""
+        assert comp_mod._build_monitored_jobs_arg(None, None) is None
+        assert comp_mod._build_monitored_jobs_arg([], []) is None
+
+    def test_build_monitored_jobs_arg_returns_selectors(self):
+        """When fields are set, we get a list of Dagster selector objects."""
+        from dagster import CodeLocationSelector, JobSelector
+        result = comp_mod._build_monitored_jobs_arg(
+            monitored_locations=["prod_ingest"],
+            monitored_jobs=[
+                comp_mod.MonitoredJob(location="prod_analytics", job="dbt_run"),
+            ],
+        )
+        assert result is not None
+        assert len(result) == 2
+        assert isinstance(result[0], CodeLocationSelector)
+        assert result[0].location_name == "prod_ingest"
+        assert isinstance(result[1], JobSelector)
+        assert result[1].location_name == "prod_analytics"
+        assert result[1].job_name == "dbt_run"
+        assert result[1].repository_name == "__repository__"
+
+    def test_run_status_sensor_builds_with_monitored_locations(self):
+        """Full stack: sensor construction with monitored_locations doesn't error."""
+        trigger = comp_mod.RunStatusTrigger(
+            status="FAILURE",
+            monitored_locations=["prod_ingest"],
+        )
+        sensor = comp_mod._build_run_status_sensor(
+            "cross_location_alert",
+            trigger,
+            [comp_mod.MaterializeAction(asset_keys=["a"])],
+            comp_mod.dg.DefaultSensorStatus.STOPPED,
+        )
+        assert sensor.name == "cross_location_alert"
+
+    def test_run_duration_sensor_builds_with_monitored_jobs(self):
+        """Full stack: run_duration builds cleanly with cross-location selectors."""
+        trigger = comp_mod.RunDurationTrigger(
+            max_duration_seconds=300,
+            monitored_jobs=[
+                {"location": "prod", "job": "hourly_ingest"},
+            ],
+        )
+        sensor = comp_mod._build_run_duration_sensor(
+            "cross_duration_alert",
+            trigger,
+            [],
+            comp_mod.dg.DefaultSensorStatus.STOPPED,
+        )
+        assert sensor.name == "cross_duration_alert"

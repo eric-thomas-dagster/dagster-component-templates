@@ -28,7 +28,27 @@
             "properties": {
               "type": {"const": "run_status"},
               "status": {"type": "string", "enum": ["SUCCESS", "FAILURE", "CANCELED", "STARTED"], "description": "Run status to fire on."},
-              "job_name": {"type": "string", "description": "Optional job filter. Omit = any job."}
+              "job_name": {"type": "string", "description": "Optional job filter. Omit = any job."},
+              "job_name_pattern": {"type": "string", "description": "Optional fnmatch glob on the run's job_name (e.g. 'prod_*')."},
+              "run_tags": {"type": "object", "additionalProperties": {"type": "string"}, "description": "Optional run-tag filter — every listed key=value must be present in the run's tags."},
+              "monitored_locations": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Cross-code-location: watch every job in these locations. Enables a dedicated 'alerts' code location that observes prod locations. Default: own location only."
+              },
+              "monitored_jobs": {
+                "type": "array",
+                "description": "Cross-code-location: watch specific jobs by (location, repository, job).",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "location": {"type": "string", "description": "Code location name."},
+                    "job": {"type": "string", "description": "Job name."},
+                    "repository": {"type": "string", "default": "__repository__", "description": "Repository name. Defaults to __repository__ (create-dagster convention)."}
+                  },
+                  "required": ["location", "job"]
+                }
+              }
             },
             "required": ["type", "status"]
           },
@@ -36,7 +56,7 @@
             "title": "asset_materialized — named assets got materialized",
             "properties": {
               "type": {"const": "asset_materialized"},
-              "asset_keys": {"type": "array", "items": {"type": "string"}}
+              "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."}
             },
             "required": ["type", "asset_keys"]
           },
@@ -66,7 +86,7 @@
             "title": "freshness_violation — asset stale beyond max_age",
             "properties": {
               "type": {"const": "freshness_violation"},
-              "asset_keys": {"type": "array", "items": {"type": "string"}},
+              "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."},
               "max_age_minutes": {"type": "integer", "description": "Fire if latest materialization is older than this."},
               "minimum_interval_seconds": {"type": "integer", "default": 300}
             },
@@ -78,7 +98,27 @@
               "type": {"const": "run_duration"},
               "max_duration_seconds": {"type": "integer", "description": "Fire when total run duration > this."},
               "job_name": {"type": "string", "description": "Optional job filter."},
-              "on_status": {"type": "string", "enum": ["ANY", "SUCCESS", "FAILURE"], "default": "ANY"}
+              "job_name_pattern": {"type": "string", "description": "Optional fnmatch glob on the run's job_name."},
+              "run_tags": {"type": "object", "additionalProperties": {"type": "string"}, "description": "Optional run-tag filter (all listed key=value must match)."},
+              "on_status": {"type": "string", "enum": ["ANY", "SUCCESS", "FAILURE"], "default": "ANY"},
+              "monitored_locations": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Cross-code-location: watch every job in these locations."
+              },
+              "monitored_jobs": {
+                "type": "array",
+                "description": "Cross-code-location: watch specific jobs by (location, repository, job).",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "location": {"type": "string"},
+                    "job": {"type": "string"},
+                    "repository": {"type": "string", "default": "__repository__"}
+                  },
+                  "required": ["location", "job"]
+                }
+              }
             },
             "required": ["type", "max_duration_seconds"]
           },
@@ -88,6 +128,8 @@
               "type": {"const": "run_stuck"},
               "max_running_seconds": {"type": "integer", "description": "Fire when a run has been RUNNING for > this."},
               "job_name": {"type": "string", "description": "Optional job filter."},
+              "job_name_pattern": {"type": "string", "description": "Optional fnmatch glob on the run's job_name."},
+              "run_tags": {"type": "object", "additionalProperties": {"type": "string"}, "description": "Optional run-tag filter."},
               "minimum_interval_seconds": {"type": "integer", "default": 60}
             },
             "required": ["type", "max_running_seconds"]
@@ -97,7 +139,7 @@
             "properties": {
               "type": {"const": "asset_check_failed"},
               "check_names": {"type": "array", "items": {"type": "string"}, "description": "Names of checks to watch. Omit = any check failure."},
-              "asset_keys": {"type": "array", "items": {"type": "string"}, "description": "Optional asset key filter."},
+              "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Optional asset key filter. — accepts a list of keys OR a Dagster asset-selection string (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, boolean composition) or fnmatch glob (`marts/*`)."},
               "minimum_interval_seconds": {"type": "integer", "default": 60}
             },
             "required": ["type"]
@@ -118,7 +160,7 @@
             "title": "absence — dead-man's switch (no materialization in window)",
             "properties": {
               "type": {"const": "absence"},
-              "asset_keys": {"type": "array", "items": {"type": "string"}},
+              "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."},
               "max_gap_minutes": {"type": "integer", "description": "Fire if no materialization in this many minutes."},
               "minimum_interval_seconds": {"type": "integer", "default": 300}
             },
@@ -167,6 +209,8 @@
               "type": {"const": "run_startup_slow"},
               "max_startup_seconds": {"type": "integer", "description": "Fire when time from run creation to STARTED > this."},
               "job_name": {"type": "string"},
+              "job_name_pattern": {"type": "string", "description": "Optional fnmatch glob on the run's job_name."},
+              "run_tags": {"type": "object", "additionalProperties": {"type": "string"}, "description": "Optional run-tag filter."},
               "minimum_interval_seconds": {"type": "integer", "default": 60}
             },
             "required": ["type", "max_startup_seconds"]
@@ -175,7 +219,7 @@
             "title": "asset_observation — AssetObservation event emitted",
             "properties": {
               "type": {"const": "asset_observation"},
-              "asset_keys": {"type": "array", "items": {"type": "string"}},
+              "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."},
               "minimum_interval_seconds": {"type": "integer", "default": 60}
             },
             "required": ["type", "asset_keys"]
@@ -185,8 +229,15 @@
             "properties": {
               "type": {"const": "step_error"},
               "job_name": {"type": "string"},
+              "job_name_pattern": {"type": "string", "description": "Optional fnmatch glob on the run's job_name."},
+              "run_tags": {"type": "object", "additionalProperties": {"type": "string"}, "description": "Optional run-tag filter."},
               "step_key_pattern": {"type": "string", "description": "Optional regex on step key."},
               "exception_pattern": {"type": "string", "description": "Optional regex on exception message."},
+              "only_final_failures": {
+                "type": "boolean",
+                "default": false,
+                "description": "When True, skip intermediate attempts that will be retried by the op's RetryPolicy. Only fires when the step is definitively FAILURE."
+              },
               "minimum_interval_seconds": {"type": "integer", "default": 60}
             },
             "required": ["type"]
@@ -255,6 +306,8 @@
               "hook_name_pattern": {"type": "string"},
               "on_status": {"type": "string", "enum": ["ANY", "SUCCESS", "FAILURE"], "default": "ANY"},
               "job_name": {"type": "string"},
+              "job_name_pattern": {"type": "string", "description": "Optional fnmatch glob on the run's job_name."},
+              "run_tags": {"type": "object", "additionalProperties": {"type": "string"}, "description": "Optional run-tag filter."},
               "minimum_interval_seconds": {"type": "integer", "default": 60}
             },
             "required": ["type"]
@@ -263,7 +316,7 @@
             "title": "asset_partition_materialized — specific asset PARTITION materialized",
             "properties": {
               "type": {"const": "asset_partition_materialized"},
-              "asset_keys": {"type": "array", "items": {"type": "string"}},
+              "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."},
               "partition_key": {"type": "string", "description": "Exact partition match."},
               "partition_key_pattern": {"type": "string", "description": "Regex on partition key."},
               "minimum_interval_seconds": {"type": "integer", "default": 60}
@@ -284,7 +337,7 @@
             "title": "asset_wipe — materialization history wiped (destructive audit)",
             "properties": {
               "type": {"const": "asset_wipe"},
-              "asset_keys": {"type": "array", "items": {"type": "string"}, "description": "Watch these. None = any wipe."},
+              "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Watch these. None = any wipe. — accepts a list of keys OR a Dagster asset-selection string (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, boolean composition) or fnmatch glob (`marts/*`)."},
               "minimum_interval_seconds": {"type": "integer", "default": 60}
             },
             "required": ["type"]
@@ -325,7 +378,7 @@
               "type": {"const": "asset_check_severity"},
               "severity": {"type": "string", "enum": ["WARN", "ERROR"]},
               "check_names": {"type": "array", "items": {"type": "string"}},
-              "asset_keys": {"type": "array", "items": {"type": "string"}},
+              "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."},
               "minimum_interval_seconds": {"type": "integer", "default": 60}
             },
             "required": ["type", "severity"]
@@ -344,7 +397,7 @@
             "title": "materialization_planned — pre-materialization event (warm caches, etc.)",
             "properties": {
               "type": {"const": "materialization_planned"},
-              "asset_keys": {"type": "array", "items": {"type": "string"}},
+              "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."},
               "minimum_interval_seconds": {"type": "integer", "default": 60}
             },
             "required": ["type", "asset_keys"]
@@ -354,7 +407,7 @@
             "properties": {
               "type": {"const": "asset_check_started"},
               "check_names": {"type": "array", "items": {"type": "string"}},
-              "asset_keys": {"type": "array", "items": {"type": "string"}},
+              "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."},
               "minimum_interval_seconds": {"type": "integer", "default": 60}
             },
             "required": ["type"]
@@ -436,7 +489,7 @@
             "title": "materialize — launch materialization for named assets",
             "properties": {
               "type": {"const": "materialize"},
-              "asset_keys": {"type": "array", "items": {"type": "string"}},
+              "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."},
               "partition_key": {"type": "string"}
             },
             "required": ["type", "asset_keys"]
@@ -621,13 +674,53 @@
         "min_seconds_between_fires": {"type": "integer", "description": "Cooldown between successful fires."},
         "max_per_hour": {"type": "integer", "description": "Rolling-window hard cap."},
         "dedup_key_template": {"type": "string", "description": "Templated dedup key for state scoping."},
-        "strategy": {"type": "string", "enum": ["silence", "summarize", "first_last", "llm"], "default": "silence"},
+        "strategy": {"type": "string", "enum": ["silence", "summarize", "first_last", "llm", "escalate", "auto_resolve"], "default": "silence"},
         "flush_after_seconds": {"type": "integer", "default": 600, "description": "For summarize / first_last: buffer window."},
         "llm_provider": {"type": "string", "enum": ["openai", "anthropic"], "default": "openai"},
         "llm_model": {"type": "string", "default": "gpt-4o-mini"},
         "llm_api_key_env_var": {"type": "string", "default": "OPENAI_API_KEY"},
         "llm_prompt_template": {"type": "string", "description": "Custom prompt. Tokens: {message}, {recent}, plus standard tokens."},
-        "llm_decision_cache_seconds": {"type": "integer", "default": 60}
+        "llm_decision_cache_seconds": {"type": "integer", "default": 60},
+        "business_hours_only": {
+          "type": "string",
+          "description": "Only fire during this daily window. Format: 'HH:MM-HH:MM tz [days]'. E.g. '09:00-17:00 America/New_York mon,tue,wed,thu,fri'."
+        },
+        "maintenance_windows": {
+          "type": "array",
+          "description": "Scheduled quiet periods. Fires within any listed window are suppressed.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "from_ts": {"type": "string", "description": "ISO8601 start (e.g. '2024-01-15T02:00:00Z')."},
+              "to_ts": {"type": "string", "description": "ISO8601 end."},
+              "reason": {"type": "string", "description": "Free-form reason shown in logs."}
+            },
+            "required": ["from_ts", "to_ts"]
+          }
+        },
+        "correlation_suppress_sensors": {
+          "type": "array",
+          "description": "Sensor-name substrings whose recent fires suppress THIS trigger (root-cause suppression).",
+          "items": {"type": "string"}
+        },
+        "correlation_within_seconds": {"type": "integer", "default": 300, "description": "Correlation lookback window in seconds."},
+        "escalation_ladder": {
+          "type": "array",
+          "description": "For strategy=escalate: fire count → which action indices fire.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "after_fires": {"type": "integer", "description": "Fire count threshold (0 = first fire)."},
+              "action_indices": {"type": "array", "items": {"type": "integer"}, "description": "Indices into the `then:` list to execute at this tier."}
+            },
+            "required": ["after_fires", "action_indices"]
+          }
+        },
+        "auto_resolve_message": {
+          "type": "string",
+          "default": "✅ Resolved after {duration_seconds}s ({fire_count} fires)",
+          "description": "For strategy=auto_resolve: message template for the paired resolve event."
+        }
       }
     },
     "default_status": {

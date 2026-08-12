@@ -94,28 +94,38 @@ attributes:
 
 Four Dagster assets (one per step in `outputs.assets:`), chained by the `source:` field on each step. The final step is a fan-in `synthesize` op that pulls text from all three prior steps:
 
-```mermaid
-flowchart LR
-    src(("source (literal)"))
-    routed["research_bot_routed<br/><i>op: route</i>"]
-    critiqued["research_bot_critiqued<br/><i>op: critique_loop</i>"]
-    debated["research_bot_debated<br/><i>op: debate</i>"]
-    final["research_bot_final<br/><i>op: synthesize</i>"]
-    sink[/"text_sink<br/>/tmp/final.txt"/]
-
-    src --> routed --> critiqued --> debated
-    routed -.->|source id| final
-    critiqued -.->|source id| final
-    debated -.->|source id| final
-    final --> sink
-
-    classDef srcCls fill:#e6f2ff,stroke:#4488cc
-    classDef sinkCls fill:#f0e6ff,stroke:#8844cc
-    class src srcCls
-    class sink sinkCls
+```
+   source (literal)
+   "Explain how transformer attention works."
+        │
+        ▼
+   ┌───────────────────────────┐
+   │  research_bot_routed      │  op: route          (router → specialist)
+   └──────────┬────────────────┘
+              │
+              ▼
+   ┌───────────────────────────┐
+   │  research_bot_critiqued   │  op: critique_loop  (drafter ↔ critic × N)
+   └──────────┬────────────────┘
+              │
+              ▼
+   ┌───────────────────────────┐
+   │  research_bot_debated     │  op: debate         (proposers → arbitrator)
+   └──────────┬────────────────┘
+              │
+              │  ┌── source: routed ──────────┐
+              │  ├── source: critiqued ───────┤
+              │  └── source: debated ─────────┤
+              ▼                               ▼
+   ┌───────────────────────────────────────────┐
+   │  research_bot_final                       │  op: synthesize  (fan-in)
+   └──────────┬────────────────────────────────┘
+              │
+              ▼
+        /tmp/final.txt   (text_sink)
 ```
 
-Solid arrows = `source:` on the next step's YAML. Dashed arrows into `final` = its `sources: [routed, critiqued, debated]` fan-in.
+Solid arrows = `source:` field on the next step's YAML. The three source-lines into `final` = its `sources: [routed, critiqued, debated]` fan-in — synthesize merges N upstream step texts.
 
 Each asset name is `{asset_name_prefix}_{step_id}` (`research_bot_routed`, `research_bot_critiqued`, …). All four appear in the Dagster catalog and get typed metadata on every materialization.
 

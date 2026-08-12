@@ -90,6 +90,47 @@ attributes:
       - {from: final, path: /tmp/final.txt}
 ```
 
+### Asset graph this YAML produces
+
+Four Dagster assets (one per step in `outputs.assets:`), chained by the `source:` field on each step. The final step is a fan-in `synthesize` op that pulls text from all three prior steps:
+
+```mermaid
+flowchart LR
+    src(("source (literal)"))
+    routed["research_bot_routed<br/><i>op: route</i>"]
+    critiqued["research_bot_critiqued<br/><i>op: critique_loop</i>"]
+    debated["research_bot_debated<br/><i>op: debate</i>"]
+    final["research_bot_final<br/><i>op: synthesize</i>"]
+    sink[/"text_sink<br/>/tmp/final.txt"/]
+
+    src --> routed --> critiqued --> debated
+    routed -.->|source id| final
+    critiqued -.->|source id| final
+    debated -.->|source id| final
+    final --> sink
+
+    classDef srcCls fill:#e6f2ff,stroke:#4488cc
+    classDef sinkCls fill:#f0e6ff,stroke:#8844cc
+    class src srcCls
+    class sink sinkCls
+```
+
+Solid arrows = `source:` on the next step's YAML. Dashed arrows into `final` = its `sources: [routed, critiqued, debated]` fan-in.
+
+Each asset name is `{asset_name_prefix}_{step_id}` (`research_bot_routed`, `research_bot_critiqued`, …). All four appear in the Dagster catalog and get typed metadata on every materialization.
+
+### Scaffold this exact demo end-to-end
+
+The walkthrough at [`examples/agentic_pipeline.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/agentic_pipeline.md) ships a one-liner that scaffolds a working `create-dagster` project with this 5-step pipeline preloaded, partitioned across 3 static partitions:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_agentic_pipeline_demo.sh | bash
+cd agentic-pipeline-demo
+uv run dg dev
+```
+
+Costs ~$0.001 per full run (10 LLM calls × `gpt-4o-mini`). See the walkthrough for the partition demo, sink layout, and the Dagster+ Insights promotion recipe.
+
 ## Op menu (v1 = 5)
 
 | op | Shape | What it does |

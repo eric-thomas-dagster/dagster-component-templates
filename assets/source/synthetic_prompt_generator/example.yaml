@@ -1,73 +1,30 @@
-# SyntheticPromptGeneratorComponent — five modes for emitting prompt text.
-# Pick ONE mode per instance; the modes are mutually exclusive.
+# SyntheticPromptGeneratorComponent — Mode D (COMPOSED, no LLM).
+#
+# Emits a str-valued asset. Static partitions = topics list. Each partition
+# materializes to one prompt string composed deterministically from the
+# levers below. seed=42 → reproducible bit-for-bit.
+#
+# See the component's README for the other four modes:
+#   A. LITERAL   — `prompts: {key: text}`
+#   B. TEMPLATE  — `topics: [...]` + `template: "..."`
+#   C. FIXED     — `prompt: "..."`  (unpartitioned)
+#   E. LLM (v2)  — `topics: [...]` + `paraphrase_model: "..."`  (LiteLLM)
+#
+# Modes are mutually exclusive; validation catches misconfig at build_defs.
 
-# ── Mode A: literal per-key mapping ────────────────────────────────────
-# Each key becomes a static partition; the mapped string is that partition's output.
 type: dagster_community_components.SyntheticPromptGeneratorComponent
 attributes:
-  asset_name: research_topics
-  prompts:
-    attention: "Explain how transformer attention works in ~200 words."
-    rag:       "How does retrieval-augmented generation improve LLM factuality?"
-    rnn:       "Compare RNN vs Transformer architectures for sequence modeling."
-
----
-
-# ── Mode B: topics + template ──────────────────────────────────────────
-# Each topic becomes a static partition; template rendered per topic.
-type: dagster_community_components.SyntheticPromptGeneratorComponent
-attributes:
-  asset_name: benchmark_prompts
+  asset_name: research_prompts
+  group_name: prompts
   topics:
-    - "sorting algorithms"
-    - "graph traversal"
-    - "dynamic programming"
-  template: "Give a clear introductory explanation of {topic}, then a small worked example. ~300 words."
-
----
-
-# ── Mode C: fixed single prompt (unpartitioned) ────────────────────────
-type: dagster_community_components.SyntheticPromptGeneratorComponent
-attributes:
-  asset_name: hello_world_prompt
-  prompt: "Explain how transformer attention works."
-
----
-
-# ── Mode D: v1.5 systematic composition (no LLM) ───────────────────────
-# Combines persona / style / length / task_type / format_hint / depth
-# into deterministic per-partition prompts. count_per_topic > 1 emits
-# multiple variants per topic — partition keys are `{topic}__v{n}`.
-type: dagster_community_components.SyntheticPromptGeneratorComponent
-attributes:
-  asset_name: composed_prompts
-  topics: [attention, rag, rnn]
+    - attention
+    - transformer_vs_rnn
+    - retrieval_augmented_generation
+  # v1.5 levers — all optional, all pure Python (no LLM cost):
   persona: engineer          # student | engineer | executive | novice | expert
   style: technical           # formal | casual | technical | journalistic
   length: medium             # short | medium | long
-  format_hint: bullets       # bullets | paragraphs | table | code
+  format_hint: paragraphs    # bullets | paragraphs | table | code
   depth: intermediate        # intro | intermediate | advanced
-  count_per_topic: 3         # 3 topics × 3 variants = 9 static partitions
-  seed: 42
-
----
-
-# ── Mode E: v2 LLM elevation ───────────────────────────────────────────
-# Same lever surface as Mode D, but the LLM interprets each lever as a
-# natural-language hint and paraphrases. Requires litellm + an API key.
-type: dagster_community_components.SyntheticPromptGeneratorComponent
-attributes:
-  asset_name: llm_prompts
-  topics: ["transformer attention", "retrieval-augmented generation", "recurrent neural networks"]
-  persona: engineer
-  style: technical
-  length: medium
-  format_hint: bullets
-  depth: intermediate
-  count_per_topic: 3
-  paraphrase_model: gpt-4o-mini
-  api_key_env_var: OPENAI_API_KEY
-  temperature: 0.7
-  # Optional: pepper adversarial / under-specified variants every 3rd
-  # for downstream robustness / eval flows.
-  # include_wrong_variants: true
+  seed: 42                   # reproducibility
+  # count_per_topic: 3       # emit 3 variants per topic → partition keys become {topic}__v0 / __v1 / __v2

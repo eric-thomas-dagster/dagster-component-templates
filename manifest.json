@@ -8418,52 +8418,6 @@
       ]
     },
     {
-      "id": "databricks_workspace",
-      "name": "Databricks Workspace",
-      "category": "integration",
-      "description": "Component for importing Databricks workspace entities as Dagster assets.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "integrations/databricks_workspace",
-      "tags": [
-        "integration",
-        "databricks",
-        "workspace"
-      ],
-      "dependencies": {
-        "pip": [
-          "databricks-sdk",
-          "dagster"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_workspace/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_workspace/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_workspace/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_workspace/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_workspace/requirements.txt",
-      "icon": "si:databricks",
-      "validation": {
-        "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/databricks_workspace.md",
-        "last_validated": "2026-05-11"
-      },
-      "vendor": "Databricks",
-      "produces": [
-        "multi_asset",
-        "sensor"
-      ],
-      "agent_hints": {
-        "outputs": "Component for importing Databricks workspace entities as Dagster assets.",
-        "requires_pip": [
-          "databricks-sdk>=0.18.0",
-          "dagster>=1.6.0"
-        ]
-      },
-      "consumes": [
-        "resource:databricks"
-      ]
-    },
-    {
       "id": "datadog_resource",
       "name": "Datadog Resource",
       "category": "resource",

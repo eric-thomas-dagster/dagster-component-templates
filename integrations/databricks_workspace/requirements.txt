@@ -1,2 +1,0 @@
-databricks-sdk>=0.18.0
-dagster>=1.6.0

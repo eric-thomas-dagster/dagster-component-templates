@@ -34,7 +34,7 @@ from dagster import (
     Model,
     MetadataValue,
 )
-from pydantic import ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field
 
 # Canonical pattern (`workspace:` block) — mirrors dagster-databricks's
 # DatabricksWorkspaceComponent, which uses `workspace: DatabricksWorkspace`
@@ -393,45 +393,6 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
         description="Description for the Snowflake workspace component"
     )
 
-    # ── Convenience accessors — expose workspace fields at the component
-    # level so the existing self.database / self.schema_name / etc. call
-    # sites keep working after the flat-field removal. Kept as Python
-    # @property (Pydantic v2 treats these as regular attrs; no conflict
-    # since the underlying fields were removed).
-    @property
-    def account(self) -> str:
-        return self.workspace.account
-
-    @property
-    def user(self) -> str:
-        return self.workspace.user
-
-    @property
-    def warehouse(self) -> str:
-        return self.workspace.warehouse or ""
-
-    @property
-    def database(self) -> str:
-        return self.workspace.database or ""
-
-    @property
-    def schema_name(self) -> str:
-        # SnowflakeResource stores schema on `.schema_` (trailing underscore
-        # to avoid shadowing Pydantic's .schema()); fall back to PUBLIC.
-        return getattr(self.workspace, "schema_", None) or "PUBLIC"
-
-    @property
-    def role(self) -> Optional[str]:
-        return self.workspace.role
-
-    @property
-    def password(self) -> Optional[str]:
-        return self.workspace.password
-
-    @property
-    def authenticator(self) -> Optional[str]:
-        return self.workspace.authenticator
-
     def _create_connection(self) -> SnowflakeConnection:
         """Return a raw Snowflake connection.
 
@@ -611,7 +572,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                     # SHOW TASKS works universally. _execute_query uppercases
                     # column names so downstream task['NAME'] / ['STATE'] / etc.
                     # continue to work.
-                    query = f"SHOW TASKS IN SCHEMA {self.database}.{self.schema_name}"
+                    query = f"SHOW TASKS IN SCHEMA {self.workspace.database}.{self.workspace.schema_}"
                     tasks = self._execute_query(conn, query)
                     if self.task_filter_by_state:
                         tasks = [t for t in tasks if t.get('STATE') == self.task_filter_by_state]
@@ -928,7 +889,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                     # SHOW only needs USAGE on the schema + any privilege on
                     # the proc; INFORMATION_SCHEMA can be invisible to
                     # least-privilege roles.
-                    query = f"SHOW PROCEDURES IN SCHEMA {self.database}.{self.schema_name}"
+                    query = f"SHOW PROCEDURES IN SCHEMA {self.workspace.database}.{self.workspace.schema_}"
                     procedures = self._execute_query(conn, query)
 
                     # Dedupe overloaded procedure signatures (Snowflake returns
@@ -941,7 +902,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                     for proc in procedures:
                         # SHOW PROCEDURES returns NAME (no PROCEDURE_NAME) and
                         # has no CATALOG column — we already know the database
-                        # from self.database.
+                        # from self.workspace.database.
                         proc_name = proc['NAME']
 
                         # SYSTEM$* procedures are Snowflake-managed (e.g.
@@ -1070,8 +1031,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                     ),
                                     metadata={
                                         "snowflake_procedure_name": proc_name,
-                                        "snowflake_database": self.database,
-                                        "snowflake_schema": proc.get("SCHEMA_NAME", self.schema_name),
+                                        "snowflake_database": self.workspace.database,
+                                        "snowflake_schema": proc.get("SCHEMA_NAME", self.workspace.schema_),
                                         "snowflake_signature": proc.get("ARGUMENTS"),
                                         "snowflake_call_args": inst_args,
                                         "snowflake_proc_config_schema": list((inst_config_schema or {}).keys()),
@@ -1092,8 +1053,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 if "owners" in inst:
                                     inst_kwargs["owners"] = inst["owners"]
                                 assets_list.append(_make_proc_asset(
-                                    proc_name, self.database,
-                                    proc.get("SCHEMA_NAME", self.schema_name),
+                                    proc_name, self.workspace.database,
+                                    proc.get("SCHEMA_NAME", self.workspace.schema_),
                                     inst_kwargs, self, inst_args, inst_config_schema,
                                 ))
                             continue  # skip the single-instance path
@@ -1119,8 +1080,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                             + (" (launchpad config_schema)" if proc_config_schema else ""),
                             metadata={
                                 "snowflake_procedure_name": proc_name,
-                                "snowflake_database": self.database,
-                                "snowflake_schema": proc.get('SCHEMA_NAME', self.schema_name),
+                                "snowflake_database": self.workspace.database,
+                                "snowflake_schema": proc.get('SCHEMA_NAME', self.workspace.schema_),
                                 "snowflake_signature": proc.get('ARGUMENTS'),
                                 "snowflake_call_args": proc_args,
                                 "snowflake_proc_config_schema": list((proc_config_schema or {}).keys()),
@@ -1128,8 +1089,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                             },
                         ))
                         assets_list.append(_make_proc_asset(
-                            proc_name, self.database,
-                            proc.get('SCHEMA_NAME', self.schema_name),
+                            proc_name, self.workspace.database,
+                            proc.get('SCHEMA_NAME', self.workspace.schema_),
                             _proc_kwargs, self, proc_args, proc_config_schema,
                         ))
 
@@ -1144,7 +1105,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             # read them even if an earlier import path raised.
             if self.import_dynamic_tables:
                 try:
-                    query = f"SHOW DYNAMIC TABLES IN SCHEMA {self.database}.{self.schema_name}"
+                    query = f"SHOW DYNAMIC TABLES IN SCHEMA {self.workspace.database}.{self.workspace.schema_}"
                     dynamic_tables = self._execute_query(conn, query)
 
                     # Factory for the legacy @asset (dt_modeling="asset") path.
@@ -1253,7 +1214,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             if self.import_streams:
                 try:
                     # INFORMATION_SCHEMA.STREAMS isn't a queryable view.
-                    query = f"SHOW STREAMS IN SCHEMA {self.database}.{self.schema_name}"
+                    query = f"SHOW STREAMS IN SCHEMA {self.workspace.database}.{self.workspace.schema_}"
 
                     streams = self._execute_query(conn, query)
 
@@ -1349,7 +1310,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                 try:
                     # INFORMATION_SCHEMA.PIPES uses pipe_name (not name) and is
                     # restrictive about visibility. SHOW PIPES is universal.
-                    query = f"SHOW PIPES IN SCHEMA {self.database}.{self.schema_name}"
+                    query = f"SHOW PIPES IN SCHEMA {self.workspace.database}.{self.workspace.schema_}"
                     pipes = self._execute_query(conn, query)
 
                     for pipe in pipes:
@@ -1557,7 +1518,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                     # SHOW STAGES (not INFORMATION_SCHEMA.STAGES) — SHOW only
                     # needs USAGE on the schema; INFORMATION_SCHEMA can be
                     # invisible to least-privilege roles.
-                    query = f"SHOW STAGES IN SCHEMA {self.database}.{self.schema_name}"
+                    query = f"SHOW STAGES IN SCHEMA {self.workspace.database}.{self.workspace.schema_}"
                     stages = self._execute_query(conn, query)
 
                     for stage in stages:
@@ -1579,8 +1540,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                             description=f"Snowflake stage: {stage_name}",
                             metadata={
                                 "snowflake_stage_name": stage_name,
-                                "snowflake_database": stage.get('DATABASE_NAME', self.database),
-                                "snowflake_schema": stage.get('SCHEMA_NAME', self.schema_name),
+                                "snowflake_database": stage.get('DATABASE_NAME', self.workspace.database),
+                                "snowflake_schema": stage.get('SCHEMA_NAME', self.workspace.schema_),
                                 "snowflake_url": stage.get('URL'),
                                 "snowflake_type": stage.get('TYPE'),
                                 "entity_type": "stage",
@@ -1639,8 +1600,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
 
                         assets_list.append(_make_stage_asset(
                             stage_name,
-                            stage.get('DATABASE_NAME', self.database),
-                            stage.get('SCHEMA_NAME', self.schema_name),
+                            stage.get('DATABASE_NAME', self.workspace.database),
+                            stage.get('SCHEMA_NAME', self.workspace.schema_),
                             _stage_kwargs, self,
                         ))
 
@@ -1655,7 +1616,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                     # `name`/`table_name` not `table_type`). SHOW MATERIALIZED
                     # VIEWS is the canonical query (Enterprise+ only —
                     # fails non-fatal on Standard edition).
-                    query = f"SHOW MATERIALIZED VIEWS IN SCHEMA {self.database}.{self.schema_name}"
+                    query = f"SHOW MATERIALIZED VIEWS IN SCHEMA {self.workspace.database}.{self.workspace.schema_}"
 
                     mv_list = self._execute_query(conn, query)
 
@@ -1747,7 +1708,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                     # SHOW EXTERNAL TABLES (not INFORMATION_SCHEMA.TABLES) —
                     # SHOW only needs USAGE on the schema; INFORMATION_SCHEMA
                     # can be invisible to least-privilege roles.
-                    query = f"SHOW EXTERNAL TABLES IN SCHEMA {self.database}.{self.schema_name}"
+                    query = f"SHOW EXTERNAL TABLES IN SCHEMA {self.workspace.database}.{self.workspace.schema_}"
                     ext_tables = self._execute_query(conn, query)
 
                     for ext_table in ext_tables:
@@ -1770,8 +1731,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                             description=f"Snowflake external table: {table_name}",
                             metadata={
                                 "snowflake_table_name": table_name,
-                                "snowflake_database": ext_table.get('DATABASE_NAME', self.database),
-                                "snowflake_schema": ext_table.get('SCHEMA_NAME', self.schema_name),
+                                "snowflake_database": ext_table.get('DATABASE_NAME', self.workspace.database),
+                                "snowflake_schema": ext_table.get('SCHEMA_NAME', self.workspace.schema_),
                                 "entity_type": "external_table",
                             },
                         ))
@@ -1826,7 +1787,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                             return _external_table_asset
 
                         assets_list.append(_make_external_table_asset(
-                            table_name, ext_table.get('DATABASE_NAME', self.database), ext_table.get('SCHEMA_NAME', self.schema_name), _ext_kwargs, self,
+                            table_name, ext_table.get('DATABASE_NAME', self.workspace.database), ext_table.get('SCHEMA_NAME', self.workspace.schema_), _ext_kwargs, self,
                         ))
 
                 except Exception as e:
@@ -1836,7 +1797,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             if self.import_alerts:
                 try:
                     # INFORMATION_SCHEMA.ALERTS isn't a queryable view.
-                    query = f"SHOW ALERTS IN SCHEMA {self.database}.{self.schema_name}"
+                    query = f"SHOW ALERTS IN SCHEMA {self.workspace.database}.{self.workspace.schema_}"
                     alerts = self._execute_query(conn, query)
 
                     for alert in alerts:
@@ -2125,8 +2086,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         try:
                             vd_query = (
                                 f"SELECT TABLE_NAME, VIEW_DEFINITION "
-                                f"FROM {self.database}.INFORMATION_SCHEMA.VIEWS "
-                                f"WHERE TABLE_SCHEMA = '{self.schema_name}'"
+                                f"FROM {self.workspace.database}.INFORMATION_SCHEMA.VIEWS "
+                                f"WHERE TABLE_SCHEMA = '{self.workspace.schema_}'"
                             )
                             for vrow in self._execute_query(conn, vd_query):
                                 if vrow.get("VIEW_DEFINITION"):
@@ -2140,8 +2101,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                     query = (
                         f"SELECT TABLE_NAME, TABLE_TYPE, ROW_COUNT, BYTES, "
                         f"LAST_ALTERED, CREATED, COMMENT "
-                        f"FROM {self.database}.INFORMATION_SCHEMA.TABLES "
-                        f"WHERE TABLE_SCHEMA = '{self.schema_name}' "
+                        f"FROM {self.workspace.database}.INFORMATION_SCHEMA.TABLES "
+                        f"WHERE TABLE_SCHEMA = '{self.workspace.schema_}' "
                         f"AND TABLE_TYPE IN ({wanted_types_sql})"
                     )
                     table_rows = self._execute_query(conn, query)
@@ -2325,8 +2286,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         asset_key = f"{prefix}_{re.sub(r'[^a-zA-Z0-9_]', '_', table_name.lower())}"
 
                         base_metadata: Dict[str, Any] = {
-                            "snowflake_database": self.database,
-                            "snowflake_schema": self.schema_name,
+                            "snowflake_database": self.workspace.database,
+                            "snowflake_schema": self.workspace.schema_,
                             "snowflake_table_name": table_name,
                             "snowflake_table_type": table_type,
                             "entity_type": prefix,
@@ -2374,7 +2335,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                             group_name=self.group_name,
                             description=(
                                 f"Snowflake {table_type.lower()}: "
-                                f"{self.database}.{self.schema_name}.{table_name}"
+                                f"{self.workspace.database}.{self.workspace.schema_}.{table_name}"
                                 f"{description_suffix}"
                             ),
                             metadata=base_metadata,
@@ -2410,24 +2371,24 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         elif is_view:
                             if modeling == "asset":
                                 assets_list.append(_make_materializable_view_asset(
-                                    table_name, self.database, self.schema_name,
+                                    table_name, self.workspace.database, self.workspace.schema_,
                                     _table_kwargs, self, view_def,
                                 ))
                             else:
                                 assets_list.append(_make_observable_table_asset(
-                                    table_name, table_type, self.database,
-                                    self.schema_name, _table_kwargs, self,
+                                    table_name, table_type, self.workspace.database,
+                                    self.workspace.schema_, _table_kwargs, self,
                                 ))
                         else:
                             if modeling == "asset":
                                 assets_list.append(_make_materializable_table_asset(
-                                    table_name, table_type, self.database,
-                                    self.schema_name, _table_kwargs, self, tbl_sql,
+                                    table_name, table_type, self.workspace.database,
+                                    self.workspace.schema_, _table_kwargs, self, tbl_sql,
                                 ))
                             else:
                                 assets_list.append(_make_observable_table_asset(
-                                    table_name, table_type, self.database,
-                                    self.schema_name, _table_kwargs, self,
+                                    table_name, table_type, self.workspace.database,
+                                    self.workspace.schema_, _table_kwargs, self,
                                 ))
 
                 except Exception as e:

@@ -215,7 +215,6 @@ _CLASS_PATHS: dict[str, str] = {
     "DatabricksIOManagerComponent": "io_managers/databricks_io_manager/component.py",
     "DatabricksResourceComponent": "resources/databricks_resource/component.py",
     "DatabricksTableObservationSensorComponent": "observations/databricks_table_observation_sensor/component.py",
-    "DatabricksWorkspaceComponent": "integrations/databricks_workspace/component.py",
     "DatabricksWorkspaceResource": "integrations/databricks_asset_bundle/component.py",
     "DatadogResourceComponent": "resources/datadog_resource/component.py",
     "DataformRepositoryResourceComponent": "resources/dataform_repository_resource/component.py",

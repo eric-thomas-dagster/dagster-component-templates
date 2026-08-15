@@ -59,22 +59,7 @@ uv run dg dev                   # auto-loads .env + .env.secrets
 
 | Field | Type | Description |
 |---|---|---|
-| `account` | `str` | Snowflake account identifier (e.g., xy12345.us-east-1) |
-| `user` | `str` | Snowflake username |
-| `warehouse` | `str` | Snowflake warehouse to use for queries |
-| `database` | `str` | Snowflake database to connect to |
-
-### Connection
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `password` | `str` | — | Snowflake password. Leave unset if using SSO or keypair. |
-| `authenticator` | `str` | — | Snowflake authenticator. Common values: 'SNOWFLAKE_JWT' (keypair, recommended for headless / production), 'externalbrowser' (SSO, good for local dev — pops a browser to auth), 'oauth', 'PROGRAMMATIC_ACCESS_TOKEN'. Leave unset if using password. |
-| `private_key_file` | `str` | — | Path to a PEM-formatted RSA private key file. Used when `authenticator: SNOWFLAKE_JWT`. Pair with `private_key_file_pwd` if the key is encrypted. |
-| `private_key_file_pwd` | `str` | — | Passphrase for the encrypted private_key_file (omit if unencrypted). |
-| `token` | `str` | — | Auth token (PAT / OAuth). Used with `authenticator: oauth` or PAT. |
-| `schema` | `str` | `"PUBLIC"` | Snowflake schema to use |
-| `role` | `str` | — | Snowflake role to use (optional) |
+| `workspace` | `SnowflakeResource` | Snowflake connection as a dagster_snowflake.SnowflakeResource. All resource fields supported: account, user, password, authenticator (SNOWFLAKE_JWT / externalbrowser / oauth), private_key_path, private_key_password, warehouse, database, schema, role, plus everything the official resource carries (SQLAlchemy engine via `connector: sqlalchemy`, connection pooling, etc.). |
 
 ### Execution
 
@@ -132,33 +117,72 @@ uv run dg dev                   # auto-loads .env + .env.secrets
 
 ## Configuration
 
-### Basic Example
+### The canonical `workspace:` block (recommended)
+
+The `workspace:` block IS a `dagster_snowflake.SnowflakeResource` — same shape used by `dagster-databricks` (`DatabricksWorkspaceComponent`), `dagster-fivetran`, `dagster-powerbi`. Every field the official `SnowflakeResource` supports is available: password / SSO / keypair / OAuth / SQLAlchemy engine / connection pooling. Adding new auth features to `dagster-snowflake` upstream lights them up in this component with no change.
+
+**Basic — password auth:**
 
 ```yaml
-type: dagster_component_templates.SnowflakeWorkspaceComponent
+type: dagster_community_components.SnowflakeWorkspaceComponent
 attributes:
-  account: xy12345.us-east-1
-  user: dagster_user
-  password: "{{ env('SNOWFLAKE_PASSWORD') }}"
-  warehouse: COMPUTE_WH
-  database: ANALYTICS
-  schema: PUBLIC
+  workspace:
+    account: {env: SNOWFLAKE_ACCOUNT}
+    user: {env: SNOWFLAKE_USER}
+    password: {env: SNOWFLAKE_PASSWORD}
+    warehouse: COMPUTE_WH
+    database: ANALYTICS
+    schema: PUBLIC
+    role: SYSADMIN
   import_tasks: true
 ```
 
-### Advanced Example with All Entity Types
+**SSO for local dev:**
 
 ```yaml
-type: dagster_component_templates.SnowflakeWorkspaceComponent
+type: dagster_community_components.SnowflakeWorkspaceComponent
 attributes:
-  # Connection
-  account: xy12345.us-east-1
-  user: dagster_user
-  password: "{{ env('SNOWFLAKE_PASSWORD') }}"
-  warehouse: COMPUTE_WH
-  database: ANALYTICS
-  schema: PUBLIC
-  role: ACCOUNTADMIN
+  workspace:
+    account: {env: SNOWFLAKE_ACCOUNT}
+    user: {env: SNOWFLAKE_USER}
+    authenticator: externalbrowser        # pops a browser
+    warehouse: COMPUTE_WH
+    database: ANALYTICS
+    schema: PUBLIC
+  import_tasks: true
+```
+
+**Keypair for production / headless environments (recommended):**
+
+```yaml
+type: dagster_community_components.SnowflakeWorkspaceComponent
+attributes:
+  workspace:
+    account: {env: SNOWFLAKE_ACCOUNT}
+    user: {env: SNOWFLAKE_USER}
+    authenticator: SNOWFLAKE_JWT
+    private_key_path: {env: SNOWFLAKE_PRIVATE_KEY_PATH}
+    private_key_password: {env: SNOWFLAKE_PRIVATE_KEY_PASSWORD}   # if encrypted
+    warehouse: COMPUTE_WH
+    database: ANALYTICS
+    schema: PUBLIC
+  import_tasks: true
+  import_dynamic_tables: true
+```
+
+### Full-surface — all entity types + filtering
+
+```yaml
+type: dagster_community_components.SnowflakeWorkspaceComponent
+attributes:
+  workspace:
+    account: {env: SNOWFLAKE_ACCOUNT}
+    user: {env: SNOWFLAKE_USER}
+    password: {env: SNOWFLAKE_PASSWORD}
+    warehouse: COMPUTE_WH
+    database: ANALYTICS
+    schema: PUBLIC
+    role: ACCOUNTADMIN
 
   # Entity types
   import_tasks: true

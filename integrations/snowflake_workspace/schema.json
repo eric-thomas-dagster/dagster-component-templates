@@ -1,6 +1,6 @@
 {
-  "component_type": "dagster_component_templates.SnowflakeWorkspaceComponent",
-  "description": "Component for importing Snowflake workspace entities as Dagster assets.",
+  "component_type": "dagster_community_components.SnowflakeWorkspaceComponent",
+  "description": "Import Snowflake tasks / dynamic tables / stored procedures / streams / views / alerts as Dagster assets. Canonical `workspace:` block IS a dagster_snowflake.SnowflakeResource — same shape as dagster-databricks / dagster-fivetran / dagster-powerbi workspace components. Legacy flat account/user/password fields still accepted (mutually exclusive).",
   "category": "integration",
   "icon": "si:snowflake",
   "x-dagster-io": {
@@ -10,43 +10,23 @@
     }
   },
   "attributes": {
-    "account": {
-      "type": "string",
-      "label": "Account",
-      "description": "Account",
-      "required": true
-    },
-    "user": {
-      "type": "string",
-      "label": "User",
-      "description": "Snowflake username",
-      "required": true
-    },
-    "password": {
-      "type": "string",
-      "label": "Password",
-      "description": "Snowflake password",
+    "workspace": {
+      "type": "object",
+      "label": "Workspace",
+      "description": "Snowflake connection as a dagster_snowflake.SnowflakeResource. Canonical shape — mirrors dagster-databricks / dagster-fivetran / dagster-powerbi.",
       "required": true,
-      "ui:widget": "password"
-    },
-    "warehouse": {
-      "type": "string",
-      "label": "Warehouse",
-      "description": "Snowflake warehouse to use for queries",
-      "required": true
-    },
-    "database": {
-      "type": "string",
-      "label": "Database",
-      "description": "Snowflake database to connect to",
-      "required": true
-    },
-    "schema": {
-      "type": "string",
-      "label": "Schema",
-      "description": "Snowflake schema to use",
-      "required": false,
-      "default": "PUBLIC"
+      "properties": {
+        "account": {"type": "string", "description": "Snowflake account identifier (e.g. xy12345.us-east-1)."},
+        "user": {"type": "string", "description": "Snowflake username."},
+        "password": {"type": "string", "description": "Password (leave unset for SSO / keypair).", "ui:widget": "password"},
+        "authenticator": {"type": "string", "description": "SNOWFLAKE_JWT (keypair) / externalbrowser (SSO) / oauth / PROGRAMMATIC_ACCESS_TOKEN."},
+        "private_key_path": {"type": "string", "description": "PEM key file path (SNOWFLAKE_JWT)."},
+        "private_key_password": {"type": "string", "description": "Passphrase for encrypted key.", "ui:widget": "password"},
+        "warehouse": {"type": "string"},
+        "database": {"type": "string"},
+        "schema": {"type": "string", "default": "PUBLIC"},
+        "role": {"type": "string"}
+      }
     },
     "role": {
       "type": "string",

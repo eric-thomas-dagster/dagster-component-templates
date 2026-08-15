@@ -34,7 +34,15 @@ from dagster import (
     Model,
     MetadataValue,
 )
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, model_validator
+
+# Canonical pattern (`workspace:` block) — mirrors dagster-databricks's
+# DatabricksWorkspaceComponent, which uses `workspace: DatabricksWorkspace`
+# (a ConfigurableResource). We accept a `workspace:` block that IS a
+# dagster_snowflake.SnowflakeResource — password / SSO / keypair / OAuth /
+# SQLAlchemy support all come for free. Legacy flat fields still accepted
+# for backward compat; mutually exclusive with `workspace:`.
+from dagster_snowflake import SnowflakeResource
 
 _logger = logging.getLogger(__name__)
 
@@ -164,89 +172,58 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
     - Alerts (Snowflake native alerts on conditions)
     - OpenFlow Flows (data integration flows via Apache NiFi)
 
-    Example:
+    Example (canonical `workspace:` block, mirrors dagster-databricks):
         ```yaml
-        type: dagster_component_templates.SnowflakeWorkspaceComponent
+        type: dagster_community_components.SnowflakeWorkspaceComponent
         attributes:
-          account: xy12345.us-east-1
-          user: dagster_user
-          password: "{{ env('SNOWFLAKE_PASSWORD') }}"
+          workspace:
+            account: {env: SNOWFLAKE_ACCOUNT}
+            user: {env: SNOWFLAKE_USER}
+            password: {env: SNOWFLAKE_PASSWORD}
+            warehouse: COMPUTE_WH
+            database: ANALYTICS
+            schema: PUBLIC
+            role: SYSADMIN
+          import_tasks: true
+          import_dynamic_tables: true
+        ```
+
+    Example (legacy flat fields — still accepted, mutually exclusive with `workspace:`):
+        ```yaml
+        type: dagster_community_components.SnowflakeWorkspaceComponent
+        attributes:
+          account: {env: SNOWFLAKE_ACCOUNT}
+          user: {env: SNOWFLAKE_USER}
+          password: {env: SNOWFLAKE_PASSWORD}
           warehouse: COMPUTE_WH
           database: ANALYTICS
           schema: PUBLIC
           import_tasks: true
-          import_dynamic_tables: true
         ```
     """
 
     # Internal field is `schema_name` (avoids shadowing BaseModel.schema()).
     # YAML still accepts the Snowflake-native `schema:` key via the alias +
     # populate_by_name. Both names work; emit either in defs.yaml.
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True)
 
-    account: str = Field(
-        description="Snowflake account identifier (e.g., xy12345.us-east-1)"
-    )
-
-    user: str = Field(
-        description="Snowflake username"
-    )
-
-    # ── Auth: pick ONE of password / authenticator(+keypair) / token ──
-    # Pure-Snowflake shops with password auth disabled (most enterprise
-    # accounts in 2025+) must use SSO (`authenticator: externalbrowser`)
-    # or keypair (`authenticator: SNOWFLAKE_JWT` + `private_key_file`).
-    password: Optional[str] = Field(
-        default=None,
-        description="Snowflake password. Leave unset if using SSO or keypair."
-    )
-
-    authenticator: Optional[str] = Field(
-        default=None,
+    # ── Connection: workspace: block IS a SnowflakeResource ───────────
+    # Canonical shape — mirrors dagster-databricks / dagster-fivetran /
+    # dagster-powerbi workspace components (all have `workspace: <Resource>`).
+    # Password / SSO / keypair / OAuth / SQLAlchemy engine / connection
+    # pooling are all supported via the official dagster-snowflake
+    # SnowflakeResource. New auth modes Dagster adds upstream light up
+    # here with no component change.
+    workspace: SnowflakeResource = Field(
         description=(
-            "Snowflake authenticator. Common values: 'SNOWFLAKE_JWT' (keypair, "
-            "recommended for headless / production), 'externalbrowser' (SSO, "
-            "good for local dev — pops a browser to auth), 'oauth', "
-            "'PROGRAMMATIC_ACCESS_TOKEN'. Leave unset if using password."
+            "Snowflake connection as a dagster_snowflake.SnowflakeResource. "
+            "All resource fields supported: account, user, password, "
+            "authenticator (SNOWFLAKE_JWT / externalbrowser / oauth), "
+            "private_key_path, private_key_password, warehouse, database, "
+            "schema, role, plus everything the official resource carries "
+            "(SQLAlchemy engine via `connector: sqlalchemy`, connection "
+            "pooling, etc.)."
         ),
-    )
-
-    private_key_file: Optional[str] = Field(
-        default=None,
-        description=(
-            "Path to a PEM-formatted RSA private key file. Used when "
-            "`authenticator: SNOWFLAKE_JWT`. Pair with `private_key_file_pwd` "
-            "if the key is encrypted."
-        ),
-    )
-
-    private_key_file_pwd: Optional[str] = Field(
-        default=None,
-        description="Passphrase for the encrypted private_key_file (omit if unencrypted).",
-    )
-
-    token: Optional[str] = Field(
-        default=None,
-        description="Auth token (PAT / OAuth). Used with `authenticator: oauth` or PAT.",
-    )
-
-    warehouse: str = Field(
-        description="Snowflake warehouse to use for queries"
-    )
-
-    database: str = Field(
-        description="Snowflake database to connect to"
-    )
-
-    schema_name: str = Field(
-        default="PUBLIC",
-        alias="schema",
-        description="Snowflake schema to use"
-    )
-
-    role: Optional[str] = Field(
-        default=None,
-        description="Snowflake role to use (optional)"
     )
 
     import_tasks: bool = Field(
@@ -416,45 +393,69 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
         description="Description for the Snowflake workspace component"
     )
 
+    # ── Convenience accessors — expose workspace fields at the component
+    # level so the existing self.database / self.schema_name / etc. call
+    # sites keep working after the flat-field removal. Kept as Python
+    # @property (Pydantic v2 treats these as regular attrs; no conflict
+    # since the underlying fields were removed).
+    @property
+    def account(self) -> str:
+        return self.workspace.account
+
+    @property
+    def user(self) -> str:
+        return self.workspace.user
+
+    @property
+    def warehouse(self) -> str:
+        return self.workspace.warehouse or ""
+
+    @property
+    def database(self) -> str:
+        return self.workspace.database or ""
+
+    @property
+    def schema_name(self) -> str:
+        # SnowflakeResource stores schema on `.schema_` (trailing underscore
+        # to avoid shadowing Pydantic's .schema()); fall back to PUBLIC.
+        return getattr(self.workspace, "schema_", None) or "PUBLIC"
+
+    @property
+    def role(self) -> Optional[str]:
+        return self.workspace.role
+
+    @property
+    def password(self) -> Optional[str]:
+        return self.workspace.password
+
+    @property
+    def authenticator(self) -> Optional[str]:
+        return self.workspace.authenticator
+
     def _create_connection(self) -> SnowflakeConnection:
-        """Create and return a Snowflake connection.
+        """Return a raw Snowflake connection.
 
-        Auth methods (in priority order — first matching wins):
-          1. authenticator='SNOWFLAKE_JWT' + private_key_file (keypair)
-          2. authenticator='externalbrowser' (SSO — pops a browser)
-          3. authenticator + token (PAT / OAuth)
-          4. password (only if account allows it)
+        Delegates to dagster-snowflake's SnowflakeResource.get_connection()
+        which is a context manager yielding a raw
+        `snowflake.connector.SnowflakeConnection`. We unwrap it and patch
+        `.close()` to also __exit__ the CM so downstream code that manages
+        its own try/finally still works cleanly.
         """
-        conn_params = {
-            'account': self.account,
-            'user': self.user,
-            'warehouse': self.warehouse,
-            'database': self.database,
-            'schema': self.schema_name,
-        }
+        cm = self.workspace.get_connection()
+        conn = cm.__enter__()
+        original_close = conn.close
 
-        if self.role:
-            conn_params['role'] = self.role
+        def _patched_close(*args, **kwargs):
+            try:
+                original_close(*args, **kwargs)
+            finally:
+                try:
+                    cm.__exit__(None, None, None)
+                except Exception:
+                    pass
 
-        if self.authenticator:
-            conn_params['authenticator'] = self.authenticator
-            if self.private_key_file:
-                conn_params['private_key_file'] = self.private_key_file
-                if self.private_key_file_pwd:
-                    conn_params['private_key_file_pwd'] = self.private_key_file_pwd
-            elif self.token:
-                conn_params['token'] = self.token
-            # externalbrowser needs neither — connector pops a browser
-        elif self.password:
-            conn_params['password'] = self.password
-        else:
-            raise ValueError(
-                "snowflake_workspace: must set either `password`, OR "
-                "`authenticator` (+ `private_key_file` for SNOWFLAKE_JWT, or "
-                "+ `token` for oauth/PAT, or none for externalbrowser SSO)."
-            )
-
-        return snowflake.connector.connect(**conn_params)
+        conn.close = _patched_close  # type: ignore[method-assign]
+        return conn
 
     def _should_include_entity(self, name: str) -> bool:
         """Check if an entity should be included based on filters."""

@@ -1,2 +1,8 @@
 snowflake-connector-python>=3.0.0
 dagster>=1.6.0
+# dagster-snowflake provides SnowflakeResource — the `workspace:` block
+# on this component IS a dagster_snowflake.SnowflakeResource (same shape
+# used by dagster-databricks / dagster-fivetran / dagster-powerbi
+# workspace components). Also unlocks SQLAlchemy engine, keypair auth,
+# and every future auth mode Dagster ships without a component change.
+dagster-snowflake>=0.20.0

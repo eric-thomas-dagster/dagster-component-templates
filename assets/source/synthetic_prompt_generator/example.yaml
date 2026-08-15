@@ -1,4 +1,4 @@
-# SyntheticPromptGeneratorComponent — three v1 modes for emitting prompt text.
+# SyntheticPromptGeneratorComponent — five modes for emitting prompt text.
 # Pick ONE mode per instance; the modes are mutually exclusive.
 
 # ── Mode A: literal per-key mapping ────────────────────────────────────
@@ -10,14 +10,11 @@ attributes:
     attention: "Explain how transformer attention works in ~200 words."
     rag:       "How does retrieval-augmented generation improve LLM factuality?"
     rnn:       "Compare RNN vs Transformer architectures for sequence modeling."
-  group_name: prompts
-  description: "Three research prompts, one per partition, for the agentic pipeline demo."
 
 ---
 
 # ── Mode B: topics + template ──────────────────────────────────────────
-# Each topic becomes a static partition; the template is rendered per topic.
-# Substitutes {topic} and {partition_key} (same value in this mode).
+# Each topic becomes a static partition; template rendered per topic.
 type: dagster_community_components.SyntheticPromptGeneratorComponent
 attributes:
   asset_name: benchmark_prompts
@@ -30,8 +27,47 @@ attributes:
 ---
 
 # ── Mode C: fixed single prompt (unpartitioned) ────────────────────────
-# One string, no partitions. Handy for quickstart / smoke tests.
 type: dagster_community_components.SyntheticPromptGeneratorComponent
 attributes:
   asset_name: hello_world_prompt
   prompt: "Explain how transformer attention works."
+
+---
+
+# ── Mode D: v1.5 systematic composition (no LLM) ───────────────────────
+# Combines persona / style / length / task_type / format_hint / depth
+# into deterministic per-partition prompts. count_per_topic > 1 emits
+# multiple variants per topic — partition keys are `{topic}__v{n}`.
+type: dagster_community_components.SyntheticPromptGeneratorComponent
+attributes:
+  asset_name: composed_prompts
+  topics: [attention, rag, rnn]
+  persona: engineer          # student | engineer | executive | novice | expert
+  style: technical           # formal | casual | technical | journalistic
+  length: medium             # short | medium | long
+  format_hint: bullets       # bullets | paragraphs | table | code
+  depth: intermediate        # intro | intermediate | advanced
+  count_per_topic: 3         # 3 topics × 3 variants = 9 static partitions
+  seed: 42
+
+---
+
+# ── Mode E: v2 LLM elevation ───────────────────────────────────────────
+# Same lever surface as Mode D, but the LLM interprets each lever as a
+# natural-language hint and paraphrases. Requires litellm + an API key.
+type: dagster_community_components.SyntheticPromptGeneratorComponent
+attributes:
+  asset_name: llm_prompts
+  topics: ["transformer attention", "retrieval-augmented generation", "recurrent neural networks"]
+  persona: engineer
+  style: technical
+  length: medium
+  format_hint: bullets
+  depth: intermediate
+  count_per_topic: 3
+  paraphrase_model: gpt-4o-mini
+  api_key_env_var: OPENAI_API_KEY
+  temperature: 0.7
+  # Optional: pepper adversarial / under-specified variants every 3rd
+  # for downstream robustness / eval flows.
+  # include_wrong_variants: true

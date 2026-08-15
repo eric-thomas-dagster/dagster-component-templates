@@ -1,12 +1,12 @@
 {
   "component_type": "dagster_community_components.SyntheticPromptGeneratorComponent",
-  "description": "Emit prompt text strings for LLM demos. Three v1 modes: literal per-key mapping, template+topics, or a fixed single prompt. Sibling of synthetic_image_generator / synthetic_audio_generator / synthetic_pdf_generator / synthetic_video_generator.",
+  "description": "Emit str-valued prompt assets for LLM / agent demos. Five modes: literal {key: text} map, template+topics, fixed single, composed (systematic composition from persona/style/length/task_type/format_hint/depth levers, no LLM), or LLM (LiteLLM-elevated paraphraser using the same levers as natural-language hints). Sibling of synthetic_image_generator / synthetic_audio_generator / synthetic_pdf_generator / synthetic_video_generator.",
   "category": "source",
   "icon": "ChatBubble",
   "x-dagster-io": {
     "outputs": {
       "type": "Asset",
-      "description": "One str-valued asset. Partitioned when prompts:/topics: is used; unpartitioned when prompt: is used."
+      "description": "One str-valued asset. Partitioned in modes A/B/D/E, unpartitioned in mode C."
     }
   },
   "attributes": {
@@ -19,20 +19,91 @@
     "prompts": {
       "type": "object",
       "additionalProperties": {"type": "string"},
-      "description": "Mode A: {partition_key: prompt_text} mapping. Each key becomes a static partition; the mapped text is the partition's output. Mutually exclusive with `topics`+`template` and `prompt`."
+      "description": "Mode A: {partition_key: prompt_text} mapping."
+    },
+    "template": {
+      "type": "string",
+      "description": "Mode B: template rendered per topic. `{topic}` / `{partition_key}` substituted. Requires `topics:`."
+    },
+    "prompt": {
+      "type": "string",
+      "description": "Mode C: unpartitioned single-string prompt."
     },
     "topics": {
       "type": "array",
       "items": {"type": "string"},
-      "description": "Mode B: list of topics. Each becomes a static partition. Requires `template`."
+      "description": "List of topics. Used by modes B / D / E. In modes D/E, each topic expands into `count_per_topic` variants. Partition keys are `{topic}` when count=1, `{topic}__v{n}` (0-indexed) when >1."
     },
-    "template": {
+    "persona": {
       "type": "string",
-      "description": "Mode B: template rendered per topic. `{topic}` and `{partition_key}` substituted with the topic value."
+      "enum": ["student", "engineer", "executive", "novice", "expert"],
+      "description": "Lever (modes D/E): who's asking. Sets prompt opener persona."
     },
-    "prompt": {
+    "style": {
       "type": "string",
-      "description": "Mode C: unpartitioned single-string prompt. Mutually exclusive with the two partitioned modes."
+      "enum": ["formal", "casual", "technical", "journalistic"],
+      "description": "Lever (modes D/E): register and word-choice."
+    },
+    "length": {
+      "type": "string",
+      "enum": ["short", "medium", "long"],
+      "description": "Lever (modes D/E): requested answer length hint."
+    },
+    "task_type": {
+      "type": "string",
+      "enum": ["question", "instruction", "comparison", "analysis", "explanation", "debate"],
+      "description": "Lever (modes D/E): verb + framing of the prompt."
+    },
+    "format_hint": {
+      "type": "string",
+      "enum": ["bullets", "paragraphs", "table", "code"],
+      "description": "Lever (modes D/E): requested answer format."
+    },
+    "depth": {
+      "type": "string",
+      "enum": ["intro", "intermediate", "advanced"],
+      "description": "Lever (modes D/E): assumed background level of the reader."
+    },
+    "count_per_topic": {
+      "type": "integer",
+      "default": 1,
+      "description": "Modes D/E: number of variants per topic. Emits partition keys `{topic}__v{n}` when >1."
+    },
+    "seed": {
+      "type": "integer",
+      "default": 42,
+      "description": "Reproducibility seed for mode D (composed picking) and mode E (LLM seed hint)."
+    },
+    "paraphrase_model": {
+      "type": "string",
+      "description": "Mode E: LiteLLM model string (e.g. 'gpt-4o-mini', 'claude-haiku-4-5-20251001'). Presence triggers LLM mode."
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "description": "Mode E: env var holding the LLM provider's API key."
+    },
+    "api_base_env_var": {
+      "type": "string",
+      "description": "Mode E: env var holding a custom API base URL."
+    },
+    "system_prompt": {
+      "type": "string",
+      "description": "Mode E: override the default paraphraser system prompt."
+    },
+    "temperature": {
+      "type": "number",
+      "default": 0.7,
+      "description": "Mode E: sampling temperature."
+    },
+    "max_tokens": {
+      "type": "integer",
+      "default": 300,
+      "description": "Mode E: max completion tokens per variant."
+    },
+    "include_wrong_variants": {
+      "type": "boolean",
+      "default": false,
+      "description": "Mode E: pepper adversarial / under-specified variants (every 3rd) for downstream robustness / eval flows."
     },
     "description": {"type": "string"},
     "group_name": {"type": "string", "default": "prompts"},
@@ -46,4 +117,3 @@
     "deps": {"type": "array", "items": {"type": "string"}}
   }
 }
-

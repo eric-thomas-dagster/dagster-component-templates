@@ -1,1 +1,4 @@
 dagster>=1.10.0
+# Optional — only needed for Mode E (paraphrase_model / LLM elevation).
+# Modes A/B/C/D work without it.
+# litellm>=1.40.0

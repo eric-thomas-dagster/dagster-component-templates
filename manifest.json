@@ -38782,7 +38782,7 @@
       "id": "synthetic_prompt_generator",
       "name": "Synthetic Prompt Generator",
       "category": "source",
-      "description": "Emit deterministic prompt text strings for LLM / agent demos. Three v1 modes: literal {key: text} map (each key = static partition), template + topic list, or a fixed single unpartitioned prompt. Output type per materialization is str — snaps straight into AgenticPipelineComponent's `source: {kind: upstream_asset}` contract with no glue asset.",
+      "description": "Emit str-valued prompt assets for LLM / agent demos. Five modes: literal {key: text} map, template+topics, fixed single, composed (v1.5 — systematic composition from persona/style/length/task_type/format_hint/depth levers, no LLM), or LLM (v2 — LiteLLM-elevated paraphraser using the same 6 levers as natural-language hints, optional include_wrong_variants for adversarial variants). Output type per materialization is str — snaps straight into AgenticPipelineComponent's `source: {kind: upstream_asset}` contract with no glue asset.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/source/synthetic_prompt_generator",
@@ -38791,7 +38791,11 @@
         "source",
         "llm",
         "prompt",
-        "agentic-pipeline-upstream"
+        "agentic-pipeline-upstream",
+        "composed",
+        "paraphraser",
+        "eval",
+        "adversarial-variants"
       ],
       "dependencies": {
         "pip": []
@@ -38802,23 +38806,27 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_prompt_generator/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_prompt_generator/requirements.txt",
       "validation": {
-        "level": "code",
-        "evidence": "",
-        "last_validated": "2026-08-12"
+        "level": "live",
+        "evidence": "All five modes (A/B/C/D/E) materialized end-to-end via dg.materialize with real partition keys; Mode E validated against real gpt-4o-mini.",
+        "last_validated": "2026-08-14"
       },
       "produces": [
         "asset"
       ],
       "agent_hints": {
         "output_type": "str",
-        "when_to_use": "User wants a str-valued Dagster asset carrying a prompt for downstream LLM / agent components. Primary consumer is AgenticPipelineComponent's `source: {kind: upstream_asset}` — this component emits str per materialization, no DataFrame extraction needed. Three v1 modes: literal per-key mapping (`prompts: {key: text}`), template + topics (`topics:` + `template:` with `{topic}` substitution), or a fixed single unpartitioned prompt (`prompt: '...'`). Sibling of synthetic_image_generator / synthetic_audio_generator / synthetic_pdf_generator / synthetic_video_generator — completes the synthetic-modality family.",
+        "when_to_use": "User wants a str-valued Dagster asset carrying a prompt for downstream LLM / agent components. Primary consumer is AgenticPipelineComponent's `source: {kind: upstream_asset}` — this component emits str per materialization, no DataFrame extraction needed. Five modes: A. LITERAL (`prompts: {key: text}`); B. TEMPLATE (`topics:` + `template:` with `{topic}` substitution); C. FIXED (`prompt: '...'` unpartitioned); D. COMPOSED v1.5 (`topics:` + persona/style/length/task_type/format_hint/depth levers → deterministic template composition, no LLM); E. LLM v2 (`topics:` + `paraphrase_model:` + same 6 levers → LiteLLM interprets levers as natural-language hints, generates paraphrased variants; optional `include_wrong_variants:` peppers adversarial prompts for robustness / eval). Sibling of synthetic_image_generator / synthetic_audio_generator / synthetic_pdf_generator / synthetic_video_generator — completes the synthetic-modality family.",
         "typical_downstream": "AgenticPipelineComponent (source: upstream_asset), langchain_chain_asset, litellm_agent, openai_agent, anthropic_agent, gemini_agent, dspy_program, supervisor_agent, iterative_supervisor_agent, catalog_agent, planned_catalog_agent — anywhere a str-typed prompt asset is the expected upstream.",
         "example_prompts": [
           "make a set of research topic prompts, one per partition, that feed my agentic pipeline",
           "give me a str-valued asset with three programming-topic prompts for my LLM demo",
           "synthetic prompts as the upstream of AgenticPipelineComponent — one prompt per partition",
           "systematic prompt generator: {topic: text} mapping → static partitions → str output",
-          "template a prompt across a list of topics — one static partition per topic"
+          "template a prompt across a list of topics — one static partition per topic",
+          "compose prompts systematically from persona / style / length / task_type / format / depth levers with no LLM",
+          "generate 3 variants per topic using persona=engineer style=technical length=medium format=bullets",
+          "LLM-elevated prompt paraphraser — feed topics + levers, get diverse natural-sounding variants",
+          "adversarial prompt eval: include_wrong_variants sprinkles under-specified / jargon-heavy prompts every 3rd variant"
         ]
       }
     },

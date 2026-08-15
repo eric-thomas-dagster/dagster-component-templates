@@ -1,22 +1,98 @@
 # SyntheticPromptGeneratorComponent
 
-Emit deterministic prompt text strings for LLM / agent demos. Completes the "synthetic <modality>" family alongside `synthetic_image_generator`, `synthetic_audio_generator`, `synthetic_pdf_generator`, and `synthetic_video_generator`.
+Emit `str`-valued prompt assets for LLM / agent demos. Completes the "synthetic <modality>" family alongside `synthetic_image_generator`, `synthetic_audio_generator`, `synthetic_pdf_generator`, and `synthetic_video_generator`.
 
-**Primary use:** wire straight into `AgenticPipelineComponent`'s `source: {kind: upstream_asset, ...}` contract. The pipeline consumes plain `str`, this component emits plain `str` — no glue asset required, no DataFrame extraction.
+**Primary use:** wire straight into `AgenticPipelineComponent`'s `source: {kind: upstream_asset, ...}` contract. Pipeline consumes `str`, this component emits `str` — no glue asset required.
 
-## v1 modes (systematic — pick one)
+## Five modes (pick one)
 
-| Mode | Config | Emits |
+| # | Mode | Triggered by | What it does |
+|---|---|---|---|
+| A | LITERAL | `prompts: {key: text}` | Each key = a static partition; mapped text = its output. |
+| B | TEMPLATE | `topics:` + `template: "{topic} …"` | Each topic = a static partition; template rendered. |
+| C | FIXED | `prompt: "..."` | Unpartitioned single string. |
+| D | COMPOSED (v1.5) | `topics:` + any of the 6 levers | Deterministic template composition from `persona` / `style` / `length` / `task_type` / `format_hint` / `depth` — no LLM, no network. |
+| E | LLM (v2) | `topics:` + `paraphrase_model:` | LiteLLM-elevated paraphraser. Same 6 levers, but the LLM interprets them as natural-language hints instead of enum lookups. Optional `include_wrong_variants:` for adversarial variants. |
+
+Modes are mutually exclusive — validation surfaces misconfiguration at `build_defs` time.
+
+All modes emit `str` per materialization. Materialization metadata: `mode`, `char_count`, `preview` (markdown), and `partition_key` when partitioned.
+
+## The 6 shared levers (modes D + E)
+
+| Lever | Values | What it does |
 |---|---|---|
-| **Literal per-key** | `prompts: {key: text}` | Each key = a static partition; the mapped text = that partition's output. |
-| **Templated** | `topics: [...]` + `template: "{topic} …"` | Each topic = a static partition; template rendered per topic. `{topic}` and `{partition_key}` both substitute the topic value. |
-| **Fixed single** | `prompt: "..."` | Unpartitioned; the single string is the output. |
+| `persona` | `student` / `engineer` / `executive` / `novice` / `expert` | Rewrites the opening — "As a student trying to learn…" vs. "For an expert audience, cover in depth…". |
+| `style` | `formal` / `casual` / `technical` / `journalistic` | Sets word choice + sentence rhythm. |
+| `length` | `short` / `medium` / `long` | Adds an explicit target-word-count hint. |
+| `task_type` | `question` / `instruction` / `comparison` / `analysis` / `explanation` / `debate` | Reshapes verb + framing (`How does X work?` vs `Compare X and Y` vs `Debate X`). |
+| `format_hint` | `bullets` / `paragraphs` / `table` / `code` | Adds "in bullet points" / "as a table" / etc. |
+| `depth` | `intro` / `intermediate` / `advanced` | Sets assumed background. |
 
-The three modes are mutually exclusive — set exactly one. Validation runs at `build_defs` time; misconfiguration surfaces as a clear error before the asset materializes.
+Set as few or as many as you want. All levers are optional in D; only `topics:` is required.
 
-Output type per materialization: `str`. Metadata surfaced on every materialization: `mode`, `char_count`, `preview` (markdown), and `partition_key` when partitioned.
+## Mode D (v1.5) — systematic composition, no LLM
 
-**v2 (planned, not yet built):** LLM- or local-ML-driven prompt synthesis — take a topic pool + a persona description and have a small LLM generate paraphrased variants at build_defs time or per materialization. v1 covers the systematic case cleanly; v2 will layer on top without changing the emit contract, so downstream YAML doesn't need to change.
+Deterministic template composition — persona-based opener × style hint × length hint × format hint × depth hint × task-type verb — seeded per `(topic, variant_idx)` so re-materializing produces the same prompt bit-for-bit. Small template pool (2-3 phrasings per lever), so `count_per_topic > ~10` starts to repeat. Great for CI, cost-free demos, or reproducible eval sets.
+
+```yaml
+type: dagster_community_components.SyntheticPromptGeneratorComponent
+attributes:
+  asset_name: composed_prompts
+  topics: [attention, rag, rnn]
+  persona: engineer
+  style: technical
+  length: medium
+  format_hint: bullets
+  depth: intermediate
+  count_per_topic: 3         # 3 topics × 3 variants = 9 partitions
+  seed: 42
+```
+
+Sample outputs (deterministic per seed):
+
+```
+attention__v0: "What are the load-bearing details of attention in practice? Include the actual technical detail — variable names, complexity, edge cases. Aim for ~250 words. Use bullet points. Assume the reader has basic familiarity with the field."
+
+rag__v1:       "Cover rag for someone who ships production systems. Include the actual technical detail — variable names, complexity, edge cases. Aim for ~250 words. Present the answer as a bulleted list. Assume the reader has basic familiarity with the field."
+```
+
+## Mode E (v2) — LLM-elevated paraphraser
+
+Same lever surface as Mode D, but the LLM interprets each lever as a natural-language hint and freely paraphrases. Requires `litellm` and an API key. Produces much more varied / natural phrasings than Mode D, at the cost of per-materialization LLM calls.
+
+```yaml
+type: dagster_community_components.SyntheticPromptGeneratorComponent
+attributes:
+  asset_name: llm_prompts
+  topics: ["transformer attention", "retrieval-augmented generation"]
+  persona: engineer
+  style: technical
+  length: medium
+  format_hint: bullets
+  depth: intermediate
+  count_per_topic: 3
+  paraphrase_model: gpt-4o-mini
+  api_key_env_var: OPENAI_API_KEY
+  temperature: 0.7
+  # Optional: adversarial-slot every 3rd variant for robustness eval
+  # include_wrong_variants: true
+```
+
+Sample outputs (real gpt-4o-mini, verified live):
+
+```
+transformer attention__v0: "Explain the concept of transformer attention with a focus on technical
+details for an intermediate audience. Please format your response in bullet points and aim for a medium
+length. Include the following aspects: - The role of query, key, and value vectors  - The calculation
+process of attention scores  - The significance of scaled dot-product attention  - Multi-head attention…"
+
+transformer attention__v1: "Provide a technical overview of transformer attention aimed at an intermediate
+audience. Please structure your response in bullet points and keep it to a medium length. Cover the
+following aspects: - Definition and purpose of attention in transformers  - Key components…"
+```
+
+**When to use `include_wrong_variants: true`:** downstream is a robustness eval that wants to see how the agentic pipeline handles ambiguous / jargon-heavy / under-specified prompts. Every 3rd variant gets an explicit "make it deliberately bad" instruction.
 
 ## Chained-into-AgenticPipeline example
 
@@ -28,7 +104,7 @@ defs/
 └── pipeline/defs.yaml           # AgenticPipelineComponent — source: upstream_asset
 ```
 
-`defs/prompts/defs.yaml`:
+`defs/prompts/defs.yaml` (Mode A, simplest to grok):
 
 ```yaml
 type: dagster_community_components.SyntheticPromptGeneratorComponent
@@ -87,7 +163,7 @@ Asset graph:
    out/{partition_key}.md                   (text_sink, one file per partition)
 ```
 
-Materialize with:
+Materialize:
 
 ```bash
 uv run dg launch --assets '*' --partition attention
@@ -95,39 +171,50 @@ uv run dg launch --assets '*' --partition rag
 uv run dg launch --assets '*' --partition rnn
 ```
 
-Each partition runs the whole chain against its own prompt — three prompts in, three markdown briefs out, one per partition in the sink directory.
-
-## Templated mode example
-
-Same shape, but generate the prompts by rendering one template per topic:
-
-```yaml
-type: dagster_community_components.SyntheticPromptGeneratorComponent
-attributes:
-  asset_name: benchmark_prompts
-  topics:
-    - "sorting algorithms"
-    - "graph traversal"
-    - "dynamic programming"
-  template: |
-    Give a clear introductory explanation of {topic}, then a small worked example. ~300 words.
-```
+Now iterating on prompts is a one-file YAML edit (add/rename keys under `prompts:`, or swap to Mode D/E for lever-driven variants) — every prompt / decision / draft lives as a browsable Dagster asset with typed metadata.
 
 ## Fields
 
-### One of these three modes (required — pick exactly one)
+### One of these five modes (required — pick exactly one)
 
-| Field | Type | Description |
+| Field(s) | Type | Description |
 |---|---|---|
-| `prompts` | `Dict[str, str]` | Mode A. Keys become static partitions; mapped strings are their outputs. |
-| `topics` + `template` | `List[str]` + `str` | Mode B. Topics become partitions; template rendered per topic with `{topic}` / `{partition_key}` substituted. Both required together. |
+| `prompts` | `Dict[str, str]` | Mode A. Keys become static partitions; mapped strings are outputs. |
+| `topics` + `template` | `List[str]` + `str` | Mode B. Topics become partitions; template rendered per topic. |
 | `prompt` | `str` | Mode C. Unpartitioned single-string output. |
+| `topics` + any lever | `List[str]` + `persona:` / `style:` / … | Mode D (composed). Deterministic composition. |
+| `topics` + `paraphrase_model` | `List[str]` + `str` | Mode E (LLM). LiteLLM-elevated paraphraser. |
 
-### Required
+### Required (always)
 
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name. |
+
+### v1.5 systematic levers (used by modes D + E)
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `persona` | `str` | — | `student` / `engineer` / `executive` / `novice` / `expert`. |
+| `style` | `str` | — | `formal` / `casual` / `technical` / `journalistic`. |
+| `length` | `str` | — | `short` / `medium` / `long`. |
+| `task_type` | `str` | — | `question` / `instruction` / `comparison` / `analysis` / `explanation` / `debate`. |
+| `format_hint` | `str` | — | `bullets` / `paragraphs` / `table` / `code`. |
+| `depth` | `str` | — | `intro` / `intermediate` / `advanced`. |
+| `count_per_topic` | `int` | `1` | Number of variants per topic. Partition keys become `{topic}__v{n}` when >1. |
+| `seed` | `int` | `42` | Reproducibility seed for mode D (composed picking) and mode E (LLM seed hint). |
+
+### v2 LLM elevation (Mode E only)
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `paraphrase_model` | `str` | — | LiteLLM model string. Presence triggers Mode E. |
+| `api_key_env_var` | `str` | — | Env var holding the LLM provider's API key. |
+| `api_base_env_var` | `str` | — | Env var holding a custom API base URL (self-hosted / proxies). |
+| `system_prompt` | `str` | Sensible default | Override the paraphraser's system prompt. |
+| `temperature` | `float` | `0.7` | Sampling temperature. |
+| `max_tokens` | `int` | `300` | Max completion tokens per variant. |
+| `include_wrong_variants` | `bool` | `false` | Pepper adversarial / under-specified variants (every 3rd) for downstream robustness / eval flows. |
 
 ### Catalog metadata
 
@@ -138,22 +225,13 @@ attributes:
 | `tags` | `Dict[str, str]` | — | Additional tags. |
 | `owners` | `List[str]` | — | Asset owners. |
 | `description` | `str` | Auto-generated | Description. |
-| `deps` | `List[str]` | — | Additional dependencies (upstream asset keys). |
-
-## Emitted metadata
-
-On every materialization the asset surfaces:
-
-| Metadata key | Type | Description |
-|---|---|---|
-| `mode` | Text | `"prompts"` / `"template"` / `"prompt"`. |
-| `char_count` | Int | Length of the emitted prompt string. |
-| `preview` | Markdown | First 400 characters, rendered inline in the Dagster UI. |
-| `partition_key` | Text | The partition that produced this materialization (when partitioned). |
+| `deps` | `List[str]` | — | Additional dependencies. |
 
 ## When to reach for this vs. the alternatives
 
-- **This component** — you want a *single string* per materialization, straight into `AgenticPipelineComponent`'s `upstream_asset` source, with static partitions from your prompt catalog.
-- **`synthetic_data_generator` with `schema_type: support_tickets` / `product_reviews` / `moderation_content`** — you need a *DataFrame* of realistic-shaped text (with columns), not one prompt per partition. Use when the downstream is a DataFrame transform, not an LLM string consumer.
-- **`file` source on `AgenticPipelineComponent`** — you already have prompts on disk. Wire `source: {kind: file, path: "prompts/{partition_key}.txt"}` and skip this component entirely.
-- **`literal` source on `AgenticPipelineComponent`** — one hardcoded prompt for a quickstart / smoke test.
+- **This component (Mode A/B/C)** — you want a `str`-valued asset with static prompts and no variation. Cheapest, most deterministic.
+- **This component (Mode D)** — you want variety across a topic set but no LLM cost / dependency. CI-safe, reproducible, ~150 possible phrasings per topic.
+- **This component (Mode E)** — you want the diverse, natural-sounding prompts an LLM can produce. Small cost per materialization (~$0.0001 with gpt-4o-mini). Add `include_wrong_variants: true` for robustness-eval workflows.
+- **`synthetic_data_generator` with `schema_type: support_tickets` / `product_reviews`** — you need a *DataFrame* of realistic-shaped text (with columns), not one prompt per partition.
+- **`file` source directly on `AgenticPipelineComponent`** — prompts already exist on disk. Wire `source: {kind: file, path: "prompts/{partition_key}.txt"}` and skip this component.
+- **`literal` source directly on `AgenticPipelineComponent`** — one hardcoded prompt for a quickstart / smoke test.

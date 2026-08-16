@@ -1,4 +1,6 @@
-type: dagster_component_templates.PagerDutyResourceComponent
+type: dagster_community_components.PagerDutyResourceComponent
 attributes:
-  resource_key: pagerduty_resource
-  routing_key_env_var: MY_ROUTING_KEY_ENV_VAR
+  resource_key: pd
+  api_token_env_var: PAGERDUTY_API_TOKEN
+  from_email_env_var: PAGERDUTY_FROM_EMAIL
+  # events_routing_key_env_var: PAGERDUTY_ROUTING_KEY   # optional, only needed for send_alert

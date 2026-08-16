@@ -679,6 +679,8 @@ _CLASS_PATHS: dict[str, str] = {
     "OutlierClipperComponent": "assets/transforms/outlier_clipper/component.py",
     "OversampleFieldComponent": "assets/analytics/oversample_field/component.py",
     "PagerDutyIncidentSensorComponent": "sensors/pagerduty_incident_sensor/component.py",
+    "PagerDutyIncidentUpsertComponent": "assets/sinks/pagerduty_incident_upsert/component.py",
+    "PagerDutyResource": "resources/pagerduty_resource/component.py",
     "PagerDutyResourceComponent": "resources/pagerduty_resource/component.py",
     "PagerdutyHeartbeatJobComponent": "jobs/pagerduty_heartbeat_job/component.py",
     "PandasDataframeCheckComponent": "asset_checks/pandas_dataframe_check/component.py",
@@ -1066,7 +1068,6 @@ _CLASS_PATHS: dict[str, str] = {
     "GoogleSheetsWorkspaceComponent": "integrations/google_sheets_workspace/component.py",
     "MLflowWorkspaceComponent": "integrations/mlflow_workspace/component.py",
     "WandbWorkspaceComponent": "integrations/wandb_workspace/component.py",
-    "PagerDutyWorkspaceComponent": "integrations/pagerduty_workspace/component.py",
     "DataVaultHubLinkSatelliteComponent": "assets/transforms/data_vault_hub_link_satellite/component.py",
     "SparkK8sOperatorAssetComponent": "assets/infrastructure/spark_k8s_operator_asset/component.py",
 }

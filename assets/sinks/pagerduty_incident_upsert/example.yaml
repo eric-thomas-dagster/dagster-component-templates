@@ -1,0 +1,21 @@
+type: dagster_community_components.PagerDutyIncidentUpsertComponent
+attributes:
+  asset_name: pagerduty_incidents_mirror
+  upstream_asset_key: incidents_seed
+  service_id: PXXXXXX          # target service ID (from PagerDuty UI URL)
+  resource_key: pd
+
+  # Stable unique key. Prepended with `key_prefix` and written as PagerDuty's
+  # incident_key — server-side dedup marker.
+  key_column: incident_id
+  title_column: name
+
+  # Optional
+  details_column: description
+  urgency_column: urgency
+  status_column: status          # 'triggered' | 'acknowledged' | 'resolved'
+
+  default_urgency: high
+  key_prefix: "dagster-"
+  batch_size: 100
+  group_name: pagerduty

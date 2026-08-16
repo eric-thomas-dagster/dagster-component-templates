@@ -1,4 +1,5 @@
-type: dagster_component_templates.AirtableResourceComponent
+type: dagster_community_components.AirtableResourceComponent
 attributes:
-  resource_key: airtable_resource
+  resource_key: airtable
   api_key_env_var: AIRTABLE_API_KEY
+  # verify_ssl: false   # uncomment for self-signed dev environments

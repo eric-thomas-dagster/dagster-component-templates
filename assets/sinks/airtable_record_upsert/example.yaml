@@ -1,0 +1,22 @@
+type: dagster_community_components.AirtableRecordUpsertComponent
+attributes:
+  asset_name: airtable_tasks_mirror
+  upstream_asset_key: tasks_seed
+  resource_key: airtable
+
+  base_id: appXXXXXXXXXXXXX
+  table: "Table 1"
+
+  # Airtable's native performUpsert matches on these fields server-side.
+  # All listed fields must be in fields_map values.
+  key_fields: [Name]
+
+  # Upstream column → Airtable field name.
+  fields_map:
+    name: Name
+    description: Notes
+    state: Status
+
+  typecast: true
+  batch_size: 1000
+  group_name: airtable

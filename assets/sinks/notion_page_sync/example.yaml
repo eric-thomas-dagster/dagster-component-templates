@@ -1,0 +1,21 @@
+type: dagster_community_components.NotionPageSyncComponent
+attributes:
+  asset_name: notion_kpi_dashboard
+  upstream_asset_key: kpi_snapshot
+  # The Notion page whose properties this asset keeps in sync. Share the page
+  # with your integration in the Notion UI first.
+  page_id: "abc123def456"
+  resource_key: notion_resource
+
+  # Upstream DataFrame column → Notion property name. Values serialized based
+  # on the page's existing property types (title, rich_text, number, select,
+  # multi_select, checkbox, date, url, email, phone_number, status).
+  properties_map:
+    revenue: Revenue
+    active_users: Active Users
+    status: Status
+
+  # Optional: also replace the page body with markdown from this column.
+  # markdown_column: report_markdown
+
+  group_name: notion

@@ -1,0 +1,29 @@
+type: dagster_community_components.NotionDatabaseUpsertComponent
+attributes:
+  asset_name: notion_incidents_mirror
+  upstream_asset_key: incidents_current
+  database_id: "abc123def456"
+  resource_key: notion_resource
+
+  # Unique identifier — used to match upstream rows to existing Notion pages.
+  # The Notion property must exist in the DB schema; the column must exist
+  # in the upstream DataFrame.
+  key_property: "Incident ID"
+  key_column: incident_id
+
+  # Upstream column → Notion property name. Values serialized based on the
+  # DB's schema (title, rich_text, number, select, multi_select, checkbox,
+  # date, url, email, phone_number, status).
+  properties_map:
+    incident_id: "Incident ID"
+    title: Name
+    severity: Severity
+    status: Status
+    opened_at: Opened
+
+  # Off by default. Set true to archive Notion pages whose key value is not
+  # in the upstream DataFrame (i.e. full mirror). Destructive — think first.
+  delete_missing: false
+
+  batch_size: 100
+  group_name: notion

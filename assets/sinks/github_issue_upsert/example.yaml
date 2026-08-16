@@ -1,0 +1,28 @@
+type: dagster_community_components.GitHubIssueUpsertComponent
+attributes:
+  asset_name: github_incidents_mirror
+  upstream_asset_key: incidents_seed
+  repo: my-org/incidents-tracker
+  resource_key: github
+
+  # Stable unique key. Written into each issue body as
+  # `<!-- dagster-key: <value> -->` and used to match rows to existing
+  # issues on subsequent runs. Titles can be edited without breaking sync.
+  key_column: incident_id
+  title_column: name
+
+  # Optional
+  body_column: description
+  labels_column: labels
+  state_column: state
+  # assignees_column: assignees
+
+  # Labels always applied on top of `labels_column`
+  default_labels: [auto-synced]
+
+  # Off by default. Set true to close open issues whose key marker is not
+  # in the upstream DataFrame (i.e. full mirror). Destructive — think first.
+  close_missing: false
+
+  batch_size: 100
+  group_name: github

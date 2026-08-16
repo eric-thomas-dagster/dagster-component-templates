@@ -1,6 +1,7 @@
-type: dagster_component_templates.JiraResourceComponent
+type: dagster_community_components.JiraResourceComponent
 attributes:
-  resource_key: jira_resource
-  server_url: https://mycompany.atlassian.net
-  username: admin@mycompany.com
+  resource_key: jira
+  email_env_var: JIRA_EMAIL
   api_token_env_var: JIRA_API_TOKEN
+  base_url: https://mycompany.atlassian.net
+  # verify_ssl: false   # uncomment for self-signed dev environments

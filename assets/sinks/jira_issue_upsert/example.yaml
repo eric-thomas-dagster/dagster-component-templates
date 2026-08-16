@@ -1,0 +1,23 @@
+type: dagster_community_components.JiraIssueUpsertComponent
+attributes:
+  asset_name: jira_incidents_mirror
+  upstream_asset_key: incidents_seed
+  project_key: SCRATCH
+  resource_key: jira
+
+  # Stable unique key. Written to each issue as a `dagsterkey-<value>` label
+  # and used to match rows to existing issues on subsequent runs via JQL.
+  key_column: incident_id
+  summary_column: name
+
+  # Optional
+  description_column: description
+  labels_column: labels
+  transition_column: status         # e.g. 'Done', 'In Progress' — best-effort
+  # priority_column: priority       # e.g. 'Highest', 'High', 'Medium'
+
+  issue_type: Task
+  default_labels: [auto-synced]
+
+  batch_size: 100
+  group_name: jira

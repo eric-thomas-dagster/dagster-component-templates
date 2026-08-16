@@ -102,4 +102,4 @@ Create a PAT at [github.com/settings/tokens](https://github.com/settings/tokens)
 
 ## Walkthrough demo
 
-For a live end-to-end demo (DataFrame → GitHub issues upsert with idempotency proof), see [`github_reshape.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/github_reshape.md).
+For a live end-to-end demo (DataFrame → GitHub issues upsert with idempotency proof), see [`github.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/github.md).

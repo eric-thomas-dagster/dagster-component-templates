@@ -102,4 +102,4 @@ For OAuth 2.0 / Atlassian Forge auth, use a custom resource that mints tokens an
 
 ## Walkthrough demo
 
-For a live end-to-end demo (DataFrame → Jira issues upsert with JQL-backed idempotency), see [`jira_reshape.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/jira_reshape.md).
+For a live end-to-end demo (DataFrame → Jira issues upsert with JQL-backed idempotency), see [`jira.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/jira.md).

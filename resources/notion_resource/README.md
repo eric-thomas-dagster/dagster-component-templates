@@ -88,4 +88,4 @@ Create an internal integration at [notion.so/my-integrations](https://www.notion
 
 ## Walkthrough demo
 
-For a live end-to-end demo (DataFrame → Notion DB upsert + KPI page sync), see [`notion_reshape.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/notion_reshape.md).
+For a live end-to-end demo (DataFrame → Notion DB upsert + KPI page sync), see [`notion.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/notion.md).

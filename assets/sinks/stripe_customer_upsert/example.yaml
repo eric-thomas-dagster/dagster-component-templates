@@ -1,0 +1,19 @@
+type: dagster_community_components.StripeCustomerUpsertComponent
+attributes:
+  asset_name: stripe_customers_mirror
+  upstream_asset_key: customers_seed
+  resource_key: stripe
+
+  # Stable unique key. Written to each customer's metadata.dagster_key
+  # field. On subsequent runs, we search customers by that key via
+  # Stripe's Search API to find matches.
+  key_column: customer_id
+  email_column: email
+
+  # Optional
+  name_column: full_name
+  description_column: notes
+  extra_metadata_columns: [source, plan_tier]
+
+  batch_size: 100
+  group_name: stripe

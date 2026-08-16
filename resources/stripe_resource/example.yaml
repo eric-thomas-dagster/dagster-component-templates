@@ -1,4 +1,5 @@
-type: dagster_component_templates.StripeResourceComponent
+type: dagster_community_components.StripeResourceComponent
 attributes:
-  resource_key: stripe_resource
+  resource_key: stripe
   api_key_env_var: STRIPE_API_KEY
+  # verify_ssl: false   # uncomment for self-signed dev environments

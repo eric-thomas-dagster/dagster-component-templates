@@ -7,6 +7,7 @@ as Dagster assets with automatic observation and orchestration.
 import json
 import logging
 import re
+from pathlib import Path
 from typing import Annotated, Any, Dict, List, Optional
 from datetime import datetime
 
@@ -37,6 +38,7 @@ from dagster import (
     MetadataValue,
 )
 from dagster._annotations import public
+from dagster.components.component.state_backed_component import StateBackedComponent
 from dagster.components.resolved.base import resolve_fields
 from dagster.components.utils.defs_state import (
     DefsStateConfig,
@@ -200,7 +202,7 @@ def _emit_query_perf(cursor, query_id) -> dict:
 
 
 @public
-class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
+class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
     """Component for importing Snowflake workspace entities as Dagster assets.
 
     Supports importing:
@@ -680,9 +682,308 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
     )
 
 
-    def build_defs(self, context: ComponentLoadContext) -> Definitions:
-        """Build Dagster definitions from Snowflake workspace entities."""
+    async def write_state_to_path(self, state_path: Path) -> None:
+        """Enumerate the Snowflake workspace and cache the discovery output.
+
+        Runs every SHOW / INFORMATION_SCHEMA query that ``build_defs_from_state``
+        needs to know which tasks / dynamic tables / streams / snowpipes /
+        stages / materialized views / external tables / alerts / OpenFlow
+        flows / tables / views to import. Applies the same ``filter_by_name_pattern``
+        / ``exclude_name_pattern`` / ``task_filter_by_state`` filters that the
+        legacy in-line discovery used, then writes the surviving rows to
+        ``state_path`` as a JSON dict keyed by object kind.
+
+        Only kinds whose corresponding ``import_*`` flag is true are queried
+        and included in state. ``build_defs_from_state`` gates the same way,
+        so the state file only carries what the current YAML asked for.
+        """
+        state: Dict[str, Any] = {}
         conn = self._create_connection()
+        try:
+            db = self.workspace.database
+            schema_ = self.workspace.schema_
+
+            # Tasks
+            if self.import_tasks:
+                try:
+                    tasks = self._execute_query(
+                        conn, f"SHOW TASKS IN SCHEMA {db}.{schema_}"
+                    )
+                    if self.task_filter_by_state:
+                        tasks = [t for t in tasks if t.get("STATE") == self.task_filter_by_state]
+                    state["tasks"] = [
+                        t for t in tasks
+                        if self._should_include_entity(t.get("NAME", ""))
+                    ]
+                except Exception as e:
+                    _logger.error(f"Error enumerating Snowflake tasks: {e}")
+                    state["tasks"] = []
+
+            # Stored Procedures
+            if self.import_stored_procedures:
+                try:
+                    procs = self._execute_query(
+                        conn, f"SHOW PROCEDURES IN SCHEMA {db}.{schema_}"
+                    )
+                    state["stored_procedures"] = [
+                        p for p in procs
+                        if not p.get("NAME", "").startswith("SYSTEM$")
+                        and self._should_include_entity(p.get("NAME", ""))
+                    ]
+                except Exception as e:
+                    _logger.error(f"Error enumerating Snowflake stored procedures: {e}")
+                    state["stored_procedures"] = []
+
+            # Dynamic Tables
+            if self.import_dynamic_tables:
+                try:
+                    dts = self._execute_query(
+                        conn, f"SHOW DYNAMIC TABLES IN SCHEMA {db}.{schema_}"
+                    )
+                    state["dynamic_tables"] = [
+                        d for d in dts
+                        if self._should_include_entity(d.get("NAME", ""))
+                    ]
+                except Exception as e:
+                    _logger.error(f"Error enumerating Snowflake dynamic tables: {e}")
+                    state["dynamic_tables"] = []
+
+            # Streams
+            if self.import_streams:
+                try:
+                    streams = self._execute_query(
+                        conn, f"SHOW STREAMS IN SCHEMA {db}.{schema_}"
+                    )
+                    state["streams"] = [
+                        s for s in streams
+                        if self._should_include_entity(s.get("NAME", ""))
+                    ]
+                except Exception as e:
+                    _logger.error(f"Error enumerating Snowflake streams: {e}")
+                    state["streams"] = []
+
+            # Snowpipes
+            if self.import_snowpipes:
+                try:
+                    pipes = self._execute_query(
+                        conn, f"SHOW PIPES IN SCHEMA {db}.{schema_}"
+                    )
+                    state["snowpipes"] = [
+                        p for p in pipes
+                        if self._should_include_entity(p.get("NAME", ""))
+                    ]
+                except Exception as e:
+                    _logger.error(f"Error enumerating Snowflake pipes: {e}")
+                    state["snowpipes"] = []
+
+            # Stages
+            if self.import_stages:
+                try:
+                    stages = self._execute_query(
+                        conn, f"SHOW STAGES IN SCHEMA {db}.{schema_}"
+                    )
+                    state["stages"] = [
+                        s for s in stages
+                        if self._should_include_entity(s.get("NAME", ""))
+                    ]
+                except Exception as e:
+                    _logger.error(f"Error enumerating Snowflake stages: {e}")
+                    state["stages"] = []
+
+            # Materialized Views
+            if self.import_materialized_views:
+                try:
+                    mvs = self._execute_query(
+                        conn, f"SHOW MATERIALIZED VIEWS IN SCHEMA {db}.{schema_}"
+                    )
+                    state["materialized_views"] = [
+                        m for m in mvs
+                        if self._should_include_entity(m.get("NAME", ""))
+                    ]
+                except Exception as e:
+                    _logger.error(f"Error enumerating Snowflake materialized views: {e}")
+                    state["materialized_views"] = []
+
+            # External Tables
+            if self.import_external_tables:
+                try:
+                    ext = self._execute_query(
+                        conn, f"SHOW EXTERNAL TABLES IN SCHEMA {db}.{schema_}"
+                    )
+                    state["external_tables"] = [
+                        e for e in ext
+                        if self._should_include_entity(e.get("NAME", ""))
+                    ]
+                except Exception as e:
+                    _logger.error(f"Error enumerating Snowflake external tables: {e}")
+                    state["external_tables"] = []
+
+            # Alerts
+            if self.import_alerts:
+                try:
+                    alerts = self._execute_query(
+                        conn, f"SHOW ALERTS IN SCHEMA {db}.{schema_}"
+                    )
+                    state["alerts"] = [
+                        a for a in alerts
+                        if self._should_include_entity(a.get("NAME", ""))
+                    ]
+                except Exception as e:
+                    _logger.error(f"Error enumerating Snowflake alerts: {e}")
+                    state["alerts"] = []
+
+            # OpenFlow Flows
+            if self.import_openflow_flows:
+                try:
+                    flows = self._execute_query(
+                        conn,
+                        """
+                        SELECT DISTINCT
+                            RECORD['process_group_name']::STRING AS flow_name,
+                            RECORD['runtime_id']::STRING AS runtime_id
+                        FROM SNOWFLAKE.TELEMETRY.EVENTS
+                        WHERE RECORD_TYPE = 'openflow_metric'
+                          AND RECORD['metric_name']::STRING = 'process_group_input_bytes'
+                          AND TIMESTAMP >= DATEADD('day', -7, CURRENT_TIMESTAMP())
+                        ORDER BY flow_name
+                        """,
+                    )
+                    state["openflow_flows"] = [
+                        f for f in flows
+                        if f.get("FLOW_NAME")
+                        and self._should_include_entity(f.get("FLOW_NAME", ""))
+                    ]
+                except Exception as e:
+                    _logger.error(f"Error enumerating OpenFlow flows: {e}")
+                    state["openflow_flows"] = []
+
+            # Tables + Views (INFORMATION_SCHEMA-driven)
+            if self.import_tables or self.import_views:
+                wanted_types: list = []
+                if self.import_tables:
+                    wanted_types.extend(["BASE TABLE", "ICEBERG TABLE", "HYBRID TABLE", "EVENT TABLE"])
+                if self.import_views:
+                    wanted_types.append("VIEW")
+                wanted_types_sql = ", ".join(f"'{t}'" for t in wanted_types)
+
+                # VIEW_DEFINITION lookup is separate — INFORMATION_SCHEMA.VIEWS
+                # projection. Fetched only when views are requested.
+                view_definitions: Dict[str, str] = {}
+                if self.import_views:
+                    try:
+                        vd_query = (
+                            f"SELECT TABLE_NAME, VIEW_DEFINITION "
+                            f"FROM {db}.INFORMATION_SCHEMA.VIEWS "
+                            f"WHERE TABLE_SCHEMA = '{schema_}'"
+                        )
+                        for vrow in self._execute_query(conn, vd_query):
+                            if vrow.get("VIEW_DEFINITION"):
+                                view_definitions[vrow["TABLE_NAME"]] = vrow["VIEW_DEFINITION"]
+                    except Exception as exc:
+                        _logger.warning(
+                            f"Could not read INFORMATION_SCHEMA.VIEWS for VIEW_DEFINITION: {exc}. "
+                            f"Views will fall back to observable mode."
+                        )
+
+                try:
+                    query = (
+                        f"SELECT TABLE_NAME, TABLE_TYPE, ROW_COUNT, BYTES, "
+                        f"LAST_ALTERED, CREATED, COMMENT "
+                        f"FROM {db}.INFORMATION_SCHEMA.TABLES "
+                        f"WHERE TABLE_SCHEMA = '{schema_}' "
+                        f"AND TABLE_TYPE IN ({wanted_types_sql})"
+                    )
+                    table_rows = self._execute_query(conn, query)
+                    filtered = [
+                        r for r in table_rows
+                        if r.get("TABLE_NAME")
+                        and self._should_include_entity(r.get("TABLE_NAME", ""))
+                    ]
+                    state["tables"] = [r for r in filtered if r.get("TABLE_TYPE") != "VIEW"]
+                    state["views"] = [r for r in filtered if r.get("TABLE_TYPE") == "VIEW"]
+                    state["view_definitions"] = view_definitions
+                except Exception as e:
+                    _logger.error(f"Error enumerating Snowflake tables/views: {e}")
+                    state["tables"] = []
+                    state["views"] = []
+                    state["view_definitions"] = {}
+        finally:
+            conn.close()
+
+        state_path.write_text(json.dumps(state, indent=2, default=str))
+
+    def _apply_translation(
+        self,
+        kwargs: Dict[str, Any],
+        kind: str,
+        name: str,
+        database: str,
+        schema_: str,
+        extra: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Fold the translation callable into per-asset kwargs.
+
+        Builds a ``SnowflakeObjectProps`` and calls ``self.get_asset_spec(props)``,
+        which delegates to ``SnowflakeComponentTranslator`` (base spec + optional
+        user ``translation:`` callable).
+
+        Backward-compat: when no ``translation:`` callable is set, the base
+        translator returns the default AssetSpec and this method is a no-op —
+        all pre-existing per-asset kwargs (name, key, group_name, metadata,
+        tags, kinds, deps) win. When a ``translation:`` callable IS set, its
+        AssetSpec's key / tags / metadata / kinds / owners flow into the
+        kwargs (translation-provided values win over inferred ones).
+        """
+        if self.translation is None:
+            # No user callable → base translator's spec is not consumed. Keep
+            # the historical per-asset kwargs as-is so asset keys don't move.
+            return kwargs
+
+        props = SnowflakeObjectProps(
+            object_kind=kind,
+            object_name=name,
+            database=database,
+            schema=schema_,
+            extra=extra,
+        )
+        base_spec = self.get_asset_spec(props)
+        merged = dict(kwargs)
+        # Translation callable can rename the key. Drop `name=` when key is
+        # supplied so `@asset` doesn't reject the double-declaration.
+        merged.pop("name", None)
+        merged["key"] = base_spec.key
+        if base_spec.metadata:
+            existing_meta = dict(merged.get("metadata") or {})
+            existing_meta.update(base_spec.metadata)
+            merged["metadata"] = existing_meta
+        if base_spec.tags:
+            existing_tags = dict(merged.get("tags") or {})
+            existing_tags.update(base_spec.tags)
+            merged["tags"] = existing_tags
+        if base_spec.kinds:
+            existing_kinds = set(merged.get("kinds") or set())
+            existing_kinds.update(base_spec.kinds)
+            merged["kinds"] = existing_kinds
+        if base_spec.owners:
+            merged["owners"] = list(base_spec.owners)
+        if base_spec.group_name and "group_name" not in kwargs:
+            merged["group_name"] = base_spec.group_name
+        return merged
+
+    def build_defs_from_state(
+        self, context: ComponentLoadContext, state_path: Optional[Path]
+    ) -> Definitions:
+        """Build Dagster definitions from cached Snowflake workspace state.
+
+        Reads the JSON dict written by ``write_state_to_path`` and turns each
+        object list into the appropriate ``@asset`` / ``@observable_source_asset``
+        / ``AssetSpec`` — plus the observation and DT-refresh sensors. Zero
+        Snowflake queries fire at load time; every SHOW / INFORMATION_SCHEMA
+        query lives in ``write_state_to_path``.
+        """
+        if state_path is None:
+            return Definitions()
+        state: Dict[str, Any] = json.loads(state_path.read_text())
 
         assets_list = []
         sensors_list = []
@@ -699,18 +1000,18 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
         dt_asset_keys: list = []
         dt_name_to_asset_key: Dict[str, str] = {}
 
-        try:
+        # The try/finally shape below is retained from the original build_defs
+        # so per-kind error handling reads the same. The outer conn = ... is
+        # gone — each asset compute function opens its own connection, and
+        # discovery now lives entirely in write_state_to_path.
+        if True:
             # Import Tasks
             if self.import_tasks:
                 try:
-                    # INFORMATION_SCHEMA.TASKS doesn't exist as a view in Snowflake;
-                    # SHOW TASKS works universally. _execute_query uppercases
-                    # column names so downstream task['NAME'] / ['STATE'] / etc.
-                    # continue to work.
-                    query = f"SHOW TASKS IN SCHEMA {self.workspace.database}.{self.workspace.schema_}"
-                    tasks = self._execute_query(conn, query)
-                    if self.task_filter_by_state:
-                        tasks = [t for t in tasks if t.get('STATE') == self.task_filter_by_state]
+                    # Discovery ran in write_state_to_path; filtering (state +
+                    # name/exclude regex) already applied there. Consume the
+                    # cached list.
+                    tasks = state.get("tasks", [])
 
                     # Factory pattern: capture loop variables in a closure
                     # WITHOUT using default args. Dagster's @asset decorator
@@ -1009,6 +1310,10 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "entity_type": "task",
                             },
                         ))
+                        _task_kwargs = self._apply_translation(
+                            _task_kwargs, "task", task_name,
+                            task['DATABASE_NAME'], task['SCHEMA_NAME'],
+                        )
                         assets_list.append(_make_task_asset(
                             task_name, task['DATABASE_NAME'], task['SCHEMA_NAME'],
                             _task_kwargs, self, task_config, task_config_schema,
@@ -1020,12 +1325,10 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             # Import Stored Procedures
             if self.import_stored_procedures:
                 try:
-                    # SHOW PROCEDURES (not INFORMATION_SCHEMA.PROCEDURES) —
-                    # SHOW only needs USAGE on the schema + any privilege on
-                    # the proc; INFORMATION_SCHEMA can be invisible to
-                    # least-privilege roles.
-                    query = f"SHOW PROCEDURES IN SCHEMA {self.workspace.database}.{self.workspace.schema_}"
-                    procedures = self._execute_query(conn, query)
+                    # Discovery + SYSTEM$ filter + name-regex filter already
+                    # applied in write_state_to_path. Runtime-only dedup of
+                    # overloaded signatures stays here (below).
+                    procedures = state.get("stored_procedures", [])
 
                     # Dedupe overloaded procedure signatures (Snowflake returns
                     # one SHOW row per (name, argument_signature) pair, so a
@@ -1223,6 +1526,11 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "entity_type": "stored_procedure",
                             },
                         ))
+                        _proc_kwargs = self._apply_translation(
+                            _proc_kwargs, "stored_procedure", proc_name,
+                            self.workspace.database,
+                            proc.get('SCHEMA_NAME', self.workspace.schema_),
+                        )
                         assets_list.append(_make_proc_asset(
                             proc_name, self.workspace.database,
                             proc.get('SCHEMA_NAME', self.workspace.schema_),
@@ -1240,8 +1548,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             # read them even if an earlier import path raised.
             if self.import_dynamic_tables:
                 try:
-                    query = f"SHOW DYNAMIC TABLES IN SCHEMA {self.workspace.database}.{self.workspace.schema_}"
-                    dynamic_tables = self._execute_query(conn, query)
+                    dynamic_tables = state.get("dynamic_tables", [])
 
                     # Factory for the legacy @asset (dt_modeling="asset") path.
                     def _make_dynamic_table_asset(dt_name_v, db_v, schema_v, dt_kwargs_v, self_v):
@@ -1338,6 +1645,10 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 description=f"Snowflake dynamic table: {dt_name}",
                                 metadata=base_metadata,
                             ))
+                            _dt_kwargs = self._apply_translation(
+                                _dt_kwargs, "dynamic_table", dt_name,
+                                dt['DATABASE_NAME'], dt['SCHEMA_NAME'],
+                            )
                             assets_list.append(_make_dynamic_table_asset(
                                 dt_name, dt['DATABASE_NAME'], dt['SCHEMA_NAME'], _dt_kwargs, self,
                             ))
@@ -1348,10 +1659,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             # Import Streams
             if self.import_streams:
                 try:
-                    # INFORMATION_SCHEMA.STREAMS isn't a queryable view.
-                    query = f"SHOW STREAMS IN SCHEMA {self.workspace.database}.{self.workspace.schema_}"
-
-                    streams = self._execute_query(conn, query)
+                    streams = state.get("streams", [])
 
                     for stream in streams:
                         stream_name = stream['NAME']
@@ -1376,6 +1684,10 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "entity_type": "stream",
                             },
                         ))
+                        _stream_kwargs = self._apply_translation(
+                            _stream_kwargs, "stream", stream_name,
+                            stream['DATABASE_NAME'], stream['SCHEMA_NAME'],
+                        )
                         def _make_stream_asset(stream_name_v, db_v, schema_v, stream_kwargs_v, self_v):
                             @observable_source_asset(**stream_kwargs_v)
                             def _stream_asset(context):
@@ -1443,10 +1755,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             # Import Snowpipes
             if self.import_snowpipes:
                 try:
-                    # INFORMATION_SCHEMA.PIPES uses pipe_name (not name) and is
-                    # restrictive about visibility. SHOW PIPES is universal.
-                    query = f"SHOW PIPES IN SCHEMA {self.workspace.database}.{self.workspace.schema_}"
-                    pipes = self._execute_query(conn, query)
+                    pipes = state.get("snowpipes", [])
 
                     for pipe in pipes:
                         pipe_name = pipe['NAME']
@@ -1486,7 +1795,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         }
 
                         # Snowpipes are materializable - can trigger refresh
-                        _pipe_kwargs = self._apply_asset_overrides(pipe_name, dict(
+                        _pipe_kwargs_base = self._apply_asset_overrides(pipe_name, dict(
                             name=asset_key,
                             group_name=self.group_name,
                             description=f"Snowflake pipe: {pipe_name}",
@@ -1498,6 +1807,10 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "entity_type": "snowpipe",
                             },
                         ))
+                        _pipe_kwargs = self._apply_translation(
+                            _pipe_kwargs_base, "snowpipe", pipe_name,
+                            pipe['DATABASE_NAME'], pipe['SCHEMA_NAME'],
+                        )
                         def _make_snowpipe_asset(pipe_name_v, db_v, schema_v, target_table_v, pipe_kwargs_v, self_v):
                             @asset(**pipe_kwargs_v)
                             def _snowpipe_asset(context: AssetExecutionContext):
@@ -1650,11 +1963,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             # Import Stages
             if self.import_stages:
                 try:
-                    # SHOW STAGES (not INFORMATION_SCHEMA.STAGES) — SHOW only
-                    # needs USAGE on the schema; INFORMATION_SCHEMA can be
-                    # invisible to least-privilege roles.
-                    query = f"SHOW STAGES IN SCHEMA {self.workspace.database}.{self.workspace.schema_}"
-                    stages = self._execute_query(conn, query)
+                    stages = state.get("stages", [])
 
                     for stage in stages:
                         # SHOW STAGES returns NAME (not STAGE_NAME), DATABASE_NAME,
@@ -1682,6 +1991,11 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "entity_type": "stage",
                             },
                         ))
+                        _stage_kwargs = self._apply_translation(
+                            _stage_kwargs, "stage", stage_name,
+                            stage.get('DATABASE_NAME', self.workspace.database),
+                            stage.get('SCHEMA_NAME', self.workspace.schema_),
+                        )
                         def _make_stage_asset(stage_name_v, db_v, schema_v, stage_kwargs_v, self_v):
                             @observable_source_asset(**stage_kwargs_v)
                             def _stage_asset(context):
@@ -1746,14 +2060,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             # Import Materialized Views
             if self.import_materialized_views:
                 try:
-                    # The original SELECT FROM INFORMATION_SCHEMA.VIEWS WHERE
-                    # table_type='MATERIALIZED VIEW' didn't work (VIEWS uses
-                    # `name`/`table_name` not `table_type`). SHOW MATERIALIZED
-                    # VIEWS is the canonical query (Enterprise+ only —
-                    # fails non-fatal on Standard edition).
-                    query = f"SHOW MATERIALIZED VIEWS IN SCHEMA {self.workspace.database}.{self.workspace.schema_}"
-
-                    mv_list = self._execute_query(conn, query)
+                    mv_list = state.get("materialized_views", [])
 
                     for mv in mv_list:
                         mv_name = mv['NAME']
@@ -1777,6 +2084,10 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "entity_type": "materialized_view",
                             },
                         ))
+                        _mv_kwargs = self._apply_translation(
+                            _mv_kwargs, "materialized_view", mv_name,
+                            mv['DATABASE_NAME'], mv['SCHEMA_NAME'],
+                        )
                         def _make_mv_asset(mv_name_v, db_v, schema_v, mv_kwargs_v, self_v):
                             @asset(**mv_kwargs_v)
                             def _mv_asset(context: AssetExecutionContext):
@@ -1840,11 +2151,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             # Import External Tables
             if self.import_external_tables:
                 try:
-                    # SHOW EXTERNAL TABLES (not INFORMATION_SCHEMA.TABLES) —
-                    # SHOW only needs USAGE on the schema; INFORMATION_SCHEMA
-                    # can be invisible to least-privilege roles.
-                    query = f"SHOW EXTERNAL TABLES IN SCHEMA {self.workspace.database}.{self.workspace.schema_}"
-                    ext_tables = self._execute_query(conn, query)
+                    ext_tables = state.get("external_tables", [])
 
                     for ext_table in ext_tables:
                         # SHOW EXTERNAL TABLES returns NAME (not TABLE_NAME),
@@ -1871,6 +2178,11 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "entity_type": "external_table",
                             },
                         ))
+                        _ext_kwargs = self._apply_translation(
+                            _ext_kwargs, "external_table", table_name,
+                            ext_table.get('DATABASE_NAME', self.workspace.database),
+                            ext_table.get('SCHEMA_NAME', self.workspace.schema_),
+                        )
                         def _make_external_table_asset(table_name_v, db_v, schema_v, ext_kwargs_v, self_v):
                             @asset(**ext_kwargs_v)
                             def _external_table_asset(context: AssetExecutionContext):
@@ -1931,9 +2243,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             # Import Alerts
             if self.import_alerts:
                 try:
-                    # INFORMATION_SCHEMA.ALERTS isn't a queryable view.
-                    query = f"SHOW ALERTS IN SCHEMA {self.workspace.database}.{self.workspace.schema_}"
-                    alerts = self._execute_query(conn, query)
+                    alerts = state.get("alerts", [])
 
                     for alert in alerts:
                         alert_name = alert['NAME']
@@ -2077,20 +2387,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             # Import OpenFlow Flows
             if self.import_openflow_flows:
                 try:
-                    # Query OpenFlow telemetry to discover flows
-                    # Get unique process group names from recent telemetry
-                    query = f"""
-                    SELECT DISTINCT
-                        RECORD['process_group_name']::STRING AS flow_name,
-                        RECORD['runtime_id']::STRING AS runtime_id
-                    FROM SNOWFLAKE.TELEMETRY.EVENTS
-                    WHERE RECORD_TYPE = 'openflow_metric'
-                    AND RECORD['metric_name']::STRING = 'process_group_input_bytes'
-                    AND TIMESTAMP >= DATEADD('day', -7, CURRENT_TIMESTAMP())
-                    ORDER BY flow_name
-                    """
-
-                    flows = self._execute_query(conn, query)
+                    flows = state.get("openflow_flows", [])
 
                     for flow in flows:
                         flow_name = flow['FLOW_NAME']
@@ -2204,43 +2501,15 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             # `asset` mode emits a MaterializeResult carrying the same
             # metadata after each click-to-materialize.
             if self.import_tables or self.import_views:
-                wanted_types: list = []
-                if self.import_tables:
-                    wanted_types.extend(["BASE TABLE", "ICEBERG TABLE", "HYBRID TABLE", "EVENT TABLE"])
-                if self.import_views:
-                    wanted_types.append("VIEW")
-                wanted_types_sql = ", ".join(f"'{t}'" for t in wanted_types)
-
                 try:
-                    # VIEW_DEFINITION lives only on the views projection of
-                    # INFORMATION_SCHEMA — fetch separately so customers can
-                    # toggle import_views off without us querying VIEWS
-                    # against a role that lacks USAGE on it.
-                    view_definitions: Dict[str, str] = {}
-                    if self.import_views:
-                        try:
-                            vd_query = (
-                                f"SELECT TABLE_NAME, VIEW_DEFINITION "
-                                f"FROM {self.workspace.database}.INFORMATION_SCHEMA.VIEWS "
-                                f"WHERE TABLE_SCHEMA = '{self.workspace.schema_}'"
-                            )
-                            for vrow in self._execute_query(conn, vd_query):
-                                if vrow.get("VIEW_DEFINITION"):
-                                    view_definitions[vrow["TABLE_NAME"]] = vrow["VIEW_DEFINITION"]
-                        except Exception as exc:
-                            _logger.warning(
-                                f"Could not read INFORMATION_SCHEMA.VIEWS for VIEW_DEFINITION: {exc}. "
-                                f"Views will fall back to observable mode."
-                            )
-
-                    query = (
-                        f"SELECT TABLE_NAME, TABLE_TYPE, ROW_COUNT, BYTES, "
-                        f"LAST_ALTERED, CREATED, COMMENT "
-                        f"FROM {self.workspace.database}.INFORMATION_SCHEMA.TABLES "
-                        f"WHERE TABLE_SCHEMA = '{self.workspace.schema_}' "
-                        f"AND TABLE_TYPE IN ({wanted_types_sql})"
+                    # Discovery + name/exclude filter already applied in
+                    # write_state_to_path — cached lists are already split
+                    # by TABLE_TYPE. Recombine for a single build loop so the
+                    # per-entity table_type branching below stays intact.
+                    view_definitions: Dict[str, str] = dict(
+                        state.get("view_definitions") or {}
                     )
-                    table_rows = self._execute_query(conn, query)
+                    table_rows = list(state.get("tables", [])) + list(state.get("views", []))
 
                     # Shared body: fetch latest row_count + last_altered for
                     # metadata + data_version signature. Used in both
@@ -2529,9 +2798,6 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                 except Exception as e:
                     _logger.error(f"Error importing Snowflake tables/views: {e}")
 
-        finally:
-            conn.close()
-
         # Create observation sensor if requested
         if self.polling_sensor and (task_metadata or snowpipe_metadata):
             @sensor(
@@ -2740,7 +3006,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                     try:
                         cursor.execute(
                             f"SHOW DYNAMIC TABLES IN SCHEMA "
-                            f"{_self_for_sensor.database}.{_self_for_sensor.schema_name}"
+                            f"{_self_for_sensor.workspace.database}.{_self_for_sensor.workspace.schema_}"
                         )
                         rows = cursor.fetchall()
                         columns = [c[0].lower() for c in cursor.description]
@@ -2775,7 +3041,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 FROM TABLE(INFORMATION_SCHEMA.DYNAMIC_TABLE_REFRESH_HISTORY(
                                     DATA_TIMESTAMP_START => DATEADD('hour', -6, CURRENT_TIMESTAMP())
                                 ))
-                                WHERE schema_name = '{_self_for_sensor.schema_name}'
+                                WHERE schema_name = '{_self_for_sensor.workspace.schema_}'
                                   AND state = 'SUCCEEDED'
                             )
                             WHERE rn = 1

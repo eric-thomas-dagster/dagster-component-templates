@@ -262,13 +262,26 @@ class MLflowWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         description="Compute kind tag for all imported assets.",
     )
 
+    poll_interval_seconds: int = Field(
+        default=60,
+        description=(
+            "Minimum seconds between MLflow polling-sensor evaluations. Only "
+            "consulted when `polling_sensor: true`. Matches Snowflake's "
+            "`poll_interval_seconds` convention."
+        ),
+    )
+
     polling_sensor: bool = Field(
         default=False,
         description=(
             "If true, adds a polling sensor that detects new MLflow runs "
-            "and emits AssetObservation events into Dagster's event log. "
-            "Matches the `polling_sensor` convention on FivetranAccountComponent "
-            "and SnowflakeWorkspaceComponent. Off by default — the MLflow "
+            "landing in enumerated experiments and emits AssetObservation "
+            "events into Dagster's event log. Useful when MLflow training "
+            "jobs are triggered outside Dagster (e.g., a data scientist "
+            "manually kicks off `mlflow.start_run()`) and you want the "
+            "downstream Dagster graph to react. Matches the `polling_sensor` "
+            "convention on FivetranAccountComponent and "
+            "SnowflakeWorkspaceComponent. Off by default — the MLflow "
             "workspace has no cheap change-signal, so opt in explicitly."
         ),
         alias="generate_sensor",  # backward-compat: old YAML still resolves
@@ -428,11 +441,121 @@ class MLflowWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             return Definitions()
         state = json.loads(state_path.read_text())
         assets = []
+        experiment_asset_keys: List[tuple[str, AssetKey]] = []
         for e in state.get("experiments", []):
-            assets.append(self._build_experiment_asset(e["id"], e["name"]))
+            asset_def = self._build_experiment_asset(e["id"], e["name"])
+            assets.append(asset_def)
+            # Track (experiment_id, asset_key) pairs so the polling sensor can
+            # emit AssetObservation events keyed to the right catalog entries.
+            key = next(iter(asset_def.keys)) if hasattr(asset_def, "keys") else None
+            if key is not None:
+                experiment_asset_keys.append((e["id"], key))
         for m in state.get("models", []):
             assets.append(self._build_model_asset(m["name"]))
-        return Definitions(assets=assets)
+
+        sensors = []
+        if self.polling_sensor and experiment_asset_keys:
+            sensors.append(self._build_runs_polling_sensor(experiment_asset_keys))
+
+        return Definitions(
+            assets=assets,
+            sensors=sensors if sensors else None,
+        )
+
+    def _build_runs_polling_sensor(
+        self, experiment_asset_keys: List[tuple[str, "AssetKey"]]
+    ):
+        """Build a polling sensor that detects new MLflow runs and emits
+        AssetObservation events on the enumerated experiment assets.
+
+        Cursor shape: ``{experiment_id: <latest_run_start_time_ms>}``.
+        On each tick, ``POST /api/2.0/mlflow/runs/search`` per experiment
+        with the cursor value as the filter — new runs since last check
+        become one observation per run.
+        """
+        _self = self
+        # Snapshot the mapping so the sensor closure doesn't hold onto
+        # component instance state that could change under it at reload.
+        exp_keys = list(experiment_asset_keys)
+
+        @dg.sensor(
+            name=f"{self.group_name or 'mlflow'}_runs_polling_sensor",
+            minimum_interval_seconds=self.poll_interval_seconds,
+            default_status=dg.DefaultSensorStatus.STOPPED,
+        )
+        def _mlflow_runs_polling_sensor(context: dg.SensorEvaluationContext):
+            import requests
+            cursor = json.loads(context.cursor) if context.cursor else {}
+            new_cursor = dict(cursor)
+
+            uri = _self.workspace.tracking_uri.rstrip("/")
+            session = requests.Session()
+            session.verify = _self.workspace.verify_ssl
+            if _self.workspace.username and _self.workspace.password:
+                session.auth = (_self.workspace.username, _self.workspace.password)
+
+            observations: List[dg.AssetObservation] = []
+            for exp_id, asset_key in exp_keys:
+                since_ms = int(cursor.get(exp_id, 0))
+                # MLflow filter syntax on runs.search — attributes.start_time > <ms>.
+                # `order_by` ascending so we can walk chronologically + update the
+                # cursor to the newest run seen without leaving gaps.
+                body: dict = {
+                    "experiment_ids": [exp_id],
+                    "max_results": 1000,
+                    "order_by": ["attributes.start_time ASC"],
+                }
+                if since_ms > 0:
+                    body["filter"] = f"attributes.start_time > {since_ms}"
+                try:
+                    r = session.post(
+                        f"{uri}/api/2.0/mlflow/runs/search", json=body, timeout=60,
+                    )
+                    r.raise_for_status()
+                    runs = (r.json() or {}).get("runs", [])
+                except Exception as e:  # noqa: BLE001
+                    context.log.warning(
+                        f"MLflow runs.search failed for experiment {exp_id}: {e}"
+                    )
+                    continue
+
+                latest_seen = since_ms
+                for run in runs:
+                    info = run.get("info") or {}
+                    start_time = int(info.get("start_time") or 0)
+                    status = info.get("status")
+                    run_id = info.get("run_id")
+                    if start_time <= since_ms:
+                        continue
+                    observations.append(
+                        dg.AssetObservation(
+                            asset_key=asset_key,
+                            metadata={
+                                "mlflow_run_id": dg.MetadataValue.text(str(run_id or "")),
+                                "mlflow_run_status": dg.MetadataValue.text(str(status or "")),
+                                "mlflow_run_start_time_ms": dg.MetadataValue.int(start_time),
+                                "mlflow_experiment_id": dg.MetadataValue.text(exp_id),
+                            },
+                        )
+                    )
+                    if start_time > latest_seen:
+                        latest_seen = start_time
+                if latest_seen > since_ms:
+                    new_cursor[exp_id] = latest_seen
+
+            if not observations:
+                return dg.SensorResult(
+                    skip_reason=dg.SkipReason(
+                        "No new MLflow runs observed across enumerated experiments."
+                    ),
+                    cursor=json.dumps(new_cursor),
+                )
+            return dg.SensorResult(
+                asset_events=observations,
+                cursor=json.dumps(new_cursor),
+            )
+
+        return _mlflow_runs_polling_sensor
 
     def _build_experiment_asset(self, exp_id: str, exp_name: str):
         _self = self

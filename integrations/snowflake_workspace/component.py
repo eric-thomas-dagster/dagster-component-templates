@@ -7,12 +7,13 @@ as Dagster assets with automatic observation and orchestration.
 import json
 import logging
 import re
-from typing import Optional, List, Dict, Any
+from typing import Annotated, Any, Dict, List, Optional
 from datetime import datetime
 
 import snowflake.connector
 from snowflake.connector import SnowflakeConnection
 
+import dagster as dg
 from dagster import (
     AssetKey,
     AssetSpec,
@@ -31,9 +32,24 @@ from dagster import (
     MaterializeResult,
     ObserveResult,
     Resolvable,
+    Resolver,
     Model,
     MetadataValue,
 )
+from dagster._annotations import public
+from dagster.components.resolved.base import resolve_fields
+from dagster.components.utils.defs_state import (
+    DefsStateConfig,
+    DefsStateConfigArgs,
+    ResolvedDefsStateConfig,
+)
+from dagster.components.utils.translation import (
+    ComponentTranslator,
+    TranslationFn,
+    TranslationFnResolver,
+    create_component_translator_cls,
+)
+from dagster_shared.record import record
 from pydantic import ConfigDict, Field
 
 # Canonical pattern (`workspace:` block) — mirrors dagster-databricks's
@@ -43,6 +59,32 @@ from pydantic import ConfigDict, Field
 # SQLAlchemy support all come for free. Legacy flat fields still accepted
 # for backward compat; mutually exclusive with `workspace:`.
 from dagster_snowflake import SnowflakeResource
+
+
+@record
+class SnowflakeObjectProps:
+    """Data passed to translation callables for each imported Snowflake object.
+
+    Mirrors the shape of `FivetranConnectorTableProps` / `PowerBITranslatorData`
+    in the official workspace components — a single record describing the
+    object plus its parent context so `translation:` callables can filter,
+    rename, add tags, etc.
+
+    Attributes:
+        object_kind: One of 'task' / 'stored_procedure' / 'dynamic_table' /
+            'stream' / 'snowpipe' / 'stage' / 'materialized_view' /
+            'external_table' / 'alert' / 'openflow_flow' / 'table' / 'view'.
+        object_name: The Snowflake object's unqualified name.
+        database: The database the object lives in.
+        schema: The schema the object lives in.
+        extra: Kind-specific metadata (task warehouse, DT target_lag, stream
+            source_table, etc.) — captured as-is from Snowflake's SHOW output.
+    """
+    object_kind: str
+    object_name: str
+    database: str
+    schema: str
+    extra: Optional[Dict[str, Any]] = None
 
 _logger = logging.getLogger(__name__)
 
@@ -157,6 +199,7 @@ def _emit_query_perf(cursor, query_id) -> dict:
         return {}
 
 
+@public
 class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
     """Component for importing Snowflake workspace entities as Dagster assets.
 
@@ -214,7 +257,14 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
     # pooling are all supported via the official dagster-snowflake
     # SnowflakeResource. New auth modes Dagster adds upstream light up
     # here with no component change.
-    workspace: SnowflakeResource = Field(
+    workspace: Annotated[
+        SnowflakeResource,
+        Resolver(
+            lambda context, model: SnowflakeResource(
+                **resolve_fields(model, SnowflakeResource, context)  # ty: ignore[invalid-argument-type]
+            ),
+        ),
+    ] = Field(
         description=(
             "Snowflake connection as a dagster_snowflake.SnowflakeResource. "
             "All resource fields supported: account, user, password, "
@@ -223,6 +273,23 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             "schema, role, plus everything the official resource carries "
             "(SQLAlchemy engine via `connector: sqlalchemy`, connection "
             "pooling, etc.)."
+        ),
+    )
+
+    # Optional user-side customization hook. Matches the convention used by
+    # FivetranAccountComponent / PowerBIWorkspaceComponent — a callable that
+    # takes (base_spec, props) and returns a modified AssetSpec. Applied to
+    # each imported Snowflake object; wired via `SnowflakeComponentTranslator`.
+    translation: Annotated[
+        Optional[TranslationFn[SnowflakeObjectProps]],
+        TranslationFnResolver(template_vars_for_translation_fn=lambda data: {"props": data}),
+    ] = Field(
+        default=None,
+        description=(
+            "Function used to translate Snowflake object properties into "
+            "Dagster asset specs. Called for each imported task / procedure / "
+            "dynamic table / stream / snowpipe / etc. If unset, the base "
+            "translator's default AssetSpec is used."
         ),
     )
 
@@ -378,9 +445,15 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
         description="How often (in seconds) the sensor should check for completed runs"
     )
 
-    generate_sensor: bool = Field(
+    polling_sensor: bool = Field(
         default=True,
-        description="Create a sensor to observe task runs and dynamic table refreshes"
+        description=(
+            "If true, create a sensor that polls Snowflake for completed task "
+            "runs and dynamic-table refreshes and emits AssetMaterialization / "
+            "AssetObservation events into Dagster's event log. Matches the "
+            "`polling_sensor` convention on FivetranAccountComponent."
+        ),
+        alias="generate_sensor",  # backward-compat: old YAML still resolves
     )
 
     group_name: Optional[str] = Field(
@@ -392,6 +465,68 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
         default=None,
         description="Description for the Snowflake workspace component"
     )
+
+    # State-backed defs_state config — used when the component's internal
+    # discovery is restructured onto StateBackedComponent (planned follow-up).
+    # Declared now so the field shape is stable in defs.yaml.
+    defs_state: ResolvedDefsStateConfig = Field(
+        default_factory=DefsStateConfigArgs.local_filesystem,
+        description=(
+            "State backend for cached workspace discovery. Local filesystem by "
+            "default. Overridden per-deploy for prod runs against Dagster Cloud."
+        ),
+    )
+
+    @public
+    def get_asset_spec(self, props: SnowflakeObjectProps) -> AssetSpec:
+        """Generates an AssetSpec for a given Snowflake object.
+
+        This method can be overridden in a subclass to customize how Snowflake
+        objects are converted to Dagster asset specs. By default, it delegates
+        to the configured translator (which respects the `translation:` field).
+
+        Args:
+            props: The SnowflakeObjectProps carrying object kind, name, database,
+                schema, and any kind-specific metadata.
+
+        Returns:
+            An AssetSpec that represents the Snowflake object as a Dagster asset.
+
+        Example:
+            Override this method to add custom tags based on the object kind:
+
+            .. code-block:: python
+
+                from dagster_snowflake import SnowflakeWorkspaceComponent
+                import dagster as dg
+
+                class CustomSnowflakeWorkspaceComponent(SnowflakeWorkspaceComponent):
+                    def get_asset_spec(self, props):
+                        base_spec = super().get_asset_spec(props)
+                        return base_spec.replace_attributes(
+                            tags={
+                                **base_spec.tags,
+                                "snowflake_object_kind": props.object_kind,
+                                "snowflake_database": props.database,
+                            }
+                        )
+        """
+        return self._base_translator.get_asset_spec(props)
+
+    @property
+    def _base_translator(self) -> "SnowflakeComponentTranslator":
+        # Cached lazily so subclasses can still override get_asset_spec cleanly.
+        cached = getattr(self, "__base_translator_cached", None)
+        if cached is None:
+            cached = SnowflakeComponentTranslator(self)
+            object.__setattr__(self, "__base_translator_cached", cached)
+        return cached
+
+    @property
+    def defs_state_config(self) -> DefsStateConfig:
+        # Key on account + database so multiple workspaces don't collide.
+        default_key = f"{self.__class__.__name__}[{self.workspace.account}]"
+        return DefsStateConfig.from_args(self.defs_state, default_key=default_key)
 
     def _create_connection(self) -> SnowflakeConnection:
         """Return a raw Snowflake connection.
@@ -2398,7 +2533,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             conn.close()
 
         # Create observation sensor if requested
-        if self.generate_sensor and (task_metadata or snowpipe_metadata):
+        if self.polling_sensor and (task_metadata or snowpipe_metadata):
             @sensor(
                 name=f"{self.group_name}_observation_sensor",
                 minimum_interval_seconds=self.poll_interval_seconds
@@ -2781,3 +2916,60 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             assets=assets_list,
             sensors=sensors_list if sensors_list else None,
         )
+
+
+class DagsterSnowflakeTranslator:
+    """Base translator for Snowflake workspace objects → AssetSpec.
+
+    Follows the shape of `DagsterFivetranTranslator` and `DagsterPowerBITranslator`.
+    Subclass this and override `get_asset_spec()` to fully customize how
+    Snowflake objects become Dagster assets — an alternative to the runtime
+    `translation:` callable on the component.
+    """
+
+    def get_asset_spec(self, props: SnowflakeObjectProps) -> AssetSpec:
+        """Default AssetSpec for a Snowflake object.
+
+        Key = [<database>, <schema>, <object_name>] (lowercased for consistency
+        with the rest of the Dagster catalog). Kind is set to the Snowflake
+        object type. Metadata carries the fully-qualified name + database/schema
+        for downstream UI + selection.
+        """
+        return AssetSpec(
+            key=AssetKey(
+                [
+                    props.database.lower(),
+                    props.schema.lower(),
+                    props.object_name.lower(),
+                ]
+            ),
+            kinds={"snowflake", props.object_kind},
+            metadata={
+                "snowflake/database": props.database,
+                "snowflake/schema": props.schema,
+                "snowflake/object_kind": props.object_kind,
+                "snowflake/fqn": (
+                    f"{props.database}.{props.schema}.{props.object_name}"
+                ),
+            },
+        )
+
+
+class SnowflakeComponentTranslator(
+    create_component_translator_cls(SnowflakeWorkspaceComponent, DagsterSnowflakeTranslator),  # ty: ignore[unsupported-base]
+    ComponentTranslator[SnowflakeWorkspaceComponent],
+):
+    """Bridges `SnowflakeWorkspaceComponent.translation` (runtime callable)
+    with the base `DagsterSnowflakeTranslator` (class-level override).
+
+    Mirrors `FivetranComponentTranslator` / `PowerBIComponentTranslator`.
+    """
+
+    def __init__(self, component: "SnowflakeWorkspaceComponent"):
+        self._component = component
+
+    def get_asset_spec(self, props: SnowflakeObjectProps) -> AssetSpec:
+        base_asset_spec = super().get_asset_spec(props)
+        if self.component.translation is None:
+            return base_asset_spec
+        return self.component.translation(base_asset_spec, props)

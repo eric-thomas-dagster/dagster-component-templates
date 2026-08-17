@@ -1,9 +1,15 @@
 type: dagster_community_components.MLflowWorkspaceComponent
 attributes:
-  tracking_uri_env_var: MLFLOW_TRACKING_URI          # e.g. https://mlflow.acme.com
-  # username_env_var: MLFLOW_USER                    # optional basic auth
-  # password_env_var: MLFLOW_PASSWORD
-  # verify_ssl: false
+  # Canonical workspace: block — same shape as
+  # dagster_databricks.DatabricksWorkspaceComponent /
+  # dagster_powerbi.PowerBIWorkspaceComponent /
+  # dagster_fivetran.FivetranAccountComponent.
+  # Secrets travel inline via {{ env.XXX }} Jinja templating.
+  workspace:
+    tracking_uri: "{{ env.MLFLOW_TRACKING_URI }}"    # e.g. https://mlflow.acme.com
+    # username: "{{ env.MLFLOW_USER }}"              # optional basic auth
+    # password: "{{ env.MLFLOW_PASSWORD }}"
+    verify_ssl: true
 
   experiment_selector:
     by_pattern: ["prod_*", "staging_*"]

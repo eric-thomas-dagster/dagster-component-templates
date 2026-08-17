@@ -1268,6 +1268,11 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                                     'schema': task['SCHEMA_NAME'],
                                     'state': task['STATE'],
                                 }
+                                # Route each per-instance task through the translator.
+                                inst_kwargs = self._apply_translation(
+                                    inst_kwargs, "task", task_name,
+                                    task['DATABASE_NAME'], task['SCHEMA_NAME'],
+                                )
                                 assets_list.append(_make_task_asset(
                                     task_name, task['DATABASE_NAME'], task['SCHEMA_NAME'],
                                     inst_kwargs, self, inst_config, inst_config_schema,
@@ -1490,6 +1495,12 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                                     inst_kwargs["tags"] = dict(inst["tags"])
                                 if "owners" in inst:
                                     inst_kwargs["owners"] = inst["owners"]
+                                # Route each per-instance procedure through the translator.
+                                inst_kwargs = self._apply_translation(
+                                    inst_kwargs, "stored_procedure", proc_name,
+                                    self.workspace.database or "",
+                                    proc.get("SCHEMA_NAME") or self.workspace.schema_ or "",
+                                )
                                 assets_list.append(_make_proc_asset(
                                     proc_name, self.workspace.database,
                                     proc.get("SCHEMA_NAME", self.workspace.schema_),
@@ -1626,13 +1637,24 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                             # below, which catches Snowflake's TARGET_LAG-driven
                             # auto-refreshes too.
                             base_metadata["dagster.observability_type"] = "external"
-                            assets_list.append(AssetSpec(
-                                key=AssetKey([asset_key]),
+                            _dt_ext_kwargs = self._apply_asset_overrides(dt_name, dict(
+                                name=asset_key,
                                 group_name=self.group_name,
                                 description=f"Snowflake dynamic table: {dt_name}",
                                 kinds={"snowflake", "dynamic_table"},
                                 metadata=base_metadata,
                             ))
+                            _dt_ext_kwargs = self._apply_translation(
+                                _dt_ext_kwargs, "dynamic_table", dt_name,
+                                dt['DATABASE_NAME'], dt['SCHEMA_NAME'],
+                            )
+                            # Convert kwargs → AssetSpec (name → key, drop @asset-only fields).
+                            _spec_kwargs = {
+                                k: v for k, v in _dt_ext_kwargs.items()
+                                if k in ("group_name", "description", "kinds", "metadata", "tags", "owners", "deps")
+                            }
+                            _spec_kwargs["key"] = AssetKey([_dt_ext_kwargs["name"]])
+                            assets_list.append(AssetSpec(**_spec_kwargs))
                         else:
                             # Legacy @asset path: manual REFRESH from Dagster.
                             # NOTE: the DT-refresh sensor still runs, so manual
@@ -2267,6 +2289,10 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                                 "entity_type": "alert",
                             },
                         ))
+                        _alert_kwargs = self._apply_translation(
+                            _alert_kwargs, "alert", alert_name,
+                            alert['DATABASE_NAME'], alert['SCHEMA_NAME'],
+                        )
                         def _make_alert_asset(alert_name_v, db_v, schema_v, alert_kwargs_v, self_v):
                             @observable_source_asset(**alert_kwargs_v)
                             def _alert_asset(context: AssetExecutionContext):
@@ -2410,6 +2436,10 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                                 "entity_type": "openflow_flow",
                             },
                         ))
+                        # OpenFlow flows are account-scoped — no db/schema, pass empty strings.
+                        _flow_kwargs = self._apply_translation(
+                            _flow_kwargs, "openflow_flow", flow_name, "", "",
+                        )
                         def _make_openflow_asset(flow_name_v, runtime_id_v, flow_kwargs_v, self_v):
                             @observable_source_asset(**flow_kwargs_v)
                             def _openflow_asset(context: AssetExecutionContext):
@@ -2744,6 +2774,16 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                             ),
                             metadata=base_metadata,
                         ))
+                        # Route through translator — "view" if is_view else "table".
+                        # Includes external_tables & materialized_views (they enter
+                        # this block via table_type detection upstream).
+                        _table_kwargs = self._apply_translation(
+                            _table_kwargs,
+                            "view" if is_view else "table",
+                            table_name,
+                            self.workspace.database or "",
+                            self.workspace.schema_ or "",
+                        )
 
                         if modeling == "virtual":
                             # AssetSpec(is_virtual=True) — no execution, no

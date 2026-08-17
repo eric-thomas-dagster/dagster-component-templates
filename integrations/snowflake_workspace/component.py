@@ -370,13 +370,20 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
     import_tables: bool = Field(
         default=False,
         description=(
-            "Import tables as Dagster assets. Covers every table-shaped object that doesn't have "
-            "its own dedicated import_* flag: regular base tables (BASE TABLE — permanent / "
-            "transient / temporary), Iceberg tables, Hybrid tables (Unistore), and Event tables. "
-            "Default behavior is observation (row_count + last_altered, stable data_version) — "
-            "opt into materialization via `table_modeling: asset` + a per-table `materialize_sql:` "
-            "in `assets_by_name`. External / materialized / dynamic tables have their own flags "
-            "and are not included here."
+            "Import tables as Dagster assets. **NOT recommended for most cases** — regular tables "
+            "aren't orchestration primitives (no EXECUTE / REFRESH / server-side event), so the "
+            "best Dagster can do is poll INFORMATION_SCHEMA.TABLES.ROW_COUNT on a schedule, which "
+            "is a lot of API traffic for a lineage node that mostly just sits there. Observable "
+            "source assets belong at the **edges** of a pipeline (a landing table you don't own, "
+            "or a sink someone else consumes) — not the middle of a graph you already control via "
+            "tasks + dynamic tables + Snowpipes. For a specific handful of tables you DO want as "
+            "observable sources or virtual lineage nodes, prefer the single-object components "
+            "(`snowflake_iceberg_table`, `snowflake_time_travel_asset`, `external_snowflake_table`) "
+            "over bulk enumeration.\n\n"
+            "Covers every table-shaped object that doesn't have its own dedicated import_* flag: "
+            "regular base tables (BASE TABLE — permanent / transient / temporary), Iceberg "
+            "tables, Hybrid tables (Unistore), and Event tables. External / materialized / "
+            "dynamic tables have their own flags and are not included here."
         ),
     )
 
@@ -402,11 +409,15 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
     import_views: bool = Field(
         default=False,
         description=(
-            "Import non-materialized views (TABLE_TYPE='VIEW') as Dagster assets. Default "
-            "behavior is materializable — re-runs the view's stored definition via CREATE OR "
-            "REPLACE VIEW (recompiles against current upstream schema, catches schema drift). "
-            "Opt back into observation-only via `view_modeling: observable`. Materialized views "
-            "are a separate concept; use `import_materialized_views`."
+            "Import non-materialized views (TABLE_TYPE='VIEW') as Dagster assets. **NOT "
+            "recommended for most cases** — same reasoning as `import_tables`. Views have no "
+            "server-side event Dagster can key off; the best we can do is observation polling or "
+            "a manual CREATE OR REPLACE VIEW on materialize, neither of which is real "
+            "orchestration. Prefer targeted single-view components at the edges of your DAG. "
+            "Default behavior when enabled is materializable — re-runs the view's stored "
+            "definition via CREATE OR REPLACE VIEW (recompiles against current upstream schema, "
+            "catches schema drift). Opt back into observation-only via `view_modeling: "
+            "observable`. Materialized views are a separate concept; use `import_materialized_views`."
         ),
     )
 

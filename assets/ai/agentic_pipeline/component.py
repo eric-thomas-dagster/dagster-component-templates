@@ -1147,11 +1147,17 @@ def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
             )
         )
     except BaseExceptionGroup as eg:  # noqa: F821 (py311+)
-        # Unwrap the anyio ExceptionGroup so the real underlying error
-        # (subprocess exit code, MCP protocol error, tool-arg validation)
-        # surfaces in the Dagster UI instead of a generic
+        # Recursively unwrap nested anyio ExceptionGroups (mcp lib nests
+        # session-level and stdio_client-level task groups) so the real
+        # underlying error — subprocess exit, MCP protocol error, tool-arg
+        # validation — surfaces in the Dagster UI instead of a generic
         # "unhandled errors in a TaskGroup".
-        inner = eg.exceptions[0] if eg.exceptions else eg
+        def _first_leaf(exc):
+            while isinstance(exc, BaseExceptionGroup) and exc.exceptions:
+                exc = exc.exceptions[0]
+            return exc
+
+        inner = _first_leaf(eg)
         context.log.error(
             f"[mcp_call:{step.get('id')}] failed: {type(inner).__name__}: {inner}"
         )

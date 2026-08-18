@@ -1,0 +1,25 @@
+{
+  "component_type": "dagster_community_components.PartitionedAssetLauncherJobComponent",
+  "description": "Launch a partitioned materialization from a run-config form. Reads user-provided config (via Dagster's launchpad or an external RunConfig POST), formats a partition key from `partition_key_template`, registers it on a dynamic partitions definition, then materializes the target asset selection with that partition_key. The launcher is the config-shaped entry point; the target is the actual partitioned pipeline.",
+  "category": "job",
+  "icon": "PlayArrow",
+  "x-dagster-io": {
+    "outputs": {"type": "job_run", "description": "One launcher run + one inner materialization run per invocation. Target assets are partitioned on the computed partition_key."}
+  },
+  "attributes": {
+    "job_name": {"type": "string", "required": true, "label": "Job Name",
+                 "description": "Dagster job name for the launcher itself (shows in the UI as a job you can materialize)."},
+    "target_asset_keys": {"type": "array", "required": true, "label": "Target Asset Keys", "items": {"type": "string"},
+                 "description": "Asset keys to materialize in the launched partitioned run. MUST be dynamic-partitioned on `dynamic_partitions_name` (typically declared in a sibling partitioned-multi-asset component). Multi-part keys are dot-joined: 'foo/bar' → AssetKey(['foo', 'bar'])."},
+    "dynamic_partitions_name": {"type": "string", "required": true, "label": "Dynamic Partitions Name",
+                 "description": "Name of the DynamicPartitionsDefinition on the target assets. The launcher registers the computed partition key on this def before firing the materialization."},
+    "partition_key_template": {"type": "string", "required": true, "label": "Partition Key Template",
+                 "description": "Format template composing the partition key from config field values. e.g. `'{owner}/{repo}#{issue_number}'` — each `{name}` placeholder maps to a config_schema field. The target asset can invert this via its own `partition_key_parser:` field."},
+    "config_schema": {"type": "object", "required": true, "label": "Config Schema",
+                 "description": "Config fields exposed on the launcher's launchpad form (and via run_config for programmatic launches). Shape: `{field_name: {type: str|int|float|bool, default: <value>}}`. Fields without `default` are required in the form."},
+    "tags": {"type": "object", "label": "Tags",
+                 "description": "Tags applied to the launcher run."}
+  },
+  "tags": ["job", "partition", "launcher", "dynamic-partition", "config-driven"],
+  "name": "Partitioned Asset Launcher Job"
+}

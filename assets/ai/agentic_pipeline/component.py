@@ -85,26 +85,134 @@ def _apply_partition_template(s: str, partition_key: Optional[str]) -> str:
     return s.replace("{partition_key}", str(partition_key))
 
 
-def _ingest(source_config: dict, context, partition_key: Optional[str] = None) -> Dict[str, Any]:
+def _parse_partition_key(partition_key: Optional[str], parser: Optional[str]) -> Dict[str, Any]:
+    """Invert a `partition_key_parser` template against `partition_key` to
+    extract named fields. Supports typed placeholders: `{name}` (str, default),
+    `{name:int}`, `{name:float}`, `{name:bool}` — the extracted value is
+    coerced to that type in the returned dict. Callers use this so
+    substitution can preserve type when a target string is exactly a single
+    `{partition.<name>}` placeholder (e.g. tool_args expecting int).
+
+    Returns {} on any mismatch — substitution then leaves placeholders in
+    place so the gap is visible in logs.
+    """
+    if not partition_key or not parser:
+        return {}
+    import re
+    # Match `{name}` or `{name:type}`.
+    field_re = re.compile(r"\{([a-zA-Z_][a-zA-Z0-9_]*)(?::([a-z]+))?\}")
+    # Split parser into literal + (field_name, type) pieces.
+    parts: list = []
+    last = 0
+    for m in field_re.finditer(parser):
+        parts.append(("lit", parser[last:m.start()]))
+        parts.append(("field", m.group(1), m.group(2) or "str"))
+        last = m.end()
+    parts.append(("lit", parser[last:]))
+    if not any(p[0] == "field" for p in parts):
+        return {}
+    regex_parts = []
+    field_types: Dict[str, str] = {}
+    field_seq = [i for i, p in enumerate(parts) if p[0] == "field"]
+    for i, p in enumerate(parts):
+        if p[0] == "lit":
+            regex_parts.append(re.escape(p[1]))
+        else:
+            name, typ = p[1], p[2]
+            field_types[name] = typ
+            is_last = i == field_seq[-1]
+            # Next literal char guides the greedy stop for middle fields.
+            next_lit = parts[i + 1][1] if i + 1 < len(parts) and parts[i + 1][0] == "lit" else ""
+            regex_parts.append(f"(?P<{name}>.+)" if is_last else f"(?P<{name}>[^{re.escape(next_lit[:1]) if next_lit else ''}]+)")
+    pattern = "^" + "".join(regex_parts) + "$"
+    m = re.match(pattern, partition_key)
+    if not m:
+        return {}
+    raw = m.groupdict()
+    typed: Dict[str, Any] = {}
+    for k, v in raw.items():
+        t = field_types.get(k, "str")
+        try:
+            if t == "int":
+                typed[k] = int(v)
+            elif t == "float":
+                typed[k] = float(v)
+            elif t == "bool":
+                typed[k] = v.lower() in ("true", "1", "yes")
+            else:
+                typed[k] = v
+        except (ValueError, TypeError):
+            typed[k] = v  # fall back to string on coercion failure
+    return typed
+
+
+def _apply_ctx_substitutions(
+    s: Any,
+    partition_key: Optional[str],
+    partition_fields: Optional[Dict[str, Any]],
+) -> Any:
+    """Apply run-context substitutions: `{partition_key}` + `{partition.<name>}`.
+
+    Returns the input unchanged if it's not a string. When the input is
+    EXACTLY a single `{partition.<name>}` placeholder (nothing else) and
+    `partition_fields[name]` has a non-string type (int / float / bool),
+    return the typed value rather than str-coerced — this is what makes
+    `tool_args: {issue_number: "{partition.issue_number:int}"}` land as
+    int 30000 in the MCP call instead of the string "30000".
+
+    Ports (`{port_name}`) are handled separately by `_substitute_ports`
+    since they're per-op inputs, not run-level context.
+    """
+    if not isinstance(s, str):
+        return s
+    # Type-preserving fast-path: whole value is `{partition.<name>}`.
+    if partition_fields and s.startswith("{partition.") and s.endswith("}") and s.count("{") == 1:
+        name = s[len("{partition."):-1]
+        if name in partition_fields:
+            return partition_fields[name]
+    # Normal string substitution.
+    if partition_key is not None and "{partition_key}" in s:
+        s = s.replace("{partition_key}", str(partition_key))
+    if partition_fields:
+        for k, v in partition_fields.items():
+            s = s.replace("{partition." + k + "}", str(v))
+    return s
+
+
+def _ctx_of(state: Dict[str, Any]) -> Dict[str, Any]:
+    """Fetch the run-context stash from state (partition_key + parsed fields).
+    Empty dict when the pipeline isn't running under a partition."""
+    return state.get("__ctx__") or {}
+
+
+def _ingest(
+    source_config: dict,
+    context,
+    partition_key: Optional[str] = None,
+    partition_fields: Optional[Dict[str, str]] = None,
+) -> Dict[str, Any]:
     """Return the initial state dict: {"text": str, "source_kind": str, ...}."""
     kind = source_config.get("kind", "literal")
+
+    def _sub(s: Any) -> Any:
+        return _apply_ctx_substitutions(s, partition_key, partition_fields)
 
     if kind == "literal":
         raw = source_config["text"]
         # YAML may parse `text: 30000` as int / `text: 3.14` as float —
         # downstream ops assume text is a string, so coerce here.
-        text = _apply_partition_template(raw if isinstance(raw, str) else str(raw), partition_key)
+        text = _sub(raw if isinstance(raw, str) else str(raw))
         return {"text": text, "source_kind": "literal"}
 
     if kind == "file":
-        path = _apply_partition_template(source_config["path"], partition_key)
+        path = _sub(source_config["path"])
         with open(path) as f:
             text = f.read()
         return {"text": text, "source_kind": "file", "source_path": path}
 
     if kind == "url":
         import requests
-        url = _apply_partition_template(source_config["url"], partition_key)
+        url = _sub(source_config["url"])
         response = requests.get(url, timeout=source_config.get("timeout", 30))
         response.raise_for_status()
         return {"text": response.text, "source_kind": "url", "source_url": url}
@@ -218,8 +326,12 @@ def _get_source_text(state: Dict[str, Any], source_id: str) -> str:
 
 
 def _last_step_id(state: Dict[str, Any]) -> str:
-    """The most recent step id in state (used when a step omits `source:`)."""
-    return list(state.keys())[-1]
+    """The most recent step id in state (used when a step omits `source:`).
+    Skips reserved keys prefixed with `__` (e.g. `__ctx__`)."""
+    for k in reversed(list(state.keys())):
+        if not (isinstance(k, str) and k.startswith("__")):
+            return k
+    raise ValueError("no user step outputs in state")
 
 
 def _build_partitions_def(
@@ -399,6 +511,8 @@ def _do_llm_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
 
     inputs = _resolve_inputs(step, state)
 
+    # {partition_key} + {partition.<name>} were substituted upstream in
+    # _run_step. Only {text} + {port_name} are per-op here.
     prompt_template = step.get("prompt_template", "{text}")
     user_prompt = prompt_template.replace("{text}", src_text)
     user_prompt = _substitute_ports(user_prompt, inputs)
@@ -996,6 +1110,8 @@ def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     if not tool_name:
         raise ValueError("mcp_call requires `mcp_tool_name: <name-on-the-server>`")
 
+    # {partition_key} + {partition.<name>} were already substituted deep in
+    # `step` at dispatch time (see _run_step). {text} + {port_name} are per-op.
     raw_args = step.get("tool_args") or {}
     resolved_args: Dict[str, Any] = {}
     for k, v in raw_args.items():
@@ -1008,16 +1124,31 @@ def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
 
     parse_as = step.get("parse_as", "auto")
 
-    t0 = time.time()
-    result = asyncio.run(
-        _call_mcp_tool_async(
-            log=context.log,
-            server_cfg=server_cfg,
-            tool_name=tool_name,
-            tool_args=resolved_args,
-            parse_as=parse_as,
-        )
+    context.log.info(
+        f"[mcp_call:{step.get('id')}] tool={tool_name} args={resolved_args}"
     )
+
+    t0 = time.time()
+    try:
+        result = asyncio.run(
+            _call_mcp_tool_async(
+                log=context.log,
+                server_cfg=server_cfg,
+                tool_name=tool_name,
+                tool_args=resolved_args,
+                parse_as=parse_as,
+            )
+        )
+    except BaseExceptionGroup as eg:  # noqa: F821 (py311+)
+        # Unwrap the anyio ExceptionGroup so the real underlying error
+        # (subprocess exit code, MCP protocol error, tool-arg validation)
+        # surfaces in the Dagster UI instead of a generic
+        # "unhandled errors in a TaskGroup".
+        inner = eg.exceptions[0] if eg.exceptions else eg
+        context.log.error(
+            f"[mcp_call:{step.get('id')}] failed: {type(inner).__name__}: {inner}"
+        )
+        raise inner from eg
     latency_ms = int((time.time() - t0) * 1000)
 
     # Stringify JSON value so downstream steps' `source: <this step id>`
@@ -1073,6 +1204,20 @@ def _default_router_prompt(specialists: List[dict]) -> str:
     return "\n".join(lines)
 
 
+def _deep_apply_ctx_substitutions(obj: Any, partition_key: Optional[str], partition_fields: Optional[Dict[str, str]]) -> Any:
+    """Recursively substitute `{partition_key}` + `{partition.<name>}` in every
+    string leaf of a step dict / list / scalar. Non-strings pass through
+    unchanged. Port substitution (`{port_name}`) is NOT done here — it
+    happens per-op after inputs are resolved."""
+    if isinstance(obj, str):
+        return _apply_ctx_substitutions(obj, partition_key, partition_fields)
+    if isinstance(obj, list):
+        return [_deep_apply_ctx_substitutions(x, partition_key, partition_fields) for x in obj]
+    if isinstance(obj, dict):
+        return {k: _deep_apply_ctx_substitutions(v, partition_key, partition_fields) for k, v in obj.items()}
+    return obj
+
+
 def _run_step(step: dict, state: Dict[str, Any], context) -> None:
     op = step.get("op")
     step_id = step.get("id")
@@ -1080,6 +1225,13 @@ def _run_step(step: dict, state: Dict[str, Any], context) -> None:
         raise ValueError(f"every step must have an `id`; got {step!r}")
     if op not in _OPS:
         raise ValueError(f"unknown op: {op!r}. valid: {sorted(_OPS.keys())}")
+
+    # Apply run-context substitutions ({partition_key}, {partition.<name>}) to
+    # every string in the step dict before dispatch. Port substitution
+    # (`{port_name}`) still happens per-op since it needs resolved inputs.
+    _ctx = _ctx_of(state)
+    step = _deep_apply_ctx_substitutions(step, _ctx.get("partition_key"), _ctx.get("partition_fields"))
+
     context.log.info(f"[step {step_id!r}] op={op!r}")
     state[step_id] = _OPS[op](step, state, context)
 
@@ -1211,6 +1363,19 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             "multi-dimensional partitioning."
         ),
     )
+    partition_key_parser: Optional[str] = Field(
+        default=None,
+        description=(
+            "Format template for parsing composite partition keys into named "
+            "fields — e.g. '{owner}/{repo}#{issue_number}' means partition key "
+            "'dagster-io/dagster#30000' → {owner: 'dagster-io', repo: 'dagster', "
+            "issue_number: '30000'}. Each parsed field is then available as "
+            "`{partition.<name>}` in tool_args, prompt_template, and "
+            "system_prompt (in addition to the raw `{partition_key}`). "
+            "Pair with PartitionedAssetLauncherJobComponent for the "
+            "config-driven-partition pattern."
+        ),
+    )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         prefix = self.asset_name_prefix
@@ -1220,6 +1385,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
         asset_ids: List[str] = list(outputs.get("assets", []))
         text_sinks: List[Dict[str, Any]] = list(outputs.get("text_sinks", []) or [])
         json_sinks: List[Dict[str, Any]] = list(outputs.get("json_sinks", []) or [])
+        partition_key_parser = self.partition_key_parser
 
         if not asset_ids:
             raise ValueError("outputs.assets must list at least one step id.")
@@ -1373,6 +1539,15 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             if partition_key:
                 context.log.info(f"partition-aware materialization: partition_key={partition_key!r}")
 
+            # Parse the composite partition_key into named fields BEFORE ingest
+            # so source.text / source.path / source.url can reference
+            # {partition.<name>} placeholders too.
+            partition_fields = _parse_partition_key(partition_key, partition_key_parser)
+            if partition_fields:
+                context.log.info(
+                    f"partition_key_parser matched: {partition_fields}"
+                )
+
             # Ingest.
             if source_config.get("kind") == "upstream_asset":
                 upstream = kwargs["source"]
@@ -1385,12 +1560,25 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 initial_entry = {"text": initial_text, "source_kind": "upstream_asset"}
                 context.log.info(f"ingested {len(initial_text)} chars from upstream asset")
             else:
-                initial_entry = _ingest(source_config, context, partition_key=partition_key)
+                initial_entry = _ingest(
+                    source_config, context,
+                    partition_key=partition_key,
+                    partition_fields=partition_fields,
+                )
                 context.log.info(
                     f"ingested {len(initial_entry.get('text', ''))} chars via {source_config.get('kind', 'literal')}"
                 )
 
-            state: Dict[str, Any] = {"source": initial_entry}
+            # Stash run-context so every op can reach it via _ctx_of(state).
+            # Reserved key `__ctx__` — never collides with user step ids
+            # (handled by _last_step_id skipping __-prefixed keys).
+            state: Dict[str, Any] = {
+                "source": initial_entry,
+                "__ctx__": {
+                    "partition_key": partition_key,
+                    "partition_fields": partition_fields,
+                },
+            }
 
             for step in steps:
                 _run_step(step, state, context)
@@ -1400,7 +1588,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             # locally and for Serverless container filesystems.
             for sink in text_sinks:
                 from_id = sink["from"]
-                path = _apply_partition_template(sink["path"], partition_key)
+                path = _apply_ctx_substitutions(sink["path"], partition_key, partition_fields)
                 if from_id not in state:
                     raise ValueError(f"text_sinks: unknown step id {from_id!r}")
                 text = state[from_id].get("text", "") if isinstance(state[from_id], dict) else str(state[from_id])
@@ -1415,7 +1603,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             for sink in json_sinks:
                 import json
                 from_id = sink["from"]
-                path = _apply_partition_template(sink["path"], partition_key)
+                path = _apply_ctx_substitutions(sink["path"], partition_key, partition_fields)
                 if from_id not in state:
                     raise ValueError(f"json_sinks: unknown step id {from_id!r}")
                 parent = os.path.dirname(path)

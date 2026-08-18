@@ -1,10 +1,10 @@
 {
   "component_type": "dagster_community_components.AgenticPipelineComponent",
-  "description": "One YAML, whole agentic pipeline. `source: + steps: + outputs:` — 5 ops (llm_call, route, debate, critique_loop, synthesize). Sibling of polars_pipeline / warehouse_pipeline / pyspark_pipeline / ml_pipeline for the LLM / agents domain. LiteLLM-backed, so any provider (OpenAI, Anthropic, Gemini, Groq, Bedrock, Ollama, ...) works via the `model:` string.",
+  "description": "One YAML, whole agentic pipeline. `source: + steps: + outputs:` — 6 ops (llm_call, route, debate, critique_loop, synthesize, mcp_call). Typed named `inputs:` on every text-emitting op for multi-input joins by port name. First-class partition fields (`partition_type` / `partition_start` / `partition_values` / `dynamic_partition_name` / `partition_dimensions`) mirror sibling ml_pipeline / polars_pipeline / warehouse_pipeline. LiteLLM-backed for LLM ops.",
   "category": "ai",
   "icon": "Workflow",
   "x-dagster-io": {
-    "inputs":  {"type": "any",  "description": "Source text — literal, url, file, or upstream_asset (kind = literal|url|file|upstream_asset)."},
+    "inputs":  {"type": "any",  "description": "Source text — literal, url, file, or upstream_asset (kind = literal|url|file|upstream_asset). Or omit and let an `mcp_call` step drive the pipeline directly."},
     "outputs": {"type": "text", "description": "One or more first-class asset outputs (declared via outputs.assets: [step_ids]); each is a dict `{text, ...op-specific fields}`. Plus optional text / json sinks."}
   },
   "attributes": {
@@ -15,16 +15,28 @@
                            "description": "Data source. kind = literal | file | url | upstream_asset. All string fields are {partition_key}-templated."},
 
     "steps":              {"type": "array",  "required": true, "label": "Steps", "items": {"type": "object"},
-                           "description": "Ordered pipeline steps. Each: {id, op, ...op-specific args}. Steps chain by id — a step with `source: <id>` reads that step's text; omit `source:` and it defaults to the most recent step's output. 5 ops available: llm_call | route | debate | critique_loop | synthesize."},
+                           "description": "Ordered pipeline steps. Each: {id, op, ...op-specific args}. Two wiring modes (compose per step): (1) legacy `source: <step_id>` reads that step's text into `{text}`; (2) typed `inputs: {port: {from: step_id} | {literal: value}}` — each port becomes a `{port_name}` placeholder in prompt_template / system_prompt (and, for mcp_call, in string tool_args). 6 ops available: llm_call | route | debate | critique_loop | synthesize | mcp_call. Full per-op JSON Schema is published under manifest agent_hints.steps_schemas (discriminated union on `op`)."},
 
     "outputs":            {"type": "object", "required": true, "label": "Outputs",
-                           "description": "Output declaration. Shape: {assets: [<step_ids>], text_sinks: [], json_sinks: []}. `assets:` step outputs become first-class Dagster assets; sinks are side effects. All sink paths are `{partition_key}`-aware."},
+                           "description": "Output declaration. Shape: {assets: [<step_ids>], text_sinks: [{from, path}], json_sinks: [{from, path}]}. `assets:` step outputs become first-class Dagster assets; sinks are side effects. All sink paths are `{partition_key}`-aware."},
 
     "group_name":         {"type": "string", "label": "Group Name", "description": "Group name for emitted assets. Default: 'agents'."},
     "kinds":              {"type": "array",  "label": "Kinds", "items": {"type": "string"},
                            "description": "Asset kinds. Default: ['llm', 'agent', 'pipeline']."},
     "tags":               {"type": "object", "label": "Tags", "description": "Additional tags for the emitted assets."},
     "owners":             {"type": "array",  "label": "Owners", "items": {"type": "string"}},
-    "description":        {"type": "string", "label": "Description", "description": "Description on the emitted assets."}
+    "description":        {"type": "string", "label": "Description", "description": "Description on the emitted assets."},
+
+    "partition_type":     {"type": "string", "label": "Partition Type",
+                           "enum": ["daily", "weekly", "monthly", "hourly", "static", "dynamic", "multi"],
+                           "description": "Partition type shared by every emitted asset. Omit for unpartitioned. Use `{partition_key}` in source text / URL / file path / sink paths to substitute per partition."},
+    "partition_start":    {"type": "string", "label": "Partition Start",
+                           "description": "ISO date (YYYY-MM-DD) for time-based partition types (daily/weekly/monthly/hourly/multi)."},
+    "partition_values":   {"type": "any",    "label": "Partition Values",
+                           "description": "Comma-separated string OR list — the fixed partition keys for static/multi partitioning. e.g. ['NVDA', 'TSLA', 'META'] or 'NVDA,TSLA,META'."},
+    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name",
+                           "description": "Name for the DynamicPartitionsDefinition when partition_type='dynamic'."},
+    "partition_dimensions": {"type": "array", "label": "Partition Dimensions", "items": {"type": "object"},
+                           "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name}. Set INSTEAD of partition_type for multi-dimensional partitioning."}
   }
 }

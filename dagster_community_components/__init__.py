@@ -697,6 +697,7 @@ _CLASS_PATHS: dict[str, str] = {
     "PearsonCorrelationComponent": "assets/analytics/pearson_correlation/component.py",
     "PerFileProcessorJobComponent": "jobs/per_file_processor_job/component.py",
     "PerPartitionBackfillJobComponent": "jobs/per_partition_backfill_job/component.py",
+    "PartitionedAssetLauncherJobComponent": "jobs/partitioned_asset_launcher_job/component.py",
     "PerRowHttpFetcherComponent": "assets/transforms/per_row_http_fetcher/component.py",
     "PersonioIngestionComponent": "assets/ingestion/personio_ingestion/component.py",
     "PersonioResource": "resources/personio_resource/component.py",

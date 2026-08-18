@@ -43,8 +43,8 @@
       "label": "Default Status",
       "required": true,
       "enum": [
-        "STOPPED",
-        "RUNNING"
+        "stopped",
+        "running"
       ],
       "ui:widget": "select"
     },

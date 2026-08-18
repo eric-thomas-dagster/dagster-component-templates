@@ -82,12 +82,12 @@
       "type": "string",
       "label": "Schedule Default Status",
       "required": false,
-      "default": "STOPPED",
+      "default": "stopped",
       "description": "STOPPED | RUNNING \u2014 initial state of the schedule at Dagster startup.",
       "ui:widget": "select",
       "enum": [
-        "STOPPED",
-        "RUNNING"
+        "stopped",
+        "running"
       ]
     },
     "tags": {

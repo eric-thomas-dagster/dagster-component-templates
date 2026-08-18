@@ -5,7 +5,7 @@
   "properties": {
     "job_name": {"type": "string", "description": "Dagster job name."},
     "schedule": {"type": "string", "description": "Cron schedule (empty = no schedule)."},
-    "default_status": {"type": "string", "enum": ["STOPPED", "RUNNING"], "default": "STOPPED"},
+    "default_status": {"type": "string", "enum": ["stopped", "running"], "default": "stopped"},
     "tags": {"type": "object", "description": "Dagster job tags."},
     "host": {"type": "string", "default": "localhost"},
     "port": {"type": "integer", "default": 11211},

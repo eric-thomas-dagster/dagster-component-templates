@@ -17,10 +17,10 @@
     "default_status": {
       "type": "string",
       "required": false,
-      "default": "STOPPED",
+      "default": "stopped",
       "enum": [
-        "STOPPED",
-        "RUNNING"
+        "stopped",
+        "running"
       ],
       "ui:widget": "select"
     },

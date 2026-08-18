@@ -64,8 +64,8 @@
       "required": false,
       "default": "running",
       "enum": [
-        "STOPPED",
-        "RUNNING"
+        "stopped",
+        "running"
       ],
       "ui:widget": "select"
     },

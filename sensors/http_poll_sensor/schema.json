@@ -18,7 +18,9 @@
     },
     "asset_keys": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Asset Keys",
       "description": "Asset keys to materialize when the response changes.",
       "required": true
@@ -34,14 +36,20 @@
       "label": "HTTP Method",
       "description": "HTTP method.",
       "default": "GET",
-      "enum": ["GET", "POST", "HEAD"],
+      "enum": [
+        "GET",
+        "POST",
+        "HEAD"
+      ],
       "required": false
     },
     "headers": {
       "type": "object",
       "label": "Headers",
       "description": "Optional HTTP headers (use env-var values for secrets).",
-      "additionalProperties": {"type": "string"},
+      "additionalProperties": {
+        "type": "string"
+      },
       "required": false
     },
     "timeout_seconds": {
@@ -78,7 +86,9 @@
     },
     "strip_patterns": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Strip Patterns",
       "description": "Regexes to REMOVE from the body before hashing. Use to strip known noise (timestamps, ad slots, nonces).",
       "required": false
@@ -94,11 +104,19 @@
       "type": "string",
       "label": "Default Status",
       "description": "Sensor default status.",
-      "default": "STOPPED",
-      "enum": ["RUNNING", "STOPPED"],
+      "default": "stopped",
+      "enum": [
+        "running",
+        "stopped"
+      ],
       "required": false
     }
   },
-  "tags": ["sensor", "http", "polling", "generic"],
+  "tags": [
+    "sensor",
+    "http",
+    "polling",
+    "generic"
+  ],
   "name": "HttpPollSensor"
 }

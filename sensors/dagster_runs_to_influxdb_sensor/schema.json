@@ -59,10 +59,10 @@
       "label": "Default Status",
       "description": "One of: STOPPED / RUNNING.",
       "required": false,
-      "default": "STOPPED",
+      "default": "stopped",
       "enum": [
-        "STOPPED",
-        "RUNNING"
+        "stopped",
+        "running"
       ],
       "ui:widget": "select"
     },

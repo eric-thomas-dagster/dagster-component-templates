@@ -93,8 +93,8 @@
       "description": "'running' or 'stopped'.",
       "default": "running",
       "enum": [
-        "STOPPED",
-        "RUNNING"
+        "stopped",
+        "running"
       ],
       "ui:widget": "select"
     },

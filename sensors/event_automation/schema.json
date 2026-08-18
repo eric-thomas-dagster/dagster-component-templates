@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.EventAutomationComponent",
-  "description": "35 declarative triggers → 27 actions in one YAML component. Prefect-Automations analog on top of real Dagster sensors + Dagster+ GraphQL mutations.",
+  "description": "35 declarative triggers \u2192 27 actions in one YAML component. Prefect-Automations analog on top of real Dagster sensors + Dagster+ GraphQL mutations.",
   "category": "sensor",
   "icon": "Bell",
   "x-dagster-io": {
@@ -13,27 +13,52 @@
     "name": {
       "type": "string",
       "label": "Automation Name",
-      "description": "Automation name — prefix for generated sensor names.",
+      "description": "Automation name \u2014 prefix for generated sensor names.",
       "required": true
     },
     "when": {
       "type": "array",
       "label": "Triggers",
-      "description": "Triggers that fire the automation. OR semantics — any fires it. Discriminator: `type`.",
+      "description": "Triggers that fire the automation. OR semantics \u2014 any fires it. Discriminator: `type`.",
       "items": {
         "type": "object",
         "oneOf": [
           {
-            "title": "run_status — job / asset run finished with specific status",
+            "title": "run_status \u2014 job / asset run finished with specific status",
             "properties": {
-              "type": {"const": "run_status"},
-              "status": {"type": "string", "enum": ["SUCCESS", "FAILURE", "CANCELED", "STARTED"], "description": "Run status to fire on."},
-              "job_name": {"type": "string", "description": "Optional job filter. Omit = any job."},
-              "job_name_pattern": {"type": "string", "description": "Optional fnmatch glob on the run's job_name (e.g. 'prod_*')."},
-              "run_tags": {"type": "object", "additionalProperties": {"type": "string"}, "description": "Optional run-tag filter — every listed key=value must be present in the run's tags."},
+              "type": {
+                "const": "run_status"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "SUCCESS",
+                  "FAILURE",
+                  "CANCELED",
+                  "STARTED"
+                ],
+                "description": "Run status to fire on."
+              },
+              "job_name": {
+                "type": "string",
+                "description": "Optional job filter. Omit = any job."
+              },
+              "job_name_pattern": {
+                "type": "string",
+                "description": "Optional fnmatch glob on the run's job_name (e.g. 'prod_*')."
+              },
+              "run_tags": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Optional run-tag filter \u2014 every listed key=value must be present in the run's tags."
+              },
               "monitored_locations": {
                 "type": "array",
-                "items": {"type": "string"},
+                "items": {
+                  "type": "string"
+                },
                 "description": "Cross-code-location: watch every job in these locations. Enables a dedicated 'alerts' code location that observes prod locations. Default: own location only."
               },
               "monitored_jobs": {
@@ -42,68 +67,192 @@
                 "items": {
                   "type": "object",
                   "properties": {
-                    "location": {"type": "string", "description": "Code location name."},
-                    "job": {"type": "string", "description": "Job name."},
-                    "repository": {"type": "string", "default": "__repository__", "description": "Repository name. Defaults to __repository__ (create-dagster convention)."}
+                    "location": {
+                      "type": "string",
+                      "description": "Code location name."
+                    },
+                    "job": {
+                      "type": "string",
+                      "description": "Job name."
+                    },
+                    "repository": {
+                      "type": "string",
+                      "default": "__repository__",
+                      "description": "Repository name. Defaults to __repository__ (create-dagster convention)."
+                    }
                   },
-                  "required": ["location", "job"]
+                  "required": [
+                    "location",
+                    "job"
+                  ]
                 }
               }
             },
-            "required": ["type", "status"]
+            "required": [
+              "type",
+              "status"
+            ]
           },
           {
-            "title": "asset_materialized — named assets got materialized",
+            "title": "asset_materialized \u2014 named assets got materialized",
             "properties": {
-              "type": {"const": "asset_materialized"},
-              "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."}
+              "type": {
+                "const": "asset_materialized"
+              },
+              "asset_keys": {
+                "oneOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."
+              }
             },
-            "required": ["type", "asset_keys"]
+            "required": [
+              "type",
+              "asset_keys"
+            ]
           },
           {
-            "title": "schedule — cron trigger",
+            "title": "schedule \u2014 cron trigger",
             "properties": {
-              "type": {"const": "schedule"},
-              "cron": {"type": "string", "description": "Cron expression, e.g. '0 * * * *'."},
-              "execution_timezone": {"type": "string", "default": "UTC"}
+              "type": {
+                "const": "schedule"
+              },
+              "cron": {
+                "type": "string",
+                "description": "Cron expression, e.g. '0 * * * *'."
+              },
+              "execution_timezone": {
+                "type": "string",
+                "default": "UTC"
+              }
             },
-            "required": ["type", "cron"]
+            "required": [
+              "type",
+              "cron"
+            ]
           },
           {
-            "title": "http_poll — poll a URL, fire on condition",
+            "title": "http_poll \u2014 poll a URL, fire on condition",
             "properties": {
-              "type": {"const": "http_poll"},
-              "url": {"type": "string"},
-              "method": {"type": "string", "default": "GET"},
-              "headers": {"type": "object"},
-              "minimum_interval_seconds": {"type": "integer", "default": 60, "description": "Seconds between polls. Minimum 10."},
-              "condition": {"type": "string", "enum": ["response_changed", "status_ok", "json_path_present"], "default": "response_changed"},
-              "json_path": {"type": "string", "description": "Required for condition=json_path_present. Dotted path into the JSON response."}
+              "type": {
+                "const": "http_poll"
+              },
+              "url": {
+                "type": "string"
+              },
+              "method": {
+                "type": "string",
+                "default": "GET"
+              },
+              "headers": {
+                "type": "object"
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60,
+                "description": "Seconds between polls. Minimum 10."
+              },
+              "condition": {
+                "type": "string",
+                "enum": [
+                  "response_changed",
+                  "status_ok",
+                  "json_path_present"
+                ],
+                "default": "response_changed"
+              },
+              "json_path": {
+                "type": "string",
+                "description": "Required for condition=json_path_present. Dotted path into the JSON response."
+              }
             },
-            "required": ["type", "url"]
+            "required": [
+              "type",
+              "url"
+            ]
           },
           {
-            "title": "freshness_violation — asset stale beyond max_age",
+            "title": "freshness_violation \u2014 asset stale beyond max_age",
             "properties": {
-              "type": {"const": "freshness_violation"},
-              "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."},
-              "max_age_minutes": {"type": "integer", "description": "Fire if latest materialization is older than this."},
-              "minimum_interval_seconds": {"type": "integer", "default": 300}
+              "type": {
+                "const": "freshness_violation"
+              },
+              "asset_keys": {
+                "oneOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."
+              },
+              "max_age_minutes": {
+                "type": "integer",
+                "description": "Fire if latest materialization is older than this."
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 300
+              }
             },
-            "required": ["type", "asset_keys", "max_age_minutes"]
+            "required": [
+              "type",
+              "asset_keys",
+              "max_age_minutes"
+            ]
           },
           {
-            "title": "run_duration — run finished + duration > threshold",
+            "title": "run_duration \u2014 run finished + duration > threshold",
             "properties": {
-              "type": {"const": "run_duration"},
-              "max_duration_seconds": {"type": "integer", "description": "Fire when total run duration > this."},
-              "job_name": {"type": "string", "description": "Optional job filter."},
-              "job_name_pattern": {"type": "string", "description": "Optional fnmatch glob on the run's job_name."},
-              "run_tags": {"type": "object", "additionalProperties": {"type": "string"}, "description": "Optional run-tag filter (all listed key=value must match)."},
-              "on_status": {"type": "string", "enum": ["ANY", "SUCCESS", "FAILURE"], "default": "ANY"},
+              "type": {
+                "const": "run_duration"
+              },
+              "max_duration_seconds": {
+                "type": "integer",
+                "description": "Fire when total run duration > this."
+              },
+              "job_name": {
+                "type": "string",
+                "description": "Optional job filter."
+              },
+              "job_name_pattern": {
+                "type": "string",
+                "description": "Optional fnmatch glob on the run's job_name."
+              },
+              "run_tags": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Optional run-tag filter (all listed key=value must match)."
+              },
+              "on_status": {
+                "type": "string",
+                "enum": [
+                  "ANY",
+                  "SUCCESS",
+                  "FAILURE"
+                ],
+                "default": "ANY"
+              },
               "monitored_locations": {
                 "type": "array",
-                "items": {"type": "string"},
+                "items": {
+                  "type": "string"
+                },
                 "description": "Cross-code-location: watch every job in these locations."
               },
               "monitored_jobs": {
@@ -112,407 +261,1144 @@
                 "items": {
                   "type": "object",
                   "properties": {
-                    "location": {"type": "string"},
-                    "job": {"type": "string"},
-                    "repository": {"type": "string", "default": "__repository__"}
+                    "location": {
+                      "type": "string"
+                    },
+                    "job": {
+                      "type": "string"
+                    },
+                    "repository": {
+                      "type": "string",
+                      "default": "__repository__"
+                    }
                   },
-                  "required": ["location", "job"]
+                  "required": [
+                    "location",
+                    "job"
+                  ]
                 }
               }
             },
-            "required": ["type", "max_duration_seconds"]
+            "required": [
+              "type",
+              "max_duration_seconds"
+            ]
           },
           {
-            "title": "run_stuck — active run running too long",
+            "title": "run_stuck \u2014 active run running too long",
             "properties": {
-              "type": {"const": "run_stuck"},
-              "max_running_seconds": {"type": "integer", "description": "Fire when a run has been RUNNING for > this."},
-              "job_name": {"type": "string", "description": "Optional job filter."},
-              "job_name_pattern": {"type": "string", "description": "Optional fnmatch glob on the run's job_name."},
-              "run_tags": {"type": "object", "additionalProperties": {"type": "string"}, "description": "Optional run-tag filter."},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "type": {
+                "const": "run_stuck"
+              },
+              "max_running_seconds": {
+                "type": "integer",
+                "description": "Fire when a run has been RUNNING for > this."
+              },
+              "job_name": {
+                "type": "string",
+                "description": "Optional job filter."
+              },
+              "job_name_pattern": {
+                "type": "string",
+                "description": "Optional fnmatch glob on the run's job_name."
+              },
+              "run_tags": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Optional run-tag filter."
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type", "max_running_seconds"]
+            "required": [
+              "type",
+              "max_running_seconds"
+            ]
           },
           {
-            "title": "asset_check_failed — reactive data quality",
+            "title": "asset_check_failed \u2014 reactive data quality",
             "properties": {
-              "type": {"const": "asset_check_failed"},
-              "check_names": {"type": "array", "items": {"type": "string"}, "description": "Names of checks to watch. Omit = any check failure."},
-              "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Optional asset key filter. — accepts a list of keys OR a Dagster asset-selection string (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, boolean composition) or fnmatch glob (`marts/*`)."},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "type": {
+                "const": "asset_check_failed"
+              },
+              "check_names": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Names of checks to watch. Omit = any check failure."
+              },
+              "asset_keys": {
+                "oneOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "description": "Optional asset key filter. \u2014 accepts a list of keys OR a Dagster asset-selection string (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, boolean composition) or fnmatch glob (`marts/*`)."
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type"]
+            "required": [
+              "type"
+            ]
           },
           {
-            "title": "metric_threshold — numeric metadata crossed threshold",
+            "title": "metric_threshold \u2014 numeric metadata crossed threshold",
             "properties": {
-              "type": {"const": "metric_threshold"},
-              "asset_key": {"type": "string"},
-              "metadata_key": {"type": "string", "description": "Numeric metadata key on the materialization (e.g. 'row_count')."},
-              "comparison": {"type": "string", "enum": ["gt", "gte", "lt", "lte", "eq", "neq"]},
-              "threshold": {"type": "number"},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "type": {
+                "const": "metric_threshold"
+              },
+              "asset_key": {
+                "type": "string"
+              },
+              "metadata_key": {
+                "type": "string",
+                "description": "Numeric metadata key on the materialization (e.g. 'row_count')."
+              },
+              "comparison": {
+                "type": "string",
+                "enum": [
+                  "gt",
+                  "gte",
+                  "lt",
+                  "lte",
+                  "eq",
+                  "neq"
+                ]
+              },
+              "threshold": {
+                "type": "number"
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type", "asset_key", "metadata_key", "comparison", "threshold"]
+            "required": [
+              "type",
+              "asset_key",
+              "metadata_key",
+              "comparison",
+              "threshold"
+            ]
           },
           {
-            "title": "absence — dead-man's switch (no materialization in window)",
+            "title": "absence \u2014 dead-man's switch (no materialization in window)",
             "properties": {
-              "type": {"const": "absence"},
-              "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."},
-              "max_gap_minutes": {"type": "integer", "description": "Fire if no materialization in this many minutes."},
-              "minimum_interval_seconds": {"type": "integer", "default": 300}
+              "type": {
+                "const": "absence"
+              },
+              "asset_keys": {
+                "oneOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."
+              },
+              "max_gap_minutes": {
+                "type": "integer",
+                "description": "Fire if no materialization in this many minutes."
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 300
+              }
             },
-            "required": ["type", "asset_keys", "max_gap_minutes"]
+            "required": [
+              "type",
+              "asset_keys",
+              "max_gap_minutes"
+            ]
           },
           {
-            "title": "log_pattern — regex match on run log lines (events + stdout + stderr)",
+            "title": "log_pattern \u2014 regex match on run log lines (events + stdout + stderr)",
             "properties": {
-              "type": {"const": "log_pattern"},
-              "pattern": {"type": "string", "description": "Regex pattern to match against log message text."},
-              "job_name": {"type": "string", "description": "Optional job filter."},
+              "type": {
+                "const": "log_pattern"
+              },
+              "pattern": {
+                "type": "string",
+                "description": "Regex pattern to match against log message text."
+              },
+              "job_name": {
+                "type": "string",
+                "description": "Optional job filter."
+              },
               "sources": {
                 "type": "array",
-                "items": {"type": "string", "enum": ["events", "stdout", "stderr"]},
-                "default": ["events"],
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "events",
+                    "stdout",
+                    "stderr"
+                  ]
+                },
+                "default": [
+                  "events"
+                ],
                 "description": "Which log streams to scan. events = dagster user_message logs. stdout/stderr = compute_log_manager raw process output (K8s / ECS / Docker container output)."
               },
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type", "pattern"]
+            "required": [
+              "type",
+              "pattern"
+            ]
           },
           {
-            "title": "daemon_heartbeat — Dagster daemon / agent stopped heartbeating",
+            "title": "daemon_heartbeat \u2014 Dagster daemon / agent stopped heartbeating",
             "properties": {
-              "type": {"const": "daemon_heartbeat"},
-              "daemon_type": {"type": "string", "description": "Filter to daemon type (SENSOR / SCHEDULER / …). None = all."},
-              "max_seconds_since_heartbeat": {"type": "integer", "default": 120},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "type": {
+                "const": "daemon_heartbeat"
+              },
+              "daemon_type": {
+                "type": "string",
+                "description": "Filter to daemon type (SENSOR / SCHEDULER / \u2026). None = all."
+              },
+              "max_seconds_since_heartbeat": {
+                "type": "integer",
+                "default": 120
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type"]
+            "required": [
+              "type"
+            ]
           },
           {
-            "title": "code_location_status — code location failed or stuck loading",
+            "title": "code_location_status \u2014 code location failed or stuck loading",
             "properties": {
-              "type": {"const": "code_location_status"},
-              "on_status": {"type": "string", "enum": ["ERROR", "LOADING", "TIMED_OUT", "UNHEALTHY"]},
-              "max_seconds_loading": {"type": "integer", "default": 300, "description": "For on_status=LOADING: fire when location has been LOADING > this."},
-              "location_name_pattern": {"type": "string", "description": "Optional regex on location name."},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "type": {
+                "const": "code_location_status"
+              },
+              "on_status": {
+                "type": "string",
+                "enum": [
+                  "ERROR",
+                  "LOADING",
+                  "TIMED_OUT",
+                  "UNHEALTHY"
+                ]
+              },
+              "max_seconds_loading": {
+                "type": "integer",
+                "default": 300,
+                "description": "For on_status=LOADING: fire when location has been LOADING > this."
+              },
+              "location_name_pattern": {
+                "type": "string",
+                "description": "Optional regex on location name."
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type", "on_status"]
+            "required": [
+              "type",
+              "on_status"
+            ]
           },
           {
-            "title": "run_startup_slow — run took too long to start (compute spinup)",
+            "title": "run_startup_slow \u2014 run took too long to start (compute spinup)",
             "properties": {
-              "type": {"const": "run_startup_slow"},
-              "max_startup_seconds": {"type": "integer", "description": "Fire when time from run creation to STARTED > this."},
-              "job_name": {"type": "string"},
-              "job_name_pattern": {"type": "string", "description": "Optional fnmatch glob on the run's job_name."},
-              "run_tags": {"type": "object", "additionalProperties": {"type": "string"}, "description": "Optional run-tag filter."},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "type": {
+                "const": "run_startup_slow"
+              },
+              "max_startup_seconds": {
+                "type": "integer",
+                "description": "Fire when time from run creation to STARTED > this."
+              },
+              "job_name": {
+                "type": "string"
+              },
+              "job_name_pattern": {
+                "type": "string",
+                "description": "Optional fnmatch glob on the run's job_name."
+              },
+              "run_tags": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Optional run-tag filter."
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type", "max_startup_seconds"]
+            "required": [
+              "type",
+              "max_startup_seconds"
+            ]
           },
           {
-            "title": "asset_observation — AssetObservation event emitted",
+            "title": "asset_observation \u2014 AssetObservation event emitted",
             "properties": {
-              "type": {"const": "asset_observation"},
-              "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "type": {
+                "const": "asset_observation"
+              },
+              "asset_keys": {
+                "oneOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type", "asset_keys"]
+            "required": [
+              "type",
+              "asset_keys"
+            ]
           },
           {
-            "title": "step_error — op step raised an exception (step-level)",
+            "title": "step_error \u2014 op step raised an exception (step-level)",
             "properties": {
-              "type": {"const": "step_error"},
-              "job_name": {"type": "string"},
-              "job_name_pattern": {"type": "string", "description": "Optional fnmatch glob on the run's job_name."},
-              "run_tags": {"type": "object", "additionalProperties": {"type": "string"}, "description": "Optional run-tag filter."},
-              "step_key_pattern": {"type": "string", "description": "Optional regex on step key."},
-              "exception_pattern": {"type": "string", "description": "Optional regex on exception message."},
+              "type": {
+                "const": "step_error"
+              },
+              "job_name": {
+                "type": "string"
+              },
+              "job_name_pattern": {
+                "type": "string",
+                "description": "Optional fnmatch glob on the run's job_name."
+              },
+              "run_tags": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Optional run-tag filter."
+              },
+              "step_key_pattern": {
+                "type": "string",
+                "description": "Optional regex on step key."
+              },
+              "exception_pattern": {
+                "type": "string",
+                "description": "Optional regex on exception message."
+              },
               "only_final_failures": {
                 "type": "boolean",
                 "default": false,
                 "description": "When True, skip intermediate attempts that will be retried by the op's RetryPolicy. Only fires when the step is definitively FAILURE."
               },
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type"]
+            "required": [
+              "type"
+            ]
           },
           {
-            "title": "metadata_match — materialization/observation carries specific metadata",
+            "title": "metadata_match \u2014 materialization/observation carries specific metadata",
             "properties": {
-              "type": {"const": "metadata_match"},
-              "asset_key": {"type": "string"},
-              "metadata_key": {"type": "string"},
-              "equals": {"type": "string", "description": "Exact-match value. Mutually exclusive with regex."},
-              "regex": {"type": "string", "description": "Regex on str(value). Mutually exclusive with equals."},
-              "include_observations": {"type": "boolean", "default": true, "description": "True = match on materializations AND observations."},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "type": {
+                "const": "metadata_match"
+              },
+              "asset_key": {
+                "type": "string"
+              },
+              "metadata_key": {
+                "type": "string"
+              },
+              "equals": {
+                "type": "string",
+                "description": "Exact-match value. Mutually exclusive with regex."
+              },
+              "regex": {
+                "type": "string",
+                "description": "Regex on str(value). Mutually exclusive with equals."
+              },
+              "include_observations": {
+                "type": "boolean",
+                "default": true,
+                "description": "True = match on materializations AND observations."
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type", "asset_key", "metadata_key"]
+            "required": [
+              "type",
+              "asset_key",
+              "metadata_key"
+            ]
           },
           {
-            "title": "asset_value_change — numeric metadata Δ across materializations",
+            "title": "asset_value_change \u2014 numeric metadata \u0394 across materializations",
             "properties": {
-              "type": {"const": "asset_value_change"},
-              "asset_key": {"type": "string"},
-              "metadata_key": {"type": "string", "description": "Numeric metadata key to compare across materializations."},
-              "direction": {"type": "string", "enum": ["any", "increase", "decrease"], "default": "any"},
-              "min_delta": {"type": "number", "description": "Absolute delta threshold."},
-              "min_delta_pct": {"type": "number", "description": "Percentage delta threshold (0-100). Fires when |Δ|/prev > this."},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "type": {
+                "const": "asset_value_change"
+              },
+              "asset_key": {
+                "type": "string"
+              },
+              "metadata_key": {
+                "type": "string",
+                "description": "Numeric metadata key to compare across materializations."
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "any",
+                  "increase",
+                  "decrease"
+                ],
+                "default": "any"
+              },
+              "min_delta": {
+                "type": "number",
+                "description": "Absolute delta threshold."
+              },
+              "min_delta_pct": {
+                "type": "number",
+                "description": "Percentage delta threshold (0-100). Fires when |\u0394|/prev > this."
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type", "asset_key", "metadata_key"]
+            "required": [
+              "type",
+              "asset_key",
+              "metadata_key"
+            ]
           },
           {
-            "title": "backfill_status — partition backfill entered a state",
+            "title": "backfill_status \u2014 partition backfill entered a state",
             "properties": {
-              "type": {"const": "backfill_status"},
-              "status": {"type": "string", "enum": ["COMPLETED", "FAILED", "CANCELED", "REQUESTED"]},
-              "job_name": {"type": "string", "description": "Optional job filter."},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "type": {
+                "const": "backfill_status"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "COMPLETED",
+                  "FAILED",
+                  "CANCELED",
+                  "REQUESTED"
+                ]
+              },
+              "job_name": {
+                "type": "string",
+                "description": "Optional job filter."
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type", "status"]
+            "required": [
+              "type",
+              "status"
+            ]
           },
           {
-            "title": "sensor_failing — target sensor has failed N consecutive ticks",
+            "title": "sensor_failing \u2014 target sensor has failed N consecutive ticks",
             "properties": {
-              "type": {"const": "sensor_failing"},
-              "target_sensor_name": {"type": "string", "description": "Name of the sensor to monitor."},
-              "consecutive_failures": {"type": "integer", "default": 3, "description": "Number of consecutive failures to fire on."},
-              "minimum_interval_seconds": {"type": "integer", "default": 120}
+              "type": {
+                "const": "sensor_failing"
+              },
+              "target_sensor_name": {
+                "type": "string",
+                "description": "Name of the sensor to monitor."
+              },
+              "consecutive_failures": {
+                "type": "integer",
+                "default": 3,
+                "description": "Number of consecutive failures to fire on."
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 120
+              }
             },
-            "required": ["type", "target_sensor_name"]
+            "required": [
+              "type",
+              "target_sensor_name"
+            ]
           },
           {
-            "title": "concurrency_hit — active-run count exceeded threshold",
+            "title": "concurrency_hit \u2014 active-run count exceeded threshold",
             "properties": {
-              "type": {"const": "concurrency_hit"},
-              "max_queued": {"type": "integer", "description": "Fire when queued+running count > this."},
-              "tag_key": {"type": "string", "description": "Optional tag filter."},
-              "tag_value": {"type": "string", "description": "Optional tag value filter."},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "type": {
+                "const": "concurrency_hit"
+              },
+              "max_queued": {
+                "type": "integer",
+                "description": "Fire when queued+running count > this."
+              },
+              "tag_key": {
+                "type": "string",
+                "description": "Optional tag filter."
+              },
+              "tag_value": {
+                "type": "string",
+                "description": "Optional tag value filter."
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type", "max_queued"]
+            "required": [
+              "type",
+              "max_queued"
+            ]
           },
           {
-            "title": "hook_fired — a Dagster hook (@success_hook / @failure_hook) executed",
+            "title": "hook_fired \u2014 a Dagster hook (@success_hook / @failure_hook) executed",
             "properties": {
-              "type": {"const": "hook_fired"},
-              "hook_name_pattern": {"type": "string"},
-              "on_status": {"type": "string", "enum": ["ANY", "SUCCESS", "FAILURE"], "default": "ANY"},
-              "job_name": {"type": "string"},
-              "job_name_pattern": {"type": "string", "description": "Optional fnmatch glob on the run's job_name."},
-              "run_tags": {"type": "object", "additionalProperties": {"type": "string"}, "description": "Optional run-tag filter."},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "type": {
+                "const": "hook_fired"
+              },
+              "hook_name_pattern": {
+                "type": "string"
+              },
+              "on_status": {
+                "type": "string",
+                "enum": [
+                  "ANY",
+                  "SUCCESS",
+                  "FAILURE"
+                ],
+                "default": "ANY"
+              },
+              "job_name": {
+                "type": "string"
+              },
+              "job_name_pattern": {
+                "type": "string",
+                "description": "Optional fnmatch glob on the run's job_name."
+              },
+              "run_tags": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Optional run-tag filter."
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type"]
+            "required": [
+              "type"
+            ]
           },
           {
-            "title": "asset_partition_materialized — specific asset PARTITION materialized",
+            "title": "asset_partition_materialized \u2014 specific asset PARTITION materialized",
             "properties": {
-              "type": {"const": "asset_partition_materialized"},
-              "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."},
+              "type": {
+                "const": "asset_partition_materialized"
+              },
+              "asset_keys": {
+                "oneOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."
+              },
               "partition_key": {
                 "oneOf": [
-                  {"type": "string", "description": "Exact partition match — single-dim (e.g. '2024-01-15')."},
-                  {"type": "object", "additionalProperties": {"type": "string"}, "description": "Multi-dim partition filter — one entry per dimension. Unspecified dims wildcard (e.g. {region: 'us'} matches every date for region=us)."}
+                  {
+                    "type": "string",
+                    "description": "Exact partition match \u2014 single-dim (e.g. '2024-01-15')."
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "description": "Multi-dim partition filter \u2014 one entry per dimension. Unspecified dims wildcard (e.g. {region: 'us'} matches every date for region=us)."
+                  }
                 ],
                 "description": "Exact partition match. String for single-dim, object for MultiPartitionsDefinition."
               },
-              "partition_key_pattern": {"type": "string", "description": "Regex on partition key (string form only)."},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "partition_key_pattern": {
+                "type": "string",
+                "description": "Regex on partition key (string form only)."
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type", "asset_keys"]
+            "required": [
+              "type",
+              "asset_keys"
+            ]
           },
           {
-            "title": "run_reexecution — a run was re-executed (retry audit)",
+            "title": "run_reexecution \u2014 a run was re-executed (retry audit)",
             "properties": {
-              "type": {"const": "run_reexecution"},
-              "job_name": {"type": "string"},
-              "strategy": {"type": "string", "enum": ["from_failure", "all_steps"]},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "type": {
+                "const": "run_reexecution"
+              },
+              "job_name": {
+                "type": "string"
+              },
+              "strategy": {
+                "type": "string",
+                "enum": [
+                  "from_failure",
+                  "all_steps"
+                ]
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type"]
+            "required": [
+              "type"
+            ]
           },
           {
-            "title": "asset_wipe — materialization history wiped (destructive audit)",
+            "title": "asset_wipe \u2014 materialization history wiped (destructive audit)",
             "properties": {
-              "type": {"const": "asset_wipe"},
-              "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Watch these. None = any wipe. — accepts a list of keys OR a Dagster asset-selection string (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, boolean composition) or fnmatch glob (`marts/*`)."},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "type": {
+                "const": "asset_wipe"
+              },
+              "asset_keys": {
+                "oneOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "description": "Watch these. None = any wipe. \u2014 accepts a list of keys OR a Dagster asset-selection string (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, boolean composition) or fnmatch glob (`marts/*`)."
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type"]
+            "required": [
+              "type"
+            ]
           },
           {
-            "title": "config_override — run launched with non-default config (change-tracking)",
+            "title": "config_override \u2014 run launched with non-default config (change-tracking)",
             "properties": {
-              "type": {"const": "config_override"},
-              "job_name": {"type": "string"},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "type": {
+                "const": "config_override"
+              },
+              "job_name": {
+                "type": "string"
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type"]
+            "required": [
+              "type"
+            ]
           },
           {
-            "title": "tag_set — run carries specific tag key/value (audit + routing)",
+            "title": "tag_set \u2014 run carries specific tag key/value (audit + routing)",
             "properties": {
-              "type": {"const": "tag_set"},
-              "tag_key": {"type": "string"},
-              "tag_value": {"type": "string", "description": "Exact value. Omit = any value."},
-              "tag_value_pattern": {"type": "string", "description": "Regex on value."},
-              "on_status": {"type": "string", "default": "STARTED"},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "type": {
+                "const": "tag_set"
+              },
+              "tag_key": {
+                "type": "string"
+              },
+              "tag_value": {
+                "type": "string",
+                "description": "Exact value. Omit = any value."
+              },
+              "tag_value_pattern": {
+                "type": "string",
+                "description": "Regex on value."
+              },
+              "on_status": {
+                "type": "string",
+                "default": "STARTED"
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type", "tag_key"]
+            "required": [
+              "type",
+              "tag_key"
+            ]
           },
           {
-            "title": "unhandled_exception — run-level unhandled exception (infra crash)",
+            "title": "unhandled_exception \u2014 run-level unhandled exception (infra crash)",
             "properties": {
-              "type": {"const": "unhandled_exception"},
-              "job_name": {"type": "string"},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "type": {
+                "const": "unhandled_exception"
+              },
+              "job_name": {
+                "type": "string"
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type"]
+            "required": [
+              "type"
+            ]
           },
           {
-            "title": "asset_check_severity — asset check evaluations at specific severity",
+            "title": "asset_check_severity \u2014 asset check evaluations at specific severity",
             "properties": {
-              "type": {"const": "asset_check_severity"},
-              "severity": {"type": "string", "enum": ["WARN", "ERROR"]},
-              "check_names": {"type": "array", "items": {"type": "string"}},
-              "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "type": {
+                "const": "asset_check_severity"
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "WARN",
+                  "ERROR"
+                ]
+              },
+              "check_names": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "asset_keys": {
+                "oneOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type", "severity"]
+            "required": [
+              "type",
+              "severity"
+            ]
           },
           {
-            "title": "op_output — a specific op yielded output (STEP_OUTPUT event)",
+            "title": "op_output \u2014 a specific op yielded output (STEP_OUTPUT event)",
             "properties": {
-              "type": {"const": "op_output"},
-              "step_key_pattern": {"type": "string", "description": "Regex on step key."},
-              "output_name": {"type": "string"},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "type": {
+                "const": "op_output"
+              },
+              "step_key_pattern": {
+                "type": "string",
+                "description": "Regex on step key."
+              },
+              "output_name": {
+                "type": "string"
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type", "step_key_pattern"]
+            "required": [
+              "type",
+              "step_key_pattern"
+            ]
           },
           {
-            "title": "materialization_planned — pre-materialization event (warm caches, etc.)",
+            "title": "materialization_planned \u2014 pre-materialization event (warm caches, etc.)",
             "properties": {
-              "type": {"const": "materialization_planned"},
-              "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "type": {
+                "const": "materialization_planned"
+              },
+              "asset_keys": {
+                "oneOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type", "asset_keys"]
+            "required": [
+              "type",
+              "asset_keys"
+            ]
           },
           {
-            "title": "asset_check_started — asset check evaluation started",
+            "title": "asset_check_started \u2014 asset check evaluation started",
             "properties": {
-              "type": {"const": "asset_check_started"},
-              "check_names": {"type": "array", "items": {"type": "string"}},
-              "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "type": {
+                "const": "asset_check_started"
+              },
+              "check_names": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "asset_keys": {
+                "oneOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type"]
+            "required": [
+              "type"
+            ]
           },
           {
-            "title": "insights_metric — Dagster+ Insights time-window aggregate crossed threshold",
+            "title": "insights_metric \u2014 Dagster+ Insights time-window aggregate crossed threshold",
             "properties": {
-              "type": {"const": "insights_metric"},
-              "metric_name": {"type": "string", "description": "Dagster+ Insights metric name."},
-              "comparison": {"type": "string", "enum": ["gt", "gte", "lt", "lte", "eq", "neq"]},
-              "threshold": {"type": "number"},
-              "granularity": {"type": "string", "enum": ["HOURLY", "DAILY", "WEEKLY", "MONTHLY"], "default": "DAILY", "description": "Time bucket size (Victoria Metrics)."},
-              "aggregation": {"type": "string", "enum": ["SUM", "AVERAGE", "MIN", "MAX"], "default": "SUM", "description": "How values within a bucket combine."},
-              "lookback_hours": {"type": "integer", "default": 24, "description": "Hours of history to fetch."},
-              "asset_selection": {"type": "string", "description": "Optional Dagster asset-selection string, resolved server-side ('group:X', 'tag:foo=bar', 'kind:Y', 'is:external', 'key:\"path/to/asset\"'). Unset = deployment-wide."},
-              "deployment": {"type": "string", "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."},
-              "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
-              "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
-              "minimum_interval_seconds": {"type": "integer", "default": 300}
+              "type": {
+                "const": "insights_metric"
+              },
+              "metric_name": {
+                "type": "string",
+                "description": "Dagster+ Insights metric name."
+              },
+              "comparison": {
+                "type": "string",
+                "enum": [
+                  "gt",
+                  "gte",
+                  "lt",
+                  "lte",
+                  "eq",
+                  "neq"
+                ]
+              },
+              "threshold": {
+                "type": "number"
+              },
+              "granularity": {
+                "type": "string",
+                "enum": [
+                  "HOURLY",
+                  "DAILY",
+                  "WEEKLY",
+                  "MONTHLY"
+                ],
+                "default": "DAILY",
+                "description": "Time bucket size (Victoria Metrics)."
+              },
+              "aggregation": {
+                "type": "string",
+                "enum": [
+                  "SUM",
+                  "AVERAGE",
+                  "MIN",
+                  "MAX"
+                ],
+                "default": "SUM",
+                "description": "How values within a bucket combine."
+              },
+              "lookback_hours": {
+                "type": "integer",
+                "default": 24,
+                "description": "Hours of history to fetch."
+              },
+              "asset_selection": {
+                "type": "string",
+                "description": "Optional Dagster asset-selection string, resolved server-side ('group:X', 'tag:foo=bar', 'kind:Y', 'is:external', 'key:\"path/to/asset\"'). Unset = deployment-wide."
+              },
+              "deployment": {
+                "type": "string",
+                "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."
+              },
+              "org_env_var": {
+                "type": "string",
+                "default": "DAGSTER_CLOUD_ORGANIZATION"
+              },
+              "token_env_var": {
+                "type": "string",
+                "default": "DAGSTER_CLOUD_API_TOKEN"
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 300
+              }
             },
-            "required": ["type", "metric_name", "comparison", "threshold"]
+            "required": [
+              "type",
+              "metric_name",
+              "comparison",
+              "threshold"
+            ]
           },
           {
-            "title": "dagster_plus_audit — Dagster+ audit log event matching filter",
+            "title": "dagster_plus_audit \u2014 Dagster+ audit log event matching filter",
             "properties": {
-              "type": {"const": "dagster_plus_audit"},
+              "type": {
+                "const": "dagster_plus_audit"
+              },
               "event_types": {
                 "type": "array",
                 "items": {
                   "type": "string",
                   "enum": [
-                    "CHANGE_USER_PERMISSIONS", "CREATE_SERVICE_USER", "UPDATE_SERVICE_USER",
-                    "DELETE_SERVICE_USER", "CHANGE_SERVICE_USER_PERMISSIONS",
-                    "CREATE_USER_TOKEN", "REVOKE_USER_TOKEN", "CREATE_AGENT_TOKEN",
-                    "REVOKE_AGENT_TOKEN", "UPDATE_AGENT_TOKEN_PERMISSIONS",
-                    "CREATE_SERVICE_TOKEN", "REVOKE_SERVICE_TOKEN", "PUT_REVOKE_TOKEN",
-                    "CREATE_SECRET", "UPDATE_SECRET", "DELETE_SECRET",
-                    "CREATE_DEPLOYMENT", "DELETE_DEPLOYMENT", "UPDATE_DEPLOYMENT_SETTINGS",
-                    "CREATE_CODE_LOCATION", "UPDATE_CODE_LOCATION", "DELETE_CODE_LOCATION",
+                    "CHANGE_USER_PERMISSIONS",
+                    "CREATE_SERVICE_USER",
+                    "UPDATE_SERVICE_USER",
+                    "DELETE_SERVICE_USER",
+                    "CHANGE_SERVICE_USER_PERMISSIONS",
+                    "CREATE_USER_TOKEN",
+                    "REVOKE_USER_TOKEN",
+                    "CREATE_AGENT_TOKEN",
+                    "REVOKE_AGENT_TOKEN",
+                    "UPDATE_AGENT_TOKEN_PERMISSIONS",
+                    "CREATE_SERVICE_TOKEN",
+                    "REVOKE_SERVICE_TOKEN",
+                    "PUT_REVOKE_TOKEN",
+                    "CREATE_SECRET",
+                    "UPDATE_SECRET",
+                    "DELETE_SECRET",
+                    "CREATE_DEPLOYMENT",
+                    "DELETE_DEPLOYMENT",
+                    "UPDATE_DEPLOYMENT_SETTINGS",
+                    "CREATE_CODE_LOCATION",
+                    "UPDATE_CODE_LOCATION",
+                    "DELETE_CODE_LOCATION",
                     "REDEPLOY_SERVERLESS_AGENT",
-                    "UPDATE_SCHEDULE", "UPDATE_SENSOR", "SET_AUTO_MATERIALIZE_PAUSED",
-                    "LAUNCH_RUN", "LAUNCH_BACKFILL",
-                    "MODIFY_ALERT_POLICIES", "SET_ALERT_POLICY_MUTE_UNTIL",
-                    "CREATE_ORGANIZATION_SUBDOMAIN", "DELETE_ORGANIZATION_SUBDOMAIN",
-                    "UPDATE_SUBSCRIPTION_PLAN", "UPDATE_SUBSCRIPTION_TYPE",
-                    "LOG_IN", "IFRAME_LOG_IN",
-                    "EDIT_CUSTOMER_ID", "EDIT_SALESFORCE_ACCOUNT_ID", "CREATE_ENT_TRIAL",
-                    "UPDATE_TRIAL_DAYS", "SET_ACCOUNT_REVIEW",
-                    "UPDATE_INTERNAL_ORGANIZATION_SETTINGS", "UPDATE_AGENT_TYPE"
+                    "UPDATE_SCHEDULE",
+                    "UPDATE_SENSOR",
+                    "SET_AUTO_MATERIALIZE_PAUSED",
+                    "LAUNCH_RUN",
+                    "LAUNCH_BACKFILL",
+                    "MODIFY_ALERT_POLICIES",
+                    "SET_ALERT_POLICY_MUTE_UNTIL",
+                    "CREATE_ORGANIZATION_SUBDOMAIN",
+                    "DELETE_ORGANIZATION_SUBDOMAIN",
+                    "UPDATE_SUBSCRIPTION_PLAN",
+                    "UPDATE_SUBSCRIPTION_TYPE",
+                    "LOG_IN",
+                    "IFRAME_LOG_IN",
+                    "EDIT_CUSTOMER_ID",
+                    "EDIT_SALESFORCE_ACCOUNT_ID",
+                    "CREATE_ENT_TRIAL",
+                    "UPDATE_TRIAL_DAYS",
+                    "SET_ACCOUNT_REVIEW",
+                    "UPDATE_INTERNAL_ORGANIZATION_SETTINGS",
+                    "UPDATE_AGENT_TYPE"
                   ]
                 },
                 "description": "Server-side push-down filter. Full 42-value AuditLogEventType enum. Prefer this over event_type_pattern for exact-match cases."
               },
-              "user_emails": {"type": "array", "items": {"type": "string"}, "description": "Server-side push-down filter: list of actor emails."},
-              "deployment_names": {"type": "array", "items": {"type": "string"}, "description": "Server-side push-down filter: which deployments to include."},
-              "is_branch_deployment": {"type": "boolean", "description": "Server-side filter: true = branch deployments only, false = main only, null = both."},
-              "event_type_pattern": {"type": "string", "description": "Client-side regex on audit event type (applied after event_types push-down)."},
-              "actor_pattern": {"type": "string", "description": "Client-side regex on actor email/ID."},
-              "deployment": {"type": "string", "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."},
-              "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
-              "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
-              "minimum_interval_seconds": {"type": "integer", "default": 300}
+              "user_emails": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Server-side push-down filter: list of actor emails."
+              },
+              "deployment_names": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Server-side push-down filter: which deployments to include."
+              },
+              "is_branch_deployment": {
+                "type": "boolean",
+                "description": "Server-side filter: true = branch deployments only, false = main only, null = both."
+              },
+              "event_type_pattern": {
+                "type": "string",
+                "description": "Client-side regex on audit event type (applied after event_types push-down)."
+              },
+              "actor_pattern": {
+                "type": "string",
+                "description": "Client-side regex on actor email/ID."
+              },
+              "deployment": {
+                "type": "string",
+                "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."
+              },
+              "org_env_var": {
+                "type": "string",
+                "default": "DAGSTER_CLOUD_ORGANIZATION"
+              },
+              "token_env_var": {
+                "type": "string",
+                "default": "DAGSTER_CLOUD_API_TOKEN"
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 300
+              }
             },
-            "required": ["type"]
+            "required": [
+              "type"
+            ]
           },
           {
-            "title": "sqs_poll — poll an AWS SQS queue for messages",
+            "title": "sqs_poll \u2014 poll an AWS SQS queue for messages",
             "properties": {
-              "type": {"const": "sqs_poll"},
-              "queue_url": {"type": "string"},
-              "region": {"type": "string", "default": "us-east-1"},
-              "max_messages": {"type": "integer", "default": 10, "minimum": 1, "maximum": 10},
-              "minimum_interval_seconds": {"type": "integer", "default": 30},
-              "delete_after": {"type": "boolean", "default": true}
+              "type": {
+                "const": "sqs_poll"
+              },
+              "queue_url": {
+                "type": "string"
+              },
+              "region": {
+                "type": "string",
+                "default": "us-east-1"
+              },
+              "max_messages": {
+                "type": "integer",
+                "default": 10,
+                "minimum": 1,
+                "maximum": 10
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 30
+              },
+              "delete_after": {
+                "type": "boolean",
+                "default": true
+              }
             },
-            "required": ["type", "queue_url"]
+            "required": [
+              "type",
+              "queue_url"
+            ]
           },
           {
-            "title": "all_of — AND-composition, fire when all sub-triggers fire within window",
+            "title": "all_of \u2014 AND-composition, fire when all sub-triggers fire within window",
             "properties": {
-              "type": {"const": "all_of"},
+              "type": {
+                "const": "all_of"
+              },
               "triggers": {
                 "type": "array",
                 "description": "Leaf sub-triggers OR one level of any_of. Deeper nesting isn't supported by the type system.",
-                "items": {"type": "object"}
+                "items": {
+                  "type": "object"
+                }
               },
-              "within_seconds": {"type": "integer", "default": 3600},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "within_seconds": {
+                "type": "integer",
+                "default": 3600
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type", "triggers"]
+            "required": [
+              "type",
+              "triggers"
+            ]
           },
           {
-            "title": "any_of — OR-composition inside a compound (nested-only)",
+            "title": "any_of \u2014 OR-composition inside a compound (nested-only)",
             "properties": {
-              "type": {"const": "any_of"},
-              "triggers": {"type": "array", "items": {"type": "object"}},
-              "minimum_interval_seconds": {"type": "integer", "default": 60}
+              "type": {
+                "const": "any_of"
+              },
+              "triggers": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "minimum_interval_seconds": {
+                "type": "integer",
+                "default": 60
+              }
             },
-            "required": ["type", "triggers"]
+            "required": [
+              "type",
+              "triggers"
+            ]
           }
         ]
       },
@@ -526,295 +1412,744 @@
         "type": "object",
         "oneOf": [
           {
-            "title": "materialize — launch materialization for named assets",
+            "title": "materialize \u2014 launch materialization for named assets",
             "properties": {
-              "type": {"const": "materialize"},
-              "asset_keys": {"oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}], "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."},
+              "type": {
+                "const": "materialize"
+              },
+              "asset_keys": {
+                "oneOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "description": "Accepts a list of keys OR a Dagster asset-selection string / fnmatch glob (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, `marts/*`)."
+              },
               "partition_key": {
                 "oneOf": [
-                  {"type": "string", "description": "Single-dim partition. Values run through template rendering — use '{partition_key}' to pull from the triggering event."},
-                  {"type": "object", "additionalProperties": {"type": "string"}, "description": "MultiPartitionsDefinition — one entry per dimension. Values templated (e.g. {date: '{partition_date}', region: '{partition_region}'})."}
+                  {
+                    "type": "string",
+                    "description": "Single-dim partition. Values run through template rendering \u2014 use '{partition_key}' to pull from the triggering event."
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "description": "MultiPartitionsDefinition \u2014 one entry per dimension. Values templated (e.g. {date: '{partition_date}', region: '{partition_region}'})."
+                  }
                 ],
                 "description": "Optional partition to materialize. String OR dict; values templated with trigger tokens."
               }
             },
-            "required": ["type", "asset_keys"]
+            "required": [
+              "type",
+              "asset_keys"
+            ]
           },
           {
-            "title": "launch_job — launch a job",
+            "title": "launch_job \u2014 launch a job",
             "properties": {
-              "type": {"const": "launch_job"},
-              "job_name": {"type": "string"},
-              "tags": {"type": "object"}
+              "type": {
+                "const": "launch_job"
+              },
+              "job_name": {
+                "type": "string"
+              },
+              "tags": {
+                "type": "object"
+              }
             },
-            "required": ["type", "job_name"]
+            "required": [
+              "type",
+              "job_name"
+            ]
           },
           {
-            "title": "webhook — arbitrary HTTP call with templated body",
+            "title": "webhook \u2014 arbitrary HTTP call with templated body",
             "properties": {
-              "type": {"const": "webhook"},
-              "url": {"type": "string"},
-              "method": {"type": "string", "default": "POST"},
-              "headers": {"type": "object"},
-              "body_template": {"type": "string", "description": "Supports {event_type}, {run_id}, {job_name}, {asset_key}, {status}, {timestamp}, {message}, {url} tokens."},
-              "timeout_seconds": {"type": "integer", "default": 15}
+              "type": {
+                "const": "webhook"
+              },
+              "url": {
+                "type": "string"
+              },
+              "method": {
+                "type": "string",
+                "default": "POST"
+              },
+              "headers": {
+                "type": "object"
+              },
+              "body_template": {
+                "type": "string",
+                "description": "Supports {event_type}, {run_id}, {job_name}, {asset_key}, {status}, {timestamp}, {message}, {url} tokens."
+              },
+              "timeout_seconds": {
+                "type": "integer",
+                "default": 15
+              }
             },
-            "required": ["type", "url"]
+            "required": [
+              "type",
+              "url"
+            ]
           },
           {
-            "title": "slack — Slack incoming-webhook alert",
+            "title": "slack \u2014 Slack incoming-webhook alert",
             "properties": {
-              "type": {"const": "slack"},
-              "webhook_url_env_var": {"type": "string", "description": "Env var holding the Slack webhook URL."},
-              "channel": {"type": "string"},
-              "message": {"type": "string", "default": "Dagster automation fired: {event_type} {job_name} {status}"},
-              "username": {"type": "string"},
-              "icon_emoji": {"type": "string"}
+              "type": {
+                "const": "slack"
+              },
+              "webhook_url_env_var": {
+                "type": "string",
+                "description": "Env var holding the Slack webhook URL."
+              },
+              "channel": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string",
+                "default": "Dagster automation fired: {event_type} {job_name} {status}"
+              },
+              "username": {
+                "type": "string"
+              },
+              "icon_emoji": {
+                "type": "string"
+              }
             },
-            "required": ["type", "webhook_url_env_var"]
+            "required": [
+              "type",
+              "webhook_url_env_var"
+            ]
           },
           {
-            "title": "pagerduty — PagerDuty Events API v2",
+            "title": "pagerduty \u2014 PagerDuty Events API v2",
             "properties": {
-              "type": {"const": "pagerduty"},
-              "routing_key_env_var": {"type": "string"},
-              "severity": {"type": "string", "enum": ["critical", "error", "warning", "info"], "default": "error"},
-              "summary_template": {"type": "string", "default": "Dagster: {event_type} on {job_name} — {status}"},
-              "dedup_key_template": {"type": "string"},
-              "event_action": {"type": "string", "enum": ["trigger", "acknowledge", "resolve"], "default": "trigger"}
+              "type": {
+                "const": "pagerduty"
+              },
+              "routing_key_env_var": {
+                "type": "string"
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "critical",
+                  "error",
+                  "warning",
+                  "info"
+                ],
+                "default": "error"
+              },
+              "summary_template": {
+                "type": "string",
+                "default": "Dagster: {event_type} on {job_name} \u2014 {status}"
+              },
+              "dedup_key_template": {
+                "type": "string"
+              },
+              "event_action": {
+                "type": "string",
+                "enum": [
+                  "trigger",
+                  "acknowledge",
+                  "resolve"
+                ],
+                "default": "trigger"
+              }
             },
-            "required": ["type", "routing_key_env_var"]
+            "required": [
+              "type",
+              "routing_key_env_var"
+            ]
           },
           {
-            "title": "discord — Discord webhook alert",
+            "title": "discord \u2014 Discord webhook alert",
             "properties": {
-              "type": {"const": "discord"},
-              "webhook_url_env_var": {"type": "string"},
-              "message": {"type": "string", "default": "Dagster automation fired: {event_type} {job_name} {status}"}
+              "type": {
+                "const": "discord"
+              },
+              "webhook_url_env_var": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string",
+                "default": "Dagster automation fired: {event_type} {job_name} {status}"
+              }
             },
-            "required": ["type", "webhook_url_env_var"]
+            "required": [
+              "type",
+              "webhook_url_env_var"
+            ]
           },
           {
-            "title": "emit_event — log emission for downstream sensor chaining",
+            "title": "emit_event \u2014 log emission for downstream sensor chaining",
             "properties": {
-              "type": {"const": "emit_event"},
-              "asset_key": {"type": "string"},
-              "metadata_template": {"type": "object"}
+              "type": {
+                "const": "emit_event"
+              },
+              "asset_key": {
+                "type": "string"
+              },
+              "metadata_template": {
+                "type": "object"
+              }
             },
-            "required": ["type", "asset_key"]
+            "required": [
+              "type",
+              "asset_key"
+            ]
           },
           {
-            "title": "cancel_run — terminate a run",
+            "title": "cancel_run \u2014 terminate a run",
             "properties": {
-              "type": {"const": "cancel_run"},
-              "which": {"type": "string", "enum": ["triggering", "all_matching"], "default": "triggering"},
-              "job_name_filter": {"type": "string", "description": "Only used when which=all_matching."}
+              "type": {
+                "const": "cancel_run"
+              },
+              "which": {
+                "type": "string",
+                "enum": [
+                  "triggering",
+                  "all_matching"
+                ],
+                "default": "triggering"
+              },
+              "job_name_filter": {
+                "type": "string",
+                "description": "Only used when which=all_matching."
+              }
             },
-            "required": ["type"]
+            "required": [
+              "type"
+            ]
           },
           {
-            "title": "retry_run — re-execute a failed run",
+            "title": "retry_run \u2014 re-execute a failed run",
             "properties": {
-              "type": {"const": "retry_run"},
-              "strategy": {"type": "string", "enum": ["from_failure", "all_steps"], "default": "from_failure"}
+              "type": {
+                "const": "retry_run"
+              },
+              "strategy": {
+                "type": "string",
+                "enum": [
+                  "from_failure",
+                  "all_steps"
+                ],
+                "default": "from_failure"
+              }
             },
-            "required": ["type"]
+            "required": [
+              "type"
+            ]
           },
           {
-            "title": "email — SMTP email alert (stdlib smtplib)",
+            "title": "email \u2014 SMTP email alert (stdlib smtplib)",
             "properties": {
-              "type": {"const": "email"},
-              "smtp_host_env_var": {"type": "string"},
-              "smtp_port_env_var": {"type": "string"},
-              "smtp_user_env_var": {"type": "string"},
-              "smtp_password_env_var": {"type": "string"},
-              "from_addr": {"type": "string"},
-              "to": {"type": "array", "items": {"type": "string"}},
-              "subject_template": {"type": "string", "default": "Dagster: {event_type} {job_name} {status}"},
-              "body_template": {"type": "string"},
-              "use_tls": {"type": "boolean", "default": true}
+              "type": {
+                "const": "email"
+              },
+              "smtp_host_env_var": {
+                "type": "string"
+              },
+              "smtp_port_env_var": {
+                "type": "string"
+              },
+              "smtp_user_env_var": {
+                "type": "string"
+              },
+              "smtp_password_env_var": {
+                "type": "string"
+              },
+              "from_addr": {
+                "type": "string"
+              },
+              "to": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "subject_template": {
+                "type": "string",
+                "default": "Dagster: {event_type} {job_name} {status}"
+              },
+              "body_template": {
+                "type": "string"
+              },
+              "use_tls": {
+                "type": "boolean",
+                "default": true
+              }
             },
-            "required": ["type", "smtp_host_env_var", "smtp_user_env_var", "smtp_password_env_var", "from_addr", "to"]
+            "required": [
+              "type",
+              "smtp_host_env_var",
+              "smtp_user_env_var",
+              "smtp_password_env_var",
+              "from_addr",
+              "to"
+            ]
           },
           {
-            "title": "teams — Microsoft Teams webhook alert",
+            "title": "teams \u2014 Microsoft Teams webhook alert",
             "properties": {
-              "type": {"const": "teams"},
-              "webhook_url_env_var": {"type": "string"},
-              "message": {"type": "string", "default": "Dagster automation fired: {event_type} {job_name} {status}"},
-              "title": {"type": "string"}
+              "type": {
+                "const": "teams"
+              },
+              "webhook_url_env_var": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string",
+                "default": "Dagster automation fired: {event_type} {job_name} {status}"
+              },
+              "title": {
+                "type": "string"
+              }
             },
-            "required": ["type", "webhook_url_env_var"]
+            "required": [
+              "type",
+              "webhook_url_env_var"
+            ]
           },
           {
-            "title": "opsgenie — OpsGenie Alerts API",
+            "title": "opsgenie \u2014 OpsGenie Alerts API",
             "properties": {
-              "type": {"const": "opsgenie"},
-              "api_key_env_var": {"type": "string"},
-              "priority": {"type": "string", "enum": ["P1", "P2", "P3", "P4", "P5"], "default": "P3"},
-              "message_template": {"type": "string", "default": "Dagster: {event_type} on {job_name} — {status}"},
-              "dedup_key_template": {"type": "string"}
+              "type": {
+                "const": "opsgenie"
+              },
+              "api_key_env_var": {
+                "type": "string"
+              },
+              "priority": {
+                "type": "string",
+                "enum": [
+                  "P1",
+                  "P2",
+                  "P3",
+                  "P4",
+                  "P5"
+                ],
+                "default": "P3"
+              },
+              "message_template": {
+                "type": "string",
+                "default": "Dagster: {event_type} on {job_name} \u2014 {status}"
+              },
+              "dedup_key_template": {
+                "type": "string"
+              }
             },
-            "required": ["type", "api_key_env_var"]
+            "required": [
+              "type",
+              "api_key_env_var"
+            ]
           },
           {
-            "title": "mattermost — Mattermost webhook alert",
+            "title": "mattermost \u2014 Mattermost webhook alert",
             "properties": {
-              "type": {"const": "mattermost"},
-              "webhook_url_env_var": {"type": "string"},
-              "message": {"type": "string", "default": "Dagster automation fired: {event_type} {job_name} {status}"},
-              "channel": {"type": "string"},
-              "username": {"type": "string"}
+              "type": {
+                "const": "mattermost"
+              },
+              "webhook_url_env_var": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string",
+                "default": "Dagster automation fired: {event_type} {job_name} {status}"
+              },
+              "channel": {
+                "type": "string"
+              },
+              "username": {
+                "type": "string"
+              }
             },
-            "required": ["type", "webhook_url_env_var"]
+            "required": [
+              "type",
+              "webhook_url_env_var"
+            ]
           },
           {
-            "title": "toggle_sensor — start / stop a Dagster sensor by name",
+            "title": "toggle_sensor \u2014 start / stop a Dagster sensor by name",
             "properties": {
-              "type": {"const": "toggle_sensor"},
-              "sensor_name": {"type": "string"},
-              "action": {"type": "string", "enum": ["start", "stop"]}
+              "type": {
+                "const": "toggle_sensor"
+              },
+              "sensor_name": {
+                "type": "string"
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "start",
+                  "stop"
+                ]
+              }
             },
-            "required": ["type", "sensor_name", "action"]
+            "required": [
+              "type",
+              "sensor_name",
+              "action"
+            ]
           },
           {
-            "title": "toggle_schedule — start / stop a Dagster schedule by name",
+            "title": "toggle_schedule \u2014 start / stop a Dagster schedule by name",
             "properties": {
-              "type": {"const": "toggle_schedule"},
-              "schedule_name": {"type": "string"},
-              "action": {"type": "string", "enum": ["start", "stop"]}
+              "type": {
+                "const": "toggle_schedule"
+              },
+              "schedule_name": {
+                "type": "string"
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "start",
+                  "stop"
+                ]
+              }
             },
-            "required": ["type", "schedule_name", "action"]
+            "required": [
+              "type",
+              "schedule_name",
+              "action"
+            ]
           },
           {
-            "title": "sns — publish to AWS SNS topic",
+            "title": "sns \u2014 publish to AWS SNS topic",
             "properties": {
-              "type": {"const": "sns"},
-              "topic_arn": {"type": "string"},
-              "region": {"type": "string", "default": "us-east-1"},
-              "subject_template": {"type": "string"},
-              "message_template": {"type": "string", "default": "Dagster automation fired: {event_type} {job_name} {status}"}
+              "type": {
+                "const": "sns"
+              },
+              "topic_arn": {
+                "type": "string"
+              },
+              "region": {
+                "type": "string",
+                "default": "us-east-1"
+              },
+              "subject_template": {
+                "type": "string"
+              },
+              "message_template": {
+                "type": "string",
+                "default": "Dagster automation fired: {event_type} {job_name} {status}"
+              }
             },
-            "required": ["type", "topic_arn"]
+            "required": [
+              "type",
+              "topic_arn"
+            ]
           },
           {
-            "title": "sqs — send message to AWS SQS queue",
+            "title": "sqs \u2014 send message to AWS SQS queue",
             "properties": {
-              "type": {"const": "sqs"},
-              "queue_url": {"type": "string"},
-              "region": {"type": "string", "default": "us-east-1"},
-              "body_template": {"type": "string"},
-              "message_group_id": {"type": "string", "description": "For FIFO queues."},
-              "message_deduplication_id_template": {"type": "string", "description": "For FIFO queues, templated."}
+              "type": {
+                "const": "sqs"
+              },
+              "queue_url": {
+                "type": "string"
+              },
+              "region": {
+                "type": "string",
+                "default": "us-east-1"
+              },
+              "body_template": {
+                "type": "string"
+              },
+              "message_group_id": {
+                "type": "string",
+                "description": "For FIFO queues."
+              },
+              "message_deduplication_id_template": {
+                "type": "string",
+                "description": "For FIFO queues, templated."
+              }
             },
-            "required": ["type", "queue_url"]
+            "required": [
+              "type",
+              "queue_url"
+            ]
           },
           {
-            "title": "reload_code_location — reload a Dagster+ code location (or whole workspace)",
+            "title": "reload_code_location \u2014 reload a Dagster+ code location (or whole workspace)",
             "properties": {
-              "type": {"const": "reload_code_location"},
-              "location_name": {"type": "string", "description": "Location to reload. Templated. Unset = reload whole workspace."},
-              "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
-              "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
-              "deployment": {"type": "string", "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."}
+              "type": {
+                "const": "reload_code_location"
+              },
+              "location_name": {
+                "type": "string",
+                "description": "Location to reload. Templated. Unset = reload whole workspace."
+              },
+              "org_env_var": {
+                "type": "string",
+                "default": "DAGSTER_CLOUD_ORGANIZATION"
+              },
+              "token_env_var": {
+                "type": "string",
+                "default": "DAGSTER_CLOUD_API_TOKEN"
+              },
+              "deployment": {
+                "type": "string",
+                "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."
+              }
             },
-            "required": ["type"]
+            "required": [
+              "type"
+            ]
           },
           {
-            "title": "refresh_defs_state — refresh Dagster+ definitions state for a code location",
+            "title": "refresh_defs_state \u2014 refresh Dagster+ definitions state for a code location",
             "properties": {
-              "type": {"const": "refresh_defs_state"},
-              "location_name": {"type": "string", "description": "Code location. Templated."},
-              "defs_state_key": {"type": "string", "description": "Optional specific state key (uses refreshComponentState). Templated."},
-              "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
-              "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
-              "deployment": {"type": "string", "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."}
+              "type": {
+                "const": "refresh_defs_state"
+              },
+              "location_name": {
+                "type": "string",
+                "description": "Code location. Templated."
+              },
+              "defs_state_key": {
+                "type": "string",
+                "description": "Optional specific state key (uses refreshComponentState). Templated."
+              },
+              "org_env_var": {
+                "type": "string",
+                "default": "DAGSTER_CLOUD_ORGANIZATION"
+              },
+              "token_env_var": {
+                "type": "string",
+                "default": "DAGSTER_CLOUD_API_TOKEN"
+              },
+              "deployment": {
+                "type": "string",
+                "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."
+              }
             },
-            "required": ["type", "location_name"]
+            "required": [
+              "type",
+              "location_name"
+            ]
           },
           {
-            "title": "set_concurrency_limit — dynamically adjust a pool's slot count",
+            "title": "set_concurrency_limit \u2014 dynamically adjust a pool's slot count",
             "properties": {
-              "type": {"const": "set_concurrency_limit"},
-              "concurrency_key": {"type": "string", "description": "Pool name. Templated."},
-              "limit": {"type": "integer", "description": "New slot count."}
+              "type": {
+                "const": "set_concurrency_limit"
+              },
+              "concurrency_key": {
+                "type": "string",
+                "description": "Pool name. Templated."
+              },
+              "limit": {
+                "type": "integer",
+                "description": "New slot count."
+              }
             },
-            "required": ["type", "concurrency_key", "limit"]
+            "required": [
+              "type",
+              "concurrency_key",
+              "limit"
+            ]
           },
           {
-            "title": "free_concurrency_slots — release slots stuck by a crashed run/step",
+            "title": "free_concurrency_slots \u2014 release slots stuck by a crashed run/step",
             "properties": {
-              "type": {"const": "free_concurrency_slots"},
-              "run_id": {"type": "string", "description": "Run whose slots to release. Templated (use '{run_id}')."},
-              "step_key": {"type": "string", "description": "Optional specific step key. Templated."}
+              "type": {
+                "const": "free_concurrency_slots"
+              },
+              "run_id": {
+                "type": "string",
+                "description": "Run whose slots to release. Templated (use '{run_id}')."
+              },
+              "step_key": {
+                "type": "string",
+                "description": "Optional specific step key. Templated."
+              }
             },
-            "required": ["type", "run_id"]
+            "required": [
+              "type",
+              "run_id"
+            ]
           },
           {
-            "title": "set_auto_materialize_paused — globally pause/unpause Declarative Automation (Dagster+)",
+            "title": "set_auto_materialize_paused \u2014 globally pause/unpause Declarative Automation (Dagster+)",
             "properties": {
-              "type": {"const": "set_auto_materialize_paused"},
-              "paused": {"type": "boolean", "description": "true = pause, false = unpause."},
-              "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
-              "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
-              "deployment": {"type": "string", "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."}
+              "type": {
+                "const": "set_auto_materialize_paused"
+              },
+              "paused": {
+                "type": "boolean",
+                "description": "true = pause, false = unpause."
+              },
+              "org_env_var": {
+                "type": "string",
+                "default": "DAGSTER_CLOUD_ORGANIZATION"
+              },
+              "token_env_var": {
+                "type": "string",
+                "default": "DAGSTER_CLOUD_API_TOKEN"
+              },
+              "deployment": {
+                "type": "string",
+                "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."
+              }
             },
-            "required": ["type", "paused"]
+            "required": [
+              "type",
+              "paused"
+            ]
           },
           {
-            "title": "mute_alert_policy — temporarily mute a Dagster+ Alerts policy",
+            "title": "mute_alert_policy \u2014 temporarily mute a Dagster+ Alerts policy",
             "properties": {
-              "type": {"const": "mute_alert_policy"},
-              "alert_policy_id": {"type": "string", "description": "Dagster+ alert policy ID."},
-              "mute_for_seconds": {"type": "integer", "description": "Duration to mute."},
-              "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
-              "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
-              "deployment": {"type": "string", "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."}
+              "type": {
+                "const": "mute_alert_policy"
+              },
+              "alert_policy_id": {
+                "type": "string",
+                "description": "Dagster+ alert policy ID."
+              },
+              "mute_for_seconds": {
+                "type": "integer",
+                "description": "Duration to mute."
+              },
+              "org_env_var": {
+                "type": "string",
+                "default": "DAGSTER_CLOUD_ORGANIZATION"
+              },
+              "token_env_var": {
+                "type": "string",
+                "default": "DAGSTER_CLOUD_API_TOKEN"
+              },
+              "deployment": {
+                "type": "string",
+                "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."
+              }
             },
-            "required": ["type", "alert_policy_id", "mute_for_seconds"]
+            "required": [
+              "type",
+              "alert_policy_id",
+              "mute_for_seconds"
+            ]
           },
           {
-            "title": "resume_backfill — resume a paused partition backfill",
+            "title": "resume_backfill \u2014 resume a paused partition backfill",
             "properties": {
-              "type": {"const": "resume_backfill"},
-              "backfill_id": {"type": "string", "description": "Backfill ID. Templated."},
-              "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
-              "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
-              "deployment": {"type": "string", "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."}
+              "type": {
+                "const": "resume_backfill"
+              },
+              "backfill_id": {
+                "type": "string",
+                "description": "Backfill ID. Templated."
+              },
+              "org_env_var": {
+                "type": "string",
+                "default": "DAGSTER_CLOUD_ORGANIZATION"
+              },
+              "token_env_var": {
+                "type": "string",
+                "default": "DAGSTER_CLOUD_API_TOKEN"
+              },
+              "deployment": {
+                "type": "string",
+                "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."
+              }
             },
-            "required": ["type", "backfill_id"]
+            "required": [
+              "type",
+              "backfill_id"
+            ]
           },
           {
-            "title": "cancel_backfill — cancel a partition backfill in progress",
+            "title": "cancel_backfill \u2014 cancel a partition backfill in progress",
             "properties": {
-              "type": {"const": "cancel_backfill"},
-              "backfill_id": {"type": "string", "description": "Backfill ID. Templated."},
-              "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
-              "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
-              "deployment": {"type": "string", "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."}
+              "type": {
+                "const": "cancel_backfill"
+              },
+              "backfill_id": {
+                "type": "string",
+                "description": "Backfill ID. Templated."
+              },
+              "org_env_var": {
+                "type": "string",
+                "default": "DAGSTER_CLOUD_ORGANIZATION"
+              },
+              "token_env_var": {
+                "type": "string",
+                "default": "DAGSTER_CLOUD_API_TOKEN"
+              },
+              "deployment": {
+                "type": "string",
+                "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."
+              }
             },
-            "required": ["type", "backfill_id"]
+            "required": [
+              "type",
+              "backfill_id"
+            ]
           },
           {
-            "title": "reexecute_backfill — re-execute a failed partition backfill",
+            "title": "reexecute_backfill \u2014 re-execute a failed partition backfill",
             "properties": {
-              "type": {"const": "reexecute_backfill"},
-              "backfill_id": {"type": "string", "description": "Parent backfill ID. Templated."},
-              "from_failure": {"type": "boolean", "default": true, "description": "true = FROM_FAILURE (only failed partitions); false = ALL_STEPS."},
-              "org_env_var": {"type": "string", "default": "DAGSTER_CLOUD_ORGANIZATION"},
-              "token_env_var": {"type": "string", "default": "DAGSTER_CLOUD_API_TOKEN"},
-              "deployment": {"type": "string", "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."}
+              "type": {
+                "const": "reexecute_backfill"
+              },
+              "backfill_id": {
+                "type": "string",
+                "description": "Parent backfill ID. Templated."
+              },
+              "from_failure": {
+                "type": "boolean",
+                "default": true,
+                "description": "true = FROM_FAILURE (only failed partitions); false = ALL_STEPS."
+              },
+              "org_env_var": {
+                "type": "string",
+                "default": "DAGSTER_CLOUD_ORGANIZATION"
+              },
+              "token_env_var": {
+                "type": "string",
+                "default": "DAGSTER_CLOUD_API_TOKEN"
+              },
+              "deployment": {
+                "type": "string",
+                "description": "Unset = auto-detect from DAGSTER_CLOUD_DEPLOYMENT_NAME (auto-injected by Dagster+); falls back to 'prod'."
+              }
             },
-            "required": ["type", "backfill_id"]
+            "required": [
+              "type",
+              "backfill_id"
+            ]
           },
           {
-            "title": "add_dynamic_partition — register a new dynamic partition programmatically",
+            "title": "add_dynamic_partition \u2014 register a new dynamic partition programmatically",
             "properties": {
-              "type": {"const": "add_dynamic_partition"},
-              "partitions_def_name": {"type": "string", "description": "DynamicPartitionsDefinition name."},
-              "partition_key": {"type": "string", "description": "Partition key to add. Templated."}
+              "type": {
+                "const": "add_dynamic_partition"
+              },
+              "partitions_def_name": {
+                "type": "string",
+                "description": "DynamicPartitionsDefinition name."
+              },
+              "partition_key": {
+                "type": "string",
+                "description": "Partition key to add. Templated."
+              }
             },
-            "required": ["type", "partitions_def_name", "partition_key"]
+            "required": [
+              "type",
+              "partitions_def_name",
+              "partition_key"
+            ]
           }
         ]
       },
@@ -824,16 +2159,59 @@
       "type": "object",
       "description": "Optional throttle config attached to any trigger via `throttle:`.",
       "properties": {
-        "min_seconds_between_fires": {"type": "integer", "description": "Cooldown between successful fires."},
-        "max_per_hour": {"type": "integer", "description": "Rolling-window hard cap."},
-        "dedup_key_template": {"type": "string", "description": "Templated dedup key for state scoping."},
-        "strategy": {"type": "string", "enum": ["silence", "summarize", "first_last", "llm", "escalate", "auto_resolve"], "default": "silence"},
-        "flush_after_seconds": {"type": "integer", "default": 600, "description": "For summarize / first_last: buffer window."},
-        "llm_provider": {"type": "string", "enum": ["openai", "anthropic"], "default": "openai"},
-        "llm_model": {"type": "string", "default": "gpt-4o-mini"},
-        "llm_api_key_env_var": {"type": "string", "default": "OPENAI_API_KEY"},
-        "llm_prompt_template": {"type": "string", "description": "Custom prompt. Tokens: {message}, {recent}, plus standard tokens."},
-        "llm_decision_cache_seconds": {"type": "integer", "default": 60},
+        "min_seconds_between_fires": {
+          "type": "integer",
+          "description": "Cooldown between successful fires."
+        },
+        "max_per_hour": {
+          "type": "integer",
+          "description": "Rolling-window hard cap."
+        },
+        "dedup_key_template": {
+          "type": "string",
+          "description": "Templated dedup key for state scoping."
+        },
+        "strategy": {
+          "type": "string",
+          "enum": [
+            "silence",
+            "summarize",
+            "first_last",
+            "llm",
+            "escalate",
+            "auto_resolve"
+          ],
+          "default": "silence"
+        },
+        "flush_after_seconds": {
+          "type": "integer",
+          "default": 600,
+          "description": "For summarize / first_last: buffer window."
+        },
+        "llm_provider": {
+          "type": "string",
+          "enum": [
+            "openai",
+            "anthropic"
+          ],
+          "default": "openai"
+        },
+        "llm_model": {
+          "type": "string",
+          "default": "gpt-4o-mini"
+        },
+        "llm_api_key_env_var": {
+          "type": "string",
+          "default": "OPENAI_API_KEY"
+        },
+        "llm_prompt_template": {
+          "type": "string",
+          "description": "Custom prompt. Tokens: {message}, {recent}, plus standard tokens."
+        },
+        "llm_decision_cache_seconds": {
+          "type": "integer",
+          "default": 60
+        },
         "business_hours_only": {
           "type": "string",
           "description": "Only fire during this daily window. Format: 'HH:MM-HH:MM tz [days]'. E.g. '09:00-17:00 America/New_York mon,tue,wed,thu,fri'."
@@ -844,34 +2222,64 @@
           "items": {
             "type": "object",
             "properties": {
-              "from_ts": {"type": "string", "description": "ISO8601 start (e.g. '2024-01-15T02:00:00Z')."},
-              "to_ts": {"type": "string", "description": "ISO8601 end."},
-              "reason": {"type": "string", "description": "Free-form reason shown in logs."}
+              "from_ts": {
+                "type": "string",
+                "description": "ISO8601 start (e.g. '2024-01-15T02:00:00Z')."
+              },
+              "to_ts": {
+                "type": "string",
+                "description": "ISO8601 end."
+              },
+              "reason": {
+                "type": "string",
+                "description": "Free-form reason shown in logs."
+              }
             },
-            "required": ["from_ts", "to_ts"]
+            "required": [
+              "from_ts",
+              "to_ts"
+            ]
           }
         },
         "correlation_suppress_sensors": {
           "type": "array",
           "description": "Sensor-name substrings whose recent fires suppress THIS trigger (root-cause suppression).",
-          "items": {"type": "string"}
+          "items": {
+            "type": "string"
+          }
         },
-        "correlation_within_seconds": {"type": "integer", "default": 300, "description": "Correlation lookback window in seconds."},
+        "correlation_within_seconds": {
+          "type": "integer",
+          "default": 300,
+          "description": "Correlation lookback window in seconds."
+        },
         "escalation_ladder": {
           "type": "array",
-          "description": "For strategy=escalate: fire count → which action indices fire.",
+          "description": "For strategy=escalate: fire count \u2192 which action indices fire.",
           "items": {
             "type": "object",
             "properties": {
-              "after_fires": {"type": "integer", "description": "Fire count threshold (0 = first fire)."},
-              "action_indices": {"type": "array", "items": {"type": "integer"}, "description": "Indices into the `then:` list to execute at this tier."}
+              "after_fires": {
+                "type": "integer",
+                "description": "Fire count threshold (0 = first fire)."
+              },
+              "action_indices": {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                },
+                "description": "Indices into the `then:` list to execute at this tier."
+              }
             },
-            "required": ["after_fires", "action_indices"]
+            "required": [
+              "after_fires",
+              "action_indices"
+            ]
           }
         },
         "auto_resolve_message": {
           "type": "string",
-          "default": "✅ Resolved after {duration_seconds}s ({fire_count} fires)",
+          "default": "\u2705 Resolved after {duration_seconds}s ({fire_count} fires)",
           "description": "For strategy=auto_resolve: message template for the paired resolve event."
         }
       }
@@ -880,8 +2288,11 @@
       "type": "string",
       "label": "Default Status",
       "description": "RUNNING | STOPPED for the generated sensors.",
-      "enum": ["RUNNING", "STOPPED"],
-      "default": "STOPPED"
+      "enum": [
+        "running",
+        "stopped"
+      ],
+      "default": "stopped"
     },
     "description": {
       "type": "string",

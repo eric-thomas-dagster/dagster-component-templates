@@ -666,7 +666,7 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agentic_pipeline/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agentic_pipeline/schema.json",
       "agent_hints": {
-        "when_to_use": "User wants a standardized multi-step agentic workflow shape declared in ONE YAML. v2 covers 6 ops: llm_call | route | debate | critique_loop | synthesize | mcp_call. Supports typed named `inputs:` on every text-emitting op \u2014 any op can join from any prior op by port name (execution-plan graph shape). Sibling of ml_pipeline / polars_pipeline / warehouse_pipeline for the LLM domain.",
+        "when_to_use": "User wants a standardized multi-step agentic workflow shape declared in ONE YAML. v2 covers 6 ops: llm_call | route | debate | critique_loop | synthesize | mcp_call. Supports typed named `inputs:` on every text-emitting op \u2014 any op can join from any prior op by port name (execution-plan graph shape). Sibling of ml_pipeline / polars_pipeline / warehouse_pipeline for the LLM domain. NEW: `partition_key_parser:` lets a composite partition key (like `dagster-io/dagster#30000`) unpack into `{partition.owner}` / `{partition.repo}` / `{partition.issue_number}` placeholders reachable in every string field (tool_args, prompt_template, system_prompt, source.text, sink paths). Pair with `PartitionedAssetLauncherJobComponent` for the config-driven-partition pattern.",
         "typical_upstream": "Literal text prompt, a fetched URL / doc, a file, another Dagster asset (via upstream_asset source), or a direct MCP tool call (via mcp_call op \u2014 no upstream needed).",
         "typical_downstream": "Text sinks (files), JSON sinks (full step dicts w/ per-op metadata), or downstream Dagster assets that consume any of the emitted step-output asset keys \u2014 every step is a first-class asset.",
         "example_prompts": [
@@ -674,7 +674,8 @@
           "Standardized multi-agent workflow with router + debate + critique loop \u2014 all in one YAML.",
           "Multi-step LLM pipeline where a cheap router picks a specialist, then multiple proposers debate the answer, then an arbitrator picks the winner.",
           "AI maintainer investigation room: fetch a GitHub issue via GitHub MCP, fan out 4 typed-input specialists (repo/docs/repro/history), synthesize a triage decision, skeptic critique, decision routing, final report \u2014 all one YAML using mcp_call + typed inputs.",
-          "Investment memo generator: 3 analyst proposers debate buy/hold/sell for a ticker, arbitrator picks the winner."
+          "Investment memo generator: 3 analyst proposers debate buy/hold/sell for a ticker, arbitrator picks the winner.",
+          "MIR triage pipeline where a launcher job takes issue_number + owner + repo via run config, derives a composite dynamic partition key, and the pipeline uses {partition.owner}/{partition.repo}/{partition.issue_number} in mcp_call tool_args."
         ],
         "side_effects": "Calls LLM providers (OpenAI / Anthropic / etc. via LiteLLM). Optionally writes text/JSON sinks to disk. Emits multiple named asset outputs from one component. mcp_call op invokes external MCP servers (stdio subprocess / http / sse).",
         "requires_pip": [
@@ -29259,6 +29260,74 @@
       }
     },
     {
+      "id": "partitioned_asset_launcher_job",
+      "name": "PartitionedAssetLauncherJobComponent",
+      "category": "jobs",
+      "description": "Launch a partitioned materialization from a run-config form. Config \u2192 derived partition key \u2192 dynamic-partition register \u2192 target-asset run \u2014 the config-driven entry point for any dynamic-partitioned pipeline.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/partitioned_asset_launcher_job",
+      "tags": [
+        "job",
+        "partition",
+        "launcher",
+        "dynamic-partition",
+        "config-driven"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/partitioned_asset_launcher_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/partitioned_asset_launcher_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/partitioned_asset_launcher_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/partitioned_asset_launcher_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/partitioned_asset_launcher_job/requirements.txt",
+      "validation": {
+        "level": "live",
+        "evidence": "Validated end-to-end 2026-08-18: partition registration + inline target materialization + composite-key parser round-trip",
+        "last_validated": "2026-08-18"
+      },
+      "produces": [
+        "job"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants a config-driven entry point for a dynamic-partitioned pipeline. Config (owner/repo/issue_number, tenant_id, uploaded_file_uri, etc.) is submitted via the launchpad form or an external RunConfig POST; the launcher formats a partition key from `partition_key_template`, registers it on `dynamic_partitions_name`, then materializes `target_asset_keys` with that partition_key. Pairs with any dynamic-partitioned multi_asset (typically AgenticPipelineComponent with `partition_key_parser:` set).",
+        "typical_upstream": "None \u2014 this IS the entry point. Callers: humans clicking Materialize in the UI, external systems POSTing run_config via the Dagster GraphQL API, or a sensor wanting a shared entry point.",
+        "typical_downstream": "The target asset selection (dynamic-partitioned) \u2014 one materialization run per invocation, tagged with the derived partition_key.",
+        "example_prompts": [
+          "Make my mir_intake pipeline invokable by config \u2014 user types issue_number, launcher derives the partition, pipeline runs.",
+          "I want a form that takes tenant_id + upload_uri and kicks off a per-tenant partitioned run.",
+          "One config-shaped entry point so an external system can POST to launch a partitioned run without picking the partition key manually."
+        ],
+        "requires_pip": [],
+        "example_yaml_snippet": {
+          "type": "dagster_community_components.PartitionedAssetLauncherJobComponent",
+          "attributes": {
+            "job_name": "launch_mir",
+            "target_asset_keys": [
+              "mir_intake",
+              "mir_final_report"
+            ],
+            "dynamic_partitions_name": "mir_investigations",
+            "partition_key_template": "{owner}/{repo}#{issue_number}",
+            "config_schema": {
+              "owner": {
+                "type": "str",
+                "default": "dagster-io"
+              },
+              "repo": {
+                "type": "str",
+                "default": "dagster"
+              },
+              "issue_number": {
+                "type": "int"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "id": "per_row_http_fetcher",
       "name": "Per-Row HTTP Fetcher",
       "category": "transformation",
@@ -43597,5 +43666,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 961
+  "total": 964
 }

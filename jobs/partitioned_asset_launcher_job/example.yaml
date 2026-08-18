@@ -1,0 +1,35 @@
+type: dagster_community_components.PartitionedAssetLauncherJobComponent
+attributes:
+  job_name: launch_mir
+
+  # Assets that will be materialized when the launcher fires. These
+  # must be dynamic-partitioned on `dynamic_partitions_name` (see the
+  # sibling AgenticPipelineComponent below).
+  target_asset_keys:
+    - mir_intake
+    - mir_repo_analysis
+    - mir_docs_analysis
+    - mir_repro_analysis
+    - mir_history_analysis
+    - mir_triage_decision
+    - mir_skeptic_check
+    - mir_decision_route
+    - mir_final_report
+
+  # DynamicPartitionsDefinition name shared with the target assets.
+  dynamic_partitions_name: mir_investigations
+
+  # Format template composing the partition key from config field values.
+  # Each `{name}` maps to a config_schema field below.
+  partition_key_template: "{owner}/{repo}#{issue_number}"
+
+  # Run-config form fields — shown in the Dagster launchpad, and
+  # accepted via `run_config: {ops: {launch_mir_op: {config: {...}}}}`
+  # for programmatic launches.
+  config_schema:
+    owner:        {type: str, default: dagster-io}
+    repo:         {type: str, default: dagster}
+    issue_number: {type: int}
+
+  tags:
+    team: developer-experience

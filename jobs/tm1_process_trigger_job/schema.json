@@ -67,12 +67,12 @@
       "type": "string",
       "label": "Schedule Default Status",
       "required": false,
-      "default": "STOPPED",
+      "default": "stopped",
       "description": "STOPPED | RUNNING at Dagster startup.",
       "ui:widget": "select",
       "enum": [
-        "STOPPED",
-        "RUNNING"
+        "stopped",
+        "running"
       ]
     },
     "tags": {

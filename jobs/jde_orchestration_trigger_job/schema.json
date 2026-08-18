@@ -64,11 +64,11 @@
       "type": "string",
       "label": "Schedule Default Status",
       "required": false,
-      "default": "STOPPED",
+      "default": "stopped",
       "ui:widget": "select",
       "enum": [
-        "STOPPED",
-        "RUNNING"
+        "stopped",
+        "running"
       ]
     },
     "tags": {

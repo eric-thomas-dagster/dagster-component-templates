@@ -32,10 +32,10 @@
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "default": "STOPPED",
+      "default": "stopped",
       "enum": [
-        "RUNNING",
-        "STOPPED"
+        "running",
+        "stopped"
       ],
       "required": false
     },

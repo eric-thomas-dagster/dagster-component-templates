@@ -1130,10 +1130,107 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 key=dg.AssetKey.from_user_string(source_config["upstream_asset_key"])
             )
 
+        # ── Internal asset deps — the lineage inside the multi_asset ──
+        # The compute function reads step-to-step data via the pipeline's
+        # in-memory state dict. But Dagster's asset graph won't SHOW the
+        # dependencies between the emitted assets unless we declare
+        # `internal_asset_deps` explicitly — otherwise every emitted
+        # asset renders as an orphan node.
+        #
+        # For each emitted step, collect:
+        # 1. Every upstream STEP id (from `source:` / `sources:` / typed
+        #    `inputs:` `{from: <id>}` refs) that is also in `outputs.assets`.
+        # 2. If the step reads from the reserved id `source` (or omits
+        #    source and thus defaults to the initial pipeline source)
+        #    AND the pipeline source is `upstream_asset`, include the
+        #    upstream_asset_key as a parent — otherwise the emitted asset
+        #    would show as disconnected from the pipeline's real input.
+        emitted_set = set(asset_ids)
+        step_by_id = {s.get("id"): s for s in steps if s.get("id")}
+        # Reserved id `source` refers to the initial pipeline source.
+        # When the source is `upstream_asset`, treat that reserved id as
+        # a stand-in for the real upstream asset key.
+        _source_upstream_key = (
+            source_config["upstream_asset_key"]
+            if source_config.get("kind") == "upstream_asset"
+            else None
+        )
+        # A step that OMITS `source:` reads from the last preceding step
+        # in the `steps:` list. Precompute that fallback per step id.
+        _prev_step_id: Dict[str, Optional[str]] = {}
+        _prev: Optional[str] = None
+        for s in steps:
+            sid = s.get("id")
+            if sid:
+                _prev_step_id[sid] = _prev
+                _prev = sid
+
+        def _upstream_refs_for_step(step: dict) -> List[str]:
+            """Return list of upstream refs (step ids OR the reserved 'source').
+
+            Only includes explicit refs — the omitted-source fallback is
+            handled by callers so they can decide how to resolve it.
+            """
+            ups: List[str] = []
+            src = step.get("source")
+            if isinstance(src, str):
+                ups.append(src)
+            for sid in (step.get("sources") or []):
+                if isinstance(sid, str):
+                    ups.append(sid)
+            for _spec in (step.get("inputs") or {}).values():
+                if isinstance(_spec, dict) and "from" in _spec:
+                    _f = _spec["from"]
+                    if isinstance(_f, str):
+                        ups.append(_f)
+            return ups
+
+        def _resolve_step_parents(step_id: str, seen: Optional[set] = None) -> set:
+            """Return the set of AssetKeys that are true asset-graph parents
+            of the given emitted step. Walks upstream, skipping over any
+            non-emitted intermediate step so lineage stays coherent.
+            """
+            if seen is None:
+                seen = set()
+            if step_id in seen:
+                return set()
+            seen.add(step_id)
+            step = step_by_id.get(step_id) or {}
+            parents: set = set()
+            refs = _upstream_refs_for_step(step)
+            # If the step has typed `inputs:` OR `sources:` OR an explicit
+            # `source:`, those are authoritative. Otherwise fall back to the
+            # last preceding step (the AgenticPipeline default).
+            if not refs:
+                # No explicit source. Runtime default: read from the
+                # last-inserted state entry — which for step 1 is the
+                # reserved id "source", and for step N>1 is the
+                # previous step in the `steps:` list.
+                _prev_id = _prev_step_id.get(step_id)
+                refs = [_prev_id] if _prev_id else ["source"]
+            for ref in refs:
+                if ref == "source":
+                    if _source_upstream_key:
+                        parents.add(dg.AssetKey.from_user_string(_source_upstream_key))
+                elif ref in emitted_set:
+                    parents.add(dg.AssetKey([f"{prefix}_{ref}"]))
+                elif ref in step_by_id:
+                    # Non-emitted intermediate step — inherit its parents.
+                    parents.update(_resolve_step_parents(ref, seen))
+                # else: unknown ref — ignore silently (compute will error)
+            return parents
+
+        internal_asset_deps: Dict[str, set] = {}
+        for aid in asset_ids:
+            _parents = _resolve_step_parents(aid)
+            if _parents:
+                internal_asset_deps[f"{prefix}_{aid}"] = _parents
+
         @dg.multi_asset(
             outs=outs,
             name=f"{prefix}_pipeline",
             ins=ins or None,
+            internal_asset_deps=internal_asset_deps or None,
         )
         def _pipeline(context: dg.AssetExecutionContext, **kwargs):
             partition_key = context.partition_key if context.has_partition_key else None

@@ -824,7 +824,387 @@
             "parse_as": "auto"
           }
         },
-        "anti_uses": "Fields: `asset_name_prefix` (NOT `asset_name`). **`source:` is for INITIAL TEXT INPUT ONLY** \u2014 its shape is one of {kind: literal, text: '...'} | {kind: file, path: '...'} | {kind: url, url: '...'} | {kind: upstream_asset, upstream_asset_key: '...'}. **NEVER put a step (mcp_call, llm_call, etc.) inside `source:`**. If your FIRST step is an `mcp_call` or otherwise doesn't need upstream text, put it as `steps[0]` and set `source: {kind: literal, text: 'unused'}`. Each step has {id, op, ...op-specific args}. For joins use `inputs: {port_name: {from: step_id} | {literal: value}}` \u2014 each port becomes a `{port_name}` placeholder in prompt_template + system_prompt (and, for mcp_call, in string tool_args). mcp_call op fields: `server: {name, type: stdio|http|sse, command|url}`, `mcp_tool_name`, `tool_args: {key: value}` (static dict, NOT LLM-generated). `outputs.assets` MUST list ALL step ids you want as first-class Dagster assets."
+        "anti_uses": "Fields: `asset_name_prefix` (NOT `asset_name`). **`source:` is for INITIAL TEXT INPUT ONLY** \u2014 its shape is one of {kind: literal, text: '...'} | {kind: file, path: '...'} | {kind: url, url: '...'} | {kind: upstream_asset, upstream_asset_key: '...'}. **NEVER put a step (mcp_call, llm_call, etc.) inside `source:`**. If your FIRST step is an `mcp_call` or otherwise doesn't need upstream text, put it as `steps[0]` and set `source: {kind: literal, text: 'unused'}`. Each step has {id, op, ...op-specific args}. For joins use `inputs: {port_name: {from: step_id} | {literal: value}}` \u2014 each port becomes a `{port_name}` placeholder in prompt_template + system_prompt (and, for mcp_call, in string tool_args). mcp_call op fields: `server: {name, type: stdio|http|sse, command|url}`, `mcp_tool_name`, `tool_args: {key: value}` (static dict, NOT LLM-generated). `outputs.assets` MUST list ALL step ids you want as first-class Dagster assets.",
+        "steps_schemas": {
+          "$id": "agentic_pipeline_steps",
+          "description": "Per-op discriminated union for entries in `steps:`. Validate each step against the schema matching its `op:` field.",
+          "oneOf": [
+            {
+              "title": "llm_call",
+              "type": "object",
+              "required": [
+                "id",
+                "op",
+                "model",
+                "api_key_env_var"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "llm_call"
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Optional prior step id; defaults to most recent."
+                },
+                "inputs": {
+                  "type": "object",
+                  "description": "Typed named inputs: {port_name: {from: step_id} | {literal: value}}"
+                },
+                "model": {
+                  "type": "string"
+                },
+                "api_key_env_var": {
+                  "type": "string"
+                },
+                "api_base_env_var": {
+                  "type": "string"
+                },
+                "system_prompt": {
+                  "type": "string"
+                },
+                "prompt_template": {
+                  "type": "string"
+                },
+                "temperature": {
+                  "type": "number"
+                },
+                "max_tokens": {
+                  "type": "integer"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "synthesize",
+              "type": "object",
+              "required": [
+                "id",
+                "op",
+                "model",
+                "api_key_env_var"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "synthesize"
+                },
+                "sources": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Legacy positional shape."
+                },
+                "inputs": {
+                  "type": "object",
+                  "description": "Typed named inputs (preferred): {port_name: {from: step_id} | {literal: value}}"
+                },
+                "model": {
+                  "type": "string"
+                },
+                "api_key_env_var": {
+                  "type": "string"
+                },
+                "system_prompt": {
+                  "type": "string"
+                },
+                "prompt_template": {
+                  "type": "string"
+                },
+                "temperature": {
+                  "type": "number"
+                },
+                "max_tokens": {
+                  "type": "integer"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "mcp_call",
+              "type": "object",
+              "required": [
+                "id",
+                "op",
+                "server",
+                "mcp_tool_name"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "mcp_call"
+                },
+                "server": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "type"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "enum": [
+                        "stdio",
+                        "http",
+                        "sse"
+                      ]
+                    },
+                    "command": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "env": {
+                      "type": "object",
+                      "description": "Literal env vars (no ${VAR} interpolation)."
+                    },
+                    "headers": {
+                      "type": "object"
+                    },
+                    "headers_env": {
+                      "type": "object",
+                      "description": "Deferred: {header_name: env_var_name}"
+                    }
+                  }
+                },
+                "mcp_tool_name": {
+                  "type": "string",
+                  "description": "Name of the tool as the MCP server exposes it (get_issue, read_file, etc.)."
+                },
+                "tool_args": {
+                  "type": "object",
+                  "description": "Static keys; string values support {text} and {port_name} substitution."
+                },
+                "parse_as": {
+                  "enum": [
+                    "auto",
+                    "json",
+                    "text"
+                  ]
+                },
+                "source": {
+                  "type": "string"
+                },
+                "inputs": {
+                  "type": "object"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "route",
+              "type": "object",
+              "required": [
+                "id",
+                "op",
+                "router",
+                "specialists"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "route"
+                },
+                "source": {
+                  "type": "string"
+                },
+                "router": {
+                  "type": "object",
+                  "required": [
+                    "model",
+                    "api_key_env_var"
+                  ],
+                  "properties": {
+                    "model": {
+                      "type": "string"
+                    },
+                    "api_key_env_var": {
+                      "type": "string"
+                    },
+                    "system_prompt": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "specialists": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "description",
+                      "model",
+                      "api_key_env_var"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "model": {
+                        "type": "string"
+                      },
+                      "api_key_env_var": {
+                        "type": "string"
+                      },
+                      "system_prompt": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "fallback": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "debate",
+              "type": "object",
+              "required": [
+                "id",
+                "op",
+                "proposers",
+                "arbitrator"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "debate"
+                },
+                "source": {
+                  "type": "string"
+                },
+                "proposers": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "model",
+                      "api_key_env_var"
+                    ],
+                    "properties": {
+                      "model": {
+                        "type": "string"
+                      },
+                      "api_key_env_var": {
+                        "type": "string"
+                      },
+                      "system_prompt": {
+                        "type": "string"
+                      },
+                      "temperature": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                },
+                "arbitrator": {
+                  "type": "object",
+                  "required": [
+                    "model",
+                    "api_key_env_var"
+                  ],
+                  "properties": {
+                    "model": {
+                      "type": "string"
+                    },
+                    "api_key_env_var": {
+                      "type": "string"
+                    },
+                    "system_prompt": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "critique_loop",
+              "type": "object",
+              "required": [
+                "id",
+                "op",
+                "drafter",
+                "critic",
+                "iterations"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "critique_loop"
+                },
+                "source": {
+                  "type": "string"
+                },
+                "drafter": {
+                  "type": "object",
+                  "required": [
+                    "model",
+                    "api_key_env_var"
+                  ],
+                  "properties": {
+                    "model": {
+                      "type": "string"
+                    },
+                    "api_key_env_var": {
+                      "type": "string"
+                    },
+                    "system_prompt": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "critic": {
+                  "type": "object",
+                  "required": [
+                    "model",
+                    "api_key_env_var"
+                  ],
+                  "properties": {
+                    "model": {
+                      "type": "string"
+                    },
+                    "api_key_env_var": {
+                      "type": "string"
+                    },
+                    "system_prompt": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "iterations": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        }
       },
       "validation": {
         "level": "live",

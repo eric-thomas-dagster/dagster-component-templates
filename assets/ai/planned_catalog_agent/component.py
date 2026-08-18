@@ -793,10 +793,30 @@ if _HAS_STATE_BACKED:
                 _hb = "\n".join(f"  - {h}" for h in self.task_hints)
                 _hints_block = f"\nAdditional task hints (domain knowledge):\n{_hb}\n"
 
+            # Discriminated-union schemas for nested list fields on
+            # meta-components (agentic_pipeline steps[], ml_pipeline steps[],
+            # supervisor_agent tools[], etc.). Published as
+            # `agent_hints.steps_schemas` on the manifest entry — a JSON
+            # Schema `oneOf` keyed on a discriminator field. When present,
+            # the planner sees the schemas and adheres to exact field names
+            # instead of substituting (`type` for `op`, `tool` for `mcp_tool_name`,
+            # etc.).
+            _schema_block = ""
+            for c in catalog:
+                _schemas = (c.get("agent_hints") or {}).get("steps_schemas")
+                if _schemas:
+                    _schema_block += (
+                        f"\n\nSTRICT JSON SCHEMA for `{c['id']}`'s nested list "
+                        f"(validate every entry against the matching `oneOf` branch — "
+                        f"use exact field names, do NOT substitute):\n"
+                        f"{json.dumps(_schemas, indent=2)[:6000]}\n"
+                    )
+
             static_prompt = (
                 f"You are an iterative pipeline agent. Decide the NEXT step, or declare done.\n\n"
                 f"Task:\n{self.task}\n"
-                f"{_hints_block}\n"
+                f"{_hints_block}"
+                f"{_schema_block}\n"
                 f"Available components ({len(catalog)} shown):\n"
                 + "\n".join(lines) + "\n\n"
                 f"Output ONLY a JSON object.\nIf more work is needed:\n"

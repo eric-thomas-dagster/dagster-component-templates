@@ -208,22 +208,18 @@ class FilesystemMonitorSensorComponent(Component, Model, Resolvable):
                             )
                         )
                     else:
-                        # Legacy run_config shape — for jobs whose op reads
-                        # file_path / file_name / file_size from config.
+                        # Default: launch the job with no run_config. Modern
+                        # Dagster requires `ops` config to be keyed by op
+                        # name (`{ops: {<op_name>: {config: ...}}}`), which
+                        # we can't compute generically from a job_name alone.
+                        # If your job needs file metadata as config, wire the
+                        # sensor's target job to accept a `resources: {run_files:
+                        # ...}` block instead of ops config, or use
+                        # partition_mode='static_partition' + a partition key
+                        # derived from the filename.
                         run_requests.append(
                             RunRequest(
                                 run_key=f"{file_path}-{mtime}",
-                                run_config={
-                                    "ops": {
-                                        "config": {
-                                            "file_path": file_path,
-                                            "file_name": file_name,
-                                            "file_size": stat.st_size,
-                                            "file_modified_time": mtime,
-                                            "directory_path": directory_path,
-                                        }
-                                    }
-                                },
                             )
                         )
 

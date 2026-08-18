@@ -26,10 +26,13 @@ attributes:
   # Run-config form fields — shown in the Dagster launchpad, and
   # accepted via `run_config: {ops: {launch_mir_op: {config: {...}}}}`
   # for programmatic launches.
+  # Every field has a default so Dagster's launchpad renders all
+  # three pre-populated in the config form — required-int-no-default
+  # fields sometimes get skipped by the launchpad's auto-scaffolder.
   config_schema:
     owner:        {type: str, default: dagster-io}
     repo:         {type: str, default: dagster}
-    issue_number: {type: int}
+    issue_number: {type: int, default: 30000}
 
   tags:
     team: developer-experience

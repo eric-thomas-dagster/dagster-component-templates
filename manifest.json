@@ -641,7 +641,7 @@
       "category": "ai",
       "author": "Dagster Community",
       "version": "1.0.0",
-      "description": "One YAML, whole agentic pipeline \u2014 source + steps + outputs. 5 ops (llm_call, route, debate, critique_loop, synthesize) covering single completions, multi-agent selection, N-proposer consensus, drafter/critic iteration, and fan-in synthesis. LiteLLM-backed \u2014 any provider (OpenAI, Anthropic, Gemini, Groq, Bedrock, Ollama, ...). Sibling of ml_pipeline for the LLM domain.",
+      "description": "One YAML, whole agentic pipeline \u2014 source + steps + outputs. v2 supports 6 ops (llm_call, route, debate, critique_loop, synthesize, mcp_call) and typed named `inputs:` on every text-emitting op for multi-input joins by port name. LiteLLM-backed for LLM ops (any provider). Sibling of ml_pipeline / polars_pipeline for the LLM domain.",
       "tags": [
         "ai",
         "llm",
@@ -666,19 +666,165 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agentic_pipeline/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agentic_pipeline/schema.json",
       "agent_hints": {
-        "when_to_use": "User wants a standardized multi-step agentic workflow shape (route \u2192 refine \u2192 debate \u2192 synthesize) declared in one YAML. Covers the compose-multiple-agent-shapes case in a single component. Sibling of ml_pipeline / polars_pipeline / warehouse_pipeline for the LLM domain.",
-        "typical_upstream": "Literal text prompt, a fetched URL / doc, a file, or another Dagster asset (via upstream_asset source).",
-        "typical_downstream": "Text sinks (files), JSON sinks (full step dicts w/ router reasoning + all proposals + critique history), or downstream Dagster assets that consume the emitted step-output dicts.",
+        "when_to_use": "User wants a standardized multi-step agentic workflow shape declared in ONE YAML. v2 covers 6 ops: llm_call | route | debate | critique_loop | synthesize | mcp_call. Supports typed named `inputs:` on every text-emitting op \u2014 any op can join from any prior op by port name (execution-plan graph shape). Sibling of ml_pipeline / polars_pipeline / warehouse_pipeline for the LLM domain.",
+        "typical_upstream": "Literal text prompt, a fetched URL / doc, a file, another Dagster asset (via upstream_asset source), or a direct MCP tool call (via mcp_call op \u2014 no upstream needed).",
+        "typical_downstream": "Text sinks (files), JSON sinks (full step dicts w/ per-op metadata), or downstream Dagster assets that consume any of the emitted step-output asset keys \u2014 every step is a first-class asset.",
         "example_prompts": [
           "Build an agentic pipeline that routes an incoming ticket to the right specialist agent, then critiques and refines the answer, then synthesizes a final response.",
           "Standardized multi-agent workflow with router + debate + critique loop \u2014 all in one YAML.",
-          "Multi-step LLM pipeline where a cheap router picks a specialist, then multiple proposers debate the answer, then an arbitrator picks the winner."
+          "Multi-step LLM pipeline where a cheap router picks a specialist, then multiple proposers debate the answer, then an arbitrator picks the winner.",
+          "AI maintainer investigation room: fetch a GitHub issue via GitHub MCP, fan out 4 typed-input specialists (repo/docs/repro/history), synthesize a triage decision, skeptic critique, decision routing, final report \u2014 all one YAML using mcp_call + typed inputs.",
+          "Investment memo generator: 3 analyst proposers debate buy/hold/sell for a ticker, arbitrator picks the winner."
         ],
-        "side_effects": "Calls LLM providers (OpenAI / Anthropic / etc. depending on `model:` string). Optionally writes text or JSON sinks to disk. Emits multiple named asset outputs from one component.",
+        "side_effects": "Calls LLM providers (OpenAI / Anthropic / etc. via LiteLLM). Optionally writes text/JSON sinks to disk. Emits multiple named asset outputs from one component. mcp_call op invokes external MCP servers (stdio subprocess / http / sse).",
         "requires_pip": [
           "litellm>=1.30.0",
-          "requests"
-        ]
+          "requests",
+          "mcp>=1.0.0"
+        ],
+        "example_yaml_snippets": {
+          "llm_call": {
+            "id": "example_step",
+            "op": "llm_call",
+            "source": "source",
+            "model": "gpt-4o-mini",
+            "api_key_env_var": "OPENAI_API_KEY",
+            "system_prompt": "You are a helpful specialist.",
+            "max_tokens": 400
+          },
+          "llm_call_with_typed_inputs": {
+            "id": "join_step",
+            "op": "llm_call",
+            "inputs": {
+              "context_a": {
+                "from": "upstream_step_a"
+              },
+              "context_b": {
+                "from": "upstream_step_b"
+              },
+              "policy": {
+                "literal": "static-value"
+              }
+            },
+            "model": "gpt-4o",
+            "api_key_env_var": "OPENAI_API_KEY",
+            "system_prompt": "Join the two contexts and apply the policy.",
+            "prompt_template": "CONTEXT_A\n{context_a}\n\nCONTEXT_B\n{context_b}\n\nPOLICY\n{policy}",
+            "max_tokens": 500
+          },
+          "synthesize": {
+            "id": "merger",
+            "op": "synthesize",
+            "sources": [
+              "step_a",
+              "step_b",
+              "step_c"
+            ],
+            "model": "gpt-4o",
+            "api_key_env_var": "OPENAI_API_KEY"
+          },
+          "synthesize_with_typed_inputs": {
+            "id": "typed_merger",
+            "op": "synthesize",
+            "inputs": {
+              "facts": {
+                "from": "upstream_facts_step"
+              },
+              "opinion": {
+                "from": "upstream_opinion_step"
+              },
+              "policy": {
+                "literal": "one-line static rule"
+              }
+            },
+            "model": "gpt-4o",
+            "api_key_env_var": "OPENAI_API_KEY",
+            "prompt_template": "FACTS\n{facts}\n\nOPINION\n{opinion}\n\nPOLICY\n{policy}"
+          },
+          "route": {
+            "id": "routed",
+            "op": "route",
+            "router": {
+              "model": "gpt-4o-mini",
+              "api_key_env_var": "OPENAI_API_KEY"
+            },
+            "specialists": [
+              {
+                "name": "technical",
+                "description": "Precise / formula-friendly.",
+                "model": "gpt-4o",
+                "api_key_env_var": "OPENAI_API_KEY",
+                "system_prompt": "You are a technical specialist."
+              },
+              {
+                "name": "general",
+                "description": "Everyday questions.",
+                "model": "gpt-4o-mini",
+                "api_key_env_var": "OPENAI_API_KEY",
+                "system_prompt": "You are a helpful assistant."
+              }
+            ],
+            "fallback": "general"
+          },
+          "debate": {
+            "id": "debated",
+            "op": "debate",
+            "proposers": [
+              {
+                "model": "gpt-4o",
+                "api_key_env_var": "OPENAI_API_KEY",
+                "system_prompt": "Argue A."
+              },
+              {
+                "model": "gpt-4o",
+                "api_key_env_var": "OPENAI_API_KEY",
+                "system_prompt": "Argue B."
+              }
+            ],
+            "arbitrator": {
+              "model": "gpt-4o",
+              "api_key_env_var": "OPENAI_API_KEY",
+              "system_prompt": "Pick the stronger."
+            }
+          },
+          "critique_loop": {
+            "id": "refined",
+            "op": "critique_loop",
+            "source": "some_upstream_step",
+            "drafter": {
+              "model": "gpt-4o",
+              "api_key_env_var": "OPENAI_API_KEY",
+              "system_prompt": "You are the drafter."
+            },
+            "critic": {
+              "model": "gpt-4o",
+              "api_key_env_var": "OPENAI_API_KEY",
+              "system_prompt": "You are the critic."
+            },
+            "iterations": 1
+          },
+          "mcp_call": {
+            "id": "intake",
+            "op": "mcp_call",
+            "server": {
+              "name": "github",
+              "type": "stdio",
+              "command": [
+                "npx",
+                "-y",
+                "@modelcontextprotocol/server-github"
+              ]
+            },
+            "mcp_tool_name": "get_issue",
+            "tool_args": {
+              "owner": "dagster-io",
+              "repo": "dagster",
+              "issue_number": 30000
+            },
+            "parse_as": "auto"
+          }
+        },
+        "anti_uses": "Fields: `asset_name_prefix` (NOT `asset_name`). **`source:` is for INITIAL TEXT INPUT ONLY** \u2014 its shape is one of {kind: literal, text: '...'} | {kind: file, path: '...'} | {kind: url, url: '...'} | {kind: upstream_asset, upstream_asset_key: '...'}. **NEVER put a step (mcp_call, llm_call, etc.) inside `source:`**. If your FIRST step is an `mcp_call` or otherwise doesn't need upstream text, put it as `steps[0]` and set `source: {kind: literal, text: 'unused'}`. Each step has {id, op, ...op-specific args}. For joins use `inputs: {port_name: {from: step_id} | {literal: value}}` \u2014 each port becomes a `{port_name}` placeholder in prompt_template + system_prompt (and, for mcp_call, in string tool_args). mcp_call op fields: `server: {name, type: stdio|http|sse, command|url}`, `mcp_tool_name`, `tool_args: {key: value}` (static dict, NOT LLM-generated). `outputs.assets` MUST list ALL step ids you want as first-class Dagster assets."
       },
       "validation": {
         "level": "live",
@@ -13418,11 +13564,11 @@
           "deploy alerts in a dedicated code location that watches every prod location",
           "self-healing: auto-reload code locations that break, escalate if reload doesn't work",
           "auto-free stuck concurrency slots + retry when a run gets stuck",
-          "scheduled scaling: bump snowflake pool 10 → 50 during business hours",
+          "scheduled scaling: bump snowflake pool 10 \u2192 50 during business hours",
           "cost breaker: pause AutoMaterialize when daily Insights credits exceed threshold",
           "auto-retry failed backfills once, escalate if second attempt also fails",
           "mute Dagster+ Alerts policies during scheduled maintenance windows",
-          "SOC2 audit-log feed: RBAC change → security-team Slack + SIEM webhook",
+          "SOC2 audit-log feed: RBAC change \u2192 security-team Slack + SIEM webhook",
           "add a dynamic partition when a new file drops on S3 / a manifest URL"
         ]
       },
@@ -36667,7 +36813,7 @@
       "id": "snowflake_workspace",
       "name": "Snowflake Workspace",
       "category": "integration",
-      "description": "Import Snowflake tasks / dynamic tables / stored procedures / streams / views / alerts as Dagster assets. Connection is a required `workspace:` block that IS a dagster_snowflake.SnowflakeResource — same shape as dagster-databricks / dagster-fivetran / dagster-powerbi. Password / SSO / keypair / OAuth / SQLAlchemy all supported via the official resource.",
+      "description": "Import Snowflake tasks / dynamic tables / stored procedures / streams / views / alerts as Dagster assets. Connection is a required `workspace:` block that IS a dagster_snowflake.SnowflakeResource \u2014 same shape as dagster-databricks / dagster-fivetran / dagster-powerbi. Password / SSO / keypair / OAuth / SQLAlchemy all supported via the official resource.",
       "version": "2.0.0",
       "author": "Dagster Community",
       "path": "integrations/snowflake_workspace",
@@ -38739,7 +38885,7 @@
       "id": "synthetic_prompt_generator",
       "name": "Synthetic Prompt Generator",
       "category": "source",
-      "description": "Emit str-valued prompt assets for LLM / agent demos. Five modes: literal {key: text} map, template+topics, fixed single, composed (v1.5 — systematic composition from persona/style/length/task_type/format_hint/depth levers, no LLM), or LLM (v2 — LiteLLM-elevated paraphraser using the same 6 levers as natural-language hints, optional include_wrong_variants for adversarial variants). Output type per materialization is str — snaps straight into AgenticPipelineComponent's `source: {kind: upstream_asset}` contract with no glue asset.",
+      "description": "Emit str-valued prompt assets for LLM / agent demos. Five modes: literal {key: text} map, template+topics, fixed single, composed (v1.5 \u2014 systematic composition from persona/style/length/task_type/format_hint/depth levers, no LLM), or LLM (v2 \u2014 LiteLLM-elevated paraphraser using the same 6 levers as natural-language hints, optional include_wrong_variants for adversarial variants). Output type per materialization is str \u2014 snaps straight into AgenticPipelineComponent's `source: {kind: upstream_asset}` contract with no glue asset.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/source/synthetic_prompt_generator",
@@ -38772,17 +38918,17 @@
       ],
       "agent_hints": {
         "output_type": "str",
-        "when_to_use": "User wants a str-valued Dagster asset carrying a prompt for downstream LLM / agent components. Primary consumer is AgenticPipelineComponent's `source: {kind: upstream_asset}` — this component emits str per materialization, no DataFrame extraction needed. Five modes: A. LITERAL (`prompts: {key: text}`); B. TEMPLATE (`topics:` + `template:` with `{topic}` substitution); C. FIXED (`prompt: '...'` unpartitioned); D. COMPOSED v1.5 (`topics:` + persona/style/length/task_type/format_hint/depth levers → deterministic template composition, no LLM); E. LLM v2 (`topics:` + `paraphrase_model:` + same 6 levers → LiteLLM interprets levers as natural-language hints, generates paraphrased variants; optional `include_wrong_variants:` peppers adversarial prompts for robustness / eval). Sibling of synthetic_image_generator / synthetic_audio_generator / synthetic_pdf_generator / synthetic_video_generator — completes the synthetic-modality family.",
-        "typical_downstream": "AgenticPipelineComponent (source: upstream_asset), langchain_chain_asset, litellm_agent, openai_agent, anthropic_agent, gemini_agent, dspy_program, supervisor_agent, iterative_supervisor_agent, catalog_agent, planned_catalog_agent — anywhere a str-typed prompt asset is the expected upstream.",
+        "when_to_use": "User wants a str-valued Dagster asset carrying a prompt for downstream LLM / agent components. Primary consumer is AgenticPipelineComponent's `source: {kind: upstream_asset}` \u2014 this component emits str per materialization, no DataFrame extraction needed. Five modes: A. LITERAL (`prompts: {key: text}`); B. TEMPLATE (`topics:` + `template:` with `{topic}` substitution); C. FIXED (`prompt: '...'` unpartitioned); D. COMPOSED v1.5 (`topics:` + persona/style/length/task_type/format_hint/depth levers \u2192 deterministic template composition, no LLM); E. LLM v2 (`topics:` + `paraphrase_model:` + same 6 levers \u2192 LiteLLM interprets levers as natural-language hints, generates paraphrased variants; optional `include_wrong_variants:` peppers adversarial prompts for robustness / eval). Sibling of synthetic_image_generator / synthetic_audio_generator / synthetic_pdf_generator / synthetic_video_generator \u2014 completes the synthetic-modality family.",
+        "typical_downstream": "AgenticPipelineComponent (source: upstream_asset), langchain_chain_asset, litellm_agent, openai_agent, anthropic_agent, gemini_agent, dspy_program, supervisor_agent, iterative_supervisor_agent, catalog_agent, planned_catalog_agent \u2014 anywhere a str-typed prompt asset is the expected upstream.",
         "example_prompts": [
           "make a set of research topic prompts, one per partition, that feed my agentic pipeline",
           "give me a str-valued asset with three programming-topic prompts for my LLM demo",
-          "synthetic prompts as the upstream of AgenticPipelineComponent — one prompt per partition",
-          "systematic prompt generator: {topic: text} mapping → static partitions → str output",
-          "template a prompt across a list of topics — one static partition per topic",
+          "synthetic prompts as the upstream of AgenticPipelineComponent \u2014 one prompt per partition",
+          "systematic prompt generator: {topic: text} mapping \u2192 static partitions \u2192 str output",
+          "template a prompt across a list of topics \u2014 one static partition per topic",
           "compose prompts systematically from persona / style / length / task_type / format / depth levers with no LLM",
           "generate 3 variants per topic using persona=engineer style=technical length=medium format=bullets",
-          "LLM-elevated prompt paraphraser — feed topics + levers, get diverse natural-sounding variants",
+          "LLM-elevated prompt paraphraser \u2014 feed topics + levers, get diverse natural-sounding variants",
           "adversarial prompt eval: include_wrong_variants sprinkles under-specified / jargon-heavy prompts every 3rd variant"
         ]
       }

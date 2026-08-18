@@ -165,6 +165,16 @@ if _HAS_STATE_BACKED:
         max_catalog_entries: int = 300
         max_iterations: int = 8
 
+        # Loop guard: end the trajectory if the planner picks the same
+        # component id and fails N times in a row. Default 3 is right for
+        # simple components; bump to 5-7 when picking meta-components with
+        # deeply nested typed schemas (agentic_pipeline with per-op
+        # sub-configs, supervisor_agent with tool specs, ...) — the
+        # planner needs more iterations to converge on the exact field
+        # shapes and the loop guard shouldn't kill it too early.
+        loop_guard_max_failures: int = 3
+
+
         manifest_url: Optional[str] = "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/manifest.json"
         manifest_path: Optional[str] = None
 
@@ -991,21 +1001,29 @@ if _HAS_STATE_BACKED:
                 reason = plan.get("reason", "")
 
                 # Loop guard FIRST: if the planner has picked the SAME component
-                # id and failed 3 times in a row, break out. Runs BEFORE the
-                # exact-repeat guard so we don't waste iterations on infinite
-                # rejections when the LLM ignores the hints.
+                # id and failed `loop_guard_max_failures` times in a row, break
+                # out. Runs BEFORE the exact-repeat guard so we don't waste
+                # iterations on infinite rejections when the LLM ignores hints.
+                #
+                # Default of 3 is right for most components; bump to 5+ when
+                # picking meta-components with deeply nested typed schemas
+                # (e.g. agentic_pipeline with per-op sub-configs, supervisor_agent
+                # with tool specs) — the planner needs more iterations to
+                # converge on the exact field shapes.
+                _lg_threshold = self.loop_guard_max_failures
                 _recent_same = [
-                    p for p in picks[-3:]
+                    p for p in picks[-_lg_threshold:]
                     if p.get("component_id") == cid and p.get("status") == "failed"
                 ]
-                if len(_recent_same) >= 3:
+                if len(_recent_same) >= _lg_threshold:
                     picks.append({
                         "iteration": iteration, "done": True, "component_id": cid,
                         "component_type": None, "config": json.dumps(cfg), "reason": reason,
                         "asset_name": None, "output_columns": [], "status": "failed",
                         "error": (
-                            f"loop guard: {cid!r} failed 3 times in a row — planner is stuck. "
-                            f"Ending trajectory to preserve prior successful picks."
+                            f"loop guard: {cid!r} failed {_lg_threshold} times in a row — planner is stuck. "
+                            f"Ending trajectory to preserve prior successful picks. "
+                            f"(Bump `loop_guard_max_failures` if you're picking meta-components with complex nested schemas.)"
                         ),
                     })
                     break

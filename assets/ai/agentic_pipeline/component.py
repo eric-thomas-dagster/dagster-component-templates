@@ -243,6 +243,13 @@ def _completion(
     except ImportError:
         raise ImportError("agentic_pipeline requires litellm: pip install 'litellm>=1.30.0'")
 
+    # Silently drop params a specific model doesn't accept (e.g. Claude
+    # Sonnet 5 only allows temperature=1; setting anything else without
+    # this flag raises UnsupportedParamsError). Setting it here — not
+    # globally at import time — keeps the change local to LLM calls
+    # from this component.
+    litellm.drop_params = True
+
     messages: List[Dict[str, Any]] = []
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})

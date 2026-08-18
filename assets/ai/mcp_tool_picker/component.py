@@ -563,8 +563,19 @@ async def _call_mcp_tool(
             cmd = server_cfg.get("command") or []
             if not cmd:
                 raise ValueError(f"MCP server {name!r} is stdio but command is empty.")
+            if isinstance(cmd, str):
+                raise ValueError(
+                    f"MCP server {name!r} `command:` must be a LIST of "
+                    f"strings, got a bare string: {cmd!r}."
+                )
+            # Forward parent env — mcp library defaults to a tight
+            # whitelist (HOME/PATH/SHELL/TERM/USER etc.) and strips
+            # everything else. YAML `env:` overrides inherited values.
+            import os as _os
+            _base_env = dict(_os.environ)
+            _base_env.update(server_cfg.get("env") or {})
             params = StdioServerParameters(
-                command=cmd[0], args=list(cmd[1:]), env=server_cfg.get("env")
+                command=cmd[0], args=list(cmd[1:]), env=_base_env
             )
             log.info(f"[mcp:{name}] starting stdio server: {' '.join(cmd)}")
             read, write = await stack.enter_async_context(stdio_client(params))

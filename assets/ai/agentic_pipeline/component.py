@@ -902,8 +902,17 @@ async def _call_mcp_tool_async(
                     f"syntax: `command: [npx, -y, \"@modelcontextprotocol/server-github\"]` "
                     f"or the block form: `command:\\n  - npx\\n  - -y\\n  - \"@...\"`."
                 )
+            # Forward the full parent-process environment to the stdio
+            # subprocess. Without this, the mcp Python library applies a
+            # tight security whitelist (HOME/LOGNAME/PATH/SHELL/TERM/USER
+            # on Unix) and silently strips everything else — including
+            # `GITHUB_PERSONAL_ACCESS_TOKEN`, `OPENAI_API_KEY`, and any
+            # other var the MCP server needs. YAML `env:` values override
+            # inherited ones (last-write-wins).
+            _base_env = dict(os.environ)
+            _base_env.update(server_cfg.get("env") or {})
             params = StdioServerParameters(
-                command=cmd[0], args=list(cmd[1:]), env=server_cfg.get("env")
+                command=cmd[0], args=list(cmd[1:]), env=_base_env
             )
             log.info(f"[mcp:{name}] starting stdio server: {' '.join(cmd)}")
             read, write = await stack.enter_async_context(stdio_client(params))

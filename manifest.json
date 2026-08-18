@@ -20288,7 +20288,10 @@
         "side_effects": "Reads (never writes) the approval token file at {approval_dir}/{partition_key or default_approval_key}.json.",
         "anti_uses": "Not for programmatic approval logic \u2014 use an assessor asset upstream. Not for time-based gating \u2014 use FreshnessPolicy or automation conditions.",
         "requires_resources": [],
-        "output_type": "passthrough"
+        "output_type": "passthrough",
+        "requires_pip": [
+          "pandas"
+        ]
       },
       "produces": [
         "asset"

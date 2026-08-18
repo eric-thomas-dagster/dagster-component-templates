@@ -259,10 +259,21 @@ class HumanApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
         )
         def _gate(context: dg.AssetExecutionContext, upstream):
             import pandas as pd
-            key = context.partition_key if context.has_partition_key else default_approval_key
-            token_file = Path(approval_dir).expanduser().resolve() / f"{key}.json"
+            raw_key = context.partition_key if context.has_partition_key else default_approval_key
+            # Sanitize `/` `\` so composite partition keys like
+            # `dagster-io/dagster#30000` land on a single-segment filename
+            # rather than a nested path (which would silently write to a
+            # subdirectory the FilesystemMonitorSensor isn't watching).
+            safe_key = raw_key.replace("/", "_").replace("\\", "_")
+            token_file = Path(approval_dir).expanduser().resolve() / f"{safe_key}.json"
 
-            context.log.info(f"Checking approval token: {token_file}")
+            if safe_key != raw_key:
+                context.log.info(
+                    f"Approval token: {token_file} (partition_key={raw_key!r} sanitized to {safe_key!r})"
+                )
+            else:
+                context.log.info(f"Checking approval token: {token_file}")
+            key = safe_key
 
             # Common failure payload — the gate always MATERIALIZES so the
             # asset stays green in the UI; the check_result signals the state.

@@ -14,7 +14,7 @@ Computes a running (cumulative) total on a numeric column. Supports optional gro
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `value_column` | `str` | Column to accumulate |
+| `value_column` | `Union[str, int]` | Column to accumulate |
 
 ### Catalog metadata
 
@@ -41,11 +41,11 @@ Computes a running (cumulative) total on a numeric column. Supports optional gro
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -59,14 +59,14 @@ Computes a running (cumulative) total on a numeric column. Supports optional gro
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_column` | `str` | — | Name for the cumulative column. Defaults to running_{value_column} |
+| `output_column` | `Union[str, int]` | — | Name for the cumulative column. Defaults to running_{value_column} |
 | `sort_by` | `str` | — | Sort by this column before computing the running total |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `group_by` | `List[str]` | — | Reset running total per group |
+| `group_by` | `List[Union[str, int]]` | — | Reset running total per group |
 | `sort_ascending` | `bool` | `true` | Sort direction when sort_by is set |
 | `agg_function` | `str` | `"sum"` | Cumulative function to apply: 'sum', 'count', or 'mean' |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |

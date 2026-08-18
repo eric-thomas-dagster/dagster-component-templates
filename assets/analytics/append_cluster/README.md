@@ -12,7 +12,7 @@ Trains a k-means model in-place on the input DataFrame and appends a `cluster` c
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `feature_columns` | `List[str]` | Numeric feature columns to cluster on. |
+| `feature_columns` | `List[Union[str, int]]` | Numeric feature columns to cluster on. |
 
 ### Catalog metadata
 
@@ -39,10 +39,10 @@ Trains a k-means model in-place on the input DataFrame and appends a `cluster` c
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter the upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
-| `partition_static_column` | `str` | — | Column used to filter the upstream DataFrame to the current static partition value. |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
 
 ### Retry policy
 
@@ -56,7 +56,7 @@ Trains a k-means model in-place on the input DataFrame and appends a `cluster` c
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_column` | `str` | `"cluster"` | Output column for cluster ID. |
+| `output_column` | `Union[str, int]` | `"cluster"` | Output column for cluster ID. |
 
 ### Other
 

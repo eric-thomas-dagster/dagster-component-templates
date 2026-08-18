@@ -18,7 +18,7 @@ Evaluate and score LLM outputs against a rubric using another LLM as a judge. Us
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `response_column` | `str` | Column containing LLM responses to evaluate |
+| `response_column` | `Union[str, int]` | Column containing LLM responses to evaluate |
 | `criteria` | `List[str]` | Evaluation criteria e.g. ["accuracy", "clarity", "completeness"] |
 
 ### Connection
@@ -52,11 +52,11 @@ Evaluate and score LLM outputs against a rubric using another LLM as a judge. Us
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -76,9 +76,9 @@ Evaluate and score LLM outputs against a rubric using another LLM as a judge. Us
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `reference_column` | `str` | — | Column containing reference/ground truth (if available) |
-| `score_column` | `str` | `"judge_score"` | Column to write numeric score (0-10) |
-| `reason_column` | `str` | `"judge_reason"` | Column to write explanation |
+| `reference_column` | `Union[str, int]` | — | Column containing reference/ground truth (if available) |
+| `score_column` | `Union[str, int]` | `"judge_score"` | Column to write numeric score (0-10) |
+| `reason_column` | `Union[str, int]` | `"judge_reason"` | Column to write explanation |
 | `rubric` | `str` | — | Custom scoring rubric to guide the judge |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |

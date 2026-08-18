@@ -54,11 +54,11 @@ The Priority Scorer Component calculates priority scores for support tickets usi
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -72,7 +72,7 @@ The Priority Scorer Component calculates priority scores for support tickets usi
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `input_columns` | `str` | `"ticket_text"` | Comma-separated list of columns to use for scoring |
+| `input_columns` | `Union[str, int]` | `"ticket_text"` | Comma-separated list of columns to use for scoring |
 
 ### Other
 
@@ -85,9 +85,9 @@ The Priority Scorer Component calculates priority scores for support tickets usi
 | `ml_model` | `str` | — | ML model: logistic_regression, xgboost, or random_forest (for method=ml) |
 | `priority_levels` | `str` | `"P1,P2,P3,P4"` | Comma-separated priority levels or 'numeric' for 0-100 scores |
 | `sla_hours` | `str` | — | JSON dict mapping customer tier to SLA hours: {"enterprise": 4, "pro": 24, "basic": 72} |
-| `customer_tier_column` | `str` | — | Column name for customer tier (e.g., 'customer_tier') |
-| `sentiment_score_column` | `str` | — | Column name for sentiment score (for weighting) |
-| `urgency_column` | `str` | — | Column name for urgency level (from classification) |
+| `customer_tier_column` | `Union[str, int]` | — | Column name for customer tier (e.g., 'customer_tier') |
+| `sentiment_score_column` | `Union[str, int]` | — | Column name for sentiment score (for weighting) |
+| `urgency_column` | `Union[str, int]` | — | Column name for urgency level (from classification) |
 | `escalation_threshold` | `float` | `80.0` | Priority score threshold for escalation (0-100) |
 | `predict_sla_breach` | `bool` | `true` | Predict if ticket will breach SLA |
 | `include_explanation` | `bool` | `true` | Include explanation of priority score factors |

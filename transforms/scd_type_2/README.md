@@ -58,9 +58,9 @@ Slowly Changing Dimension Type 2 — keep history. Detect changed rows, expire p
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `effective_from_column` | `str` | `"effective_from"` | Column for version start |
-| `effective_to_column` | `str` | `"effective_to"` | Column for version end (NULL for current) |
-| `is_current_column` | `str` | `"is_current"` | — |
+| `effective_from_column` | `Union[str, int]` | `"effective_from"` | Column for version start |
+| `effective_to_column` | `Union[str, int]` | `"effective_to"` | Column for version end (NULL for current) |
+| `is_current_column` | `Union[str, int]` | `"is_current"` | — |
 | `as_of_timestamp` | `str` | — | ISO timestamp for the new version's effective_from (default: now UTC) |
 | `include_preview_metadata` | `bool` | `true` | — |
 | `preview_rows` | `int` | `20` | — |

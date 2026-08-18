@@ -16,8 +16,8 @@ The `SimulationSamplingComponent` reads a distribution definition DataFrame wher
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame defining distributions (one row per variable) |
-| `variable_column` | `str` | Column with variable names |
-| `distribution_column` | `str` | Column with distribution type: normal, uniform, triangular, lognormal, poisson, exponential, beta |
+| `variable_column` | `Union[str, int]` | Column with variable names |
+| `distribution_column` | `Union[str, int]` | Column with distribution type: normal, uniform, triangular, lognormal, poisson, exponential, beta |
 | `param1_column` | `str` | Column with first distribution parameter (mean for normal, low for uniform, etc.) |
 | `param2_column` | `str` | Column with second distribution parameter (std for normal, high for uniform, etc.) |
 
@@ -46,11 +46,11 @@ The `SimulationSamplingComponent` reads a distribution definition DataFrame wher
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 

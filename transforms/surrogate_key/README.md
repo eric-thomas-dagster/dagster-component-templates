@@ -55,7 +55,7 @@ Generate stable surrogate keys — deterministic SHA-256 hash of business-key co
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_column` | `str` | `"sk_id"` | Name for the generated surrogate key column |
+| `output_column` | `Union[str, int]` | `"sk_id"` | Name for the generated surrogate key column |
 
 ### Other
 

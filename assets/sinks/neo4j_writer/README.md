@@ -17,7 +17,7 @@ The `Neo4jWriterComponent` accepts an upstream DataFrame asset and writes each r
 | `asset_name` | `str` | Name of the output asset to create |
 | `upstream_asset_key` | `str` | Asset key of the upstream DataFrame asset |
 | `node_label` | `str` | Neo4j node label to assign to created nodes |
-| `id_column` | `str` | DataFrame column to use as the node identity property for MERGE |
+| `id_column` | `Union[str, int]` | DataFrame column to use as the node identity property for MERGE |
 
 ### Connection
 
@@ -54,11 +54,11 @@ The `Neo4jWriterComponent` accepts an upstream DataFrame asset and writes each r
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 

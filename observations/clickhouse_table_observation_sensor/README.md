@@ -44,6 +44,7 @@ clickhouse-connect>=0.6.0
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `check_interval_seconds` | `int` | `300` | Seconds between observations |
+| `emit_materialization` | `bool` | `true` | When True (default), emit AssetMaterialization on the target asset key. External assets show healthy/green in the Dagster UI and downstream AutomationCondition.eager() fires naturally on parent updates. When False, emit AssetObservation — free of Dagster+ credit charges, but the target asset renders as observed-external (dashed border, gray) and downstream conditions that gate on ~any_deps_missing() (including eager()) will not fire. Both event types carry the same dagster/data_version tag. |
 
 [//]: # (FIELDS:END)
 

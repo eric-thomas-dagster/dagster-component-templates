@@ -39,10 +39,10 @@ Apply shapely's `simplify` (Douglas-Peucker) to each geometry, dropping points t
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter the upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
-| `partition_static_column` | `str` | — | Column used to filter the upstream DataFrame to the current static partition value. |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
 
 ### Retry policy
 
@@ -56,7 +56,7 @@ Apply shapely's `simplify` (Douglas-Peucker) to each geometry, dropping points t
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `geometry_column` | `str` | `"geometry"` | WKT geometry column. |
+| `geometry_column` | `Union[str, int]` | `"geometry"` | WKT geometry column. |
 | `metric_crs` | `str` | `"EPSG:3857"` | Metric CRS for tolerance interpretation. |
 | `src_crs` | `str` | `"EPSG:4326"` | Source CRS of input geometries. |
 | `preserve_topology` | `bool` | `true` | Preserve topology in simplification (slower but safer). |

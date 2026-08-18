@@ -52,7 +52,7 @@ DataFrame-producing asset (e.g. `synthetic_data_generator`,
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `partition_key_column` | `str` | — | Optional column to use as the partition key. Events with the same partition key land in the same partition (preserves ordering). |
+| `partition_key_column` | `Union[str, int]` | — | Optional column to use as the partition key. Events with the same partition key land in the same partition (preserves ordering). |
 | `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
 | `partition_values` | `str` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |

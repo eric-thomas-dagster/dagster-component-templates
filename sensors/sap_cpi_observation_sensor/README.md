@@ -71,6 +71,7 @@ The sensor tracks the max `MessageGuid` seen and uses it as a cursor — only ne
 | `only_statuses` | `list[str]` | — | Filter to specific MPL statuses: COMPLETED, FAILED, RETRY, etc. Default: all. |
 | `request_timeout_seconds` | `int` | `60` | — |
 | `verify_ssl` | `bool` | `true` | — |
+| `emit_materialization` | `bool` | `true` | When True (default), emit AssetMaterialization on the target asset key. External assets show healthy/green in the Dagster UI and downstream AutomationCondition.eager() fires naturally on parent updates. When False, emit AssetObservation — free of Dagster+ credit charges, but the target asset renders as observed-external (dashed border, gray) and downstream conditions that gate on ~any_deps_missing() (including eager()) will not fire. Both event types carry the same dagster/data_version tag. |
 
 [//]: # (FIELDS:END)
 

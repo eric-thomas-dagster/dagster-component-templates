@@ -76,7 +76,7 @@ Set exactly one:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `columns` | `List[str]` | — | Columns to SELECT (defaults to *). E.g. ['ID', 'NAME', 'AMOUNT']. |
+| `columns` | `List[Union[str, int]]` | — | Columns to SELECT (defaults to *). E.g. ['ID', 'NAME', 'AMOUNT']. |
 | `row_limit` | `int` | — | Optional LIMIT N on the result. |
 | `time_travel_offset_seconds` | `int` | — | Seconds back from now (NEGATIVE int, e.g. -3600 = 1 hour ago). Maps to `AT(OFFSET => <n>)`. |
 | `time_travel_timestamp` | `str` | — | Specific timestamp to time-travel to, e.g. '2025-05-19 10:00:00'. Maps to `AT(TIMESTAMP => '...'::TIMESTAMP)`. |

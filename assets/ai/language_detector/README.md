@@ -12,7 +12,7 @@ Detect the language of text in a column and output ISO 639-1 language codes (e.g
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `input_column` | `str` | Column containing text to detect language from |
+| `input_column` | `Union[str, int]` | Column containing text to detect language from |
 
 ### Catalog metadata
 
@@ -39,11 +39,11 @@ Detect the language of text in a column and output ISO 639-1 language codes (e.g
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -57,7 +57,7 @@ Detect the language of text in a column and output ISO 639-1 language codes (e.g
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_column` | `str` | `"language"` | Column to write ISO 639-1 language code e.g. 'en', 'es' |
+| `output_column` | `Union[str, int]` | `"language"` | Column to write ISO 639-1 language code e.g. 'en', 'es' |
 
 ### Other
 
@@ -66,7 +66,7 @@ Detect the language of text in a column and output ISO 639-1 language codes (e.g
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
-| `confidence_column` | `str` | — | If set, write confidence score to this column |
+| `confidence_column` | `Union[str, int]` | — | If set, write confidence score to this column |
 | `backend` | `str` | `"langdetect"` | Detection backend: langdetect, fasttext, or lingua |
 | `fallback_language` | `str` | `"unknown"` | Value to use when detection fails |
 

@@ -35,8 +35,8 @@ attributes:
 | `upstream_asset_key` | `str` | Upstream DataFrame asset key. |
 | `instance_id` | `str` | Bigtable instance id. |
 | `table_id` | `str` | Bigtable table id. |
-| `row_key_column` | `str` | DataFrame column to use as the Bigtable row key. |
-| `column_family` | `str` | Default column family for all non-row-key columns (unless overridden in column_map). |
+| `row_key_column` | `Union[str, int]` | DataFrame column to use as the Bigtable row key. |
+| `column_family` | `Union[str, int]` | Default column family for all non-row-key columns (unless overridden in column_map). |
 
 ### Execution
 

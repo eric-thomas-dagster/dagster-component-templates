@@ -12,7 +12,7 @@ Reduce DataFrame dimensionality using Principal Component Analysis (PCA). Replac
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `feature_columns` | `List[str]` | List of column names to use as input features for PCA |
+| `feature_columns` | `List[Union[str, int]]` | List of column names to use as input features for PCA |
 
 ### Catalog metadata
 
@@ -39,11 +39,11 @@ Reduce DataFrame dimensionality using Principal Component Analysis (PCA). Replac
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -57,7 +57,7 @@ Reduce DataFrame dimensionality using Principal Component Analysis (PCA). Replac
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `model_path` | `str` | — | If set, joblib-dump the trained model to this path after fit. Supports local paths and any fsspec URL (s3://, gs://, abfs://). Downstream `model_score` component loads this path to predict on new data — closes the Alteryx 'train once, score later' loop. |
+| `model_path` | `str` | — | If set, joblib-dump the trained model to this path after fit. Supports local paths and any fsspec URL (s3://, gs://, abfs://). Downstream `model_score` component loads this path to predict on new data — closes the train-once / score-later loop. |
 | `output_prefix` | `str` | `"pc_"` | Prefix for output PC column names (e.g. pc_1, pc_2) |
 
 ### Other

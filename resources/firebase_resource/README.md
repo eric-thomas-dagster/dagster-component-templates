@@ -15,11 +15,16 @@ Register a Firebase Admin SDK resource for use by other components (Firestore, C
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"firebase_resource"` | Key used to register this resource. Other components reference it via resource_key. |
-| `project_id_env_var` | `str` | `"FIREBASE_PROJECT_ID"` | Environment variable holding the Firebase project id. |
-| `credentials_path_env_var` | `str` | `"FIREBASE_CREDENTIALS_PATH"` | Env var holding a path to a service account JSON file. Mutually exclusive with credentials_json_env_var. |
-| `credentials_json_env_var` | `str` | — | Env var holding the raw service account JSON. Mutually exclusive with credentials_path_env_var. |
-| `storage_bucket_env_var` | `str` | — | Optional env var holding the default Cloud Storage bucket name. |
 | `database_url_env_var` | `str` | — | Optional env var holding the Realtime Database URL. |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `project_id_env_var` | `str` | `"FIREBASE_PROJECT_ID"` | Environment variable holding the Firebase project id. |
+| `credentials_path_env_var` | `str` | `"FIREBASE_CREDENTIALS_PATH"` | Environment variable holding a path to the service account JSON file. Mutually exclusive with credentials_json_env_var. |
+| `credentials_json_env_var` | `str` | — | Environment variable holding the raw service account JSON. Mutually exclusive with credentials_path_env_var. |
+| `storage_bucket_env_var` | `str` | — | Optional env var holding the default Cloud Storage bucket name (e.g. '<project>.appspot.com'). If unset, defaults to <project_id>.appspot.com. |
 
 [//]: # (FIELDS:END)
 

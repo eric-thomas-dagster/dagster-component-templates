@@ -46,11 +46,11 @@ performing a cross join (cartesian product) with a set of new rows.
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -64,7 +64,7 @@ performing a cross join (cartesian product) with a set of new rows.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `mode` | `str` | `"repeat"` | Expansion mode: 'repeat' (duplicate each row N times), 'cross_join' (cross product with new_rows), 'append' (append fixed new rows) |
+| `mode` | `str` | `"repeat"` | Expansion mode: 'repeat' (duplicate each row N times), 'cross_join' (cross product with new_rows), 'append' (append fixed new rows), 'loop_expression' (per-row range-loop driven by init/condition/loop Python expressions evaluated against each upstream row — emits one row per loop iteration, with the loop variable in `create_column`) |
 
 ### Other
 
@@ -72,6 +72,11 @@ performing a cross join (cartesian product) with a set of new rows.
 |---|---|---|---|
 | `n` | `int` | `1` | For mode='repeat': number of times to repeat each row |
 | `new_rows` | `List[Dict]` | — | For mode='append' or 'cross_join': list of row dicts to use |
+| `create_column` | `Union[str, int]` | — | For mode='loop_expression': name of the column to populate with each loop value |
+| `init_expression` | `str` | — | For mode='loop_expression': Python expression for the initial value (evaluated against each upstream row dict). Example: "row['Start']" or "row['Range-1']". |
+| `condition_expression` | `str` | — | For mode='loop_expression': Python expression returning bool; loop continues while True. The loop variable is in scope as `value`. Example: "value <= row['Range-2']". |
+| `loop_expression` | `str` | — | For mode='loop_expression': Python expression returning the next value. Example: "value + 1" or "value + pd.Timedelta(days=1)". |
+| `loop_max_iterations` | `int` | `100000` | For mode='loop_expression': safety limit per row to prevent infinite loops. |
 | `reset_index` | `bool` | `true` | Reset the index after expansion |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 25 rows or a sample) for builder UIs. |

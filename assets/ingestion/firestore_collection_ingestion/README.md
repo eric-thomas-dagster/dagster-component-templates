@@ -17,30 +17,35 @@ Pair with a `firebase_resource` component in the same Dagster project.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create. |
-| `collection_path` | `str` | Firestore path — e.g. `users` or `orders/{order_id}/items`. |
+| `collection_path` | `str` | Firestore collection path, e.g. 'users' or 'orders/{order_id}/items'. |
 
-### Connection
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `resource_name` | `str` | `"firebase_resource"` | Name of the FirebaseResource this asset uses. |
-
-### Query
+### Execution
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `where_clauses` | `list[dict]` | — | List of `{field, op, value}` filter dicts. |
-| `limit` | `int` | — | Maximum number of documents to read. |
-| `order_by` | `dict` | — | `{field, direction}` where direction is `asc` (default) or `desc`. |
+| `limit` | `int` | — | Optional maximum number of documents to read. |
 
-### Catalog
+### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `group_name` | `str` | `"firebase"` | Asset group for organization. |
 | `description` | `str` | — | Asset description. |
-| `owners` | `list[str]` | — | Team names or emails. |
-| `asset_tags` | `dict` | — | Additional key-value tags. |
+| `owners` | `List[str]` | — | Asset owners (team names or emails). |
+| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags for the asset. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `where_clauses` | `List[Dict[str, Any]]` | — | Optional filters: list of {field, op, value} dicts. Ops: ==, !=, <, <=, >, >=, in, not-in, array-contains, array-contains-any. |
+| `order_by` | `Dict[str, str]` | — | Optional ordering: {field: <name>, direction: 'asc'\|'desc'} (default 'asc'). |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_name` | `str` | `"firebase_resource"` | Name of the FirebaseResource this asset uses. |
 | `include_preview_metadata` | `bool` | `true` | Include a sample preview in the run metadata. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview. |
 

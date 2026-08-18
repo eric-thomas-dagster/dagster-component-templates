@@ -93,7 +93,7 @@ export GOOGLE_APPLICATION_CREDENTIALS=/path/to/sa.json
 | `credentials_path` | `str` | — | Path to service-account JSON. Falls back to GOOGLE_APPLICATION_CREDENTIALS. |
 | `doc_ids` | `List[str]` | — | Explicit list of Google Doc IDs. Mutually exclusive with upstream_asset_key. |
 | `upstream_asset_key` | `str` | — | Upstream DataFrame asset key. Each row's id_column value is treated as a Doc ID. |
-| `id_column` | `str` | `"id"` | When upstream_asset_key is set, the column with the Doc IDs. |
+| `id_column` | `Union[str, int]` | `"id"` | When upstream_asset_key is set, the column with the Doc IDs. |
 | `include_headings` | `bool` | `true` | Include `headings` list column. |
 | `include_text` | `bool` | `true` | Include the full plain-text `text` column. |
 | `rate_limit_delay` | `float` | `0.2` | Seconds between Doc fetches. |

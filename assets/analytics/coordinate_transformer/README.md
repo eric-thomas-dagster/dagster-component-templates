@@ -12,8 +12,8 @@ Reproject coordinate columns in a DataFrame from one coordinate reference system
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with coordinate columns |
-| `x_column` | `str` | Input column name for X values (longitude in geographic CRS) |
-| `y_column` | `str` | Input column name for Y values (latitude in geographic CRS) |
+| `x_column` | `Union[str, int]` | Input column name for X values (longitude in geographic CRS) |
+| `y_column` | `Union[str, int]` | Input column name for Y values (latitude in geographic CRS) |
 
 ### Catalog metadata
 
@@ -40,11 +40,11 @@ Reproject coordinate columns in a DataFrame from one coordinate reference system
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -60,8 +60,8 @@ Reproject coordinate columns in a DataFrame from one coordinate reference system
 |---|---|---|---|
 | `source_crs` | `str` | `"EPSG:4326"` | Source CRS as EPSG code or PROJ string (e.g. EPSG:4326) |
 | `target_crs` | `str` | `"EPSG:3857"` | Target CRS as EPSG code or PROJ string (e.g. EPSG:3857 for Web Mercator) |
-| `output_x_column` | `str` | `"x_transformed"` | Output column name for transformed X values |
-| `output_y_column` | `str` | `"y_transformed"` | Output column name for transformed Y values |
+| `output_x_column` | `Union[str, int]` | `"x_transformed"` | Output column name for transformed X values |
+| `output_y_column` | `Union[str, int]` | `"y_transformed"` | Output column name for transformed Y values |
 
 ### Other
 

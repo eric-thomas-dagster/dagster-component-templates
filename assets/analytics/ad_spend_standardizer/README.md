@@ -82,11 +82,11 @@ calculate_derived_metrics: true
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -104,7 +104,7 @@ calculate_derived_metrics: true
 | `facebook_ads_asset_key` | `str` | — | Facebook Ads data asset (automatically set via lineage) |
 | `other_ad_platform_asset_key` | `str` | — | Other ad platform data asset (automatically set via lineage) |
 | `currency_normalization` | `str` | `"USD"` | Normalize all spend to this currency (USD, EUR, GBP) |
-| `date_column_name` | `str` | `"date"` | Name of the date column in source data |
+| `date_column_name` | `Union[str, int]` | `"date"` | Name of the date column in source data |
 | `aggregate_by_day` | `bool` | `true` | Aggregate metrics by day (recommended for consistency) |
 | `include_zero_spend_days` | `bool` | `false` | Include days with zero spend in output |
 | `calculate_derived_metrics` | `bool` | `true` | Calculate CTR, CPC, CPA, ROAS automatically |

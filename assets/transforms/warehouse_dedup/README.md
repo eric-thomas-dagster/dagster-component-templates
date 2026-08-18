@@ -65,7 +65,7 @@ attributes:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `database_url` | `str` | — | SQLAlchemy URL. Set this OR database_url_env_var. |
-| `subset` | `List[str]` | — | Columns to dedup by. If unset, uses SELECT DISTINCT *. |
+| `subset` | `List[Union[str, int]]` | — | Columns to dedup by. If unset, uses SELECT DISTINCT *. |
 | `descending` | `bool` | `false` | If true, ORDER BY DESC (keep latest). Default false (keep first). |
 | `include_preview_metadata` | `bool` | `false` | — |
 | `preview_rows` | `int` | `25` | — |

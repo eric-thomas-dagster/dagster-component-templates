@@ -17,9 +17,14 @@ pip install requests
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"gong_resource"` | Key used to register this resource. Other components reference it via resource_key. |
+| `base_url` | `str` | `"https://api.gong.io/"` | Gong API base URL. Override for regional endpoints (EU/APAC). |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
 | `access_key_env_var` | `str` | `"GONG_ACCESS_KEY"` | Env var holding the Gong API access key |
 | `access_key_secret_env_var` | `str` | `"GONG_ACCESS_KEY_SECRET"` | Env var holding the Gong API access key secret |
-| `base_url` | `str` | `"https://api.gong.io/"` | Gong API base URL. Override for regional endpoints (EU/APAC). |
 
 [//]: # (FIELDS:END)
 

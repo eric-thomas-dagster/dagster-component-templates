@@ -15,7 +15,7 @@ See schema.json for full attribute reference.
 | `asset_name` | `str` | Dagster asset name |
 | `upstream_asset_key` | `str` | Asset key of upstream DataFrame |
 | `endpoint` | `str` | OTLP/HTTP endpoint base URL |
-| `span_name_column` | `str` | Column whose value becomes the span name |
+| `span_name_column` | `Union[str, int]` | Column whose value becomes the span name |
 
 ### Catalog metadata
 
@@ -56,11 +56,11 @@ See schema.json for full attribute reference.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `service_name` | `str` | `"dagster"` | — |
-| `start_time_column` | `str` | — | Column with span start (epoch seconds or datetime). Default: now() |
-| `end_time_column` | `str` | — | Column with span end. Default: start + duration_ms_column or 1ms after start |
-| `duration_ms_column` | `str` | — | Column with duration in ms (used if end_time_column is unset) |
-| `trace_id_column` | `str` | — | Column to derive trace IDs (rows with same value share a trace). Default: one trace per push. |
-| `parent_span_id_column` | `str` | — | Column with parent span IDs to build the span tree |
+| `start_time_column` | `Union[str, int]` | — | Column with span start (epoch seconds or datetime). Default: now() |
+| `end_time_column` | `Union[str, int]` | — | Column with span end. Default: start + duration_ms_column or 1ms after start |
+| `duration_ms_column` | `Union[str, int]` | — | Column with duration in ms (used if end_time_column is unset) |
+| `trace_id_column` | `Union[str, int]` | — | Column to derive trace IDs (rows with same value share a trace). Default: one trace per push. |
+| `parent_span_id_column` | `Union[str, int]` | — | Column with parent span IDs to build the span tree |
 | `attribute_columns` | `List[str]` | — | — |
 | `bearer_token_env_var` | `str` | — | — |
 | `extra_headers` | `Dict[str, str]` | — | — |

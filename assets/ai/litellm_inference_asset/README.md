@@ -162,11 +162,11 @@ You will also need any provider-specific SDK your chosen model requires (e.g. `b
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -189,7 +189,7 @@ You will also need any provider-specific SDK your chosen model requires (e.g. `b
 | `api_base_env_var` | `str` | — | Env var with custom API base URL |
 | `litellm_resource_key` | `str` | — | Key of a LiteLLMResource in resources dict |
 | `system_prompt` | `str` | — | System prompt for chat completions |
-| `response_column` | `str` | `"llm_response"` | Column name to store LLM responses |
+| `response_column` | `Union[str, int]` | `"llm_response"` | Column name to store LLM responses |
 | `temperature` | `float` | `0.0` | Sampling temperature |
 | `max_tokens` | `int` | `1024` | Max tokens per completion |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |

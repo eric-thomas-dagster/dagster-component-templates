@@ -16,7 +16,7 @@ The Image Classifier Component loads a pre-trained vision model and classifies e
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `image_column` | `str` | Column with image file paths or URLs |
+| `image_column` | `Union[str, int]` | Column with image file paths or URLs |
 
 ### Catalog metadata
 
@@ -43,11 +43,11 @@ The Image Classifier Component loads a pre-trained vision model and classifies e
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -61,16 +61,16 @@ The Image Classifier Component loads a pre-trained vision model and classifies e
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_column` | `str` | `"predicted_class"` | Top predicted label column |
+| `output_column` | `Union[str, int]` | `"predicted_class"` | Top predicted label column |
 | `model_name` | `str` | `"openai/clip-vit-base-patch32"` | HuggingFace model ID or 'resnet50'/'efficientnet' |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `score_column` | `str` | `"confidence_score"` | Confidence score for top prediction |
+| `score_column` | `Union[str, int]` | `"confidence_score"` | Confidence score for top prediction |
 | `top_k` | `int` | `3` | Return top-k predictions |
-| `all_predictions_column` | `str` | — | If set, write list of [{label, score}] dicts to this column |
+| `all_predictions_column` | `Union[str, int]` | — | If set, write list of [{label, score}] dicts to this column |
 | `candidate_labels` | `List[str]` | — | For CLIP zero-shot, restrict to these labels |
 | `device` | `str` | `"cpu"` | Compute device: cpu, cuda, or mps |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |

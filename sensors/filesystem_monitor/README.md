@@ -24,6 +24,13 @@ Perfect for:
 | `directory_path` | `str` | Path to the directory to monitor for new files |
 | `job_name` | `str` | Name of the job to trigger when files are detected |
 
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_mode` | `str` | `"run_config"` | How the sensor surfaces detected files: 'run_config' (default — embed file metadata in run_config), 'static_partition' (yield RunRequest(partition_key=<from partition_key_template>) — use when the target asset has a static/dynamic partitions_def), or 'dynamic_partition' (also registers each key on the given DynamicPartitionsDefinition first). |
+| `partition_key_template` | `str` | `"{file_stem}"` | Template for the partition key per detected file. Fields: {file_path}, {file_name}, {file_stem} (filename without extension). Default `{file_stem}` — e.g. `/tmp/approvals/t3.json` → `t3`. |
+
 ### Sensor configuration
 
 | Field | Type | Default | Description |
@@ -37,6 +44,7 @@ Perfect for:
 |---|---|---|---|
 | `file_pattern` | `str` | `".*"` | Regex pattern to match files (e.g., '.*\.csv$' for CSV files) |
 | `recursive` | `bool` | `false` | Whether to recursively search subdirectories |
+| `dynamic_partitions_name` | `str` | — | Required when partition_mode='dynamic_partition'. Must match the downstream asset's `dynamic_partition_name:` field. |
 
 [//]: # (FIELDS:END)
 

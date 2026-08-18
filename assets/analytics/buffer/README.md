@@ -39,10 +39,10 @@ Reads a WKT `geometry` column and replaces each geometry with its buffer at the 
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter the upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
-| `partition_static_column` | `str` | — | Column used to filter the upstream DataFrame to the current static partition value. |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
 
 ### Retry policy
 
@@ -56,7 +56,7 @@ Reads a WKT `geometry` column and replaces each geometry with its buffer at the 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `geometry_column` | `str` | `"geometry"` | WKT geometry column name. |
+| `geometry_column` | `Union[str, int]` | `"geometry"` | WKT geometry column name. |
 | `metric_crs` | `str` | `"EPSG:3857"` | Metric projection used for the buffer (Web Mercator by default). |
 | `src_crs` | `str` | `"EPSG:4326"` | Source CRS of the input geometries. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output DataFrame in metadata (for builder UIs). |

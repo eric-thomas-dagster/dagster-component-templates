@@ -61,6 +61,7 @@ dagster-component add dataframe_from_yxdb --auto-install
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `nrows` | `int` | — | Optional row limit; defaults to all rows. |
+| `if_missing` | `str` | `"raise"` | Behavior when the file_path doesn't exist: 'raise' (default — fail loudly), 'empty' (return an empty DataFrame and log a warning so downstream assets continue with empty inputs). Useful for importer-generated demos where the original Alteryx workflow referenced a Windows-only path that the customer hasn't restored yet. |
 
 [//]: # (FIELDS:END)
 

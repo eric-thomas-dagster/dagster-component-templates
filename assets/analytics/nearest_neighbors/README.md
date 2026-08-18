@@ -12,7 +12,7 @@ For each record in the DataFrame, find the K nearest neighbors by feature simila
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `feature_columns` | `List[str]` | List of column names to use for distance computation |
+| `feature_columns` | `List[Union[str, int]]` | List of column names to use for distance computation |
 
 ### Catalog metadata
 
@@ -39,11 +39,11 @@ For each record in the DataFrame, find the K nearest neighbors by feature simila
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -57,7 +57,7 @@ For each record in the DataFrame, find the K nearest neighbors by feature simila
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `model_path` | `str` | — | If set, joblib-dump the trained model to this path after fit. Supports local paths and any fsspec URL (s3://, gs://, abfs://). Downstream `model_score` component loads this path to predict on new data — closes the Alteryx 'train once, score later' loop. |
+| `model_path` | `str` | — | If set, joblib-dump the trained model to this path after fit. Supports local paths and any fsspec URL (s3://, gs://, abfs://). Downstream `model_score` component loads this path to predict on new data — closes the train-once / score-later loop. |
 | `output_distances` | `bool` | `true` | Add neighbor_N_dist columns with distances |
 | `output_indices` | `bool` | `true` | Add neighbor_N_idx columns with row indices |
 
@@ -69,6 +69,8 @@ For each record in the DataFrame, find the K nearest neighbors by feature simila
 | `algorithm` | `str` | `"auto"` | Algorithm: 'auto', 'ball_tree', 'kd_tree', 'brute' |
 | `metric` | `str` | `"euclidean"` | Distance metric (e.g. 'euclidean', 'manhattan', 'cosine') |
 | `normalize` | `bool` | `true` | Standardize features with StandardScaler before computing distances |
+| `distance_column_template` | `Union[str, int]` | `"neighbor_{i}_dist"` | Format string for distance column names. `{i}` is the 1-based neighbor index. Use e.g. 'DistanceMiles' for a single-neighbor result. |
+| `index_column_template` | `Union[str, int]` | `"neighbor_{i}_idx"` | Format string for index column names. `{i}` is the 1-based neighbor index. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 25 rows or a sample) for builder UIs. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata. For long DataFrames (>10x preview_rows), a random sample is used; otherwise head(). |

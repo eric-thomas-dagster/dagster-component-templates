@@ -74,8 +74,8 @@ attributes:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `video_path_column` | `str` | `"file_path"` | Column of video file paths. |
-| `video_id_column` | `str` | — | Optional column to carry forward as `video_id` on each frame row. Default: row index. |
+| `video_path_column` | `Union[str, int]` | `"file_path"` | Column of video file paths. |
+| `video_id_column` | `Union[str, int]` | — | Optional column to carry forward as `video_id` on each frame row. Default: row index. |
 | `image_format` | `Literal['jpg', 'png']` | `"jpg"` | — |
 | `image_quality` | `int` | `85` | JPEG quality 1–100 (PNG ignores). |
 | `every_seconds` | `float` | `1.0` | `every_seconds`: 1 frame per N seconds. |

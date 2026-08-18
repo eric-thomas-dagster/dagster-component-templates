@@ -99,11 +99,11 @@ Returns a dictionary with status information:
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -117,8 +117,8 @@ Returns a dictionary with status information:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `embedding_column` | `str` | `"embedding"` | Column with embeddings |
-| `text_column` | `str` | `"text"` | Column with text |
+| `embedding_column` | `Union[str, int]` | `"embedding"` | Column with embeddings |
+| `text_column` | `Union[str, int]` | `"text"` | Column with text |
 | `metadata_columns` | `List[str]` | — | Additional metadata columns |
 | `upsert` | `bool` | `true` | Upsert if exists |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |

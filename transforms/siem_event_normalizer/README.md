@@ -65,10 +65,10 @@ Normalize heterogeneous audit-log events to a common schema (OCSF or ECS) before
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `event_column` | `str` | — | If set, treat this column as a JSON-encoded event payload and parse it into the source columns before normalization. Use when the upstream stores raw events as JSON strings in a single column. |
-| `timestamp_column` | `str` | — | Source column to map to event timestamp (auto-detect if None) |
-| `actor_column` | `str` | — | Source column for actor/user (auto-detect if None) |
-| `action_column` | `str` | — | Source column for action/event name |
+| `event_column` | `Union[str, int]` | — | If set, treat this column as a JSON-encoded event payload and parse it into the source columns before normalization. Use when the upstream stores raw events as JSON strings in a single column. |
+| `timestamp_column` | `Union[str, int]` | — | Source column to map to event timestamp (auto-detect if None) |
+| `actor_column` | `Union[str, int]` | — | Source column for actor/user (auto-detect if None) |
+| `action_column` | `Union[str, int]` | — | Source column for action/event name |
 | `drop_extras` | `bool` | `false` | Drop source columns that don't map to the target schema |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 

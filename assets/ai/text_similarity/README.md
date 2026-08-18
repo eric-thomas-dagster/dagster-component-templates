@@ -12,7 +12,7 @@ Compute semantic or lexical similarity between two text columns, or between each
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `text_column_a` | `str` | First text column for comparison |
+| `text_column_a` | `Union[str, int]` | First text column for comparison |
 
 ### Catalog metadata
 
@@ -39,11 +39,11 @@ Compute semantic or lexical similarity between two text columns, or between each
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -57,7 +57,7 @@ Compute semantic or lexical similarity between two text columns, or between each
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_column` | `str` | `"similarity_score"` | Column to write float similarity score (0-1) |
+| `output_column` | `Union[str, int]` | `"similarity_score"` | Column to write float similarity score (0-1) |
 | `model_name` | `str` | `"all-MiniLM-L6-v2"` | Sentence-transformers model name (used for semantic method only) |
 
 ### Other
@@ -67,7 +67,7 @@ Compute semantic or lexical similarity between two text columns, or between each
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
-| `text_column_b` | `str` | — | Second text column. If omitted, compare each row against `query`. |
+| `text_column_b` | `Union[str, int]` | — | Second text column. If omitted, compare each row against `query`. |
 | `query` | `str` | — | Fixed string to compare each row against (used when text_column_b is omitted) |
 | `method` | `str` | `"cosine_tfidf"` | Similarity method: cosine_tfidf, jaccard, sequence_matcher, or semantic |
 

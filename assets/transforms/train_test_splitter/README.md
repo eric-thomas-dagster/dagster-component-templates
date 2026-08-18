@@ -51,10 +51,10 @@ Unlike most transforms, this component emits **two or three downstream assets** 
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter the upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
-| `partition_static_column` | `str` | — | Column used to filter the upstream DataFrame to the current static partition value. |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
 
 ### Retry policy
 
@@ -72,9 +72,9 @@ Unlike most transforms, this component emits **two or three downstream assets** 
 | `test_size` | `float` | `0.2` | Fraction allocated to the test set (0.0–1.0). |
 | `val_size` | `float` | `0.0` | Fraction allocated to a validation set. 0.0 = no validation asset emitted. |
 | `random_state` | `int` | `42` | Random seed for 'random' strategy. (sklearn-compatible name) |
-| `stratify_column` | `str` | — | Column to stratify the random split on (preserves class balance). Mutually exclusive with group_column. |
-| `group_column` | `str` | — | Column whose values define groups; all rows in a group land in the same split (prevents leakage on related rows). |
-| `time_column` | `str` | — | Required for strategy='time'. Column to sort by; oldest rows go to train. |
+| `stratify_column` | `Union[str, int]` | — | Column to stratify the random split on (preserves class balance). Mutually exclusive with group_column. |
+| `group_column` | `Union[str, int]` | — | Column whose values define groups; all rows in a group land in the same split (prevents leakage on related rows). |
+| `time_column` | `Union[str, int]` | — | Required for strategy='time'. Column to sort by; oldest rows go to train. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output DataFrame in metadata (for builder UIs). |
 | `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. |
 

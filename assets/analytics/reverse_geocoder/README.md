@@ -50,11 +50,11 @@ Reverse geocode latitude/longitude coordinates in a DataFrame to human-readable 
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -68,16 +68,16 @@ Reverse geocode latitude/longitude coordinates in a DataFrame to human-readable 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_address_column` | `str` | `"address"` | Column name for the full resolved address |
-| `output_city_column` | `str` | — | Optional column name for the city name |
-| `output_country_column` | `str` | — | Optional column name for the country name |
+| `output_address_column` | `Union[str, int]` | `"address"` | Column name for the full resolved address |
+| `output_city_column` | `Union[str, int]` | — | Optional column name for the city name |
+| `output_country_column` | `Union[str, int]` | — | Optional column name for the country name |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `lat_column` | `str` | `"latitude"` | Column name containing latitude values |
-| `lng_column` | `str` | `"longitude"` | Column name containing longitude values |
+| `lat_column` | `Union[str, int]` | `"latitude"` | Column name containing latitude values |
+| `lng_column` | `Union[str, int]` | `"longitude"` | Column name containing longitude values |
 | `provider` | `str` | `"nominatim"` | Geocoding provider: 'nominatim' (free), 'google' (API key required), 'here' (API key required) |
 | `user_agent` | `str` | `"dagster_reverse_geocoder"` | User agent string required for Nominatim requests |
 | `batch_delay` | `float` | `1.0` | Seconds to wait between requests to respect rate limits |

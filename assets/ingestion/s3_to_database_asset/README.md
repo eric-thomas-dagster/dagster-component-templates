@@ -56,11 +56,11 @@ This component enables event-driven data ingestion from S3 to databases. It's de
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', or None for unpartitioned. With a partition type set, the partition key is exposed via context.partition_key for use in filtering / templating. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required when partition_type is set. |
-| `partition_date_column` | `str` | — | Column used to filter the upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
-| `partition_static_column` | `str` | — | Column used to filter the upstream DataFrame to the current static partition value. |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
 
 ### Retry policy
 
@@ -85,7 +85,7 @@ This component enables event-driven data ingestion from S3 to databases. It's de
 | `file_format` | `str` | `"csv"` | Expected file format: 'csv', 'json', 'parquet', 'auto' (detect from extension) |
 | `csv_delimiter` | `str` | `","` | CSV delimiter character (if format is CSV) |
 | `json_orient` | `str` | `"records"` | JSON orientation: 'records', 'split', 'index', 'columns', 'values' |
-| `column_mapping` | `str` | — | JSON string for renaming columns, e.g. {"old_name": "new_name"} |
+| `column_mapping` | `Union[str, int]` | — | JSON string for renaming columns, e.g. {"old_name": "new_name"} |
 | `dtype_mapping` | `str` | — | JSON string for specifying column types, e.g. {"col1": "int64"} |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the DataFrame about to be written, in metadata, so builder UIs can show 'what's being sunk' without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. Random sample if len > 10x preview_rows; else head. |

@@ -41,11 +41,11 @@ Writes a Pandas DataFrame to an Excel `.xlsx` file. This is a terminal sink comp
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -61,7 +61,7 @@ Writes a Pandas DataFrame to an Excel `.xlsx` file. This is a terminal sink comp
 |---|---|---|---|
 | `sheet_name` | `str` | `"Sheet1"` | Target worksheet name |
 | `include_index` | `bool` | `false` | Include row index in output |
-| `columns` | `List[str]` | — | Subset of columns to write. If None, all columns are written. |
+| `columns` | `List[Union[str, int]]` | — | Subset of columns to write. If None, all columns are written. |
 | `freeze_panes` | `List[int]` | — | Freeze rows/columns as [row, col] (0-based). e.g. [1, 0] freezes the first row. Requires openpyxl. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the DataFrame about to be written, in metadata, so builder UIs can show 'what's being sunk' without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. Random sample if len > 10x preview_rows; else head. |

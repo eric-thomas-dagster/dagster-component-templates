@@ -14,7 +14,7 @@ This component uses Dagster's IO manager to pass DataFrames between assets. No I
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `column` | `str` | Column to rank by |
+| `column` | `Union[str, int]` | Column to rank by |
 
 ### Catalog metadata
 
@@ -41,11 +41,11 @@ This component uses Dagster's IO manager to pass DataFrames between assets. No I
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -59,7 +59,7 @@ This component uses Dagster's IO manager to pass DataFrames between assets. No I
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_column` | `str` | — | Name for rank column (defaults to '{column}_rank') |
+| `output_column` | `Union[str, int]` | — | Name for rank column (defaults to '{column}_rank') |
 
 ### Other
 
@@ -67,7 +67,7 @@ This component uses Dagster's IO manager to pass DataFrames between assets. No I
 |---|---|---|---|
 | `method` | `str` | `"average"` | Tie-breaking method: 'average', 'min', 'max', 'first', or 'dense' |
 | `ascending` | `bool` | `true` | Rank in ascending order (True) or descending order (False) |
-| `group_by` | `List[str]` | — | Rank within these groups independently |
+| `group_by` | `List[Union[str, int]]` | — | Rank within these groups independently |
 | `normalize` | `bool` | `false` | If True, output percentile rank (0-1) instead of integer rank |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |

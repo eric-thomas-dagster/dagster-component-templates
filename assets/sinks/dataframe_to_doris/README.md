@@ -37,6 +37,12 @@ For tens of rows, `dataframe_to_table` against `doris_resource.connection_string
 | `tags` | `Dict[str, str]` | — | Catalog tags. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'doris'). |
 
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_column` | `str` | — | When set AND the asset is partitioned, appends this column to every row with the current partition key as its value. Enables the single-table + partition_column analytics pattern (WHERE partition_date = '2025-01-15') without needing per-partition tables. Prefer this over `{partition_key}` templating in the `table:` field for warehouse sinks — analytics queries stay clean. See docs/partition_patterns.md. |
+
 ### Source / target
 
 | Field | Type | Default | Description |
@@ -50,9 +56,9 @@ For tens of rows, `dataframe_to_table` against `doris_resource.connection_string
 |---|---|---|---|
 | `http_port` | `int` | `8030` | Doris FE HTTP port. |
 | `ssl` | `bool` | `false` | Use https for the Stream Load endpoint. |
-| `column_separator` | `str` | `","` | CSV column separator (Doris default ','.) |
+| `column_separator` | `Union[str, int]` | `","` | CSV column separator (Doris default ','.) |
 | `line_delimiter` | `str` | `"\n"` | CSV line delimiter (Doris default '\n'). |
-| `columns` | `List[str]` | — | Optional explicit column list (must match Doris table column order). If unset, DataFrame column order is used. |
+| `columns` | `List[Union[str, int]]` | — | Optional explicit column list (must match Doris table column order). If unset, DataFrame column order is used. |
 | `replace_predicate` | `str` | — | SQL WHERE clause for replace mode (e.g. "event_date = '2026-05-27'"). |
 | `request_timeout_seconds` | `int` | `300` | — |
 

@@ -16,7 +16,7 @@ The Document Layout Analyzer Component uses HuggingFace document layout analysis
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `image_column` | `str` | Column with document image file paths |
+| `image_column` | `Union[str, int]` | Column with document image file paths |
 
 ### Catalog metadata
 
@@ -43,11 +43,11 @@ The Document Layout Analyzer Component uses HuggingFace document layout analysis
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -61,7 +61,7 @@ The Document Layout Analyzer Component uses HuggingFace document layout analysis
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_column` | `str` | `"layout_regions"` | Column for list of {type, bbox, confidence} dicts |
+| `output_column` | `Union[str, int]` | `"layout_regions"` | Column for list of {type, bbox, confidence} dicts |
 | `model_name` | `str` | `"microsoft/layoutlmv3-base"` | HuggingFace layout analysis model ID |
 
 ### Other

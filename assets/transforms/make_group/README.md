@@ -12,7 +12,7 @@ For each unique combination of `key_columns`, assigns a sequential integer group
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `key_columns` | `List[str]` | Columns whose unique combinations define a group. |
+| `key_columns` | `List[Union[str, int]]` | Columns whose unique combinations define a group. |
 
 ### Catalog metadata
 
@@ -39,10 +39,10 @@ For each unique combination of `key_columns`, assigns a sequential integer group
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter the upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
-| `partition_static_column` | `str` | — | Column used to filter the upstream DataFrame to the current static partition value. |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
 
 ### Retry policy
 
@@ -56,7 +56,7 @@ For each unique combination of `key_columns`, assigns a sequential integer group
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_column` | `str` | `"group_id"` | Output column for the group ID. |
+| `output_column` | `Union[str, int]` | `"group_id"` | Output column for the group ID. |
 
 ### Other
 

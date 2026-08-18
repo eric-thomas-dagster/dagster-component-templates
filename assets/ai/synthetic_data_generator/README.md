@@ -305,11 +305,11 @@ ACORD insurance XML envelopes — for acord_xml_parser demos:
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -329,6 +329,7 @@ ACORD insurance XML envelopes — for acord_xml_parser demos:
 | `schema_options` | `Dict[str, Any]` | — | Per-schema knobs. Keys recognized by specific schemas: subscriptions: tiers: list of {name, weight, daily_churn_rate, max_days} defaults: free (55%, 2%/day, 180d), pro (35%, 0.5%/day, 365d), enterprise (10%, 0.1%/day, 730d) sparse_sensors: sensor_count: int (default 3) duration_hours: int (default 336 = 14 days) dropout_rate: float in [0,1] (default 0.25) base_temp: float (default 22.0) noise_amplitude: float (default 2.0) start_date: 'YYYY-MM-DD' (default '2026-04-01') |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as markdown table). Used by builder UIs to render asset shape without warehouse access. |
+| `inject_dq_issues` | `bool` | `false` | If True, seed intentional data-quality issues into the output DataFrame — approximately 5% nulls per numeric column, ~3% duplicate rows, ~2% outliers (10x-50x scale) on the first numeric column, and ~5% trailing-whitespace corruption on the first string column. Used to demo agentic DQ pipelines (data_remediation_asset). |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
 
 [//]: # (FIELDS:END)

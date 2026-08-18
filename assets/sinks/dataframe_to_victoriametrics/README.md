@@ -36,8 +36,8 @@ Bulk-ingest a Pandas DataFrame as VictoriaMetrics time-series via the Prometheus
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `timestamp_column` | `str` | `"timestamp"` | Column with datetime timestamps. |
-| `value_column` | `str` | `"value"` | Column with numeric metric values. |
+| `timestamp_column` | `Union[str, int]` | `"timestamp"` | Column with datetime timestamps. |
+| `value_column` | `Union[str, int]` | `"value"` | Column with numeric metric values. |
 | `label_columns` | `List[str]` | — | Explicit column list to use as labels. If unset, every column other than timestamp_column + value_column becomes a label. |
 | `bearer_token_env_var` | `str` | — | Env var with bearer token. |
 | `request_timeout_seconds` | `int` | `60` | — |

@@ -38,11 +38,11 @@ Cluster geographic points in a DataFrame using DBSCAN (density-based, handles ar
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -56,14 +56,14 @@ Cluster geographic points in a DataFrame using DBSCAN (density-based, handles ar
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_column` | `str` | `"spatial_cluster"` | Column name for cluster labels (-1 indicates noise in DBSCAN) |
+| `output_column` | `Union[str, int]` | `"spatial_cluster"` | Column name for cluster labels (-1 indicates noise in DBSCAN) |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `lat_column` | `str` | `"latitude"` | Column name containing latitude values |
-| `lng_column` | `str` | `"longitude"` | Column name containing longitude values |
+| `lat_column` | `Union[str, int]` | `"latitude"` | Column name containing latitude values |
+| `lng_column` | `Union[str, int]` | `"longitude"` | Column name containing longitude values |
 | `algorithm` | `str` | `"dbscan"` | Clustering algorithm: 'dbscan' (density-based, finds noise) or 'kmeans' (fixed k clusters) |
 | `eps_km` | `float` | `1.0` | DBSCAN only: maximum distance in km between neighborhood points |
 | `min_samples` | `int` | `3` | DBSCAN only: minimum number of points to form a dense region |

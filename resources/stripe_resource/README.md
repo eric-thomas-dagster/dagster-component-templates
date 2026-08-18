@@ -24,16 +24,17 @@ pip install requests
 
 ## Fields
 
-### Required
-
-*(none — all fields have defaults; `api_key_env_var` defaults to `STRIPE_API_KEY`)*
-
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"stripe"` | Key used to register this resource. |
+| `resource_key` | `str` | `"stripe"` | Key used to register this resource. Other components reference it via resource_key. |
 | `api_key_env_var` | `str` | `"STRIPE_API_KEY"` | Env var holding a Stripe secret key (sk_test_... or sk_live_...). |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
 | `api_base_url` | `str` | `"https://api.stripe.com/v1"` | API base URL (override for mocks / edge locations). |
 | `verify_ssl` | `bool` | `true` | TLS cert verification. |
 

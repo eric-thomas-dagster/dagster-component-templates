@@ -19,7 +19,7 @@ Adds two columns to the input DataFrame (names configurable):
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `value_column` | `str` | Column to compute period-over-period change on |
+| `value_column` | `Union[str, int]` | Column to compute period-over-period change on |
 
 ### Catalog metadata
 
@@ -46,11 +46,11 @@ Adds two columns to the input DataFrame (names configurable):
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -71,10 +71,10 @@ Adds two columns to the input DataFrame (names configurable):
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `backend` | `str` | `"pandas"` | 'pandas' (default) or 'polars'. Polars uses pl.col.pct_change() per group via .over(group_by) and returns a polars DataFrame. |
-| `group_by` | `List[str]` | — | Group columns. Change is computed *within* each group (e.g. growth per customer). |
+| `group_by` | `List[Union[str, int]]` | — | Group columns. Change is computed *within* each group (e.g. growth per customer). |
 | `periods` | `int` | `1` | Lag periods: 1 = vs previous row (default), 7 = vs 7 rows back, etc. |
-| `diff_column` | `str` | — | Output column name for absolute diff. Default: '<value_column>_diff'. |
-| `pct_column` | `str` | — | Output column name for percent change. Default: '<value_column>_pct'. |
+| `diff_column` | `Union[str, int]` | — | Output column name for absolute diff. Default: '<value_column>_diff'. |
+| `pct_column` | `Union[str, int]` | — | Output column name for percent change. Default: '<value_column>_pct'. |
 | `as_percent` | `bool` | `false` | If true, multiply pct by 100 (so 5.0 = 5%). Default: ratio form (0.05 = 5%). |
 | `fill_first` | `bool` | `false` | Fill first-row NaN values (no prior period) with 0. Default: leave as NaN. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |

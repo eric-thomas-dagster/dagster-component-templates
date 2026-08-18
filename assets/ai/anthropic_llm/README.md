@@ -338,11 +338,11 @@ Process Claude outputs with:
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -357,8 +357,8 @@ Process Claude outputs with:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `model` | `str` | `"claude-3-5-sonnet-20241022"` | Claude model: claude-3-5-sonnet-20241022, claude-3-opus-20240229, claude-3-sonnet-20240229, claude-3-haiku-20240307 |
-| `input_column` | `str` | — | Column name containing input text (for batch processing) |
-| `output_column` | `str` | `"claude_response"` | Column name for Claude responses |
+| `input_column` | `Union[str, int]` | — | Column name containing input text (for batch processing) |
+| `output_column` | `Union[str, int]` | `"claude_response"` | Column name for Claude responses |
 | `stream` | `bool` | `false` | Use streaming responses (for single prompts only) |
 
 ### Other

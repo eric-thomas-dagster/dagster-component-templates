@@ -21,29 +21,29 @@ Pair with a `firebase_resource` component in the same Dagster project.
 | Field | Type | Description |
 |---|---|---|
 | `sensor_name` | `str` | Unique name for this sensor. |
-| `bucket_name` | `str` | Firebase Storage bucket name (e.g. `<project>.appspot.com`). |
-
-### Connection
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `resource_name` | `str` | `"firebase_resource"` | Name of the FirebaseResource this sensor uses. |
-
-### Source
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `prefix` | `str` | `""` | Object prefix to scope monitoring. |
-| `blob_pattern` | `str` | `".*"` | Regex matched against the blob name relative to the prefix. |
+| `bucket_name` | `str` | Firebase Storage bucket name (e.g. '<project>.appspot.com'). Falls back to the FirebaseResource's default bucket when empty. |
 
 ### Sensor configuration
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `job_name` | `str` | — | Job to trigger when files are detected. |
+| `job_name` | `str` | — | Optional name of the job to trigger on detection. |
 | `minimum_interval_seconds` | `int` | `60` | Minimum interval between sensor evaluations. |
-| `dynamic_partition_name` | `str` | — | If set, register detected blob names as dynamic partitions. |
-| `default_status` | `str` | `"stopped"` | Initial sensor status: `running` or `stopped`. |
+| `default_status` | `str` | `"stopped"` | Initial sensor status: 'running' or 'stopped'. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `prefix` | `str` | — | Object prefix to scope monitoring (e.g. 'uploads/'). |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_name` | `str` | `"firebase_resource"` | Name of the FirebaseResource this sensor uses. |
+| `blob_pattern` | `str` | `".*"` | Regex matched against the blob name relative to the prefix. |
+| `dynamic_partition_name` | `str` | — | If set, register detected blob names as dynamic partitions under this name and yield RunRequest(partition_key=<name>). |
 
 [//]: # (FIELDS:END)
 

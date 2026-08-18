@@ -12,7 +12,7 @@ Extract text from a column containing PDF file paths or PDF bytes. Uses `pdfplum
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `column` | `str` | Column containing PDF file paths or bytes |
+| `column` | `Union[str, int]` | Column containing PDF file paths or bytes |
 
 ### Catalog metadata
 
@@ -39,11 +39,11 @@ Extract text from a column containing PDF file paths or PDF bytes. Uses `pdfplum
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -57,7 +57,7 @@ Extract text from a column containing PDF file paths or PDF bytes. Uses `pdfplum
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_column` | `str` | `"pdf_text"` | Column to write extracted text to. |
+| `output_column` | `Union[str, int]` | `"pdf_text"` | Column to write extracted text to. |
 
 ### Other
 

@@ -69,14 +69,14 @@ sample_videos               ← synthetic_video_generator
 |---|---|---|---|
 | `output_dir` | `str` | `"/tmp/extracted_audio"` | — |
 | `output_filename_template` | `str` | — | Filename template (no dir). Supports `{<column>}` + `{row_index}`. Default: <video_basename>.<target_format>. |
-| `output_path_column` | `str` | `"audio_path"` | — |
+| `output_path_column` | `Union[str, int]` | `"audio_path"` | — |
 | `target_format` | `Literal['wav', 'mp3', 'flac', 'ogg', 'aac', 'opus']` | `"wav"` | Output codec / extension. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `video_path_column` | `str` | `"file_path"` | — |
+| `video_path_column` | `Union[str, int]` | `"file_path"` | — |
 | `sample_rate` | `int` | — | Resample on extraction. Common: 16000 (Whisper / Cloud Speech v1), 22050, 44100. |
 | `channels` | `int` | — | 1 = downmix to mono, 2 = stereo. Omit to preserve source. |
 | `bitrate` | `str` | — | For lossy formats: e.g. `128k`. Ignored for WAV/FLAC. |

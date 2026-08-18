@@ -21,7 +21,7 @@ columns, reading left-to-right and top-to-bottom.
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `value_column` | `str` | Column whose values to reshape into wide format |
+| `value_column` | `Union[str, int]` | Column whose values to reshape into wide format |
 
 ### Catalog metadata
 
@@ -48,11 +48,11 @@ columns, reading left-to-right and top-to-bottom.
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -67,7 +67,7 @@ columns, reading left-to-right and top-to-bottom.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `n_columns` | `int` | `2` | Number of output columns to wrap data into |
-| `pivot_column` | `str` | — | Column to use as row labels (index) in the output |
+| `pivot_column` | `Union[str, int]` | — | Column to use as row labels (index) in the output |
 | `fill_value` | `str` | — | Fill value for incomplete last row when values don't divide evenly |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |

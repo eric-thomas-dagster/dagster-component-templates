@@ -20,33 +20,28 @@ Requires a `SupabaseResource` (see `resources/supabase_resource`).
 
 | Field | Type | Description |
 |---|---|---|
-| `asset_key` | `str` | Output asset key. |
-| `function_name` | `str` | Edge Function slug deployed to `/functions/v1/<function-name>`. |
+| `asset_key` | `str` | Output asset key, e.g. 'notifications/send_email'. |
+| `function_name` | `str` | Edge Function name (the slug deployed to /functions/v1/<function-name>). |
 
-### Connection
+### Catalog metadata
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `description` | `str` | — | — |
+| `group_name` | `str` | — | — |
+| `deps` | `List[str]` | — | — |
+| `tags` | `Dict[str, str]` | — | — |
+| `owners` | `List[str]` | — | — |
+| `kinds` | `List[str]` | — | — |
+
+### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_name` | `str` | `"supabase_resource"` | Resource key of the SupabaseResource providing the client. |
-
-### Behavior
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `payload` | `dict \| None` | `None` | JSON body to POST. Omit for empty body. |
-| `wait_for_result` | `bool` | `True` | Capture the function response in asset metadata. |
-| `headers` | `dict \| None` | `None` | Extra HTTP headers to forward. |
-
-### Catalog
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `description` | `str \| None` | `None` | Asset description. |
-| `group_name` | `str \| None` | `None` | Asset group. |
-| `deps` | `list[str] \| None` | `None` | Upstream asset keys. |
-| `tags` | `dict[str, str] \| None` | `None` | Additional catalog tags. |
-| `owners` | `list[str] \| None` | `None` | Asset owners. |
-| `kinds` | `list[str] \| None` | `None` | Extra kinds (auto-includes `supabase` + `edge-function`). |
+| `payload` | `Dict[str, Any]` | — | JSON body to POST to the edge function. If omitted, an empty body is sent. |
+| `wait_for_result` | `bool` | `true` | Whether to wait for the function to complete and capture its response. Set false for fire-and-forget style invocations (still HTTP-synchronous — Supabase Edge Functions don't expose async invoke — but response body is ignored). |
+| `headers` | `Dict[str, str]` | — | Extra HTTP headers to forward to the edge function. |
 
 [//]: # (FIELDS:END)
 

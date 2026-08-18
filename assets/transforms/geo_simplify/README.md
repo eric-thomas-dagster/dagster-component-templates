@@ -45,7 +45,7 @@ threshold directly.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `preserve_topology` | `bool` | `true` | When true (default), the simplified geometry is guaranteed to stay valid (no self-intersections). When false, simplification is faster but can produce invalid geometries. |
-| `geometry_column` | `str` | `"geometry"` | — |
+| `geometry_column` | `Union[str, int]` | `"geometry"` | — |
 
 [//]: # (FIELDS:END)
 

@@ -16,7 +16,7 @@ The `GeocoderComponent` iterates over an address column in a DataFrame and uses 
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with address data |
-| `address_column` | `str` | Column with full address strings to geocode |
+| `address_column` | `Union[str, int]` | Column with full address strings to geocode |
 
 ### Connection
 
@@ -55,11 +55,11 @@ The `GeocoderComponent` iterates over an address column in a DataFrame and uses 
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -75,9 +75,9 @@ The `GeocoderComponent` iterates over an address column in a DataFrame and uses 
 |---|---|---|---|
 | `provider` | `str` | `"nominatim"` | Geocoding provider: 'nominatim' (free), 'google' (API key required), 'here' (API key required) |
 | `user_agent` | `str` | `"dagster_geocoder"` | User agent string required for Nominatim |
-| `lat_column` | `str` | `"latitude"` | Name of output latitude column |
-| `lng_column` | `str` | `"longitude"` | Name of output longitude column |
-| `country_column` | `str` | — | Optional column name to add normalized country name |
+| `lat_column` | `Union[str, int]` | `"latitude"` | Name of output latitude column |
+| `lng_column` | `Union[str, int]` | `"longitude"` | Name of output longitude column |
+| `country_column` | `Union[str, int]` | — | Optional column name to add normalized country name |
 | `batch_delay` | `float` | `1.0` | Seconds between requests to respect rate limits |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |

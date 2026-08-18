@@ -55,9 +55,9 @@ See schema.json for full attribute reference.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `service_name` | `str` | `"dagster"` | — |
-| `body_column` | `str` | — | Column whose value becomes the log body. If unset, JSON-serializes the row. |
-| `severity_column` | `str` | — | Column with severity strings (TRACE/DEBUG/INFO/WARN/ERROR/FATAL). Defaults to INFO for every row. |
-| `timestamp_column` | `str` | — | Column with epoch-seconds (or pandas datetime). Default: now() per row. |
+| `body_column` | `Union[str, int]` | — | Column whose value becomes the log body. If unset, JSON-serializes the row. |
+| `severity_column` | `Union[str, int]` | — | Column with severity strings (TRACE/DEBUG/INFO/WARN/ERROR/FATAL). Defaults to INFO for every row. |
+| `timestamp_column` | `Union[str, int]` | — | Column with epoch-seconds (or pandas datetime). Default: now() per row. |
 | `attribute_columns` | `List[str]` | — | Columns whose values become OTel log attributes |
 | `bearer_token_env_var` | `str` | — | — |
 | `extra_headers` | `Dict[str, str]` | — | — |

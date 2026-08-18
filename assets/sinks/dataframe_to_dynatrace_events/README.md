@@ -61,7 +61,7 @@ Push DataFrame rows as Dynatrace events via the v2 Events API. Use for batch-job
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `event_type` | `str` | `"CUSTOM_INFO"` | Dynatrace event type: 'CUSTOM_INFO' \| 'CUSTOM_DEPLOYMENT' \| 'CUSTOM_ANNOTATION' \| 'AVAILABILITY_EVENT' \| 'ERROR_EVENT' \| 'PERFORMANCE_EVENT' \| 'RESOURCE_CONTENTION_EVENT' |
-| `title_column` | `str` | — | Column whose value becomes the event title. Default: synthesized from row. |
+| `title_column` | `Union[str, int]` | — | Column whose value becomes the event title. Default: synthesized from row. |
 | `entity_selector` | `str` | — | Optional Dynatrace entity selector to attach events to. Example: 'type(HOST),tag("env:prod")'. Required if you want events on a specific entity. |
 | `properties_columns` | `List[str]` | — | Columns whose values become custom event properties. Default: all columns. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |

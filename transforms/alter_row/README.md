@@ -56,7 +56,7 @@ Mark each row with a CDC operation (insert / update / delete / upsert) based on 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `default_operation` | `str` | `"insert"` | Operation when no rule matches |
-| `operation_column` | `str` | `"cdc_op"` | Output column holding the operation marker |
+| `operation_column` | `Union[str, int]` | `"cdc_op"` | Output column holding the operation marker |
 | `include_preview_metadata` | `bool` | `true` | — |
 | `preview_rows` | `int` | `20` | — |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |

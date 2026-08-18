@@ -41,11 +41,11 @@ This component takes two upstream assets: one for points and one for regions.
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -59,13 +59,16 @@ This component takes two upstream assets: one for points and one for regions.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `lat_column` | `str` | `"latitude"` | Column name in the points DataFrame for latitude |
-| `lng_column` | `str` | `"longitude"` | Column name in the points DataFrame for longitude |
-| `geometry_column` | `str` | `"geometry"` | Column in the regions DataFrame containing GeoJSON geometry dicts or strings |
+| `lat_column` | `Union[str, int]` | `"latitude"` | Column name in the points DataFrame for latitude |
+| `lng_column` | `Union[str, int]` | `"longitude"` | Column name in the points DataFrame for longitude |
+| `points_geometry_column` | `Union[str, int]` | — | If set, use this column from the points DataFrame as already-built Shapely geometries (Point/LineString/Polygon) instead of building from lat_column + lng_column. Useful when the upstream emits geometries directly (e.g. CreatePoints, PolyBuild, geocoder). |
+| `geometry_column` | `Union[str, int]` | `"geometry"` | Column in the regions DataFrame containing GeoJSON geometry dicts or strings |
 | `how` | `str` | `"left"` | Join type: 'left' (keep all points) or 'inner' (keep only matched points) |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
+| `rename` | `Dict[str, Union[str, int]]` | — | Post-join column renames applied to the joined DataFrame. Maps current column name → new column name. Use this when an upstream ETL tool's embedded select-and-rename block produced colliding left/right columns that need to land under specific names downstream (e.g. Target_address → NewAddress). |
+| `drop_columns` | `List[Union[str, int]]` | — | Post-join column drops applied to the joined DataFrame. Lists column names to remove. Use this when an upstream ETL tool's embedded select block opted columns OUT. |
 
 [//]: # (FIELDS:END)
 

@@ -71,7 +71,7 @@ attributes:
 |---|---|---|---|
 | `database_url` | `str` | — | SQLAlchemy URL. Set this OR database_url_env_var. |
 | `keep_existing` | `bool` | `true` | If true (default): SELECT *, <expressions> — adds the new columns alongside all originals. If false + keep_columns set: project only those originals plus the new columns. If false + keep_columns unset: ONLY the new columns. |
-| `keep_columns` | `List[str]` | — | Explicit projection of original columns to retain when keep_existing=false. |
+| `keep_columns` | `List[Union[str, int]]` | — | Explicit projection of original columns to retain when keep_existing=false. |
 | `include_preview_metadata` | `bool` | `false` | — |
 | `preview_rows` | `int` | `25` | — |
 

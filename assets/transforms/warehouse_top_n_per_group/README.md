@@ -35,7 +35,7 @@ attributes:
 | `dialect` | `str` | `f'SQL dialect: one of {sorted(_SUPPORTED_DIALECTS)}.'` |
 | `upstream_table` | `str` | Source table name |
 | `output_table` | `str` | Destination table name |
-| `group_by` | `List[str]` | Partition columns (e.g. ['category']) |
+| `group_by` | `List[Union[str, int]]` | Partition columns (e.g. ['category']) |
 | `sort_by` | `str` | Column to sort by within each group (the 'top' criterion) |
 
 ### Connection
@@ -68,7 +68,7 @@ attributes:
 | `database_url` | `str` | — | SQLAlchemy URL. Set this OR database_url_env_var. |
 | `n` | `int` | `3` | Number of rows to keep per group |
 | `ascending` | `bool` | `false` | If true, keep bottom N. Default false (top N). |
-| `rank_column` | `str` | — | Output column name for the 1..N rank. If unset, the helper column is hidden. |
+| `rank_column` | `Union[str, int]` | — | Output column name for the 1..N rank. If unset, the helper column is hidden. |
 | `include_preview_metadata` | `bool` | `false` | — |
 | `preview_rows` | `int` | `25` | — |
 

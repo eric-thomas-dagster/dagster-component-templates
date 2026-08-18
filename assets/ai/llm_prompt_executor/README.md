@@ -214,11 +214,11 @@ attributes:
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -232,8 +232,8 @@ attributes:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `input_column` | `str` | `"text"` | Column name containing input text to send to LLM as the prompt |
-| `output_column` | `str` | `"llm_response"` | Column name for LLM responses |
+| `input_column` | `Union[str, int]` | `"text"` | Column name containing input text to send to LLM as the prompt |
+| `output_column` | `Union[str, int]` | `"llm_response"` | Column name for LLM responses |
 | `streaming` | `bool` | `false` | Whether to use streaming responses |
 
 ### Other

@@ -16,7 +16,7 @@ The Image Similarity Scorer Component encodes images using a CLIP model to produ
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `image_column_a` | `str` | First image column (file paths or URLs) |
+| `image_column_a` | `Union[str, int]` | First image column (file paths or URLs) |
 
 ### Catalog metadata
 
@@ -43,11 +43,11 @@ The Image Similarity Scorer Component encodes images using a CLIP model to produ
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -61,14 +61,14 @@ The Image Similarity Scorer Component encodes images using a CLIP model to produ
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_column` | `str` | `"image_similarity"` | Column for cosine similarity score (0-1) |
+| `output_column` | `Union[str, int]` | `"image_similarity"` | Column for cosine similarity score (0-1) |
 | `model_name` | `str` | `"openai/clip-vit-base-patch32"` | HuggingFace CLIP model ID |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `image_column_b` | `str` | — | Second image column; if omitted, compare against reference_image |
+| `image_column_b` | `Union[str, int]` | — | Second image column; if omitted, compare against reference_image |
 | `reference_image` | `str` | — | Fixed reference image path/URL to compare all rows against |
 | `device` | `str` | `"cpu"` | Compute device: cpu, cuda, or mps |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |

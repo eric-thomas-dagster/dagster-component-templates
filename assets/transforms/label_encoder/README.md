@@ -21,7 +21,7 @@ Encode categorical columns into integer codes. Each unique value in a column bec
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `columns` | `List[str]` | Categorical columns to label-encode. |
+| `columns` | `List[Union[str, int]]` | Categorical columns to label-encode. |
 
 ### Catalog metadata
 
@@ -48,10 +48,10 @@ Encode categorical columns into integer codes. Each unique value in a column bec
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type |
 | `partition_start` | `str` | — | Partition start date in ISO format |
-| `partition_date_column` | `str` | — | Column used to filter to current date partition. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter to current date partition. |
 | `partition_values` | `str` | — | Comma-separated values for static/multi partitioning. |
 | `partition_static_dim` | `str` | — | Static dimension name for multi-partitioning. |
-| `partition_static_column` | `str` | — | Column used to filter to the static partition value. |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter to the static partition value. |
 
 ### Retry policy
 

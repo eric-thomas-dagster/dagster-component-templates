@@ -47,11 +47,11 @@ the original DataFrame rather than producing separate DataFrames.
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -65,7 +65,7 @@ the original DataFrame rather than producing separate DataFrames.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_split_column` | `str` | `"split"` | Name of column added with values 'train'/'test'/'validation' |
+| `output_split_column` | `Union[str, int]` | `"split"` | Name of column added with values 'train'/'test'/'validation' |
 
 ### Other
 
@@ -74,7 +74,7 @@ the original DataFrame rather than producing separate DataFrames.
 | `test_size` | `float` | `0.2` | Fraction for the test set |
 | `validation_size` | `float` | `0.0` | Fraction for validation set (0 = no validation split) |
 | `random_state` | `int` | `42` | Random seed for reproducibility |
-| `stratify_column` | `str` | — | Column to use for stratified splitting |
+| `stratify_column` | `Union[str, int]` | — | Column to use for stratified splitting |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |

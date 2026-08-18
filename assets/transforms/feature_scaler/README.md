@@ -47,10 +47,10 @@ Rescale numeric DataFrame columns using one of four strategies. Implemented in p
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format |
-| `partition_date_column` | `str` | — | Column used to filter to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter to the current date partition key. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning. |
-| `partition_static_column` | `str` | — | Column used to filter to the current static partition dimension. |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter to the current static partition dimension. |
 
 ### Retry policy
 
@@ -65,7 +65,7 @@ Rescale numeric DataFrame columns using one of four strategies. Implemented in p
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `strategy` | `str` | `"standard"` | Scaling strategy: 'standard', 'minmax', 'robust', or 'maxabs'. |
-| `columns` | `List[str]` | — | Columns to scale. None = all numeric columns in the upstream DataFrame. |
+| `columns` | `List[Union[str, int]]` | — | Columns to scale. None = all numeric columns in the upstream DataFrame. |
 | `feature_range_min` | `float` | `0.0` | Lower bound for 'minmax' (default 0.0). Ignored for other strategies. |
 | `feature_range_max` | `float` | `1.0` | Upper bound for 'minmax' (default 1.0). Ignored for other strategies. |
 | `suffix` | `str` | — | If set, scaled values go into new columns named '<col><suffix>' (e.g. '_scaled'). Otherwise originals are overwritten. |

@@ -12,7 +12,7 @@ Split a text column into multiple columns or rows using a separator. Supports op
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `column` | `str` | Column to split |
+| `column` | `Union[str, int]` | Column to split |
 
 ### Catalog metadata
 
@@ -39,11 +39,11 @@ Split a text column into multiple columns or rows using a separator. Supports op
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -57,7 +57,7 @@ Split a text column into multiple columns or rows using a separator. Supports op
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_columns` | `List[str]` | — | Names for resulting columns (auto-generated if None) |
+| `output_columns` | `List[Union[str, int]]` | — | Names for resulting columns (auto-generated if None). Numeric values get stringified at use. |
 
 ### Other
 
@@ -66,6 +66,7 @@ Split a text column into multiple columns or rows using a separator. Supports op
 | `separator` | `str` | `","` | Delimiter string |
 | `max_splits` | `int` | — | Max number of splits |
 | `expand_to_rows` | `bool` | `false` | If True, split into rows instead of columns |
+| `keep_source` | `bool` | `true` | If True (default), keep the source column unchanged alongside the new split columns — preserves the original reference so downstream tools that re-split the same column still work. Set to False to drop the source column after splitting. |
 | `strip_whitespace` | `bool` | `true` | Strip whitespace from each part |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 25 rows or a sample) for builder UIs. |

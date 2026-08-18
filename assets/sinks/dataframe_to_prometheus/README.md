@@ -31,7 +31,7 @@ No dedicated Prometheus transform needed — exposition format is simple enough 
 | `pushgateway_url` | `str` | Pushgateway URL, e.g. 'http://localhost:9091' or env-var-driven |
 | `job` | `str` | Prometheus job name (identifies the source group on the pushgateway) |
 | `metric_name` | `str` | Metric name (e.g. 'orders_total') |
-| `value_column` | `str` | DataFrame column containing the metric value (must be numeric) |
+| `value_column` | `Union[str, int]` | DataFrame column containing the metric value (must be numeric) |
 
 ### Catalog metadata
 

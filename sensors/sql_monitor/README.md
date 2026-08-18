@@ -19,14 +19,14 @@ Works with any SQLAlchemy-compatible database: **PostgreSQL**, **MySQL**, **SQL 
 | `sensor_name` | `str` | Unique name for this sensor |
 | `connection_string_env_var` | `str` | Name of the environment variable containing the SQLAlchemy connection string (e.g., 'postgresql://user:pass@host:5432/db') |
 | `table_name` | `str` | Name of the table to monitor. Use 'schema.table' for non-default schemas. |
-| `watermark_column` | `str` | Column used to detect new/updated rows (e.g., 'updated_at', 'created_at', 'id') |
+| `watermark_column` | `Union[str, int]` | Column used to detect new/updated rows (e.g., 'updated_at', 'created_at', 'id') |
 | `job_name` | `str` | Name of the job to trigger when new rows are detected |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | — | Optional Dagster resource key providing a pre-configured client. When set, context.resources.<resource_key> is used instead of creating a connection from the other fields. See README for the expected interface. |
+| `resource_key` | `str` | — | Optional Dagster resource key providing a pre-configured client. When set, context.resources.<resource_key>.poll(table_name, last_id) is called instead of building a SQLAlchemy engine from connection_string_env_var. The resource must return a list of dicts, each shaped {id, ts, source, payload} (payload being the row). Use for demo-mode seams or shared connection pooling. |
 
 ### Execution
 
@@ -41,11 +41,19 @@ Works with any SQLAlchemy-compatible database: **PostgreSQL**, **MySQL**, **SQL 
 | `minimum_interval_seconds` | `int` | `60` | Minimum time (in seconds) between sensor evaluations |
 | `default_status` | `str` | `"running"` | Default status of the sensor (running or stopped) |
 
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `source_asset_key` | `str` | — | Optional asset key (e.g. 'orders_source') to receive an AssetObservation on every tick that yields new rows. Metadata includes table, new_rows, last_event_id, last_watermark — lets an observable-source asset in the graph show a live timeline of row arrivals in the Dagster UI. |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `id_column` | `str` | — | Primary key column used as the run_key for deduplication. Defaults to the watermark_column if not set. |
+| `id_column` | `Union[str, int]` | — | Primary key column used as the run_key for deduplication. Defaults to the watermark_column if not set. |
+| `op_name` | `str` | `"config"` | Op name to key the run_config under. Emitted as `{'ops': {op_name: {'config': {...}}}}`. Defaults to 'config' for backward compat, but if the target job's op is not named 'config' (e.g. an @asset or @multi_asset with a custom name), set this to the actual op name — otherwise Dagster rejects the run config with 'Received unexpected config entry "config" at path root:ops'. |
+| `emit_materialization` | `bool` | `true` | When True (default), emit AssetMaterialization on the target asset key. External assets show healthy/green in the Dagster UI and downstream AutomationCondition.eager() fires naturally on parent updates. When False, emit AssetObservation — free of Dagster+ credit charges, but the target asset renders as observed-external (dashed border, gray) and downstream conditions that gate on ~any_deps_missing() (including eager()) will not fire. Both event types carry the same dagster/data_version tag. |
 
 [//]: # (FIELDS:END)
 

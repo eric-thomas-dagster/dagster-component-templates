@@ -323,11 +323,11 @@ Use sentiment results with:
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -342,7 +342,7 @@ Use sentiment results with:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `model` | `str` | — | Model name. LLM: gpt-4, claude-3-5-sonnet. Transformer: distilbert-base-uncased-finetuned-sst-2-english, cardiffnlp/twitter-roberta-base-sentiment |
-| `input_column` | `str` | `"text"` | Column name containing text to analyze |
+| `input_column` | `Union[str, int]` | `"text"` | Column name containing text to analyze |
 
 ### Other
 
@@ -350,8 +350,8 @@ Use sentiment results with:
 |---|---|---|---|
 | `method` | `str` | `"transformer"` | Analysis method: llm (GPT/Claude), transformer (local models) |
 | `provider` | `str` | — | LLM provider: openai, anthropic (only for method=llm) |
-| `sentiment_label_column` | `str` | `"sentiment_label"` | Column name for sentiment label (e.g., positive, negative) |
-| `sentiment_score_column` | `str` | `"sentiment_score"` | Column name for sentiment confidence score (0.0-1.0) |
+| `sentiment_label_column` | `Union[str, int]` | `"sentiment_label"` | Column name for sentiment label (e.g., positive, negative) |
+| `sentiment_score_column` | `Union[str, int]` | `"sentiment_score"` | Column name for sentiment confidence score (0.0-1.0) |
 | `sentiment_categories` | `str` | `"positive,negative,neutral"` | Comma-separated sentiment categories |
 | `aspect_based` | `bool` | `false` | Enable aspect-based sentiment analysis (LLM only) |
 | `aspects` | `str` | — | Comma-separated aspects to analyze (e.g., 'quality,price,service') |

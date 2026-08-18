@@ -77,7 +77,7 @@ All values support `${ENV_VAR}` expansion at runtime.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `select_columns` | `List[str]` | — | Projection. If unset, reads all columns. |
+| `select_columns` | `List[Union[str, int]]` | — | Projection. If unset, reads all columns. |
 
 ### Other
 

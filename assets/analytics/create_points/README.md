@@ -38,10 +38,10 @@ Takes a DataFrame with lat/lng columns and returns a GeoDataFrame with a `geomet
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter the upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
-| `partition_static_column` | `str` | — | Column used to filter the upstream DataFrame to the current static partition value. |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
 
 ### Retry policy
 
@@ -55,14 +55,14 @@ Takes a DataFrame with lat/lng columns and returns a GeoDataFrame with a `geomet
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_column` | `str` | `"geometry"` | Output geometry column name. |
+| `output_column` | `Union[str, int]` | `"geometry"` | Output geometry column name. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `lat_column` | `str` | `"lat"` | Latitude column name. |
-| `lng_column` | `str` | `"lng"` | Longitude column name. |
+| `lat_column` | `Union[str, int]` | `"lat"` | Latitude column name. |
+| `lng_column` | `Union[str, int]` | `"lng"` | Longitude column name. |
 | `crs` | `str` | `"EPSG:4326"` | Coordinate reference system. |
 | `drop_invalid` | `bool` | `true` | Drop rows where lat/lng is NaN/invalid. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output DataFrame in metadata (for builder UIs). |

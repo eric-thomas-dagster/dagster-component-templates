@@ -20,8 +20,8 @@ In a typical RAG or semantic-search pipeline:
 |---|---|---|
 | `asset_name` | `str` | Dagster asset key for this component. |
 | `upstream_asset_key` | `str` | Asset key of the upstream asset providing a pandas DataFrame with at least the columns referenced by ``id_column`` and ``text_column``. |
-| `id_column` | `str` | Primary key column in the upstream DataFrame. Used as the embedding row ID. |
-| `text_column` | `str` | Column containing the raw text to embed. |
+| `id_column` | `Union[str, int]` | Primary key column in the upstream DataFrame. Used as the embedding row ID. |
+| `text_column` | `Union[str, int]` | Column containing the raw text to embed. |
 | `database_url_env_var` | `str` | Env var containing a PostgreSQL connection string compatible with psycopg2 and the pgvector extension (e.g. ``postgresql://user:pass@host:5432/db``). |
 | `target_table` | `str` | Table to write embeddings into. Created automatically on first run if it does not exist. |
 
@@ -56,11 +56,11 @@ In a typical RAG or semantic-search pipeline:
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 

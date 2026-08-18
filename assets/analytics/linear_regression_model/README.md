@@ -12,8 +12,8 @@ Fit an ordinary least squares linear regression model and output predictions add
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `target_column` | `str` | Column name of the target variable to predict |
-| `feature_columns` | `List[str]` | List of column names to use as features |
+| `target_column` | `Union[str, int]` | Column name of the target variable to predict |
+| `feature_columns` | `List[Union[str, int]]` | List of column names to use as features |
 
 ### Catalog metadata
 
@@ -40,11 +40,11 @@ Fit an ordinary least squares linear regression model and output predictions add
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -58,7 +58,7 @@ Fit an ordinary least squares linear regression model and output predictions add
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `model_path` | `str` | — | If set, joblib-dump the trained model to this path after fit. Supports local paths and any fsspec URL (s3://, gs://, abfs://). Downstream `model_score` component loads this path to predict on new data — closes the Alteryx 'train once, score later' loop. |
+| `model_path` | `str` | — | If set, joblib-dump the trained model to this path after fit. Supports local paths and any fsspec URL (s3://, gs://, abfs://). Downstream `model_score` component loads this path to predict on new data — closes the train-once / score-later loop. |
 | `output_mode` | `str` | `"predictions"` | Output mode: 'predictions' (add prediction column), 'coefficients' (feature importance table), 'both' (predictions + eval metrics in metadata) |
 
 ### Other
@@ -67,7 +67,7 @@ Fit an ordinary least squares linear regression model and output predictions add
 |---|---|---|---|
 | `test_size` | `float` | `0.2` | Fraction of data to hold out for evaluation |
 | `random_state` | `int` | `42` | Random seed for train/test split reproducibility |
-| `prediction_column` | `str` | `"predicted"` | Column name for predictions when output_mode is 'predictions' or 'both' |
+| `prediction_column` | `Union[str, int]` | `"predicted"` | Column name for predictions when output_mode is 'predictions' or 'both' |
 | `normalize` | `bool` | `false` | Standardize features before fitting using StandardScaler |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 25 rows or a sample) for builder UIs. |

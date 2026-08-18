@@ -85,12 +85,12 @@ Python's `codecs` module ships them all natively — no extra deps.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `source_column` | `str` | — | mode='string': column of str values to convert. Required for string mode. |
-| `target_column` | `str` | — | mode='string': new column to write the result into. If equal to `source_column`, overwrites in place. Default: source_column. |
-| `source_path_column` | `str` | — | mode='file': column of input file paths. Required for file mode. |
+| `source_column` | `Union[str, int]` | — | mode='string': column of str values to convert. Required for string mode. |
+| `target_column` | `Union[str, int]` | — | mode='string': new column to write the result into. If equal to `source_column`, overwrites in place. Default: source_column. |
+| `source_path_column` | `Union[str, int]` | — | mode='file': column of input file paths. Required for file mode. |
 | `output_dir` | `str` | `"/tmp/codec_converted"` | mode='file': directory to write output files into. |
 | `output_filename_template` | `str` | — | mode='file': filename template (no dir). Supports `{<column>}` + `{row_index}`. Default: <basename>_<to_codec>.<orig_ext>. |
-| `output_path_column` | `str` | `"converted_path"` | mode='file': column to write the output file path into. |
+| `output_path_column` | `Union[str, int]` | `"converted_path"` | mode='file': column to write the output file path into. |
 
 ### Other
 

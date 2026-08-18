@@ -12,7 +12,7 @@ Fill gaps in a time series DataFrame by resampling to a regular frequency and ap
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a time series DataFrame |
-| `date_column` | `str` | Column name containing datetime values |
+| `date_column` | `Union[str, int]` | Column name containing datetime values |
 
 ### Catalog metadata
 
@@ -39,11 +39,11 @@ Fill gaps in a time series DataFrame by resampling to a regular frequency and ap
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -59,8 +59,8 @@ Fill gaps in a time series DataFrame by resampling to a regular frequency and ap
 |---|---|---|---|
 | `frequency` | `str` | `"D"` | Pandas offset alias: 'D' (daily), 'W' (weekly), 'ME' (month-end), 'h' (hourly), 'min' (minute) |
 | `fill_method` | `str` | `"forward_fill"` | Fill method: 'forward_fill', 'backward_fill', 'interpolate', 'zero', 'mean' |
-| `value_columns` | `List[str]` | — | Columns to fill (None = all numeric columns) |
-| `group_by` | `List[str]` | — | Fill within groups (e.g. per product_id) |
+| `value_columns` | `List[Union[str, int]]` | — | Columns to fill (None = all numeric columns) |
+| `group_by` | `List[Union[str, int]]` | — | Fill within groups (e.g. per product_id) |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 25 rows or a sample) for builder UIs. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata. For long DataFrames (>10x preview_rows), a random sample is used; otherwise head(). |

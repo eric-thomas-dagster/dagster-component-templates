@@ -21,22 +21,32 @@ Requires a `SupabaseResource` (see `resources/supabase_resource`) providing the 
 | `sensor_name` | `str` | Unique name for this sensor |
 | `bucket_name` | `str` | Supabase Storage bucket to monitor |
 
-### Connection
+### Execution
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_name` | `str` | `"supabase_resource"` | Resource key of the SupabaseResource providing the client. |
+| `page_size` | `int` | `1000` | Page size for storage.list() calls. Supabase caps at 1000. |
+
+### Sensor configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `minimum_interval_seconds` | `int` | `60` | Minimum time (in seconds) between sensor evaluations. |
+| `job_name` | `str` | — | Job to trigger. Leave unset when downstream assets are activated via auto-materialize. |
+| `default_status` | `str` | `"stopped"` | Default sensor status: 'running' or 'stopped'. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `prefix` | `str` | — | Object prefix (folder) to scope monitoring, e.g. 'incoming/' or 'raw/2026/'. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `prefix` | `str` | `""` | Object prefix (folder) to scope monitoring. |
-| `minimum_interval_seconds` | `int` | `60` | Minimum seconds between sensor evaluations. |
-| `dynamic_partition_name` | `str \| None` | `None` | When set, each new object path becomes a dynamic partition key. |
-| `job_name` | `str \| None` | `None` | Job to trigger; leave unset for auto-materialize downstreams. |
-| `default_status` | `str` | `"stopped"` | Default sensor status: 'running' or 'stopped'. |
-| `page_size` | `int` | `1000` | Page size for `storage.list()` (Supabase max: 1000). |
+| `resource_name` | `str` | `"supabase_resource"` | Resource key of the SupabaseResource providing the client. |
+| `dynamic_partition_name` | `str` | — | Optional name of a DynamicPartitionsDefinition. When set, each new object path is registered as a dynamic partition and RunRequests are keyed on the object path. |
 
 [//]: # (FIELDS:END)
 

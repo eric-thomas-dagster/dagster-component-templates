@@ -68,7 +68,7 @@ Unknown families get a single fallback row with the `GrpHdr` (msg_id, control su
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `xml_column` | `str` | `"xml"` | Column holding the raw ISO 20022 XML message (string). |
+| `xml_column` | `Union[str, int]` | `"xml"` | Column holding the raw ISO 20022 XML message (string). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 
 [//]: # (FIELDS:END)

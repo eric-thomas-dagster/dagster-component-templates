@@ -72,8 +72,8 @@ attributes:
 | `database_url` | `str` | — | — |
 | `how` | `str` | `"inner"` | `f'Join type: one of {sorted(_VALID_HOWS)}'` |
 | `on_columns` | `List[str]` | — | Join columns (same name on both sides). NB: this is named `on_columns` rather than `on` because YAML 1.1 parses `on:` as a boolean (True), breaking schema validation. |
-| `left_on` | `List[str]` | — | Left join columns (when names differ) |
-| `right_on` | `List[str]` | — | Right join columns (when names differ) |
+| `left_on` | `List[Union[str, int]]` | — | Left join columns (when names differ) |
+| `right_on` | `List[Union[str, int]]` | — | Right join columns (when names differ) |
 | `include_preview_metadata` | `bool` | `false` | — |
 | `preview_rows` | `int` | `25` | — |
 

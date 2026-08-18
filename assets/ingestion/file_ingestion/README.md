@@ -70,11 +70,11 @@ from_run_config:
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', or None for unpartitioned. With a partition type set, the partition key is exposed via context.partition_key for use in filtering / templating. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required when partition_type is set. |
-| `partition_date_column` | `str` | — | Column used to filter the upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
-| `partition_static_column` | `str` | — | Column used to filter the upstream DataFrame to the current static partition value. |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
 
 ### Retry policy
 
@@ -101,7 +101,7 @@ from_run_config:
 | `encoding` | `str` | `"utf-8"` | File encoding |
 | `skip_rows` | `int` | `0` | Number of rows to skip at the start |
 | `header_row` | `int` | `0` | Row number to use as column names (0-indexed, None for no header) |
-| `columns_to_read` | `str` | — | Comma-separated list of column names to read (empty = all columns) |
+| `columns_to_read` | `Union[str, int]` | — | Comma-separated list of column names to read (empty = all columns) |
 | `dtype_mapping` | `str` | — | Column type mappings as JSON string, e.g. {"col1": "int64", "col2": "float64"} |
 | `parse_dates` | `str` | — | Comma-separated list of columns to parse as dates |
 | `cache_to_parquet` | `bool` | `false` | Whether to cache the data to a parquet file for better performance |

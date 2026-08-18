@@ -34,26 +34,39 @@ Empty transcripts (when `skip_empty: true`) yield `""` and `[]` without an API c
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `llm_provider` | `str` | `"openai"` | LLM provider. Currently supports 'openai' and OpenAI-compatible endpoints via base_url. |
-| `model` | `str` | `"gpt-4o-mini"` | Model identifier passed to the provider |
 | `api_key_env_var` | `str` | `"OPENAI_API_KEY"` | Env var holding the LLM provider API key |
-| `base_url` | `str \| None` | `None` | Override the OpenAI-compatible base URL (Azure OpenAI, LiteLLM, local vLLM, etc.) |
+| `base_url` | `str` | — | Override the OpenAI-compatible base URL (e.g. for Azure OpenAI, LiteLLM, local vLLM) |
 
-### Columns
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `transcript_column` | `str` | `"transcript"` | Column containing the flattened transcript text |
-| `summary_column` | `str` | `"call_summary"` | Output column for the summary text |
-| `action_items_column` | `str` | `"action_items"` | Output column for the action items list |
-
-### LLM Parameters
+### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `description` | `str` | — | Asset description |
+| `group_name` | `str` | `"gong"` | Asset group for organization |
+| `owners` | `List[str]` | — | Asset owners — list of team names or email addresses |
+| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset |
+| `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Defaults to ['gong', 'openai', 'python']. |
+| `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime) |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `model` | `str` | `"gpt-4o-mini"` | Model identifier passed to the provider |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `llm_provider` | `str` | `"openai"` | LLM provider. Currently supports 'openai' and OpenAI-compatible endpoints via base_url. |
+| `transcript_column` | `str` | `"transcript"` | Name of the column containing the flattened transcript text |
+| `summary_column` | `str` | `"call_summary"` | Name of the output column to write the summary text into |
+| `action_items_column` | `str` | `"action_items"` | Name of the output column to write the action items list into |
 | `max_tokens` | `int` | `500` | Maximum tokens per completion |
 | `temperature` | `float` | `0.2` | Sampling temperature (lower = more deterministic) |
-| `skip_empty` | `bool` | `true` | Skip rows with empty transcript |
+| `skip_empty` | `bool` | `true` | If true, rows where the transcript column is empty/NaN are skipped (empty outputs). |
+| `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
+| `preview_rows` | `int` | `10` | Rows to include in the preview metadata |
 
 [//]: # (FIELDS:END)
 

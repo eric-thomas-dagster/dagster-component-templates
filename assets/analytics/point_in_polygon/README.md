@@ -38,11 +38,11 @@ Test whether geographic points in a DataFrame fall inside GeoJSON polygon featur
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -56,15 +56,15 @@ Test whether geographic points in a DataFrame fall inside GeoJSON polygon featur
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_column` | `str` | `"region"` | Column name to add with the matched polygon name |
-| `output_inside_column` | `str` | — | Optional boolean column name: True if the point is inside any polygon |
+| `output_column` | `Union[str, int]` | `"region"` | Column name to add with the matched polygon name |
+| `output_inside_column` | `Union[str, int]` | — | Optional boolean column name: True if the point is inside any polygon |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `lat_column` | `str` | `"latitude"` | Column name containing latitude values |
-| `lng_column` | `str` | `"longitude"` | Column name containing longitude values |
+| `lat_column` | `Union[str, int]` | `"latitude"` | Column name containing latitude values |
+| `lng_column` | `Union[str, int]` | `"longitude"` | Column name containing longitude values |
 | `geojson_path` | `str` | — | Path to a local GeoJSON file with polygon features |
 | `geojson_url` | `str` | — | URL to a GeoJSON file (alternative to geojson_path) |
 | `polygon_name_field` | `str` | — | GeoJSON feature property key to use as the polygon name (e.g. 'NAME') |

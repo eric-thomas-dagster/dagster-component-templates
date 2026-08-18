@@ -20,17 +20,18 @@ pip install requests
 
 ## Fields
 
-### Required
-
-*(none — all fields have defaults; `token_env_var` defaults to `GITHUB_TOKEN`)*
-
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"github"` | Key used to register this resource. Other components reference it via resource_key. |
 | `token_env_var` | `str` | `"GITHUB_TOKEN"` | Env var holding a GitHub personal access token. |
-| `api_base_url` | `str` | `"https://api.github.com"` | API base URL. Change for GitHub Enterprise Server. |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `api_base_url` | `str` | `"https://api.github.com"` | API base URL. Change for GitHub Enterprise Server (e.g. https://ghe.example.com/api/v3). |
 | `verify_ssl` | `bool` | `true` | TLS cert verification. |
 
 [//]: # (FIELDS:END)

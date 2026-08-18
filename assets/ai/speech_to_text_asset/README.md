@@ -35,7 +35,7 @@ attributes:
 |---|---|---|
 | `asset_name` | `str` | Output asset name. |
 | `upstream_asset_key` | `str` | Upstream DataFrame asset key. |
-| `audio_column` | `str` | Column with audio file paths or `gs://` URIs. |
+| `audio_column` | `Union[str, int]` | Column with audio file paths or `gs://` URIs. |
 
 ### Execution
 
@@ -80,7 +80,7 @@ attributes:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_column` | `str` | `"transcript"` | Column to write the transcript into. |
+| `output_column` | `Union[str, int]` | `"transcript"` | Column to write the transcript into. |
 
 ### Other
 

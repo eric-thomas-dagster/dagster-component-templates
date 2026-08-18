@@ -91,8 +91,8 @@ OpenRouter ids are `<provider>/<model>`. Browse + pricing at https://openrouter.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `input_column` | `str` | — | — |
-| `output_column` | `str` | `"openrouter_response"` | — |
+| `input_column` | `Union[str, int]` | — | — |
+| `output_column` | `Union[str, int]` | `"openrouter_response"` | — |
 
 ### Other
 

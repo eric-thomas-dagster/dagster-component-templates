@@ -25,7 +25,7 @@ For smaller frames or chains that include Python transforms, use the regular `su
 | `dialect` | `str` | `f'SQL dialect: one of {sorted(_SUPPORTED_DIALECTS)}.'` |
 | `upstream_table` | `str` | Source table name (e.g. 'raw.orders'). |
 | `output_table` | `str` | Destination table name (e.g. 'analytics.revenue_by_region'). |
-| `group_by` | `List[str]` | Columns to group by. |
+| `group_by` | `List[Union[str, int]]` | Columns to group by. |
 | `aggregations` | `Dict` | Same shape as `summarize`: {out_col: agg_func} OR {out_col: {col: <src_col>, agg: <agg_func>}}. Supported aggs: sum, mean/avg, min, max, count, nunique. |
 
 ### Connection

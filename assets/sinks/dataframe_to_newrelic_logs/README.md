@@ -65,8 +65,8 @@ Push DataFrame rows as log events to New Relic. Each row becomes one log entry; 
 |---|---|---|---|
 | `region` | `str` | `"US"` | 'US' or 'EU' |
 | `log_type` | `str` | — | Optional logtype field to set on every event (used for downstream parsing rules) |
-| `timestamp_column` | `str` | — | Column with epoch-ms timestamps (default: now() per event) |
-| `message_column` | `str` | — | Column whose value becomes the log 'message' field. If unset, JSON-stringifies the whole row. |
+| `timestamp_column` | `Union[str, int]` | — | Column with epoch-ms timestamps (default: now() per event) |
+| `message_column` | `Union[str, int]` | — | Column whose value becomes the log 'message' field. If unset, JSON-stringifies the whole row. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 
 [//]: # (FIELDS:END)

@@ -12,8 +12,8 @@ Estimate survival functions from time-to-event data using the Kaplan-Meier estim
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `duration_column` | `str` | Time-to-event column |
-| `event_column` | `str` | Binary event indicator (1=event occurred, 0=censored) |
+| `duration_column` | `Union[str, int]` | Time-to-event column |
+| `event_column` | `Union[str, int]` | Binary event indicator (1=event occurred, 0=censored) |
 
 ### Catalog metadata
 
@@ -40,11 +40,11 @@ Estimate survival functions from time-to-event data using the Kaplan-Meier estim
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -58,7 +58,7 @@ Estimate survival functions from time-to-event data using the Kaplan-Meier estim
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `group_column` | `str` | — | Column for grouped Kaplan-Meier analysis |
+| `group_column` | `Union[str, int]` | — | Column for grouped Kaplan-Meier analysis |
 | `method` | `str` | `"kaplan_meier"` | 'kaplan_meier' or 'cox' |
 | `covariate_columns` | `List[str]` | — | Covariate columns for Cox model (required when method='cox') |
 | `time_points` | `List[float]` | — | Specific time points at which to evaluate survival probability |

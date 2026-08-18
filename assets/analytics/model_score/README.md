@@ -13,7 +13,7 @@ Loads a pickled scikit-learn estimator from disk and runs `predict` (and `predic
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
 | `model_path` | `str` | Path to a pickled sklearn estimator (joblib or pickle). |
-| `feature_columns` | `List[str]` | Feature columns to feed the model. |
+| `feature_columns` | `List[Union[str, int]]` | Feature columns to feed the model. |
 
 ### Catalog metadata
 
@@ -40,10 +40,10 @@ Loads a pickled scikit-learn estimator from disk and runs `predict` (and `predic
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter the upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
-| `partition_static_column` | `str` | — | Column used to filter the upstream DataFrame to the current static partition value. |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
 
 ### Retry policy
 
@@ -57,13 +57,14 @@ Loads a pickled scikit-learn estimator from disk and runs `predict` (and `predic
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_column` | `str` | `"predicted"` | Output column for predictions. |
+| `output_column` | `Union[str, int]` | `"predicted"` | Output column for predictions. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `include_proba` | `bool` | `false` | For classifiers: also emit predict_proba columns. |
+| `score_classes` | `List[str]` | — | Optional list of class labels to emit `Score_<class>` probability columns for. Used when the model can't be loaded (stub / demo runs) so downstream chains that reference a specific Score_<Yes>/Score_<Lost>/etc. still resolve. When the model loads successfully, this field is ignored — real classes come from `model.classes_`. |
 | `framework` | `str` | `"auto"` | How the model was serialized. 'auto' (default) tries joblib then pickle; 'sklearn' forces joblib; 'statsmodels' uses sm.load() and prepends a constant column (statsmodels' GLM.predict expects the design matrix with intercept). Set explicitly when scoring count_regression / gamma_regression / other statsmodels-fit components. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output DataFrame in metadata (for builder UIs). |
 | `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. |

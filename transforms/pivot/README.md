@@ -16,8 +16,8 @@ Pivot a DataFrame from long to wide — rotate row values into column headers wi
 | `asset_name` | `str` | Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream DataFrame asset key |
 | `index_columns` | `list` | Columns that stay as rows (group keys) |
-| `pivot_column` | `str` | Column whose values become new column headers |
-| `value_column` | `str` | Column whose values fill the pivoted cells |
+| `pivot_column` | `Union[str, int]` | Column whose values become new column headers |
+| `value_column` | `Union[str, int]` | Column whose values fill the pivoted cells |
 
 ### Catalog metadata
 
@@ -59,6 +59,7 @@ Pivot a DataFrame from long to wide — rotate row values into column headers wi
 |---|---|---|---|
 | `agg_func` | `str` | `"sum"` | Aggregation when (index, pivot) collides: sum \| mean \| count \| min \| max \| first \| last |
 | `fill_value` | `float` | — | Fill NaN cells with this value |
+| `column_prefix` | `Union[str, int]` | — | Optional prefix prepended to each pivoted column name. Useful when the pivot's aggregation context should be visible in the column (e.g. prefix='Avg_' → pivoted 'Speed'/'Acceleration' become 'Avg_Speed'/'Avg_Acceleration'). |
 | `include_preview_metadata` | `bool` | `true` | — |
 | `preview_rows` | `int` | `20` | — |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |

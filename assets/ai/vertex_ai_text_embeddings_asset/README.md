@@ -36,7 +36,7 @@ attributes:
 |---|---|---|
 | `asset_name` | `str` | Output asset name. |
 | `upstream_asset_key` | `str` | Upstream DataFrame asset key. |
-| `text_column` | `str` | Column with the text to embed. |
+| `text_column` | `Union[str, int]` | Column with the text to embed. |
 
 ### Execution
 
@@ -82,7 +82,7 @@ attributes:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_column` | `str` | `"embedding"` | Column name for the resulting embedding vector. |
+| `output_column` | `Union[str, int]` | `"embedding"` | Column name for the resulting embedding vector. |
 | `model_name` | `str` | `"text-embedding-004"` | Vertex text-embedding model. Common options: text-embedding-004 (default, 768-dim, English-strong), text-multilingual-embedding-002 (multilingual, 768-dim), gemini-embedding-001 (768-dim, latest), text-embedding-005. |
 | `output_dimensionality` | `int` | — | If supported by the model, truncate embeddings to this many dims (e.g. 256 / 512 to save vector-store space). |
 

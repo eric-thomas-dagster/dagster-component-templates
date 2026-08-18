@@ -31,8 +31,13 @@ pip install requests
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"jira"` | Key used to register this resource. Other components reference it via resource_key. |
+| `api_token_env_var` | `str` | `"JIRA_API_TOKEN"` | Env var holding a Jira API token (from id.atlassian.com/manage-profile/security/api-tokens). |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
 | `email_env_var` | `str` | `"JIRA_EMAIL"` | Env var holding the Atlassian account email (Basic auth username). |
-| `api_token_env_var` | `str` | `"JIRA_API_TOKEN"` | Env var holding a Jira API token. |
 | `verify_ssl` | `bool` | `true` | TLS cert verification. |
 
 [//]: # (FIELDS:END)

@@ -71,7 +71,7 @@ value_maps:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_column` | `str` | `"resource"` | Column holding the FHIR resource. Values may be dicts OR JSON strings. |
+| `resource_column` | `Union[str, int]` | `"resource"` | Column holding the FHIR resource. Values may be dicts OR JSON strings. |
 | `resource_types` | `List[str]` | — | Optional filter — only emit rows for these resource types. E.g. ['Patient', 'Observation']. Default: all. |
 | `value_maps` | `Dict[str, Dict[str, str]]` | — | Per-column value normalization, like `hris_normalizer`. E.g. `{gender: {M: male, F: female}}`. Case-insensitive by default. |
 | `case_insensitive_map` | `bool` | `true` | — |

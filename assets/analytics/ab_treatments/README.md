@@ -12,7 +12,7 @@ Takes a DataFrame of users and assigns each to a variant using a stable hash of 
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `user_id_column` | `str` | Column with user IDs. |
+| `user_id_column` | `Union[str, int]` | Column with user IDs. |
 | `experiment_id` | `str` | Experiment identifier (used in the hash so the same user can be in different splits across experiments). |
 
 ### Catalog metadata
@@ -40,10 +40,10 @@ Takes a DataFrame of users and assigns each to a variant using a stable hash of 
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter the upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
-| `partition_static_column` | `str` | — | Column used to filter the upstream DataFrame to the current static partition value. |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
 
 ### Retry policy
 
@@ -57,7 +57,7 @@ Takes a DataFrame of users and assigns each to a variant using a stable hash of 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_column` | `str` | `"variant"` | Output column for the variant label. |
+| `output_column` | `Union[str, int]` | `"variant"` | Output column for the variant label. |
 
 ### Other
 

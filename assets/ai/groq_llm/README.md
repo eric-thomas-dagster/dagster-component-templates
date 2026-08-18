@@ -90,8 +90,8 @@ Full list: https://console.groq.com/docs/models
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `input_column` | `str` | — | Column whose value becomes the per-row prompt. Mutually exclusive with user_prompt_template. |
-| `output_column` | `str` | `"groq_response"` | — |
+| `input_column` | `Union[str, int]` | — | Column whose value becomes the per-row prompt. Mutually exclusive with user_prompt_template. |
+| `output_column` | `Union[str, int]` | `"groq_response"` | — |
 
 ### Other
 

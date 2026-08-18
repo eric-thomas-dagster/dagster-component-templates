@@ -12,8 +12,8 @@ Two-sample t-test (independent or paired) using scipy.stats. Returns a single-ro
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `value_column` | `str` | Numeric column to compare across groups. |
-| `group_column` | `str` | Binary group column (control vs treatment, A vs B, etc). |
+| `value_column` | `Union[str, int]` | Numeric column to compare across groups. |
+| `group_column` | `Union[str, int]` | Binary group column (control vs treatment, A vs B, etc). |
 
 ### Catalog metadata
 
@@ -40,10 +40,10 @@ Two-sample t-test (independent or paired) using scipy.stats. Returns a single-ro
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter the upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
-| `partition_static_column` | `str` | — | Column used to filter the upstream DataFrame to the current static partition value. |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
 
 ### Retry policy
 

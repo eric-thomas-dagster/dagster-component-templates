@@ -34,7 +34,7 @@ attributes:
 | `upstream_table` | `str` | Source table name |
 | `output_table` | `str` | Destination table name |
 | `expression` | `str` | Formula template applied to each column in `columns`. Use {col} as the placeholder for the column reference. Example: 'UPPER(TRIM({col}))' applied to [name, email] yields UPPER(TRIM(name)) and UPPER(TRIM(email)). |
-| `columns` | `List[str]` | Columns to apply the expression to. |
+| `columns` | `List[Union[str, int]]` | Columns to apply the expression to. |
 
 ### Connection
 

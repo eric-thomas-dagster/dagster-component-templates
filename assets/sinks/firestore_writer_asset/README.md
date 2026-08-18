@@ -90,7 +90,7 @@ attributes:
 | `credentials` | `Dict[str, Any]` | — | — |
 | `credentials_path` | `str` | — | Falls back to GOOGLE_APPLICATION_CREDENTIALS. |
 | `project_id` | `str` | — | — |
-| `id_column` | `str` | — | Column whose value becomes each document's id. If unset, Firestore auto-generates ids. |
+| `id_column` | `Union[str, int]` | — | Column whose value becomes each document's id. If unset, Firestore auto-generates ids. |
 | `drop_id_column_from_body` | `bool` | `true` | If True (default), the id_column is omitted from the doc body when used as id. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 

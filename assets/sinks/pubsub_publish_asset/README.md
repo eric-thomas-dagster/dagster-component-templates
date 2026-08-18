@@ -71,9 +71,9 @@ attributes:
 | `credentials_path` | `str` | — | Falls back to GOOGLE_APPLICATION_CREDENTIALS. |
 | `project_id` | `str` | — | GCP project. Defaults to the SA's project. |
 | `auto_create_topic` | `bool` | `false` | If True, create the topic if it doesn't exist (requires roles/pubsub.editor). |
-| `message_column` | `str` | — | If set, publish only this column's value per row. Default: JSON-serialize the whole row (drop attribute_columns + ordering_key_column from the body). |
+| `message_column` | `Union[str, int]` | — | If set, publish only this column's value per row. Default: JSON-serialize the whole row (drop attribute_columns + ordering_key_column from the body). |
 | `attribute_columns` | `List[str]` | — | Columns to attach as Pub/Sub message attributes (string-coerced). Useful for downstream filtering. |
-| `ordering_key_column` | `str` | — | Optional column to use as Pub/Sub ordering_key (requires the topic to have message ordering enabled). |
+| `ordering_key_column` | `Union[str, int]` | — | Optional column to use as Pub/Sub ordering_key (requires the topic to have message ordering enabled). |
 | `flush_batch_size` | `int` | `100` | Flush publishes every N messages. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 

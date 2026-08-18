@@ -70,7 +70,7 @@ attributes:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `image_path_column` | `str` | `"file_path"` | Column containing local image file paths. |
+| `image_path_column` | `Union[str, int]` | `"file_path"` | Column containing local image file paths. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 
 [//]: # (FIELDS:END)

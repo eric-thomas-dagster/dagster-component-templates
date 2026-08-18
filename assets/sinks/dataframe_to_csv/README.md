@@ -24,6 +24,7 @@ Writes a Pandas DataFrame to a CSV file. This is a terminal sink component — i
 | `owners` | `List[str]` | — | Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com'] |
 | `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'} |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from component name if not set. |
+| `automation_condition` | `Any` | — | AutomationCondition for this asset. In YAML, write as a Jinja template against the dg namespace, e.g. '{{ dg.AutomationCondition.eager() }}' — Dagster's component loader resolves it to the actual AutomationCondition object. Useful when this sink's upstream is a multi-asset with sparse per-partition materialization (only fires for partitions the upstream actually emitted). |
 | `description` | `str` | — | Asset description shown in the Dagster catalog. |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime). |
@@ -41,11 +42,11 @@ Writes a Pandas DataFrame to a CSV file. This is a terminal sink component — i
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -62,7 +63,7 @@ Writes a Pandas DataFrame to a CSV file. This is a terminal sink component — i
 | `delimiter` | `str` | `","` | Column delimiter |
 | `include_index` | `bool` | `false` | Include row index in output |
 | `encoding` | `str` | `"utf-8"` | File encoding |
-| `columns` | `List[str]` | — | Subset of columns to write. If None, all columns are written. |
+| `columns` | `List[Union[str, int]]` | — | Subset of columns to write. If None, all columns are written. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the DataFrame about to be written, in metadata, so builder UIs can show 'what's being sunk' without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. Random sample if len > 10x preview_rows; else head. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |

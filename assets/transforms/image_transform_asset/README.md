@@ -72,13 +72,13 @@ If `convert_to` is omitted, the output keeps the input format.
 |---|---|---|---|
 | `output_dir` | `str` | `"/tmp/transformed_images"` | Filesystem dir to write transformed images into. |
 | `output_filename_template` | `str` | — | Filename template (no dir). Supports `{<column>}` and `{row_index}`. Default: <input_basename>_t.<ext>. |
-| `output_path_column` | `str` | `"transformed_path"` | New column to write the transformed file path into. |
+| `output_path_column` | `Union[str, int]` | `"transformed_path"` | New column to write the transformed file path into. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `image_path_column` | `str` | `"file_path"` | Column containing local image file paths. |
+| `image_path_column` | `Union[str, int]` | `"file_path"` | Column containing local image file paths. |
 | `resize_to` | `List[int]` | — | `[width, height]` max-dimensions. Aspect ratio preserved by default. |
 | `preserve_aspect_ratio` | `bool` | `true` | — |
 | `crop_to` | `List[int]` | — | `[width, height]` center-crop dimensions. Applied AFTER resize if both set. |

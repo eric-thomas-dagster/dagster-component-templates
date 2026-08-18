@@ -40,6 +40,7 @@ google-auth>=2.17.0
 | `credentials_path` | `str` | — | Path to GCP service account credentials JSON file (optional) |
 | `import_jobs` | `bool` | `true` | Import Cloud Run Jobs as materializable assets |
 | `exclude_name_pattern` | `str` | — | Regex pattern to exclude entities by name |
+| `asset_overrides` | `Dict[str, AssetOverride]` | — | Per-asset overrides keyed by the emitted asset's name (e.g. `cloud_run_job_my_pipeline`). Today supports `depends_on: [upstream_key, ...]` to add Dagster asset dependencies. Matches the pattern used by the official Databricks workspace component. |
 
 [//]: # (FIELDS:END)
 

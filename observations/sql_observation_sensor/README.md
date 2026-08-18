@@ -22,20 +22,21 @@ Observations appear in the **Asset Activity** timeline, giving you a health hist
 | `sensor_name` | `str` | Unique sensor name |
 | `asset_key` | `str` | Asset key of the ExternalSqlAsset to observe |
 | `table_name` | `str` | Table name to observe |
-| `connection_string_env_var` | `str` | Env var with SQLAlchemy connection string |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | — | Optional Dagster resource key. |
+| `connection_string_env_var` | `str` | — | Env var with SQLAlchemy connection string (ignored when resource_key is set) |
+| `resource_key` | `str` | — | Dagster resource key exposing `.observe(table_name) -> dict` that returns `{'data_version': str, **metadata}`. When set, the sensor uses this instead of managing a SQLAlchemy engine — enables demo-mode and shared connection pooling. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `watermark_column` | `str` | — | Column for latest value metric (e.g. updated_at) |
+| `watermark_column` | `Union[str, int]` | — | Column for latest value metric (e.g. updated_at). Used to derive the DataVersion in the native path. |
 | `check_interval_seconds` | `int` | `300` | Seconds between health checks |
+| `emit_materialization` | `bool` | `true` | When True (default), emit AssetMaterialization on the target asset key. External assets show healthy/green in the Dagster UI and downstream AutomationCondition.eager() fires naturally on parent updates. When False, emit AssetObservation — free of Dagster+ credit charges, but the target asset renders as observed-external (dashed border, gray) and downstream conditions that gate on ~any_deps_missing() (including eager()) will not fire. Both event types carry the same dagster/data_version tag. |
 
 [//]: # (FIELDS:END)
 

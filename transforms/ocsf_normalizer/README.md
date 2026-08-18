@@ -59,10 +59,10 @@ Normalize source events to OCSF v1.1 with class_uid / category_uid / activity_id
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `event_type_column` | `str` | — | Source column holding the event type string (auto-detected when None) |
-| `timestamp_column` | `str` | — | Source column for the event timestamp (auto-detected when None) |
-| `actor_email_column` | `str` | — | Source column for actor email (auto-detected when None) |
-| `actor_name_column` | `str` | — | Source column for actor display name (auto-detected when None) |
+| `event_type_column` | `Union[str, int]` | — | Source column holding the event type string (auto-detected when None) |
+| `timestamp_column` | `Union[str, int]` | — | Source column for the event timestamp (auto-detected when None) |
+| `actor_email_column` | `Union[str, int]` | — | Source column for actor email (auto-detected when None) |
+| `actor_name_column` | `Union[str, int]` | — | Source column for actor display name (auto-detected when None) |
 | `vendor_name` | `str` | `"Dagster"` | metadata.product.vendor_name |
 | `product_name` | `str` | `"Dagster+"` | metadata.product.name |
 | `ocsf_version` | `str` | `"1.1.0"` | metadata.version |

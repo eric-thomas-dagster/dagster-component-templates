@@ -52,7 +52,7 @@ Two output shapes via `output_shape`:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `columns` | `List[str]` | — | Columns to correlate. If None, uses all numeric columns from the upstream DataFrame. |
+| `columns` | `List[Union[str, int]]` | — | Columns to correlate. If None, uses all numeric columns from the upstream DataFrame. |
 | `method` | `str` | `"pearson"` | Correlation method passed to `pd.DataFrame.corr`. 'pearson' (default), 'spearman' (rank), or 'kendall' (Kendall tau). |
 | `min_periods` | `int` | `1` | Minimum number of observations required per pair of columns. |
 

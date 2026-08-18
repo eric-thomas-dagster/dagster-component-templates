@@ -79,6 +79,7 @@ attributes:
 | `include_meta` | `bool` | `false` | — |
 | `include_source_freshness` | `bool` | `false` | — |
 | `include_doc_blocks` | `bool` | `false` | — |
+| `asset_overrides` | `Dict[str, AssetOverride]` | — | — |
 
 [//]: # (FIELDS:END)
 

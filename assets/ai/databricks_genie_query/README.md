@@ -84,7 +84,7 @@ Natural-language → SQL → result via Databricks AI/BI Genie spaces. The compo
 |---|---|---|---|
 | `question` | `str` | — | Single NL question. Mutually exclusive with `upstream_asset_key`. Supports {partition_key} / {run_id} substitution. |
 | `upstream_asset_key` | `str` | — | Upstream DataFrame asset. For each row, the value in `question_column` is sent to Genie. |
-| `question_column` | `str` | — | Column on the upstream DataFrame that contains the NL question (mode B). |
+| `question_column` | `Union[str, int]` | — | Column on the upstream DataFrame that contains the NL question (mode B). |
 | `request_timeout_seconds` | `int` | `60` | HTTP request timeout. |
 | `dynamic_partition_name` | `str` | — | — |
 

@@ -66,7 +66,12 @@ The flatten step is what makes the BQ load succeed — without it, you get `400 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `columns` | `List[str]` | — | Explicit columns to flatten. Default: every column with at least one dict/list value. |
+| `expand` | `bool` | `true` | If True (default), nested dict values are expanded into new columns via pandas.json_normalize — e.g. row with `properties: {mag: 3.4}` becomes new columns `properties.mag` (or `mag` if strip_prefix=True). If False, nested dicts/lists are just JSON-serialized in place (legacy behavior). |
+| `separator` | `str` | `"."` | Separator used between parent/child keys when expand=True (e.g. '.', '_'). |
+| `strip_prefix` | `bool` | `false` | When expand=True, drop the parent column name from expanded columns. E.g. `properties.mag` becomes `mag`. Useful when you only care about the innermost fields. |
+| `expand_arrays` | `bool` | `false` | When expand=True, ALSO split lists-of-primitives into indexed columns. E.g. `coordinates: [lon, lat, depth]` becomes columns `coordinates.0`, `coordinates.1`, `coordinates.2` (or without prefix if strip_prefix=True). Handy for GeoJSON coordinate arrays. Only splits when every non-null value in the column is a list AND the elements are primitives (not dicts). |
+| `array_label_map` | `Dict[str, List[str]]` | — | Optional per-column labels for the indexed array columns. E.g. `{coordinates: [lon, lat, depth]}` names them `coordinates.lon`, `coordinates.lat`, `coordinates.depth` (or just `lon`/`lat`/`depth` with strip_prefix=True). If missing, positional integer indices are used. |
+| `columns` | `List[Union[str, int]]` | — | Explicit columns to flatten. Default: every column with at least one dict/list value. |
 | `exclude_columns` | `List[str]` | — | Skip these columns even if they contain dicts/lists. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 

@@ -12,7 +12,6 @@ Join two upstream DataFrame assets using pandas merge. Supports all standard joi
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `left_asset_key` | `str` | Left DataFrame asset key |
-| `right_asset_key` | `str` | Right DataFrame asset key |
 
 ### Catalog metadata
 
@@ -39,11 +38,11 @@ Join two upstream DataFrame assets using pandas merge. Supports all standard joi
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -58,12 +57,17 @@ Join two upstream DataFrame assets using pandas merge. Supports all standard joi
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `backend` | `str` | `"pandas"` | 'pandas' (default) or 'polars'. Polars uses .join() with the same how/on/left_on/right_on semantics and returns a polars DataFrame. |
+| `right_asset_key` | `str` | — | Right DataFrame asset key. Leave unset (or equal to `left_asset_key`) to self-join — the upstream frame is cloned in-process with all non-key columns prefixed by `right_prefix` (default 'Right_'). |
 | `additional_asset_keys` | `List[str]` | — | Optional list of further DataFrame asset keys to join in after `right` (N-way merge). Each is merged onto the running result using the same `how` / `on` / `suffixes`. Cannot be combined with `left_on`/`right_on`. |
 | `how` | `str` | `"inner"` | Join type: 'inner', 'left', 'right', 'outer', 'cross' |
-| `on` | `List[str]` | — | Column(s) to join on (same name in both DataFrames) |
-| `left_on` | `List[str]` | — | Left join columns (when column names differ) |
-| `right_on` | `List[str]` | — | Right join columns (when column names differ) |
+| `on` | `List[Union[str, int]]` | — | Column(s) to join on (same name in both DataFrames) |
+| `left_on` | `List[Union[str, int]]` | — | Left join columns (when column names differ) |
+| `right_on` | `List[Union[str, int]]` | — | Right join columns (when column names differ) |
 | `suffixes` | `List[str]` | `['_x', '_y']` | Suffixes for overlapping column names |
+| `right_prefix` | `str` | — | If set, the post-merge `rename` and `drop_columns` will fuzzy-match keys that start with this prefix against the actual merged column names: try `prefix + col`, then `col`, then `col + suffixes[1]`. Useful when the rename map was authored against a tool that prefixes right-side columns (e.g. 'Right_') but pandas only suffixes on collision. |
+| `rename` | `Dict[str, Union[str, int]]` | — | Post-merge rename map, e.g. {'Right_Age': 'Age At Win'}. Missing keys are ignored. |
+| `drop_columns` | `List[Union[str, int]]` | — | Post-merge columns to drop (applied AFTER `rename`). Missing columns are ignored. |
+| `keep_only_columns` | `List[str]` | — | If set, keep only these columns post-merge (applied AFTER `rename` and `drop_columns`). Missing columns are ignored. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output DataFrame in metadata (for builder UIs). |
 | `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |

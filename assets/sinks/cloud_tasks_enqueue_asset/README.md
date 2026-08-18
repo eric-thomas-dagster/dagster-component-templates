@@ -79,7 +79,7 @@ attributes:
 | `http_method` | `Literal['POST', 'GET', 'PUT', 'DELETE', 'PATCH']` | `"POST"` | — |
 | `body_columns` | `List[str]` | — | Columns to bundle into the request JSON body. Default: all columns. |
 | `headers` | `Dict[str, str]` | — | — |
-| `schedule_time_column` | `str` | — | Optional column of datetimes — when each task should fire (defaults to now). |
+| `schedule_time_column` | `Union[str, int]` | — | Optional column of datetimes — when each task should fire (defaults to now). |
 | `oidc_service_account_email` | `str` | — | Service account to mint an OIDC token for. Required for private invocation targets. |
 | `oidc_audience` | `str` | — | OIDC audience (default: target_url's origin). |
 | `dispatch_deadline_seconds` | `int` | — | Override Cloud Tasks dispatch_deadline. |

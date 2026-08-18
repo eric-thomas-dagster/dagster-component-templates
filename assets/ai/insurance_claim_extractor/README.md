@@ -56,11 +56,11 @@ The Insurance Claim Extractor Component uses a large language model to parse uns
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -74,7 +74,7 @@ The Insurance Claim Extractor Component uses a large language model to parse uns
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `input_column` | `str` | `"text"` | Column with insurance claim content (text or file path) |
+| `input_column` | `Union[str, int]` | `"text"` | Column with insurance claim content (text or file path) |
 | `input_type` | `str` | `"text"` | Input type: 'text' (raw text) or 'file' (read file content) |
 | `model` | `str` | `"gpt-4o-mini"` | LiteLLM model string |
 | `output_fields` | `List[str]` | `['claim_id', 'policy_number', 'insurer', 'claimant_name', 'claimant_contact', 'incident_date', 'incident_description', 'damage_type', 'claimed_amount', 'adjuster', 'status']` | Fields to extract from each insurance claim |

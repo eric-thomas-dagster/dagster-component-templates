@@ -21,25 +21,30 @@ Requires a `SupabaseResource` (see `resources/supabase_resource`).
 | `asset_name` | `str` | Output asset name. |
 | `table_name` | `str` | Supabase table containing the vector column. |
 
-### Connection
+### Catalog metadata
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `description` | `str` | — | — |
+| `group_name` | `str` | — | — |
+| `deps` | `List[str]` | — | — |
+| `tags` | `Dict[str, str]` | — | — |
+| `owners` | `List[str]` | — | — |
+
+### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_name` | `str` | `"supabase_resource"` | Resource key of the SupabaseResource providing the client. |
-
-### Search
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `embedding_column` | `str` | `"embedding"` | Vector column on the target table. |
-| `upstream_asset_key` | `str \| None` | `None` | Upstream DataFrame asset providing query vectors. |
-| `query_embedding_column` | `str \| None` | `None` | Column on the upstream DataFrame holding the query vector. |
-| `query_vector` | `list[float] \| None` | `None` | Static query vector (alternative to upstream). |
-| `top_k` | `int` | `10` | Nearest neighbors per query. |
-| `metric` | `str` | `"cosine"` | `cosine` / `l2` / `inner`. |
-| `additional_columns` | `list[str] \| None` | `None` | Extra columns to return. |
-| `rpc_name` | `str \| None` | `None` | Postgres function to invoke via `client.rpc(...)`. |
-| `match_threshold` | `float \| None` | `None` | Optional similarity threshold forwarded to the RPC. |
+| `embedding_column` | `str` | `"embedding"` | Vector column on the target table (pgvector type). |
+| `upstream_asset_key` | `str` | — | Upstream DataFrame asset providing query vectors (one search per row). |
+| `query_embedding_column` | `str` | — | Column on the upstream DataFrame holding the query vector (list[float] or ndarray). |
+| `query_vector` | `List[float]` | — | Static query vector (list[float]). Use in place of upstream/query_embedding_column for a one-shot search. |
+| `top_k` | `int` | `10` | Number of nearest neighbors to return per query. |
+| `metric` | `str` | `"cosine"` | Distance metric: 'cosine' (<=>), 'l2' (<->), or 'inner' (<#>). Only meaningful with RPC that respects it. |
+| `additional_columns` | `List[str]` | — | Extra columns to return alongside the match (defaults to all columns). |
+| `rpc_name` | `str` | — | Name of a Postgres function callable via ``client.rpc(...)`` that accepts named args ``query_embedding`` (vector), ``match_count`` (int), and optionally ``match_threshold`` (float). Recommended way to run pgvector searches through Supabase — see README for the canonical function body. |
+| `match_threshold` | `float` | — | Optional similarity threshold forwarded to the RPC as ``match_threshold``. |
 
 [//]: # (FIELDS:END)
 

@@ -26,8 +26,8 @@ the output directly.
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `longitude_column` | `str` | Column with longitude values (X / east-west). |
-| `latitude_column` | `str` | Column with latitude values (Y / north-south). |
+| `longitude_column` | `Union[str, int]` | Column with longitude values (X / east-west). |
+| `latitude_column` | `Union[str, int]` | Column with latitude values (Y / north-south). |
 
 ### Catalog metadata
 
@@ -44,7 +44,7 @@ the output directly.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `geometry_column` | `str` | `"geometry"` | Output column name for the Shapely Point geometries. |
+| `geometry_column` | `Union[str, int]` | `"geometry"` | Output column name for the Shapely Point geometries. |
 | `crs` | `str` | `"EPSG:4326"` | Coordinate reference system the lat/lon values are in. Defaults to WGS84 (EPSG:4326) — what virtually every GPS / web-map source uses. |
 | `drop_invalid` | `bool` | `true` | Drop rows where lat or lon is NaN / non-numeric. Otherwise rows with bad coords get a `None` geometry. |
 

@@ -54,7 +54,7 @@ Compute MD5/SHA-1/SHA-256 of one or more columns (or the whole row) — useful f
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_column` | `str` | `"row_hash"` | Output column name |
+| `output_column` | `Union[str, int]` | `"row_hash"` | Output column name |
 
 ### Other
 

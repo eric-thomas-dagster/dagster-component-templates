@@ -38,7 +38,7 @@ Set the matching `api_key_env_var` (`OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, `AZU
 | `upstream_asset_key` | `str` | Upstream DataFrame asset key. |
 | `model` | `str` | LiteLLM model id. e.g. `openai/tts-1`, `openai/tts-1-hd`, `elevenlabs/eleven_multilingual_v2`, `azure/<deployment>`. |
 | `api_key_env_var` | `str` | Env var holding the API key for the selected provider. |
-| `text_column` | `str` | Column containing text to speak. |
+| `text_column` | `Union[str, int]` | Column containing text to speak. |
 
 ### Execution
 
@@ -85,7 +85,7 @@ Set the matching `api_key_env_var` (`OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, `AZU
 |---|---|---|---|
 | `output_dir` | `str` | `"/tmp/litellm_tts_audio"` | — |
 | `output_filename_template` | `str` | `"{row_index}.mp3"` | Filename template; supports `{<column>}` and `{row_index}`. Extension determines format. |
-| `output_path_column` | `str` | `"audio_path"` | — |
+| `output_path_column` | `Union[str, int]` | `"audio_path"` | — |
 
 ### Other
 

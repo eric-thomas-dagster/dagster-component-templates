@@ -62,7 +62,7 @@ Numeric dtypes (`Int64`, `Int32`, `float64`, etc.) route through `pd.to_numeric(
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name. |
-| `columns` | `List[str]` | Column names, in order. |
+| `columns` | `List[Union[str, int]]` | Column names, in order. |
 
 ### Catalog metadata
 

@@ -26,31 +26,31 @@ Also requires a `GongResourceComponent` on the same code location for authentica
 | `from_date_time` | `str` | Start of the call window (ISO-8601, e.g. '2026-06-01T00:00:00Z') |
 | `to_date_time` | `str` | End of the call window (ISO-8601, e.g. '2026-07-01T00:00:00Z') |
 
-### Connection
+### Execution
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `limit` | `int` | `100` | Maximum number of calls to fetch across all pages |
+
+### Catalog metadata
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `description` | `str` | — | Asset description |
+| `group_name` | `str` | `"gong"` | Asset group for organization |
+| `owners` | `List[str]` | — | Asset owners — list of team names or email addresses, e.g. ['team:revops', 'user@company.com'] |
+| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset |
+| `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Defaults to ['gong', 'python']. |
+| `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime) |
+
+### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_name` | `str` | `"gong_resource"` | Key of the GongResource this asset depends on for authentication |
-
-### Ingestion
-
-| Field | Type | Default | Description |
-|---|---|---|---|
 | `include_transcript` | `bool` | `true` | If true, fetch transcripts via POST /v2/calls/transcript and merge into the DataFrame |
-| `limit` | `int` | `100` | Maximum number of calls to fetch across all pages |
-
-### Catalog
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `description` | `str \| None` | `None` | Asset description |
-| `group_name` | `str \| None` | `"gong"` | Asset group for organization |
-| `owners` | `list[str] \| None` | `None` | Asset owners |
-| `asset_tags` | `dict[str,str] \| None` | `None` | Additional key-value tags |
-| `kinds` | `list[str] \| None` | `None` | Asset kinds. Defaults to ['gong', 'python']. |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
 | `preview_rows` | `int` | `10` | Rows to include in the preview metadata |
-| `deps` | `list[str] \| None` | `None` | Lineage-only upstream asset keys |
 
 [//]: # (FIELDS:END)
 

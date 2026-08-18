@@ -38,11 +38,11 @@ Recursively flatten nested dict columns into dot-notation columns (e.g. `address
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -52,6 +52,12 @@ Recursively flatten nested dict columns into dot-notation columns (e.g. `address
 | `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
 | `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
 
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `output_format` | `str` | `"wide"` | Output shape. 'wide' (default) emits flattened dot-notation columns (e.g. `address.city`). 'long' emits one row per (key-path, value) pair with two extra columns: `JSON_Name` and `JSON_ValueString` — useful for downstream key-prefix filtering or to re-pivot dynamically. |
+
 ### Other
 
 | Field | Type | Default | Description |
@@ -59,7 +65,7 @@ Recursively flatten nested dict columns into dot-notation columns (e.g. `address
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
-| `column` | `str` | — | Column name containing dicts to flatten. If omitted, all object-dtype columns are flattened. |
+| `column` | `Union[str, int]` | — | Column name containing dicts to flatten. If omitted, all object-dtype columns are flattened. |
 | `separator` | `str` | `"."` | Separator for nested key names (e.g. 'address.city') |
 | `max_depth` | `int` | — | Maximum recursion depth. None means unlimited. |
 | `drop_original` | `bool` | `true` | Drop the source column after flattening. |

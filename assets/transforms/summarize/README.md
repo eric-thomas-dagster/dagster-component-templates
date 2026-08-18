@@ -14,7 +14,7 @@ Groups a DataFrame by one or more columns and applies aggregation functions to p
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `group_by` | `List[str]` | Columns to group by |
+| `group_by` | `List[Union[str, int]]` | Columns to group by |
 | `aggregations` | `Dict` | Mapping of output column name to aggregation. Two forms: - Simple: `revenue: sum` — aggregate that column with that func. - Named: `avg_rating: {col: rating, agg: mean}` — output a named column from a chosen source column. Use this when you need two aggregations on the same source column (e.g. avg_rating=(rating, mean) AND num_ratings=(rating, count)). |
 
 ### Catalog metadata
@@ -42,11 +42,11 @@ Groups a DataFrame by one or more columns and applies aggregation functions to p
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -61,6 +61,7 @@ Groups a DataFrame by one or more columns and applies aggregation functions to p
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `backend` | `str` | `"pandas"` | Execution backend: 'pandas' (default) or 'polars'. Polars gives substantially better performance + lower memory on large frames and supports the same aggregations API. Either way the component accepts pandas OR polars input; when backend='polars' the output is a polars DataFrame, otherwise pandas. |
+| `group_by_rename` | `Dict[str, str]` | — | Post-aggregation rename map applied to group_by columns. Useful when the source column name should be presented under a different label in the output (e.g. group_by=['Value'], group_by_rename={'Value': 'Team'}). Missing keys ignored. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |

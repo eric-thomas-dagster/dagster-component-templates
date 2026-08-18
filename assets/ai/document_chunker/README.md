@@ -289,11 +289,11 @@ Process chunks with:
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -307,8 +307,8 @@ Process chunks with:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `source_column` | `str` | `"text"` | Column name containing document text |
-| `output_column` | `str` | `"chunk"` | Column name for chunk text |
+| `source_column` | `Union[str, int]` | `"text"` | Column name containing document text |
+| `output_column` | `Union[str, int]` | `"chunk"` | Column name for chunk text |
 
 ### Other
 
@@ -316,7 +316,7 @@ Process chunks with:
 |---|---|---|---|
 | `strategy` | `str` | `"recursive"` | Chunking strategy: fixed, semantic, recursive, sentence, token_aware |
 | `chunk_overlap` | `int` | `200` | Number of characters (or tokens) to overlap between chunks |
-| `metadata_columns` | `str` | — | Comma-separated list of columns to preserve as metadata (e.g., 'doc_id,title,author') |
+| `metadata_columns` | `Union[str, int]` | — | Comma-separated list of columns to preserve as metadata (e.g., 'doc_id,title,author') |
 | `add_chunk_metadata` | `bool` | `true` | Add chunk metadata (chunk_index, total_chunks, start_char, end_char) |
 | `separators` | `str` | — | Custom separators for recursive strategy (comma-separated). Default: '\n\n,\n, ,' |
 | `sentence_tokenizer` | `str` | `"simple"` | Sentence tokenizer: simple (regex), nltk, spacy |

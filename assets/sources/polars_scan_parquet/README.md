@@ -42,7 +42,7 @@ Read parquet via polars's lazy scanner. When you supply `predicate:` and/or `col
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `columns` | `List[str]` | — | Subset of columns to read. None = read all. Pushed down: unread columns never come off disk. |
+| `columns` | `List[Union[str, int]]` | — | Subset of columns to read. None = read all. Pushed down: unread columns never come off disk. |
 | `predicate` | `str` | — | SQL predicate to push down to the parquet reader. Polars's query planner can skip whole row groups whose stats don't match. Example: "status = 'paid' AND amount > 100". |
 | `storage_options` | `Dict[str, str]` | — | Cloud auth options passed through to polars/object_store. Example for S3: {aws_access_key_id: ..., aws_secret_access_key: ..., region: us-east-1}. |
 | `n_rows` | `int` | — | Hard row limit (LIMIT). Pushed down — reader stops after this many. |

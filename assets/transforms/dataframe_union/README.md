@@ -38,11 +38,11 @@ Stack two or more upstream DataFrame assets vertically, equivalent to SQL UNION 
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -51,6 +51,12 @@ Stack two or more upstream DataFrame assets vertically, equivalent to SQL UNION 
 | `retry_policy_max_retries` | `int` | — | Max retries on failure. Defines a RetryPolicy when set. |
 | `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
 | `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `mode` | `str` | `"by_name"` | 'by_name' (default): match columns by name across inputs (pandas concat default). 'by_position': take column names from the FIRST input and force all subsequent inputs to use those names positionally. Use when sources share row shape but differ in column names (e.g. drivers.csv has 'Driver' as first col, tires.csv has 'Tire'). |
 
 ### Other
 

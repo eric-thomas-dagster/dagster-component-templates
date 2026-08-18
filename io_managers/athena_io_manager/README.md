@@ -53,7 +53,7 @@ Every materialization does **two** things:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `partition_column` | `str` | `"partition_key"` | Hive partition column name used when writing partitioned assets |
+| `partition_column` | `Union[str, int]` | `"partition_key"` | Hive partition column name used when writing partitioned assets |
 
 ### Other
 

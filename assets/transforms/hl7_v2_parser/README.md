@@ -62,7 +62,7 @@ HL7 v2 is the dominant messaging format inside hospitals — ADT (admit/discharg
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `message_column` | `str` | `"message"` | Column holding the raw HL7 v2 message (\r-delimited segments). |
+| `message_column` | `Union[str, int]` | `"message"` | Column holding the raw HL7 v2 message (\r-delimited segments). |
 | `keep_segments` | `List[Literal['MSH', 'PID', 'OBX', 'ORC', 'OBR', 'PV1', 'EVN', 'DG1', 'AL1']]` | `['MSH', 'PID', 'OBX']` | Segments to emit. Full extractors: MSH, PID, OBX, ORC, OBR, PV1, EVN, DG1, AL1. Other segments are silently skipped. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 

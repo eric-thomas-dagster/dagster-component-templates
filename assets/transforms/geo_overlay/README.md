@@ -54,7 +54,7 @@ both inputs. On column-name collisions, suffixes `_1` / `_2` are appended
 |---|---|---|---|
 | `how` | `str` | `"intersection"` | Set operation: 'intersection' (only where both overlap), 'union' (everywhere either has coverage), 'difference' (left minus right), 'symmetric_difference' (xor), 'identity' (left intersect right + remainder of left). Defaults to 'intersection'. |
 | `keep_geom_type` | `bool` | `true` | Only keep result features whose geometry type matches the left input. Avoids the GeoDataFrame mixed-type quirk where overlay can leave behind stray points / lines from polygon ops. |
-| `geometry_column` | `str` | `"geometry"` | — |
+| `geometry_column` | `Union[str, int]` | `"geometry"` | — |
 
 [//]: # (FIELDS:END)
 

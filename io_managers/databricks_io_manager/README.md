@@ -49,7 +49,7 @@ Implemented as a [`ConfigurableIOManager`](https://docs.dagster.io/_apidocs/io-m
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `partition_column` | `str` | `"partition_key"` | Column name used to scope per-partition DELETE+INSERT writes |
+| `partition_column` | `Union[str, int]` | `"partition_key"` | Column name used to scope per-partition DELETE+INSERT writes |
 
 ### Other
 

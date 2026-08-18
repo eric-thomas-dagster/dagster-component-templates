@@ -80,7 +80,7 @@ PyIceberg's `load_catalog(...)` handles all the standard catalog implementations
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `select_columns` | `List[str]` | — | Projection. If unset, reads all columns. |
+| `select_columns` | `List[Union[str, int]]` | — | Projection. If unset, reads all columns. |
 
 ### Other
 

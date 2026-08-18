@@ -90,7 +90,7 @@ Non-SAP OData servers (Dynamics, MS Graph) usually don't need CSRF — leave it 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `odata_version` | `str` | `"v2"` | 'v2' (default) or 'v4'. |
-| `key_column` | `str` | — | DataFrame column holding the entity key. Required for `upsert` and `delete`. |
+| `key_column` | `Union[str, int]` | — | DataFrame column holding the entity key. Required for `upsert` and `delete`. |
 | `auth_type` | `str` | `"basic"` | 'basic' \| 'bearer' \| 'none' |
 | `auth_username_env_var` | `str` | — | — |
 | `auth_password_env_var` | `str` | — | — |

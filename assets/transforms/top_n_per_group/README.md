@@ -19,7 +19,7 @@ Keep the top N rows per group, sorted by a value column. Equivalent to SQL's `RO
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `group_by` | `List[str]` | Columns to group by (e.g. ['category']). |
+| `group_by` | `List[Union[str, int]]` | Columns to group by (e.g. ['category']). |
 | `sort_by` | `str` | Column to sort by within each group (the 'top' criterion). |
 
 ### Catalog metadata
@@ -47,11 +47,11 @@ Keep the top N rows per group, sorted by a value column. Equivalent to SQL's `RO
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -68,7 +68,7 @@ Keep the top N rows per group, sorted by a value column. Equivalent to SQL's `RO
 | `backend` | `str` | `"pandas"` | 'pandas' (default) or 'polars'. Polars runs sort+head per group with the polars engine and returns a polars DataFrame. |
 | `n` | `int` | `3` | Number of rows to keep per group. |
 | `ascending` | `bool` | `false` | If true, keep BOTTOM N per group (sort ascending). Default false (top N). |
-| `rank_column` | `str` | — | Optional output column name to add (1..N rank within group). If unset, no rank column. |
+| `rank_column` | `Union[str, int]` | — | Optional output column name to add (1..N rank within group). If unset, no rank column. |
 | `sort_method` | `str` | `"first"` | Tie-breaker rank method: 'first' (input order), 'dense', 'min', 'max', 'average'. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 25 rows or a sample) for builder UIs. |

@@ -77,7 +77,7 @@ Most transactions can wrap multiple entities (e.g. a `ClaimsNotificationRq` migh
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `xml_column` | `str` | `"xml"` | Column holding the ACORD XML message text (or bytes — decoded as utf-8). |
+| `xml_column` | `Union[str, int]` | `"xml"` | Column holding the ACORD XML message text (or bytes — decoded as utf-8). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 
 [//]: # (FIELDS:END)

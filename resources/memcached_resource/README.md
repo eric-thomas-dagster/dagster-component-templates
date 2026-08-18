@@ -22,7 +22,7 @@ pip install "pymemcache>=4.0.0"
 | `host` | `str` | `"localhost"` | Memcached host |
 | `port` | `int` | `11211` | Memcached port |
 
-### Other
+### Execution
 
 | Field | Type | Default | Description |
 |---|---|---|---|

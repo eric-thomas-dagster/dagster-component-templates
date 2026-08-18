@@ -42,7 +42,7 @@ Create / find processors at <https://console.cloud.google.com/ai/document-ai/pro
 | `asset_name` | `str` | Output asset name. |
 | `upstream_asset_key` | `str` | Upstream DataFrame asset key. |
 | `processor_id` | `str` | Document AI processor id (UUID-style) from the console. Distinct from the processor TYPE — each processor is a deployed instance of a type. |
-| `document_column` | `str` | Column with document file paths or `gs://` URIs. |
+| `document_column` | `Union[str, int]` | Column with document file paths or `gs://` URIs. |
 
 ### Execution
 
@@ -98,7 +98,7 @@ Create / find processors at <https://console.cloud.google.com/ai/document-ai/pro
 | `project_id` | `str` | — | — |
 | `location` | `str` | `"us"` | Document AI region — `us` or `eu`. |
 | `processor_version` | `str` | — | Optional pinned processor version (e.g. 'pretrained-form-parser-v2.0-2022-11-10'). Default: rc / stable. |
-| `mime_type_column` | `str` | — | Optional column with explicit MIME type per row. Default: auto-detect from file extension. |
+| `mime_type_column` | `Union[str, int]` | — | Optional column with explicit MIME type per row. Default: auto-detect from file extension. |
 | `extract_text` | `bool` | `true` | Adds `doc_text` (full plain text). |
 | `extract_form_fields` | `bool` | `true` | Adds `doc_form_fields` (list of {name, value, confidence}). Only meaningful for FORM_PARSER and similar. |
 | `extract_entities` | `bool` | `true` | Adds `doc_entities` (list of {type, mention_text, confidence, normalized_value}). Used by Invoice / Receipt / 1040 / etc. |

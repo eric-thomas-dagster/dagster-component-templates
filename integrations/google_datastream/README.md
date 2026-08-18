@@ -48,6 +48,7 @@ google-auth>=2.17.0
 | `import_connection_profiles` | `bool` | `false` | Import connection profiles as observable assets |
 | `exclude_name_pattern` | `str` | — | Regex pattern to exclude entities by name |
 | `generate_sensor` | `bool` | `true` | Generate observation sensor for streams |
+| `asset_overrides` | `Dict[str, AssetOverride]` | — | Per-asset overrides keyed by the emitted asset's name (e.g. `datastream_mysql_to_bq`, `connection_profile_mysql_source`). Today supports `depends_on: [upstream_key, ...]` to add Dagster asset dependencies. Matches the pattern used by the official Databricks workspace component. |
 
 [//]: # (FIELDS:END)
 

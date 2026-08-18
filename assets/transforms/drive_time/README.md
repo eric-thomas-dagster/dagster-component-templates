@@ -64,9 +64,9 @@ operate on the isochrone polygons.
 | `provider` | `str` | `"openrouteservice"` | Routing provider. v1 ships openrouteservice; google / mapbox / osrm raise NotImplementedError until wired (same component shape). |
 | `osrm_base_url` | `str` | — | Required when `provider=osrm`. e.g. `http://localhost:5000`. |
 | `profile` | `str` | `"driving-car"` | Travel mode. openrouteservice profiles: 'driving-car' (default), 'foot-walking', 'cycling-regular'. Other names get normalized to ORS conventions. |
-| `geometry_column` | `str` | `"geometry"` | Input + output geometry column name. Output isochrone replaces input point. |
-| `latitude_column` | `str` | — | If the input has no geometry column yet, name the lat column here + longitude_column. We'll build the Point ourselves. |
-| `longitude_column` | `str` | — | — |
+| `geometry_column` | `Union[str, int]` | `"geometry"` | Input + output geometry column name. Output isochrone replaces input point. |
+| `latitude_column` | `Union[str, int]` | — | If the input has no geometry column yet, name the lat column here + longitude_column. We'll build the Point ourselves. |
+| `longitude_column` | `Union[str, int]` | — | — |
 
 [//]: # (FIELDS:END)
 

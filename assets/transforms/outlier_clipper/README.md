@@ -54,10 +54,10 @@ Detect and handle outliers in numeric columns using IQR, z-score, or quantile th
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type |
 | `partition_start` | `str` | — | Partition start date in ISO format |
-| `partition_date_column` | `str` | — | Column used to filter to current date partition. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter to current date partition. |
 | `partition_values` | `str` | — | Comma-separated values for static/multi partitioning. |
 | `partition_static_dim` | `str` | — | Static dimension name for multi-partitioning. |
-| `partition_static_column` | `str` | — | Column used to filter to the static partition value. |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter to the static partition value. |
 
 ### Retry policy
 
@@ -73,7 +73,7 @@ Detect and handle outliers in numeric columns using IQR, z-score, or quantile th
 |---|---|---|---|
 | `strategy` | `str` | `"iqr"` | Detection strategy: 'iqr', 'zscore', or 'quantile'. |
 | `action` | `str` | `"clip"` | What to do with outliers: 'clip' (winsorize), 'drop' (remove rows), or 'flag' (add boolean column). |
-| `columns` | `List[str]` | — | Columns to check for outliers. None = all numeric columns. |
+| `columns` | `List[Union[str, int]]` | — | Columns to check for outliers. None = all numeric columns. |
 | `iqr_multiplier` | `float` | `1.5` | IQR fence multiplier. 1.5 = standard Tukey fences; 3.0 = extreme outliers only. |
 | `zscore_threshold` | `float` | `3.0` | Absolute z-score threshold for the 'zscore' strategy. |
 | `lower_quantile` | `float` | `0.01` | Lower quantile for the 'quantile' strategy (default 0.01 = 1st percentile). |

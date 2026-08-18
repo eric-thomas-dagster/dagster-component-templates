@@ -42,7 +42,7 @@ For form / table / structured-document parsing, use **`document_ai_extractor`** 
 |---|---|---|
 | `asset_name` | `str` | Output asset name. |
 | `upstream_asset_key` | `str` | Upstream DataFrame asset key. |
-| `image_column` | `str` | Column with image references (file path, gs:// URI, or http(s) URL). |
+| `image_column` | `Union[str, int]` | Column with image references (file path, gs:// URI, or http(s) URL). |
 | `features` | `List[str]` | One or more Vision feature types (e.g. ['LABEL_DETECTION', 'OBJECT_LOCALIZATION']). |
 
 ### Execution

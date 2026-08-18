@@ -55,8 +55,8 @@ This asset component makes HTTP requests to REST API endpoints and materializes 
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
 | `partition_values` | `List[Union[str, int]]` | — | Values for static or multi partitioning. Accepts a YAML list (`[1, 2, 3]` or `[us, eu, asia]`) or a single comma-separated string (`'1,2,3'`). |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_date_column` | `str` | — | Column used to filter the upstream DataFrame to the current date partition key. |
-| `partition_static_column` | `str` | — | Column used to filter the upstream DataFrame to the current static partition value. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
 
 ### Retry policy
 
@@ -70,7 +70,7 @@ This asset component makes HTTP requests to REST API endpoints and materializes 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_format` | `str` | `"json"` | Output format: 'json', 'dataframe', 'csv', 'parquet', or 'text' / 'html' (raw response body wrapped in a 1-row DataFrame with a single 'content' column — useful for HTML scraping) |
+| `output_format` | `str` | `"dataframe"` | Output format: 'dataframe' (default — parsed JSON wrapped in a pandas DataFrame ready for downstream transforms), 'json' (raw Python dict/list — use only if a custom asset consumes it directly), 'csv', 'parquet', or 'text' / 'html' (raw response body wrapped in a 1-row DataFrame with a single 'content' column — useful for HTML scraping) |
 
 ### Other
 

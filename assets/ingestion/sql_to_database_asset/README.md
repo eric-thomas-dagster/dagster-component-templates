@@ -51,10 +51,10 @@ sqlalchemy>=2.0.0
 | `partition_type` | `str` | `"none"` | none, daily, weekly, or monthly |
 | `partition_start_date` | `str` | — | Partition start date YYYY-MM-DD (required if partition_type != none) |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter the upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
-| `partition_static_column` | `str` | — | Column used to filter the upstream DataFrame to the current static partition value. |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
 
 ### Retry policy
 
@@ -78,7 +78,7 @@ sqlalchemy>=2.0.0
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `destination_schema` | `str` | — | Destination schema name |
-| `watermark_column` | `str` | — | Incremental watermark column (e.g. updated_at, id) |
+| `watermark_column` | `Union[str, int]` | — | Incremental watermark column (e.g. updated_at, id) |
 | `watermark_env_var` | `str` | — | Env var storing the last watermark value |
 | `chunksize` | `int` | `10000` | Rows to read/write per chunk |
 | `column_mapping` | `dict` | — | Rename columns: {old: new} |

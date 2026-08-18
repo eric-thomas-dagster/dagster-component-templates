@@ -113,11 +113,11 @@ Returns a dictionary with:
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -139,9 +139,9 @@ Returns a dictionary with:
 | `embedding_api_key` | `str` | — | Embedding API key with ${VAR_NAME} syntax |
 | `include_sources` | `bool` | `true` | Include source documents |
 | `temperature` | `float` | `0.7` | LLM temperature |
-| `query_column` | `str` | `"query"` | Column name containing query text |
-| `answer_column` | `str` | `"answer"` | Column name for generated answers |
-| `sources_column` | `str` | `"sources"` | Column name for retrieved source documents |
+| `query_column` | `Union[str, int]` | `"query"` | Column name containing query text |
+| `answer_column` | `Union[str, int]` | `"answer"` | Column name for generated answers |
+| `sources_column` | `Union[str, int]` | `"sources"` | Column name for retrieved source documents |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 25 rows or a sample) for builder UIs. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata. For long DataFrames (>10x preview_rows), a random sample is used; otherwise head(). |

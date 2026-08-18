@@ -77,7 +77,7 @@ Use `cloud_run_job_trigger_asset` for Cloud Run **jobs** (long-running batch), n
 | `method` | `str` | `"POST"` | HTTP method (POST / GET / PUT / PATCH / DELETE). |
 | `payload` | `Any` | — | Static request body (dict → JSON, str → raw). Mutually exclusive with upstream_asset_key. |
 | `upstream_asset_key` | `str` | — | Upstream DataFrame asset. One function call per row. |
-| `payload_column` | `str` | — | When set, publish only this column's value as the body. dict → JSON, others → str. |
+| `payload_column` | `Union[str, int]` | — | When set, publish only this column's value as the body. dict → JSON, others → str. |
 | `payload_template` | `Dict[str, Any]` | — | Static dict template. Each {column_name} string in any value is replaced with the row's value before serialization. |
 | `headers` | `Dict[str, str]` | — | — |
 | `rate_limit_delay` | `float` | `0.0` | — |

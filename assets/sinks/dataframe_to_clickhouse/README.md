@@ -36,6 +36,12 @@ Insert a Pandas DataFrame into a ClickHouse table via clickhouse-connect's clien
 | `tags` | `Dict[str, str]` | — | Catalog tags. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'clickhouse'). |
 
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_column` | `str` | — | When set AND the asset is partitioned, appends this column to every row with the current partition key as its value. Enables the single-table + partition_column analytics pattern (WHERE partition_date = '2025-01-15') without needing per-partition tables. Prefer this over `{partition_key}` templating in the `table:` field for warehouse sinks — analytics queries stay clean. See docs/partition_patterns.md. |
+
 ### Other
 
 | Field | Type | Default | Description |

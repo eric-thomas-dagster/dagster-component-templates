@@ -89,9 +89,9 @@ Get a key at https://aistudio.google.com/app/apikey.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `input_image_column` | `str` | — | Optional column of source-image file paths for image-to-image edits. |
+| `input_image_column` | `Union[str, int]` | — | Optional column of source-image file paths for image-to-image edits. |
 | `output_dir` | `str` | `"/tmp/gemini_image_generation"` | Directory for generated PNGs. One file per successful row. |
-| `output_path_column` | `str` | `"generated_image_path"` | Column added to the output DataFrame with the saved file path (None on failure). |
+| `output_path_column` | `Union[str, int]` | `"generated_image_path"` | Column added to the output DataFrame with the saved file path (None on failure). |
 | `output_filename_template` | `str` | `"row_{idx}.png"` | Per-row filename. Supports {idx} (row index) and {column} placeholders. |
 
 ### Other
@@ -99,7 +99,7 @@ Get a key at https://aistudio.google.com/app/apikey.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `image_model` | `str` | `"gemini-2.5-flash-image"` | Gemini image model id. Default is the GA 'Nano Banana' model (gemini-2.5-flash-image). For preview models use 'nano-banana-pro-preview', 'gemini-3-pro-image-preview', or 'gemini-3.1-flash-image-preview'. |
-| `prompt_column` | `str` | — | Column with per-row prompt text. Mutually exclusive with prompt_template. |
+| `prompt_column` | `Union[str, int]` | — | Column with per-row prompt text. Mutually exclusive with prompt_template. |
 | `prompt_template` | `str` | — | Static prompt template; supports {column_name} placeholders. Mutually exclusive with prompt_column. |
 | `temperature` | `float` | `1.0` | Temperature (0.0–2.0). |
 | `rate_limit_delay` | `float` | `0.5` | Seconds between API calls. |

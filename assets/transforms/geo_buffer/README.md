@@ -47,7 +47,7 @@ state plane for your region.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `units` | `str` | `"meters"` | Unit for `distance`: meters / km / miles / feet / yards. |
-| `geometry_column` | `str` | `"geometry"` | Input + output geometry column name. |
+| `geometry_column` | `Union[str, int]` | `"geometry"` | Input + output geometry column name. |
 | `projected_crs` | `str` | `"EPSG:3857"` | Projected CRS used for the buffer math. Default is Web Mercator (EPSG:3857) — accurate enough for analytics use. For survey-grade results, pick the appropriate UTM zone (e.g. EPSG:32610 for California / Oregon). |
 | `resolution` | `int` | `16` | Number of segments per quarter-circle in the resulting buffer polygon. |
 

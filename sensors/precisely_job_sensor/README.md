@@ -76,6 +76,7 @@ attributes:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `asset_event_type` | `str` | `"materialization"` | What kind of asset event to emit on terminal SUCCESS: 'materialization' (default — lights up the materialization history, what you want for jobs Dagster doesn't run itself) or 'observation' (emits AssetObservation instead — better when you want the materialization timeline reserved for assets Dagster materializes itself, and Precisely runs to be observability data alongside). |
+| `emit_materialization` | `bool` | `true` | When True (default), emit AssetMaterialization on the target asset key. External assets show healthy/green in the Dagster UI and downstream AutomationCondition.eager() fires naturally on parent updates. When False, emit AssetObservation — free of Dagster+ credit charges, but the target asset renders as observed-external (dashed border, gray) and downstream conditions that gate on ~any_deps_missing() (including eager()) will not fire. Both event types carry the same dagster/data_version tag. |
 
 [//]: # (FIELDS:END)
 

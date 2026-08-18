@@ -80,7 +80,7 @@ Pairs with `snowflake_workspace` (which DISCOVERS existing entities) — use thi
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `sql` | `str` | — | Optional SELECT body that defines the table data. If unset, the table is created empty (you populate it via INSERT INTO / external writes / Spark). |
-| `columns` | `List[str]` | — | Optional explicit column declarations when sql is None, e.g. ['id INT', 'name STRING', 'created_at TIMESTAMP']. |
+| `columns` | `List[Union[str, int]]` | — | Optional explicit column declarations when sql is None, e.g. ['id INT', 'name STRING', 'created_at TIMESTAMP']. |
 | `cluster_by` | `List[str]` | — | Columns to CLUSTER BY for performance. |
 
 [//]: # (FIELDS:END)

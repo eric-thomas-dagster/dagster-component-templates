@@ -82,11 +82,11 @@ Credentials come from env vars (`DESTINATION__BIGQUERY__CREDENTIALS__*`) or, for
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', or None for unpartitioned. With a partition type set, the partition key is exposed via context.partition_key for use in filtering / templating. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required when partition_type is set. |
-| `partition_date_column` | `str` | — | Column used to filter the upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
-| `partition_static_column` | `str` | — | Column used to filter the upstream DataFrame to the current static partition value. |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
 
 ### Retry policy
 
@@ -107,7 +107,7 @@ Credentials come from env vars (`DESTINATION__BIGQUERY__CREDENTIALS__*`) or, for
 | `end_date` | `str` | — | End date for analytics (YYYY-MM-DD). Defaults to today. |
 | `granularity` | `str` | `"DAY"` | Analytics granularity: DAY, HOUR, WEEK, or MONTH |
 | `level` | `str` | `"CAMPAIGN"` | Analytics aggregation level: AD_ACCOUNT, CAMPAIGN, AD_GROUP, AD, KEYWORD, or PIN_PROMOTION |
-| `columns` | `str` | — | Comma-separated list of metric columns to retrieve (leave empty for default metrics) |
+| `columns` | `Union[str, int]` | — | Comma-separated list of metric columns to retrieve (leave empty for default metrics) |
 | `destination` | `str` | — | dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode. |
 | `dataset_name` | `str` | — | Target dataset/schema in the destination. Defaults to the asset name. |
 | `persist_only` | `bool` | `false` | If True with destination set: emit a MaterializeResult and skip DataFrame return. If False: query the destination back into a DataFrame (only meaningful for SQL destinations — non-SQL destinations always emit MaterializeResult). |

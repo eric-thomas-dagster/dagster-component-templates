@@ -59,7 +59,7 @@ Diff incoming DataFrame against a prior snapshot — emit rows with a change_typ
 |---|---|---|---|
 | `compare_columns` | `list` | — | Columns whose values are compared for 'update' (None = all non-key) |
 | `include_unchanged` | `bool` | `false` | Include unchanged rows in the output |
-| `change_type_column` | `str` | `"change_type"` | — |
+| `change_type_column` | `Union[str, int]` | `"change_type"` | — |
 | `include_preview_metadata` | `bool` | `true` | — |
 | `preview_rows` | `int` | `20` | — |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |

@@ -41,8 +41,8 @@ query_id_column: query_id
 |---|---|---|
 | `asset_name` | `str` | Output asset name. |
 | `base_table` | `str` | Fully-qualified BQ table holding embeddings (`project.dataset.table`). |
-| `base_column` | `str` | Column in base_table containing the embedding (ARRAY<FLOAT64>). |
-| `select_columns` | `List[str]` | Columns to return alongside each match (id, text, metadata, etc.). |
+| `base_column` | `Union[str, int]` | Column in base_table containing the embedding (ARRAY<FLOAT64>). |
+| `select_columns` | `List[Union[str, int]]` | Columns to return alongside each match (id, text, metadata, etc.). |
 
 ### Catalog metadata
 
@@ -89,8 +89,8 @@ query_id_column: query_id
 | `distance_type` | `Literal['COSINE', 'EUCLIDEAN', 'DOT_PRODUCT']` | `"COSINE"` | — |
 | `query_vectors` | `List[List[float]]` | — | Static mode: inline list of query vectors. One row of results per vector. |
 | `upstream_asset_key` | `str` | — | From-upstream mode: asset key of an upstream DataFrame holding query vectors. |
-| `query_vector_column` | `str` | — | From-upstream mode: column in upstream containing the embedding vector. |
-| `query_id_column` | `str` | — | Optional column in upstream to carry forward as `query_id` in results. |
+| `query_vector_column` | `Union[str, int]` | — | From-upstream mode: column in upstream containing the embedding vector. |
+| `query_id_column` | `Union[str, int]` | — | Optional column in upstream to carry forward as `query_id` in results. |
 | `use_brute_force` | `bool` | `false` | If True, force exhaustive scan (no index). Use only for small tables or correctness validation. |
 | `fraction_lists_to_search` | `float` | — | IVF index tuning: 0–1, higher = more accurate / slower. Default uses BQ's choice. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |

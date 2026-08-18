@@ -78,7 +78,7 @@ pip install snowflake-connector-python>=3.6.0 snowflake-sqlalchemy>=1.5.0
 | `snowflake_database` | `str` | Snowflake database name. |
 | `source_table` | `str` | Source table name (fully qualified or relative to database/schema). |
 | `target_table` | `str` | Target table where enriched results are written. |
-| `text_column` | `str` | Column passed as the text argument to the Cortex function. |
+| `text_column` | `Union[str, int]` | Column passed as the text argument to the Cortex function. |
 | `asset_name` | `str` | Dagster asset key name. |
 
 ### Execution
@@ -114,10 +114,10 @@ pip install snowflake-connector-python>=3.6.0 snowflake-sqlalchemy>=1.5.0
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter the upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
-| `partition_static_column` | `str` | — | Column used to filter the upstream DataFrame to the current static partition value. |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
 
 ### Retry policy
 
@@ -132,7 +132,7 @@ pip install snowflake-connector-python>=3.6.0 snowflake-sqlalchemy>=1.5.0
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `model` | `str` | `"claude-3-5-sonnet"` | LLM model name for COMPLETE. Examples: claude-3-5-sonnet, mistral-large, llama3-70b. |
-| `output_column` | `str` | `"cortex_result"` | Name of the output column added to the target table. |
+| `output_column` | `Union[str, int]` | `"cortex_result"` | Name of the output column added to the target table. |
 | `if_exists` | `str` | `"replace"` | Table write mode: "replace" (CREATE OR REPLACE) or "append" (INSERT INTO). |
 
 ### Other

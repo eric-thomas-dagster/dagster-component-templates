@@ -106,11 +106,11 @@ That's it! The IO manager automatically passes the DataFrame.
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -124,7 +124,7 @@ That's it! The IO manager automatically passes the DataFrame.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `filter_columns` | `str` | — | Comma-separated list of columns to keep |
+| `filter_columns` | `Union[str, int]` | — | Comma-separated list of columns to keep |
 | `filter_expression` | `str` | — | Pandas query expression (e.g., 'amount > 100 and status == "active"') |
 | `sort_by` | `str` | — | Comma-separated columns to sort by |
 
@@ -132,8 +132,8 @@ That's it! The IO manager automatically passes the DataFrame.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `drop_columns` | `str` | — | Comma-separated list of columns to drop |
-| `rename_columns` | `str` | — | JSON mapping of column renames: '{"old_name": "new_name"}' |
+| `drop_columns` | `Union[str, int]` | — | Comma-separated list of columns to drop |
+| `rename_columns` | `Union[str, int]` | — | JSON mapping of column renames: '{"old_name": "new_name"}' |
 | `drop_duplicates` | `bool` | `false` | Whether to drop duplicate rows |
 | `drop_na` | `bool` | `false` | Whether to drop rows with NA values |
 | `fill_na_value` | `str` | — | Value to fill NA values with |
@@ -144,11 +144,12 @@ That's it! The IO manager automatically passes the DataFrame.
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `string_operations` | `str` | — | JSON list of string operations: [{"column": "name", "operation": "upper"}, {"column": "email", "operation": "trim"}]. Operations: upper, lower, trim, strip, title |
 | `string_replace` | `str` | — | JSON mapping of string replacements: {"column_name": {"old": "new", "pattern": "replacement"}} |
-| `calculated_columns` | `str` | — | JSON mapping of calculated columns: {"new_col": "price * quantity", "full_name": "first_name + ' ' + last_name"} |
+| `calculated_columns` | `Union[str, int]` | — | JSON mapping of calculated columns: {"new_col": "price * quantity", "full_name": "first_name + ' ' + last_name"} |
 | `pivot_config` | `str` | — | JSON config for pivot: {"index": "date", "columns": "category", "values": "amount", "aggfunc": "sum"} |
 | `unpivot_config` | `str` | — | JSON config for unpivot/melt: {"id_vars": ["id", "name"], "value_vars": ["q1", "q2", "q3"], "var_name": "quarter", "value_name": "sales"} |
 | `upstream_asset_key` | `str` | — | Single upstream asset key. Convenience field for the common single-source case. |
 | `upstream_asset_keys` | `List[str]` | — | Multiple upstream asset keys for multi-source transforms. |
+| `asset_overrides` | `Dict[str, AssetOverride]` | — | Per-asset overrides keyed by the emitted asset's name (typically `asset_name`). Today supports `depends_on: [upstream_key, ...]` to add Dagster asset dependencies (merged with `upstream_asset_key(s)`). Matches the pattern used by the official Databricks workspace component. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
 

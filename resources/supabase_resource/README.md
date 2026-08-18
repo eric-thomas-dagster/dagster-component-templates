@@ -18,8 +18,13 @@ pip install "supabase>=2.0.0" "requests>=2.28"
 |---|---|---|---|
 | `resource_key` | `str` | `"supabase_resource"` | Key used to register this resource. Other components reference it via resource_key. |
 | `url_env_var` | `str` | `"SUPABASE_URL"` | Env var holding the Supabase project URL (https://<project-ref>.supabase.co) |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
 | `key_env_var` | `str` | `"SUPABASE_KEY"` | Env var holding the Supabase API key (service-role for admin ops) |
-| `use_service_role` | `bool` | `True` | Whether the configured key is a service-role key (bypasses RLS). |
+| `use_service_role` | `bool` | `true` | Whether the configured key is a service-role key (bypasses RLS). Set false when using an anon key so downstream components can adjust their behavior accordingly. |
 
 [//]: # (FIELDS:END)
 

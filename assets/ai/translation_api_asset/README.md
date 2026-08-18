@@ -29,7 +29,7 @@ If `source_language:` is unset, Translation auto-detects the source language **p
 |---|---|---|
 | `asset_name` | `str` | Output asset name. |
 | `upstream_asset_key` | `str` | Upstream DataFrame asset key. |
-| `text_column` | `str` | Column with text to translate. |
+| `text_column` | `Union[str, int]` | Column with text to translate. |
 | `target_languages` | `List[str]` | ISO codes to translate INTO, e.g. ['es', 'fr', 'de']. One output column per target. |
 
 ### Execution

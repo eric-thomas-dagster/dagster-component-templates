@@ -29,7 +29,7 @@ Adds 2 columns to the upstream DataFrame:
 |---|---|---|
 | `asset_name` | `str` | Output asset name. |
 | `upstream_asset_key` | `str` | Upstream DataFrame asset key. |
-| `text_column` | `str` | Column containing text to speak. |
+| `text_column` | `Union[str, int]` | Column containing text to speak. |
 
 ### Execution
 
@@ -76,7 +76,7 @@ Adds 2 columns to the upstream DataFrame:
 |---|---|---|---|
 | `output_dir` | `str` | `"/tmp/tts_audio"` | Filesystem dir to write audio files into (created if missing). |
 | `output_filename_template` | `str` | `"{row_index}.mp3"` | Filename template (without dir). Supports row column substitutions like `{<column>}_{row_index}.mp3`. Default appends row_index → `0.mp3`, `1.mp3`. |
-| `output_path_column` | `str` | `"audio_path"` | New column to write the file path into. |
+| `output_path_column` | `Union[str, int]` | `"audio_path"` | New column to write the file path into. |
 
 ### Other
 

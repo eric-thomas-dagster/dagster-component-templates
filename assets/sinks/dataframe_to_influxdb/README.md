@@ -44,7 +44,7 @@ Bulk-write a Pandas DataFrame to InfluxDB 2.x / 3.x as line-protocol points. Aut
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `timestamp_column` | `str` | `"timestamp"` | Column with datetime timestamps. |
+| `timestamp_column` | `Union[str, int]` | `"timestamp"` | Column with datetime timestamps. |
 | `tag_columns` | `List[str]` | — | Columns to use as tags (low-cardinality, indexed). Auto-derived if unset. |
 | `field_columns` | `List[str]` | — | Columns to use as fields (values, numeric). Auto-derived if unset. |
 | `org_env_var` | `str` | `"INFLUXDB_ORG"` | Env var with organization name. |

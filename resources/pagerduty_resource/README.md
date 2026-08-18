@@ -17,18 +17,19 @@ pip install requests
 
 ## Fields
 
-### Required
-
-*(none — all fields have defaults with sensible env var names)*
-
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"pd"` | Key used to register this resource. Other components reference it via resource_key. |
 | `api_token_env_var` | `str` | `"PAGERDUTY_API_TOKEN"` | Env var holding a PagerDuty REST API token. |
-| `from_email_env_var` | `str` | `"PAGERDUTY_FROM_EMAIL"` | Env var holding the email of a valid user (used as `From:` header on writes). |
-| `events_routing_key_env_var` | `str \| null` | `null` | Optional Events API v2 routing key env var. Needed only for `send_alert` / `resolve_alert`. |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `from_email_env_var` | `str` | `"PAGERDUTY_FROM_EMAIL"` | Env var holding the email of a valid PagerDuty user (used as `From:` header on writes). |
+| `events_routing_key_env_var` | `str` | — | Optional env var holding a PagerDuty Events API v2 routing key (integration key). Needed only for `send_alert` / `resolve_alert`. |
 | `verify_ssl` | `bool` | `true` | TLS cert verification. |
 
 [//]: # (FIELDS:END)

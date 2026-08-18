@@ -30,7 +30,7 @@ Perfect for:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | — | Optional Dagster resource key providing a pre-configured client. When set, context.resources.<resource_key> is used instead of creating a connection from the other fields. See README for the expected interface. |
+| `resource_key` | `str` | — | Optional Dagster resource key providing a pre-configured client. When set, context.resources.<resource_key>.poll(topic, last_id) is called instead of building a KafkaConsumer from the other fields. The resource must return a list of dicts, each shaped {id, ts, source, payload}. Use this for demo-mode seams (swap in a fixture-backed client) or shared-auth wrappers. |
 
 ### Sensor configuration
 
@@ -38,6 +38,12 @@ Perfect for:
 |---|---|---|---|
 | `minimum_interval_seconds` | `int` | `30` | Minimum time (in seconds) between sensor evaluations |
 | `default_status` | `str` | `"running"` | Default status of the sensor (running or stopped) |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `source_asset_key` | `str` | — | Optional asset key (e.g. 'kafka_user_events') to receive an AssetObservation on every tick that yields new messages. Metadata includes topic, new_messages, last_event_id, last_event_ts — lets an observable-source asset in the graph show a live timeline of message arrivals in the Dagster UI. |
 
 ### Other
 
@@ -49,6 +55,8 @@ Perfect for:
 | `sasl_mechanism` | `str` | — | SASL mechanism when using SASL_PLAINTEXT or SASL_SSL (e.g., PLAIN, SCRAM-SHA-256) |
 | `sasl_username_env_var` | `str` | — | Name of the environment variable containing the SASL username |
 | `sasl_password_env_var` | `str` | — | Name of the environment variable containing the SASL password |
+| `op_name` | `str` | `"config"` | Op name to key the run_config under. Emitted as `{'ops': {op_name: {'config': {...}}}}`. Defaults to 'config' for backward compat, but if the target job's op is not named 'config' (e.g. an @asset or @multi_asset with a custom name), set this to the actual op name — otherwise Dagster rejects the run config with 'Received unexpected config entry "config" at path root:ops'. |
+| `emit_materialization` | `bool` | `true` | When True (default), emit AssetMaterialization on the target asset key. External assets show healthy/green in the Dagster UI and downstream AutomationCondition.eager() fires naturally on parent updates. When False, emit AssetObservation — free of Dagster+ credit charges, but the target asset renders as observed-external (dashed border, gray) and downstream conditions that gate on ~any_deps_missing() (including eager()) will not fire. Both event types carry the same dagster/data_version tag. |
 
 [//]: # (FIELDS:END)
 

@@ -70,7 +70,7 @@ Other transaction sets fall through to the envelope-only output (ISA + GS + ST h
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `message_column` | `str` | `"message"` | Column holding the raw X12 message (segment-terminated text). |
+| `message_column` | `Union[str, int]` | `"message"` | Column holding the raw X12 message (segment-terminated text). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 
 [//]: # (FIELDS:END)

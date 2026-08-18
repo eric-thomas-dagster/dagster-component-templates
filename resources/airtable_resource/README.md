@@ -21,16 +21,17 @@ pip install requests
 
 ## Fields
 
-### Required
-
-*(none — all fields have defaults; `api_key_env_var` defaults to `AIRTABLE_API_KEY`)*
-
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"airtable"` | Key used to register this resource. |
+| `resource_key` | `str` | `"airtable"` | Key used to register this resource. Other components reference it via resource_key. |
 | `api_key_env_var` | `str` | `"AIRTABLE_API_KEY"` | Env var holding an Airtable Personal Access Token. |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
 | `verify_ssl` | `bool` | `true` | TLS cert verification. |
 
 [//]: # (FIELDS:END)

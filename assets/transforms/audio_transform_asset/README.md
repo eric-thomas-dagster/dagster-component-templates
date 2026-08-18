@@ -71,14 +71,14 @@ The component fails fast at materialization time with a clear message if ffmpeg 
 |---|---|---|---|
 | `output_dir` | `str` | `"/tmp/transformed_audio"` | Filesystem dir to write transformed audio into. |
 | `output_filename_template` | `str` | — | Filename template (no dir). Supports `{<column>}` and `{row_index}`. Default: <input_basename>_t.<target_format>. |
-| `output_path_column` | `str` | `"transformed_path"` | — |
+| `output_path_column` | `Union[str, int]` | `"transformed_path"` | — |
 | `target_format` | `Literal['mp3', 'wav', 'flac', 'ogg', 'aac', 'opus']` | `"wav"` | Output codec / container. Extension is set from this. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `audio_path_column` | `str` | `"file_path"` | Column containing local audio file paths. |
+| `audio_path_column` | `Union[str, int]` | `"file_path"` | Column containing local audio file paths. |
 | `sample_rate` | `int` | — | Resample to this Hz. E.g. 16000 for Whisper, 44100 CD-quality. Omit to leave unchanged. |
 | `channels` | `int` | — | Force channel count. 1 = mono, 2 = stereo. Omit to leave unchanged. |
 | `bitrate` | `str` | — | Output bitrate (e.g. `64k`, `128k`, `192k`). Lossy formats only. |

@@ -14,7 +14,7 @@ Use an LLM to fuzzy-match varied string values in a DataFrame column to a canoni
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with values to standardize |
-| `column` | `str` | Column with varied strings to standardize |
+| `column` | `Union[str, int]` | Column with varied strings to standardize |
 
 ### Connection
 
@@ -53,11 +53,11 @@ Use an LLM to fuzzy-match varied string values in a DataFrame column to a canoni
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -72,16 +72,16 @@ Use an LLM to fuzzy-match varied string values in a DataFrame column to a canoni
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `model` | `str` | `"gpt-4o-mini"` | LLM model identifier (passed to litellm) |
-| `output_column` | `str` | `"matched_value"` | Column name for the matched canonical value |
+| `output_column` | `Union[str, int]` | `"matched_value"` | Column name for the matched canonical value |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `reference_asset_key` | `str` | — | Optional upstream asset key for a reference DataFrame containing canonical values |
-| `reference_column` | `str` | — | Column in the reference DataFrame containing canonical values |
+| `reference_column` | `Union[str, int]` | — | Column in the reference DataFrame containing canonical values |
 | `reference_values` | `List[str]` | — | Explicit list of canonical values (alternative to reference_asset_key) |
-| `confidence_column` | `str` | `"match_confidence"` | Column name for match confidence score (None to skip) |
+| `confidence_column` | `Union[str, int]` | `"match_confidence"` | Column name for match confidence score (None to skip) |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 
 [//]: # (FIELDS:END)

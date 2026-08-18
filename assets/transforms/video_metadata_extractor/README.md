@@ -67,7 +67,7 @@ attributes:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `video_path_column` | `str` | `"file_path"` | Column containing local video file paths. |
+| `video_path_column` | `Union[str, int]` | `"file_path"` | Column containing local video file paths. |
 | `ffprobe_binary` | `str` | `"ffprobe"` | — |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 

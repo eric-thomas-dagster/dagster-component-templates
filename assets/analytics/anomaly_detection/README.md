@@ -188,11 +188,11 @@ Simple comparison to fixed value.
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -207,7 +207,7 @@ Simple comparison to fixed value.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `detection_method` | `str` | `"z_score"` | Method: z_score, iqr, moving_average, threshold |
-| `metric_column` | `str` | — | Column containing metric to analyze for anomalies |
+| `metric_column` | `Union[str, int]` | — | Column containing metric to analyze for anomalies |
 | `threshold` | `float` | `3.0` | Detection threshold (Z-score stdevs, IQR multiplier, or absolute threshold) |
 | `moving_average_window` | `int` | `7` | Window size for moving average method (days/records) |
 | `group_by` | `str` | — | Group by field (e.g., customer_id) for per-group anomaly detection |

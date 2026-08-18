@@ -32,8 +32,8 @@ attributes:
 |---|---|---|
 | `asset_name` | `str` | Output asset name. |
 | `upstream_asset_key` | `str` | Upstream DataFrame asset key. |
-| `source_column` | `str` | Column to read from (values are lists or dicts). |
-| `target_column` | `str` | New column to write the extracted scalar into. |
+| `source_column` | `Union[str, int]` | Column to read from (values are lists or dicts). |
+| `target_column` | `Union[str, int]` | New column to write the extracted scalar into. |
 
 ### Catalog metadata
 

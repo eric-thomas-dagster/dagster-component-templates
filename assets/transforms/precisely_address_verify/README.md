@@ -23,7 +23,7 @@ source column is never mutated.
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name. |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with the address column. |
-| `address_column` | `str` | Source column with the single-line address string ('123 Main St, Springfield, MA 01103'). The API can also accept parsed components — see address_line_columns if you already have street/city/state split out. |
+| `address_column` | `Union[str, int]` | Source column with the single-line address string ('123 Main St, Springfield, MA 01103'). The API can also accept parsed components — see address_line_columns if you already have street/city/state split out. |
 
 ### Connection
 
@@ -59,7 +59,7 @@ source column is never mutated.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `address_line_columns` | `Dict[str, str]` | — | Optional: pass parsed address parts instead of a single line. Map of {payload_field: source_column}, e.g. {addressLines: street, city: city, postalCode: zip}. When set, address_column is ignored. |
-| `country_column` | `str` | — | Optional column with ISO 3166-1 alpha-3 country code per row. Falls back to default_country when null/missing. |
+| `country_column` | `Union[str, int]` | — | Optional column with ISO 3166-1 alpha-3 country code per row. Falls back to default_country when null/missing. |
 | `default_country` | `str` | `"USA"` | Country code used when country_column is missing. |
 | `token_url` | `str` | `PRECISELY_DEFAULT_TOKEN_URL` | OAuth2 token endpoint. |
 | `verify_url` | `str` | `PRECISELY_DEFAULT_VERIFY_URL` | Address Verify endpoint. |

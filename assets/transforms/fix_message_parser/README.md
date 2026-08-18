@@ -62,7 +62,7 @@ FIX canonical delimiter is SOH (`\x01`). Log files often render it as `|`. Both 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `message_column` | `str` | `"message"` | Column holding the raw FIX message (tag=value pairs separated by SOH or `\|`). |
+| `message_column` | `Union[str, int]` | `"message"` | Column holding the raw FIX message (tag=value pairs separated by SOH or `\|`). |
 | `msg_type_filter` | `List[Union[str, int]]` | — | Optional list of MsgType codes to emit. E.g. [D, 8] for orders + executions only. Default: all. Numeric codes like 8 may be passed as ints in YAML — they're coerced to str at runtime. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 

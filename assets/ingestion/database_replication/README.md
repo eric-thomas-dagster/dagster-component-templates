@@ -55,14 +55,14 @@ Common cases:
 | `target_connection` | `str` | — | Full Sling-compatible target connection URL (e.g. 'snowflake://user:pass@account.snowflakecomputing.com/db/schema?warehouse=W'). Set this OR target_connection_env_var. |
 | `target_connection_env_var` | `str` | — | Env var with the target connection URL. Set this OR target_connection. |
 | `mode` | `str` | `"full_refresh"` | Replication mode: full_refresh (drop+reload), incremental (append/upsert new rows), snapshot (timestamped reload), truncate (truncate+insert) |
-| `select_columns` | `List[str]` | — | Columns to replicate. If unset, all columns are replicated. |
+| `select_columns` | `List[Union[str, int]]` | — | Columns to replicate. If unset, all columns are replicated. |
 | `where_clause` | `str` | — | Optional WHERE clause filter applied to the source (e.g. 'created_at >= 2024-01-01') |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `incremental_column` | `str` | — | Column to track for incremental loads (e.g. 'updated_at', 'id'). Required when mode='incremental'. |
+| `incremental_column` | `Union[str, int]` | — | Column to track for incremental loads (e.g. 'updated_at', 'id'). Required when mode='incremental'. |
 | `primary_key` | `List[str]` | — | Primary key column(s) for upsert behavior in incremental mode |
 
 [//]: # (FIELDS:END)

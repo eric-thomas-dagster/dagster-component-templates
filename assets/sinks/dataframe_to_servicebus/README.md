@@ -73,9 +73,9 @@ Send each DataFrame row to an Azure Service Bus queue or topic as a JSON message
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `destination_type` | `str` | `"queue"` | 'queue' (point-to-point) \| 'topic' (pub-sub) |
-| `session_id_column` | `str` | — | Optional column to use as Session ID. Required if the queue/topic has sessions enabled — guarantees per-session ordering. |
-| `message_id_column` | `str` | — | Optional column to use as Message ID for idempotency / dedup. |
-| `correlation_id_column` | `str` | — | Optional column to use as Correlation ID (for request/reply patterns). |
+| `session_id_column` | `Union[str, int]` | — | Optional column to use as Session ID. Required if the queue/topic has sessions enabled — guarantees per-session ordering. |
+| `message_id_column` | `Union[str, int]` | — | Optional column to use as Message ID for idempotency / dedup. |
+| `correlation_id_column` | `Union[str, int]` | — | Optional column to use as Correlation ID (for request/reply patterns). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 
 [//]: # (FIELDS:END)

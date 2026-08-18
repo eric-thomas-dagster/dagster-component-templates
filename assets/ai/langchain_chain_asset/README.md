@@ -147,11 +147,11 @@ Either `upstream_asset_key` or `source_database_url_env_var` must be set.
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -176,7 +176,7 @@ Either `upstream_asset_key` or `source_database_url_env_var` must be set.
 | `temperature` | `float` | `0.0` | Sampling temperature |
 | `max_tokens` | `int` | `1024` | Max tokens per completion |
 | `system_message` | `str` | — | System message for chat models |
-| `response_column` | `str` | `"chain_output"` | Column name to store chain output |
+| `response_column` | `Union[str, int]` | `"chain_output"` | Column name to store chain output |
 | `parse_json` | `bool` | `false` | Attempt to parse LLM response as JSON and expand into columns |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 

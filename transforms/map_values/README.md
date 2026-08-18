@@ -15,7 +15,7 @@ Replace values in a column according to a lookup dict — country code → count
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream DataFrame asset key |
-| `column` | `str` | Column whose values to remap |
+| `column` | `Union[str, int]` | Column whose values to remap |
 | `mapping` | `dict` | {old: new} value mapping |
 
 ### Catalog metadata
@@ -56,7 +56,7 @@ Replace values in a column according to a lookup dict — country code → count
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_column` | `str` | — | Write to a new column (None = overwrite) |
+| `output_column` | `Union[str, int]` | — | Write to a new column (None = overwrite) |
 
 ### Other
 

@@ -24,21 +24,22 @@ Observations appear in the **Asset Activity** timeline, giving you a health hist
 | `workspace_url` | `str` | Databricks workspace URL |
 | `schema_name` | `str` | Schema/database name |
 | `table_name` | `str` | Table name |
-| `token_env_var` | `str` | Env var with Databricks personal access token |
-| `http_path` | `str` | SQL warehouse HTTP path (from connection details) |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `catalog` | `str` | — | Unity Catalog name |
-| `resource_key` | `str` | — | Optional Dagster resource key. |
+| `token_env_var` | `str` | — | Env var with Databricks personal access token |
+| `resource_key` | `str` | — | Dagster resource key exposing `.observe(source) -> dict` (source is 'catalog.schema.table' or 'schema.table') that returns `{'data_version': str, **metadata}`. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `http_path` | `str` | — | SQL warehouse HTTP path (from connection details) |
 | `check_interval_seconds` | `int` | `300` | Seconds between health checks |
+| `emit_materialization` | `bool` | `true` | When True (default), emit AssetMaterialization on the target asset key. External assets show healthy/green in the Dagster UI and downstream AutomationCondition.eager() fires naturally on parent updates. When False, emit AssetObservation — free of Dagster+ credit charges, but the target asset renders as observed-external (dashed border, gray) and downstream conditions that gate on ~any_deps_missing() (including eager()) will not fire. Both event types carry the same dagster/data_version tag. |
 
 [//]: # (FIELDS:END)
 

@@ -83,8 +83,8 @@ Get a key at <https://aistudio.google.com/app/apikey>.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `input_column` | `str` | — | Column whose value becomes the per-row prompt. Mutually exclusive with user_prompt_template. |
-| `output_column` | `str` | `"gemini_response"` | Column for the model's text response. |
+| `input_column` | `Union[str, int]` | — | Column whose value becomes the per-row prompt. Mutually exclusive with user_prompt_template. |
+| `output_column` | `Union[str, int]` | `"gemini_response"` | Column for the model's text response. |
 
 ### Other
 

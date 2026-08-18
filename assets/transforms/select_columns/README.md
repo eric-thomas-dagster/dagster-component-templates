@@ -46,11 +46,11 @@ are applied in order: drop first, then select/reorder, then rename.
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `str` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -64,9 +64,9 @@ are applied in order: drop first, then select/reorder, then rename.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `columns` | `List[str]` | — | Columns to keep, in this order. None = keep all. |
-| `drop_columns` | `List[str]` | — | Columns to remove from the DataFrame |
-| `rename` | `Dict[str, str]` | — | Mapping of {old_name: new_name} to rename columns |
+| `columns` | `List[Union[str, int]]` | — | Columns to keep, in this order. None = keep all. |
+| `drop_columns` | `List[Union[str, int]]` | — | Columns to remove from the DataFrame |
+| `rename` | `Dict[str, Union[str, int]]` | — | Mapping of {old_name: new_name} to rename columns |
 | `reorder` | `bool` | `true` | If columns is set, reorder to match that order |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |

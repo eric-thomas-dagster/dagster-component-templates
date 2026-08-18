@@ -16,7 +16,7 @@ See schema.json for full attribute reference.
 | `upstream_asset_key` | `str` | Asset key of upstream DataFrame |
 | `endpoint` | `str` | OTLP/HTTP endpoint base URL, e.g. 'http://localhost:4318' (OTel collector default), 'https://api.honeycomb.io', 'https://otlp.eu01.nr-data.net'. |
 | `metric_name` | `str` | OTel metric name (dot-namespaced, e.g. 'orders.processed.total') |
-| `value_column` | `str` | DataFrame column with numeric metric values |
+| `value_column` | `Union[str, int]` | DataFrame column with numeric metric values |
 
 ### Catalog metadata
 
@@ -59,7 +59,7 @@ See schema.json for full attribute reference.
 | `metric_kind` | `str` | `"gauge"` | 'gauge' \| 'sum' (counter/up-down). Histograms are advanced — use a custom op for those. |
 | `metric_unit` | `str` | — | UCUM unit, e.g. '1', 'ms', 'By' |
 | `attribute_columns` | `List[str]` | — | Columns whose values become OTel attributes (labels) on each metric data point |
-| `timestamp_column` | `str` | — | Column with epoch-seconds (or pandas datetime). Default: now() per row. |
+| `timestamp_column` | `Union[str, int]` | — | Column with epoch-seconds (or pandas datetime). Default: now() per row. |
 | `service_name` | `str` | `"dagster"` | OTel resource service.name attribute — identifies the producer |
 | `bearer_token_env_var` | `str` | — | Env var with Bearer token for Authorization header (most SaaS backends require this) |
 | `extra_headers` | `Dict[str, str]` | — | Extra HTTP headers, e.g. {x-honeycomb-dataset: production} or {api-key: ...} |

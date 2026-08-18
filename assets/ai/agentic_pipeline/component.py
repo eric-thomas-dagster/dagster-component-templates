@@ -891,6 +891,17 @@ async def _call_mcp_tool_async(
             cmd = server_cfg.get("command") or []
             if not cmd:
                 raise ValueError(f"MCP server {name!r} is stdio but command is empty.")
+            if isinstance(cmd, str):
+                # Common LLM-composed mistake: `command: "npx -y @foo"` (string)
+                # rather than the required list form. Fail fast with a clear
+                # message rather than letting `cmd[0]` return the letter 'n'
+                # and confusing the eventual FileNotFoundError.
+                raise ValueError(
+                    f"MCP server {name!r} `command:` must be a LIST of "
+                    f"strings, got a bare string: {cmd!r}. Use YAML list "
+                    f"syntax: `command: [npx, -y, \"@modelcontextprotocol/server-github\"]` "
+                    f"or the block form: `command:\\n  - npx\\n  - -y\\n  - \"@...\"`."
+                )
             params = StdioServerParameters(
                 command=cmd[0], args=list(cmd[1:]), env=server_cfg.get("env")
             )

@@ -824,7 +824,7 @@
             "parse_as": "auto"
           }
         },
-        "anti_uses": "Fields: `asset_name_prefix` (NOT `asset_name`). **`source:` is for INITIAL TEXT INPUT ONLY** \u2014 its shape is one of {kind: literal, text: '...'} | {kind: file, path: '...'} | {kind: url, url: '...'} | {kind: upstream_asset, upstream_asset_key: '...'}. **NEVER put a step (mcp_call, llm_call, etc.) inside `source:`**. If your FIRST step is an `mcp_call` or otherwise doesn't need upstream text, put it as `steps[0]` and set `source: {kind: literal, text: 'unused'}`. Each step has {id, op, ...op-specific args}. For joins use `inputs: {port_name: {from: step_id} | {literal: value}}` \u2014 each port becomes a `{port_name}` placeholder in prompt_template + system_prompt (and, for mcp_call, in string tool_args). mcp_call op fields: `server: {name, type: stdio|http|sse, command|url}`, `mcp_tool_name`, `tool_args: {key: value}` (static dict, NOT LLM-generated). `outputs.assets` MUST list ALL step ids you want as first-class Dagster assets.",
+        "anti_uses": "Fields: `asset_name_prefix` (NOT `asset_name`). **`source:` is for INITIAL TEXT INPUT ONLY** \u2014 its shape is one of {kind: literal, text: '...'} | {kind: file, path: '...'} | {kind: url, url: '...'} | {kind: upstream_asset, upstream_asset_key: '...'}. **NEVER put a step (mcp_call, llm_call, etc.) inside `source:`**. If your FIRST step is an `mcp_call` or otherwise doesn't need upstream text, put it as `steps[0]` and set `source: {kind: literal, text: 'unused'}`. Each step has {id, op, ...op-specific args}. For joins use `inputs: {port_name: {from: step_id} | {literal: value}}` \u2014 each port becomes a `{port_name}` placeholder in prompt_template + system_prompt (and, for mcp_call, in string tool_args). mcp_call op fields: `server: {name, type: stdio|http|sse, command|url}`, `mcp_tool_name`, `tool_args: {key: value}` (static dict, NOT LLM-generated). `outputs.assets` MUST list ALL step ids you want as first-class Dagster assets. mcp_call `server.command` for stdio MUST be a LIST of strings [executable, ...args] \u2014 NOT a single space-separated string. Passing a string produces cryptic `FileNotFoundError: 'n'` at runtime (Python splits it per character).",
         "steps_schemas": {
           "$id": "agentic_pipeline_steps",
           "description": "Per-op discriminated union for entries in `steps:`. Validate each step against the schema matching its `op:` field.",
@@ -962,7 +962,8 @@
                       "type": "array",
                       "items": {
                         "type": "string"
-                      }
+                      },
+                      "description": "stdio transport: LIST of strings \u2014 [executable, ...args]. MUST be a list, NOT a bare space-separated string. e.g. [npx, -y, \"@modelcontextprotocol/server-github\"]."
                     },
                     "url": {
                       "type": "string"

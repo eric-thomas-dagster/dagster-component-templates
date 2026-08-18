@@ -228,7 +228,7 @@ Now iterating on prompts is a one-file YAML edit (add/remove/rename keys under `
 
 See [`SyntheticPromptGeneratorComponent`](../../source/synthetic_prompt_generator/) for the three v1 modes (literal per-key mapping, template + topics, fixed single prompt) and the v2 roadmap (LLM- / local-ML-driven prompt synthesis).
 
-## Op menu (v1 = 5)
+## Op menu (v2 = 6)
 
 | op | Shape | What it does |
 |---|---|---|
@@ -237,6 +237,43 @@ See [`SyntheticPromptGeneratorComponent`](../../source/synthetic_prompt_generato
 | `debate` | N proposers → 1 arbitrator | Each proposer writes a proposal; arbitrator picks the winner. Multi-agent consensus. |
 | `critique_loop` | drafter → critic → drafter, N times | Drafter writes; critic reviews; drafter revises. Refinement loop. |
 | `synthesize` | 1 LLM merges N upstream step texts | Combine multiple prior step outputs into one coherent response. Fan-in. |
+| `mcp_call` | 1 MCP tool invocation, no LLM | Direct call to an MCP server tool over stdio / http / sse. `tool_args` strings support `{text}` (source) + `{port_name}` (typed inputs) substitution. Turns "grounding-data fetch" into a first-class asset with lineage + metadata. |
+
+## Typed named inputs (v2 — join any op from any prior op by port name)
+
+Any op can declare `inputs: {port_name: {from: step_id} | {literal: value}}` to read from arbitrary prior steps by name. Each port name becomes a `{port_name}` placeholder in `prompt_template` and `system_prompt` (and, for `mcp_call`, in string `tool_args`).
+
+This is the "execution-plan graph" shape — every node has typed named I/O, edges wire specific outputs to specific inputs, joins are first-class instead of a synthesize-only special case. Direct visual match to Prefect-style execution plans or LangGraph joins.
+
+```yaml
+- id: preliminary
+  op: synthesize
+  inputs:
+    issue_facts:      {from: intake}
+    reproduction:     {from: reproduction}
+    docs_evidence:    {from: docs_evidence}
+    repo_evidence:    {from: repo_evidence}
+    history_evidence: {from: history_evidence}
+    triage_policy:    {literal: "defect | expected | needs-info"}
+  model: gpt-4o
+  api_key_env_var: OPENAI_API_KEY
+  system_prompt: |
+    You are the triage lead. Merge the evidence + policy into a decision.
+  prompt_template: |
+    ISSUE_FACTS
+    ==========
+    {issue_facts}
+
+    REPRODUCTION
+    ============
+    {reproduction}
+
+    ... (one section per named input)
+```
+
+**Backward compat:** `source: <id>` and `sources: [<ids>]` still work. If both are present, `inputs:` takes precedence for named substitution; `source:` continues to feed `{text}` for legacy templates.
+
+**Supported ops:** `llm_call`, `synthesize`, `mcp_call`. The multi-agent ops (`route` / `debate` / `critique_loop`) have their own structured sub-configs — use them as-is; use `inputs:` on the join steps that consume their outputs.
 
 ### Common fields (every step)
 
@@ -307,16 +344,34 @@ Drafter writes; critic reviews; drafter revises; repeat.
 
 One LLM merges the outputs of N prior steps into a single response. This is the fan-in shape.
 
+Two input modes — pick one:
+- **`inputs: {port: {from: id}, ...}`** — typed named join. Each port becomes a `{port_name}` placeholder in `prompt_template` + `system_prompt`. Preferred for new pipelines.
+- **`sources: [<step_ids>]`** — positional legacy shape. Each source's text is labeled and concatenated; template uses `{combined}` + `{n_sources}`.
+
 | Field | Required | Default | Description |
 |---|---|---|---|
-| `sources` | ✅ | — | List of prior step ids to merge (replaces the singular `source:`). |
+| `inputs` | one of | — | `{port_name: {from: step_id} | {literal: value}}`. Typed named multi-input join. |
+| `sources` | one of | — | `[<step_ids>]`. Positional list — legacy shape. |
 | `model` | ✅ | — | LiteLLM model string. |
 | `api_key_env_var` |  | Provider default | Env var holding API key. |
-| `system_prompt` |  | — | System prompt. |
-| `prompt_template` |  | Auto-composes source texts | Template for the merge. Each source appears as `{<step_id>_text}` in the template. |
+| `system_prompt` |  | — | System prompt. `{port_name}` placeholders substitute when `inputs:` is used. |
+| `prompt_template` |  | `inputs`: labeled per-port sections; `sources`: `{combined}` fan-in | Prompt template. |
 | `temperature` |  | `0.0` | Sampling temperature. |
-| `max_tokens` |  | `2048` | Max completion tokens. |
+| `max_tokens` |  | `4096` | Max completion tokens. |
 | `api_base_env_var` |  | — | Custom base URL env var. |
+
+### `op: mcp_call`
+
+Direct MCP tool call — no LLM, deterministic step. Use for the "fetch grounding data as a first-class asset" pattern (swap a `url:` source for a real MCP step with lineage + metadata).
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `server` | ✅ | — | MCP server spec: `{name, type: stdio|http|sse, command|url, env|headers|headers_env}`. `env` is a literal dict (no `${VAR}` interpolation — for secrets, leave unset and let the stdio subprocess inherit parent env). `headers_env: {header: env_var_name}` for deferred http/sse secrets. |
+| `mcp_tool_name` | ✅ | — | Tool name as the MCP server exposes it (e.g. `get_issue`). |
+| `tool_args` |  | `{}` | `{arg_name: value}`. String values support `{text}` (source) + `{port_name}` (typed inputs) substitution. |
+| `parse_as` |  | `auto` | `auto` (try JSON, fall back to text) / `json` / `text`. |
+| `source` |  | Most recent step | Legacy — feeds `{text}` in string `tool_args`. |
+| `inputs` |  | — | Typed named inputs — feeds `{port_name}` in string `tool_args`. |
 
 ## State model
 
@@ -439,7 +494,7 @@ This is the "compose it all yourself in one YAML" alternative — the AI-side ma
 |---|---|---|
 | `asset_name_prefix` | `str` | Prefix for emitted asset names. Each step in outputs.assets becomes '{prefix}_{step_id}'. |
 | `source` | `Dict[str, Any]` | Data source. Shapes: {kind: literal, text: '...'} \| {kind: file, path: '...'} \| {kind: url, url: '...'} \| {kind: upstream_asset, upstream_asset_key: '...'}. All string fields are {partition_key}-templated. |
-| `steps` | `List[Dict[str, Any]]` | Ordered pipeline steps. Each step: {id, op, ...op-specific args}. Steps chain by id — a step with `source: <id>` reads that step's text; omit `source:` and it defaults to the most recent step's text. 5 ops: llm_call \| route \| debate \| critique_loop \| synthesize. |
+| `steps` | `List[Dict[str, Any]]` | Ordered pipeline steps. Each step: {id, op, ...op-specific args}. Two wiring modes (choose per step, they compose): 1. **Legacy single-source**: `source: <step_id>` reads that step's text into `{text}` in the prompt (default: most recent step). Reserved id `source` = initial pipeline source (use `source: source` to fan multiple steps off the same starting text). 2. **Typed named inputs** (recommended for joins): `inputs: {<port_name>: {from: <step_id>} \| {literal: <value>}}`. Each port becomes a `{<port_name>}` placeholder in `prompt_template` AND `system_prompt` (and, for `mcp_call`, in string `tool_args`). Any step can join from any number of prior steps by port name — the shape common in agentic-orchestration graphs (fan-out → typed-join). 6 ops. LLM ops (llm_call/route/debate/critique_loop/synthesize) all support optional `max_tokens`, `temperature`, `system_prompt`, `prompt_template`: - **llm_call**: {model, api_key_env_var}. One LLM call. Supports both `source:` and `inputs:` for multi-input joins. - **route**: {router: {model, api_key_env_var}, specialists: [{name, description, model, api_key_env_var, system_prompt}], fallback: name}. Router picks specialist, specialist answers. - **debate**: {proposers: [{model, api_key_env_var, system_prompt}], arbitrator: {model, api_key_env_var, system_prompt}}. N proposers, arbitrator picks winner. - **critique_loop**: {drafter: {model, api_key_env_var, system_prompt}, critic: {model, api_key_env_var, system_prompt}, iterations: int}. Drafter → critic → drafter, N iterations. - **synthesize**: {model, api_key_env_var, sources: [<step_ids>] \| inputs: {port: {from: id}}}. Merge multiple upstream step outputs. Prefer `inputs:` for named typed joins (Prefect-style execution-plan shape); `sources:` for positional legacy shape. - **mcp_call**: {server: {name, type: stdio\|http\|sse, command\|url, env\|headers\|headers_env}, mcp_tool_name, tool_args, parse_as: auto\|json\|text}. Direct MCP tool call (no LLM); string `tool_args` support `{text}` substitution against source AND `{port_name}` substitution from `inputs:`. |
 | `outputs` | `Dict[str, Any]` | Output declaration. Shape: {assets: [<step_ids>], text_sinks: [{from, path}], json_sinks: [{from, path}]}. `assets:` step outputs become first-class Dagster assets; `text_sinks:` writes step text to disk; `json_sinks:` writes full step dict. |
 
 ### Catalog metadata

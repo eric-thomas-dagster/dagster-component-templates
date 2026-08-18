@@ -47,13 +47,17 @@ Example (route → answer → critique → synthesize):
 Standardization — that's the point. Every agentic pipeline in the org uses
 the same YAML shape, the same ops, the same output conventions.
 
-Op coverage (v1 = 5):
+Op coverage (v2 = 6):
 
 - llm_call       — single LLM call; uses source step's text as user prompt
 - route          — router picks best specialist; specialist answers
 - debate         — N proposers → arbitrator picks winner
 - critique_loop  — drafter → critic → drafter, N iterations
 - synthesize     — merge multiple upstream step texts into one summary
+- mcp_call       — direct MCP tool call (stdio / http / sse), no LLM;
+                   turns "fetch grounding data" into a first-class asset with
+                   lineage + metadata; string `tool_args` support `{text}`
+                   substitution against source
 
 State model:
 
@@ -62,6 +66,7 @@ read text from a prior step via `source: <id>` (default = most recent step).
 The `assets:` list picks which step outputs become first-class Dagster
 assets; each is emitted as a dict with the full op output preserved.
 """
+import json
 import os
 import time
 from datetime import datetime, timezone
@@ -85,7 +90,10 @@ def _ingest(source_config: dict, context, partition_key: Optional[str] = None) -
     kind = source_config.get("kind", "literal")
 
     if kind == "literal":
-        text = _apply_partition_template(source_config["text"], partition_key)
+        raw = source_config["text"]
+        # YAML may parse `text: 30000` as int / `text: 3.14` as float —
+        # downstream ops assume text is a string, so coerce here.
+        text = _apply_partition_template(raw if isinstance(raw, str) else str(raw), partition_key)
         return {"text": text, "source_kind": "literal"}
 
     if kind == "file":
@@ -214,6 +222,72 @@ def _last_step_id(state: Dict[str, Any]) -> str:
     return list(state.keys())[-1]
 
 
+def _resolve_inputs(step: dict, state: Dict[str, Any]) -> Dict[str, str]:
+    """Resolve `inputs:` field into a `{port_name: text}` dict for template substitution.
+
+    Shape (any op can use this):
+
+        inputs:
+          <port_name>: {from: <step_id>}      # read prior step's text output
+          <port_name>: {literal: <value>}     # inline literal value (str-coerced)
+
+    Returns an empty dict if `inputs:` is absent — every op falls back to
+    its legacy single-source `source:` / `sources:` behavior in that case,
+    so old YAML keeps working unchanged.
+
+    This is the "typed named I/O" primitive that lets any step join from
+    any number of upstream steps by port name — matches the fan-out /
+    fan-in shape common in agentic-orchestration graphs (Prefect-style
+    execution plans, LangGraph joins, etc.).
+    """
+    raw = step.get("inputs") or {}
+    if not raw:
+        return {}
+    if not isinstance(raw, dict):
+        raise ValueError(
+            f"step {step.get('id')!r}: `inputs:` must be a dict mapping port "
+            f"name → {{from: <step_id>}} | {{literal: <value>}}."
+        )
+    resolved: Dict[str, str] = {}
+    for name, spec in raw.items():
+        if not isinstance(spec, dict):
+            raise ValueError(
+                f"step {step.get('id')!r}: input {name!r} must be "
+                f"{{from: <step_id>}} or {{literal: <value>}}, got {type(spec).__name__}."
+            )
+        if "from" in spec:
+            source_id = spec["from"]
+            if source_id not in state:
+                raise ValueError(
+                    f"step {step.get('id')!r}: input {name!r} references "
+                    f"unknown upstream step {source_id!r}. Known: {sorted(state.keys())}"
+                )
+            resolved[name] = _get_source_text(state, source_id)
+        elif "literal" in spec:
+            resolved[name] = str(spec["literal"])
+        else:
+            raise ValueError(
+                f"step {step.get('id')!r}: input {name!r} needs `from:` or `literal:`."
+            )
+    return resolved
+
+
+def _substitute_ports(template: str, ports: Dict[str, str]) -> str:
+    """Substitute `{port_name}` placeholders in a template with resolved text.
+
+    Uses plain str.replace (not `.format`) so `{` / `}` inside prompts
+    (e.g. JSON braces) don't blow up. Ports missing from `ports` are
+    left as `{port_name}` in the output — the LLM sees it as literal,
+    which is a useful debugging signal when a template references a
+    port name that wasn't declared.
+    """
+    if not template or not ports:
+        return template
+    for k, v in ports.items():
+        template = template.replace("{" + k + "}", v)
+    return template
+
+
 # ── Op executors ─────────────────────────────────────────────────────
 
 def _now_iso() -> str:
@@ -235,18 +309,40 @@ def _sum_tokens(*results) -> Optional[int]:
 
 
 def _do_llm_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
-    """Single LLM call. Uses source step's text as user prompt (or prompt_template with {text})."""
+    """Single LLM call.
+
+    Two input modes (mutually compatible — inputs takes precedence for
+    named substitution, source still resolves for the `{text}` fallback):
+
+    1. Legacy single-source: `source: <step_id>` (or omit for last step) →
+       prompt_template's `{text}` placeholder substitutes with that step's text.
+
+    2. Typed named inputs: `inputs: {port_name: {from: step_id} | {literal: value}}` →
+       each port name becomes a `{port_name}` placeholder in prompt_template
+       AND system_prompt. Enables multi-input joins from arbitrary upstream
+       steps (the "any op joins from any prior op" shape).
+
+    prompt_template supports both — `{text}` for legacy source, `{port_name}`
+    for typed inputs.
+    """
     materialized_at = _now_iso()
     source_id = step.get("source", _last_step_id(state))
     src_text = _get_source_text(state, source_id)
 
+    inputs = _resolve_inputs(step, state)
+
     prompt_template = step.get("prompt_template", "{text}")
     user_prompt = prompt_template.replace("{text}", src_text)
+    user_prompt = _substitute_ports(user_prompt, inputs)
+    system_prompt = step.get("system_prompt")
+    if system_prompt and inputs:
+        system_prompt = _substitute_ports(system_prompt, inputs)
+
     temperature = step.get("temperature", 0.0)
 
     result = _completion(
         model=step["model"],
-        system_prompt=step.get("system_prompt"),
+        system_prompt=system_prompt,
         user_prompt=user_prompt,
         api_key_env_var=step.get("api_key_env_var"),
         api_base_env_var=step.get("api_base_env_var"),
@@ -264,6 +360,7 @@ def _do_llm_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         "n_llm_calls": 1,
         "usage": result["usage"],
         "prompt": user_prompt,
+        "inputs_used": list(inputs.keys()) if inputs else None,
         "op": "llm_call",
     }
 
@@ -607,32 +704,57 @@ def _do_critique_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
 
 
 def _do_synthesize(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
-    """Merge multiple upstream step texts into one via an LLM.
+    """Merge multiple upstream step outputs into one via an LLM.
 
-    sources: [step_id, step_id, ...]   (required — list of source step ids to synthesize)
-    model, [system_prompt, api_key_env_var, temperature, max_tokens]
-    prompt_template: default uses labeled sections.
+    Two input modes (pick one):
+
+    1. Legacy list: `sources: [<step_id>, ...]` → each becomes a labeled
+       section, prompt_template's `{combined}` + `{n_sources}` substitute.
+
+    2. Typed named inputs: `inputs: {port_name: {from: step_id} | {literal: value}}` →
+       each port name becomes a `{port_name}` placeholder in prompt_template
+       AND system_prompt. Named join — clearer than positional `sources:`
+       when the synthesizer needs to reason about specific upstream roles.
+
+    Shared: model, [system_prompt, api_key_env_var, temperature, max_tokens].
     """
     materialized_at = _now_iso()
+    inputs = _resolve_inputs(step, state)
     source_ids = step.get("sources") or []
-    if not source_ids:
-        raise ValueError("synthesize requires `sources: [step_id, ...]` (>=1 id)")
+    if not inputs and not source_ids:
+        raise ValueError(
+            "synthesize needs either `inputs: {port: {from: id}, ...}` or "
+            "`sources: [step_id, ...]` (>=1 upstream)."
+        )
 
-    parts = []
-    for sid in source_ids:
-        parts.append(f"--- {sid} ---\n{_get_source_text(state, sid)}")
-    combined = "\n\n".join(parts)
-
-    prompt_template = step.get(
-        "prompt_template",
-        "You have {n_sources} labeled sections below. Synthesize them into a single coherent response.\n\n{combined}",
-    )
-    user_prompt = prompt_template.replace("{combined}", combined).replace("{n_sources}", str(len(source_ids)))
     temperature = step.get("temperature", 0.0)
+
+    if inputs:
+        prompt_template = step.get(
+            "prompt_template",
+            # Default: label each input with its port name
+            "\n\n".join(f"## {k}\n{{{k}}}" for k in inputs.keys()),
+        )
+        user_prompt = _substitute_ports(prompt_template, inputs)
+        system_prompt = step.get("system_prompt")
+        if system_prompt:
+            system_prompt = _substitute_ports(system_prompt, inputs)
+    else:
+        parts = []
+        for sid in source_ids:
+            parts.append(f"--- {sid} ---\n{_get_source_text(state, sid)}")
+        combined = "\n\n".join(parts)
+
+        prompt_template = step.get(
+            "prompt_template",
+            "You have {n_sources} labeled sections below. Synthesize them into a single coherent response.\n\n{combined}",
+        )
+        user_prompt = prompt_template.replace("{combined}", combined).replace("{n_sources}", str(len(source_ids)))
+        system_prompt = step.get("system_prompt")
 
     result = _completion(
         model=step["model"],
-        system_prompt=step.get("system_prompt"),
+        system_prompt=system_prompt,
         user_prompt=user_prompt,
         api_key_env_var=step.get("api_key_env_var"),
         api_base_env_var=step.get("api_base_env_var"),
@@ -643,6 +765,7 @@ def _do_synthesize(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]
     return {
         "text": result["content"],
         "sources_used": list(source_ids),
+        "inputs_used": list(inputs.keys()) if inputs else None,
         "model": step["model"],
         "model_fingerprint": f"{step['model']}@t{temperature}",
         "materialized_at": materialized_at,
@@ -655,6 +778,188 @@ def _do_synthesize(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]
     }
 
 
+# ── mcp_call op ──────────────────────────────────────────────────────
+
+def _resolve_mcp_headers(cfg: Dict[str, Any], server_name: str) -> Dict[str, str]:
+    """http/sse headers: `headers` = literal, `headers_env` = deferred env lookup."""
+    import os
+    headers: Dict[str, str] = {}
+    for k, v in (cfg.get("headers") or {}).items():
+        headers[k] = str(v)
+    for header_name, env_var in (cfg.get("headers_env") or {}).items():
+        val = os.environ.get(env_var)
+        if val is None:
+            raise ValueError(
+                f"MCP server {server_name!r} references env var {env_var!r} for header "
+                f"{header_name!r}, but it isn't set."
+            )
+        headers[header_name] = val
+    return headers
+
+
+async def _call_mcp_tool_async(
+    *,
+    log,
+    server_cfg: Dict[str, Any],
+    tool_name: str,
+    tool_args: Dict[str, Any],
+    parse_as: str,
+) -> Dict[str, Any]:
+    """Async MCP tool call — supports stdio / http / sse transports.
+
+    Mirrors the helper in `mcp_tool_picker/component.py` — kept local to
+    keep this component's imports self-contained.
+    """
+    from contextlib import AsyncExitStack
+
+    name = server_cfg.get("name") or "server"
+    transport = server_cfg.get("type", "stdio")
+
+    async with AsyncExitStack() as stack:
+        if transport == "stdio":
+            from mcp import ClientSession, StdioServerParameters
+            from mcp.client.stdio import stdio_client
+
+            cmd = server_cfg.get("command") or []
+            if not cmd:
+                raise ValueError(f"MCP server {name!r} is stdio but command is empty.")
+            params = StdioServerParameters(
+                command=cmd[0], args=list(cmd[1:]), env=server_cfg.get("env")
+            )
+            log.info(f"[mcp:{name}] starting stdio server: {' '.join(cmd)}")
+            read, write = await stack.enter_async_context(stdio_client(params))
+            session = await stack.enter_async_context(ClientSession(read, write))
+            await session.initialize()
+        elif transport in ("http", "streamable_http", "streamable-http"):
+            from mcp import ClientSession
+            from mcp.client.streamable_http import streamablehttp_client
+
+            url = server_cfg.get("url")
+            if not url:
+                raise ValueError(f"MCP server {name!r} is http but url is empty.")
+            headers = _resolve_mcp_headers(server_cfg, name)
+            read, write, _sid = await stack.enter_async_context(
+                streamablehttp_client(url, headers=headers or None)
+            )
+            session = await stack.enter_async_context(ClientSession(read, write))
+            await session.initialize()
+        elif transport == "sse":
+            from mcp import ClientSession
+            from mcp.client.sse import sse_client
+
+            url = server_cfg.get("url")
+            if not url:
+                raise ValueError(f"MCP server {name!r} is sse but url is empty.")
+            headers = _resolve_mcp_headers(server_cfg, name)
+            read, write = await stack.enter_async_context(
+                sse_client(url, headers=headers or None)
+            )
+            session = await stack.enter_async_context(ClientSession(read, write))
+            await session.initialize()
+        else:
+            raise ValueError(f"MCP server {name!r} has unknown transport: {transport!r}")
+
+        call_result = await session.call_tool(tool_name, tool_args)
+        parts = []
+        for c in call_result.content:
+            text = getattr(c, "text", None)
+            parts.append(text if text is not None else str(c))
+        raw = "\n".join(parts) if parts else ""
+        is_error = bool(getattr(call_result, "isError", False))
+
+    if parse_as == "text":
+        return {"value": raw, "raw": raw, "is_error": is_error, "kind": "text"}
+    if parse_as in ("json", "auto"):
+        try:
+            value = json.loads(raw)
+            return {"value": value, "raw": raw, "is_error": is_error, "kind": "json"}
+        except (json.JSONDecodeError, ValueError):
+            if parse_as == "json":
+                raise
+            return {"value": raw, "raw": raw, "is_error": is_error, "kind": "text"}
+    return {"value": raw, "raw": raw, "is_error": is_error, "kind": "text"}
+
+
+def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
+    """Direct MCP tool call — no LLM, deterministic step in the pipeline.
+
+    server: {name, type: stdio|http|sse, command|url, env|headers|headers_env}
+    mcp_tool_name: <tool name as the MCP server exposes it>
+    tool_args: {arg_name: value}      (string values are `{text}`-templated against source)
+    parse_as: 'auto' | 'json' | 'text'  (default 'auto')
+
+    Use for the "fetch grounding data before the LLM specialists fan out"
+    pattern — swap a URL/file `source:` for a first-class MCP step so the
+    fetch is a Dagster asset with lineage + metadata.
+    """
+    import asyncio
+    import os
+
+    materialized_at = _now_iso()
+    source_id = step.get("source", _last_step_id(state))
+    src_text = _get_source_text(state, source_id) if source_id else ""
+
+    inputs = _resolve_inputs(step, state)
+
+    server_cfg = step.get("server") or {}
+    if not server_cfg:
+        raise ValueError("mcp_call requires `server: {name, type, ...}`")
+    tool_name = step.get("mcp_tool_name")
+    if not tool_name:
+        raise ValueError("mcp_call requires `mcp_tool_name: <name-on-the-server>`")
+
+    raw_args = step.get("tool_args") or {}
+    resolved_args: Dict[str, Any] = {}
+    for k, v in raw_args.items():
+        if isinstance(v, str):
+            v = v.replace("{text}", src_text)
+            v = _substitute_ports(v, inputs)
+            resolved_args[k] = v
+        else:
+            resolved_args[k] = v
+
+    parse_as = step.get("parse_as", "auto")
+
+    t0 = time.time()
+    result = asyncio.run(
+        _call_mcp_tool_async(
+            log=context.log,
+            server_cfg=server_cfg,
+            tool_name=tool_name,
+            tool_args=resolved_args,
+            parse_as=parse_as,
+        )
+    )
+    latency_ms = int((time.time() - t0) * 1000)
+
+    # Stringify JSON value so downstream steps' `source: <this step id>`
+    # can consume it as text.
+    if result["kind"] == "json":
+        text = json.dumps(result["value"], indent=2, default=str)
+    else:
+        text = result["raw"]
+
+    if result["is_error"]:
+        context.log.warning(
+            f"[mcp_call:{step.get('id')}] server returned isError=True; treating as failure"
+        )
+
+    return {
+        "text": text,
+        "raw": result["raw"],
+        "value": result["value"],
+        "kind": result["kind"],
+        "is_error": result["is_error"],
+        "tool_name": tool_name,
+        "server_name": server_cfg.get("name") or "server",
+        "transport": server_cfg.get("type", "stdio"),
+        "tool_args_resolved": resolved_args,
+        "materialized_at": materialized_at,
+        "latency_ms": latency_ms,
+        "op": "mcp_call",
+    }
+
+
 # ── Op dispatcher ────────────────────────────────────────────────────
 
 _OPS = {
@@ -663,6 +968,7 @@ _OPS = {
     "debate": _do_debate,
     "critique_loop": _do_critique_loop,
     "synthesize": _do_synthesize,
+    "mcp_call": _do_mcp_call,
 }
 
 
@@ -699,12 +1005,14 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
     other pipeline components (polars_pipeline, warehouse_pipeline,
     pyspark_pipeline, snowpark_pipeline, ml_pipeline).
 
-    5 ops in v1:
+    6 ops:
       - llm_call:        single LLM call over source text
       - route:           router picks best specialist; specialist answers
       - debate:          N proposers → arbitrator picks winner
       - critique_loop:   drafter → critic → drafter, N iterations
       - synthesize:      merge multiple upstream step texts into one
+      - mcp_call:        direct MCP tool call (stdio/http/sse), no LLM;
+                         `{text}` substitution against source in tool_args
 
     Ops share YAML idioms with the other pipeline components:
       - `id:` names the step output for downstream reference
@@ -730,9 +1038,40 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
     steps: List[Dict[str, Any]] = Field(
         description=(
             "Ordered pipeline steps. Each step: {id, op, ...op-specific args}. "
-            "Steps chain by id — a step with `source: <id>` reads that step's text; "
-            "omit `source:` and it defaults to the most recent step's text. "
-            "5 ops: llm_call | route | debate | critique_loop | synthesize."
+            "\n\nTwo wiring modes (choose per step, they compose):\n"
+            "  1. **Legacy single-source**: `source: <step_id>` reads that step's "
+            "text into `{text}` in the prompt (default: most recent step). Reserved "
+            "id `source` = initial pipeline source (use `source: source` to fan "
+            "multiple steps off the same starting text).\n"
+            "  2. **Typed named inputs** (recommended for joins): "
+            "`inputs: {<port_name>: {from: <step_id>} | {literal: <value>}}`. "
+            "Each port becomes a `{<port_name>}` placeholder in `prompt_template` "
+            "AND `system_prompt` (and, for `mcp_call`, in string `tool_args`). "
+            "Any step can join from any number of prior steps by port name — the "
+            "shape common in agentic-orchestration graphs (fan-out → typed-join).\n\n"
+            "6 ops. LLM ops (llm_call/route/debate/critique_loop/synthesize) all "
+            "support optional `max_tokens`, `temperature`, `system_prompt`, "
+            "`prompt_template`:\n"
+            "  - **llm_call**: {model, api_key_env_var}. One LLM call. Supports "
+            "both `source:` and `inputs:` for multi-input joins.\n"
+            "  - **route**: {router: {model, api_key_env_var}, specialists: [{name, "
+            "description, model, api_key_env_var, system_prompt}], fallback: name}. "
+            "Router picks specialist, specialist answers.\n"
+            "  - **debate**: {proposers: [{model, api_key_env_var, system_prompt}], "
+            "arbitrator: {model, api_key_env_var, system_prompt}}. N proposers, "
+            "arbitrator picks winner.\n"
+            "  - **critique_loop**: {drafter: {model, api_key_env_var, system_prompt}, "
+            "critic: {model, api_key_env_var, system_prompt}, iterations: int}. "
+            "Drafter → critic → drafter, N iterations.\n"
+            "  - **synthesize**: {model, api_key_env_var, sources: [<step_ids>] | "
+            "inputs: {port: {from: id}}}. Merge multiple upstream step outputs. "
+            "Prefer `inputs:` for named typed joins (Prefect-style execution-plan "
+            "shape); `sources:` for positional legacy shape.\n"
+            "  - **mcp_call**: {server: {name, type: stdio|http|sse, "
+            "command|url, env|headers|headers_env}, mcp_tool_name, tool_args, "
+            "parse_as: auto|json|text}. Direct MCP tool call (no LLM); "
+            "string `tool_args` support `{text}` substitution against source "
+            "AND `{port_name}` substitution from `inputs:`."
         ),
     )
     outputs: Dict[str, Any] = Field(

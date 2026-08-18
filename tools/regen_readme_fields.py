@@ -416,7 +416,7 @@ def main():
     print(f"skipped (no flds): {stats['skipped_no_fields']}")
     print(f"errored:           {stats['errored']}")
     if args.dry_run and changed_paths:
-        print(f"\nFirst 20 would-be changes:")
+        print("\nFirst 20 would-be changes:")
         for p in changed_paths[:20]:
             print(f"  {p}")
 

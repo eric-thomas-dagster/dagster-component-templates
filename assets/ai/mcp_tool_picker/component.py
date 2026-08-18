@@ -34,11 +34,24 @@ class MCPPickerServerSpec(dg.Model, dg.Resolvable):
     type: str = Field(default="stdio", description="Transport: 'stdio' | 'http' | 'sse'.")
     command: Optional[List[str]] = Field(default=None, description="stdio: [executable, ...args].")
     url: Optional[str] = Field(default=None, description="http/sse: MCP endpoint URL.")
-    env: Optional[Dict[str, str]] = Field(default=None, description="stdio: extra env vars.")
+    env: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "stdio: extra env vars — LITERAL values only, no `${VAR}` interpolation "
+            "(the dict is passed straight to `StdioServerParameters`). If you need "
+            "to pass a secret without inlining it in YAML, leave `env` unset — the "
+            "stdio subprocess inherits the parent Dagster process's env, so any "
+            "vars already exported (e.g. `GITHUB_PERSONAL_ACCESS_TOKEN`) are visible."
+        ),
+    )
     headers: Optional[Dict[str, str]] = Field(default=None, description="http/sse: literal HTTP headers.")
     headers_env: Optional[Dict[str, str]] = Field(
         default=None,
-        description="http/sse: map of header_name → env_var_name (value read from env).",
+        description=(
+            "http/sse: map of header_name → env_var_name (value read from env at "
+            "call time). Use this for deferred secrets — the secret name lives in "
+            "YAML, the secret value never does."
+        ),
     )
 
 

@@ -481,13 +481,28 @@ if _HAS_STATE_BACKED:
             # — no "ModuleNotFoundError" iterations wasted.
             import importlib.util as _ilu
             _pip_ok_cache: Dict[str, bool] = {}
+            def _strip_pip_spec(_pkg: str) -> str:
+                """Strip pip version constraints / extras — 'litellm>=1.30.0' → 'litellm'.
+
+                requires_pip entries in manifests use pip-spec syntax
+                (`pkg>=1.0`, `pkg[extra]`, `pkg==1.2.3`); `find_spec` wants
+                the bare module name. Also normalize hyphens (`dagster-dbt`) →
+                underscores since that's how importlib resolves.
+                """
+                import re as _re
+                # Split on any version operator or extras marker; take pkg name
+                _name = _re.split(r"[<>=!~;\[\s]", _pkg.strip(), maxsplit=1)[0]
+                # PyPI names use hyphens; import names use underscores
+                return _name.replace("-", "_")
+
             def _pip_available(_pkg: str) -> bool:
-                if _pkg not in _pip_ok_cache:
+                _mod = _strip_pip_spec(_pkg)
+                if _mod not in _pip_ok_cache:
                     try:
-                        _pip_ok_cache[_pkg] = _ilu.find_spec(_pkg) is not None
+                        _pip_ok_cache[_mod] = _ilu.find_spec(_mod) is not None
                     except Exception:  # noqa: BLE001
-                        _pip_ok_cache[_pkg] = False
-                return _pip_ok_cache[_pkg]
+                        _pip_ok_cache[_mod] = False
+                return _pip_ok_cache[_mod]
 
             _filtered_3 = []
             for c in filtered:

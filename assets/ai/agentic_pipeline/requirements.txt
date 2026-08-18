@@ -1,5 +1,8 @@
 litellm>=1.30.0
 requests
+# Only required if you use the `mcp_call` op (direct MCP step in the pipeline).
+# Slim install; kept as a hard dep so the op works out of the box.
+mcp>=1.0.0
 # Provider client SDKs (installed on demand by litellm; add explicitly if you want pin control):
 #   openai
 #   anthropic

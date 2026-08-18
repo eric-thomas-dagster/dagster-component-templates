@@ -2,11 +2,13 @@
 
 Gate a downstream asset on a JSON approval token file — the human-in-the-loop primitive for Dagster.
 
-**How it works.** The gate is an asset. When materialized it reads `{approval_dir}/{partition_key or default_approval_key}.json`. Three outcomes:
+**How it works.** The gate is an asset. When materialized it reads `{approval_dir}/{partition_key or default_approval_key}.json`. The asset ALWAYS materializes (so it stays green in the UI); the state is carried by the `approved` asset check:
 
-- **Token missing** → `dg.Failure(status=approval_pending)`. Downstream doesn't run. This is the "waiting on a human" state. Re-materializing later (via sensor, cron, or manual click) picks up the token when it lands.
-- **Token present + `approved: true`** → the upstream payload passes through unchanged; `approver` / `approval_reason` / `approved_at` land in materialization metadata; downstream is unblocked.
-- **Token present + `approved: false`** → `dg.Failure(status=approval_rejected)`. Downstream doesn't run; permanent state until someone writes a new token.
+- **Token missing** → asset materializes with an empty passthrough; check `approved` **fails (WARN)** with `status=approval_pending`. Re-materializing later (via sensor, cron, or manual click) picks up the token when it lands.
+- **Token present + `approved: true`** → asset materializes with the upstream payload passed through; `approver` / `approval_reason` / `approved_at` land in materialization metadata; check `approved` **passes**; downstream unblocked.
+- **Token present + `approved: false`** → asset materializes with an empty passthrough; check `approved` **fails (ERROR)** with the rejection reason. Downstream still runs but can key off the failing check via `AssetCheckSpec` dependencies. Dagster+ Insights + alerts key off this check without any custom code.
+
+**`upstream_asset_key` format.** Bare string, not an `AssetKey` object. Single-part keys use the bare name (e.g. `triage_report`); multi-part keys use slash notation (e.g. `analytics/orders/daily_totals`). This maps to `AssetKey.from_user_string()` at wiring time.
 
 **Token format:**
 
@@ -50,7 +52,7 @@ attributes:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset whose value passes through the gate when approved. |
+| `upstream_asset_key` | `str` | Upstream asset whose value passes through the gate when approved. String (not an AssetKey object). For single-part asset keys use the bare name (e.g. `triage_report`). For multi-part keys use slash notation (e.g. `analytics/orders/daily_totals`) — this maps to `AssetKey.from_user_string()` at wiring time. |
 | `approval_dir` | `str` | Absolute path to the directory of approval token JSON files. Filename is `<partition_key>.json` (or `<default_approval_key>.json` when unpartitioned). |
 
 ### Catalog metadata

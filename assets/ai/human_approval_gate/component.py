@@ -122,7 +122,13 @@ class HumanApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
 
     asset_name: str = Field(description="Dagster asset name")
     upstream_asset_key: str = Field(
-        description="Upstream asset whose value passes through the gate when approved."
+        description=(
+            "Upstream asset whose value passes through the gate when approved. "
+            "String (not an AssetKey object). For single-part asset keys use the "
+            "bare name (e.g. `triage_report`). For multi-part keys use slash "
+            "notation (e.g. `analytics/orders/daily_totals`) — this maps to "
+            "`AssetKey.from_user_string()` at wiring time."
+        )
     )
     approval_dir: str = Field(
         description=(

@@ -1,13 +1,13 @@
 {
   "summary": {
-    "PASS": 679,
-    "WARN": 7,
-    "FAIL": 74,
-    "SKIP_OPTIONAL_DEP": 84,
+    "PASS": 685,
+    "FAIL": 75,
+    "SKIP_OPTIONAL_DEP": 83,
     "SKIP_EXAMPLE_MULTI_DOC": 51,
     "SKIP_PROJECT_REQUIRED": 13,
     "SKIP_RELATIVE_IMPORT": 3,
-    "SKIP_CREDENTIALS": 41
+    "SKIP_CREDENTIALS": 41,
+    "WARN": 9
   },
   "results": [
     {
@@ -103,10 +103,8 @@
     {
       "id": "adls_cleanup_job",
       "path": "jobs/adls_cleanup_job",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"AdaptiveResearchBriefComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -609,14 +607,14 @@
       "path": "integrations/aws_sagemaker",
       "status": "FAIL",
       "warnings": [],
-      "error": "Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'gaCtN0IyxrIAVZZDEcaHI3Zw8gbqughH/ZgIEbIqqDQ='.",
+      "error": "Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'noPvFRFt0kdOcaRY9MHdiS4Rj4BtUNO3Tqfk4dyiMbg='.",
       "error_class": "Exception",
       "traceback": [
         "    job_names = self._list_training_job_definitions(session)",
         "                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/aws_sagemaker/component.py\", line 225, in _list_training_job_definitions",
         "    raise Exception(f\"Failed to list training jobs: {e}\")",
-        "Exception: Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'gaCtN0IyxrIAVZZDEcaHI3Zw8gbqughH/ZgIEbIqqDQ='."
+        "Exception: Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'noPvFRFt0kdOcaRY9MHdiS4Rj4BtUNO3Tqfk4dyiMbg='."
       ]
     },
     {
@@ -935,8 +933,11 @@
     {
       "id": "catalog_agent",
       "path": "assets/ai/catalog_agent",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"CatalogAgentComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"CatalogAgentComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -2300,6 +2301,21 @@
       "error_class": null
     },
     {
+      "id": "document_corpus",
+      "path": "assets/ai/document_corpus",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "FreshnessPolicy() takes no arguments",
+      "error_class": "TypeError",
+      "traceback": [
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /assets/ai/document_corpus/component.py\", line 192, in build_defs",
+        "    freshness = dg.FreshnessPolicy(",
+        "                ^^^^^^^^^^^^^^^^^^^",
+        "TypeError: FreshnessPolicy() takes no arguments"
+      ]
+    },
+    {
       "id": "document_ingestion",
       "path": "assets/ingestion/document_ingestion",
       "status": "PASS",
@@ -2455,6 +2471,14 @@
     {
       "id": "duckdb_table_writer",
       "path": "assets/sinks/duckdb_table_writer",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "dynamic_fanout_asset",
+      "path": "assets/transforms/dynamic_fanout_asset",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -3479,19 +3503,19 @@
     {
       "id": "gong_calls_ingestion",
       "path": "assets/ingestion/gong_calls_ingestion",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"GongCallSummaryAssetComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"GongCallSummaryAssetComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
     {
       "id": "gong_resource",
       "path": "resources/gong_resource",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"GongCallSummaryAssetComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"GongCallSummaryAssetComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -3851,6 +3875,14 @@
     {
       "id": "huggingface_text_to_image",
       "path": "assets/ai/huggingface_text_to_image",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "human_approval_gate",
+      "path": "assets/ai/human_approval_gate",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -4369,8 +4401,11 @@
     {
       "id": "langgraph_agent",
       "path": "assets/ai/langgraph_agent",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"LangChainChainAssetComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"LangChainChainAssetComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -4385,13 +4420,8 @@
     {
       "id": "lead_scoring",
       "path": "assets/analytics/lead_scoring",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"LangGraphStep\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LangGraphAgentComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LangGraphStep\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LangGraphAgentComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -4648,8 +4678,11 @@
     {
       "id": "llm_evaluator",
       "path": "assets/ai/llm_evaluator",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"LLMChainExecutorComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"LLMChainExecutorComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -4660,6 +4693,14 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "llm_multi_path_router",
+      "path": "assets/ai/llm_multi_path_router",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -6006,6 +6047,30 @@
       "error_class": null
     },
     {
+      "id": "prefect_flow_run",
+      "path": "assets/infrastructure/prefect_flow_run",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "prefect_flow_run_sensor",
+      "path": "sensors/prefect_flow_run_sensor",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "prefect_resource",
+      "path": "resources/prefect_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "priority_scorer",
       "path": "assets/analytics/priority_scorer",
       "status": "PASS",
@@ -6301,6 +6366,14 @@
     {
       "id": "rabbitmq_to_database_asset",
       "path": "assets/ingestion/rabbitmq_to_database_asset",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "rag_eval",
+      "path": "assets/ai/rag_eval",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -6981,14 +7054,6 @@
       "error_class": null
     },
     {
-      "id": "sigma_assets",
-      "path": "integrations/sigma_assets",
-      "status": "SKIP_OPTIONAL_DEP",
-      "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'dagster_sigma'",
-      "error_class": "ModuleNotFoundError"
-    },
-    {
       "id": "simulation_sampling",
       "path": "assets/analytics/simulation_sampling",
       "status": "PASS",
@@ -7556,8 +7621,13 @@
     {
       "id": "supabase_storage_monitor",
       "path": "sensors/supabase_storage_monitor",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"SupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"SupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"SupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"SupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -8127,6 +8197,14 @@
     {
       "id": "vanta_evidence_response_agent",
       "path": "assets/ai/vanta_evidence_response_agent",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "vanta_resource",
+      "path": "resources/vanta_resource",
       "status": "WARN",
       "warnings": [
         "UserWarning: Field name \"model\" in \"VantaEvidenceResponseAgentComponent\" shadows an attribute in parent \"Resolvable\"",
@@ -8136,8 +8214,8 @@
       "error_class": null
     },
     {
-      "id": "vanta_resource",
-      "path": "resources/vanta_resource",
+      "id": "vector_index_snapshot",
+      "path": "assets/ai/vector_index_snapshot",
       "status": "PASS",
       "warnings": [],
       "error": null,

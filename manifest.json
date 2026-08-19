@@ -666,7 +666,7 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agentic_pipeline/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agentic_pipeline/schema.json",
       "agent_hints": {
-        "when_to_use": "User wants a standardized multi-step agentic workflow shape declared in ONE YAML. v2 covers 6 ops: llm_call | route | debate | critique_loop | synthesize | mcp_call. Supports typed named `inputs:` on every text-emitting op \u2014 any op can join from any prior op by port name (execution-plan graph shape). Sibling of ml_pipeline / polars_pipeline / warehouse_pipeline for the LLM domain. NEW: `partition_key_parser:` lets a composite partition key (like `dagster-io/dagster#30000`) unpack into `{partition.owner}` / `{partition.repo}` / `{partition.issue_number}` placeholders reachable in every string field (tool_args, prompt_template, system_prompt, source.text, sink paths). Pair with `PartitionedAssetLauncherJobComponent` for the config-driven-partition pattern.",
+        "when_to_use": "User wants a standardized multi-step agentic workflow shape declared in ONE YAML. v2 covers 6 ops: llm_call | route | debate | critique_loop | synthesize | mcp_call. Supports typed named `inputs:` on every text-emitting op \u2014 any op can join from any prior op by port name (execution-plan graph shape). Sibling of ml_pipeline / polars_pipeline / warehouse_pipeline for the LLM domain. NEW: `partition_key_parser:` lets a composite partition key (like `dagster-io/dagster#30000`) unpack into `{partition.owner}` / `{partition.repo}` / `{partition.issue_number}` placeholders reachable in every string field (tool_args, prompt_template, system_prompt, source.text, sink paths). Pair with `PartitionedAssetLauncherJobComponent` for the config-driven-partition pattern. Also supports `tool_use_loop` op \u2014 open-ended agent loop with MCP tools, LangGraph-style, bounded by max_iterations, materialized as ONE Dagster asset with the full tool-call trajectory in metadata.",
         "typical_upstream": "Literal text prompt, a fetched URL / doc, a file, another Dagster asset (via upstream_asset source), or a direct MCP tool call (via mcp_call op \u2014 no upstream needed).",
         "typical_downstream": "Text sinks (files), JSON sinks (full step dicts w/ per-op metadata), or downstream Dagster assets that consume any of the emitted step-output asset keys \u2014 every step is a first-class asset.",
         "example_prompts": [
@@ -823,6 +823,32 @@
               "issue_number": 30000
             },
             "parse_as": "auto"
+          },
+          "tool_use_loop": {
+            "id": "researcher",
+            "op": "tool_use_loop",
+            "model": "gpt-4o",
+            "api_key_env_var": "OPENAI_API_KEY",
+            "max_iterations": 10,
+            "system_prompt": "You are a research agent. Use the tools to gather information, then call `finalize` with your answer.",
+            "prompt_template": "Research this topic: {text}",
+            "mcp_servers": [
+              {
+                "name": "github",
+                "type": "stdio",
+                "command": [
+                  "npx",
+                  "-y",
+                  "@modelcontextprotocol/server-github"
+                ]
+              }
+            ],
+            "allowed_tools": [
+              "get_issue",
+              "list_issues",
+              "search_code"
+            ],
+            "finalize_tool_name": "finalize"
           }
         },
         "anti_uses": "Fields: `asset_name_prefix` (NOT `asset_name`). **`source:` is for INITIAL TEXT INPUT ONLY** \u2014 its shape is one of {kind: literal, text: '...'} | {kind: file, path: '...'} | {kind: url, url: '...'} | {kind: upstream_asset, upstream_asset_key: '...'}. **NEVER put a step (mcp_call, llm_call, etc.) inside `source:`**. If your FIRST step is an `mcp_call` or otherwise doesn't need upstream text, put it as `steps[0]` and set `source: {kind: literal, text: 'unused'}`. Each step has {id, op, ...op-specific args}. For joins use `inputs: {port_name: {from: step_id} | {literal: value}}` \u2014 each port becomes a `{port_name}` placeholder in prompt_template + system_prompt (and, for mcp_call, in string tool_args). mcp_call op fields: `server: {name, type: stdio|http|sse, command|url}`, `mcp_tool_name`, `tool_args: {key: value}` (static dict, NOT LLM-generated). `outputs.assets` MUST list ALL step ids you want as first-class Dagster assets. mcp_call `server.command` for stdio MUST be a LIST of strings [executable, ...args] \u2014 NOT a single space-separated string. Passing a string produces cryptic `FileNotFoundError: 'n'` at runtime (Python splits it per character).",
@@ -1201,6 +1227,82 @@
                 "iterations": {
                   "type": "integer",
                   "minimum": 1
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "tool_use_loop",
+              "type": "object",
+              "required": [
+                "id",
+                "op",
+                "model",
+                "api_key_env_var",
+                "mcp_servers"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "tool_use_loop"
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Optional prior step id; defaults to most recent. Text goes into `prompt_template` as `{text}`."
+                },
+                "inputs": {
+                  "type": "object",
+                  "description": "Typed named inputs (port substitution in system_prompt / prompt_template)."
+                },
+                "model": {
+                  "type": "string",
+                  "description": "LLM the agent runs on. Should be a strong model (gpt-4o, claude-3-5-sonnet) \u2014 the agent has to plan."
+                },
+                "api_key_env_var": {
+                  "type": "string"
+                },
+                "api_base_env_var": {
+                  "type": "string"
+                },
+                "system_prompt": {
+                  "type": "string",
+                  "description": "Agent instructions. Default guides toward calling the synthetic `finalize` tool when done."
+                },
+                "prompt_template": {
+                  "type": "string",
+                  "description": "User prompt; `{text}` = source, `{port_name}` = typed input."
+                },
+                "max_iterations": {
+                  "type": "integer",
+                  "description": "Hard cap on loop iterations (default 10)."
+                },
+                "temperature": {
+                  "type": "number"
+                },
+                "max_tokens": {
+                  "type": "integer",
+                  "description": "Max tokens per LLM call (not per loop)."
+                },
+                "mcp_servers": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Same shape as mcp_call.server \u2014 stdio | http | sse | fastmcp."
+                  },
+                  "description": "MCP servers whose tools the agent has access to. list_tools() is called on each at loop start to build the tool catalog."
+                },
+                "allowed_tools": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Optional allowlist of tool names. Defaults to ALL tools from ALL configured servers."
+                },
+                "finalize_tool_name": {
+                  "type": "string",
+                  "description": "Name of the synthetic finalize tool the LLM calls to end the loop with a final answer. Default 'finalize'."
                 }
               },
               "additionalProperties": false

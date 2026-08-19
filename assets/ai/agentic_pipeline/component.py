@@ -1243,6 +1243,478 @@ def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     }
 
 
+# ── tool_use_loop op ────────────────────────────────────────────────
+#
+# Open-ended tool-use loop — LLM picks a tool, tool runs, LLM sees the
+# result, picks the next tool, ..., emits a final answer. Bounded by
+# `max_iterations`. Tools come from MCP servers declared on the step.
+#
+# This is the shape LangGraph is known for, done as a first-class Dagster
+# asset: one asset materializes, containing the final answer + the full
+# tool-call trajectory in metadata. Cost/latency/tokens are rolled up
+# across every LLM call + tool call in the loop.
+
+
+async def _discover_mcp_tools_async(
+    log, mcp_servers: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    """For each configured MCP server, connect + list_tools() + capture
+    the JSON schema for each. Returns a flat list of
+    `{server, name, description, input_schema}` — the `server` field lets
+    us route tool calls back to the right MCP client during the loop.
+    """
+    from contextlib import AsyncExitStack
+    tools: List[Dict[str, Any]] = []
+    for server_cfg in mcp_servers:
+        name = server_cfg.get("name") or "server"
+        transport = server_cfg.get("type", "stdio")
+        log.info(f"[tool_use_loop] discovering tools on {name!r} ({transport})")
+
+        async with AsyncExitStack() as stack:
+            # Reuse the same connection paths as _call_mcp_tool_async —
+            # copy-paste rather than refactor since this helper is only
+            # for the initial discovery step (one call per server, at
+            # loop start).
+            if transport == "stdio":
+                from mcp import ClientSession, StdioServerParameters
+                from mcp.client.stdio import stdio_client
+                cmd = server_cfg.get("command") or []
+                if not cmd or isinstance(cmd, str):
+                    raise ValueError(
+                        f"MCP server {name!r} stdio needs `command: [...]` (LIST of strings)."
+                    )
+                _base_env = dict(os.environ)
+                _base_env.update(server_cfg.get("env") or {})
+                params = StdioServerParameters(
+                    command=cmd[0], args=list(cmd[1:]), env=_base_env
+                )
+                read, write = await stack.enter_async_context(stdio_client(params))
+                session = await stack.enter_async_context(ClientSession(read, write))
+                await session.initialize()
+            elif transport in ("http", "streamable_http", "streamable-http"):
+                from mcp import ClientSession
+                from mcp.client.streamable_http import streamablehttp_client
+                url = server_cfg.get("url")
+                if not url:
+                    raise ValueError(f"MCP server {name!r} http needs url.")
+                headers = _resolve_mcp_headers(server_cfg, name)
+                read, write, _sid = await stack.enter_async_context(
+                    streamablehttp_client(url, headers=headers or None)
+                )
+                session = await stack.enter_async_context(ClientSession(read, write))
+                await session.initialize()
+            elif transport == "sse":
+                from mcp import ClientSession
+                from mcp.client.sse import sse_client
+                url = server_cfg.get("url")
+                if not url:
+                    raise ValueError(f"MCP server {name!r} sse needs url.")
+                headers = _resolve_mcp_headers(server_cfg, name)
+                read, write = await stack.enter_async_context(
+                    sse_client(url, headers=headers or None)
+                )
+                session = await stack.enter_async_context(ClientSession(read, write))
+                await session.initialize()
+            elif transport == "fastmcp":
+                try:
+                    from fastmcp import Client as FastMCPClient
+                except ImportError as e:
+                    raise ImportError(
+                        "type: fastmcp requires the fastmcp package: pip install 'fastmcp>=2.0'"
+                    ) from e
+                url = server_cfg.get("url")
+                config = server_cfg.get("config")
+                headers = _resolve_mcp_headers(server_cfg, name)
+                bearer_env = server_cfg.get("bearer_env")
+                if bearer_env and os.environ.get(bearer_env):
+                    headers = {**(headers or {}), "Authorization": f"Bearer {os.environ[bearer_env]}"}
+                if config:
+                    client_ctx = FastMCPClient(config)
+                elif url:
+                    if headers:
+                        from fastmcp.client.transports import StreamableHttpTransport
+                        client_ctx = FastMCPClient(StreamableHttpTransport(url=url, headers=headers))
+                    else:
+                        client_ctx = FastMCPClient(url)
+                else:
+                    raise ValueError(f"MCP server {name!r} fastmcp needs url or config.")
+                client = await stack.enter_async_context(client_ctx)
+
+                class _FastMCPShim:
+                    async def list_tools(_self):
+                        return await client.list_tools()
+                session = _FastMCPShim()
+            else:
+                raise ValueError(f"MCP server {name!r} unknown transport: {transport!r}")
+
+            tools_result = await session.list_tools()
+            # `.tools` on ListToolsResult is a list of Tool objects with
+            # `.name`, `.description`, `.inputSchema`. FastMCP variants
+            # can return a bare list.
+            listed = getattr(tools_result, "tools", None) or tools_result
+            for t in listed:
+                tools.append({
+                    "server": name,
+                    "name": getattr(t, "name", None) or t["name"],
+                    "description": getattr(t, "description", None) or t.get("description", ""),
+                    "input_schema": (
+                        getattr(t, "inputSchema", None)
+                        or t.get("inputSchema")
+                        or {"type": "object", "properties": {}}
+                    ),
+                })
+    return tools
+
+
+def _mcp_tools_to_openai_schema(
+    mcp_tools: List[Dict[str, Any]], allowed: Optional[List[str]]
+) -> List[Dict[str, Any]]:
+    """MCP tool defs → OpenAI-style tool_call schema. Namespaces the tool
+    name with `{server}__{name}` so the loop can route the call back
+    without ambiguity when two servers expose tools of the same name."""
+    schemas = []
+    for t in mcp_tools:
+        if allowed and t["name"] not in allowed:
+            continue
+        namespaced = f"{t['server']}__{t['name']}"
+        schemas.append({
+            "type": "function",
+            "function": {
+                "name": namespaced,
+                "description": t["description"] or "",
+                "parameters": t["input_schema"] or {"type": "object", "properties": {}},
+            },
+        })
+    return schemas
+
+
+def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
+    """Open-ended tool-use loop. LLM picks tools, executes them via MCP,
+    sees results, picks next tool — bounded by `max_iterations` OR the
+    LLM emitting a final answer with no tool call OR the LLM calling
+    the synthetic `finalize` tool.
+
+    Emits ONE Dagster asset with the final answer text in `text` +
+    the full tool-call trajectory in `tool_call_trace` metadata. Cost /
+    latency / tokens are aggregated across all LLM calls + tool calls
+    in the loop.
+
+    Config:
+      model, api_key_env_var: LLM the agent runs on
+      mcp_servers: list of MCP server configs (same shape as mcp_call.server)
+      max_iterations: hard cap on loop iterations (default 10)
+      system_prompt: agent instructions
+      allowed_tools: optional allowlist (defaults to all discovered tools)
+      finalize_tool_name: synthetic tool name the LLM calls when done
+                         (default "finalize")
+    """
+    import asyncio
+    import time as _time
+
+    try:
+        import litellm
+    except ImportError:
+        raise ImportError("agentic_pipeline tool_use_loop requires litellm.")
+    litellm.drop_params = True
+
+    materialized_at = _now_iso()
+    source_id = step.get("source", _last_step_id(state))
+    src_text = _get_source_text(state, source_id) if source_id else ""
+    inputs = _resolve_inputs(step, state)
+
+    model = step["model"]
+    api_key_env_var = step.get("api_key_env_var")
+    api_base_env_var = step.get("api_base_env_var")
+    max_iterations = int(step.get("max_iterations", 10))
+    temperature = step.get("temperature", 0.0)
+    max_tokens_per_call = step.get("max_tokens", 2048)
+    finalize_name = step.get("finalize_tool_name", "finalize")
+
+    system_prompt = step.get("system_prompt") or (
+        "You are a tool-using agent. You have access to MCP tools. "
+        "Call tools to gather information; when you have enough to answer, "
+        f"call the special `{finalize_name}` tool with your final answer. "
+        "Do not answer without calling `finalize` — the caller only sees "
+        "what you pass to `finalize`."
+    )
+    system_prompt = _substitute_ports(system_prompt, inputs)
+
+    user_prompt = step.get("prompt_template", "{text}").replace("{text}", src_text)
+    user_prompt = _substitute_ports(user_prompt, inputs)
+
+    mcp_servers = step.get("mcp_servers") or []
+    if not mcp_servers:
+        raise ValueError("tool_use_loop requires `mcp_servers: [...]`.")
+
+    context.log.info(
+        f"[tool_use_loop:{step.get('id', '?')}] discovering tools across "
+        f"{len(mcp_servers)} MCP server(s)…"
+    )
+    mcp_tools = asyncio.run(_discover_mcp_tools_async(context.log, mcp_servers))
+    allowed = step.get("allowed_tools")
+    tool_schemas = _mcp_tools_to_openai_schema(mcp_tools, allowed)
+    # Synthetic finalize tool — LLM calls this when done.
+    tool_schemas.append({
+        "type": "function",
+        "function": {
+            "name": finalize_name,
+            "description": "Return your final answer to the caller and end the loop. Call this when you have enough information.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "answer": {"type": "string", "description": "The final answer text."}
+                },
+                "required": ["answer"],
+            },
+        },
+    })
+    # Index tools by their namespaced name for O(1) lookup during the loop.
+    tool_index = {f"{t['server']}__{t['name']}": t for t in mcp_tools}
+    if allowed:
+        tool_index = {k: v for k, v in tool_index.items() if v["name"] in allowed}
+
+    context.log.info(
+        f"[tool_use_loop:{step.get('id', '?')}] {len(tool_index)} tool(s) "
+        f"available: {sorted(tool_index.keys())[:10]}"
+        + (" …" if len(tool_index) > 10 else "")
+    )
+
+    # Message history — accumulates across iterations.
+    messages: List[Dict[str, Any]] = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ]
+
+    trajectory: List[Dict[str, Any]] = []
+    total_cost_usd = 0.0
+    total_llm_latency_ms = 0
+    total_tool_latency_ms = 0
+    total_tokens_in = 0
+    total_tokens_out = 0
+    n_llm_calls = 0
+    n_tool_calls = 0
+    final_answer: Optional[str] = None
+    stop_reason = "max_iterations"
+
+    for iteration in range(1, max_iterations + 1):
+        kwargs: Dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens_per_call,
+            "tools": tool_schemas,
+            "tool_choice": "auto",
+        }
+        if api_key_env_var and os.environ.get(api_key_env_var):
+            kwargs["api_key"] = os.environ[api_key_env_var]
+        if api_base_env_var and os.environ.get(api_base_env_var):
+            kwargs["api_base"] = os.environ[api_base_env_var]
+
+        t0 = _time.time()
+        response = litellm.completion(**kwargs)
+        llm_ms = int((_time.time() - t0) * 1000)
+        n_llm_calls += 1
+        total_llm_latency_ms += llm_ms
+        try:
+            iter_cost = float(litellm.completion_cost(completion_response=response))
+            total_cost_usd += iter_cost
+        except Exception:  # noqa: BLE001
+            pass
+        usage = getattr(response, "usage", None) or {}
+        total_tokens_in += (
+            getattr(usage, "prompt_tokens", 0)
+            or (usage.get("prompt_tokens", 0) if isinstance(usage, dict) else 0)
+        )
+        total_tokens_out += (
+            getattr(usage, "completion_tokens", 0)
+            or (usage.get("completion_tokens", 0) if isinstance(usage, dict) else 0)
+        )
+
+        msg = response.choices[0].message
+        tool_calls = getattr(msg, "tool_calls", None) or []
+
+        if not tool_calls:
+            # LLM emitted content without a tool call — treat as final answer.
+            content = msg.content or ""
+            trajectory.append({
+                "iteration": iteration,
+                "phase": "final_answer_no_tool",
+                "text": content,
+                "llm_latency_ms": llm_ms,
+            })
+            final_answer = content
+            stop_reason = "final_answer_no_tool"
+            context.log.info(
+                f"[tool_use_loop iter={iteration}] LLM emitted final answer without tool call ({len(content)} chars); stopping."
+            )
+            break
+
+        # Append the assistant's tool-call message to history so the LLM
+        # sees what it just did on the next iteration.
+        messages.append({
+            "role": "assistant",
+            "content": msg.content or "",
+            "tool_calls": [
+                {
+                    "id": tc.id,
+                    "type": "function",
+                    "function": {"name": tc.function.name, "arguments": tc.function.arguments},
+                }
+                for tc in tool_calls
+            ],
+        })
+
+        # Handle each tool call in this iteration.
+        # (LLMs typically emit ONE tool call per iteration in agent loops;
+        # we handle N to be safe.)
+        done_this_iter = False
+        for tc in tool_calls:
+            tool_name = tc.function.name
+            try:
+                tool_args = json.loads(tc.function.arguments or "{}")
+            except json.JSONDecodeError:
+                tool_args = {"_raw_args": tc.function.arguments}
+
+            # finalize → capture answer + stop
+            if tool_name == finalize_name:
+                answer = tool_args.get("answer", "")
+                trajectory.append({
+                    "iteration": iteration,
+                    "phase": "finalize",
+                    "tool_name": finalize_name,
+                    "tool_args": tool_args,
+                    "text": answer,
+                    "llm_latency_ms": llm_ms,
+                })
+                final_answer = answer
+                stop_reason = "finalize_called"
+                done_this_iter = True
+                context.log.info(
+                    f"[tool_use_loop iter={iteration}] finalize called ({len(answer)} chars); stopping."
+                )
+                break
+
+            # Real MCP tool → route to correct server + call.
+            tool_meta = tool_index.get(tool_name)
+            if tool_meta is None:
+                error_msg = f"unknown tool: {tool_name!r}"
+                trajectory.append({
+                    "iteration": iteration,
+                    "phase": "tool_call_error",
+                    "tool_name": tool_name,
+                    "tool_args": tool_args,
+                    "error": error_msg,
+                })
+                messages.append({
+                    "role": "tool", "tool_call_id": tc.id, "content": f"ERROR: {error_msg}",
+                })
+                n_tool_calls += 1
+                continue
+
+            # Find the server_cfg for this tool + invoke via existing helper.
+            server_cfg = next(
+                (s for s in mcp_servers if s.get("name") == tool_meta["server"]),
+                None,
+            )
+            if server_cfg is None:
+                error_msg = f"internal: server config missing for tool {tool_name!r}"
+                messages.append({"role": "tool", "tool_call_id": tc.id, "content": f"ERROR: {error_msg}"})
+                trajectory.append({
+                    "iteration": iteration, "phase": "tool_call_error",
+                    "tool_name": tool_name, "tool_args": tool_args, "error": error_msg,
+                })
+                continue
+
+            t_tool = _time.time()
+            try:
+                tool_result = asyncio.run(_call_mcp_tool_async(
+                    log=context.log,
+                    server_cfg=server_cfg,
+                    tool_name=tool_meta["name"],  # un-namespaced real name
+                    tool_args=tool_args,
+                    parse_as="auto",
+                ))
+                tool_ms = int((_time.time() - t_tool) * 1000)
+                total_tool_latency_ms += tool_ms
+                n_tool_calls += 1
+
+                # Feed the result back to the LLM as a tool message.
+                result_text = tool_result.get("raw", "")
+                messages.append({
+                    "role": "tool", "tool_call_id": tc.id, "content": result_text[:20000],
+                })
+                trajectory.append({
+                    "iteration": iteration,
+                    "phase": "tool_call",
+                    "tool_name": tool_name,
+                    "tool_args": tool_args,
+                    "tool_result_preview": result_text[:600],
+                    "tool_result_kind": tool_result.get("kind"),
+                    "tool_latency_ms": tool_ms,
+                    "llm_latency_ms": llm_ms,
+                })
+                context.log.info(
+                    f"[tool_use_loop iter={iteration}] {tool_name}({str(tool_args)[:80]}) → "
+                    f"{tool_ms}ms {len(result_text)} chars"
+                )
+            except BaseExceptionGroup as eg:  # noqa: F821 (py311+)
+                def _first_leaf(exc):
+                    while isinstance(exc, BaseExceptionGroup) and exc.exceptions:
+                        exc = exc.exceptions[0]
+                    return exc
+                inner = _first_leaf(eg)
+                error_msg = f"{type(inner).__name__}: {inner}"
+                messages.append({"role": "tool", "tool_call_id": tc.id, "content": f"ERROR: {error_msg}"})
+                trajectory.append({
+                    "iteration": iteration, "phase": "tool_call_error",
+                    "tool_name": tool_name, "tool_args": tool_args, "error": error_msg,
+                })
+                context.log.warning(f"[tool_use_loop iter={iteration}] {tool_name} failed: {error_msg}")
+            except Exception as e:  # noqa: BLE001
+                error_msg = f"{type(e).__name__}: {e}"
+                messages.append({"role": "tool", "tool_call_id": tc.id, "content": f"ERROR: {error_msg}"})
+                trajectory.append({
+                    "iteration": iteration, "phase": "tool_call_error",
+                    "tool_name": tool_name, "tool_args": tool_args, "error": error_msg,
+                })
+                context.log.warning(f"[tool_use_loop iter={iteration}] {tool_name} failed: {error_msg}")
+
+        if done_this_iter:
+            break
+
+    if final_answer is None:
+        # Hit max_iterations without finalize. Use the last LLM content
+        # or a fallback message.
+        final_answer = (
+            f"(loop terminated after {max_iterations} iterations without "
+            f"calling `{finalize_name}`; showing raw trajectory)"
+        )
+        stop_reason = "max_iterations_hit"
+
+    total_latency_ms = total_llm_latency_ms + total_tool_latency_ms
+
+    return {
+        "text": final_answer,
+        "op": "tool_use_loop",
+        "model": model,
+        "model_fingerprint": f"{model}@t{temperature}",
+        "n_iterations": len(trajectory) if stop_reason != "max_iterations_hit" else max_iterations,
+        "n_llm_calls": n_llm_calls,
+        "n_tool_calls": n_tool_calls,
+        "stop_reason": stop_reason,
+        "cost_usd": round(total_cost_usd, 6) if total_cost_usd > 0 else None,
+        "latency_ms": total_latency_ms,
+        "llm_latency_ms": total_llm_latency_ms,
+        "tool_latency_ms": total_tool_latency_ms,
+        "tokens_in": total_tokens_in or None,
+        "tokens_out": total_tokens_out or None,
+        "tokens_total": (total_tokens_in + total_tokens_out) or None,
+        "tool_call_trace": trajectory,
+        "tools_available": sorted(tool_index.keys()),
+        "materialized_at": materialized_at,
+    }
+
+
 # ── Op dispatcher ────────────────────────────────────────────────────
 
 _OPS = {
@@ -1252,6 +1724,7 @@ _OPS = {
     "critique_loop": _do_critique_loop,
     "synthesize": _do_synthesize,
     "mcp_call": _do_mcp_call,
+    "tool_use_loop": _do_tool_use_loop,
 }
 
 
@@ -1309,7 +1782,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
     other pipeline components (polars_pipeline, warehouse_pipeline,
     pyspark_pipeline, snowpark_pipeline, ml_pipeline).
 
-    6 ops:
+    7 ops:
       - llm_call:        single LLM call over source text
       - route:           router picks best specialist; specialist answers
       - debate:          N proposers → arbitrator picks winner
@@ -1353,7 +1826,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             "AND `system_prompt` (and, for `mcp_call`, in string `tool_args`). "
             "Any step can join from any number of prior steps by port name — the "
             "shape common in agentic-orchestration graphs (fan-out → typed-join).\n\n"
-            "6 ops. LLM ops (llm_call/route/debate/critique_loop/synthesize) all "
+            "7 ops. LLM ops (llm_call/route/debate/critique_loop/synthesize) all "
             "support optional `max_tokens`, `temperature`, `system_prompt`, "
             "`prompt_template`:\n"
             "  - **llm_call**: {model, api_key_env_var}. One LLM call. Supports "
@@ -1375,7 +1848,17 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             "command|url, env|headers|headers_env}, mcp_tool_name, tool_args, "
             "parse_as: auto|json|text}. Direct MCP tool call (no LLM); "
             "string `tool_args` support `{text}` substitution against source "
-            "AND `{port_name}` substitution from `inputs:`."
+            "AND `{port_name}` substitution from `inputs:`.\n"
+            "  - **tool_use_loop**: {model, api_key_env_var, mcp_servers: "
+            "[...], max_iterations, [system_prompt, allowed_tools, "
+            "finalize_tool_name, temperature, max_tokens]}. Open-ended "
+            "tool-use loop — LLM sees MCP tools, picks one, tool runs, "
+            "LLM sees result, picks next tool, etc. Bounded by "
+            "max_iterations OR the LLM calling the synthetic "
+            "`finalize` tool with its final answer. The shape LangGraph "
+            "is known for, done as ONE Dagster asset with the final "
+            "answer as `text` + full tool-call trajectory in metadata. "
+            "Cost/latency/tokens roll up across every internal call."
         ),
     )
     outputs: Dict[str, Any] = Field(

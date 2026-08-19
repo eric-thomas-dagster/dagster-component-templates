@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.AgenticPipelineComponent",
-  "description": "One YAML, whole agentic pipeline. `source: + steps: + outputs:` — 6 ops (llm_call, route, debate, critique_loop, synthesize, mcp_call). Typed named `inputs:` on every text-emitting op for multi-input joins by port name. First-class partition fields (`partition_type` / `partition_start` / `partition_values` / `dynamic_partition_name` / `partition_dimensions`) mirror sibling ml_pipeline / polars_pipeline / warehouse_pipeline. LiteLLM-backed for LLM ops.",
+  "description": "One YAML, whole agentic pipeline. `source: + steps: + outputs:` — 7 ops (llm_call, route, debate, critique_loop, synthesize, mcp_call, tool_use_loop). Typed named `inputs:` on every text-emitting op for multi-input joins by port name. First-class partition fields (`partition_type` / `partition_start` / `partition_values` / `dynamic_partition_name` / `partition_dimensions`) mirror sibling ml_pipeline / polars_pipeline / warehouse_pipeline. LiteLLM-backed for LLM ops.",
   "category": "ai",
   "icon": "Workflow",
   "x-dagster-io": {
@@ -15,7 +15,7 @@
                            "description": "Data source. kind = literal | file | url | upstream_asset. All string fields are {partition_key}-templated."},
 
     "steps":              {"type": "array",  "required": true, "label": "Steps", "items": {"type": "object"},
-                           "description": "Ordered pipeline steps. Each: {id, op, ...op-specific args}. Two wiring modes (compose per step): (1) legacy `source: <step_id>` reads that step's text into `{text}`; (2) typed `inputs: {port: {from: step_id} | {literal: value}}` — each port becomes a `{port_name}` placeholder in prompt_template / system_prompt (and, for mcp_call, in string tool_args). 6 ops available: llm_call | route | debate | critique_loop | synthesize | mcp_call. Full per-op JSON Schema is published under manifest agent_hints.steps_schemas (discriminated union on `op`)."},
+                           "description": "Ordered pipeline steps. Each: {id, op, ...op-specific args}. Two wiring modes (compose per step): (1) legacy `source: <step_id>` reads that step's text into `{text}`; (2) typed `inputs: {port: {from: step_id} | {literal: value}}` — each port becomes a `{port_name}` placeholder in prompt_template / system_prompt (and, for mcp_call, in string tool_args). 7 ops available: llm_call | route | debate | critique_loop | synthesize | mcp_call | tool_use_loop. Full per-op JSON Schema is published under manifest agent_hints.steps_schemas (discriminated union on `op`)."},
 
     "outputs":            {"type": "object", "required": true, "label": "Outputs",
                            "description": "Output declaration. Shape: {assets: [<step_ids>], text_sinks: [{from, path}], json_sinks: [{from, path}]}. `assets:` step outputs become first-class Dagster assets; sinks are side effects. All sink paths are `{partition_key}`-aware."},

@@ -102,6 +102,14 @@ class PartitionedAssetLauncherJobComponent(dg.Component, dg.Model, dg.Resolvable
         description="Tags applied to both the launcher run and (via inherited context) the materialization run."
     )
 
+    @classmethod
+    def get_form_config(cls):
+        """UI-editable via the Dagster / Dagster+ Components tab
+        (dagster>=1.13.8 + `flagComponentInstanceUI`)."""
+        from dagster.components.resolved.form_config import ComponentFormConfig
+
+        return ComponentFormConfig(label="Partitioned Asset Launcher", editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _job_name = self.job_name
         _target_keys = list(self.target_asset_keys)

@@ -24,6 +24,14 @@ class AssetJobComponent(dg.Component, dg.Model, dg.Resolvable):
     description: Optional[str] = Field(default=None, description="Description shown in the UI.")
     tags: Optional[Dict[str, str]] = Field(default=None, description="Tags applied to runs of this job.")
 
+    @classmethod
+    def get_form_config(cls):
+        """UI-editable via the Dagster / Dagster+ Components tab
+        (dagster>=1.13.8 + `flagComponentInstanceUI`)."""
+        from dagster.components.resolved.form_config import ComponentFormConfig
+
+        return ComponentFormConfig(label="Asset Job", editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> Definitions:
         _self = self
         targets = [AssetKey.from_user_string(k) for k in self.asset_keys]

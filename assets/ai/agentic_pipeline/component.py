@@ -1390,6 +1390,16 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
 
+    @classmethod
+    def get_form_config(cls):
+        """Register as an App Managed Component so the Dagster / Dagster+
+        UI can create + edit instances of this pipeline via a
+        schema-driven form. Requires `dagster>=1.13.8` and the
+        `flagComponentInstanceUI` feature flag."""
+        from dagster.components.resolved.form_config import ComponentFormConfig
+
+        return ComponentFormConfig(label="Agentic Pipeline", editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         prefix = self.asset_name_prefix
         steps = list(self.steps)

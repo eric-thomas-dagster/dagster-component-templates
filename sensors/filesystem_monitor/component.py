@@ -102,6 +102,14 @@ class FilesystemMonitorSensorComponent(Component, Model, Resolvable):
         ),
     )
 
+    @classmethod
+    def get_form_config(cls):
+        """UI-editable via the Dagster / Dagster+ Components tab
+        (dagster>=1.13.8 + `flagComponentInstanceUI`)."""
+        from dagster.components.resolved.form_config import ComponentFormConfig
+
+        return ComponentFormConfig(label="Filesystem Monitor Sensor", editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         sensor_name = self.sensor_name
         directory_path = self.directory_path

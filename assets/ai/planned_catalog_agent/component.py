@@ -249,6 +249,27 @@ if _HAS_STATE_BACKED:
             default_factory=DefsStateConfigArgs.local_filesystem
         )
 
+        # ── UI editability (Dagster 1.13.8+, `flagComponentInstanceUI`) ──
+
+        @classmethod
+        def get_form_config(cls):
+            """Register as an App Managed Component so the Dagster / Dagster+
+            UI can create + edit instances of this component via a
+            schema-driven form (Components → Instances → Add). Without
+            this, discovered instances are read-only. Requires
+            `dagster>=1.13.8` and the `flagComponentInstanceUI` feature
+            flag enabled on the deployment.
+
+            Local-import so the class body still loads on older Dagster
+            versions that don't ship `ComponentFormConfig` — the classmethod
+            just isn't exercised there."""
+            from dagster.components.resolved.form_config import ComponentFormConfig
+
+            return ComponentFormConfig(
+                label="Planned Catalog Agent",
+                editable=True,
+            )
+
         # ── StateBackedComponent interface ──────────────────────────────
 
         @property

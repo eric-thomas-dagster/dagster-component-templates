@@ -196,6 +196,14 @@ class HumanApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Lineage-only upstream asset keys (no data loaded at runtime).",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        """UI-editable via the Dagster / Dagster+ Components tab
+        (dagster>=1.13.8 + `flagComponentInstanceUI`)."""
+        from dagster.components.resolved.form_config import ComponentFormConfig
+
+        return ComponentFormConfig(label="Human Approval Gate", editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key

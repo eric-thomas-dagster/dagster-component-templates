@@ -37,6 +37,12 @@
     "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name",
                            "description": "Name for the DynamicPartitionsDefinition when partition_type='dynamic'."},
     "partition_dimensions": {"type": "array", "label": "Partition Dimensions", "items": {"type": "object"},
-                           "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name}. Set INSTEAD of partition_type for multi-dimensional partitioning."}
+                           "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name}. Set INSTEAD of partition_type for multi-dimensional partitioning."},
+
+    "per_step_ops":       {"type": "boolean", "label": "Per-Step Ops", "default": false,
+                           "description": "When true, emit as @dg.graph_multi_asset with ONE OP PER STEP instead of a single @multi_asset. Runs page shows N step_keys (`{prefix}_ingest`, `{prefix}_{step_id}` per step, `{prefix}_extract`) instead of one composite op. Native per-op retry via Dagster's re-execution machinery — restart from any failed step. State dict serializes through the IO manager between ops. Default false keeps zero-overhead single-op behavior for high-throughput pipelines."},
+
+    "partition_key_parser": {"type": "string", "label": "Partition Key Parser",
+                           "description": "Optional template that inverts composite dynamic partition keys into named fields. e.g. `{owner}/{repo}#{issue_number:int}` — parses `dagster-io/dagster#30000` back into `partition.owner='dagster-io'`, `partition.repo='dagster'`, `partition.issue_number=30000`. Fields are then available as `{partition.<name>}` substitutions in tool_args, prompt_template, system_prompt, source.text, and sink paths. Optional `:int` / `:float` / `:bool` type suffixes preserve types when the substitution target is a pure single-placeholder value (needed for MCP tools that reject string types like GitHub's `get_issue.issue_number`). Pair with `PartitionedAssetLauncherJobComponent` for the config-driven-partition-key pattern."}
   }
 }

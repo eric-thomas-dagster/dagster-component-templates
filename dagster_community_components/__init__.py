@@ -21,7 +21,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-__version__ = "0.10.68"
+__version__ = "0.10.69"
 
 _PACKAGE_ROOT = Path(__file__).resolve().parent
 
@@ -484,6 +484,8 @@ _CLASS_PATHS: dict[str, str] = {
     "IcebergIngestionComponent": "assets/ingestion/iceberg_ingestion/component.py",
     "IcebergMaintenanceJobComponent": "jobs/iceberg_maintenance_job/component.py",
     "ImageCaptionerComponent": "assets/ai/image_captioner/component.py",
+    "InferenceCostReportComponent": "assets/ai/inference_cost_report/component.py",
+    "InferenceProviderABTestComponent": "assets/ai/inference_provider_ab_test/component.py",
     "ImageClassifierComponent": "assets/ai/image_classifier/component.py",
     "ImageExifExtractorComponent": "assets/transforms/image_exif_extractor/component.py",
     "ImageLlmExtractorComponent": "assets/ai/image_llm_extractor/component.py",
@@ -739,6 +741,7 @@ _CLASS_PATHS: dict[str, str] = {
     "ProductRecommendationsComponent": "assets/analytics/product_recommendations/component.py",
     "ProductUsageAnalyticsComponent": "assets/analytics/product_usage_analytics/component.py",
     "PrometheusResourceComponent": "resources/prometheus_resource/component.py",
+    "ProviderABEvaluatorComponent": "assets/ai/provider_ab_evaluator/component.py",
     "PropensityScoringComponent": "assets/analytics/propensity_scoring/component.py",
     "PubSubMonitorSensorComponent": "sensors/pubsub_monitor/component.py",
     "PubSubPublishAssetComponent": "assets/sinks/pubsub_publish_asset/component.py",

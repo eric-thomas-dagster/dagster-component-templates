@@ -1,0 +1,42 @@
+type: dagster_community_components.ProviderABEvaluatorComponent
+attributes:
+  asset_name: triage_ab_scored
+  group_name: local_ai_ab
+
+  # Upstream candidates — typically the outputs of an
+  # InferenceProviderABTestComponent instance.
+  candidates:
+    - triage_ab_gpt_4o_mini
+    - triage_ab_claude_haiku
+    - triage_ab_qwen_local
+
+  rubric:
+    kind: literal
+    text: |
+      Score each candidate response on a 0-100 scale across three dimensions
+      (weights in parentheses — final score = sum):
+
+      1. Classification accuracy (40 pts). Did the candidate correctly pick
+         one of: defect | expected-behavior | needs-more-info | docs-gap |
+         feature-request? Zero points if the classification is missing or
+         wrong per the issue's actual behavior.
+      2. Rationale grounding (30 pts). Does the rationale cite SPECIFIC
+         evidence from the issue text (versions, repro steps, symptoms)?
+         Vague or generic reasoning = 0-10.
+      3. Next-action concreteness (30 pts). Is the proposed next action
+         actionable and specific to this issue? Generic advice ("investigate
+         further") = 0-5.
+
+  judge:
+    model: gpt-4o
+    api_key_env_var: OPENAI_API_KEY
+    temperature: 0.0
+    max_tokens: 1500
+
+  # OpenAI gpt-4o-mini as the reference baseline; deltas surface how much
+  # switching to each alternative moved the quality needle.
+  baseline_alias: gpt_4o_mini
+
+  # Branch-deploy merge gate: block promotion if the WINNER's score drops
+  # below 70 (out of 100). Emits an asset check `winner_meets_threshold`.
+  min_winner_score: 70

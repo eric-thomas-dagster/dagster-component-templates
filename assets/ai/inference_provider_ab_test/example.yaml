@@ -1,0 +1,41 @@
+type: dagster_community_components.InferenceProviderABTestComponent
+attributes:
+  asset_name_prefix: triage_ab
+  group_name: local_ai_ab
+
+  prompt:
+    kind: literal
+    text: |
+      Triage this GitHub issue. Classify it as one of:
+      defect | expected-behavior | needs-more-info | docs-gap | feature-request.
+      One-line rationale. One-line next action.
+
+      Issue: "IO manager returns None when the upstream is a partitioned
+      asset — I get 'Object of type NoneType has no attribute keys' at
+      load time. Dagster 1.13.18, s3_parquet_io_manager, static partitions."
+
+  providers:
+    - alias: gpt_4o_mini
+      model: gpt-4o-mini
+      api_key_env_var: OPENAI_API_KEY
+
+    - alias: claude_haiku
+      model: claude-3-5-haiku-latest
+      api_key_env_var: ANTHROPIC_API_KEY
+
+    # Local endpoint via Ollama (or any OpenAI-compatible endpoint like
+    # vLLM / LM Studio / TGI — use `openai/<model>` model prefix + the
+    # appropriate api_base env var).
+    - alias: qwen_local
+      model: ollama/qwen2.5:14b
+      api_base_env_var: OLLAMA_URL
+      # Local endpoints have no token pricing — supply an amortized
+      # $/1k-tokens equivalent based on your GPU-hour cost so the report
+      # can still compare economics apples-to-apples. Zero = "free".
+      cost_per_1k_tokens_override: 0.0
+
+  system_prompt: |
+    You are an issue triage assistant. Respond in ≤3 lines total —
+    classification, rationale, next action. No preamble.
+  max_tokens: 200
+  temperature: 0.0

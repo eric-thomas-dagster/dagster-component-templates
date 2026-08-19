@@ -1,0 +1,37 @@
+{
+  "component_type": "dagster_community_components.InferenceCostReportComponent",
+  "description": "Aggregate per-provider cost + latency + quality (from `InferenceProviderABTestComponent` outputs + optional `ProviderABEvaluatorComponent`) into ONE 'should we go local' report asset. Materialize on a daily schedule and the report becomes a time-series in Dagster+ Insights.",
+  "category": "ai",
+  "icon": "Assessment",
+  "x-dagster-io": {
+    "outputs": {"type": "table", "description": "One asset with per-provider metrics + winner-by-cost + winner-by-quality + winner-by-value + projected daily savings + recommendation string."}
+  },
+  "attributes": {
+    "asset_name":         {"type": "string", "required": true, "label": "Asset Name"},
+    "candidates":         {"type": "array",  "required": true, "label": "Candidates", "items": {"type": "string"},
+                           "description": "Upstream A/B candidate asset keys. Each provides cost_usd + latency_ms + tokens_* in its payload."},
+    "evaluator":          {"type": "string", "label": "Evaluator Asset",
+                           "description": "Optional upstream evaluator asset key. Provides quality scores per provider."},
+    "baseline_alias":     {"type": "string", "label": "Baseline Alias",
+                           "description": "Reference provider alias. Deltas (cost, quality) are computed relative to this."},
+    "projected_daily_volume": {"type": "integer", "label": "Projected Daily Volume",
+                           "description": "Optional projected daily call volume. Enables `projected_daily_savings_usd` per alternative."},
+    "quality_weight":     {"type": "number", "label": "Quality Weight", "default": 0.7,
+                           "description": "0-1. Weight applied to quality in the value_score composite (cost gets 1 - weight). Higher = quality matters more."},
+    "group_name":         {"type": "string", "label": "Group Name", "description": "Asset group. Default 'ab_test'."},
+    "kinds":              {"type": "array",  "label": "Kinds", "items": {"type": "string"}},
+    "owners":             {"type": "array",  "label": "Owners", "items": {"type": "string"}},
+    "tags":               {"type": "object", "label": "Tags"},
+    "description":        {"type": "string", "label": "Description"},
+
+    "partition_type":     {"type": "string", "label": "Partition Type",
+                           "enum": ["daily", "weekly", "monthly", "hourly", "static", "dynamic", "multi"],
+                           "description": "Must match upstream candidate + evaluator partitions_def."},
+    "partition_start":    {"type": "string", "label": "Partition Start"},
+    "partition_values":   {"type": "any",    "label": "Partition Values"},
+    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name"},
+    "partition_dimensions": {"type": "array", "label": "Partition Dimensions", "items": {"type": "object"}}
+  },
+  "tags": ["ai", "llm", "report", "ab-test", "cost-analysis"],
+  "name": "Inference Cost Report"
+}

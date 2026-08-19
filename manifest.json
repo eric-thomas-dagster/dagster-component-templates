@@ -20909,6 +20909,98 @@
       ]
     },
     {
+      "id": "inference_cost_report",
+      "name": "InferenceCostReportComponent",
+      "category": "ai",
+      "description": "Aggregate per-provider cost + latency + quality (from `InferenceProviderABTestComponent` + `ProviderABEvaluatorComponent`) into ONE 'should we go local' report asset. Materialize on a daily schedule and the report becomes a time-series in Dagster+ Insights.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/inference_cost_report",
+      "tags": [
+        "ai",
+        "llm",
+        "report",
+        "ab-test",
+        "cost-analysis",
+        "local-ai"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/inference_cost_report/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/inference_cost_report/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/inference_cost_report/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/inference_cost_report/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/inference_cost_report/requirements.txt",
+      "validation": {
+        "level": "code",
+        "evidence": "Structural \u2014 `dg check defs` passes on example.yaml. Live validation follows the first walkthrough run.",
+        "last_validated": "2026-08-19"
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants a 'here's what going local would save' summary as a first-class asset \u2014 aggregates per-provider cost + latency (from A/B) + quality (from evaluator) + baseline deltas + winner-by-cost / winner-by-quality / winner-by-value + projected daily savings. Materialize on a daily schedule and the report becomes a time-series in Insights.",
+        "typical_upstream": "InferenceProviderABTestComponent candidates + optional ProviderABEvaluatorComponent evaluator asset.",
+        "typical_downstream": "Dagster+ Insights (auto-picks up numeric metadata), alerting sensors gated on cost thresholds, downstream dbt models that consume the recommendation string.",
+        "example_prompts": [
+          "Build a report asset that aggregates our provider A/B into a 'should we go local' summary \u2014 daily.",
+          "Compare cost + quality across our 3 LLM providers with baseline deltas and projected savings at 10k calls/day."
+        ],
+        "requires_pip": []
+      }
+    },
+    {
+      "id": "inference_provider_ab_test",
+      "name": "InferenceProviderABTestComponent",
+      "category": "ai",
+      "description": "Run the same prompt through N LLM providers side-by-side; each response is a first-class Dagster asset with cost / latency / token metadata. Answers 'should we go local' empirically via asset history + Insights, not from a benchmarking spreadsheet.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/inference_provider_ab_test",
+      "tags": [
+        "ai",
+        "llm",
+        "ab-test",
+        "cost-analysis",
+        "provider-comparison",
+        "local-ai"
+      ],
+      "dependencies": {
+        "pip": [
+          "litellm>=1.30.0",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/inference_provider_ab_test/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/inference_provider_ab_test/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/inference_provider_ab_test/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/inference_provider_ab_test/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/inference_provider_ab_test/requirements.txt",
+      "validation": {
+        "level": "code",
+        "evidence": "Structural \u2014 `dg check defs` passes on example.yaml. End-to-end validation blocked on multi-provider API keys; will be `live` after the first walkthrough run.",
+        "last_validated": "2026-08-19"
+      },
+      "produces": [
+        "multi_asset"
+      ],
+      "agent_hints": {
+        "when_to_use": "User asks 'which LLM should we use for this' or 'would going local hurt quality' \u2014 this component runs the SAME prompt through N providers (any LiteLLM-supported: OpenAI, Anthropic, Bedrock, Ollama, vLLM, ...) side-by-side; each response is a first-class Dagster asset with cost + latency + token metadata. Pairs with `provider_ab_evaluator` (adds quality score per provider) and `inference_cost_report` (aggregates + emits 'should we go local' recommendation).",
+        "typical_upstream": "None (this generates data) or a partitioned dataset of prompts (one per partition).",
+        "typical_downstream": "provider_ab_evaluator (LLM-as-judge scoring), inference_cost_report (aggregate report), or any dbt model / warehouse table that wants per-provider outputs.",
+        "example_prompts": [
+          "Run this triage prompt through gpt-4o-mini AND claude-3-5-haiku AND local ollama qwen2.5:14b, compare cost + latency.",
+          "A/B test 3 LLM providers on the same 100 issues, one partition per issue, so we can pick the best-value provider.",
+          "Compare local Ollama vs OpenAI on our summarization prompts before we commit to going self-hosted."
+        ],
+        "requires_pip": [
+          "litellm>=1.30.0"
+        ]
+      }
+    },
+    {
       "id": "influxdb_resource",
       "name": "InfluxDB Resource",
       "category": "resource",
@@ -31145,6 +31237,56 @@
         "asset",
         "asset_check"
       ]
+    },
+    {
+      "id": "provider_ab_evaluator",
+      "name": "ProviderABEvaluatorComponent",
+      "category": "ai",
+      "description": "LLM-as-judge that scores N candidate outputs against a rubric in ONE pass. Pairs with `InferenceProviderABTestComponent` (upstream) to close the 'should we go local' loop with a quality signal. Optional `min_winner_score` asset check makes the pair a branch-deploy merge gate.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/provider_ab_evaluator",
+      "tags": [
+        "ai",
+        "llm",
+        "evaluator",
+        "ab-test",
+        "judge",
+        "merge-gate"
+      ],
+      "dependencies": {
+        "pip": [
+          "litellm>=1.30.0",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/provider_ab_evaluator/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/provider_ab_evaluator/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/provider_ab_evaluator/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/provider_ab_evaluator/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/provider_ab_evaluator/requirements.txt",
+      "validation": {
+        "level": "code",
+        "evidence": "Structural \u2014 `dg check defs` passes on example.yaml. Live validation follows the first walkthrough run.",
+        "last_validated": "2026-08-19"
+      },
+      "produces": [
+        "asset",
+        "asset_check"
+      ],
+      "agent_hints": {
+        "when_to_use": "User has multiple candidate LLM outputs (typically from InferenceProviderABTestComponent) and needs a QUALITY signal comparable across candidates \u2014 this component calls a judge LLM ONCE with all candidates so scores are directly comparable (separate calls suffer from judge-drift). Optional `min_winner_score` asset check turns the whole pipeline into a branch-deploy merge gate: 'block promotion if the winner's quality drops below threshold X'.",
+        "typical_upstream": "InferenceProviderABTestComponent outputs (one asset per provider) OR any assets with a `text`/`content`/`str` payload shape.",
+        "typical_downstream": "inference_cost_report (aggregate) or downstream automation conditions that gate on the winner's score.",
+        "example_prompts": [
+          "Score each candidate triage output against a rubric and pick a winner.",
+          "LLM-as-judge for our A/B test \u2014 winner must score >= 70/100 or the merge blocks.",
+          "Compare 3 provider outputs against a groundedness + helpfulness rubric."
+        ],
+        "requires_pip": [
+          "litellm>=1.30.0"
+        ]
+      }
     },
     {
       "id": "pubsub_monitor",
@@ -43666,5 +43808,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 964
+  "total": 967
 }

@@ -1,0 +1,26 @@
+type: dagster_community_components.InferenceCostReportComponent
+attributes:
+  asset_name: triage_ab_report
+  group_name: local_ai_ab
+
+  candidates:
+    - triage_ab_gpt_4o_mini
+    - triage_ab_claude_haiku
+    - triage_ab_qwen_local
+
+  # Optional — pulls quality_score per provider from the evaluator asset.
+  # Without it, the report has cost + latency but no quality signal.
+  evaluator: triage_ab_scored
+
+  # Reference provider. Everything else's cost + quality delta is
+  # computed relative to this. Typical: whichever's in prod today.
+  baseline_alias: gpt_4o_mini
+
+  # Optional — enables `projected_daily_savings_usd` per alternative.
+  # If your triage bot processes 10k issues/day, this shows the projected
+  # dollar savings vs staying on the baseline.
+  projected_daily_volume: 10000
+
+  # Composite value_score weighting. 0.7 = quality matters more than cost.
+  # 0.3 = cost matters more (aggressive local-first bias). Default 0.7.
+  quality_weight: 0.7

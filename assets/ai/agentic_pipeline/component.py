@@ -1065,6 +1065,57 @@ async def _call_mcp_tool_async(
             )
             session = await stack.enter_async_context(ClientSession(read, write))
             await session.initialize()
+        elif transport == "fastmcp":
+            # FastMCP v2 client — auto-transport detection (URL or
+            # `mcp.json`-style config dict), first-class auth (bearer +
+            # OAuth), better resilience than the raw MCP SDK. Preferred for
+            # remote / production MCP servers; the raw http/sse transports
+            # above remain available for compat.
+            try:
+                from fastmcp import Client as FastMCPClient
+            except ImportError as e:
+                raise ImportError(
+                    "type: fastmcp requires the fastmcp package: "
+                    "pip install 'fastmcp>=2.0'"
+                ) from e
+
+            url = server_cfg.get("url")
+            config = server_cfg.get("config")  # optional inline mcp.json-style dict
+            headers = _resolve_mcp_headers(server_cfg, name)
+
+            # Optional bearer-token auth: `bearer_env: MCP_TOKEN` reads the
+            # env var and adds `Authorization: Bearer <value>` at call time.
+            bearer_env = server_cfg.get("bearer_env")
+            if bearer_env and os.environ.get(bearer_env):
+                headers = {
+                    **(headers or {}),
+                    "Authorization": f"Bearer {os.environ[bearer_env]}",
+                }
+
+            if config:
+                client_ctx = FastMCPClient(config)
+            elif url:
+                if headers:
+                    from fastmcp.client.transports import StreamableHttpTransport
+                    transport_obj = StreamableHttpTransport(url=url, headers=headers)
+                    client_ctx = FastMCPClient(transport_obj)
+                else:
+                    client_ctx = FastMCPClient(url)
+            else:
+                raise ValueError(
+                    f"MCP server {name!r} is fastmcp but neither `url` nor "
+                    f"`config` is set."
+                )
+
+            log.info(f"[mcp:{name}] fastmcp client connecting to {url or 'inline config'}")
+            client = await stack.enter_async_context(client_ctx)
+
+            # Shim so the shared `session.call_tool(...)` path below works —
+            # FastMCP's `Client` exposes call_tool directly, no ClientSession.
+            class _FastMCPShim:
+                async def call_tool(self, tool_name, tool_args):
+                    return await client.call_tool(tool_name, tool_args)
+            session = _FastMCPShim()
         else:
             raise ValueError(f"MCP server {name!r} has unknown transport: {transport!r}")
 
@@ -1092,7 +1143,7 @@ async def _call_mcp_tool_async(
 def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     """Direct MCP tool call — no LLM, deterministic step in the pipeline.
 
-    server: {name, type: stdio|http|sse, command|url, env|headers|headers_env}
+    server: {name, type: stdio|http|sse|fastmcp, command|url, env|headers|headers_env}
     mcp_tool_name: <tool name as the MCP server exposes it>
     tool_args: {arg_name: value}      (string values are `{text}`-templated against source)
     parse_as: 'auto' | 'json' | 'text'  (default 'auto')
@@ -1320,7 +1371,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             "inputs: {port: {from: id}}}. Merge multiple upstream step outputs. "
             "Prefer `inputs:` for named typed joins (Prefect-style execution-plan "
             "shape); `sources:` for positional legacy shape.\n"
-            "  - **mcp_call**: {server: {name, type: stdio|http|sse, "
+            "  - **mcp_call**: {server: {name, type: stdio|http|sse|fastmcp, "
             "command|url, env|headers|headers_env}, mcp_tool_name, tool_args, "
             "parse_as: auto|json|text}. Direct MCP tool call (no LLM); "
             "string `tool_args` support `{text}` substitution against source "

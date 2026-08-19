@@ -1,0 +1,45 @@
+{
+  "component_type": "dagster_community_components.ProviderABEvaluatorComponent",
+  "description": "LLM-as-judge that scores N candidate outputs against a rubric in ONE pass. Pairs with `InferenceProviderABTestComponent` (upstream) to close the 'should we go local' loop with a quality signal. Optional `min_winner_score` asset check makes the pair a branch-deploy merge gate.",
+  "category": "ai",
+  "icon": "Balance",
+  "x-dagster-io": {
+    "outputs": {"type": "text", "description": "One asset with per-candidate scores, winner alias, delta vs. baseline, judge cost/latency. Optional `winner_meets_threshold` asset check."}
+  },
+  "attributes": {
+    "asset_name":         {"type": "string", "required": true, "label": "Asset Name",
+                           "description": "Name of the emitted asset (holds per-candidate scores + winner)."},
+
+    "candidates":         {"type": "array",  "required": true, "label": "Candidates", "items": {"type": "string"},
+                           "description": "Upstream asset keys to score. Multi-part keys use slash notation. Each candidate's text is loaded from the standard {text, content, ...} shape."},
+
+    "rubric":             {"type": "object", "required": true, "label": "Rubric",
+                           "description": "Scoring rubric. Shapes: {kind: literal, text: '...'} | {kind: file, path: '...'} | {kind: url, url: '...'}. Include specific criteria + point weights."},
+
+    "judge":              {"type": "object", "required": true, "label": "Judge",
+                           "description": "Judge model config: {model, api_key_env_var, [api_base_env_var, system_prompt, temperature, max_tokens]}. Use a strong model — gpt-4o or claude-3-5-sonnet — since the judge sets the ceiling on evaluation quality."},
+
+    "min_winner_score":   {"type": "integer", "label": "Min Winner Score",
+                           "description": "0-100. When set, emits an asset check `winner_meets_threshold` that fails ERROR when the winner's score is below this. Branch-deploy merge gate."},
+    "baseline_alias":     {"type": "string", "label": "Baseline Alias",
+                           "description": "Optional baseline candidate alias for delta metrics."},
+
+    "group_name":         {"type": "string", "label": "Group Name", "description": "Asset group. Default 'ab_test'."},
+    "kinds":              {"type": "array",  "label": "Kinds", "items": {"type": "string"},
+                           "description": "Asset kinds. Default: ['llm', 'evaluator', 'ab-test']."},
+    "owners":             {"type": "array",  "label": "Owners", "items": {"type": "string"}},
+    "tags":               {"type": "object", "label": "Tags"},
+    "description":        {"type": "string", "label": "Description"},
+
+    "partition_type":     {"type": "string", "label": "Partition Type",
+                           "enum": ["daily", "weekly", "monthly", "hourly", "static", "dynamic", "multi"],
+                           "description": "Must match upstream candidates' partitions_def."},
+    "partition_start":    {"type": "string", "label": "Partition Start", "description": "ISO date for time-based partitions."},
+    "partition_values":   {"type": "any",    "label": "Partition Values", "description": "Comma-separated string OR list for static/multi."},
+    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name"},
+    "partition_dimensions": {"type": "array", "label": "Partition Dimensions", "items": {"type": "object"},
+                           "description": "Multi-axis partition spec."}
+  },
+  "tags": ["ai", "llm", "evaluator", "ab-test", "judge", "merge-gate"],
+  "name": "Provider A/B Evaluator"
+}

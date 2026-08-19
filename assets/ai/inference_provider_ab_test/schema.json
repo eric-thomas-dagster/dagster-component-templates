@@ -1,0 +1,42 @@
+{
+  "component_type": "dagster_community_components.InferenceProviderABTestComponent",
+  "description": "Run the same prompt through N LLM providers side-by-side. Each provider's response is a first-class Dagster asset with cost, latency, and token metadata — so 'should we go local' becomes an empirical asset-history query in Insights instead of a benchmarking spreadsheet.",
+  "category": "ai",
+  "icon": "CompareArrows",
+  "x-dagster-io": {
+    "outputs": {"type": "text", "description": "One asset per provider (`{prefix}_{alias}`) containing response text + cost/latency/token metadata."}
+  },
+  "attributes": {
+    "asset_name_prefix":  {"type": "string", "required": true, "label": "Asset Name Prefix",
+                           "description": "Prefix for the emitted assets. Each provider produces `{prefix}_{alias}`."},
+
+    "prompt":             {"type": "object", "required": true, "label": "Prompt",
+                           "description": "Prompt source. Shapes: {kind: literal, text: '...'} | {kind: file, path: '...'} | {kind: url, url: '...'}. All string fields are {partition_key}-templated."},
+
+    "providers":          {"type": "array",  "required": true, "label": "Providers", "items": {"type": "object"},
+                           "description": "LLM providers to compare. Each: {alias, model, [api_key_env_var, api_base_env_var, system_prompt, temperature, max_tokens, cost_per_1k_tokens_override]}. alias becomes the asset name suffix. model is LiteLLM-compatible (gpt-4o-mini, claude-3-5-haiku-latest, ollama/qwen2.5:14b, openai/<hf-model> for vLLM / LM Studio / TGI)."},
+
+    "system_prompt":      {"type": "string", "label": "System Prompt", "description": "Default system prompt applied to any provider that doesn't set its own."},
+    "temperature":        {"type": "number", "label": "Temperature", "default": 0.1, "description": "Default temperature. Providers can override."},
+    "max_tokens":         {"type": "integer","label": "Max Tokens",   "default": 500, "description": "Default max_tokens. Providers can override."},
+
+    "group_name":         {"type": "string", "label": "Group Name", "description": "Asset group. Default 'ab_test'."},
+    "kinds":              {"type": "array",  "label": "Kinds", "items": {"type": "string"},
+                           "description": "Asset kinds. Default: ['llm', 'ab-test']."},
+    "owners":             {"type": "array",  "label": "Owners", "items": {"type": "string"}},
+    "tags":               {"type": "object", "label": "Tags", "description": "Additional tags on the emitted assets."},
+    "description":        {"type": "string", "label": "Description"},
+
+    "partition_type":     {"type": "string", "label": "Partition Type",
+                           "enum": ["daily", "static", "dynamic"],
+                           "description": "Partition type. Pair with a per-prompt dataset for scale demos."},
+    "partition_start":    {"type": "string", "label": "Partition Start",
+                           "description": "ISO start date for daily partitions."},
+    "partition_values":   {"type": "any",    "label": "Partition Values",
+                           "description": "Comma-separated string OR list for static partitioning."},
+    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name",
+                           "description": "Name for the DynamicPartitionsDefinition when partition_type='dynamic'."}
+  },
+  "tags": ["ai", "llm", "ab-test", "cost-analysis", "provider-comparison"],
+  "name": "Inference Provider A/B Test"
+}

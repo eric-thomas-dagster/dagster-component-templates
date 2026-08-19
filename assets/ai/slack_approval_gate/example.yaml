@@ -1,0 +1,41 @@
+type: dagster_community_components.SlackApprovalGateComponent
+attributes:
+  asset_name: report_approval_slack
+  upstream_asset_key: mir_report
+
+  # Same directory HumanApprovalGateComponent reads. This component's
+  # sensor writes the JSON approval token here on quorum; the existing
+  # gate consumes it unchanged.
+  approval_dir: /tmp/approvals
+
+  slack_channel: "#dagster-approvals"        # or `C123ABC456` channel ID
+  slack_bot_token_env_var: SLACK_BOT_TOKEN   # `xoxb-...` w/ chat:write + reactions:read + reactions:write
+
+  approve_emoji: white_check_mark   # ✅
+  reject_emoji: x                   # ❌
+
+  # Optional — @-mention on the initial post so approvers get pinged.
+  ping_users_on_post:
+    - U1234ALICE
+    - U5678BOB
+
+  # Quorum policy — 2 of 3 allowlisted approvers.
+  required_approvers: 2
+  approver_allowlist:
+    - U1234ALICE
+    - U5678BOB
+    - U9012CAROL
+
+  # Optional timeout. Escalation posts a threaded @-mention once; the
+  # sensor keeps waiting after that until quorum or manual intervention.
+  timeout_hours: 24
+  on_timeout: escalate          # escalate | reject | approve
+  escalate_slack_user: UESCALATE1
+
+  # 30s is fine for demos; 60-120s at scale to stay under Slack rate limits.
+  poll_interval_seconds: 30
+
+  # Partitioning — matches upstream `mir_report`'s partitions_def so
+  # every triage gets its own Slack approval message.
+  partition_type: dynamic
+  dynamic_partition_name: mir_investigations

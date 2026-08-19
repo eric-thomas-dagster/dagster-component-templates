@@ -1,0 +1,57 @@
+{
+  "component_type": "dagster_community_components.SlackApprovalGateComponent",
+  "description": "Human-in-the-loop approval gate via Slack reactions. Posts the upstream asset's text to a Slack channel, watches for reactions from an allowlisted set of approvers via a companion sensor, writes the same JSON approval token file `HumanApprovalGateComponent` reads — everything downstream of the gate is unchanged. Reactions-polling (not interactive buttons) so it works in Dagster+ Serverless without a public webhook.",
+  "category": "ai",
+  "icon": "Chat",
+  "x-dagster-io": {
+    "outputs": {"type": "asset", "description": "One posted-asset (records Slack message_ts + metadata) + one watcher sensor (polls reactions + writes token on quorum)."}
+  },
+  "attributes": {
+    "asset_name":         {"type": "string", "required": true, "label": "Asset Name",
+                           "description": "Base name. Emits `{asset_name}_posted` asset + `{asset_name}_watcher` sensor."},
+    "upstream_asset_key": {"type": "string", "required": true, "label": "Upstream Asset Key",
+                           "description": "Asset whose text is posted to Slack. Slash notation for multi-part keys."},
+    "approval_dir":       {"type": "string", "required": true, "label": "Approval Dir",
+                           "description": "Absolute path to the approval token directory (shared with HumanApprovalGateComponent). Sensor writes `<safe_partition_key>.json` here on quorum."},
+
+    "slack_channel":      {"type": "string", "required": true, "label": "Slack Channel",
+                           "description": "`C123ABC456` id OR `#channel-name`."},
+    "slack_bot_token_env_var": {"type": "string", "label": "Slack Bot Token Env Var", "default": "SLACK_BOT_TOKEN",
+                           "description": "Env var with `xoxb-...` bot token (needs chat:write + reactions:read + reactions:write)."},
+    "approve_emoji":      {"type": "string", "label": "Approve Emoji", "default": "white_check_mark"},
+    "reject_emoji":       {"type": "string", "label": "Reject Emoji", "default": "x"},
+    "ping_users_on_post": {"type": "array",  "label": "Ping Users On Post", "items": {"type": "string"},
+                           "description": "Slack user IDs to @-mention on the initial post so approvers get notifications."},
+    "message_template":   {"type": "string", "label": "Message Template",
+                           "description": "Optional. Placeholders: {upstream_text}, {approve_emoji}, {reject_emoji}, {required_approvers}, {n_allowlisted}, {partition_key}."},
+
+    "required_approvers": {"type": "integer", "label": "Required Approvers", "default": 1,
+                           "description": "How many allowlisted approvers must react approve_emoji before the token is written."},
+    "approver_allowlist": {"type": "array",   "required": true, "label": "Approver Allowlist", "items": {"type": "string"},
+                           "description": "Slack user IDs allowed to vote."},
+    "timeout_hours":      {"type": "number",  "label": "Timeout Hours",
+                           "description": "If quorum isn't reached within this many hours, applies on_timeout policy."},
+    "on_timeout":         {"type": "string",  "label": "On Timeout", "default": "escalate",
+                           "enum": ["escalate", "reject", "approve"]},
+    "escalate_slack_user": {"type": "string", "label": "Escalate Slack User",
+                           "description": "User ID pinged when timeout escalates. Only used with on_timeout=escalate."},
+
+    "poll_interval_seconds": {"type": "integer", "label": "Poll Interval Seconds", "default": 30,
+                           "description": "Sensor cadence for polling Slack reactions."},
+
+    "group_name":         {"type": "string", "label": "Group Name"},
+    "kinds":              {"type": "array",  "label": "Kinds", "items": {"type": "string"}},
+    "owners":             {"type": "array",  "label": "Owners", "items": {"type": "string"}},
+    "tags":               {"type": "object", "label": "Tags"},
+    "description":        {"type": "string", "label": "Description"},
+
+    "partition_type":     {"type": "string", "label": "Partition Type",
+                           "enum": ["daily", "weekly", "monthly", "hourly", "static", "dynamic", "multi"]},
+    "partition_start":    {"type": "string", "label": "Partition Start"},
+    "partition_values":   {"type": "any",    "label": "Partition Values"},
+    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name"},
+    "partition_dimensions": {"type": "array", "label": "Partition Dimensions", "items": {"type": "object"}}
+  },
+  "tags": ["ai", "human-in-the-loop", "approval", "slack", "gate", "quorum"],
+  "name": "Slack Approval Gate"
+}

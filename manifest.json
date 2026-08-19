@@ -35896,6 +35896,55 @@
       ]
     },
     {
+      "id": "slack_approval_gate",
+      "name": "SlackApprovalGateComponent",
+      "category": "ai",
+      "description": "HITL approval gate via Slack reactions. Posts the upstream asset's text to Slack, watches for reactions from an allowlisted set of approvers via a companion sensor, writes the same JSON token file `HumanApprovalGateComponent` reads. Reactions-polling \u2014 works in Dagster+ Serverless without a public webhook.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/slack_approval_gate",
+      "tags": [
+        "ai",
+        "human-in-the-loop",
+        "approval",
+        "slack",
+        "gate",
+        "quorum"
+      ],
+      "dependencies": {
+        "pip": [
+          "slack_sdk>=3.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/slack_approval_gate/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/slack_approval_gate/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/slack_approval_gate/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/slack_approval_gate/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/slack_approval_gate/requirements.txt",
+      "validation": {
+        "level": "code",
+        "evidence": "Structural \u2014 `dg check defs` passes on example.yaml. Live validation requires a Slack workspace + bot; follows the first walkthrough run.",
+        "last_validated": "2026-08-19"
+      },
+      "produces": [
+        "asset",
+        "sensor"
+      ],
+      "agent_hints": {
+        "when_to_use": "User needs a Slack-driven human-in-the-loop approval gate \u2014 the pattern is: an upstream asset (report / decision / triage output) needs sign-off from N of M allowlisted approvers before downstream automation fires. This component posts the asset to a Slack channel + polls for allowlisted reactions + writes the standard JSON approval token when quorum reached. Pairs with `HumanApprovalGateComponent` (which reads the token and drives the actual asset-check-gated blocking). Reactions-polling instead of interactive buttons because that works in Dagster+ Serverless without a public webhook.",
+        "typical_upstream": "Any asset with a `text` / `content` payload \u2014 typically a report / decision / triage output from AgenticPipelineComponent, an LLM synthesis, or a dbt model's summary.",
+        "typical_downstream": "HumanApprovalGateComponent with the same `approval_dir` (consumes the token, drives the asset check), and any downstream automation conditions that gate on the check.",
+        "example_prompts": [
+          "Slack-based approval gate for our triage report \u2014 2 of 3 approvers must :white_check_mark: within 24h or escalate.",
+          "Post the ML model deployment plan to #model-review and require sign-off before promoting to prod.",
+          "Slack approval for dbt PR-preview builds: any 1 of the data team approves via reaction."
+        ],
+        "requires_pip": [
+          "slack_sdk>=3.0"
+        ]
+      }
+    },
+    {
       "id": "slack_audit_log_ingestion",
       "name": "SlackAuditLogIngestionComponent",
       "category": "ingestion",
@@ -43808,5 +43857,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 967
+  "total": 968
 }

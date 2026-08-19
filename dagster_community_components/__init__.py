@@ -21,7 +21,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-__version__ = "0.10.69"
+__version__ = "0.10.70"
 
 _PACKAGE_ROOT = Path(__file__).resolve().parent
 
@@ -847,6 +847,7 @@ _CLASS_PATHS: dict[str, str] = {
     "SiffletCheckComponent": "asset_checks/sifflet_check/component.py",
     "SimulationSamplingComponent": "assets/analytics/simulation_sampling/component.py",
     "SlackAuditLogIngestionComponent": "ingestion/slack_audit_log_ingestion/component.py",
+    "SlackApprovalGateComponent": "assets/ai/slack_approval_gate/component.py",
     "SlackIngestionComponent": "assets/ingestion/slack_ingestion/component.py",
     "SlackNotificationJobComponent": "jobs/slack_notification_job/component.py",
     "SlackNotificationSensorComponent": "sensors/slack_notification/component.py",

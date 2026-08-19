@@ -1,0 +1,47 @@
+type: dagster_community_components.HvrHubWorkspaceComponent
+attributes:
+  # Canonical `workspace:` block — mirrors dagster-fivetran / dagster-databricks.
+  # Secrets typically arrive via `{{ env.XXX }}` Jinja templating.
+  workspace:
+    hub_url:  "{{ env.HVR_HUB_URL }}"          # e.g. http://hvr-hub.internal:4340
+    hub_name: "{{ env.HVR_HUB_NAME }}"         # e.g. prod_hub
+    username: "{{ env.HVR_USERNAME }}"
+    password: "{{ env.HVR_PASSWORD }}"
+    api_version: "latest"                       # or pin to "v6.3.5" for stability
+    verify_ssl: true
+
+  # Filter which channels get discovered. Mirrors FivetranWorkspace's
+  # connector_selector. Omit for "all channels".
+  # channel_selector:
+  #   by_pattern: [sales_*, orders_*]
+  #   exclude_by_pattern: [*_test, *_deprecated]
+
+  group_name: hvr
+  # asset_key_prefix: ["hvr", "prod_hub"]       # default is ['hvr', <hub_name>]
+  kinds: [hvr, cdc]
+  # tags: {tier: production}
+  # owners: [data-platform@acme.com]
+
+  # What each asset does on materialize.
+  #   `noop`    — default; HVR CDC is continuous, nothing to trigger. External assets.
+  #   `refresh` — POST /channels/{c}/refresh + poll to completion (Fivetran-style).
+  action: noop
+
+  # Only used when action=refresh.
+  wait_for_completion: true
+  poll_interval_seconds: 30
+  timeout_seconds: 3600
+
+  # Opt-in polling sensor. Emits AssetObservation per (channel × target × table)
+  # every observation_interval_seconds with integrate-lag metadata.
+  polling_sensor: true
+  observation_interval_seconds: 300
+
+  # Opt-in per-asset check: fails when the last observed integrate lag exceeds
+  # the SLA threshold. Wire into an asset-checks-first schedule / alert /
+  # branch-deploy merge gate.
+  freshness_lag_threshold_seconds: 900   # 15 min SLA
+
+  # Optional: per-asset customization (Python callable resolved via
+  # Dagster's TranslationFn — same convention as dagster-fivetran).
+  # translation: "{{ load_python_module_attr('my_project.hvr_translation.tag_by_channel') }}"

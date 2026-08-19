@@ -478,6 +478,8 @@ _CLASS_PATHS: dict[str, str] = {
     "HuggingfaceModelAssetComponent": "assets/ai/huggingface_model_asset/component.py",
     "HuggingfacePipelineComponent": "assets/ai/huggingface_pipeline/component.py",
     "HuggingfaceSpaceStatusSensorComponent": "sensors/huggingface_space_status_sensor/component.py",
+    "HvrHubResource": "integrations/hvr_hub_workspace/component.py",
+    "HvrHubWorkspaceComponent": "integrations/hvr_hub_workspace/component.py",
     "HuggingfaceTextToImageComponent": "assets/ai/huggingface_text_to_image/component.py",
     "IcebergCatalogResourceComponent": "resources/iceberg_catalog_resource/component.py",
     "IcebergIOManagerComponent": "io_managers/iceberg_io_manager/component.py",

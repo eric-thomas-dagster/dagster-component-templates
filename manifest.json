@@ -20459,6 +20459,59 @@
       ]
     },
     {
+      "id": "hvr_hub_workspace",
+      "name": "HVR Hub Workspace",
+      "component_type": "dagster_community_components.HvrHubWorkspaceComponent",
+      "path": "integrations/hvr_hub_workspace",
+      "category": "integration",
+      "icon": "Database",
+      "description": "HVR Hub 6.x workspace — auto-discovers every channel + replicated table on a standalone HVR Hub server and emits one Dagster external asset per (channel × target-location × table). Fivetran-shape: one YAML wires the whole Hub. Optional observation sensor polls integrate-lag per job (GET /jobs?fetch=latency) and emits ObservationEvents with `integrate_lag_seconds`, `state`, `last_integrated_at` metadata. Optional per-asset check `integrate_lag_within_sla` for freshness SLA enforcement. v1 is read-only (discovery + observation); companion `hvr_channel_refresh` for the periodic bulk-refresh pattern is on the roadmap. Complements — does NOT overlap — the official dagster-fivetran package, which only reaches Fivetran-platform-managed HVR connectors (Fivetran Enterprise tier). This component is for customers running standalone HVR Hub on their own hardware.",
+      "tags": [
+        "integration",
+        "hvr",
+        "fivetran",
+        "cdc",
+        "replication",
+        "workspace",
+        "auto-discovery"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/hvr_hub_workspace/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/hvr_hub_workspace/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/hvr_hub_workspace/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/hvr_hub_workspace/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/integrations/hvr_hub_workspace/schema.json",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/hvr_hub_workspace.md",
+        "last_validated": "2026-08-19"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "one_external_asset_per_replicated_table",
+          "one_observation_sensor_per_hub",
+          "optional_integrate_lag_asset_check"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "when_to_use": "Customer runs STANDALONE HVR Hub 6.x on-prem (not Fivetran-platform-managed HVR). Use hub_url + hub_name + admin creds; component auto-discovers channels + tables and emits external assets. If the customer is on the Fivetran platform, use official dagster-fivetran instead — this component doesn't reach that surface.",
+        "anti_uses": "Don't use if the customer runs HVR through the Fivetran dashboard (that's dagster-fivetran territory). Don't use for triggering ad-hoc refresh jobs — v1 is read-only observation; roadmap: hvr_channel_refresh."
+      },
+      "produces": [
+        "external_asset",
+        "sensor",
+        "asset_check"
+      ],
+      "stateful": false
+    },
+    {
       "id": "iceberg_catalog_resource",
       "name": "Iceberg Catalog Resource",
       "category": "resource",

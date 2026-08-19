@@ -1,0 +1,158 @@
+# hvr_hub_workspace
+
+Auto-discovers every channel + replicated table on a **standalone HVR Hub 6.x**
+server and emits one Dagster asset per (channel × target-location × table).
+Full Fivetran-shape workspace component:
+
+- **`workspace:` block** — canonical `HvrHubResource` connection (mirrors `dagster-fivetran` / `dagster-databricks`)
+- **`channel_selector:`** — include/exclude filter (mirrors `FivetranWorkspace.connector_selector`)
+- **`translation:` callable** — per-asset customization hook
+- **`polling_sensor` opt-in** — emits AssetObservations with integrate-lag metadata
+- **`StateBackedComponent`** — discovery cached to disk; code-location reloads are instant. Refresh via `dg utils refresh-defs-state`.
+- **`action:` field** — `noop` (default; HVR CDC is continuous) OR `refresh` (materialize triggers `POST /channels/{c}/refresh` + polls, Fivetran-style).
+- **Optional asset check** — `integrate_lag_within_sla` per asset for freshness enforcement.
+
+Complements — does NOT overlap — the official `dagster-fivetran` package,
+which reaches Fivetran-platform-managed HVR (Enterprise tier). This
+component is for customers running **standalone HVR Hub** on their own
+hardware.
+
+## Type
+
+```
+dagster_community_components.HvrHubWorkspaceComponent
+```
+
+## Which HVR do you have?
+
+Ask this before installing anything:
+
+> *"Is your HVR through the Fivetran dashboard, or a standalone HVR Hub
+> install with a `.hvr` config directory?"*
+
+- **Fivetran dashboard** → use official [`dagster-fivetran`](https://docs.dagster.io/integrations/fivetran).
+- **Standalone HVR Hub** → keep reading.
+
+## Minimal example
+
+```yaml
+type: dagster_community_components.HvrHubWorkspaceComponent
+attributes:
+  workspace:
+    hub_url:  "{{ env.HVR_HUB_URL }}"
+    hub_name: "{{ env.HVR_HUB_NAME }}"
+    username: "{{ env.HVR_USERNAME }}"
+    password: "{{ env.HVR_PASSWORD }}"
+```
+
+Emits (per channel `sales_cdc` with target loc `snowflake_dw` + tables `orders`, `customers`):
+
+```
+hvr/prod_hub/sales_cdc/snowflake_dw/orders           (external asset)
+hvr/prod_hub/sales_cdc/snowflake_dw/customers        (external asset)
+```
+
+Add `polling_sensor: true` → a `prod_hub_hvr_observer` sensor is emitted
+polling `GET /jobs?fetch=latency` every 5 min and writing observations
+with `integrate_lag_seconds` / `state` / `last_integrated_at` into each
+asset's history.
+
+Add `freshness_lag_threshold_seconds: 900` → an `integrate_lag_within_sla`
+asset check per asset that fails when the most recent observed lag > 15 min.
+
+Flip `action: refresh` → assets become **materializable**; clicking one
+posts `/channels/{c}/refresh` and polls until it completes.
+
+## Full example
+
+See `example.yaml`.
+
+## Fields
+
+| Name | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `workspace.hub_url` | string | yes | | Base URL, e.g. `http://hvr-hub.internal:4340`. |
+| `workspace.hub_name` | string | yes | | HVR hub name. |
+| `workspace.username` | string | yes | | HVR admin username. |
+| `workspace.password` | string | yes | | HVR admin password. |
+| `workspace.api_version` | string | | `latest` | Pin to `v6.3.5` for stability. |
+| `workspace.verify_ssl` | boolean | | `true` | |
+| `channel_selector` | object | | | `{by_name, by_pattern, exclude_by_name, exclude_by_pattern}` |
+| `translation` | callable path | | | `def fn(props: HvrObjectProps) -> AssetSpec`. |
+| `asset_key_prefix` | array | | `['hvr', <hub_name>]` | |
+| `group_name` | string | | `hvr` | |
+| `kinds` | array | | `['hvr', 'cdc']` | |
+| `tags` | object | | | |
+| `owners` | array | | | |
+| `action` | enum | | `noop` | `noop` (external assets) or `refresh` (POST refresh + poll on materialize). |
+| `wait_for_completion` | boolean | | `true` | Only used when `action: refresh`. |
+| `poll_interval_seconds` | integer | | `30` | |
+| `timeout_seconds` | integer | | `3600` | |
+| `polling_sensor` | boolean | | `false` | Emit `{hub_name}_hvr_observer` sensor with integrate-lag observations. |
+| `observation_interval_seconds` | integer | | `300` | |
+| `freshness_lag_threshold_seconds` | integer | | | If set, emit an `integrate_lag_within_sla` asset check per asset. |
+| `defs_state` | object | | local FS | State backend for cached discovery. |
+
+## What it hits
+
+```
+POST  /auth/v1/password                                       — bearer JWT
+GET   /api/{ver}/hubs/{hub}/definition/channels               — list channels
+GET   /api/{ver}/hubs/{hub}/definition/channels/{c}/tables    — tables per channel
+GET   /api/{ver}/hubs/{hub}/definition/channels/{c}/loc_groups — locations per channel
+GET   /api/{ver}/hubs/{hub}/jobs?fetch=latency                — integrate lag per job
+POST  /api/{ver}/hubs/{hub}/channels/{c}/refresh              — only when action=refresh
+```
+
+## Testing locally without a real Hub
+
+Fivetran ships a Docker eval image at `fivetraninc/hvrpov` (HVR Hub +
+pre-configured Postgres repo). Explicitly labeled evaluation-only —
+great for API validation:
+
+```bash
+docker pull fivetraninc/hvrpov
+docker run -d --name hvr-eval --platform linux/amd64 -p 4340:4340 fivetraninc/hvrpov
+sleep 5
+docker exec -u hvr -d hvr-eval hvrhubserver
+# HVR Hub REST API is now live at http://localhost:4340
+```
+
+Full setup + real-channel bootstrap: see [Fivetran's Quick Start Guide](https://fivetran.com/docs/hvr6/getting-started/quick-start-guide).
+
+## Custom translation example
+
+```python
+# my_project/hvr_translation.py
+from dagster_community_components import HvrObjectProps
+from dagster import AssetSpec, AssetKey
+
+
+def tag_by_channel(props: HvrObjectProps) -> AssetSpec:
+    return AssetSpec(
+        key=AssetKey(["warehouse", props.target_loc, props.object_name]),  # flatten prefix
+        tags={"hvr_channel": props.channel or "?"},
+        kinds={"hvr", "cdc", props.channel or "unknown"},
+    )
+```
+
+```yaml
+translation: "{{ load_python_module_attr('my_project.hvr_translation.tag_by_channel') }}"
+```
+
+## What this doesn't do (yet)
+
+- **Snapshot channel config for drift detection.** Roadmap: `hvr_definition_snapshot`
+  materializes the full channel-definition JSON as a versioned asset for
+  diffing config changes over time.
+- **Per-column asset dependencies.** v1 emits one asset per table; per-column
+  lineage would require translating HVR's action metadata into fine-grained
+  column-level deps. Roadmap.
+- **Alerts / events surface.** HVR has an Alert Interface + Event Interface —
+  companion sensor components on the roadmap.
+
+## Version compatibility
+
+Tested API surface: HVR 6.1.5.2. Also compatible with 6.2.5 (docker eval)
+and 6.3.5 (customer report — 2026-08-19). Use `api_version: latest` (default)
+or pin to a specific version for cross-upgrade stability.

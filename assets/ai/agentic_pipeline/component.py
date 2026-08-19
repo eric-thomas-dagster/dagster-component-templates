@@ -1717,6 +1717,148 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
 
 # ── Op dispatcher ────────────────────────────────────────────────────
 
+def _do_handoff(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
+    """Framework-composition op. Hands off to a user-provided callable —
+    bring your own LangGraph / AutoGen / CrewAI / Llama Index Agents /
+    DSPy. The callable receives `initial_state` (post-substitution) as
+    kwargs and returns a dict; we pull the final text from
+    `output_text_key`. Framework's internal node-by-node lineage is
+    lost (one asset materializes, containing the final answer +
+    framework metadata) — that's the intentional trade at ONE step of a
+    Dagster pipeline. Adjacent steps stay Dagster-native (fan-out, MCP,
+    HITL gates), so this is composition, not wrapping.
+
+    Config:
+      entry_module     — Python module path with the callable
+      entry_callable   — name of the callable in that module. Signature:
+                         `def fn(**initial_state) -> dict`
+      initial_state    — dict of kwargs passed to the callable. String
+                         values get `{text}` (source) + `{port_name}`
+                         (typed input) substitution before the call.
+      output_text_key  — key in the returned dict whose value is the
+                         final text downstream steps consume (default
+                         `final_answer`)
+      framework        — metadata-only label ("langgraph" / "autogen" /
+                         "crewai" / "dspy" / etc.); surfaces in asset
+                         metadata + logs; not enforced.
+
+    Example (`initial_state` with source-text substitution):
+
+        - id: complex_reasoning
+          op: handoff
+          framework: langgraph
+          entry_module: my_project.agents
+          entry_callable: run_deep_reasoning
+          initial_state:
+            prompt: "{text}"
+            max_depth: 5
+          output_text_key: final_answer
+
+    User's callable — 5 lines of glue in their own project:
+
+        def run_deep_reasoning(prompt: str, max_depth: int = 5) -> dict:
+            graph = build_graph()  # user's LangGraph
+            result = graph.invoke({"prompt": prompt, "max_depth": max_depth})
+            return {"final_answer": result["output"], "n_nodes": result.get("n_nodes")}
+    """
+    import importlib
+    import time as _time
+
+    materialized_at = _now_iso()
+    source_id = step.get("source", _last_step_id(state))
+    src_text = _get_source_text(state, source_id) if source_id else ""
+    inputs = _resolve_inputs(step, state)
+
+    entry_module = step.get("entry_module")
+    entry_callable = step.get("entry_callable")
+    if not entry_module or not entry_callable:
+        raise ValueError(
+            "handoff requires `entry_module` + `entry_callable` — the Python "
+            "module path + function name of a callable that takes "
+            "**initial_state and returns a dict."
+        )
+    initial_state = dict(step.get("initial_state") or {})
+    output_text_key = step.get("output_text_key", "final_answer")
+    framework = step.get("framework")  # metadata only
+
+    # {text} + {port_name} substitution on string values of initial_state.
+    # {partition_key} + {partition.<name>} are already substituted by
+    # _run_step's _deep_apply_ctx_substitutions.
+    for k, v in list(initial_state.items()):
+        if isinstance(v, str):
+            v = v.replace("{text}", src_text)
+            v = _substitute_ports(v, inputs)
+            initial_state[k] = v
+
+    try:
+        mod = importlib.import_module(entry_module)
+    except ImportError as e:
+        raise ImportError(
+            f"handoff: could not import {entry_module!r}: {e}. "
+            f"Install the module (or its parent package) in the project's "
+            f"venv, or fix the module path."
+        ) from e
+    fn = getattr(mod, entry_callable, None)
+    if fn is None or not callable(fn):
+        raise ValueError(
+            f"handoff: {entry_callable!r} is not a callable in {entry_module!r}. "
+            f"Available names: {[n for n in dir(mod) if callable(getattr(mod, n, None)) and not n.startswith('_')][:20]}"
+        )
+
+    context.log.info(
+        f"[handoff:{step.get('id', '?')}] {framework or 'user'} → "
+        f"{entry_module}.{entry_callable}({sorted(initial_state.keys())})"
+    )
+    t0 = _time.time()
+    try:
+        result = fn(**initial_state)
+    except Exception as e:  # noqa: BLE001
+        raise RuntimeError(
+            f"handoff to {entry_module}.{entry_callable} raised "
+            f"{type(e).__name__}: {e}"
+        ) from e
+    latency_ms = int((_time.time() - t0) * 1000)
+
+    # Extract downstream text via output_text_key.
+    text = ""
+    if isinstance(result, dict):
+        raw_text = result.get(output_text_key, "")
+        text = raw_text if isinstance(raw_text, str) else json.dumps(raw_text, default=str)
+    elif isinstance(result, str):
+        text = result
+    else:
+        text = str(result)
+
+    context.log.info(
+        f"[handoff:{step.get('id', '?')}] completed in {latency_ms}ms, "
+        f"{len(text)} chars"
+    )
+
+    # Pass the whole framework result through as `framework_result` so
+    # downstream steps or the emitting asset can inspect internal keys
+    # (n_nodes_executed, tool_call_trace, cost_usd if the framework
+    # tracks it, etc.).
+    framework_result = result if isinstance(result, dict) else {"_result": result}
+    # Best-effort roll-up: if the callable's return dict has these keys,
+    # surface them at the top level so they land in Insights.
+    rolled: Dict[str, Any] = {}
+    for k in ("cost_usd", "n_nodes_executed", "n_llm_calls", "n_tool_calls", "tokens_total"):
+        if isinstance(result, dict) and k in result:
+            rolled[k] = result[k]
+
+    return {
+        "text": text,
+        "framework": framework,
+        "entry_module": entry_module,
+        "entry_callable": entry_callable,
+        "framework_result": framework_result,
+        "latency_ms": latency_ms,
+        "materialized_at": materialized_at,
+        "op": "handoff",
+        **rolled,
+    }
+
+
 _OPS = {
     "llm_call": _do_llm_call,
     "route": _do_route,
@@ -1725,6 +1867,7 @@ _OPS = {
     "synthesize": _do_synthesize,
     "mcp_call": _do_mcp_call,
     "tool_use_loop": _do_tool_use_loop,
+    "handoff": _do_handoff,
 }
 
 
@@ -1834,7 +1977,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
     other pipeline components (polars_pipeline, warehouse_pipeline,
     pyspark_pipeline, snowpark_pipeline, ml_pipeline).
 
-    7 ops:
+    8 ops:
       - llm_call:        single LLM call over source text
       - route:           router picks best specialist; specialist answers
       - debate:          N proposers → arbitrator picks winner
@@ -1878,7 +2021,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             "AND `system_prompt` (and, for `mcp_call`, in string `tool_args`). "
             "Any step can join from any number of prior steps by port name — the "
             "shape common in agentic-orchestration graphs (fan-out → typed-join).\n\n"
-            "7 ops. LLM ops (llm_call/route/debate/critique_loop/synthesize) all "
+            "8 ops. LLM ops (llm_call/route/debate/critique_loop/synthesize) all "
             "support optional `max_tokens`, `temperature`, `system_prompt`, "
             "`prompt_template`:\n"
             "  - **llm_call**: {model, api_key_env_var}. One LLM call. Supports "

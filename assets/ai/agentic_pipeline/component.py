@@ -68,6 +68,7 @@ assets; each is emitted as a dict with the full op output preserved.
 """
 import json
 import os
+import re
 import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union
@@ -671,6 +672,176 @@ def _do_route(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     }
 
 
+def _evaluate_condition(src_text: str, cond: Dict[str, Any]) -> bool:
+    """Deterministic condition evaluator for `conditional_route`.
+
+    Recognized predicates in `cond`:
+      regex:      Python regex against src_text (re.search, case-insensitive).
+      contains:   substring test (case-insensitive).
+      equals:     exact match after strip().
+      jsonpath:   dotted key/index path against src_text parsed as JSON.
+                  e.g. `$.labels[0]` on `{"labels":["bug"]}` → "bug".
+                  Non-JSON src_text → False. Pair with `equals:` / `contains:`
+                  on `value:` to test the resolved node, e.g.
+                  `{jsonpath: "$.priority", equals: "p0"}`.
+    Exactly one comparison predicate must be present (regex | contains |
+    equals | jsonpath+value).
+    """
+    keys = set(cond.keys())
+    if "regex" in keys:
+        return re.search(cond["regex"], src_text, re.IGNORECASE) is not None
+    if "contains" in keys:
+        return cond["contains"].lower() in src_text.lower()
+    if "equals" in keys:
+        return src_text.strip() == cond["equals"]
+    if "jsonpath" in keys:
+        try:
+            payload = json.loads(src_text)
+        except (json.JSONDecodeError, ValueError):
+            return False
+        path = cond["jsonpath"]
+        if path.startswith("$."):
+            path = path[2:]
+        elif path.startswith("$"):
+            path = path[1:].lstrip(".")
+        node: Any = payload
+        for part in path.split("."):
+            if not part:
+                continue
+            # Array-index chunks: `labels[0]` → `labels` then `[0]`.
+            while "[" in part and part.endswith("]"):
+                base, idx = part[:-1].split("[", 1)
+                if base:
+                    if not isinstance(node, dict) or base not in node:
+                        return False
+                    node = node[base]
+                try:
+                    node = node[int(idx)]
+                except (ValueError, IndexError, TypeError):
+                    return False
+                part = ""
+            if part:
+                if not isinstance(node, dict) or part not in node:
+                    return False
+                node = node[part]
+        node_str = json.dumps(node) if not isinstance(node, str) else node
+        if "equals" in keys:  # unreachable (already returned above) — kept for clarity
+            return node_str == cond["equals"]
+        if "value_equals" in keys:
+            return node_str.strip() == str(cond["value_equals"])
+        if "value_contains" in keys:
+            return str(cond["value_contains"]).lower() in node_str.lower()
+        # Bare jsonpath: truthy check on resolved node.
+        return bool(node)
+    raise ValueError(
+        f"conditional_route: condition must contain one of "
+        f"`regex` | `contains` | `equals` | `jsonpath`; got {sorted(keys)}"
+    )
+
+
+def _do_conditional_route(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
+    """Deterministic router — picks specialist by regex / contains / equals /
+    JSON-path against upstream text (no router LLM). Then the picked
+    specialist runs a normal LLM call. Sibling of `route`, but the pick
+    is a code path, not a model call.
+
+    conditions:  [{when: {regex|contains|equals|jsonpath: ...}, then: <specialist_name>}, ...]
+                 (evaluated in order — first match wins)
+    default:     <specialist_name>   (required — runs when no condition matches)
+    specialists: [{name, description, model, [api_key_env_var, system_prompt,
+                   temperature, max_tokens]}]
+
+    Use when you want branching that's reviewable in code / cheap / testable:
+    label-based triage (`labels: ["bug"]` → bug_specialist), priority tags
+    (regex `p[01]` → high_priority), size-based routing, etc. When the
+    signal is soft ("does this issue read as a question?"), prefer `route`.
+    """
+    materialized_at = _now_iso()
+    source_id = step.get("source", _last_step_id(state))
+    src_text = _get_source_text(state, source_id)
+
+    conditions = step.get("conditions") or []
+    default = step.get("default")
+    specialists = step.get("specialists") or []
+    if not specialists:
+        raise ValueError("conditional_route requires `specialists: [...]`.")
+    if not default:
+        raise ValueError(
+            "conditional_route requires `default: <specialist_name>` — "
+            "the specialist that runs when no condition matches."
+        )
+
+    names = [s["name"] for s in specialists]
+    if len(set(names)) != len(names):
+        raise ValueError(f"specialist names must be unique: got {names}")
+    if default not in names:
+        raise ValueError(f"default={default!r} not in specialists {names}")
+    for cond in conditions:
+        then = cond.get("then")
+        if not then:
+            raise ValueError(f"conditional_route: condition {cond!r} missing `then: <specialist>`")
+        if then not in names:
+            raise ValueError(
+                f"conditional_route: condition points at unknown specialist {then!r}. Known: {names}"
+            )
+
+    selected = None
+    match_index = -1
+    matched_condition: Optional[Dict[str, Any]] = None
+    for i, cond in enumerate(conditions):
+        when = cond.get("when") or {}
+        if not when:
+            raise ValueError(f"conditional_route: condition {cond!r} missing `when: {{...}}`")
+        try:
+            if _evaluate_condition(src_text, when):
+                selected = cond["then"]
+                match_index = i
+                matched_condition = cond
+                break
+        except Exception as e:  # noqa: BLE001 — surface bad conditions clearly
+            raise ValueError(
+                f"conditional_route: condition #{i} ({cond!r}) failed to evaluate: {e}"
+            ) from e
+
+    routing_source = "condition_match"
+    if selected is None:
+        selected = default
+        routing_source = "default"
+
+    specialist = next(s for s in specialists if s["name"] == selected)
+    context.log.info(
+        f"[conditional_route:{step.get('id', '?')}] picked={selected!r} "
+        f"via={routing_source} (condition #{match_index})"
+    )
+
+    specialist_result = _completion(
+        model=specialist["model"],
+        system_prompt=specialist.get("system_prompt"),
+        user_prompt=src_text,
+        api_key_env_var=specialist.get("api_key_env_var"),
+        api_base_env_var=specialist.get("api_base_env_var"),
+        temperature=specialist.get("temperature", 0.0),
+        max_tokens=specialist.get("max_tokens", 2048),
+    )
+
+    return {
+        "text": specialist_result["content"],
+        "selected_specialist": selected,
+        "routing_source": routing_source,
+        "match_index": match_index,
+        "matched_condition": matched_condition,
+        "specialist_model": specialist["model"],
+        "model_fingerprint": f"[deterministic]→{specialist['model']}",
+        "materialized_at": materialized_at,
+        "cost_usd": _sum_cost(specialist_result),
+        "latency_ms": _sum_latency(specialist_result),
+        "tokens_total": _sum_tokens(specialist_result),
+        "n_llm_calls": 1,
+        "usage": {"specialist": specialist_result["usage"]},
+        "op": "conditional_route",
+    }
+
+
 def _do_debate(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     """N proposers each write a proposal; arbitrator picks the winner.
 
@@ -791,12 +962,36 @@ def _do_debate(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     }
 
 
+_SCORE_RE = re.compile(r"SCORE\s*[:=]\s*(\d+(?:\.\d+)?)\s*/\s*100", re.IGNORECASE)
+
+
+def _extract_critic_score(text: str) -> Optional[float]:
+    """Pull `SCORE: N/100` (case-insensitive, tolerant of `SCORE=` / whitespace)
+    out of a critic response. Returns None if not present or unparseable —
+    callers treat "no score" as "keep iterating"."""
+    if not text:
+        return None
+    m = _SCORE_RE.search(text)
+    if not m:
+        return None
+    try:
+        return float(m.group(1))
+    except ValueError:
+        return None
+
+
 def _do_critique_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     """Drafter writes; critic reviews; drafter revises. Repeat.
 
     drafter:   {model, [system_prompt, api_key_env_var, temperature, max_tokens]}
     critic:    {model, [system_prompt, api_key_env_var, temperature, max_tokens]}
-    iterations: 2   (number of critique/revise cycles; >=1)
+    iterations: 2   (number of critique/revise cycles; >=1). Hard cap even when
+                    `until_score_gte:` is set — think of it as the timeout.
+    until_score_gte: Optional[float] (0-100). When set, appends a scoring
+                    instruction to the critic's system prompt; after each
+                    critique, extracts `SCORE: N/100` and stops early (skipping
+                    the revise step) when N >= threshold. The current draft is
+                    already good enough. Preserves `iterations` as an upper bound.
     """
     materialized_at = _now_iso()
     source_id = step.get("source", _last_step_id(state))
@@ -808,7 +1003,22 @@ def _do_critique_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
     if iterations < 1:
         raise ValueError(f"critique_loop iterations must be >=1; got {iterations}")
 
+    until_score_gte = step.get("until_score_gte")
+    if until_score_gte is not None:
+        try:
+            until_score_gte = float(until_score_gte)
+        except (TypeError, ValueError) as e:
+            raise ValueError(
+                f"critique_loop until_score_gte must be a number (0-100); got {step['until_score_gte']!r}"
+            ) from e
+        if not (0 <= until_score_gte <= 100):
+            raise ValueError(
+                f"critique_loop until_score_gte must be between 0 and 100; got {until_score_gte}"
+            )
+
     all_llm_results = []
+    stop_reason = "iterations_exhausted"
+    final_score: Optional[float] = None
 
     context.log.info(
         f"[critique_loop:{step.get('id', '?')}] drafter={drafter['model']} "
@@ -833,6 +1043,19 @@ def _do_critique_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
 
     for i in range(iterations):
         # Critic reviews.
+        base_system = (
+            critic.get("system_prompt")
+            or "You are a careful reviewer. Give short, specific, actionable critique."
+        )
+        if until_score_gte is not None:
+            critic_system = (
+                base_system
+                + f"\n\nEnd your response with a line exactly of the form `SCORE: N/100` where N is your quality rating "
+                + f"of the current draft (0-100). Iteration stops early when N >= {until_score_gte:g}."
+            )
+        else:
+            critic_system = base_system
+
         critic_prompt = (
             f"Original task:\n{src_text}\n\n"
             f"Current draft:\n{current_draft}\n\n"
@@ -841,8 +1064,7 @@ def _do_critique_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
         )
         critique_result = _completion(
             model=critic["model"],
-            system_prompt=critic.get("system_prompt")
-                or "You are a careful reviewer. Give short, specific, actionable critique.",
+            system_prompt=critic_system,
             user_prompt=critic_prompt,
             api_key_env_var=critic.get("api_key_env_var"),
             api_base_env_var=critic.get("api_base_env_var"),
@@ -850,9 +1072,28 @@ def _do_critique_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
             max_tokens=critic.get("max_tokens", 1024),
         )
         critique = critique_result["content"]
-        history.append({"iteration": i + 1, "phase": "critique", "text": critique})
+        entry = {"iteration": i + 1, "phase": "critique", "text": critique}
+        if until_score_gte is not None:
+            score = _extract_critic_score(critique)
+            if score is not None:
+                entry["score"] = score
+                final_score = score
+            else:
+                context.log.warning(
+                    f"[critique_loop iter={i + 1}] until_score_gte={until_score_gte} set but critic omitted `SCORE: N/100`; continuing"
+                )
+        history.append(entry)
         critic_usage.append(critique_result["usage"])
         all_llm_results.append(critique_result)
+
+        # Early termination: critic gave a high-enough score → don't revise;
+        # the current draft is already the answer.
+        if until_score_gte is not None and final_score is not None and final_score >= until_score_gte:
+            stop_reason = f"score_gte_threshold (score={final_score:g} >= {until_score_gte:g})"
+            context.log.info(
+                f"[critique_loop iter={i + 1}] stopping early: critic score {final_score:g}/100 >= {until_score_gte:g}/100"
+            )
+            break
 
         # Drafter revises.
         revise_prompt = (
@@ -875,13 +1116,19 @@ def _do_critique_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
         drafter_usage.append(revise_result["usage"])
         all_llm_results.append(revise_result)
 
+    iterations_done = sum(1 for h in history if h.get("phase") == "critique")
     return {
         "text": current_draft,
-        "iterations_done": iterations,
+        "iterations_done": iterations_done,
+        "iterations_max": iterations,
+        "stop_reason": stop_reason,
+        "final_score": final_score,
+        "until_score_gte": until_score_gte,
         "history": history,
         "drafter_model": drafter["model"],
         "critic_model": critic["model"],
-        "model_fingerprint": f"{drafter['model']}//{critic['model']}×{iterations}",
+        "model_fingerprint": f"{drafter['model']}//{critic['model']}×{iterations_done}"
+            + (f"@score>={until_score_gte:g}" if until_score_gte is not None else ""),
         "materialized_at": materialized_at,
         "cost_usd": _sum_cost(*all_llm_results),
         "latency_ms": _sum_latency(*all_llm_results),
@@ -1862,6 +2109,7 @@ def _do_handoff(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
 _OPS = {
     "llm_call": _do_llm_call,
     "route": _do_route,
+    "conditional_route": _do_conditional_route,
     "debate": _do_debate,
     "critique_loop": _do_critique_loop,
     "synthesize": _do_synthesize,
@@ -1977,14 +2225,22 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
     other pipeline components (polars_pipeline, warehouse_pipeline,
     pyspark_pipeline, snowpark_pipeline, ml_pipeline).
 
-    8 ops:
-      - llm_call:        single LLM call over source text
-      - route:           router picks best specialist; specialist answers
-      - debate:          N proposers → arbitrator picks winner
-      - critique_loop:   drafter → critic → drafter, N iterations
-      - synthesize:      merge multiple upstream step texts into one
-      - mcp_call:        direct MCP tool call (stdio/http/sse), no LLM;
-                         `{text}` substitution against source in tool_args
+    9 ops:
+      - llm_call:          single LLM call over source text
+      - route:             router picks best specialist; specialist answers
+      - conditional_route: deterministic branching (regex/contains/equals/
+                           jsonpath) picks specialist; no router LLM
+      - debate:            N proposers → arbitrator picks winner
+      - critique_loop:     drafter → critic → drafter, N iterations;
+                           optional `until_score_gte:` stops early on score
+      - synthesize:        merge multiple upstream step texts into one
+      - mcp_call:          direct MCP tool call (stdio/http/sse/fastmcp),
+                           no LLM; `{text}` + `{port_name}` +
+                           `{partition.<name>}` substitution in tool_args
+      - tool_use_loop:     open-ended LLM+MCP tool loop, bounded by
+                           max_iterations, one asset with full trajectory
+      - handoff:           hand off to user-provided callable (LangGraph /
+                           AutoGen / CrewAI / DSPy)
 
     Ops share YAML idioms with the other pipeline components:
       - `id:` names the step output for downstream reference

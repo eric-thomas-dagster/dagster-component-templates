@@ -1728,6 +1728,58 @@ _OPS = {
 }
 
 
+def _build_step_metadata(
+    aid: str, entry: Any, partition_key: Optional[str]
+) -> Dict[str, Any]:
+    """Shared metadata builder for both the single-op multi_asset path
+    and the per-step-ops graph_multi_asset path — same fields, same
+    Insights-friendly shape, same op-specific rich blobs. Keys are
+    prefixed with `{aid}__` so a multi-asset materialization event
+    surfaces per-asset fields without collision."""
+    import dagster as dg  # local import so this helper is safe to call
+    md: Dict[str, Any] = {}
+    if not isinstance(entry, dict):
+        return md
+    text = entry.get("text", "")
+    md[f"{aid}__text"] = dg.MetadataValue.md(text[:2000] if text else "_(empty)_")
+    if entry.get("cost_usd") is not None:
+        md[f"{aid}__cost_usd"] = dg.MetadataValue.float(float(entry["cost_usd"]))
+    if entry.get("latency_ms") is not None:
+        md[f"{aid}__latency_ms"] = dg.MetadataValue.int(int(entry["latency_ms"]))
+    if entry.get("tokens_total") is not None:
+        md[f"{aid}__tokens_total"] = dg.MetadataValue.int(int(entry["tokens_total"]))
+    if entry.get("n_llm_calls") is not None:
+        md[f"{aid}__n_llm_calls"] = dg.MetadataValue.int(int(entry["n_llm_calls"]))
+    if entry.get("model_fingerprint"):
+        md[f"{aid}__model_fingerprint"] = dg.MetadataValue.text(str(entry["model_fingerprint"]))
+    if entry.get("materialized_at"):
+        try:
+            md[f"{aid}__materialized_at"] = dg.MetadataValue.timestamp(
+                datetime.fromisoformat(entry["materialized_at"])
+            )
+        except (TypeError, ValueError):
+            md[f"{aid}__materialized_at"] = dg.MetadataValue.text(str(entry["materialized_at"]))
+    if entry.get("op"):
+        md[f"{aid}__op"] = dg.MetadataValue.text(str(entry["op"]))
+    if partition_key is not None:
+        md[f"{aid}__partition_key"] = dg.MetadataValue.text(str(partition_key))
+    for k, v in entry.items():
+        if k in ("text", "cost_usd", "latency_ms", "tokens_total",
+                 "n_llm_calls", "model_fingerprint", "materialized_at", "op"):
+            continue
+        if k == "usage" and v is not None:
+            md[f"{aid}__usage"] = dg.MetadataValue.json(v)
+        elif k == "all_proposals" and v is not None:
+            md[f"{aid}__proposals"] = dg.MetadataValue.json(v)
+        elif k == "history" and v is not None:
+            md[f"{aid}__history"] = dg.MetadataValue.json(v)
+        elif k == "tool_call_trace" and v is not None:
+            md[f"{aid}__tool_call_trace"] = dg.MetadataValue.json(v)
+        elif isinstance(v, (str, int, float, bool)):
+            md[f"{aid}__{k}"] = dg.MetadataValue.text(str(v))
+    return md
+
+
 def _default_router_prompt(specialists: List[dict]) -> str:
     lines = [
         "You are a router. Read the user's input and call exactly ONE of the tools below — the one whose description best matches the input.",
@@ -1874,6 +1926,38 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
     tags: Optional[Dict[str, str]] = Field(default=None, description="Additional tags on emitted assets.")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
     description: Optional[str] = Field(default=None, description="Description on emitted assets.")
+
+    # ── Per-step ops (opt-in; changes the shape of the emitted job) ────
+    #
+    # When True, the pipeline is emitted as a `@dg.graph_multi_asset` with
+    # one @op per step (plus an ingest op and an extract op) instead of a
+    # single @multi_asset with one op. Trade-offs:
+    #
+    #   default (False, single @multi_asset):
+    #     - One op per RUN in the Runs page → coarse-grained retry
+    #       (if step 6 fails, the whole partition restarts)
+    #     - Zero IO-manager overhead between steps (in-memory state dict)
+    #
+    #   per_step_ops=True (@dg.graph_multi_asset):
+    #     - One op PER STEP visible in the Runs page → finer-grained retry
+    #       (Dagster's native re-execution can restart from any failed op)
+    #     - Each step's state dict passes through the IO manager (default
+    #       pickle to filesystem). ~50-200KB per hop for text-heavy
+    #       pipelines. Real but not painful.
+    #
+    # Also enables `can_subset` on the emitted graph — you can materialize
+    # just a subset of the declared output assets without running the
+    # whole pipeline.
+    per_step_ops: bool = Field(
+        default=False,
+        description=(
+            "When True, emit as a `@dg.graph_multi_asset` with one @op per "
+            "step (visible in the Runs page + finer-grained retry). State "
+            "dict flows through the IO manager between ops. Default False "
+            "keeps the single-op @multi_asset shape (coarse retry, no IO "
+            "overhead)."
+        ),
+    )
 
     # ── Partitioning (first-class fields, matching sibling components) ──
     # All emitted assets share a partitions_def built from these fields.
@@ -2084,6 +2168,17 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             self.partition_dimensions,
         )
 
+        # ── Branch: per_step_ops selects the emitted shape ────────────
+        # (True → graph_multi_asset with N+2 ops; False → single multi_asset)
+        if self.per_step_ops:
+            return self._build_per_step_ops_defs(
+                prefix=prefix, steps=steps, source_config=source_config,
+                asset_ids=asset_ids, text_sinks=text_sinks, json_sinks=json_sinks,
+                outs=outs, ins=ins, internal_asset_deps=internal_asset_deps,
+                partitions_def=_partitions_def,
+                partition_key_parser=partition_key_parser,
+            )
+
         @dg.multi_asset(
             outs=outs,
             name=f"{prefix}_pipeline",
@@ -2234,3 +2329,178 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             return tuple(state[aid] for aid in asset_ids)
 
         return dg.Definitions(assets=[_pipeline])
+
+    # ── Per-step-ops build path ──────────────────────────────────────
+    #
+    # Same runtime semantics as the single-op path — same _run_step,
+    # same op executors, same state dict shape. But each step becomes
+    # its OWN Dagster @op, so the Runs page shows N ops instead of 1
+    # and Dagster's built-in per-op retry can restart from any failed
+    # step. State dict passes through the IO manager between ops.
+
+    def _build_per_step_ops_defs(
+        self,
+        *,
+        prefix: str,
+        steps: List[Dict[str, Any]],
+        source_config: Dict[str, Any],
+        asset_ids: List[str],
+        text_sinks: List[Dict[str, Any]],
+        json_sinks: List[Dict[str, Any]],
+        outs: Dict[str, Any],
+        ins: Dict[str, Any],
+        internal_asset_deps: Dict[str, set],
+        partitions_def,
+        partition_key_parser: Optional[str],
+    ) -> dg.Definitions:
+        _self = self  # captured for closure use in ops
+
+        # --- ingest op ---
+        # Same behavior as the multi_asset's inline ingest: read source
+        # config (literal / file / url / upstream_asset), build initial
+        # state dict with `source` + `__ctx__`.
+        source_kind = source_config.get("kind", "literal")
+        upstream_asset_source = source_kind == "upstream_asset"
+
+        if upstream_asset_source:
+            # Special-case: ingest op has an asset input (the upstream).
+            upstream_key = source_config["upstream_asset_key"]
+
+            @dg.op(name=f"{prefix}_ingest", ins={"source": dg.In(dagster_type=Any)})
+            def _ingest_op(context: dg.OpExecutionContext, source):
+                partition_key = context.partition_key if context.has_partition_key else None
+                partition_fields = _parse_partition_key(partition_key, partition_key_parser)
+                if isinstance(source, dict) and "text" in source:
+                    initial_text = source["text"]
+                elif isinstance(source, str):
+                    initial_text = source
+                else:
+                    initial_text = str(source)
+                initial_entry = {"text": initial_text, "source_kind": "upstream_asset"}
+                context.log.info(
+                    f"[{prefix}_ingest] {len(initial_text)} chars from upstream asset "
+                    f"partition_key={partition_key!r}"
+                )
+                return {
+                    "source": initial_entry,
+                    "__ctx__": {
+                        "partition_key": partition_key,
+                        "partition_fields": partition_fields,
+                    },
+                }
+        else:
+            @dg.op(name=f"{prefix}_ingest")
+            def _ingest_op(context: dg.OpExecutionContext):
+                partition_key = context.partition_key if context.has_partition_key else None
+                partition_fields = _parse_partition_key(partition_key, partition_key_parser)
+                initial_entry = _ingest(
+                    source_config, context,
+                    partition_key=partition_key, partition_fields=partition_fields,
+                )
+                context.log.info(
+                    f"[{prefix}_ingest] {len(initial_entry.get('text', ''))} chars "
+                    f"via {source_kind} partition_key={partition_key!r}"
+                )
+                return {
+                    "source": initial_entry,
+                    "__ctx__": {
+                        "partition_key": partition_key,
+                        "partition_fields": partition_fields,
+                    },
+                }
+
+        # --- step ops (one per step) ---
+        # Each takes prior state, runs its step, returns updated state.
+        # Names are namespaced with the prefix so multiple pipelines in
+        # the same project don't collide.
+
+        def _make_step_op(step: Dict[str, Any]):
+            step_id = step["id"]
+            op_name = f"{prefix}_{step_id}"
+
+            @dg.op(name=op_name)
+            def _step_op(context: dg.OpExecutionContext, state: Dict[str, Any]) -> Dict[str, Any]:
+                # State comes in from the IO manager (a fresh dict each hop
+                # is what we want anyway). _run_step mutates in place.
+                new_state = dict(state)
+                _run_step(step, new_state, context)
+                return new_state
+
+            return _step_op
+
+        step_ops = [_make_step_op(step) for step in steps]
+
+        # --- extract op (yields all declared asset outputs) ---
+        # Also handles text_sinks + json_sinks (same as the single-op path).
+        # Yields one Output per declared asset, with full metadata.
+        extract_outs = {f"{prefix}_{aid}": dg.Out(is_required=False) for aid in asset_ids}
+
+        @dg.op(name=f"{prefix}_extract", out=extract_outs)
+        def _extract_op(context: dg.OpExecutionContext, state: Dict[str, Any]):
+            partition_key = context.partition_key if context.has_partition_key else None
+            partition_fields = _parse_partition_key(partition_key, partition_key_parser)
+
+            # Sinks (same code as single-op path).
+            for sink in text_sinks:
+                from_id = sink["from"]
+                path = _apply_ctx_substitutions(sink["path"], partition_key, partition_fields)
+                if from_id not in state:
+                    raise ValueError(f"text_sinks: unknown step id {from_id!r}")
+                text = state[from_id].get("text", "") if isinstance(state[from_id], dict) else str(state[from_id])
+                parent = os.path.dirname(path)
+                if parent:
+                    os.makedirs(parent, exist_ok=True)
+                with open(path, "w") as f:
+                    f.write(text)
+                context.log.info(f"text_sink {from_id!r} → {path}")
+
+            for sink in json_sinks:
+                import json as _json
+                from_id = sink["from"]
+                path = _apply_ctx_substitutions(sink["path"], partition_key, partition_fields)
+                if from_id not in state:
+                    raise ValueError(f"json_sinks: unknown step id {from_id!r}")
+                parent = os.path.dirname(path)
+                if parent:
+                    os.makedirs(parent, exist_ok=True)
+                with open(path, "w") as f:
+                    _json.dump(state[from_id], f, indent=2, default=str)
+                context.log.info(f"json_sink {from_id!r} → {path}")
+
+            # Emit each declared asset as its own Output with metadata.
+            missing = [aid for aid in asset_ids if aid not in state]
+            if missing:
+                raise ValueError(f"outputs.assets references unknown step ids: {missing}")
+
+            for aid in asset_ids:
+                entry = state[aid]
+                md = _build_step_metadata(aid, entry, partition_key)
+                yield dg.Output(
+                    entry, output_name=f"{prefix}_{aid}", metadata=md,
+                )
+
+        # --- wire the graph ---
+        # graph_multi_asset derives asset-to-asset deps from the graph
+        # topology automatically — no `internal_asset_deps` needed here.
+        # can_subset works natively because each asset comes from the
+        # same terminal `_extract_op` yielding is_required=False Outputs.
+        @dg.graph_multi_asset(
+            outs=outs,
+            name=f"{prefix}_pipeline",
+            ins=ins or None,
+            partitions_def=partitions_def,
+            can_subset=True,
+        )
+        def _pipeline_graph(**kwargs):
+            # Ingest → chain step ops → extract.
+            if upstream_asset_source:
+                state = _ingest_op(source=kwargs["source"])
+            else:
+                state = _ingest_op()
+            for step_op in step_ops:
+                state = step_op(state)
+            # Extract op yields multiple named outputs; graph_multi_asset
+            # picks them up by asset name.
+            return _extract_op(state)
+
+        return dg.Definitions(assets=[_pipeline_graph])

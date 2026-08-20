@@ -1,0 +1,18 @@
+type: dagster_community_components.RejectionFeedbackLoopComponent
+attributes:
+  sensor_name: mir_feedback_loop
+  approval_dir: /tmp/mir_approvals    # shared with HumanApprovalGate + SlackApprovalGate
+  target_job_name: launch_mir_triage   # PartitionedAssetLauncherJob that re-runs the pipeline
+
+  # Cap on re-run cycles per partition. Once reached, the sensor stops
+  # re-triggering — writes a `.exhausted.json` marker. Prevents infinite
+  # loops when the agent can't satisfy the human.
+  max_iterations: 3
+
+  minimum_interval_seconds: 30
+
+  # If your target pipeline uses dynamic partitions.
+  dynamic_partitions_name: mir_investigations
+
+  # Optional companion state DataFrame — one row per partition mid-loop.
+  emit_state_asset: true

@@ -1,0 +1,43 @@
+type: dagster_community_components.TeamsApprovalGateComponent
+attributes:
+  asset_name: report_approval_teams
+  upstream_asset_key: mir_report
+
+  # Shared with HumanApprovalGateComponent so the existing token-based
+  # downstream gate stays exactly as-is.
+  approval_dir: /tmp/mir_approvals
+
+  # Azure AD app registration (application permissions:
+  # ChannelMessage.Read.All + ChannelMessage.Send + admin consent).
+  teams_tenant_id_env_var:     TEAMS_TENANT_ID
+  teams_client_id_env_var:     TEAMS_CLIENT_ID
+  teams_client_secret_env_var: TEAMS_CLIENT_SECRET
+
+  teams_team_id:    "19:abc123@thread.tacv2"       # from Teams → team → three-dot → Get link → parse ID
+  teams_channel_id: "19:xyz789@thread.tacv2"
+
+  # Approval mode
+  mode: reactions                # 'reactions' (default) or 'reply'
+  approve_reaction: like         # like|heart|laugh|surprised (Teams built-ins)
+  reject_reaction:  angry        # angry|sad
+  # approve_reply_keyword: APPROVE    # used when mode: reply
+  # reject_reply_keyword:  REJECT
+
+  # Quorum + timeout
+  required_approvers: 1
+  approver_allowlist:            # Azure AD user object IDs (GUIDs)
+    - "aad-user-id-1"
+    - "aad-user-id-2"
+  timeout_hours: 24
+  on_timeout: escalate           # escalate | reject | approve
+  escalate_teams_user: "aad-user-id-3"
+
+  poll_interval_seconds: 60
+
+  # Catalog / governance
+  group_name: mir
+  kinds: [human, approval, teams]
+
+  # Partitioning — must match upstream
+  partition_type: dynamic
+  dynamic_partition_name: mir_investigations

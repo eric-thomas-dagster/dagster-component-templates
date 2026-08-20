@@ -1,0 +1,21 @@
+type: dagster_community_components.ApprovalAuditAssetComponent
+attributes:
+  asset_name: approval_audit
+  approval_dir: /tmp/mir_approvals    # same dir Human/Slack/TeamsApprovalGate write into
+
+  # Optional filters
+  recursive: false                     # walk subdirs?
+  token_glob: "*.json"
+
+  # Governance
+  group_name: governance
+  kinds: [audit, approval, governance]
+  owners: [data-governance@acme.com]
+  tags: {tier: production}
+  description: "Full audit history of maintainer-triage approvals — who / when / why / feedback."
+
+  # Freshness — warn if the audit is stale
+  freshness_max_lag_minutes: 60
+
+  # Optional schedule — daily at 00:15 UTC
+  schedule_cron: "15 0 * * *"

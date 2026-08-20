@@ -2452,6 +2452,11 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 description=self.description,
                 owners=self.owners or None,
                 tags=per_asset_tags,
+                # is_required=False lets can_subset=True omit outputs when
+                # the caller materializes a strict subset. When ALL outputs
+                # are selected (the default UX), every emission still fires
+                # and Dagster verifies completeness — same as before.
+                is_required=False,
             )
 
         ins: Dict[str, dg.AssetIn] = {}
@@ -2578,17 +2583,72 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 partition_key_parser=partition_key_parser,
             )
 
+        # ── Step-dep DAG for can_subset resume ──
+        # For any step_id, resolve the transitive-upstream set of OTHER step
+        # ids that must have run before it. Used at runtime when the caller
+        # subset-materializes a subset of outputs — we run only the needed
+        # steps, not the whole pipeline.
+        def _direct_step_deps(step: dict) -> List[str]:
+            """Step ids this step needs before it can run (excluding 'source')."""
+            refs = _upstream_refs_for_step(step)
+            if not refs:
+                p = _prev_step_id.get(step.get("id"))
+                refs = [p] if p else []
+            return [r for r in refs if r != "source" and r in step_by_id]
+
+        _step_direct_deps: Dict[str, List[str]] = {
+            s["id"]: _direct_step_deps(s) for s in steps if s.get("id")
+        }
+
+        def _closure(target_ids: List[str]) -> List[str]:
+            """Return step ids to run, in original `steps:` order, so that
+            every target_id has its upstream deps materialized first."""
+            need: set = set()
+            stack: List[str] = list(target_ids)
+            while stack:
+                sid = stack.pop()
+                if sid in need:
+                    continue
+                need.add(sid)
+                for u in _step_direct_deps.get(sid, []):
+                    if u not in need:
+                        stack.append(u)
+            # Preserve original declared order — steps are already
+            # topologically ordered because `_run_step` requires upstreams
+            # to be in `state` before dispatch.
+            return [s["id"] for s in steps if s.get("id") in need]
+
         @dg.multi_asset(
             outs=outs,
             name=f"{prefix}_pipeline",
             ins=ins or None,
             internal_asset_deps=internal_asset_deps or None,
             partitions_def=_partitions_def,
+            can_subset=True,
         )
         def _pipeline(context: dg.AssetExecutionContext, **kwargs):
             partition_key = context.partition_key if context.has_partition_key else None
             if partition_key:
                 context.log.info(f"partition-aware materialization: partition_key={partition_key!r}")
+
+            # can_subset: figure out which asset outputs were requested. When
+            # the caller selects a strict subset, we run only the steps
+            # transitively needed for those outputs — dbt-style per-step
+            # resume without splitting into N @asset decorators.
+            selected_output_names = set(context.selected_output_names)
+            all_output_names = set(outs.keys())
+            is_subset = 0 < len(selected_output_names) < len(all_output_names)
+            selected_step_ids = (
+                [aid for aid in asset_ids if f"{prefix}_{aid}" in selected_output_names]
+                if is_subset else list(asset_ids)
+            )
+            steps_to_run_ids = _closure(selected_step_ids) if is_subset else [s["id"] for s in steps if s.get("id")]
+            if is_subset:
+                context.log.info(
+                    f"can_subset ACTIVE: selected {len(selected_step_ids)}/{len(asset_ids)} asset(s) "
+                    f"({sorted(selected_step_ids)}); running {len(steps_to_run_ids)}/{len(steps)} step(s) "
+                    f"({steps_to_run_ids}) — skipping the rest"
+                )
 
             # Parse the composite partition_key into named fields BEFORE ingest
             # so source.text / source.path / source.url can reference
@@ -2631,13 +2691,19 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 },
             }
 
+            steps_to_run_set = set(steps_to_run_ids)
             for step in steps:
-                _run_step(step, state, context)
+                if step.get("id") in steps_to_run_set:
+                    _run_step(step, state, context)
 
             # Text sinks (partition-aware paths). Creates parent dirs so
             # {partition_key}-templated subdirs Just Work — matters both
             # locally and for Serverless container filesystems.
+            # When can_subset is active, only emit sinks whose upstream
+            # step is in the selected/needed set.
             for sink in text_sinks:
+                if sink["from"] not in state:
+                    continue  # subset skipped this step; skip its sink too
                 from_id = sink["from"]
                 path = _apply_ctx_substitutions(sink["path"], partition_key, partition_fields)
                 if from_id not in state:
@@ -2654,9 +2720,9 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             for sink in json_sinks:
                 import json
                 from_id = sink["from"]
-                path = _apply_ctx_substitutions(sink["path"], partition_key, partition_fields)
                 if from_id not in state:
-                    raise ValueError(f"json_sinks: unknown step id {from_id!r}")
+                    continue  # subset skipped this step; skip its sink too
+                path = _apply_ctx_substitutions(sink["path"], partition_key, partition_fields)
                 parent = os.path.dirname(path)
                 if parent:
                     os.makedirs(parent, exist_ok=True)
@@ -2664,8 +2730,15 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     json.dump(state[from_id], f, indent=2, default=str)
                 context.log.info(f"json_sink {from_id!r} → {path}")
 
-            # Emit assets in declared order.
-            missing = [aid for aid in asset_ids if aid not in state]
+            # Emit assets in declared order — subset only emits SELECTED
+            # step_ids (never the upstream-closure ones we had to run to
+            # produce them; those would be "unselected outputs" and Dagster
+            # rejects yielding those).
+            asset_ids_to_emit = (
+                [aid for aid in asset_ids if aid in set(selected_step_ids)]
+                if is_subset else list(asset_ids)
+            )
+            missing = [aid for aid in asset_ids_to_emit if aid not in state]
             if missing:
                 raise ValueError(f"outputs.assets references unknown step ids: {missing}")
 
@@ -2676,7 +2749,11 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             # partition_key) — this is what makes Dagster's asset history the
             # thing you browse instead of job logs. Op-specific fields
             # (router_reasoning, all_proposals, history) come after.
-            for aid in asset_ids:
+            # can_subset requires yielding Output per selected asset — a
+            # positional tuple return would need to line up with declared
+            # outs order, which subset mode breaks. Yielding is the modern
+            # multi_asset pattern anyway.
+            for aid in asset_ids_to_emit:
                 entry = state[aid]
                 md: Dict[str, Any] = {}
                 if isinstance(entry, dict):
@@ -2708,6 +2785,10 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                         md[f"{aid}__op"] = dg.MetadataValue.text(str(entry["op"]))
                     if partition_key is not None:
                         md[f"{aid}__partition_key"] = dg.MetadataValue.text(str(partition_key))
+                    if is_subset:
+                        md[f"{aid}__subset_mode"] = dg.MetadataValue.text(
+                            f"selected={sorted(selected_step_ids)}; ran={steps_to_run_ids}"
+                        )
 
                     # Op-specific rich fields (JSON blobs the UI renders inline).
                     for k, v in entry.items():
@@ -2723,9 +2804,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                             md[f"{aid}__history"] = dg.MetadataValue.json(v)
                         elif isinstance(v, (str, int, float, bool)):
                             md[f"{aid}__{k}"] = dg.MetadataValue.text(str(v))
-                context.add_output_metadata(md, output_name=f"{prefix}_{aid}")
-
-            return tuple(state[aid] for aid in asset_ids)
+                yield dg.Output(value=entry, output_name=f"{prefix}_{aid}", metadata=md)
 
         return dg.Definitions(assets=[_pipeline])
 

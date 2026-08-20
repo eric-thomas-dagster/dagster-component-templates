@@ -1,0 +1,29 @@
+{
+  "component_type": "dagster_community_components.ApprovalAuditAssetComponent",
+  "description": "Materialize the full who/when/why history of an approval workflow as a Dagster DataFrame asset. Reads every JSON approval token in a shared `approval_dir` (written by HumanApprovalGate, SlackApprovalGate, TeamsApprovalGate — or any external system dropping tokens in that dir) and emits one row per token with columns: partition_key, approved, approver, reason, feedback, decided_at, token_file, upstream_asset, source. Governance-grade audit surface — point Insights at it, join to run history, export to GRC on a schedule. Independent of which component WROTE the token — audits Human/Slack/Teams/external-webhook tokens uniformly. Complements the approval-gate components (read-only, additive, no coupling).",
+  "category": "ai",
+  "icon": "History",
+  "x-dagster-io": {
+    "inputs":  {"type": "none", "description": "No upstream — reads directly from filesystem."},
+    "outputs": {"type": "asset", "description": "One DataFrame asset materializing the token audit; rows sorted by `decided_at` DESC."}
+  },
+  "attributes": {
+    "asset_name":                {"type": "string",  "required": true, "label": "Asset Name"},
+    "approval_dir":              {"type": "string",  "required": true, "label": "Approval Dir",
+                                  "description": "Directory of JSON approval tokens (same dir approval-gate components write into)."},
+    "recursive":                 {"type": "boolean", "label": "Recursive", "default": false},
+    "token_glob":                {"type": "string",  "label": "Token Glob", "default": "*.json"},
+
+    "group_name":                {"type": "string",  "label": "Group Name", "default": "governance"},
+    "kinds":                     {"type": "array",   "label": "Kinds", "items": {"type": "string"},
+                                  "description": "Default: ['audit', 'approval', 'governance']."},
+    "tags":                      {"type": "object",  "label": "Tags"},
+    "owners":                    {"type": "array",   "label": "Owners", "items": {"type": "string"}},
+    "description":               {"type": "string",  "label": "Description"},
+
+    "freshness_max_lag_minutes": {"type": "integer", "label": "Freshness Max Lag Minutes"},
+    "freshness_cron":            {"type": "string",  "label": "Freshness Cron"},
+    "schedule_cron":             {"type": "string",  "label": "Schedule Cron",
+                                  "description": "If set, emit a Dagster schedule that re-materializes this asset on the given cron."}
+  }
+}

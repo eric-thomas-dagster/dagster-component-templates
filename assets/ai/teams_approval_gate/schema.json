@@ -1,0 +1,54 @@
+{
+  "component_type": "dagster_community_components.TeamsApprovalGateComponent",
+  "description": "Microsoft Teams HITL approval gate. Slack analog — same asset + sensor shape, same JSON token format, composes with HumanApprovalGateComponent via shared `approval_dir`. Uses MS Graph API (Azure AD app registration with application permissions ChannelMessage.Read.All + ChannelMessage.Send + admin consent). Two approval modes: `reactions` (default; approvers react with a built-in Teams emoji — like/heart/laugh/surprised/sad/angry, limited to 6) OR `reply` (approvers post a thread reply containing a configured keyword like APPROVE/REJECT — more flexible, allows context in the same message). Multi-approver quorum + allowlist + timeout policies (escalate / reject / approve). Sensor polls Teams API every `poll_interval_seconds` and writes the standard JSON approval token on quorum. Works without a public webhook (unlike Teams Adaptive Card interactive buttons) — deployable to Dagster+ Serverless with no infra changes.",
+  "category": "ai",
+  "icon": "GroupAdd",
+  "x-dagster-io": {
+    "inputs":  {"type": "text", "description": "Upstream asset's text is posted to Teams for approval."},
+    "outputs": {"type": "asset,sensor", "description": "One `{asset_name}_posted` asset (records the Teams message ID + sidecar state) + one `{asset_name}_watcher` sensor (polls votes + writes the approval token on quorum)."}
+  },
+  "attributes": {
+    "asset_name":                  {"type": "string",  "required": true, "label": "Asset Name"},
+    "upstream_asset_key":          {"type": "string",  "required": true, "label": "Upstream Asset Key"},
+    "approval_dir":                {"type": "string",  "required": true, "label": "Approval Dir",
+                                    "description": "Shared with HumanApprovalGateComponent — token file lands as `{safe_partition_key}.json`."},
+
+    "teams_tenant_id_env_var":     {"type": "string",  "label": "Tenant ID Env Var", "default": "TEAMS_TENANT_ID"},
+    "teams_client_id_env_var":     {"type": "string",  "label": "Client ID Env Var", "default": "TEAMS_CLIENT_ID"},
+    "teams_client_secret_env_var": {"type": "string",  "label": "Client Secret Env Var", "default": "TEAMS_CLIENT_SECRET"},
+    "teams_team_id":               {"type": "string",  "required": true, "label": "Teams Team ID"},
+    "teams_channel_id":            {"type": "string",  "required": true, "label": "Teams Channel ID"},
+
+    "mode":                        {"type": "string",  "label": "Mode", "default": "reactions", "enum": ["reactions", "reply"]},
+    "approve_reaction":            {"type": "string",  "label": "Approve Reaction", "default": "like",
+                                    "enum": ["like", "heart", "laugh", "surprised", "sad", "angry"]},
+    "reject_reaction":             {"type": "string",  "label": "Reject Reaction", "default": "angry",
+                                    "enum": ["like", "heart", "laugh", "surprised", "sad", "angry"]},
+    "approve_reply_keyword":       {"type": "string",  "label": "Approve Reply Keyword", "default": "APPROVE"},
+    "reject_reply_keyword":        {"type": "string",  "label": "Reject Reply Keyword", "default": "REJECT"},
+    "message_template":            {"type": "string",  "label": "Message Template",
+                                    "description": "Optional custom HTML template. Placeholders: {upstream_text}, {approve}, {reject}, {required_approvers}, {n_allowlisted}, {partition_key}, {mode}, {vote_hint}."},
+
+    "required_approvers":          {"type": "integer", "label": "Required Approvers", "default": 1},
+    "approver_allowlist":          {"type": "array",   "required": true, "label": "Approver Allowlist", "items": {"type": "string"},
+                                    "description": "Azure AD object IDs (GUIDs) allowed to vote."},
+    "timeout_hours":               {"type": "number",  "label": "Timeout Hours"},
+    "on_timeout":                  {"type": "string",  "label": "On Timeout", "default": "escalate", "enum": ["escalate", "reject", "approve"]},
+    "escalate_teams_user":         {"type": "string",  "label": "Escalate Teams User"},
+    "poll_interval_seconds":       {"type": "integer", "label": "Poll Interval Seconds", "default": 60},
+
+    "group_name":                  {"type": "string",  "label": "Group Name"},
+    "kinds":                       {"type": "array",   "label": "Kinds", "items": {"type": "string"},
+                                    "description": "Default: ['human', 'approval', 'teams']."},
+    "owners":                      {"type": "array",   "label": "Owners", "items": {"type": "string"}},
+    "tags":                        {"type": "object",  "label": "Tags"},
+    "description":                 {"type": "string",  "label": "Description"},
+
+    "partition_type":              {"type": "string",  "label": "Partition Type",
+                                    "enum": ["daily", "weekly", "monthly", "hourly", "static", "dynamic", "multi"]},
+    "partition_start":             {"type": "string",  "label": "Partition Start"},
+    "partition_values":            {"type": "any",     "label": "Partition Values"},
+    "dynamic_partition_name":      {"type": "string",  "label": "Dynamic Partition Name"},
+    "partition_dimensions":        {"type": "array",   "label": "Partition Dimensions", "items": {"type": "object"}}
+  }
+}

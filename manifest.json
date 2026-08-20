@@ -2658,6 +2658,42 @@
       }
     },
     {
+      "id": "approval_audit_asset",
+      "name": "Approval Audit Asset",
+      "component_type": "dagster_community_components.ApprovalAuditAssetComponent",
+      "path": "assets/ai/approval_audit_asset",
+      "category": "ai",
+      "icon": "History",
+      "description": "Materialize the full who/when/why history of an approval workflow as a Dagster DataFrame asset. Reads every JSON approval token in a shared `approval_dir` (written by HumanApprovalGate / SlackApprovalGate / TeamsApprovalGate / external webhook) and emits one row per token with columns: partition_key, approved, approver, reason, feedback, decided_at, token_file, upstream_asset, source. Governance-grade audit surface — point Insights at it, join to run history, export to GRC on a schedule. Independent of which component WROTE the token — audits Human/Slack/Teams/external tokens uniformly. Complements the approval-gate components (read-only, additive, no coupling).",
+      "tags": [
+        "ai",
+        "approval",
+        "governance",
+        "audit",
+        "hitl",
+        "compliance"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/approval_audit_asset/component.py",
+      "example_url":   "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/approval_audit_asset/example.yaml",
+      "readme_url":    "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/approval_audit_asset/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/approval_audit_asset/requirements.txt",
+      "schema_url":    "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/assets/ai/approval_audit_asset/schema.json",
+      "dependencies": {"pip": ["pandas>=1.5", "tabulate>=0.9"]},
+      "validation": {
+        "level": "code",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/hitl_bundle.md",
+        "last_validated": "2026-08-20"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": ["one_dataframe_asset_per_approval_dir"],
+        "requires_pip": ["pandas", "tabulate"],
+        "when_to_use": "Whenever HumanApprovalGate / SlackApprovalGate / TeamsApprovalGate is in use and governance / compliance needs a queryable audit of every approval decision. Point at the same approval_dir. Read-only, additive."
+      },
+      "produces": ["asset"]
+    },
+    {
       "id": "audio_transform_asset",
       "name": "Audio Transform Asset",
       "category": "transformation",
@@ -33440,6 +33476,43 @@
       ]
     },
     {
+      "id": "rejection_feedback_loop",
+      "name": "Rejection Feedback Loop",
+      "component_type": "dagster_community_components.RejectionFeedbackLoopComponent",
+      "path": "assets/ai/rejection_feedback_loop",
+      "category": "ai",
+      "icon": "Loop",
+      "description": "Sensor that watches an approval-token directory for `approved: false` tokens carrying a `feedback: \"...\"` field, and re-triggers an upstream job with that feedback captured as new input — letting the agent revise based on the human's specific rejection reason. Bounded by `max_iterations` so a stubborn agent can't infinite-loop. Writes feedback to `{approval_dir}/.feedback/{partition_key}.txt` (pipeline reads via `synthesize` typed input OR `source: {kind: file, path: ...}`). Moves consumed rejection tokens to `.consumed/`. Persists per-partition iteration state in `.state/`. Composes with HumanApprovalGate / SlackApprovalGate / TeamsApprovalGate via shared approval_dir. Optional companion state DataFrame asset for observability into which partitions are mid-loop.",
+      "tags": [
+        "ai",
+        "approval",
+        "hitl",
+        "feedback",
+        "loop",
+        "sensor",
+        "governance"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rejection_feedback_loop/component.py",
+      "example_url":   "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rejection_feedback_loop/example.yaml",
+      "readme_url":    "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rejection_feedback_loop/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rejection_feedback_loop/requirements.txt",
+      "schema_url":    "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/assets/ai/rejection_feedback_loop/schema.json",
+      "dependencies": {"pip": ["pandas>=1.5", "tabulate>=0.9"]},
+      "validation": {
+        "level": "code",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/hitl_bundle.md",
+        "last_validated": "2026-08-20"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": ["one_sensor_per_hub", "optional_state_dataframe_asset"],
+        "when_to_use": "Whenever an approval gate should trigger a REVISE cycle rather than just approve/reject. Human rejects with a `feedback:` field in the JSON token; this sensor writes the feedback file, bumps iteration counter, and re-fires the target job for the partition. Bounded by max_iterations to prevent infinite loops. Pipeline needs to read the feedback file — synthesize op with typed input `feedback: {from: <file-reader-step>}` is the canonical shape.",
+        "chains_with": ["human_approval_gate", "slack_approval_gate", "teams_approval_gate", "agentic_pipeline"]
+      },
+      "produces": ["sensor", "asset"]
+    },
+    {
       "id": "reranker",
       "name": "Reranker",
       "category": "ai",
@@ -39898,6 +39971,44 @@
           "dagster-tableau"
         ]
       }
+    },
+    {
+      "id": "teams_approval_gate",
+      "name": "Teams Approval Gate",
+      "component_type": "dagster_community_components.TeamsApprovalGateComponent",
+      "path": "assets/ai/teams_approval_gate",
+      "category": "ai",
+      "icon": "GroupAdd",
+      "description": "Microsoft Teams HITL approval gate. Slack analog for SlackApprovalGate — same asset + sensor shape, same JSON token format, composes with HumanApprovalGateComponent via shared `approval_dir`. Uses MS Graph API (Azure AD app registration with application permissions ChannelMessage.Read.All + ChannelMessage.Send + admin consent). Two approval modes: `reactions` (default; approvers react with a Teams built-in emoji — like/heart/laugh/surprised/sad/angry, limited to 6) OR `reply` (approvers post a thread reply containing a configured keyword like APPROVE/REJECT — more flexible, allows context in the same message). Multi-approver quorum + allowlist + timeout policies (escalate/reject/approve). Sensor polls Teams API every `poll_interval_seconds` and writes the standard JSON approval token on quorum. Works without a public webhook (unlike Adaptive Cards interactive buttons) — deployable to Dagster+ Serverless with no infra changes.",
+      "tags": [
+        "ai",
+        "approval",
+        "hitl",
+        "teams",
+        "microsoft",
+        "azure-ad",
+        "graph-api"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/teams_approval_gate/component.py",
+      "example_url":   "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/teams_approval_gate/example.yaml",
+      "readme_url":    "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/teams_approval_gate/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/teams_approval_gate/requirements.txt",
+      "schema_url":    "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/assets/ai/teams_approval_gate/schema.json",
+      "dependencies": {"pip": ["requests>=2.28"]},
+      "validation": {
+        "level": "code",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/hitl_bundle.md",
+        "last_validated": "2026-08-20"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": ["one_posted_asset_per_hub", "one_sensor_per_hub"],
+        "requires_pip": ["requests"],
+        "when_to_use": "MS-shop customers (or any org where approval workflows live in Teams). Requires an Azure AD app registration with app permissions ChannelMessage.Read.All + ChannelMessage.Send + tenant admin consent. Prefer `mode: reactions` for quick votes; `mode: reply` when approvers need to add context in the same message. Composes with HumanApprovalGate via shared approval_dir — drop-in swap of Slack for Teams.",
+        "chains_with": ["human_approval_gate", "filesystem_monitor", "rejection_feedback_loop", "approval_audit_asset"]
+      },
+      "produces": ["asset", "sensor"]
     },
     {
       "id": "teams_notification_job",

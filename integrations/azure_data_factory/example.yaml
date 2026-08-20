@@ -1,5 +1,4 @@
-# Canonical `workspace:` block (flagship shape — matches dagster-fivetran,
-# dagster-databricks, SnowflakeWorkspaceComponent). Recommended starting point.
+# Minimal: `workspace:` block + import pipelines. Recommended starting point.
 type: dagster_community_components.AzureDataFactoryComponent
 attributes:
   workspace:
@@ -13,10 +12,10 @@ attributes:
   group_name: adf_prod
 
 ---
-# Advanced: pipelines + triggers + all 4 UNTESTED kinds with filtering.
-# The 4 new kinds (linked_services / datasets / data_flows / integration_runtimes)
-# emit external assets only — read-only surface, no runtime action. Validate
-# against your factory before relying on them.
+# Advanced: pipelines + triggers + all 4 untested kinds with filtering.
+# The 4 additional kinds (linked_services / datasets / data_flows /
+# integration_runtimes) emit external assets only — read-only surface, no
+# runtime action. Validate against your factory before relying on them.
 type: dagster_community_components.AzureDataFactoryComponent
 attributes:
   workspace:
@@ -31,7 +30,7 @@ attributes:
   import_pipelines: true
   import_triggers: true
 
-  # UNTESTED — external assets only
+  # Untested — external assets only
   import_linked_services: true
   import_datasets: true
   import_data_flows: true
@@ -42,7 +41,7 @@ attributes:
   exclude_name_pattern: "test|dev"
   filter_by_tags: "env,team"
 
-  # Observation sensor (renamed from `generate_sensor` in v0.10.78)
+  # Observation sensor — polls ADF pipeline-run status
   polling_sensor: true
   poll_interval_seconds: 60
 
@@ -66,8 +65,8 @@ attributes:
   group_name: adf_managed_identity
 
 ---
-# Per-asset customization via `translation:` callable (flagship pattern)
-# — customize key / tags / kinds / group per imported ADF object.
+# Per-asset customization via `translation:` callable — customize key /
+# tags / kinds / group per imported ADF object.
 type: dagster_community_components.AzureDataFactoryComponent
 attributes:
   workspace:

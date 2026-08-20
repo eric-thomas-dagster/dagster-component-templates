@@ -1,8 +1,6 @@
 # Azure Data Factory Workspace Component
 
-**Flagship-shape Fivetran-style workspace** for Azure Data Factory (v0.10.78+).
-
-Import ADF pipelines, triggers, and (UNTESTED) linked services / datasets /
+Import ADF pipelines, triggers, and (untested) linked services / datasets /
 data flows / integration runtimes as Dagster assets. Fast startup via
 **StateBackedComponent** caching + built-in observation sensor.
 
@@ -12,41 +10,38 @@ data flows / integration runtimes as Dagster assets. Fast startup via
 dagster_community_components.AzureDataFactoryComponent
 ```
 
-## Flagship shape (v0.10.78+)
+## Shape
 
-Aligned with `SnowflakeWorkspaceComponent` / `QlikReplicateWorkspaceComponent` /
-`FivetranAccountComponent`:
-
-- **Canonical `workspace:` block** — `AzureDataFactoryResource` via
-  `Annotated + Resolver` (matches `dagster-fivetran` / `dagster-databricks`).
-- **`translation:` callable** — per-asset customization (rename key, add
-  tags/metadata, override group) via `AzureDataFactoryObjectProps`.
+- **`workspace:` block** — connection config as an `AzureDataFactoryResource`
+  (subscription / resource group / factory name + optional Service Principal
+  env vars; falls back to `DefaultAzureCredential`).
+- **`translation:` callable** — per-asset customization hook (rename key,
+  add tags/metadata, override group) via `AzureDataFactoryObjectProps`.
 - **`@public get_asset_spec(props)` hook** — subclass override point.
-- **`_base_translator` + `AzureDataFactoryComponentTranslator`** — bridges
-  the callable with the default per-object spec.
-- **`polling_sensor` opt-in** (renamed from `generate_sensor` in v0.10.78).
-- **StateBackedComponent** — discovery cached on disk; instant reloads.
 - **`AzureDataFactoryObjectProps` @record** — data passed to translation
   callables: `object_kind`, `object_name`, `factory_name`,
   `resource_group`, `subscription_id`, `extra`.
+- **`polling_sensor` opt-in** — polls ADF pipeline-run status and emits
+  Dagster AssetObservation events.
+- **StateBackedComponent** — discovery cached on disk; code-location
+  reloads are instant.
 
 ### Object kinds
 
 | Kind | Import toggle | Status | Emits |
 |---|---|---|---|
-| Pipeline | `import_pipelines` | ✅ live | Materializable multi_asset (triggers pipeline run + polls) |
-| Trigger | `import_triggers` | ✅ live | External asset (observable) |
-| Linked service | `import_linked_services` | ⚠️ **UNTESTED** | External asset (read-only) |
-| Dataset | `import_datasets` | ⚠️ **UNTESTED** | External asset (read-only) |
-| Data flow | `import_data_flows` | ⚠️ **UNTESTED** | External asset (read-only) |
-| Integration runtime | `import_integration_runtimes` | ⚠️ **UNTESTED** | External asset (read-only) |
+| Pipeline | `import_pipelines` | validated | Materializable multi_asset (triggers pipeline run + polls) |
+| Trigger | `import_triggers` | validated | External asset (observable) |
+| Linked service | `import_linked_services` | **untested** | External asset (read-only) |
+| Dataset | `import_datasets` | **untested** | External asset (read-only) |
+| Data flow | `import_data_flows` | **untested** | External asset (read-only) |
+| Integration runtime | `import_integration_runtimes` | **untested** | External asset (read-only) |
 
-The 4 UNTESTED kinds follow the standard Azure SDK naming
-(`client.<resource>.list_by_factory`). If your ADF SDK version deviates OR
-the Fivetran-shape assumption isn't right for your factory, validate before
-shipping — no live customer validation as of the v0.10.78 release. Metadata
-carries `adf/validation: "UNTESTED — validate against your factory"` on
-every emitted external asset for these kinds.
+The 4 untested kinds follow the standard Azure SDK naming
+(`client.<resource>.list_by_factory`). If your ADF SDK version deviates or
+the shape assumption isn't right for your factory, validate before
+shipping. Every emitted external asset for these kinds carries
+`adf/validation: "untested — validate against your factory"` in metadata.
 
 ## Minimal example
 
@@ -81,39 +76,6 @@ kinds.
 
 Cache lives on `defs_state` (local filesystem by default; override
 per-deploy for Dagster Cloud).
-
-## Migrating from pre-v0.10.78 shape
-
-**Breaking:** `generate_sensor` → `polling_sensor`. Old YAML with
-`generate_sensor: true` needs the field renamed.
-
-**Breaking:** flat top-level connection fields (`subscription_id`,
-`resource_group_name`, `factory_name`, `tenant_id`, `client_id`,
-`client_secret`, `*_env_var`) moved under the `workspace:` block. Old:
-
-```yaml
-attributes:
-  subscription_id: "..."
-  resource_group_name: my-rg
-  factory_name: my-adf
-  tenant_id_env_var: AZURE_TENANT_ID
-```
-
-New:
-
-```yaml
-attributes:
-  workspace:
-    subscription_id: "..."
-    resource_group_name: my-rg
-    factory_name: my-adf
-    tenant_id_env_var: AZURE_TENANT_ID
-```
-
-Everything else is compatible — `import_pipelines`, `import_triggers`,
-`assets_by_pipeline_name`, `filter_*`, `poll_interval_seconds`,
-`partition_*`, `retry_policy_*`, `defs_state`, etc., all keep their
-names and semantics.
 
 [//]: # (FIELDS:START - auto-generated by tools/regen_readme_fields.py)
 

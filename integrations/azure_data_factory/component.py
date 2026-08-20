@@ -1,21 +1,19 @@
 """Azure Data Factory Workspace Component.
 
-Full Fivetran-shape workspace component for Azure Data Factory:
-- `workspace:` block (canonical `Annotated[AzureDataFactoryResource, Resolver(...)]`
-  shape — same as dagster-fivetran / dagster-databricks / SnowflakeWorkspace)
-- `translation:` callable — per-asset customization hook
+Auto-discovers ADF pipelines, triggers, and (untested) linked services /
+datasets / data flows / integration runtimes and emits one Dagster asset
+per object.
+
+- `workspace:` block — `Annotated[AzureDataFactoryResource, Resolver(...)]`
+- `translation:` callable — per-asset customization
   (renames / tag additions / group overrides)
 - `@public get_asset_spec(props)` — override in subclasses
 - `AzureDataFactoryObjectProps` + `AzureDataFactoryComponentTranslator`
 - Per-kind import toggles: `import_pipelines`, `import_triggers`,
   `import_linked_services`, `import_datasets`, `import_data_flows`,
-  `import_integration_runtimes` (last 4 marked UNTESTED — Fivetran-shape
-  additions land as external assets; validate against your ADF factory
-  before relying on them in prod)
-- StateBackedComponent — discovery cached to disk
-
-Aligns with SnowflakeWorkspaceComponent / QlikReplicateWorkspaceComponent
-/ FivetranAccountComponent.
+  `import_integration_runtimes` (last 4 emit external assets only —
+  read-only surface, validate against your ADF factory before use)
+- StateBackedComponent — discovery cached to disk.
 """
 
 import json
@@ -51,9 +49,8 @@ from pydantic import Field
 class AzureDataFactoryObjectProps:
     """Data passed to translation callables for each imported ADF object.
 
-    Mirrors `SnowflakeObjectProps` / `FivetranConnectorTableProps` /
-    `QlikReplicateObjectProps` — a single record describing the object so
-    `translation:` callables can filter, rename, add tags, etc.
+    A single record describing the object so `translation:` callables
+    can filter, rename, add tags, etc.
 
     Attributes:
         object_kind: One of 'pipeline', 'trigger', 'linked_service',
@@ -219,10 +216,10 @@ def _fetch_triggers(
     return result
 
 
-# ── UNTESTED: 4 new object-kind fetch helpers ──────────────────────────────
+# ── Untested: 4 additional object-kind fetch helpers ──────────────────────
 # Follow the standard Azure SDK naming convention (`client.<resource>.list_by_factory`).
 # If your ADF SDK version deviates, adjust the accessor name. These emit
-# EXTERNAL ASSETS only (no runtime action). Validate against your factory
+# external assets only (no runtime action). Validate against your factory
 # before relying on them in prod.
 
 
@@ -784,10 +781,10 @@ def _build_adf_defs(
     return dg.Definitions(assets=assets, sensors=sensors)
 
 
-# ── UNTESTED: emit external assets for 4 new object kinds ────────────────────
-# Fivetran-shape additions. Discovery calls the ADF Management API; each object
-# becomes a Dagster external asset (no materialization action — read-only view
-# in the catalog). Validate against your factory before relying on them.
+# ── Untested: emit external assets for 4 additional object kinds ────────────
+# Discovery calls the ADF Management API; each object becomes a Dagster
+# external asset (no materialization action — read-only view in the catalog).
+# Validate against your factory before relying on them.
 
 
 def _emit_external_assets(
@@ -818,7 +815,7 @@ def _emit_external_assets(
                 "adf/factory":         dg.MetadataValue.text(factory_name),
                 "adf/resource_group":  dg.MetadataValue.text(resource_group_name),
                 "adf/subscription_id": dg.MetadataValue.text(subscription_id),
-                "adf/validation":      dg.MetadataValue.text("UNTESTED — validate against your factory"),
+                "adf/validation":      dg.MetadataValue.text("untested — validate against your factory"),
             },
         )
         if apply_translation is not None:
@@ -835,20 +832,18 @@ def _emit_external_assets(
     return specs
 
 
-# ── Component (StateBackedComponent, flagship shape) ────────────────────────
+# ── Component ─────────────────────────────────────────────────────────────
 
 
 @public
 class AzureDataFactoryComponent(StateBackedComponent, Model, Resolvable):
     """Azure Data Factory workspace component — one Dagster asset per ADF object.
 
-    Full Fivetran-shape workspace: canonical `workspace:` block
-    (`AzureDataFactoryResource`), `translation:` callable, `@public
-    get_asset_spec` hook, StateBackedComponent discovery caching.
-    Aligns with `SnowflakeWorkspaceComponent` / `FivetranAccountComponent`
-    / `QlikReplicateWorkspaceComponent`.
+    Canonical `workspace:` block (`AzureDataFactoryResource`),
+    `translation:` callable, `@public get_asset_spec` hook,
+    StateBackedComponent discovery caching.
 
-    Example (canonical `workspace:` block — matches dagster-fivetran):
+    Example:
 
         ```yaml
         type: dagster_community_components.AzureDataFactoryComponent
@@ -862,7 +857,7 @@ class AzureDataFactoryComponent(StateBackedComponent, Model, Resolvable):
             client_secret_env_var: AZURE_CLIENT_SECRET
           import_pipelines: true
           import_triggers: false
-          # Fivetran-shape untested additions — external assets only:
+          # Untested additions — external assets only:
           import_linked_services: true
           import_datasets: true
           import_data_flows: true
@@ -877,8 +872,6 @@ class AzureDataFactoryComponent(StateBackedComponent, Model, Resolvable):
     """
 
     # ── Connection: workspace: block IS an AzureDataFactoryResource ──
-    # Canonical shape — mirrors dagster-fivetran / dagster-databricks /
-    # dagster-powerbi / SnowflakeWorkspaceComponent.
     workspace: Annotated[
         AzureDataFactoryResource,
         Resolver(
@@ -915,15 +908,14 @@ class AzureDataFactoryComponent(StateBackedComponent, Model, Resolvable):
     import_pipelines: bool = Field(default=True, description="Import ADF pipelines as materializable assets (default true).")
     import_triggers: bool = Field(default=False, description="Import ADF triggers as observable external assets.")
 
-    # ── UNTESTED: 4 new object kinds ────────────────────────────────────
+    # ── Untested: 4 additional object kinds ─────────────────────────────
     # Emit as external assets only (no runtime action). Follows the standard
     # Azure SDK naming (`client.<resource>.list_by_factory`). Validate against
-    # your ADF factory before relying on them in prod — no live customer
-    # validation as of the v0.10.78 ship.
+    # your ADF factory before relying on them in prod.
     import_linked_services: bool = Field(
         default=False,
         description=(
-            "**UNTESTED.** Import ADF linked services (source/sink connection "
+            "**Untested.** Import ADF linked services (source/sink connection "
             "configurations) as external Dagster assets. Read-only surface — "
             "no runtime action. Validate against your factory before use."
         ),
@@ -931,14 +923,14 @@ class AzureDataFactoryComponent(StateBackedComponent, Model, Resolvable):
     import_datasets: bool = Field(
         default=False,
         description=(
-            "**UNTESTED.** Import ADF datasets (schemas over linked services) "
+            "**Untested.** Import ADF datasets (schemas over linked services) "
             "as external Dagster assets. Read-only surface. Validate before use."
         ),
     )
     import_data_flows: bool = Field(
         default=False,
         description=(
-            "**UNTESTED.** Import ADF Mapping Data Flows (visual "
+            "**Untested.** Import ADF Mapping Data Flows (visual "
             "transformations) as external Dagster assets. Read-only surface. "
             "Validate before use."
         ),
@@ -946,7 +938,7 @@ class AzureDataFactoryComponent(StateBackedComponent, Model, Resolvable):
     import_integration_runtimes: bool = Field(
         default=False,
         description=(
-            "**UNTESTED.** Import ADF Integration Runtimes (SSIS / Azure IR / "
+            "**Untested.** Import ADF Integration Runtimes (SSIS / Azure IR / "
             "Self-hosted IR) as external Dagster assets. Read-only surface. "
             "Validate before use."
         ),
@@ -962,9 +954,7 @@ class AzureDataFactoryComponent(StateBackedComponent, Model, Resolvable):
         default=True,
         description=(
             "Emit a polling sensor that observes ADF pipeline-run status and "
-            "emits AssetObservation events. Matches the `polling_sensor` "
-            "convention on FivetranAccountComponent / SnowflakeWorkspaceComponent "
-            "/ QlikReplicateWorkspaceComponent."
+            "emits AssetObservation events."
         ),
     )
     poll_interval_seconds: int = Field(default=60, description="Sensor polling interval (seconds).")
@@ -1198,8 +1188,7 @@ class AzureDataFactoryComponent(StateBackedComponent, Model, Resolvable):
 class AzureDataFactoryComponentTranslator:
     """Base translator turning `AzureDataFactoryObjectProps` into an
     AssetSpec. Bridges the user's `translation:` callable with the default
-    per-object spec. Same convention as `SnowflakeComponentTranslator` /
-    `QlikReplicateComponentTranslator` / `FivetranComponentTranslator`."""
+    per-object spec."""
 
     def __init__(self, component: "AzureDataFactoryComponent"):
         self._component = component

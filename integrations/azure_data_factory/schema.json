@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.AzureDataFactoryComponent",
   "name": "Azure Data Factory Workspace",
-  "description": "Azure Data Factory workspace component (v0.10.78 flagship-shape refactor) — one Dagster asset per ADF pipeline, trigger, and (UNTESTED) linked_service / dataset / data_flow / integration_runtime. Full Fivetran-shape workspace: canonical `workspace:` block (AzureDataFactoryResource), `translation:` callable per-asset customization hook, `@public get_asset_spec(props)` subclass override, `AzureDataFactoryObjectProps` + `AzureDataFactoryComponentTranslator`. StateBackedComponent — discovery cached to disk; auto-refreshes on first `dg dev` OR run `dg utils refresh-defs-state` explicitly. Aligns with SnowflakeWorkspaceComponent / QlikReplicateWorkspaceComponent / FivetranAccountComponent.",
+  "description": "Azure Data Factory workspace component — one Dagster asset per ADF pipeline, trigger, and (untested) linked_service / dataset / data_flow / integration_runtime. Canonical `workspace:` block (AzureDataFactoryResource), `translation:` callable per-asset customization hook, `@public get_asset_spec(props)` subclass override, `AzureDataFactoryObjectProps` + `AzureDataFactoryComponentTranslator`. StateBackedComponent — discovery cached to disk; auto-refreshes on first `dg dev` OR run `dg utils refresh-defs-state` explicitly.",
   "category": "integration",
   "icon": "si:microsoftazure",
   "x-dagster-io": {
@@ -10,22 +10,22 @@
   },
   "attributes": {
     "workspace":                     {"type": "object",  "required": true, "label": "Workspace",
-                                      "description": "Azure Data Factory connection as an AzureDataFactoryResource: `{subscription_id, resource_group_name, factory_name, tenant_id_env_var?, client_id_env_var?, client_secret_env_var?}`. Falls back to DefaultAzureCredential when SP env vars aren't set. Secrets typically arrive via `{{ env.XXX }}` Jinja templating. Mirrors the `workspace:` shape used by dagster-fivetran / dagster-databricks / SnowflakeWorkspaceComponent."},
+                                      "description": "Azure Data Factory connection as an AzureDataFactoryResource: `{subscription_id, resource_group_name, factory_name, tenant_id_env_var?, client_id_env_var?, client_secret_env_var?}`. Falls back to DefaultAzureCredential when SP env vars aren't set. Secrets typically arrive via `{{ env.XXX }}` Jinja templating."},
     "translation":                   {"type": "string",  "label": "Translation",
-                                      "description": "Python callable path resolved via Dagster's TranslationFn — customizes per-asset AssetSpec (key rename, extra tags/metadata, group override). Signature: `def fn(props: AzureDataFactoryObjectProps) -> AssetSpec`. Same convention as dagster-fivetran / dagster-snowflake."},
+                                      "description": "Python callable path resolved via Dagster's TranslationFn — customizes per-asset AssetSpec (key rename, extra tags/metadata, group override). Signature: `def fn(props: AzureDataFactoryObjectProps) -> AssetSpec`."},
 
     "import_pipelines":              {"type": "boolean", "label": "Import Pipelines", "default": true, "description": "Import ADF pipelines as materializable multi_assets (default true)."},
     "import_triggers":               {"type": "boolean", "label": "Import Triggers", "default": false, "description": "Import ADF triggers as observable external assets."},
-    "import_linked_services":        {"type": "boolean", "label": "Import Linked Services (UNTESTED)", "default": false, "description": "**UNTESTED.** Import ADF linked services (data source / sink connections) as external Dagster assets. Read-only surface — no runtime action. Validate against your factory before use."},
-    "import_datasets":               {"type": "boolean", "label": "Import Datasets (UNTESTED)", "default": false, "description": "**UNTESTED.** Import ADF datasets (schemas over linked services) as external Dagster assets. Read-only surface. Validate before use."},
-    "import_data_flows":             {"type": "boolean", "label": "Import Data Flows (UNTESTED)", "default": false, "description": "**UNTESTED.** Import ADF Mapping Data Flows (visual transformations) as external Dagster assets. Read-only surface. Validate before use."},
-    "import_integration_runtimes":   {"type": "boolean", "label": "Import Integration Runtimes (UNTESTED)", "default": false, "description": "**UNTESTED.** Import ADF Integration Runtimes (SSIS / Azure IR / Self-hosted IR) as external Dagster assets. Read-only surface. Validate before use."},
+    "import_linked_services":        {"type": "boolean", "label": "Import Linked Services (untested)", "default": false, "description": "**Untested.** Import ADF linked services (data source / sink connections) as external Dagster assets. Read-only surface — no runtime action. Validate against your factory before use."},
+    "import_datasets":               {"type": "boolean", "label": "Import Datasets (untested)", "default": false, "description": "**Untested.** Import ADF datasets (schemas over linked services) as external Dagster assets. Read-only surface. Validate before use."},
+    "import_data_flows":             {"type": "boolean", "label": "Import Data Flows (untested)", "default": false, "description": "**Untested.** Import ADF Mapping Data Flows (visual transformations) as external Dagster assets. Read-only surface. Validate before use."},
+    "import_integration_runtimes":   {"type": "boolean", "label": "Import Integration Runtimes (untested)", "default": false, "description": "**Untested.** Import ADF Integration Runtimes (SSIS / Azure IR / Self-hosted IR) as external Dagster assets. Read-only surface. Validate before use."},
 
     "filter_by_name_pattern":        {"type": "string",  "label": "Filter By Name Pattern", "description": "Regex — only entities whose names match are imported. Applied to every kind."},
     "exclude_name_pattern":          {"type": "string",  "label": "Exclude Name Pattern", "description": "Regex — entities whose names match are excluded. Applied after `filter_by_name_pattern`."},
     "filter_by_tags":                {"type": "string",  "label": "Filter By Tags", "description": "Comma-separated tag keys that entities must carry."},
 
-    "polling_sensor":                {"type": "boolean", "label": "Polling Sensor", "default": true, "description": "Emit a polling sensor that observes ADF pipeline-run status. Same convention as FivetranAccountComponent / SnowflakeWorkspaceComponent's `polling_sensor`. Previously named `generate_sensor` — renamed in v0.10.78."},
+    "polling_sensor":                {"type": "boolean", "label": "Polling Sensor", "default": true, "description": "Emit a polling sensor that observes ADF pipeline-run status and emits AssetObservation events."},
     "poll_interval_seconds":         {"type": "integer", "label": "Poll Interval Seconds", "default": 60},
 
     "group_name":                    {"type": "string",  "label": "Group Name", "default": "azure_data_factory"},
@@ -63,7 +63,6 @@
     "adf",
     "data-factory",
     "workspace",
-    "state-backed",
-    "flagship-shape"
+    "state-backed"
   ]
 }

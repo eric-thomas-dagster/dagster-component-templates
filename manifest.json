@@ -3792,9 +3792,10 @@
     },
     {
       "id": "azure_data_factory",
-      "name": "Azure Data Factory",
+      "name": "Azure Data Factory Workspace",
+      "component_type": "dagster_community_components.AzureDataFactoryComponent",
       "category": "integration",
-      "description": "Shared Azure Data Factory connection config.",
+      "description": "Azure Data Factory workspace component — v0.10.78 flagship-shape refactor. Full Fivetran-shape: canonical `workspace:` block (AzureDataFactoryResource), `translation:` callable per-asset customization hook, `@public get_asset_spec(props)` subclass override, `AzureDataFactoryObjectProps` + `AzureDataFactoryComponentTranslator`. Aligned with SnowflakeWorkspaceComponent / QlikReplicateWorkspaceComponent / FivetranAccountComponent. Emits one @multi_asset per ADF pipeline (materializable — triggers a pipeline run + polls), external assets per trigger (observable), plus optional polling sensor for pipeline-run status. v0.10.78 adds 4 new UNTESTED object kinds (linked_services, datasets, data_flows, integration_runtimes) that emit read-only external assets — validate against your factory before shipping. StateBackedComponent — discovery cached to disk. Auth via Service Principal env vars or DefaultAzureCredential. BREAKING vs pre-v0.10.78: flat connection fields moved under `workspace:` block; `generate_sensor` renamed to `polling_sensor`.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "integrations/azure_data_factory",

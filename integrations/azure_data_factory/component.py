@@ -1,37 +1,75 @@
-"""Azure Data Factory Component.
+"""Azure Data Factory Workspace Component.
 
-Extends StateBackedComponent so the ADF Management API is called once at prepare time
-(write_state_to_path) and the pipeline list is cached on disk. build_defs_from_state
-builds asset specs from the cached list with zero network calls, keeping code-server
-reloads fast.
+Full Fivetran-shape workspace component for Azure Data Factory:
+- `workspace:` block (canonical `Annotated[AzureDataFactoryResource, Resolver(...)]`
+  shape — same as dagster-fivetran / dagster-databricks / SnowflakeWorkspace)
+- `translation:` callable — per-asset customization hook
+  (renames / tag additions / group overrides)
+- `@public get_asset_spec(props)` — override in subclasses
+- `AzureDataFactoryObjectProps` + `AzureDataFactoryComponentTranslator`
+- Per-kind import toggles: `import_pipelines`, `import_triggers`,
+  `import_linked_services`, `import_datasets`, `import_data_flows`,
+  `import_integration_runtimes` (last 4 marked UNTESTED — Fivetran-shape
+  additions land as external assets; validate against your ADF factory
+  before relying on them in prod)
+- StateBackedComponent — discovery cached to disk
 
-On first load (state_path is None) returns empty Definitions — run
-`dg utils refresh-defs-state` or `dagster dev` to populate the cache.
+Aligns with SnowflakeWorkspaceComponent / QlikReplicateWorkspaceComponent
+/ FivetranAccountComponent.
 """
 
 import json
 import os
 import re
 import time
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Optional
 
 import dagster as dg
+from dagster import AssetSpec, ComponentLoadContext, Definitions, Model, Resolvable, Resolver
+from dagster._annotations import public
+from dagster.components.component.state_backed_component import StateBackedComponent
+from dagster.components.resolved.base import resolve_fields
+from dagster.components.utils.defs_state import (
+    DefsStateConfig,
+    DefsStateConfigArgs,
+    ResolvedDefsStateConfig,
+)
+from dagster.components.utils.translation import (
+    TranslationFn,
+    TranslationFnResolver,
+)
+from dagster_shared.record import record
 from pydantic import Field
 
-try:
-    from dagster.components.component.state_backed_component import StateBackedComponent
-    from dagster.components.utils.defs_state import (
-        DefsStateConfig,
-        DefsStateConfigArgs,
-        ResolvedDefsStateConfig,
-    )
-    _HAS_STATE_BACKED = True
-except ImportError:
-    StateBackedComponent = None
-    _HAS_STATE_BACKED = False
+
+# ── Translator props ─────────────────────────────────────────────────────────
+
+
+@record
+class AzureDataFactoryObjectProps:
+    """Data passed to translation callables for each imported ADF object.
+
+    Mirrors `SnowflakeObjectProps` / `FivetranConnectorTableProps` /
+    `QlikReplicateObjectProps` — a single record describing the object so
+    `translation:` callables can filter, rename, add tags, etc.
+
+    Attributes:
+        object_kind: One of 'pipeline', 'trigger', 'linked_service',
+            'dataset', 'data_flow', 'integration_runtime'.
+        object_name: The ADF object name.
+        factory_name: The parent ADF factory.
+        resource_group: The Azure resource group.
+        subscription_id: The Azure subscription.
+        extra: Kind-specific metadata (activities_count for pipelines, etc.).
+    """
+    object_kind: str
+    object_name: str
+    factory_name: Optional[str] = None
+    resource_group: Optional[str] = None
+    subscription_id: Optional[str] = None
+    extra: Optional[Dict[str, Any]] = None
 
 
 # ── Resource ──────────────────────────────────────────────────────────────────
@@ -179,6 +217,81 @@ def _fetch_triggers(
         if _matches_filters(name, filter_by_name_pattern, exclude_name_pattern, filter_by_tags):
             result.append(name)
     return result
+
+
+# ── UNTESTED: 4 new object-kind fetch helpers ──────────────────────────────
+# Follow the standard Azure SDK naming convention (`client.<resource>.list_by_factory`).
+# If your ADF SDK version deviates, adjust the accessor name. These emit
+# EXTERNAL ASSETS only (no runtime action). Validate against your factory
+# before relying on them in prod.
+
+
+def _fetch_by_kind(client_attr, resource_group_name: str, factory_name: str,
+                   filter_by_name_pattern: Optional[str],
+                   exclude_name_pattern: Optional[str],
+                   filter_by_tags: Optional[str]) -> List[Dict[str, Any]]:
+    """Generic best-effort list_by_factory over any ADF client attribute
+    (linked_services / datasets / data_flows / integration_runtimes)."""
+    result: List[Dict[str, Any]] = []
+    if client_attr is None:
+        return result
+    try:
+        iterator = client_attr.list_by_factory(resource_group_name, factory_name)
+    except Exception:  # noqa: BLE001 — SDK naming may differ across versions
+        return result
+    for obj in iterator:
+        name = getattr(obj, "name", "") or ""
+        if not _matches_filters(
+            name, filter_by_name_pattern, exclude_name_pattern, filter_by_tags,
+        ):
+            continue
+        result.append({
+            "name": name,
+            "description": getattr(obj, "description", None) or "",
+            # Best-effort — kind-specific detail fields land in `extra`.
+            "type_name": getattr(getattr(obj, "properties", None), "type", None) or "",
+        })
+    return result
+
+
+def _fetch_linked_services(client, resource_group_name, factory_name,
+                           filter_by_name_pattern, exclude_name_pattern, filter_by_tags):
+    """UNTESTED: list ADF linked services (data source / sink connections)."""
+    return _fetch_by_kind(
+        getattr(client, "linked_services", None),
+        resource_group_name, factory_name,
+        filter_by_name_pattern, exclude_name_pattern, filter_by_tags,
+    )
+
+
+def _fetch_datasets(client, resource_group_name, factory_name,
+                    filter_by_name_pattern, exclude_name_pattern, filter_by_tags):
+    """UNTESTED: list ADF datasets (schemas over linked services)."""
+    return _fetch_by_kind(
+        getattr(client, "datasets", None),
+        resource_group_name, factory_name,
+        filter_by_name_pattern, exclude_name_pattern, filter_by_tags,
+    )
+
+
+def _fetch_data_flows(client, resource_group_name, factory_name,
+                      filter_by_name_pattern, exclude_name_pattern, filter_by_tags):
+    """UNTESTED: list ADF Mapping Data Flows (visual transformations)."""
+    return _fetch_by_kind(
+        getattr(client, "data_flows", None),
+        resource_group_name, factory_name,
+        filter_by_name_pattern, exclude_name_pattern, filter_by_tags,
+    )
+
+
+def _fetch_integration_runtimes(client, resource_group_name, factory_name,
+                                filter_by_name_pattern, exclude_name_pattern, filter_by_tags):
+    """UNTESTED: list ADF Integration Runtimes (SSIS / Azure IR / Self-hosted IR)."""
+    return _fetch_by_kind(
+        getattr(client, "integration_runtimes", None),
+        resource_group_name, factory_name,
+        filter_by_name_pattern, exclude_name_pattern, filter_by_tags,
+    )
 
 
 # ── assets_by_pipeline_name helpers ───────────────────────────────────────────
@@ -671,412 +784,449 @@ def _build_adf_defs(
     return dg.Definitions(assets=assets, sensors=sensors)
 
 
-# ── Component (StateBackedComponent path) ──────────────────────────────────────
+# ── UNTESTED: emit external assets for 4 new object kinds ────────────────────
+# Fivetran-shape additions. Discovery calls the ADF Management API; each object
+# becomes a Dagster external asset (no materialization action — read-only view
+# in the catalog). Validate against your factory before relying on them.
 
-if _HAS_STATE_BACKED:
-    @dataclass
-    class AzureDataFactoryComponent(StateBackedComponent, dg.Resolvable):
-        """Azure Data Factory component — one Dagster asset per ADF pipeline (and trigger).
 
-        Uses StateBackedComponent to cache the pipeline list from the ADF Management API,
-        so code-server reloads are fast. Populate the cache with:
-          dagster dev                        (automatic in dev)
-          dg utils refresh-defs-state        (CI/CD / image build)
+def _emit_external_assets(
+    rows: List[Dict[str, Any]],
+    kind: str,
+    factory_name: str,
+    resource_group_name: str,
+    subscription_id: str,
+    group_name: str,
+    key_prefix: List[str],
+    extra_kinds: Optional[List[str]] = None,
+    apply_translation=None,  # optional callable: (base_spec, props) -> spec
+) -> List[AssetSpec]:
+    """Turn a list of {name, description, type_name} rows into AssetSpecs."""
+    kinds = {"azure", "adf", kind, *(extra_kinds or [])}
+    specs: List[AssetSpec] = []
+    for row in rows:
+        name = row["name"]
+        base = AssetSpec(
+            key=dg.AssetKey([*key_prefix, f"adf_{kind}_{name}"]),
+            description=row.get("description") or f"ADF {kind}: {name}",
+            group_name=group_name,
+            kinds=kinds,
+            metadata={
+                "adf/kind":            dg.MetadataValue.text(kind),
+                "adf/name":            dg.MetadataValue.text(name),
+                "adf/type":            dg.MetadataValue.text(row.get("type_name") or "unknown"),
+                "adf/factory":         dg.MetadataValue.text(factory_name),
+                "adf/resource_group":  dg.MetadataValue.text(resource_group_name),
+                "adf/subscription_id": dg.MetadataValue.text(subscription_id),
+                "adf/validation":      dg.MetadataValue.text("UNTESTED — validate against your factory"),
+            },
+        )
+        if apply_translation is not None:
+            props = AzureDataFactoryObjectProps(
+                object_kind=kind,
+                object_name=name,
+                factory_name=factory_name,
+                resource_group=resource_group_name,
+                subscription_id=subscription_id,
+                extra=row,
+            )
+            base = apply_translation(base, props)
+        specs.append(base)
+    return specs
 
-        On first load (before the cache is populated) returns empty Definitions.
 
-        Example:
-            ```yaml
-            type: dagster_component_templates.AzureDataFactoryComponent
-            attributes:
-              subscription_id: "12345678-1234-1234-1234-123456789012"
-              resource_group_name: my-resource-group
-              factory_name: my-data-factory
-              tenant_id: "{{ env('AZURE_TENANT_ID') }}"
-              client_id: "{{ env('AZURE_CLIENT_ID') }}"
-              client_secret: "{{ env('AZURE_CLIENT_SECRET') }}"
-              import_pipelines: true
-              import_triggers: false
-            ```
+# ── Component (StateBackedComponent, flagship shape) ────────────────────────
+
+
+@public
+class AzureDataFactoryComponent(StateBackedComponent, Model, Resolvable):
+    """Azure Data Factory workspace component — one Dagster asset per ADF object.
+
+    Full Fivetran-shape workspace: canonical `workspace:` block
+    (`AzureDataFactoryResource`), `translation:` callable, `@public
+    get_asset_spec` hook, StateBackedComponent discovery caching.
+    Aligns with `SnowflakeWorkspaceComponent` / `FivetranAccountComponent`
+    / `QlikReplicateWorkspaceComponent`.
+
+    Example (canonical `workspace:` block — matches dagster-fivetran):
+
+        ```yaml
+        type: dagster_community_components.AzureDataFactoryComponent
+        attributes:
+          workspace:
+            subscription_id: "{{ env.AZURE_SUBSCRIPTION_ID }}"
+            resource_group_name: my-resource-group
+            factory_name: my-adf
+            tenant_id_env_var: AZURE_TENANT_ID
+            client_id_env_var: AZURE_CLIENT_ID
+            client_secret_env_var: AZURE_CLIENT_SECRET
+          import_pipelines: true
+          import_triggers: false
+          # Fivetran-shape untested additions — external assets only:
+          import_linked_services: true
+          import_datasets: true
+          import_data_flows: true
+          import_integration_runtimes: true
+          polling_sensor: true
+          poll_interval_seconds: 60
+        ```
+
+    Populate the discovery cache:
+        dagster dev                        # automatic in dev
+        dg utils refresh-defs-state        # CI/CD / image build
+    """
+
+    # ── Connection: workspace: block IS an AzureDataFactoryResource ──
+    # Canonical shape — mirrors dagster-fivetran / dagster-databricks /
+    # dagster-powerbi / SnowflakeWorkspaceComponent.
+    workspace: Annotated[
+        AzureDataFactoryResource,
+        Resolver(
+            lambda context, model: AzureDataFactoryResource(
+                **resolve_fields(model, AzureDataFactoryResource, context)  # ty: ignore[invalid-argument-type]
+            ),
+        ),
+    ] = Field(
+        description=(
+            "Azure Data Factory connection as an AzureDataFactoryResource. "
+            "Fields: subscription_id + resource_group_name + factory_name + "
+            "optional {tenant_id_env_var, client_id_env_var, client_secret_env_var} "
+            "(Service Principal) OR omit for DefaultAzureCredential. Secrets "
+            "typically arrive via `{{ env.XXX }}` templating in defs.yaml."
+        ),
+    )
+
+    # ── Translation hook ─────────────────────────────────────────────────
+    translation: Annotated[
+        Optional[TranslationFn[AzureDataFactoryObjectProps]],
+        TranslationFnResolver(template_vars_for_translation_fn=lambda data: {"props": data}),
+    ] = Field(
+        default=None,
+        description=(
+            "Function used to translate ADF object properties into Dagster "
+            "asset specs. Called for each imported pipeline / trigger / "
+            "linked_service / dataset / data_flow / integration_runtime. "
+            "Signature: `def fn(props: AzureDataFactoryObjectProps) -> AssetSpec`. "
+            "If unset, the base translator's default AssetSpec is used."
+        ),
+    )
+
+    # ── Import toggles ──────────────────────────────────────────────────
+    import_pipelines: bool = Field(default=True, description="Import ADF pipelines as materializable assets (default true).")
+    import_triggers: bool = Field(default=False, description="Import ADF triggers as observable external assets.")
+
+    # ── UNTESTED: 4 new object kinds ────────────────────────────────────
+    # Emit as external assets only (no runtime action). Follows the standard
+    # Azure SDK naming (`client.<resource>.list_by_factory`). Validate against
+    # your ADF factory before relying on them in prod — no live customer
+    # validation as of the v0.10.78 ship.
+    import_linked_services: bool = Field(
+        default=False,
+        description=(
+            "**UNTESTED.** Import ADF linked services (source/sink connection "
+            "configurations) as external Dagster assets. Read-only surface — "
+            "no runtime action. Validate against your factory before use."
+        ),
+    )
+    import_datasets: bool = Field(
+        default=False,
+        description=(
+            "**UNTESTED.** Import ADF datasets (schemas over linked services) "
+            "as external Dagster assets. Read-only surface. Validate before use."
+        ),
+    )
+    import_data_flows: bool = Field(
+        default=False,
+        description=(
+            "**UNTESTED.** Import ADF Mapping Data Flows (visual "
+            "transformations) as external Dagster assets. Read-only surface. "
+            "Validate before use."
+        ),
+    )
+    import_integration_runtimes: bool = Field(
+        default=False,
+        description=(
+            "**UNTESTED.** Import ADF Integration Runtimes (SSIS / Azure IR / "
+            "Self-hosted IR) as external Dagster assets. Read-only surface. "
+            "Validate before use."
+        ),
+    )
+
+    # ── Filtering ───────────────────────────────────────────────────────
+    filter_by_name_pattern: Optional[str] = Field(default=None, description="Regex to filter entities by name.")
+    exclude_name_pattern: Optional[str] = Field(default=None, description="Regex to exclude entities by name.")
+    filter_by_tags: Optional[str] = Field(default=None, description="Comma-separated tag keys entities must carry.")
+
+    # ── Observation sensor ──────────────────────────────────────────────
+    polling_sensor: bool = Field(
+        default=True,
+        description=(
+            "Emit a polling sensor that observes ADF pipeline-run status and "
+            "emits AssetObservation events. Matches the `polling_sensor` "
+            "convention on FivetranAccountComponent / SnowflakeWorkspaceComponent "
+            "/ QlikReplicateWorkspaceComponent."
+        ),
+    )
+    poll_interval_seconds: int = Field(default=60, description="Sensor polling interval (seconds).")
+
+    # ── Presentation ────────────────────────────────────────────────────
+    group_name: str = Field(default="azure_data_factory", description="Asset group.")
+    description: Optional[str] = Field(default=None)
+    owners: Optional[List[str]] = Field(default=None)
+    asset_tags: Optional[Dict[str, str]] = Field(default=None)
+    extra_kinds: Optional[List[str]] = Field(default=None, description="Extra `dagster/kind/*` tags applied to every asset.")
+    asset_key_prefix: List[str] = Field(
+        default_factory=list,
+        description="Optional key prefix. Every asset key gets `[<prefix>..., adf_<kind>_<name>]`.",
+    )
+
+    # ── Per-pipeline asset overrides (legacy hook, still supported) ─────
+    assets_by_pipeline_name: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Override or expand AssetSpecs for specific ADF pipelines. Keys "
+            "are ADF pipeline names; values are either a single spec-override "
+            "dict OR a list of them (one pipeline → multiple Dagster assets). "
+            "Supported override keys: key, description, group_name, metadata, "
+            "tags, kinds, deps. For finer-grained per-asset customization, "
+            "prefer the `translation:` callable — this legacy hook stays for "
+            "backward compatibility with existing YAML."
+        ),
+    )
+
+    # ── Pipeline-execution config ───────────────────────────────────────
+    pipeline_parameters: Optional[Dict[str, Any]] = Field(default=None)
+    partition_parameter_name: Optional[str] = Field(default=None)
+    max_wait_seconds: int = Field(default=3600)
+    run_poll_interval_seconds: int = Field(default=30)
+    wait_for_completion: bool = Field(default=True)
+    capture_activity_metadata: bool = Field(default=True)
+
+    # ── Partitions ──────────────────────────────────────────────────────
+    partition_type: Optional[str] = Field(default=None)
+    partition_start: Optional[str] = Field(default=None)
+    partition_values: Optional[List[str]] = Field(default=None)
+
+    # ── Freshness / retry ───────────────────────────────────────────────
+    freshness_max_lag_minutes: Optional[int] = Field(default=None)
+    freshness_cron: Optional[str] = Field(default=None)
+    upstream_asset_keys: Optional[List[str]] = Field(default=None)
+    retry_policy_max_retries: Optional[int] = Field(default=None)
+    retry_policy_delay_seconds: Optional[int] = Field(default=None)
+    retry_policy_backoff: str = Field(default="exponential")
+
+    # ── State backing ───────────────────────────────────────────────────
+    defs_state: ResolvedDefsStateConfig = Field(
+        default_factory=DefsStateConfigArgs.local_filesystem,
+        description=(
+            "State backend for cached workspace discovery. Local filesystem by "
+            "default. Override per-deploy for Dagster Cloud."
+        ),
+    )
+
+    @public
+    def get_asset_spec(self, props: AzureDataFactoryObjectProps) -> AssetSpec:
+        """Generates an AssetSpec for a given ADF object.
+
+        Override in a subclass to customize how ADF objects are converted
+        to Dagster asset specs. Default delegates to the configured
+        translator, which respects the `translation:` field.
         """
+        return self._base_translator.get_asset_spec(props)
 
-        # ── Required fields ────────────────────────────────────────────────────
-        subscription_id: str
-        resource_group_name: str
-        factory_name: str
+    @property
+    def _base_translator(self) -> "AzureDataFactoryComponentTranslator":
+        cached = getattr(self, "__base_translator_cached", None)
+        if cached is None:
+            cached = AzureDataFactoryComponentTranslator(self)
+            object.__setattr__(self, "__base_translator_cached", cached)
+        return cached
 
-        # ── Auth (optional — falls back to DefaultAzureCredential) ────────────
-        # Two ways to provide service-principal creds: literal values or
-        # *_env_var fields the component reads at load time. Either works.
-        tenant_id: Optional[str] = None
-        client_id: Optional[str] = None
-        client_secret: Optional[str] = None
-        tenant_id_env_var: Optional[str] = None
-        client_id_env_var: Optional[str] = None
-        client_secret_env_var: Optional[str] = None
+    @property
+    def defs_state_config(self) -> DefsStateConfig:
+        default_key = (
+            f"{self.__class__.__name__}"
+            f"[{self.workspace.subscription_id}/{self.workspace.resource_group_name}"
+            f"/{self.workspace.factory_name}]"
+        )
+        return DefsStateConfig.from_args(self.defs_state, default_key=default_key)
 
-        # ── Import toggles ─────────────────────────────────────────────────────
-        import_pipelines: bool = True
-        import_triggers: bool = False
+    def _apply_translation(self, base_spec: AssetSpec, props: AzureDataFactoryObjectProps) -> AssetSpec:
+        """Fold the `translation:` callable into a base AssetSpec. When no
+        callable is set, returns `base_spec` unchanged."""
+        if self.translation is None:
+            return base_spec
+        result = self.get_asset_spec(props)
+        return result
 
-        # ── Filtering ──────────────────────────────────────────────────────────
-        filter_by_name_pattern: Optional[str] = None
-        exclude_name_pattern: Optional[str] = None
-        filter_by_tags: Optional[str] = None
+    # ── Discovery (state-backed) ────────────────────────────────────────
+    async def write_state_to_path(self, state_path: Path) -> None:
+        """Call ADF Management API and cache all requested object kinds to disk."""
+        client = self.workspace.get_client()
+        rg = self.workspace.resource_group_name
+        fac = self.workspace.factory_name
 
-        # ── Sensor ────────────────────────────────────────────────────────────
-        generate_sensor: bool = True
-        poll_interval_seconds: int = 60
+        state: Dict[str, Any] = {"pipelines": [], "triggers": [],
+                                 "linked_services": [], "datasets": [],
+                                 "data_flows": [], "integration_runtimes": []}
 
-        # ── Presentation ──────────────────────────────────────────────────────
-        group_name: str = "azure_data_factory"
-        description: Optional[str] = None
+        if self.import_pipelines:
+            state["pipelines"] = _fetch_pipelines(
+                client, rg, fac,
+                self.filter_by_name_pattern, self.exclude_name_pattern, self.filter_by_tags,
+            )
+        if self.import_triggers:
+            state["triggers"] = _fetch_triggers(
+                client, rg, fac,
+                self.filter_by_name_pattern, self.exclude_name_pattern, self.filter_by_tags,
+            )
+        # UNTESTED kinds:
+        if self.import_linked_services:
+            state["linked_services"] = _fetch_linked_services(
+                client, rg, fac,
+                self.filter_by_name_pattern, self.exclude_name_pattern, self.filter_by_tags,
+            )
+        if self.import_datasets:
+            state["datasets"] = _fetch_datasets(
+                client, rg, fac,
+                self.filter_by_name_pattern, self.exclude_name_pattern, self.filter_by_tags,
+            )
+        if self.import_data_flows:
+            state["data_flows"] = _fetch_data_flows(
+                client, rg, fac,
+                self.filter_by_name_pattern, self.exclude_name_pattern, self.filter_by_tags,
+            )
+        if self.import_integration_runtimes:
+            state["integration_runtimes"] = _fetch_integration_runtimes(
+                client, rg, fac,
+                self.filter_by_name_pattern, self.exclude_name_pattern, self.filter_by_tags,
+            )
 
-        # ── Per-pipeline asset overrides ───────────────────────────────────────
-        # The `assets_by_pipeline_name` dict supports per-pipeline keys:
-        #   {<pipeline_name>: {key, description, group_name, metadata, tags, kinds, deps}}
-        # `deps` is a list of asset keys this specific ADF pipeline depends on —
-        # use it to wire individual ADF pipelines into the broader Dagster lineage.
-        assets_by_pipeline_name: Optional[dict] = None
+        state_path.write_text(json.dumps(state, indent=2))
 
-        # ── Pipeline-execution config ─────────────────────────────────────────
-        pipeline_parameters: Optional[dict] = None
-        partition_parameter_name: Optional[str] = None
-        max_wait_seconds: int = 3600
-        run_poll_interval_seconds: int = 30
-        wait_for_completion: bool = True
-        capture_activity_metadata: bool = True
+    def build_defs_from_state(
+        self, context: ComponentLoadContext, state_path: Optional[Path]
+    ) -> Definitions:
+        """Build assets from cached ADF metadata — no network calls."""
+        if state_path is None or not state_path.exists():
+            if hasattr(context, "log"):
+                context.log.warning(  # type: ignore[union-attr]
+                    "AzureDataFactoryComponent: no cached state. Run "
+                    "`dg utils refresh-defs-state` or `dagster dev` to populate."
+                )
+            return Definitions()
 
-        # ── Partitions ────────────────────────────────────────────────────────
-        partition_type: Optional[str] = None
-        partition_start: Optional[str] = None
-        partition_values: Optional[list] = None
+        state = json.loads(state_path.read_text())
+        pipelines = state.get("pipelines", [])
+        trigger_names = [
+            t["name"] if isinstance(t, dict) else t
+            for t in state.get("triggers", [])
+        ]
+        linked_services = state.get("linked_services", [])
+        datasets = state.get("datasets", [])
+        data_flows = state.get("data_flows", [])
+        integration_runtimes = state.get("integration_runtimes", [])
 
-        # ── Standard catalog fields ───────────────────────────────────────────
-        owners: Optional[list] = None
-        asset_tags: Optional[dict] = None
-        extra_kinds: Optional[list] = None
-        freshness_max_lag_minutes: Optional[int] = None
-        freshness_cron: Optional[str] = None
-        upstream_asset_keys: Optional[list] = None
+        # Resolve auth for the runtime (pipeline-run trigger + polling sensor).
+        _ten = os.environ.get(self.workspace.tenant_id_env_var) if self.workspace.tenant_id_env_var else None
+        _cid = os.environ.get(self.workspace.client_id_env_var) if self.workspace.client_id_env_var else None
+        _sec = os.environ.get(self.workspace.client_secret_env_var) if self.workspace.client_secret_env_var else None
 
-        # ── Retry policy ──────────────────────────────────────────────────────
-        retry_policy_max_retries: Optional[int] = None
-        retry_policy_delay_seconds: Optional[int] = None
-        retry_policy_backoff: str = "exponential"
-
-        # ── State backing ─────────────────────────────────────────────────────
-        defs_state: ResolvedDefsStateConfig = field(
-            default_factory=DefsStateConfigArgs.local_filesystem
+        base_defs = _build_adf_defs(
+            pipelines=pipelines,
+            trigger_names=trigger_names,
+            subscription_id=self.workspace.subscription_id,
+            resource_group_name=self.workspace.resource_group_name,
+            factory_name=self.workspace.factory_name,
+            tenant_id=_ten, client_id=_cid, client_secret=_sec,
+            group_name=self.group_name,
+            import_pipelines=self.import_pipelines,
+            import_triggers=self.import_triggers,
+            generate_sensor=self.polling_sensor,       # renamed field, same signature
+            poll_interval_seconds=self.poll_interval_seconds,
+            filter_by_name_pattern=self.filter_by_name_pattern,
+            exclude_name_pattern=self.exclude_name_pattern,
+            assets_by_pipeline_name=self.assets_by_pipeline_name,
+            pipeline_parameters=self.pipeline_parameters,
+            partition_type=self.partition_type,
+            partition_start=self.partition_start,
+            partition_values=self.partition_values,
+            partition_parameter_name=self.partition_parameter_name,
+            max_wait_seconds=self.max_wait_seconds,
+            run_poll_interval_seconds=self.run_poll_interval_seconds,
+            wait_for_completion=self.wait_for_completion,
+            capture_activity_metadata=self.capture_activity_metadata,
+            owners=self.owners,
+            asset_tags=self.asset_tags,
+            extra_kinds=self.extra_kinds,
+            freshness_max_lag_minutes=self.freshness_max_lag_minutes,
+            freshness_cron=self.freshness_cron,
+            upstream_asset_keys=self.upstream_asset_keys,
+            retry_policy_max_retries=self.retry_policy_max_retries,
+            retry_policy_delay_seconds=self.retry_policy_delay_seconds,
+            retry_policy_backoff=self.retry_policy_backoff,
         )
 
-        @property
-        def defs_state_config(self) -> DefsStateConfig:
-            return DefsStateConfig.from_args(
-                self.defs_state,
-                default_key=f"AzureDataFactoryComponent[{self.factory_name}]",
-            )
-
-        # ── State write (runs once at prepare time) ────────────────────────────
-
-        def write_state_to_path(self, state_path: Path) -> None:
-            """Call ADF Management API and cache pipeline (and trigger) metadata to disk."""
-            import os as _os
-            _ten = self.tenant_id or (_os.environ.get(self.tenant_id_env_var) if self.tenant_id_env_var else None)
-            _cid = self.client_id or (_os.environ.get(self.client_id_env_var) if self.client_id_env_var else None)
-            _sec = self.client_secret or (_os.environ.get(self.client_secret_env_var) if self.client_secret_env_var else None)
-            client = _get_adf_client(
-                self.subscription_id,
-                _ten,
-                _cid,
-                _sec,
-            )
-
-            state: Dict[str, Any] = {}
-
-            if self.import_pipelines:
-                state["pipelines"] = _fetch_pipelines(
-                    client,
-                    self.resource_group_name,
-                    self.factory_name,
-                    self.filter_by_name_pattern,
-                    self.exclude_name_pattern,
-                    self.filter_by_tags,
-                )
-            else:
-                state["pipelines"] = []
-
-            if self.import_triggers:
-                state["triggers"] = _fetch_triggers(
-                    client,
-                    self.resource_group_name,
-                    self.factory_name,
-                    self.filter_by_name_pattern,
-                    self.exclude_name_pattern,
-                    self.filter_by_tags,
-                )
-            else:
-                state["triggers"] = []
-
-            state_path.write_text(json.dumps(state, indent=2))
-
-        # ── Defs build from cache (zero network calls) ─────────────────────────
-
-        def build_defs_from_state(
-            self, context: dg.ComponentLoadContext, state_path: Optional[Path]
-        ) -> dg.Definitions:
-            """Build asset specs from cached ADF metadata — no network calls."""
-            if state_path is None or not state_path.exists():
-                if hasattr(context, "log"):
-                    context.log.warning(  # type: ignore[union-attr]
-                        "AzureDataFactoryComponent: no cached state found. "
-                        "Run `dg utils refresh-defs-state` or `dagster dev` to populate."
-                    )
-                return dg.Definitions()
-
-            state = json.loads(state_path.read_text())
-            pipelines: List[Dict[str, Any]] = state.get("pipelines", [])
-            trigger_names: List[str] = state.get("triggers", [])
-
-            return _build_adf_defs(
-                pipelines=pipelines,
-                trigger_names=trigger_names,
-                subscription_id=self.subscription_id,
-                resource_group_name=self.resource_group_name,
-                factory_name=self.factory_name,
-                tenant_id=self.tenant_id or (os.environ.get(self.tenant_id_env_var) if getattr(self, 'tenant_id_env_var', None) else None),
-                client_id=self.client_id or (os.environ.get(self.client_id_env_var) if getattr(self, 'client_id_env_var', None) else None),
-                client_secret=self.client_secret or (os.environ.get(self.client_secret_env_var) if getattr(self, 'client_secret_env_var', None) else None),
+        # Extend with UNTESTED external-asset kinds.
+        extras: List[Any] = list(base_defs.assets or [])
+        for rows, kind, flag in [
+            (linked_services,       "linked_service",       self.import_linked_services),
+            (datasets,              "dataset",              self.import_datasets),
+            (data_flows,            "data_flow",            self.import_data_flows),
+            (integration_runtimes,  "integration_runtime",  self.import_integration_runtimes),
+        ]:
+            if not flag or not rows:
+                continue
+            extras.extend(_emit_external_assets(
+                rows=rows, kind=kind,
+                factory_name=self.workspace.factory_name,
+                resource_group_name=self.workspace.resource_group_name,
+                subscription_id=self.workspace.subscription_id,
                 group_name=self.group_name,
-                import_pipelines=self.import_pipelines,
-                import_triggers=self.import_triggers,
-                generate_sensor=self.generate_sensor,
-                poll_interval_seconds=self.poll_interval_seconds,
-                filter_by_name_pattern=self.filter_by_name_pattern,
-                exclude_name_pattern=self.exclude_name_pattern,
-                assets_by_pipeline_name=self.assets_by_pipeline_name,
-                pipeline_parameters=getattr(self, "pipeline_parameters", None),
-                partition_type=getattr(self, "partition_type", None),
-                partition_start=getattr(self, "partition_start", None),
-                partition_values=getattr(self, "partition_values", None),
-                partition_parameter_name=getattr(self, "partition_parameter_name", None),
-                max_wait_seconds=getattr(self, "max_wait_seconds", 3600),
-                run_poll_interval_seconds=getattr(self, "run_poll_interval_seconds", 30),
-                wait_for_completion=getattr(self, "wait_for_completion", True),
-                capture_activity_metadata=getattr(self, "capture_activity_metadata", True),
-                owners=getattr(self, "owners", None),
-                asset_tags=getattr(self, "asset_tags", None),
-                extra_kinds=getattr(self, "extra_kinds", None),
-                freshness_max_lag_minutes=getattr(self, "freshness_max_lag_minutes", None),
-                freshness_cron=getattr(self, "freshness_cron", None),
-                upstream_asset_keys=getattr(self, "upstream_asset_keys", None),
-                retry_policy_max_retries=getattr(self, "retry_policy_max_retries", None),
-                retry_policy_delay_seconds=getattr(self, "retry_policy_delay_seconds", None),
-                retry_policy_backoff=getattr(self, "retry_policy_backoff", "exponential"),
-            )
+                key_prefix=self.asset_key_prefix,
+                extra_kinds=self.extra_kinds,
+                apply_translation=self._apply_translation,
+            ))
 
-else:
-    # ── Fallback: StateBackedComponent not available in this dagster version ──
-    # Falls back to calling the ADF API on every build_defs (original behaviour).
-    class AzureDataFactoryComponent(dg.Component, dg.Model, dg.Resolvable):  # type: ignore[no-redef]
-        """Azure Data Factory component (fallback: no state caching).
-
-        Upgrade to dagster>=1.8 to enable StateBackedComponent caching.
-
-        Example:
-            ```yaml
-            type: dagster_component_templates.AzureDataFactoryComponent
-            attributes:
-              subscription_id: "12345678-1234-1234-1234-123456789012"
-              resource_group_name: my-resource-group
-              factory_name: my-data-factory
-              tenant_id: "{{ env('AZURE_TENANT_ID') }}"
-              client_id: "{{ env('AZURE_CLIENT_ID') }}"
-              client_secret: "{{ env('AZURE_CLIENT_SECRET') }}"
-              import_pipelines: true
-            ```
-        """
-
-        subscription_id: str = Field(description="Azure subscription ID")
-        resource_group_name: str = Field(description="Azure resource group name")
-        factory_name: str = Field(description="Azure Data Factory name")
-
-        tenant_id: Optional[str] = Field(
-            default=None,
-            description="Azure AD tenant ID (optional — uses DefaultAzureCredential if absent)",
-        )
-        client_id: Optional[str] = Field(
-            default=None,
-            description="Azure AD client/application ID (optional)",
-        )
-        client_secret: Optional[str] = Field(
-            default=None,
-            description="Azure AD client secret (optional)",
+        return Definitions(
+            assets=extras,
+            sensors=list(base_defs.sensors or []),
         )
 
-        import_pipelines: bool = Field(default=True, description="Import pipelines as assets")
-        import_triggers: bool = Field(default=False, description="Import triggers as assets")
 
-        filter_by_name_pattern: Optional[str] = Field(
-            default=None, description="Regex to filter entities by name"
-        )
-        exclude_name_pattern: Optional[str] = Field(
-            default=None, description="Regex to exclude entities by name"
-        )
-        filter_by_tags: Optional[str] = Field(
-            default=None, description="Comma-separated tag keys to filter entities"
-        )
+# ── Translator ──────────────────────────────────────────────────────────────
+class AzureDataFactoryComponentTranslator:
+    """Base translator turning `AzureDataFactoryObjectProps` into an
+    AssetSpec. Bridges the user's `translation:` callable with the default
+    per-object spec. Same convention as `SnowflakeComponentTranslator` /
+    `QlikReplicateComponentTranslator` / `FivetranComponentTranslator`."""
 
-        generate_sensor: bool = Field(default=True, description="Generate observation sensor")
-        poll_interval_seconds: int = Field(default=60, description="Sensor poll interval (s)")
+    def __init__(self, component: "AzureDataFactoryComponent"):
+        self._component = component
 
-        group_name: str = Field(default="azure_data_factory", description="Asset group name")
-        description: Optional[str] = Field(default=None, description="Component description")
+    @property
+    def component(self) -> "AzureDataFactoryComponent":
+        return self._component
 
-        assets_by_pipeline_name: Optional[dict] = Field(
-            default=None,
-            description=(
-                "Override or expand AssetSpecs for specific ADF pipelines. "
-                "Keys are ADF pipeline names; values are either a single spec-override dict "
-                "or a list of spec-override dicts (one pipeline -> multiple Dagster assets). "
-                "Supported keys per override: key, description, group_name, metadata, tags, kinds, deps."
-            ),
+    def get_asset_spec(self, props: AzureDataFactoryObjectProps) -> AssetSpec:
+        # Default base spec — the exact same shape _emit_external_assets and
+        # the pipeline builder produce, so translation callables see a stable
+        # input regardless of which kind fired.
+        base = AssetSpec(
+            key=dg.AssetKey([f"adf_{props.object_kind}_{props.object_name}"]),
+            description=f"ADF {props.object_kind}: {props.object_name}",
+            group_name=self._component.group_name,
+            kinds={"azure", "adf", props.object_kind, *(self._component.extra_kinds or [])},
+            metadata={
+                "adf/kind":            props.object_kind,
+                "adf/name":            props.object_name,
+                "adf/factory":         props.factory_name or "",
+                "adf/resource_group":  props.resource_group or "",
+                "adf/subscription_id": props.subscription_id or "",
+            },
         )
+        if self._component.translation is None:
+            return base
+        # Callable path — user gets full control of the final spec.
+        return self._component.translation(props)  # type: ignore[misc]
 
-        retry_policy_max_retries: Optional[int] = Field(default=None, description="Max retries on asset failure (transient network/rate-limit issues)")
-        retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between retries (default 1)")
-        retry_policy_backoff: str = Field(default="exponential", description="Backoff: 'linear' or 'exponential'")
-
-        # Pipeline-execution config
-        pipeline_parameters: Optional[dict] = Field(
-            default=None,
-            description="Parameters dict passed to every ADF pipeline run (key→value).",
-        )
-        partition_parameter_name: Optional[str] = Field(
-            default=None,
-            description=(
-                "When the asset is partitioned, auto-pass the partition_key as this "
-                "ADF pipeline parameter (default: 'partition_key'). Example: a daily-"
-                "partitioned asset with partition_parameter_name='ODATE' passes "
-                "ODATE='2026-05-06' to the ADF pipeline at run time."
-            ),
-        )
-        max_wait_seconds: int = Field(
-            default=3600,
-            description="How long to wait for the pipeline to complete before timing out.",
-        )
-        run_poll_interval_seconds: int = Field(
-            default=30,
-            description="Seconds between status polls while a run is in progress.",
-        )
-        wait_for_completion: bool = Field(
-            default=True,
-            description="If False, fire-and-forget — yield Submitted immediately and don't poll.",
-        )
-        capture_activity_metadata: bool = Field(
-            default=True,
-            description="On completion, fetch each ADF activity's status/duration/error/output and surface as metadata.",
-        )
-
-        # Partition fields
-        partition_type: Optional[str] = Field(
-            default=None,
-            description="'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | None (unpartitioned).",
-        )
-        partition_start: Optional[str] = Field(
-            default=None,
-            description="Start date for time-based partitions, ISO format (e.g. '2024-01-01').",
-        )
-        partition_values: Optional[list] = Field(
-            default=None,
-            description="List of partition values for static partitions (e.g. ['us', 'eu', 'apac']).",
-        )
-
-        # Standard catalog fields
-        owners: Optional[list] = Field(default=None, description="Asset owners (team or email).")
-        asset_tags: Optional[dict] = Field(default=None, description="Catalog tags.")
-        extra_kinds: Optional[list] = Field(default=None, description="Additional asset kinds beyond the default {azure, adf}.")
-        freshness_max_lag_minutes: Optional[int] = Field(default=None, description="Freshness SLO in minutes (legacy FreshnessPolicy).")
-        freshness_cron: Optional[str] = Field(default=None, description="Cron schedule for the freshness policy.")
-        upstream_asset_keys: Optional[list] = Field(
-            default=None,
-            description=(
-                "Asset keys that ALL imported ADF pipeline assets should depend on. "
-                "Lets non-ADF Dagster assets gate ADF pipeline runs (e.g. only run "
-                "ADF pipelines after dbt has refreshed the upstream tables). "
-                "For per-pipeline overrides, use assets_by_pipeline_name's `deps` key."
-            ),
-        )
-
-        def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-            """Build Definitions by calling the ADF API at load time."""
-            import os as _os
-            _ten = self.tenant_id or (_os.environ.get(self.tenant_id_env_var) if self.tenant_id_env_var else None)
-            _cid = self.client_id or (_os.environ.get(self.client_id_env_var) if self.client_id_env_var else None)
-            _sec = self.client_secret or (_os.environ.get(self.client_secret_env_var) if self.client_secret_env_var else None)
-            client = _get_adf_client(
-                self.subscription_id,
-                _ten,
-                _cid,
-                _sec,
-            )
-
-            pipelines: List[Dict[str, Any]] = []
-            trigger_names: List[str] = []
-
-            if self.import_pipelines:
-                pipelines = _fetch_pipelines(
-                    client,
-                    self.resource_group_name,
-                    self.factory_name,
-                    self.filter_by_name_pattern,
-                    self.exclude_name_pattern,
-                    self.filter_by_tags,
-                )
-
-            if self.import_triggers:
-                trigger_names = _fetch_triggers(
-                    client,
-                    self.resource_group_name,
-                    self.factory_name,
-                    self.filter_by_name_pattern,
-                    self.exclude_name_pattern,
-                    self.filter_by_tags,
-                )
-
-            return _build_adf_defs(
-                pipelines=pipelines,
-                trigger_names=trigger_names,
-                subscription_id=self.subscription_id,
-                resource_group_name=self.resource_group_name,
-                factory_name=self.factory_name,
-                tenant_id=self.tenant_id or (os.environ.get(self.tenant_id_env_var) if getattr(self, 'tenant_id_env_var', None) else None),
-                client_id=self.client_id or (os.environ.get(self.client_id_env_var) if getattr(self, 'client_id_env_var', None) else None),
-                client_secret=self.client_secret or (os.environ.get(self.client_secret_env_var) if getattr(self, 'client_secret_env_var', None) else None),
-                group_name=self.group_name,
-                import_pipelines=self.import_pipelines,
-                import_triggers=self.import_triggers,
-                generate_sensor=self.generate_sensor,
-                poll_interval_seconds=self.poll_interval_seconds,
-                filter_by_name_pattern=self.filter_by_name_pattern,
-                exclude_name_pattern=self.exclude_name_pattern,
-                assets_by_pipeline_name=self.assets_by_pipeline_name,
-                pipeline_parameters=getattr(self, "pipeline_parameters", None),
-                partition_type=getattr(self, "partition_type", None),
-                partition_start=getattr(self, "partition_start", None),
-                partition_values=getattr(self, "partition_values", None),
-                partition_parameter_name=getattr(self, "partition_parameter_name", None),
-                max_wait_seconds=getattr(self, "max_wait_seconds", 3600),
-                run_poll_interval_seconds=getattr(self, "run_poll_interval_seconds", 30),
-                wait_for_completion=getattr(self, "wait_for_completion", True),
-                capture_activity_metadata=getattr(self, "capture_activity_metadata", True),
-                owners=getattr(self, "owners", None),
-                asset_tags=getattr(self, "asset_tags", None),
-                extra_kinds=getattr(self, "extra_kinds", None),
-                freshness_max_lag_minutes=getattr(self, "freshness_max_lag_minutes", None),
-                freshness_cron=getattr(self, "freshness_cron", None),
-                upstream_asset_keys=getattr(self, "upstream_asset_keys", None),
-                retry_policy_max_retries=getattr(self, "retry_policy_max_retries", None),
-                retry_policy_delay_seconds=getattr(self, "retry_policy_delay_seconds", None),
-                retry_policy_backoff=getattr(self, "retry_policy_backoff", "exponential"),
-            )

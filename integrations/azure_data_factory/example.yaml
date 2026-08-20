@@ -1,37 +1,49 @@
-# Basic configuration — imports only pipelines (recommended starting point)
-type: dagster_component_templates.AzureDataFactoryComponent
+# Canonical `workspace:` block (flagship shape — matches dagster-fivetran,
+# dagster-databricks, SnowflakeWorkspaceComponent). Recommended starting point.
+type: dagster_community_components.AzureDataFactoryComponent
 attributes:
-  subscription_id: "12345678-1234-1234-1234-123456789012"
-  resource_group_name: my-resource-group
-  factory_name: my-data-factory
-  tenant_id: "{{ env('AZURE_TENANT_ID') }}"
-  client_id: "{{ env('AZURE_CLIENT_ID') }}"
-  client_secret: "{{ env('AZURE_CLIENT_SECRET') }}"
+  workspace:
+    subscription_id: "{{ env.AZURE_SUBSCRIPTION_ID }}"
+    resource_group_name: my-resource-group
+    factory_name: my-data-factory
+    tenant_id_env_var: AZURE_TENANT_ID
+    client_id_env_var: AZURE_CLIENT_ID
+    client_secret_env_var: AZURE_CLIENT_SECRET
   import_pipelines: true
   group_name: adf_prod
 
 ---
-# Advanced configuration — imports pipelines and triggers with filtering
-type: dagster_component_templates.AzureDataFactoryComponent
+# Advanced: pipelines + triggers + all 4 UNTESTED kinds with filtering.
+# The 4 new kinds (linked_services / datasets / data_flows / integration_runtimes)
+# emit external assets only — read-only surface, no runtime action. Validate
+# against your factory before relying on them.
+type: dagster_community_components.AzureDataFactoryComponent
 attributes:
-  subscription_id: "12345678-1234-1234-1234-123456789012"
-  resource_group_name: my-resource-group
-  factory_name: my-data-factory
-  tenant_id: "{{ env('AZURE_TENANT_ID') }}"
-  client_id: "{{ env('AZURE_CLIENT_ID') }}"
-  client_secret: "{{ env('AZURE_CLIENT_SECRET') }}"
+  workspace:
+    subscription_id: "{{ env.AZURE_SUBSCRIPTION_ID }}"
+    resource_group_name: my-resource-group
+    factory_name: my-data-factory
+    tenant_id_env_var: AZURE_TENANT_ID
+    client_id_env_var: AZURE_CLIENT_ID
+    client_secret_env_var: AZURE_CLIENT_SECRET
 
-  # Import entity types
+  # Tested import toggles
   import_pipelines: true
   import_triggers: true
 
-  # Filtering (optional)
-  filter_by_name_pattern: ^prod_.*
-  exclude_name_pattern: test|dev
-  filter_by_tags: env,team
+  # UNTESTED — external assets only
+  import_linked_services: true
+  import_datasets: true
+  import_data_flows: true
+  import_integration_runtimes: true
 
-  # Sensor configuration
-  generate_sensor: true
+  # Filtering (optional)
+  filter_by_name_pattern: "^prod_.*"
+  exclude_name_pattern: "test|dev"
+  filter_by_tags: "env,team"
+
+  # Observation sensor (renamed from `generate_sensor` in v0.10.78)
+  polling_sensor: true
   poll_interval_seconds: 60
 
   group_name: adf_workspace
@@ -42,23 +54,39 @@ attributes:
   #   path: .dagster/adf_state
 
 ---
-# Using DefaultAzureCredential (Managed Identity / Azure CLI — no explicit credentials)
-type: dagster_component_templates.AzureDataFactoryComponent
+# Managed Identity / Azure CLI (no explicit SP credentials — omit *_env_var fields)
+type: dagster_community_components.AzureDataFactoryComponent
 attributes:
-  subscription_id: "12345678-1234-1234-1234-123456789012"
-  resource_group_name: my-resource-group
-  factory_name: my-data-factory
+  workspace:
+    subscription_id: "{{ env.AZURE_SUBSCRIPTION_ID }}"
+    resource_group_name: my-resource-group
+    factory_name: my-data-factory
   import_pipelines: true
   import_triggers: true
   group_name: adf_managed_identity
 
 ---
-# Optional: override AssetSpec for specific ADF pipelines
-type: dagster_component_templates.AzureDataFactoryComponent
+# Per-asset customization via `translation:` callable (flagship pattern)
+# — customize key / tags / kinds / group per imported ADF object.
+type: dagster_community_components.AzureDataFactoryComponent
 attributes:
-  subscription_id: "12345678-1234-1234-1234-123456789012"
-  resource_group_name: my-resource-group
-  factory_name: my-data-factory
+  workspace:
+    subscription_id: "{{ env.AZURE_SUBSCRIPTION_ID }}"
+    resource_group_name: my-resource-group
+    factory_name: my-data-factory
+  import_pipelines: true
+  translation: "{{ load_python_module_attr('my_project.adf_translation.route_by_env_tag') }}"
+  group_name: adf_prod
+
+---
+# Legacy per-pipeline overrides — still supported alongside `translation:`
+# for backward compatibility. Prefer `translation:` for new configs.
+type: dagster_community_components.AzureDataFactoryComponent
+attributes:
+  workspace:
+    subscription_id: "{{ env.AZURE_SUBSCRIPTION_ID }}"
+    resource_group_name: my-resource-group
+    factory_name: my-data-factory
   import_pipelines: true
   group_name: adf_prod
   assets_by_pipeline_name:

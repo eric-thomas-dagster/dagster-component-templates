@@ -99,4 +99,23 @@ Slack's `reactions.get` is Tier 3 (~50 req/min). At 30s cadence per partition:
 
 - **Instant approval UX.** Reactions polling is 30-60s. If you need instant, use Socket Mode (requires Hybrid deploy with a long-running agent) — future component.
 - **Threaded discussion feedback.** Approvers can discuss in the same thread but the discussion doesn't flow back to Dagster. The `reason` field just gets `<Slack-quorum>`.
-- **Revise-and-retry on rejection.** Rejection is terminal — the gate's asset check fails ERROR and downstream stays blocked. See `rejection_with_feedback_loop` (backlog) for the revise pattern.
+- **Revise-and-retry on rejection.** Rejection is terminal — the gate's asset check fails ERROR and downstream stays blocked. See `rejection_feedback_loop` for the revise pattern.
+
+## Cloud storage — `approval_dir` accepts URIs, not just local paths
+
+Dagster+ Serverless containers don't share a local filesystem across
+runs or code locations, so a production Slack-approval deploy needs
+cloud object storage for the sidecar + token files. `approval_dir` accepts:
+
+| Shape | Example | Requires |
+|---|---|---|
+| Local path | `/tmp/approvals` | nothing (pathlib fast-path) |
+| S3 | `s3://my-bucket/approvals` | `pip install fsspec s3fs` |
+| GCS | `gs://my-bucket/approvals` | `pip install fsspec gcsfs` |
+| Azure ADLS | `abfs://container@account.dfs.core.windows.net/approvals` | `pip install fsspec adlfs` |
+
+Auth follows the driver's default credential chain (AWS env vars /
+instance profile, GCP service account key, Azure SP creds). No YAML
+changes — just swap the `approval_dir` value. The sidecar
+`.slack_state.json` and the eventual approval token `.json` both live
+under whatever URI `approval_dir` points at.

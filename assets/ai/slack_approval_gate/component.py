@@ -41,6 +41,54 @@ import dagster as dg
 from pydantic import Field
 
 
+# ── Inline fs helper: local + cloud (s3://, gs://, abfs://) via fsspec ──
+# Kept inline per DCC's self-contained convention. Backward-compat:
+# plain paths (e.g. `/tmp/approvals`) use pathlib directly; only URIs
+# require fsspec + the appropriate driver.
+class _ApprovalFS:
+    """Uniform read/write over `approval_dir`. Plain paths use pathlib
+    (no fsspec dep); URIs (`s3://`, `gs://`, `abfs://`) route through
+    fsspec + the appropriate driver (`s3fs` / `gcsfs` / `adlfs` —
+    install what you need)."""
+    def __init__(self, root: str):
+        if "://" in root:
+            import fsspec
+            fs, rt = fsspec.core.url_to_fs(root)
+            self.fs, self.root, self.is_uri = fs, rt.rstrip("/"), True
+        else:
+            self.fs, self.root, self.is_uri = None, str(Path(root).expanduser().resolve()), False
+    def path(self, *parts: str) -> str:
+        pieces = [self.root, *[p.strip("/") for p in parts if p]]
+        return "/".join(pieces) if self.is_uri else str(Path(*pieces))
+    def exists(self, p: str) -> bool:
+        return bool(self.fs.exists(p)) if self.is_uri else Path(p).exists()
+    def mkdir(self, subdir: str = "") -> None:
+        target = self.path(subdir) if subdir else self.root
+        if self.is_uri:
+            try: self.fs.makedirs(target, exist_ok=True)
+            except Exception: pass
+        else:
+            Path(target).mkdir(parents=True, exist_ok=True)
+    def read_json(self, p: str) -> Any:
+        if self.is_uri:
+            with self.fs.open(p, "r") as f: return json.loads(f.read())
+        return json.loads(Path(p).read_text())
+    def write_json(self, p: str, obj: Any) -> None:
+        body = json.dumps(obj, indent=2, default=str)
+        if self.is_uri:
+            try: self.fs.makedirs("/".join(p.split("/")[:-1]), exist_ok=True)
+            except Exception: pass
+            with self.fs.open(p, "w") as f: f.write(body)
+        else:
+            Path(p).parent.mkdir(parents=True, exist_ok=True)
+            Path(p).write_text(body)
+    def glob(self, pattern: str) -> List[str]:
+        if self.is_uri:
+            proto = self.fs.protocol if isinstance(self.fs.protocol, str) else self.fs.protocol[0]
+            return [f"{proto}://{m}" for m in self.fs.glob(self.path(pattern))]
+        return [str(p) for p in Path(self.root).glob(pattern)]
+
+
 # ── Partition helper (matches HumanApprovalGateComponent shape) ───────
 
 def _build_partitions_def(
@@ -375,14 +423,14 @@ class SlackApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
         def _posted_asset(context: dg.AssetExecutionContext, upstream):
             raw_key = context.partition_key if context.has_partition_key else "default"
             safe_key = _safe_partition_key(raw_key)
-            approval_root = Path(approval_dir).expanduser().resolve()
-            approval_root.mkdir(parents=True, exist_ok=True)
-            sidecar = approval_root / f"{safe_key}{_SLACK_STATE_SUFFIX}"
+            fs = _ApprovalFS(approval_dir)
+            fs.mkdir()
+            sidecar_path = fs.path(f"{safe_key}{_SLACK_STATE_SUFFIX}")
 
-            if sidecar.exists():
+            if fs.exists(sidecar_path):
                 # Already posted for this partition — re-materializing is a no-op
                 # (safe idempotent re-run; existing message stays valid).
-                state = json.loads(sidecar.read_text())
+                state = fs.read_json(sidecar_path)
                 context.log.info(
                     f"[slack_approval] partition {raw_key!r} already posted "
                     f"(ts={state.get('message_ts')}); reusing existing message."
@@ -428,10 +476,10 @@ class SlackApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
                 "on_timeout": on_timeout,
                 "escalate_slack_user": escalate_slack_user,
                 "bot_token_env_var": bot_token_env_var,
-                "approval_dir": str(approval_root),
+                "approval_dir": fs.root,
                 "escalated_at": None,
             }
-            sidecar.write_text(json.dumps(state, indent=2))
+            fs.write_json(sidecar_path, state)
             context.log.info(
                 f"[slack_approval] posted to {slack_channel} for partition "
                 f"{raw_key!r} (ts={posted['message_ts']})"
@@ -439,7 +487,7 @@ class SlackApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
             context.add_output_metadata({
                 "slack_channel": slack_channel,
                 "slack_message_ts": posted["message_ts"],
-                "sidecar_path": str(sidecar),
+                "sidecar_path": sidecar_path,
                 "partition_key": raw_key,
                 "required_approvers": required_approvers,
                 "allowlisted": ",".join(approver_allowlist),
@@ -456,27 +504,27 @@ class SlackApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
             default_status=dg.DefaultSensorStatus.RUNNING,
         )
         def _watcher(context: dg.SensorEvaluationContext):
-            approval_root = Path(approval_dir).expanduser().resolve()
-            if not approval_root.exists():
-                return dg.SensorResult(skip_reason=f"approval_dir does not exist yet: {approval_root}")
+            fs = _ApprovalFS(approval_dir)
+            if not fs.is_uri and not Path(fs.root).exists():
+                return dg.SensorResult(skip_reason=f"approval_dir does not exist yet: {fs.root}")
 
             # For each sidecar (per partition), check if token exists.
             # If not, poll Slack + evaluate quorum.
-            sidecars = list(approval_root.glob(f"*{_SLACK_STATE_SUFFIX}"))
+            sidecars = fs.glob(f"*{_SLACK_STATE_SUFFIX}")
             if not sidecars:
                 return dg.SensorResult(skip_reason="no partitions posted yet")
 
             actions: List[str] = []  # log summary
             for sidecar in sidecars:
                 try:
-                    state = json.loads(sidecar.read_text())
+                    state = fs.read_json(sidecar)
                 except Exception as e:  # noqa: BLE001
                     context.log.warning(f"skipping malformed sidecar {sidecar}: {e}")
                     continue
 
                 safe_key = state["safe_partition_key"]
-                token_path = approval_root / f"{safe_key}.json"
-                if token_path.exists():
+                token_path = fs.path(f"{safe_key}.json")
+                if fs.exists(token_path):
                     continue  # already resolved
 
                 try:
@@ -554,13 +602,13 @@ class SlackApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
                                         ),
                                     )
                                     state["escalated_at"] = _now_iso()
-                                    sidecar.write_text(json.dumps(state, indent=2))
+                                    fs.write_json(sidecar, state)
                                     actions.append(f"{safe_key}: escalated")
                                 except Exception as e:  # noqa: BLE001
                                     context.log.warning(f"escalation post failed for {safe_key}: {e}")
 
                 if token_body is not None:
-                    token_path.write_text(json.dumps(token_body, indent=2))
+                    fs.write_json(token_path, token_body)
                     actions.append(f"{safe_key}: wrote token ({'approved' if token_body['approved'] else 'rejected'})")
 
             if not actions:

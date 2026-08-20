@@ -1,2 +1,6 @@
 dagster
 pandas
+# Optional — only when approval_dir is a cloud URI (s3://, gs://, abfs://):
+#   pip install fsspec s3fs   # for s3://
+#   pip install fsspec gcsfs  # for gs://
+#   pip install fsspec adlfs  # for abfs://

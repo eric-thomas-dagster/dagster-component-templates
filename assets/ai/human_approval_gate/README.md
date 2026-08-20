@@ -104,3 +104,22 @@ attributes:
 - [`supervisor_agent`](../supervisor_agent) — multi-agent orchestration; commonly gated before publishing an agent's output.
 - [`llm_prompt_executor`](../llm_prompt_executor) — draft-writing step that typically feeds a gate.
 - [`filesystem_monitor`](../../../sensors/filesystem_monitor) — the sensor that auto-progresses the graph on approval-token arrival.
+
+## Cloud storage — `approval_dir` accepts URIs, not just local paths
+
+Dagster+ Serverless containers don't share a local filesystem across
+runs or code locations, so a production deploy needs cloud object
+storage for the approval token directory. `approval_dir` accepts:
+
+| Shape | Example | Requires |
+|---|---|---|
+| Local path | `/tmp/approvals` | nothing (pathlib fast-path) |
+| S3 | `s3://my-bucket/approvals` | `pip install fsspec s3fs` |
+| GCS | `gs://my-bucket/approvals` | `pip install fsspec gcsfs` |
+| Azure ADLS | `abfs://container@account.dfs.core.windows.net/approvals` | `pip install fsspec adlfs` |
+
+Auth follows the driver's default credential chain. No YAML changes —
+just swap the value. The gate reads whatever `approval_dir` points at;
+paired components (`slack_approval_gate` / `teams_approval_gate` /
+`approval_audit_asset` / `rejection_feedback_loop`) all use the same
+convention, so they can point at the same cloud dir.

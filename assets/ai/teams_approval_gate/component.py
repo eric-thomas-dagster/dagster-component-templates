@@ -43,6 +43,51 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import dagster as dg
+
+
+# ── Inline fs helper: local + cloud (s3://, gs://, abfs://) via fsspec ──
+# Kept inline per DCC's self-contained convention.
+class _ApprovalFS:
+    """Uniform read/write over `approval_dir`. Plain paths use pathlib
+    (no fsspec dep); URIs (`s3://`, `gs://`, `abfs://`) route through
+    fsspec + the appropriate driver."""
+    def __init__(self, root: str):
+        if "://" in root:
+            import fsspec
+            fs, rt = fsspec.core.url_to_fs(root)
+            self.fs, self.root, self.is_uri = fs, rt.rstrip("/"), True
+        else:
+            self.fs, self.root, self.is_uri = None, str(Path(root).expanduser().resolve()), False
+    def path(self, *parts: str) -> str:
+        pieces = [self.root, *[p.strip("/") for p in parts if p]]
+        return "/".join(pieces) if self.is_uri else str(Path(*pieces))
+    def exists(self, p: str) -> bool:
+        return bool(self.fs.exists(p)) if self.is_uri else Path(p).exists()
+    def mkdir(self, subdir: str = "") -> None:
+        target = self.path(subdir) if subdir else self.root
+        if self.is_uri:
+            try: self.fs.makedirs(target, exist_ok=True)
+            except Exception: pass
+        else:
+            Path(target).mkdir(parents=True, exist_ok=True)
+    def read_json(self, p: str) -> Any:
+        if self.is_uri:
+            with self.fs.open(p, "r") as f: return json.loads(f.read())
+        return json.loads(Path(p).read_text())
+    def write_json(self, p: str, obj: Any) -> None:
+        body = json.dumps(obj, indent=2, default=str)
+        if self.is_uri:
+            try: self.fs.makedirs("/".join(p.split("/")[:-1]), exist_ok=True)
+            except Exception: pass
+            with self.fs.open(p, "w") as f: f.write(body)
+        else:
+            Path(p).parent.mkdir(parents=True, exist_ok=True)
+            Path(p).write_text(body)
+    def glob(self, pattern: str) -> List[str]:
+        if self.is_uri:
+            proto = self.fs.protocol if isinstance(self.fs.protocol, str) else self.fs.protocol[0]
+            return [f"{proto}://{m}" for m in self.fs.glob(self.path(pattern))]
+        return [str(p) for p in Path(self.root).glob(pattern)]
 from dagster import (
     DailyPartitionsDefinition,
     DynamicPartitionsDefinition,
@@ -486,12 +531,12 @@ class TeamsApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
         def _posted_asset(context: dg.AssetExecutionContext, upstream):
             raw_key = context.partition_key if context.has_partition_key else "default"
             safe_key = _safe_partition_key(raw_key)
-            approval_root = Path(approval_dir).expanduser().resolve()
-            approval_root.mkdir(parents=True, exist_ok=True)
-            sidecar = approval_root / f"{safe_key}{_TEAMS_STATE_SUFFIX}"
+            fs = _ApprovalFS(approval_dir)
+            fs.mkdir()
+            sidecar_path = fs.path(f"{safe_key}{_TEAMS_STATE_SUFFIX}")
 
-            if sidecar.exists():
-                state = json.loads(sidecar.read_text())
+            if fs.exists(sidecar_path):
+                state = fs.read_json(sidecar_path)
                 context.log.info(
                     f"[teams_approval] partition {raw_key!r} already posted "
                     f"(id={state.get('message_id')}); reusing existing message."
@@ -530,10 +575,10 @@ class TeamsApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
                 "tenant_env": tenant_env,
                 "client_id_env": client_id_env,
                 "client_secret_env": client_secret_env,
-                "approval_dir": str(approval_root),
+                "approval_dir": fs.root,
                 "escalated_at": None,
             }
-            sidecar.write_text(json.dumps(state, indent=2))
+            fs.write_json(sidecar_path, state)
             context.log.info(
                 f"[teams_approval] posted to team={team_id} channel={channel_id} for "
                 f"partition {raw_key!r} (id={posted['message_id']})"
@@ -543,7 +588,7 @@ class TeamsApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
                 "teams_channel_id": channel_id,
                 "teams_message_id": posted["message_id"],
                 "teams_web_url": posted.get("web_url", ""),
-                "sidecar_path": str(sidecar),
+                "sidecar_path": sidecar_path,
                 "partition_key": raw_key,
                 "required_approvers": required_approvers,
                 "mode": mode,
@@ -561,25 +606,25 @@ class TeamsApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
             default_status=dg.DefaultSensorStatus.RUNNING,
         )
         def _watcher(context: dg.SensorEvaluationContext):
-            approval_root = Path(approval_dir).expanduser().resolve()
-            if not approval_root.exists():
-                return dg.SensorResult(skip_reason=f"approval_dir does not exist yet: {approval_root}")
+            fs = _ApprovalFS(approval_dir)
+            if not fs.is_uri and not Path(fs.root).exists():
+                return dg.SensorResult(skip_reason=f"approval_dir does not exist yet: {fs.root}")
 
-            sidecars = list(approval_root.glob(f"*{_TEAMS_STATE_SUFFIX}"))
+            sidecars = fs.glob(f"*{_TEAMS_STATE_SUFFIX}")
             if not sidecars:
                 return dg.SensorResult(skip_reason="no partitions posted yet")
 
             actions: List[str] = []
             for sidecar in sidecars:
                 try:
-                    state = json.loads(sidecar.read_text())
+                    state = fs.read_json(sidecar)
                 except Exception as e:  # noqa: BLE001
                     context.log.warning(f"skipping malformed sidecar {sidecar}: {e}")
                     continue
 
                 safe_key = state["safe_partition_key"]
-                token_path = approval_root / f"{safe_key}.json"
-                if token_path.exists():
+                token_path = fs.path(f"{safe_key}.json")
+                if fs.exists(token_path):
                     continue  # already resolved
 
                 try:
@@ -671,13 +716,13 @@ class TeamsApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
                                         state["message_id"], escalation_body,
                                     )
                                     state["escalated_at"] = _now_iso()
-                                    sidecar.write_text(json.dumps(state, indent=2))
+                                    fs.write_json(sidecar, state)
                                     actions.append(f"{safe_key}: escalated")
                                 except Exception as e:  # noqa: BLE001
                                     context.log.warning(f"escalation post failed for {safe_key}: {e}")
 
                 if token_body is not None:
-                    token_path.write_text(json.dumps(token_body, indent=2))
+                    fs.write_json(token_path, token_body)
                     actions.append(
                         f"{safe_key}: wrote token ({'approved' if token_body['approved'] else 'rejected'})"
                     )

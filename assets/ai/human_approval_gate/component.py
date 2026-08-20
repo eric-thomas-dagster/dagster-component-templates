@@ -42,6 +42,33 @@ import dagster as dg
 from pydantic import Field
 
 
+# ── Inline fs helper: local + cloud (s3://, gs://, abfs://) via fsspec ──
+# Kept inline per DCC's self-contained convention. Backward-compat:
+# plain paths (e.g. `/tmp/approvals`) use pathlib directly; only URIs
+# require fsspec + the appropriate driver.
+class _ApprovalFS:
+    """Uniform read/write over `approval_dir`. Plain paths use pathlib
+    (no fsspec dep); URIs (`s3://`, `gs://`, `abfs://`) route through
+    fsspec + the appropriate driver (`s3fs` / `gcsfs` / `adlfs` —
+    install what you need)."""
+    def __init__(self, root: str):
+        if "://" in root:
+            import fsspec
+            fs, rt = fsspec.core.url_to_fs(root)
+            self.fs, self.root, self.is_uri = fs, rt.rstrip("/"), True
+        else:
+            self.fs, self.root, self.is_uri = None, str(Path(root).expanduser().resolve()), False
+    def path(self, *parts: str) -> str:
+        pieces = [self.root, *[p.strip("/") for p in parts if p]]
+        return "/".join(pieces) if self.is_uri else str(Path(*pieces))
+    def exists(self, p: str) -> bool:
+        return bool(self.fs.exists(p)) if self.is_uri else Path(p).exists()
+    def read_text(self, p: str) -> str:
+        if self.is_uri:
+            with self.fs.open(p, "r") as f: return f.read()
+        return Path(p).read_text()
+
+
 def _build_partitions_def(
     partition_type, partition_start, partition_values,
     dynamic_partition_name, partition_dimensions,
@@ -273,7 +300,8 @@ class HumanApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
             # rather than a nested path (which would silently write to a
             # subdirectory the FilesystemMonitorSensor isn't watching).
             safe_key = raw_key.replace("/", "_").replace("\\", "_")
-            token_file = Path(approval_dir).expanduser().resolve() / f"{safe_key}.json"
+            fs = _ApprovalFS(approval_dir)
+            token_file = fs.path(f"{safe_key}.json")
 
             if safe_key != raw_key:
                 context.log.info(
@@ -290,13 +318,13 @@ class HumanApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
                     return upstream.iloc[0:0].copy()  # empty frame with same schema
                 return pd.DataFrame()
 
-            if not token_file.exists():
+            if not fs.exists(token_file):
                 context.log.info(f"approval_pending — no token at {token_file}")
                 yield dg.Output(
                     _empty_passthrough_df(),
                     metadata={
                         "status": "approval_pending",
-                        "token_file": str(token_file),
+                        "token_file": token_file,
                         "partition_key": key,
                         "hint": dg.MetadataValue.md(
                             f"Drop a JSON at `{token_file}` with "
@@ -316,7 +344,7 @@ class HumanApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
                 return
 
             try:
-                token = json.loads(token_file.read_text())
+                token = json.loads(fs.read_text(token_file))
             except json.JSONDecodeError as e:
                 context.log.error(f"approval_token_malformed — {token_file}: {e}")
                 yield dg.Output(

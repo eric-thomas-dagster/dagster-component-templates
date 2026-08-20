@@ -10,7 +10,7 @@
   "attributes": {
     "sensor_name":              {"type": "string",  "required": true, "label": "Sensor Name"},
     "approval_dir":             {"type": "string",  "required": true, "label": "Approval Dir",
-                                 "description": "Shared directory approval-gate components write tokens into."},
+                                 "description": "Shared directory approval-gate components write tokens into. Accepts local paths (`/tmp/approvals`) OR cloud URIs (`s3://bucket/prefix`, `gs://bucket/prefix`, `abfs://...`). Cloud URIs require the matching fsspec driver (`s3fs` / `gcsfs` / `adlfs`)."},
     "target_job_name":          {"type": "string",  "required": true, "label": "Target Job Name",
                                  "description": "Job to re-materialize when a rejection-with-feedback token is detected (typically PartitionedAssetLauncherJob)."},
     "max_iterations":           {"type": "integer", "label": "Max Iterations", "default": 3,

@@ -10,7 +10,7 @@
   "attributes": {
     "asset_name":                {"type": "string",  "required": true, "label": "Asset Name"},
     "approval_dir":              {"type": "string",  "required": true, "label": "Approval Dir",
-                                  "description": "Directory of JSON approval tokens (same dir approval-gate components write into)."},
+                                  "description": "Directory of JSON approval tokens (same dir approval-gate components write into). Accepts local paths (`/tmp/approvals`, `~/approvals`) OR cloud URIs (`s3://bucket/prefix`, `gs://bucket/prefix`, `abfs://container@account.dfs.core.windows.net/prefix`). Cloud URIs require the matching fsspec driver: `pip install s3fs` / `gcsfs` / `adlfs` (whichever you use). Local paths never require fsspec."},
     "recursive":                 {"type": "boolean", "label": "Recursive", "default": false},
     "token_glob":                {"type": "string",  "label": "Token Glob", "default": "*.json"},
 

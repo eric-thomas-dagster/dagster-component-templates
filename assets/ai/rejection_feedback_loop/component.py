@@ -50,6 +50,69 @@ import dagster as dg
 from pydantic import Field
 
 
+# ── Inline fs helper: local + cloud (s3://, gs://, abfs://) via fsspec ──
+# Kept inline per DCC's self-contained convention.
+class _ApprovalFS:
+    """Uniform read/write/list/move over `approval_dir`. Plain paths use
+    pathlib (no fsspec dependency); URIs (`s3://`, `gs://`, `abfs://`)
+    route through fsspec + the appropriate driver."""
+    def __init__(self, root: str):
+        if "://" in root:
+            import fsspec
+            fs, rt = fsspec.core.url_to_fs(root)
+            self.fs, self.root, self.is_uri = fs, rt.rstrip("/"), True
+        else:
+            self.fs, self.root, self.is_uri = None, str(Path(root).expanduser().resolve()), False
+    def path(self, *parts: str) -> str:
+        pieces = [self.root, *[p.strip("/") for p in parts if p]]
+        return "/".join(pieces) if self.is_uri else str(Path(*pieces))
+    def exists(self, p: str) -> bool:
+        return bool(self.fs.exists(p)) if self.is_uri else Path(p).exists()
+    def mkdir(self, subdir: str = "") -> None:
+        target = self.path(subdir) if subdir else self.root
+        if self.is_uri:
+            try: self.fs.makedirs(target, exist_ok=True)
+            except Exception: pass
+        else:
+            Path(target).mkdir(parents=True, exist_ok=True)
+    def read_json(self, p: str) -> Any:
+        if self.is_uri:
+            with self.fs.open(p, "r") as f: return json.loads(f.read())
+        return json.loads(Path(p).read_text())
+    def write_text(self, p: str, content: str) -> None:
+        if self.is_uri:
+            try: self.fs.makedirs("/".join(p.split("/")[:-1]), exist_ok=True)
+            except Exception: pass
+            with self.fs.open(p, "w") as f: f.write(content)
+        else:
+            Path(p).parent.mkdir(parents=True, exist_ok=True)
+            Path(p).write_text(content)
+    def write_json(self, p: str, obj: Any) -> None:
+        self.write_text(p, json.dumps(obj, indent=2, default=str))
+    def glob(self, pattern: str) -> List[str]:
+        if self.is_uri:
+            proto = self.fs.protocol if isinstance(self.fs.protocol, str) else self.fs.protocol[0]
+            return [f"{proto}://{m}" for m in self.fs.glob(self.path(pattern))]
+        return [str(p) for p in Path(self.root).glob(pattern)]
+    def move(self, src: str, dst: str) -> None:
+        if self.is_uri:
+            self.fs.mv(src, dst)
+        else:
+            Path(dst).rsplit("/", 1) if "/" in dst else None
+            Path(dst).parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(src, dst)
+    def delete(self, p: str) -> None:
+        if self.is_uri:
+            try: self.fs.rm(p)
+            except FileNotFoundError: pass
+        else:
+            try: Path(p).unlink()
+            except FileNotFoundError: pass
+    def stem(self, path: str) -> str:
+        base = path.rstrip("/").split("/")[-1]
+        return base.rsplit(".", 1)[0] if "." in base else base
+
+
 class RejectionFeedbackLoopComponent(dg.Component, dg.Model, dg.Resolvable):
     """Watch approval_dir for rejected+feedback tokens; re-trigger target job with feedback captured.
 
@@ -164,28 +227,24 @@ class RejectionFeedbackLoopComponent(dg.Component, dg.Model, dg.Resolvable):
             ),
         )
         def _feedback_loop_sensor(context: dg.SensorEvaluationContext):
-            root = Path(_self.approval_dir).expanduser().resolve()
-            if not root.exists():
-                return dg.SkipReason(f"approval_dir does not exist yet: {root}")
+            fs = _ApprovalFS(_self.approval_dir)
+            # Local: skip if root missing. Cloud: prefix stores return [] gracefully.
+            if not fs.is_uri and not Path(fs.root).exists():
+                return dg.SkipReason(f"approval_dir does not exist yet: {fs.root}")
 
-            feedback_dir = root / _self.feedback_subdir
-            consumed_dir = root / _self.consumed_subdir
-            state_dir = root / _self.state_subdir
-            feedback_dir.mkdir(parents=True, exist_ok=True)
-            consumed_dir.mkdir(parents=True, exist_ok=True)
-            state_dir.mkdir(parents=True, exist_ok=True)
+            fs.mkdir(_self.feedback_subdir)
+            fs.mkdir(_self.consumed_subdir)
+            fs.mkdir(_self.state_subdir)
 
             run_requests: List[dg.RunRequest] = []
             observations: List[str] = []
             n_exhausted = 0
             n_triggered = 0
 
-            for token_path in sorted(root.glob("*.json")):
-                if not token_path.is_file():
-                    continue
+            for token_path in sorted(fs.glob("*.json")):
                 try:
-                    token = json.loads(token_path.read_text())
-                except (json.JSONDecodeError, OSError) as e:
+                    token = fs.read_json(token_path)
+                except (json.JSONDecodeError, OSError, IsADirectoryError) as e:
                     context.log.warning(f"skip malformed {token_path}: {e}")
                     continue
 
@@ -196,32 +255,29 @@ class RejectionFeedbackLoopComponent(dg.Component, dg.Model, dg.Resolvable):
                 if not feedback:
                     continue
 
-                partition_key = token_path.stem
+                partition_key = fs.stem(token_path)
                 safe_key = partition_key.replace("/", "_").replace("\\", "_")
 
                 # Load / init iteration state.
-                state_file = state_dir / f"{safe_key}.json"
-                if state_file.exists():
+                state_path = fs.path(_self.state_subdir, f"{safe_key}.json")
+                if fs.exists(state_path):
                     try:
-                        state = json.loads(state_file.read_text())
+                        state = fs.read_json(state_path)
                     except (json.JSONDecodeError, OSError):
                         state = {"iterations": 0, "history": []}
                 else:
                     state = {"iterations": 0, "history": []}
 
                 if state["iterations"] >= _self.max_iterations:
-                    # Bounded — mark exhausted, move token, do NOT re-trigger.
-                    exhausted_marker = consumed_dir / f"{safe_key}.exhausted.json"
-                    exhausted_marker.write_text(json.dumps({
+                    # Bounded — mark exhausted, delete original token, do NOT re-trigger.
+                    exhausted_marker = fs.path(_self.consumed_subdir, f"{safe_key}.exhausted.json")
+                    fs.write_json(exhausted_marker, {
                         **token,
                         "loop_status": "max_iterations_reached",
                         "iterations_done": state["iterations"],
                         "exhausted_at": _now_iso(),
-                    }, indent=2))
-                    try:
-                        token_path.unlink()
-                    except OSError:
-                        pass
+                    })
+                    fs.delete(token_path)
                     context.log.warning(
                         f"[{_self.sensor_name}] partition {partition_key!r} hit "
                         f"max_iterations={_self.max_iterations}; NOT re-triggering. "
@@ -231,9 +287,9 @@ class RejectionFeedbackLoopComponent(dg.Component, dg.Model, dg.Resolvable):
                     continue
 
                 # Write feedback for the pipeline to read next iteration.
-                feedback_file = feedback_dir / f"{safe_key}.txt"
+                feedback_path = fs.path(_self.feedback_subdir, f"{safe_key}.txt")
                 feedback_body = _format_feedback(feedback, state["iterations"] + 1, token)
-                feedback_file.write_text(feedback_body)
+                fs.write_text(feedback_path, feedback_body)
 
                 # Bump iteration state.
                 state["iterations"] += 1
@@ -245,11 +301,13 @@ class RejectionFeedbackLoopComponent(dg.Component, dg.Model, dg.Resolvable):
                     "at": _now_iso(),
                 })
                 state["last_updated"] = _now_iso()
-                state_file.write_text(json.dumps(state, indent=2))
+                fs.write_json(state_path, state)
 
                 # Move the rejection token so it's not re-processed.
-                consumed_file = consumed_dir / f"{safe_key}.iter{state['iterations']}.json"
-                shutil.move(str(token_path), str(consumed_file))
+                consumed_path = fs.path(
+                    _self.consumed_subdir, f"{safe_key}.iter{state['iterations']}.json"
+                )
+                fs.move(token_path, consumed_path)
 
                 # Register dynamic partition if needed (safe if already registered).
                 if _self.dynamic_partitions_name:
@@ -323,22 +381,27 @@ def _build_state_asset(comp: "RejectionFeedbackLoopComponent"):
     )
     def _state_asset(context: dg.AssetExecutionContext):
         import pandas as pd
-        state_dir = Path(comp.approval_dir).expanduser().resolve() / comp.state_subdir
+        fs = _ApprovalFS(comp.approval_dir)
+        state_dir_display = fs.path(comp.state_subdir)
         rows: List[Dict[str, Any]] = []
-        if state_dir.exists():
-            for f in sorted(state_dir.glob("*.json")):
-                try:
-                    s = json.loads(f.read_text())
-                except (json.JSONDecodeError, OSError):
-                    continue
-                rows.append({
-                    "partition_key": f.stem,
-                    "iterations_done": s.get("iterations", 0),
-                    "max_iterations": comp.max_iterations,
-                    "last_updated": s.get("last_updated", ""),
-                    "n_feedback_rounds": len(s.get("history", [])),
-                    "state_file": str(f),
-                })
+        state_files: List[str] = []
+        try:
+            state_files = sorted(fs.glob(f"{comp.state_subdir}/*.json"))
+        except FileNotFoundError:
+            state_files = []
+        for f in state_files:
+            try:
+                s = fs.read_json(f)
+            except (json.JSONDecodeError, OSError, IsADirectoryError):
+                continue
+            rows.append({
+                "partition_key": fs.stem(f),
+                "iterations_done": s.get("iterations", 0),
+                "max_iterations": comp.max_iterations,
+                "last_updated": s.get("last_updated", ""),
+                "n_feedback_rounds": len(s.get("history", [])),
+                "state_file": f,
+            })
         df = pd.DataFrame(rows, columns=[
             "partition_key", "iterations_done", "max_iterations",
             "last_updated", "n_feedback_rounds", "state_file",
@@ -347,7 +410,7 @@ def _build_state_asset(comp: "RejectionFeedbackLoopComponent"):
             value=df,
             metadata={
                 "n_partitions_in_loop": len(df),
-                "state_dir": str(state_dir),
+                "state_dir": state_dir_display,
                 "preview": dg.MetadataValue.md(
                     df.head(20).to_markdown(index=False) if not df.empty else "_(no partitions in loop)_"
                 ),

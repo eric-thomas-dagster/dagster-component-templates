@@ -12,7 +12,7 @@
     "upstream_asset_key": {"type": "string", "required": true, "label": "Upstream Asset Key",
                            "description": "Asset whose text is posted to Slack. Slash notation for multi-part keys."},
     "approval_dir":       {"type": "string", "required": true, "label": "Approval Dir",
-                           "description": "Absolute path to the approval token directory (shared with HumanApprovalGateComponent). Sensor writes `<safe_partition_key>.json` here on quorum."},
+                           "description": "Approval token directory (shared with HumanApprovalGateComponent). Sensor writes `<safe_partition_key>.json` here on quorum. Accepts local paths (`/tmp/approvals`) OR cloud URIs (`s3://bucket/prefix`, `gs://bucket/prefix`, `abfs://...`). Cloud URIs require the matching fsspec driver (`s3fs` / `gcsfs` / `adlfs`) — required for Dagster+ Serverless or distributed deploys where the local filesystem isn't shared across containers."},
 
     "slack_channel":      {"type": "string", "required": true, "label": "Slack Channel",
                            "description": "`C123ABC456` id OR `#channel-name`."},

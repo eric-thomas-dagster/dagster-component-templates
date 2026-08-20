@@ -150,3 +150,24 @@ attributes:
   upstream_asset_key: mir_report
   # ...
 ```
+
+## Cloud storage — `approval_dir` accepts URIs, not just local paths
+
+Dagster+ Serverless containers don't share a local filesystem across
+runs or code locations, so a production Teams-approval deploy needs
+cloud object storage for the token directory. `approval_dir` accepts:
+
+| Shape | Example | Requires |
+|---|---|---|
+| Local path | `/tmp/approvals` | nothing (pathlib fast-path) |
+| S3 | `s3://my-bucket/approvals` | `pip install fsspec s3fs` |
+| GCS | `gs://my-bucket/approvals` | `pip install fsspec gcsfs` |
+| Azure ADLS | `abfs://container@account.dfs.core.windows.net/approvals` | `pip install fsspec adlfs` |
+
+Auth follows the driver's default credential chain (env vars,
+instance profile, service account key, `AZURE_CLIENT_ID` +
+`AZURE_CLIENT_SECRET` + `AZURE_TENANT_ID`, etc.). No YAML changes —
+just swap the `approval_dir` value.
+
+For MS-shop customers running on Dagster+ Azure hybrid, `abfs://` +
+`adlfs` is the natural pairing.

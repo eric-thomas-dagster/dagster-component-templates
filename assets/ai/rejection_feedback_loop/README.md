@@ -141,6 +141,22 @@ approval_dir/
 Once `iterations` reaches `max_iterations`, subsequent rejections write
 `.consumed/{key}.exhausted.json` markers and are logged but NOT retried.
 
+## Cloud storage — `approval_dir` accepts URIs, not just local paths
+
+Dagster+ Serverless containers don't share a local filesystem across
+runs or code locations. `approval_dir` accepts:
+
+| Shape | Example | Requires |
+|---|---|---|
+| Local path | `/tmp/approvals` | nothing |
+| S3 | `s3://my-bucket/approvals` | `pip install fsspec s3fs` |
+| GCS | `gs://my-bucket/approvals` | `pip install fsspec gcsfs` |
+| Azure ADLS | `abfs://container@account.dfs.core.windows.net/approvals` | `pip install fsspec adlfs` |
+
+Auth follows the driver's default credential chain. No YAML changes —
+just swap the value. The sensor's `.feedback/` / `.consumed/` / `.state/`
+subdirectories are created under whatever storage `approval_dir` points at.
+
 ## What it doesn't do
 
 - **Doesn't judge the feedback quality.** If the human writes garbage, the agent gets garbage. Wire an LLM-judge upstream if you want feedback-quality gating.

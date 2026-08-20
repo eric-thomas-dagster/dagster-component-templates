@@ -90,6 +90,26 @@ Now every approval decision — whether from Slack, Teams, direct file
 drop, or an external webhook — shows up in one DataFrame you can chart
 in Insights or export to your GRC system.
 
+## Cloud storage — `approval_dir` accepts URIs, not just local paths
+
+Dagster+ Serverless containers don't share a local filesystem across runs
+or across code locations, so a production deploy needs cloud object storage
+for the approval token directory. `approval_dir` accepts:
+
+| Shape | Example | Requires |
+|---|---|---|
+| Local path | `/tmp/approvals` | nothing (pathlib fast-path) |
+| Local path w/ `~` expansion | `~/approvals` | nothing |
+| S3 | `s3://my-bucket/approvals` | `pip install fsspec s3fs` |
+| GCS | `gs://my-bucket/approvals` | `pip install fsspec gcsfs` |
+| Azure ADLS | `abfs://container@account.dfs.core.windows.net/approvals` | `pip install fsspec adlfs` |
+
+Auth follows the driver's default credential chain (env vars, instance
+profile, service account key, etc.). No YAML changes — just swap the
+`approval_dir` value. Every approval-gate component (Human / Slack /
+Teams) + companion (ApprovalAudit / RejectionFeedbackLoop) uses the
+same convention, so they can all point at the same cloud dir.
+
 ## What it doesn't do
 
 - **Doesn't delete or archive tokens.** Read-only. Rotate the dir yourself.

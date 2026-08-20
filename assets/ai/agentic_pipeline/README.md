@@ -228,16 +228,25 @@ Now iterating on prompts is a one-file YAML edit (add/remove/rename keys under `
 
 See [`SyntheticPromptGeneratorComponent`](../../source/synthetic_prompt_generator/) for the three v1 modes (literal per-key mapping, template + topics, fixed single prompt) and the v2 roadmap (LLM- / local-ML-driven prompt synthesis).
 
-## Op menu (v2 = 6)
+## Op menu
 
 | op | Shape | What it does |
 |---|---|---|
 | `llm_call` | 1 LLM call | Single completion over source text. Simplest possible op. |
-| `route` | 1 router → 1 specialist | Router LLM picks the best specialist agent; specialist answers. Multi-agent selection. |
+| `route` | 1 router LLM → 1 specialist | Router LLM picks the best specialist agent from a set; specialist answers. Multi-agent selection based on soft signal ("does this read as a bug or a question?"). |
+| `conditional_route` | deterministic picker → 1 specialist | Same shape as `route` but the picker is a code path (regex / contains / equals / jsonpath), not an LLM. Cheap, testable, reviewable. Use when the branch signal is structured (a label field, a subject-line pattern). |
 | `debate` | N proposers → 1 arbitrator | Each proposer writes a proposal; arbitrator picks the winner. Multi-agent consensus. |
-| `critique_loop` | drafter → critic → drafter, N times | Drafter writes; critic reviews; drafter revises. Refinement loop. |
+| `critique_loop` | drafter → critic → drafter, N times | Drafter writes; critic reviews; drafter revises. Optional `until_score_gte: N` — critic scores each draft `SCORE: X/100` and the loop stops early when X ≥ N (skipping the revise step). Cost-controlled refinement. |
 | `synthesize` | 1 LLM merges N upstream step texts | Combine multiple prior step outputs into one coherent response. Fan-in. |
-| `mcp_call` | 1 MCP tool invocation, no LLM | Direct call to an MCP server tool over stdio / http / sse. `tool_args` strings support `{text}` (source) + `{port_name}` (typed inputs) substitution. Turns "grounding-data fetch" into a first-class asset with lineage + metadata. |
+| `mcp_call` | 1 MCP tool invocation, no LLM | Direct call to an MCP server tool over stdio / http / sse / fastmcp. `tool_args` strings support `{text}` (source) + `{port_name}` (typed inputs) + `{partition_key}` + `{partition.<name>}` substitution. Turns "grounding-data fetch" into a first-class asset with lineage + metadata. |
+| `tool_use_loop` | LLM has MCP tools; iterates picks until `finalize` | Open-ended agent tool-use loop. LLM picks a tool, sees the result, picks the next tool, ... bounded by `max_iterations`. One Dagster asset materializes with the full tool-call trajectory in metadata. The shape people reach for LangGraph for, done as one first-class asset. |
+| `handoff` | Invoke user-provided callable (LangGraph / AutoGen / CrewAI / DSPy) | Bring existing framework code as ONE step of the Dagster pipeline. Framework's internal per-node lineage lives in asset metadata; adjacent Dagster steps stay first-class. Composition over wrapping. |
+| `map` | Apply an LLM call to each item in a list source | Fan-out one LLM call per item in a JSON list. Aggregate per-item outputs into one asset (metadata carries the per-item results). `max_concurrent` opt-in threading. |
+| `extract` | Text → structured JSON via schema | Reliable structured extraction using tool_choice-forced JSON. Supply `output_schema` (JSON Schema object); the returned dict lands in metadata (`extracted:`) and its JSON serialization becomes `text` for downstream steps. |
+| `classify` | Text → label from a fixed set | Cheapest common op. Supply `labels: [...]`; LLM picks one via tool_choice-forced enum. Optional `include_rationale: true` for one-sentence explanations. |
+| `reduce` | LLM-fold over a list, chunk by chunk | Solves the "list too big for one context window" problem. `chunk_size` items per fold call; prior summary + new chunk → updated summary. |
+| `self_reflect` | ONE LLM call producing draft + self-critique + revised | Cost-sensitive alternative to `critique_loop` (which is 2N+1 calls). Structured `DRAFT / CRITIQUE / REVISED` sections parsed automatically. |
+| `sub_pipeline` | Invoke an inline sub-pipeline as one step | Compose / reuse common step blocks without duplicating YAML. `steps:` is a full inline sub-pipeline; `output_step_id` picks which sub-step's text flows back to this asset. Sub-state isolated from outer state. |
 
 ## Typed named inputs (v2 — join any op from any prior op by port name)
 
@@ -372,6 +381,157 @@ Direct MCP tool call — no LLM, deterministic step. Use for the "fetch groundin
 | `parse_as` |  | `auto` | `auto` (try JSON, fall back to text) / `json` / `text`. |
 | `source` |  | Most recent step | Legacy — feeds `{text}` in string `tool_args`. |
 | `inputs` |  | — | Typed named inputs — feeds `{port_name}` in string `tool_args`. |
+
+### `op: tool_use_loop`
+
+Open-ended agent tool-use loop. LLM picks a tool → tool runs → LLM sees result → picks next tool → ... bounded by `max_iterations` OR the LLM calling the synthetic `finalize` tool. One Dagster asset materializes with the full tool-call trajectory in metadata. Cost / latency / tokens rolled up across every LLM + MCP call in the loop.
+
+The shape LangGraph is known for, done as ONE first-class Dagster asset. Reach for this when the pipeline needs exploratory reasoning ("figure out what data to fetch, then answer") rather than a fixed step DAG.
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `model` | ✅ | — | LLM the agent runs on. |
+| `api_key_env_var` |  | — | Env var holding the model provider's key. |
+| `mcp_servers` | ✅ | — | List of MCP server configs (same shape as `mcp_call.server`). Tools from every server are auto-discovered. |
+| `max_iterations` |  | `10` | Hard cap. Loop stops here regardless of finalize state. |
+| `system_prompt` |  | Sensible default | Agent instructions. Should include "call `finalize` when done." |
+| `prompt_template` |  | `{text}` | Initial user turn. Supports `{text}` + `{port_name}` + `{partition.<name>}` substitution. |
+| `allowed_tools` |  | All discovered | Optional allowlist (tool names). |
+| `finalize_tool_name` |  | `finalize` | Name of the synthetic finalize tool the LLM calls to end the loop. |
+| `temperature` |  | `0.0` | |
+| `max_tokens` |  | `2048` | Per-call max completion tokens. |
+
+Emitted metadata includes `tool_call_trace`, `n_llm_calls`, `n_tool_calls`, `stop_reason` (`finalize_called` | `final_answer_no_tool` | `max_iterations`), plus per-turn latency + cost.
+
+### `op: handoff`
+
+Framework-composition op. Invoke a user-provided callable — bring your own LangGraph / AutoGen / CrewAI / DSPy code as ONE step of the Dagster pipeline. Adjacent Dagster steps stay first-class; the framework's per-node lineage lives inside this asset's metadata blob.
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `entry_module` | ✅ | — | Python module path (e.g. `my_project.reasoners`). |
+| `entry_callable` | ✅ | — | Function name in that module. Signature: `def fn(**initial_state) -> dict`. |
+| `initial_state` |  | `{}` | Dict of kwargs passed to the callable. String values get `{text}` + `{port_name}` + `{partition.<name>}` substitution. |
+| `output_text_key` |  | `final_answer` | Key in the returned dict whose value is the downstream text. |
+| `framework` |  | — | Metadata-only label (`langgraph` / `autogen` / `crewai` / `dspy` / etc.) surfaced in metadata + logs. |
+
+Framework deps live in the customer's project (not `dagster-community-components`) — the component imports by string at runtime. Best-effort roll-up: if the callable's return dict has `cost_usd` / `n_nodes_executed` / `n_llm_calls` / `n_tool_calls` / `tokens_total`, those surface at the top level so they land in Insights alongside native Dagster + LiteLLM cost tracking.
+
+### `op: conditional_route`
+
+Deterministic picker — regex / contains / equals / JSON-path against upstream text — routes to the matching specialist. Sibling of `route`, but the pick is a code path, not an LLM call.
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `conditions` | ✅ | — | List of `{when: {regex\|contains\|equals\|jsonpath: ...}, then: <specialist_name>}`. First match wins. |
+| `default` | ✅ | — | Specialist that runs when no condition matches. |
+| `specialists` | ✅ | — | List of `{name, description, model, api_key_env_var, system_prompt, temperature, max_tokens}` — same shape as `route`'s specialists. |
+| `source` |  | Most recent step | Upstream to inspect. |
+
+`conditions[N].when` supports one of:
+- `regex: "p[01]"` — Python `re.search` (case-insensitive) against upstream text
+- `contains: "urgent"` — substring test
+- `equals: "p0"` — exact match after strip
+- `jsonpath: "$.labels[0]"` — parse upstream as JSON, walk path, truthy check on resolved node. Combine with `value_equals` / `value_contains` for exact/substring comparisons on the resolved node.
+
+Half the cost of `route` (skips the router LLM). Rule of thumb: if you can write the picker as a unit test, use `conditional_route`.
+
+### `op: map`
+
+Apply an LLM call to each item in a list source. Aggregates per-item results into ONE Dagster asset — per-item outputs live in metadata (`items:`), joined text lives in `text`. Fan-out inside a single step.
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `model` | ✅ | — | LLM per item. |
+| `api_key_env_var` |  | — | Env var for the model provider. |
+| `prompt_template` |  | `{item}` | Per-item prompt. Placeholders: `{item}` (current), `{index}`, `{n}` (total), `{text}` (raw source), plus typed inputs `{port_name}`. |
+| `system_prompt` |  | — | Applied to every per-item call. |
+| `max_concurrent` |  | `1` | Thread-pool workers. `1` = sequential; higher for I/O-bound throughput. |
+| `output_join` |  | `newlines` | How to join per-item texts into the top-level `text`. `newlines` (double-newline separator) / `jsonl` / `none` (downstream reads `items[]`). |
+| `temperature` |  | `0.0` | |
+| `max_tokens` |  | `1024` | Per-call max completion tokens. |
+
+Source parsing: JSON array → items. Falls back to `dict → data|items|results|values` list, then to non-empty newlines.
+
+### `op: extract`
+
+Structured JSON extraction — text → dict matching an `output_schema`. Uses `tool_choice="required"` with a function whose parameters are the schema, so the LLM is forced to emit valid JSON via a tool call. More reliable than prompt-engineering "return JSON".
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `model` | ✅ | — | |
+| `api_key_env_var` |  | — | |
+| `output_schema` | ✅ | — | JSON Schema object (`{type: object, properties: {...}, required: [...]}`). |
+| `strict` |  | `true` | Missing required fields raise. `false` → return the extracted dict as-is. |
+| `system_prompt` |  | Sensible default | Override for domain-specific extraction instructions. |
+| `prompt_template` |  | `{text}` | User prompt template. |
+| `temperature` |  | `0.0` | |
+| `max_tokens` |  | `1024` | |
+
+Extracted dict → `metadata.extracted` + JSON-serialized → `text` (so downstream steps can `source: <this step>` normally).
+
+### `op: classify`
+
+Text → label from a fixed set. Simplest, most common enterprise op. Uses `tool_choice="required"` with a single-field enum parameter.
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `model` | ✅ | — | Small model is fine (`gpt-4o-mini` etc.). |
+| `api_key_env_var` |  | — | |
+| `labels` | ✅ | — | Non-empty list of label strings — the enum. |
+| `include_rationale` |  | `true` | Include a one-sentence explanation. `false` → cheaper. |
+| `system_prompt` |  | Sensible default | |
+| `prompt_template` |  | `{text}` | |
+| `temperature` |  | `0.0` | |
+| `max_tokens` |  | `256` | |
+
+`text` = the picked label. `metadata.label` + `metadata.rationale` + `metadata.labels` (the full set). Raises if the LLM returns a label outside `labels`.
+
+### `op: reduce`
+
+Fold an LLM over chunks of a list. Solves "list too big for one context window" — chunk by chunk, prior summary + next chunk → updated summary. Sequential (later chunks depend on earlier ones).
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `model` | ✅ | — | |
+| `api_key_env_var` |  | — | |
+| `chunk_size` |  | `10` | Items per fold call. Bigger chunk → fewer calls + wider context requirement. |
+| `initial_prompt_template` |  | Sensible default | First-chunk prompt. Placeholders: `{items}` (rendered), `{n}`. |
+| `fold_prompt_template` |  | Sensible default | Subsequent-chunk prompt. Placeholders: `{prior}` (running summary), `{items}`, `{n}`, `{chunk_index}`, `{n_chunks}`. |
+| `system_prompt` |  | — | Applied to every fold call. |
+| `temperature` |  | `0.0` | |
+| `max_tokens` |  | `2048` | Per-call max completion tokens (for the growing summary). |
+
+Metadata: `n_items`, `n_chunks`, `chunk_size`, model fingerprint like `gpt-4o-mini@reduce×5`.
+
+### `op: self_reflect`
+
+ONE LLM call that produces draft + self-critique + revised. Cost-sensitive alternative to `critique_loop` (which is `2N+1` calls). Uses a structured prompt requiring `DRAFT / CRITIQUE / REVISED` sections.
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `model` | ✅ | — | |
+| `api_key_env_var` |  | — | |
+| `system_prompt` |  | Sensible default | Override to force domain-specific critique dimensions. |
+| `prompt_template` |  | `{text}` | |
+| `temperature` |  | `0.0` | |
+| `max_tokens` |  | `4096` | Needs room for all three sections. |
+
+Metadata: `draft`, `critique`, `revised`, `parsed` (bool — whether the structured parse succeeded; `false` → whole response returned as `text`). Cheaper than a 2-iteration critique_loop (~40% of the calls) at some quality cost.
+
+### `op: sub_pipeline`
+
+Invoke an inline sub-pipeline (a `steps:` list) as ONE step of the outer pipeline. Enables composition + reuse of common patterns without duplicating YAML.
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `steps` | ✅ | — | Inline sub-pipeline step list (same schema as top-level `steps:`). |
+| `output_step_id` |  | Last sub-step | Which sub-step's `text` flows back to this asset's `text`. |
+| `source` |  | Most recent outer step | Feeds the sub-pipeline's initial `source.text`. |
+| `sub_source` |  | — | Override the sub-source completely (`{kind: literal|file|url, ...}`) — use when the sub-pipeline should start from something other than the upstream text. |
+| `inputs` |  | — | Typed inputs — each `port_name` becomes a readable step id inside the sub-pipeline (sub-steps can `source: <port_name>`). |
+
+Sub-pipeline state is completely isolated from outer state — sub-steps can't see outer step ids (except via `inputs:` port bridging). Cost / latency / tokens roll up from the sub-pipeline into this step's metadata.
 
 ## State model
 

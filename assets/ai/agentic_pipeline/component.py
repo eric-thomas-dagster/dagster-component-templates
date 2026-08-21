@@ -2657,6 +2657,7 @@ def _do_sub_pipeline(step: dict, state: Dict[str, Any], context) -> Dict[str, An
     sub_state: Dict[str, Any] = {
         "source": {"text": src_text, "source_kind": "sub_pipeline_input"},
         "__ctx__": _ctx_of(state),  # inherit partition context
+        "__personas__": state.get("__personas__") or {},  # inherit personas
     }
     sub_source = step.get("sub_source")
     if sub_source:
@@ -2822,6 +2823,68 @@ def _deep_apply_ctx_substitutions(obj: Any, partition_key: Optional[str], partit
     return obj
 
 
+# ── Personas resolution ──────────────────────────────────────────────
+#
+# `personas:` is a top-level named-reusable-config block. Steps and
+# sub-configs reference a persona by name (`persona: <name>`); the
+# persona's fields are merged in at dispatch time. Inline fields on the
+# step always win over persona-provided fields — the persona is a
+# defaults-provider, not an override.
+#
+# Persona reference sites (recursive traversal):
+#   step level: llm_call / classify / extract / reduce / self_reflect /
+#               map / tool_use_loop
+#   sub-config: route.router, route.specialists[*],
+#               conditional_route.specialists[*],
+#               debate.proposers[*], debate.arbitrator,
+#               critique_loop.drafter, critique_loop.critic
+#
+# The bundle fields (all optional): model, api_key_env_var,
+# api_base_env_var, system_prompt, temperature, max_tokens.
+
+_PERSONA_FIELDS = (
+    "model", "api_key_env_var", "api_base_env_var",
+    "system_prompt", "temperature", "max_tokens",
+)
+
+
+def _merge_persona(target: dict, persona: dict) -> dict:
+    """Merge persona fields into `target`. Explicit inline fields on
+    `target` win — persona is a defaults-provider. Non-persona fields on
+    the persona bundle (e.g. accidentally-declared tools) are silently
+    ignored so users can't stuff arbitrary things into a persona and
+    have them leak into unrelated sub-configs."""
+    merged = dict(target)
+    for k in _PERSONA_FIELDS:
+        if k in persona and merged.get(k) is None:
+            merged[k] = persona[k]
+    merged.pop("persona", None)  # consumed
+    return merged
+
+
+def _resolve_persona(node: Any, personas: Optional[Dict[str, Dict[str, Any]]]) -> Any:
+    """Recursively walk a step dict, expanding `persona: <name>` references.
+    Dicts and lists are traversed; scalars pass through."""
+    if not personas:
+        return node
+    if isinstance(node, list):
+        return [_resolve_persona(item, personas) for item in node]
+    if not isinstance(node, dict):
+        return node
+    # Recurse first so nested `persona:` refs are handled at every level.
+    walked = {k: _resolve_persona(v, personas) for k, v in node.items()}
+    persona_name = walked.get("persona")
+    if isinstance(persona_name, str):
+        persona = personas.get(persona_name)
+        if persona is None:
+            raise ValueError(
+                f"persona {persona_name!r} referenced but not declared in top-level "
+                f"`personas:` block. Available: {sorted(personas.keys())}"
+            )
+        return _merge_persona(walked, persona)
+    return walked
+
+
 def _run_step(step: dict, state: Dict[str, Any], context) -> None:
     op = step.get("op")
     step_id = step.get("id")
@@ -2835,6 +2898,13 @@ def _run_step(step: dict, state: Dict[str, Any], context) -> None:
     # (`{port_name}`) still happens per-op since it needs resolved inputs.
     _ctx = _ctx_of(state)
     step = _deep_apply_ctx_substitutions(step, _ctx.get("partition_key"), _ctx.get("partition_fields"))
+
+    # Expand `persona: <name>` references — step-level AND every sub-config.
+    # Personas live in the reserved `__personas__` state entry, put there by
+    # the compute fn before it starts running steps.
+    personas = state.get("__personas__")
+    if personas:
+        step = _resolve_persona(step, personas)
 
     context.log.info(f"[step {step_id!r}] op={op!r}")
     state[step_id] = _OPS[op](step, state, context)
@@ -2942,6 +3012,21 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             "{assets: [<step_ids>], text_sinks: [{from, path}], json_sinks: [{from, path}]}. "
             "`assets:` step outputs become first-class Dagster assets; "
             "`text_sinks:` writes step text to disk; `json_sinks:` writes full step dict."
+        ),
+    )
+    personas: Optional[Dict[str, Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Named reusable LLM sub-configs. Each persona bundles "
+            "`{model, api_key_env_var, api_base_env_var, system_prompt, "
+            "temperature, max_tokens}`. Reference from any step / sub-config "
+            "via `persona: <name>`; declared fields on the persona are merged "
+            "into the step's sub-config (explicit inline fields win). "
+            "Applies to: step-level (llm_call, classify, extract, reduce, "
+            "self_reflect, map, tool_use_loop) and sub-configs (route.router, "
+            "route.specialists[*], debate.proposers[*], debate.arbitrator, "
+            "critique_loop.drafter, critique_loop.critic, conditional_route."
+            "specialists[*])."
         ),
     )
     group_name: Optional[str] = Field(default="agents", description="Group name for emitted assets.")
@@ -3305,14 +3390,15 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 )
 
             # Stash run-context so every op can reach it via _ctx_of(state).
-            # Reserved key `__ctx__` — never collides with user step ids
-            # (handled by _last_step_id skipping __-prefixed keys).
+            # Reserved keys `__ctx__` / `__personas__` — never collide with
+            # user step ids (`_last_step_id` skips `__`-prefixed keys).
             state: Dict[str, Any] = {
                 "source": initial_entry,
                 "__ctx__": {
                     "partition_key": partition_key,
                     "partition_fields": partition_fields,
                 },
+                "__personas__": self.personas or {},
             }
 
             steps_to_run_set = set(steps_to_run_ids)
@@ -3489,6 +3575,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                         "partition_key": partition_key,
                         "partition_fields": partition_fields,
                     },
+                    "__personas__": _self.personas or {},
                 }
         else:
             @dg.op(name=f"{prefix}_ingest")
@@ -3509,6 +3596,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                         "partition_key": partition_key,
                         "partition_fields": partition_fields,
                     },
+                    "__personas__": _self.personas or {},
                 }
 
         # --- step ops (one per step) ---

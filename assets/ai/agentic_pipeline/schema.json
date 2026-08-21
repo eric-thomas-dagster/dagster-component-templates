@@ -20,6 +20,9 @@
     "outputs":            {"type": "object", "required": true, "label": "Outputs",
                            "description": "Output declaration. Shape: {assets: [<step_ids>], text_sinks: [{from, path}], json_sinks: [{from, path}]}. `assets:` step outputs become first-class Dagster assets; sinks are side effects. All sink paths are `{partition_key}`-aware."},
 
+    "personas":           {"type": "object", "label": "Personas",
+                           "description": "Named reusable LLM sub-configs. Each persona bundles `{model, api_key_env_var, api_base_env_var, system_prompt, temperature, max_tokens}`. Reference from any step / sub-config via `persona: <name>`; the persona's fields are merged into the step's config (explicit inline fields ALWAYS win — persona is a defaults-provider). Reference sites: step-level (llm_call, classify, extract, reduce, self_reflect, map, tool_use_loop) and sub-configs (route.router, route.specialists[*], conditional_route.specialists[*], debate.proposers[*], debate.arbitrator, critique_loop.drafter, critique_loop.critic). Personas are inherited into sub_pipeline steps automatically."},
+
     "group_name":         {"type": "string", "label": "Group Name", "description": "Group name for emitted assets. Default: 'agents'."},
     "kinds":              {"type": "array",  "label": "Kinds", "items": {"type": "string"},
                            "description": "Asset kinds. Default: ['llm', 'agent', 'pipeline']."},

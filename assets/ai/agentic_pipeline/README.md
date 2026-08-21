@@ -284,6 +284,51 @@ This is the "execution-plan graph" shape — every node has typed named I/O, edg
 
 **Supported ops:** `llm_call`, `synthesize`, `mcp_call`. The multi-agent ops (`route` / `debate` / `critique_loop`) have their own structured sub-configs — use them as-is; use `inputs:` on the join steps that consume their outputs.
 
+## Named personas — declare LLM sub-configs once, reference by name
+
+Instead of duplicating `system_prompt` / `model` / `temperature` across steps that share a persona, declare them once at the top of the component:
+
+```yaml
+type: dagster_community_components.AgenticPipelineComponent
+attributes:
+  personas:
+    security_skeptic:
+      model: gpt-4o
+      api_key_env_var: OPENAI_API_KEY
+      system_prompt: "You are a security-focused reviewer. Challenge risks explicitly."
+      temperature: 0.3
+    perf_skeptic:
+      model: gpt-4o
+      api_key_env_var: OPENAI_API_KEY
+      system_prompt: "You are performance-minded. Challenge scale assumptions."
+    lead_engineer:
+      model: gpt-4o
+      api_key_env_var: OPENAI_API_KEY
+      system_prompt: "You are a senior engineer picking the strongest critique."
+
+  steps:
+    - id: skeptic_debate
+      op: debate
+      proposers:
+        - persona: security_skeptic
+        - persona: perf_skeptic
+      arbitrator:
+        persona: lead_engineer
+```
+
+**Persona fields** (all optional; merged into the referencing sub-config):
+
+    model, api_key_env_var, api_base_env_var, system_prompt, temperature, max_tokens
+
+**Reference sites** — a `persona: <name>` field is recognized at:
+
+- **Step level** — `llm_call`, `classify`, `extract`, `reduce`, `self_reflect`, `map`, `tool_use_loop`
+- **Sub-config level** — `route.router`, `route.specialists[*]`, `conditional_route.specialists[*]`, `debate.proposers[*]`, `debate.arbitrator`, `critique_loop.drafter`, `critique_loop.critic`
+
+**Merge rules**: inline fields on the step ALWAYS win over persona-provided fields — the persona is a defaults-provider, not an override. Undeclared fields on the persona bundle (e.g. accidentally-declared `tools`) are silently dropped so a persona can't leak arbitrary config into unrelated sub-configs.
+
+**Nested pipelines** — personas declared at the top level are inherited into `sub_pipeline` steps automatically.
+
 ### Common fields (every step)
 
 | Field | Required | Default | Description |

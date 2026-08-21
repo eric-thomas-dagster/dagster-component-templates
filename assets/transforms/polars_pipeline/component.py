@@ -71,12 +71,21 @@ def _apply_partition_template(s: str, partition_key: Optional[str], partition: O
     return out
 
 
+_CLOUD_URL_SCHEMES = ("s3://", "gs://", "gcs://", "az://", "abfs://", "abfss://", "http://", "https://")
+
+
 def _read_file_source(pl_module, src: Dict[str, Any], partition_key: Optional[str], partition_map: Optional[Dict[str, str]]):
     """Read `kind: file` or `kind: url` into a polars LazyFrame.
 
     Supported formats: json | ndjson | csv | parquet | ipc | avro.
     Auto-detects from the file extension when `format:` is unset.
     Path/url is `{partition_key}` / `{partition.<name>}` templated.
+
+    Cloud URLs (s3:// / gs:// / az:// / abfs:// / http(s)://): pre-fetched
+    via fsspec into a temp file, then read locally. This is format-agnostic
+    and works for every polars reader without depending on version-specific
+    cloud plugins. For very large files consider using
+    `pl.scan_parquet(s3://...)` directly in a separate asset instead.
     """
     kind = src.get("kind", "file")
     raw_path = src.get("path") if kind == "file" else src.get("url")
@@ -104,22 +113,55 @@ def _read_file_source(pl_module, src: Dict[str, Any], partition_key: Optional[st
             )
     delimiter = src.get("delimiter", "\t" if path.lower().endswith(".tsv") else ",")
 
+    # Cloud URL pre-fetch — universal for any format. `storage_options:`
+    # in the source spec is forwarded to fsspec.open (e.g. anon: true,
+    # endpoint_url: '...', key/secret pairs).
+    is_cloud = any(path.lower().startswith(scheme) for scheme in _CLOUD_URL_SCHEMES)
+    local_path = path
+    if is_cloud:
+        try:
+            import fsspec
+        except ImportError:
+            raise ImportError(
+                "polars_pipeline: reading cloud URLs requires fsspec + a backend "
+                "(pip install 's3fs' | 'gcsfs' | 'adlfs')."
+            )
+        import tempfile as _tempfile
+        storage_options = src.get("storage_options") or {}
+        _tmp = _tempfile.NamedTemporaryFile(suffix=_suffix_for(fmt), delete=False)
+        try:
+            with fsspec.open(path, "rb", **storage_options) as fin:
+                # Stream in chunks — file could be large.
+                while True:
+                    chunk = fin.read(8 * 1024 * 1024)  # 8 MiB
+                    if not chunk:
+                        break
+                    _tmp.write(chunk)
+        finally:
+            _tmp.close()
+        local_path = _tmp.name
+
     # scan_* returns LazyFrame (streaming-friendly); read_json is eager only.
     if fmt == "csv":
-        return pl_module.scan_csv(path, separator=delimiter)
+        return pl_module.scan_csv(local_path, separator=delimiter)
     if fmt == "parquet":
-        return pl_module.scan_parquet(path)
+        return pl_module.scan_parquet(local_path)
     if fmt == "ndjson":
-        return pl_module.scan_ndjson(path)
+        return pl_module.scan_ndjson(local_path)
     if fmt == "json":
-        # read_json is eager — convert to lazy.
-        return pl_module.read_json(path).lazy()
+        return pl_module.read_json(local_path).lazy()
     if fmt == "ipc":
-        return pl_module.scan_ipc(path)
+        return pl_module.scan_ipc(local_path)
     if fmt == "avro":
-        # No scan_avro; read is eager.
-        return pl_module.read_avro(path).lazy()
+        return pl_module.read_avro(local_path).lazy()
     raise ValueError(f"polars_pipeline: format {fmt!r} not supported")
+
+
+def _suffix_for(fmt: str) -> str:
+    return {
+        "csv": ".csv", "parquet": ".parquet", "ndjson": ".ndjson",
+        "json": ".json", "ipc": ".ipc", "avro": ".avro",
+    }.get(fmt, ".dat")
 
 
 def _build_partitions_def(

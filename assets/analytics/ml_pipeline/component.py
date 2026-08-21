@@ -127,18 +127,28 @@ def _ingest(source_config: dict, context, partition_key: Optional[str] = None) -
 
     Partition-aware: `{partition_key}` placeholders in `url` / `path` / `sql`
     are substituted from `context.partition_key` at compute time.
+
+    Cloud URLs supported via fsspec — `s3://bucket/key.csv`,
+    `gs://bucket/key.csv`, `az://container/blob.csv`, `abfs://` etc. all
+    just work IF the right fsspec backend is installed (`pip install s3fs`
+    / `gcsfs` / `adlfs`). pandas' read_csv routes URL fetches through
+    fsspec transparently.
     """
     import pandas as pd
     kind = source_config.get("kind", "url")
-    if kind == "url":
-        import requests
-        url = _apply_partition_template(source_config["url"], partition_key)
-        resp = requests.get(url, timeout=60)
-        resp.raise_for_status()
-        return pd.read_csv(StringIO(resp.text), sep=source_config.get("delimiter", ","))
-    if kind == "file":
-        path = _apply_partition_template(source_config["path"], partition_key)
-        return pd.read_csv(path, sep=source_config.get("delimiter", ","))
+    if kind in ("url", "file"):
+        # Unified: pd.read_csv handles local paths, http(s):// URLs, and
+        # cloud URLs (s3://, gs://, az://, abfs://) via fsspec — no need
+        # for a separate requests.get() codepath.
+        raw = source_config.get("url") or source_config.get("path")
+        if not raw:
+            raise ValueError(f"ml_pipeline source kind={kind!r} requires `url` or `path`")
+        path = _apply_partition_template(raw, partition_key)
+        storage_options = source_config.get("storage_options")
+        read_kwargs: Dict[str, Any] = {"sep": source_config.get("delimiter", ",")}
+        if storage_options:
+            read_kwargs["storage_options"] = storage_options
+        return pd.read_csv(path, **read_kwargs)
     if kind == "upstream_asset":
         # Loaded by Dagster via IO manager and passed as an arg to the pipeline;
         # this function is only called for kind=url|file. See build_defs wiring.

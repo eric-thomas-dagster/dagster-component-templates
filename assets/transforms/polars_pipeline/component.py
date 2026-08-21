@@ -60,6 +60,131 @@ _VALID_OPS = {"filter", "with_columns", "select", "drop", "rename",
               "group_by", "sort", "head", "tail", "head_per_group", "limit",
               "unique", "join", "drop_nulls", "fill_null", "cast", "sql"}
 
+
+def _apply_partition_template(s: str, partition_key: Optional[str], partition: Optional[Dict[str, str]] = None) -> str:
+    """Substitute `{partition_key}` and `{partition.<name>}` into a template string."""
+    if not s or "{" not in s:
+        return s
+    out = s.replace("{partition_key}", str(partition_key or ""))
+    for k, v in (partition or {}).items():
+        out = out.replace("{" + f"partition.{k}" + "}", str(v))
+    return out
+
+
+def _read_file_source(pl_module, src: Dict[str, Any], partition_key: Optional[str], partition_map: Optional[Dict[str, str]]):
+    """Read `kind: file` or `kind: url` into a polars LazyFrame.
+
+    Supported formats: json | ndjson | csv | parquet | ipc | avro.
+    Auto-detects from the file extension when `format:` is unset.
+    Path/url is `{partition_key}` / `{partition.<name>}` templated.
+    """
+    kind = src.get("kind", "file")
+    raw_path = src.get("path") if kind == "file" else src.get("url")
+    if not raw_path:
+        raise ValueError(f"polars_pipeline source kind={kind!r} requires {'path' if kind == 'file' else 'url'}")
+    path = _apply_partition_template(raw_path, partition_key, partition_map)
+    fmt = (src.get("format") or "").lower()
+    if not fmt:
+        low = path.lower()
+        if low.endswith(".ndjson") or low.endswith(".jsonl"):
+            fmt = "ndjson"
+        elif low.endswith(".json"):
+            fmt = "json"
+        elif low.endswith(".csv") or low.endswith(".tsv"):
+            fmt = "csv"
+        elif low.endswith(".parquet") or low.endswith(".pq"):
+            fmt = "parquet"
+        elif low.endswith(".ipc") or low.endswith(".arrow"):
+            fmt = "ipc"
+        elif low.endswith(".avro"):
+            fmt = "avro"
+        else:
+            raise ValueError(
+                f"polars_pipeline: can't infer format from {path!r} — set `format:` explicitly."
+            )
+    delimiter = src.get("delimiter", "\t" if path.lower().endswith(".tsv") else ",")
+
+    # scan_* returns LazyFrame (streaming-friendly); read_json is eager only.
+    if fmt == "csv":
+        return pl_module.scan_csv(path, separator=delimiter)
+    if fmt == "parquet":
+        return pl_module.scan_parquet(path)
+    if fmt == "ndjson":
+        return pl_module.scan_ndjson(path)
+    if fmt == "json":
+        # read_json is eager — convert to lazy.
+        return pl_module.read_json(path).lazy()
+    if fmt == "ipc":
+        return pl_module.scan_ipc(path)
+    if fmt == "avro":
+        # No scan_avro; read is eager.
+        return pl_module.read_avro(path).lazy()
+    raise ValueError(f"polars_pipeline: format {fmt!r} not supported")
+
+
+def _build_partitions_def(
+    partition_type: Optional[str], partition_start: Optional[str],
+    partition_values: Optional[Any], dynamic_partition_name: Optional[str],
+    partition_dimensions: Optional[List[Dict[str, Any]]],
+):
+    """Strict partition-def builder — matches ml_pipeline's shape."""
+    from dagster import (
+        DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+        MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+        StaticPartitionsDefinition, MultiPartitionsDefinition,
+        DynamicPartitionsDefinition,
+    )
+    if partition_dimensions and partition_type:
+        raise ValueError(
+            "polars_pipeline: set either partition_type OR partition_dimensions, not both."
+        )
+    def _build_axis(spec):
+        t = spec.get("type")
+        if t in ("daily", "weekly", "monthly", "hourly") and not spec.get("start"):
+            raise ValueError(f"partition dimension type={t!r} requires 'start' (ISO date)")
+        if t == "daily":  return DailyPartitionsDefinition(start_date=spec["start"])
+        if t == "weekly": return WeeklyPartitionsDefinition(start_date=spec["start"])
+        if t == "monthly": return MonthlyPartitionsDefinition(start_date=spec["start"])
+        if t == "hourly": return HourlyPartitionsDefinition(start_date=spec["start"])
+        if t == "static":
+            vals = spec.get("values") or []
+            if isinstance(vals, str):
+                vals = [v.strip() for v in vals.split(",") if v.strip()]
+            if not vals:
+                raise ValueError("partition dimension type='static' requires 'values'")
+            return StaticPartitionsDefinition(list(vals))
+        if t == "dynamic":
+            name = spec.get("dynamic_partition_name") or spec.get("name")
+            if not name:
+                raise ValueError("partition dimension type='dynamic' requires a name")
+            return DynamicPartitionsDefinition(name=name)
+        raise ValueError(f"unknown partition type: {t!r}")
+    if partition_dimensions:
+        if len(partition_dimensions) == 1:
+            return _build_axis(partition_dimensions[0])
+        return MultiPartitionsDefinition({d["name"]: _build_axis(d) for d in partition_dimensions})
+    if not partition_type:
+        return None
+    if isinstance(partition_values, (list, tuple)):
+        _values = [str(v).strip() for v in partition_values if str(v).strip()]
+    else:
+        _values = [v.strip() for v in (str(partition_values) if partition_values else "").split(",") if v.strip()]
+    if partition_type in ("daily", "weekly", "monthly", "hourly") and not partition_start:
+        raise ValueError(f"partition_type={partition_type!r} requires partition_start")
+    if partition_type == "daily":   return DailyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "weekly":  return WeeklyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "monthly": return MonthlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "hourly":  return HourlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "static":
+        if not _values:
+            raise ValueError("partition_type='static' requires partition_values")
+        return StaticPartitionsDefinition(_values)
+    if partition_type == "dynamic":
+        if not dynamic_partition_name:
+            raise ValueError("partition_type='dynamic' requires dynamic_partition_name")
+        return DynamicPartitionsDefinition(name=dynamic_partition_name)
+    raise ValueError(f"unknown partition_type: {partition_type!r}")
+
 _PL_AGG_FUNCS = {"sum", "mean", "avg", "min", "max", "count", "median",
                  "std", "var", "first", "last", "nunique", "n_unique"}
 
@@ -185,11 +310,22 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
     # Flat-shape single-source shape ------------------------------------------
     upstream_asset_key: Optional[str] = Field(
         default=None,
-        description="Top-level single-source shape: Dagster upstream asset key (pandas or polars DataFrame)",
+        description="Top-level single-source shape: Dagster upstream asset key (pandas or polars DataFrame). Mutually exclusive with `source:`.",
+    )
+    source: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "File / URL source shape. `{kind: file, path, format?, delimiter?}` or "
+            "`{kind: url, url, format?, delimiter?}` or `{kind: upstream_asset, "
+            "upstream_asset_key}`. `path`/`url` support `{partition_key}` and "
+            "`{partition.<name>}` templating. Format is inferred from extension "
+            "(.json / .ndjson / .csv / .parquet / .ipc / .avro) when unset. "
+            "Mutually exclusive with `upstream_asset_key`."
+        ),
     )
     operations: Optional[List[Dict[str, Any]]] = Field(
         default=None,
-        description="Flat shape: ordered list of ops applied to upstream_asset_key. Compiles to one anonymous step.",
+        description="Flat shape: ordered list of ops applied to upstream_asset_key OR source. Compiles to one anonymous step.",
     )
 
     # Multi-step shape -----------------------------------------------------
@@ -210,6 +346,28 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
     primary_step: Optional[str] = Field(
         default=None,
         description="Step id whose frame is returned as the asset's output (default: last step).",
+    )
+
+    # Partitions ---------------------------------------------------------
+    partition_type: Optional[str] = Field(
+        default=None,
+        description="Partition type: 'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | 'dynamic' | 'multi' | None for unpartitioned.",
+    )
+    partition_start: Optional[str] = Field(
+        default=None,
+        description="ISO date for time-based partition types (daily/weekly/monthly/hourly).",
+    )
+    partition_values: Optional[Any] = Field(
+        default=None,
+        description="Comma-separated string OR list — the fixed partition keys for static/multi partitioning.",
+    )
+    dynamic_partition_name: Optional[str] = Field(
+        default=None,
+        description="Name for DynamicPartitionsDefinition when partition_type='dynamic'. Must match the sensor's `dynamic_partitions_name`.",
+    )
+    partition_dimensions: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Multi-axis partition spec (list of {name, type, start, values, dynamic_partition_name} dicts). Set INSTEAD of partition_type for multi-dimensional partitioning.",
     )
 
     # Asset metadata + execution -----------------------------------------
@@ -239,14 +397,20 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
 
         upstream_keys is the deduplicated list of Dagster upstream asset
         keys this asset depends on (collected from `upstream_asset_key`
-        flat-shape field + any kind=upstream sources across steps).
+        flat-shape field + any kind=upstream / kind=upstream_asset sources
+        across steps). File / url source kinds don't produce upstream keys.
         """
-        flat_present = bool(self.upstream_asset_key or self.operations)
+        flat_upstream = bool(self.upstream_asset_key)
+        flat_source = bool(self.source)
+        flat_ops = self.operations is not None
         multi_present = bool(self.steps)
-        if multi_present and flat_present:
+
+        if flat_upstream and flat_source:
+            raise ValueError("polars_pipeline: set either `upstream_asset_key` OR `source:`, not both.")
+        if multi_present and (flat_upstream or flat_source or flat_ops):
             raise ValueError(
-                "polars_pipeline: choose ONE shape — either top-level "
-                "upstream_asset_key + operations OR steps, not both."
+                "polars_pipeline: choose ONE shape — top-level "
+                "`upstream_asset_key`/`source:` + `operations`, OR `steps:`."
             )
         if multi_present:
             steps = list(self.steps or [])
@@ -254,24 +418,45 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
             upstream_keys: List[str] = []
             for s in steps:
                 src = s.get("source") or {}
-                if src.get("kind") == "upstream":
+                # Accept both 'upstream' (legacy) and 'upstream_asset' (matches ml_pipeline).
+                if src.get("kind") in ("upstream", "upstream_asset"):
                     k = src.get("upstream_asset_key")
                     if not k:
                         raise ValueError(f"step {s.get('id')!r}: source kind=upstream needs 'upstream_asset_key'")
                     if k not in upstream_keys:
                         upstream_keys.append(k)
             return steps, sinks, upstream_keys
-        if not (self.upstream_asset_key and self.operations is not None):
+
+        if not flat_ops:
             raise ValueError(
-                "polars_pipeline: provide either 'steps' OR top-level "
-                "'upstream_asset_key' + 'operations'."
+                "polars_pipeline: provide either `steps:` OR top-level "
+                "`operations:` (with `upstream_asset_key` OR `source:`)."
             )
+        flat_sinks = list(self.sinks or [])
+        if flat_upstream:
+            flat_step = {
+                "id": "_default",
+                "source": {"kind": "upstream", "upstream_asset_key": self.upstream_asset_key},
+                "operations": list(self.operations),
+            }
+            return [flat_step], flat_sinks, [self.upstream_asset_key]
+        # flat_source path (file / url / upstream_asset)
+        src = dict(self.source or {})
+        if src.get("kind") in ("upstream", "upstream_asset") and src.get("upstream_asset_key"):
+            upstream_key = src["upstream_asset_key"]
+            flat_step = {
+                "id": "_default",
+                "source": {"kind": "upstream", "upstream_asset_key": upstream_key},
+                "operations": list(self.operations),
+            }
+            return [flat_step], flat_sinks, [upstream_key]
+        # file / url — no upstream dependency
         flat_step = {
             "id": "_default",
-            "source": {"kind": "upstream", "upstream_asset_key": self.upstream_asset_key},
+            "source": src,
             "operations": list(self.operations),
         }
-        return [flat_step], [], [self.upstream_asset_key]
+        return [flat_step], flat_sinks, []
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         steps, sinks, upstream_keys = self._normalize()
@@ -311,6 +496,19 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
         }
         upstream_arg_names = {k: f"upstream_{j}" for j, k in enumerate(upstream_keys)}
 
+        partitions_def = _build_partitions_def(
+            self.partition_type, self.partition_start, self.partition_values,
+            self.dynamic_partition_name, self.partition_dimensions,
+        )
+
+        # Auto-detect required Dagster resource keys from table-kind sinks.
+        required_resource_keys: set = set()
+        for sink in sinks:
+            if (sink.get("kind") or "parquet").lower() == "table":
+                rk = sink.get("resource_key")
+                if rk:
+                    required_resource_keys.add(rk)
+
         @asset(
             key=dg.AssetKey.from_user_string(asset_name),
             description=self.description or self.get_description(),
@@ -320,9 +518,19 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
             ins=ins,
             deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
             kinds=set(kinds),
+            partitions_def=partitions_def,
+            required_resource_keys=required_resource_keys or None,
         )
         def _pipeline_asset(context: AssetExecutionContext, **upstreams: Any) -> Any:
             import polars as pl
+
+            # Partition-key substitution values for file/url path templating.
+            partition_key = context.partition_key if context.has_partition_key else None
+            partition_map: Dict[str, str] = {}
+            if partition_key is not None:
+                pk = context.partition_key
+                if hasattr(pk, "keys_by_dimension"):
+                    partition_map = dict(pk.keys_by_dimension)
 
             def _to_lazy(obj: Any):
                 if isinstance(obj, pl.LazyFrame):
@@ -338,10 +546,15 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
                 sid = step["id"]
                 src = step.get("source") or {}
                 src_kind = src.get("kind", "upstream")
-                if src_kind == "upstream":
+                if src_kind in ("upstream", "upstream_asset"):
                     uk = src.get("upstream_asset_key") or ""
                     arg = upstream_arg_names[uk]
                     lf = _to_lazy(upstreams[arg])
+                elif src_kind in ("file", "url"):
+                    lf = _read_file_source(pl, src, partition_key, partition_map)
+                    context.log.info(
+                        f"step {sid} source: read {src_kind} → {(src.get('path') or src.get('url'))!r}"
+                    )
                 elif src_kind == "ref":
                     ref = src.get("ref") or ""
                     if ref not in step_outputs:
@@ -372,17 +585,61 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
                 if from_id not in step_outputs:
                     raise ValueError(f"sink.from={from_id!r} doesn't match any step id")
                 kind = (sink.get("kind") or "parquet").lower()
-                path = sink.get("path")
-                if not path:
-                    raise ValueError(f"sink from={from_id!r}: 'path' is required")
                 df = step_outputs[from_id].collect()  # materialize side-output
-                if kind == "parquet":
-                    df.write_parquet(path)
-                elif kind == "csv":
-                    df.write_csv(path)
+
+                if kind in ("parquet", "csv"):
+                    path = sink.get("path")
+                    if not path:
+                        raise ValueError(f"sink from={from_id!r}: 'path' is required")
+                    path = _apply_partition_template(path, partition_key, partition_map)
+                    if kind == "parquet":
+                        df.write_parquet(path)
+                    else:
+                        df.write_csv(path)
+                    sink_metadata[f"polars/sink/{from_id}/path"] = MetadataValue.path(path)
+                elif kind == "table":
+                    # Write to any Dagster resource that exposes .get_engine() /
+                    # .get_connection() (e.g. postgres_resource, duckdb_resource,
+                    # snowflake_resource, ...). Mirrors ml_pipeline.table_sinks.
+                    resource_key = sink.get("resource_key")
+                    if not resource_key:
+                        raise ValueError(f"sink from={from_id!r} kind=table: 'resource_key' is required")
+                    table = _apply_partition_template(sink.get("table") or "", partition_key, partition_map)
+                    if not table:
+                        raise ValueError(f"sink from={from_id!r} kind=table: 'table' is required")
+                    schema = sink.get("schema")
+                    if_exists = sink.get("if_exists", "append")
+                    partition_col = sink.get("partition_column")
+
+                    # Add partition_column with the partition_key value — analytics-friendly
+                    # single-table pattern (WHERE partition_date = ...).
+                    if partition_key and partition_col:
+                        df = df.with_columns(pl.lit(str(partition_key)).alias(partition_col))
+
+                    resource = getattr(context.resources, resource_key)
+                    if hasattr(resource, "get_engine"):
+                        engine = resource.get_engine()
+                    elif hasattr(resource, "get_connection"):
+                        engine = resource.get_connection()
+                    else:
+                        raise ValueError(
+                            f"resource {resource_key!r} must expose .get_engine() or .get_connection()"
+                        )
+                    df.to_pandas().to_sql(
+                        table, engine, schema=schema, if_exists=if_exists, index=False,
+                    )
+                    sink_metadata[f"polars/sink/{from_id}/table"] = MetadataValue.text(
+                        f"{schema+'.' if schema else ''}{table}"
+                    )
+                    sink_metadata[f"polars/sink/{from_id}/resource_key"] = MetadataValue.text(resource_key)
+                    context.log.info(
+                        f"table sink {from_id!r} → {schema+'.' if schema else ''}{table} "
+                        f"(via {resource_key}, {if_exists}, {df.height} rows)"
+                    )
                 else:
-                    raise ValueError(f"sink.kind={kind!r} not supported in polars_pipeline. Use 'parquet' or 'csv'.")
-                sink_metadata[f"polars/sink/{from_id}/path"] = MetadataValue.path(path)
+                    raise ValueError(
+                        f"sink.kind={kind!r} not supported. Use 'parquet' | 'csv' | 'table'."
+                    )
                 sink_metadata[f"polars/sink/{from_id}/row_count"] = MetadataValue.int(df.height)
 
             row_count = result_pl.height

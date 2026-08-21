@@ -71,7 +71,12 @@ def _apply_partition_template(s: str, partition_key: Optional[str], partition: O
     return out
 
 
-_CLOUD_URL_SCHEMES = ("s3://", "gs://", "gcs://", "az://", "abfs://", "abfss://", "http://", "https://")
+def _is_uri(path: str) -> bool:
+    """True if `path` looks like a URI (has a `scheme://` prefix). Catches
+    s3 / gs / gcs / az / abfs / abfss / http / https / ftp / file / any
+    future scheme without maintaining a hardcoded list. Doesn't confuse
+    Windows drive letters (`C:\\`) since those don't contain `://`."""
+    return "://" in path
 
 
 def _read_file_source(pl_module, src: Dict[str, Any], partition_key: Optional[str], partition_map: Optional[Dict[str, str]]):
@@ -115,10 +120,10 @@ def _read_file_source(pl_module, src: Dict[str, Any], partition_key: Optional[st
 
     # Cloud URL pre-fetch — universal for any format. `storage_options:`
     # in the source spec is forwarded to fsspec.open (e.g. anon: true,
-    # endpoint_url: '...', key/secret pairs).
-    is_cloud = any(path.lower().startswith(scheme) for scheme in _CLOUD_URL_SCHEMES)
+    # endpoint_url: '...', key/secret pairs). `_is_uri` catches any scheme
+    # (s3 / gs / az / abfs / http / https / ftp / …) without a hardcoded list.
     local_path = path
-    if is_cloud:
+    if _is_uri(path):
         try:
             import fsspec
         except ImportError:

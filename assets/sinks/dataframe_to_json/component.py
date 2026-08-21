@@ -156,6 +156,16 @@ class DataframeToJsonComponent(Component, Model, Resolvable):
         default="iso",
         description="Date formatting: 'iso' (ISO 8601) or 'epoch' (milliseconds since epoch).",
     )
+    storage_options: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Optional fsspec storage options forwarded to pandas' `to_json()` "
+            "for cloud writes (e.g. `{key: '...', secret: '...'}` for S3, or "
+            "`{endpoint_url: 'http://minio:9000'}` for MinIO). Env-var-backed "
+            "secrets belong in the ambient environment (AWS_ACCESS_KEY_ID / "
+            "etc.) — this field is for non-secret knobs."
+        ),
+    )
     include_preview_metadata: bool = Field(
         default=False,
         description=(
@@ -293,6 +303,7 @@ class DataframeToJsonComponent(Component, Model, Resolvable):
         file_path = self.file_path
         orient = self.orient
         lines = self.lines
+        storage_options = self.storage_options
         indent = self.indent
         date_format = self.date_format
         group_name = self.group_name
@@ -407,19 +418,25 @@ group_name=group_name,
                     # User referenced a date placeholder we couldn't resolve.
                     pass
             resolved_path = os.path.expandvars(_path_to_resolve)
-            os.makedirs(
-                os.path.dirname(resolved_path) if os.path.dirname(resolved_path) else ".",
-                exist_ok=True,
-            )
+            # Skip os.makedirs for URI destinations — pandas' to_json + fsspec
+            # handles them directly. `"://"` catches every scheme (s3, gs, az,
+            # abfs, http, https, and any future ones) without a hardcoded list.
+            if "://" not in resolved_path:
+                os.makedirs(
+                    os.path.dirname(resolved_path) if os.path.dirname(resolved_path) else ".",
+                    exist_ok=True,
+                )
             effective_orient = "records" if lines else orient
             effective_indent = None if lines else indent
-            upstream.to_json(
-                resolved_path,
-                orient=effective_orient,
-                lines=lines,
-                indent=effective_indent,
-                date_format=date_format,
-            )
+            _to_json_kwargs: Dict[str, Any] = {
+                "orient": effective_orient,
+                "lines": lines,
+                "indent": effective_indent,
+                "date_format": date_format,
+            }
+            if storage_options:
+                _to_json_kwargs["storage_options"] = storage_options
+            upstream.to_json(resolved_path, **_to_json_kwargs)
             context.log.info(f"Wrote {len(upstream)} rows to {resolved_path}")
             return MaterializeResult(
                 metadata={

@@ -149,6 +149,16 @@ class DataframeToCsvComponent(Component, Model, Resolvable):
     delimiter: str = Field(default=",", description="Column delimiter")
     include_index: bool = Field(default=False, description="Include row index in output")
     encoding: str = Field(default="utf-8", description="File encoding")
+    storage_options: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Optional fsspec storage options forwarded to pandas' `to_csv()` "
+            "for cloud writes. Example: `{key: '...', secret: '...'}` for S3, "
+            "or `{token: 'anon'}` for public GCS. Env-var-backed secrets belong "
+            "in the ambient environment (AWS_ACCESS_KEY_ID / etc.) — this field "
+            "is for non-secret knobs (endpoint_url, region, anon)."
+        ),
+    )
     columns: Optional[List[Union[str, int]]] = Field(
         default=None, description="Subset of columns to write. If None, all columns are written."
     )
@@ -302,6 +312,7 @@ class DataframeToCsvComponent(Component, Model, Resolvable):
         delimiter = self.delimiter
         include_index = self.include_index
         encoding = self.encoding
+        storage_options = self.storage_options
         columns = self.columns
         group_name = self.group_name
 
@@ -431,12 +442,22 @@ class DataframeToCsvComponent(Component, Model, Resolvable):
                 except KeyError:
                     pass
             resolved_path = os.path.expandvars(_path_to_resolve)
-            os.makedirs(
-                os.path.dirname(resolved_path) if os.path.dirname(resolved_path) else ".",
-                exist_ok=True,
-            )
+            # Skip os.makedirs for cloud / URL destinations — the target
+            # doesn't have a filesystem "directory" concept. `"://"` catches
+            # every URI scheme (s3, gs, az, abfs, http, https, and any future
+            # ones) without maintaining a hardcoded list.
+            if "://" not in resolved_path:
+                os.makedirs(
+                    os.path.dirname(resolved_path) if os.path.dirname(resolved_path) else ".",
+                    exist_ok=True,
+                )
             df = upstream[columns] if columns is not None else upstream
-            df.to_csv(resolved_path, sep=delimiter, index=include_index, encoding=encoding)
+            _to_csv_kwargs: Dict[str, Any] = {
+                "sep": delimiter, "index": include_index, "encoding": encoding,
+            }
+            if storage_options:
+                _to_csv_kwargs["storage_options"] = storage_options
+            df.to_csv(resolved_path, **_to_csv_kwargs)
             context.log.info(f"Wrote {len(df)} rows to {resolved_path}")
             return MaterializeResult(
                 metadata={

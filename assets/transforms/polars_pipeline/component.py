@@ -542,8 +542,12 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
             # step_outputs accumulates the LazyFrame at the END of each step.
             step_outputs: Dict[str, Any] = {}
 
+            import time as _time
+            step_timings: Dict[str, float] = {}
+            step_op_counts: Dict[str, int] = {}
             for s_idx, step in enumerate(steps):
                 sid = step["id"]
+                _t0 = _time.time()
                 src = step.get("source") or {}
                 src_kind = src.get("kind", "upstream")
                 if src_kind in ("upstream", "upstream_asset"):
@@ -568,15 +572,31 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
                 for op in ops:
                     lf = _apply_op(pl, lf, op, step_outputs)
                 step_outputs[sid] = lf
+                # Lazy-plan build time — the actual work happens at .collect()
+                # on the primary step. This measures "how long did it take to
+                # construct the query graph up through this step".
+                step_timings[sid] = round(_time.time() - _t0, 4)
+                step_op_counts[sid] = len(ops)
 
             # Collect the primary step. The polars planner fuses everything
             # touched by that final LazyFrame — including ops in earlier
             # steps it referenced.
             primary_lf = step_outputs[primary_step]
+            # Capture the optimized plan BEFORE collect so we can surface it
+            # as metadata even if collect fails. .explain() is cheap.
+            try:
+                explain_plan = str(primary_lf.explain(optimized=True))
+            except Exception:  # noqa: BLE001
+                try:
+                    explain_plan = str(primary_lf.explain())
+                except Exception:  # noqa: BLE001
+                    explain_plan = "(explain unavailable)"
+            _collect_t0 = _time.time()
             try:
                 result_pl = primary_lf.collect(engine="streaming" if streaming else "auto")
             except TypeError:
                 result_pl = primary_lf.collect(streaming=streaming) if streaming else primary_lf.collect()
+            collect_seconds = round(_time.time() - _collect_t0, 4)
 
             # Run any side-output sinks.
             sink_metadata: Dict[str, Any] = {}
@@ -649,12 +669,23 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
                 TableColumn(name=str(col), type=str(_meta_df.dtypes[col]))
                 for col in _meta_df.columns
             ])
+            # Estimated memory footprint of the materialized DataFrame.
+            try:
+                mem_bytes = int(result_pl.estimated_size())
+            except Exception:  # noqa: BLE001
+                mem_bytes = 0
             metadata: Dict[str, Any] = {
                 "dagster/row_count": MetadataValue.int(row_count),
                 "dagster/column_schema": MetadataValue.table_schema(_col_schema),
                 "polars/step_count": MetadataValue.int(len(steps)),
                 "polars/primary_step": MetadataValue.text(primary_step or ""),
                 "polars/streaming": MetadataValue.bool(streaming),
+                "polars/collect_seconds": MetadataValue.float(collect_seconds),
+                "polars/estimated_bytes": MetadataValue.int(mem_bytes),
+                "polars/estimated_mb": MetadataValue.float(round(mem_bytes / (1024 * 1024), 3)),
+                "polars/step_timings_seconds": MetadataValue.json(step_timings),
+                "polars/step_op_counts": MetadataValue.json(step_op_counts),
+                "polars/explain": MetadataValue.md(f"```\n{explain_plan}\n```"),
             }
             metadata.update(sink_metadata)
             if include_preview and row_count > 0:

@@ -30616,8 +30616,8 @@
       "id": "polars_pipeline",
       "name": "PolarsPipeline",
       "category": "transformation",
-      "description": "Multi-step polars LazyFrame chain in a single Dagster asset (query-plan fusion + parallelism).",
-      "version": "1.0.0",
+      "description": "Multi-step polars LazyFrame chain in a single Dagster asset (query-plan fusion + parallelism). Sources: `kind: file | url | upstream | ref` with `{partition_key}` / `{partition.<name>}` templating. Partition support (daily / weekly / monthly / hourly / static / dynamic / multi). Sinks: `parquet` / `csv` / `table` (SQLAlchemy via any Dagster resource — postgres / snowflake / duckdb / bigquery / mysql / mssql / oracle / db2). Rich per-materialization metadata: EXPLAIN plan (markdown), collect_seconds, estimated_mb, per-step build timings + op counts.",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "assets/transforms/polars_pipeline",
       "tags": [

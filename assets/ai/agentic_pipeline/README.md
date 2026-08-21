@@ -247,6 +247,7 @@ See [`SyntheticPromptGeneratorComponent`](../../source/synthetic_prompt_generato
 | `reduce` | LLM-fold over a list, chunk by chunk | Solves the "list too big for one context window" problem. `chunk_size` items per fold call; prior summary + new chunk → updated summary. |
 | `self_reflect` | ONE LLM call producing draft + self-critique + revised | Cost-sensitive alternative to `critique_loop` (which is 2N+1 calls). Structured `DRAFT / CRITIQUE / REVISED` sections parsed automatically. |
 | `sub_pipeline` | Invoke an inline sub-pipeline as one step | Compose / reuse common step blocks without duplicating YAML. `steps:` is a full inline sub-pipeline; `output_step_id` picks which sub-step's text flows back to this asset. Sub-state isolated from outer state. |
+| `agent_call` | Invoke a pre-declared agent by name | Dispatch to an agent declared in the top-level `agents:` block. Kinds: `openai_assistant` (thread + run against OpenAI Assistants API), `remote_agent` (authenticated HTTP call to your own deployed agent — sync or async polling), `handoff` (Python callable for LangGraph/AutoGen/CrewAI). One asset materializes with the agent's reply + latency + cost. |
 
 ## Typed named inputs (v2 — join any op from any prior op by port name)
 
@@ -318,7 +319,8 @@ attributes:
 
 **Persona fields** (all optional; merged into the referencing sub-config):
 
-    model, api_key_env_var, api_base_env_var, system_prompt, temperature, max_tokens
+    model, api_key_env_var, api_base_env_var, system_prompt, temperature, max_tokens,
+    reasoning_effort, thinking_budget
 
 **Reference sites** — a `persona: <name>` field is recognized at:
 
@@ -328,6 +330,74 @@ attributes:
 **Merge rules**: inline fields on the step ALWAYS win over persona-provided fields — the persona is a defaults-provider, not an override. Undeclared fields on the persona bundle (e.g. accidentally-declared `tools`) are silently dropped so a persona can't leak arbitrary config into unrelated sub-configs.
 
 **Nested pipelines** — personas declared at the top level are inherited into `sub_pipeline` steps automatically.
+
+## Named agents — call pre-built agents by name (`agent_call`)
+
+Not every "agent" is an LLM completion. Some agents live elsewhere: an OpenAI Assistant with pre-configured tools, an HTTP endpoint you deployed to Vercel / Cloud Run / Modal, or a Python callable wired to LangGraph / AutoGen / CrewAI. Declare each one once in a top-level `agents:` block and dispatch to it with the `agent_call` op.
+
+```yaml
+type: dagster_community_components.AgenticPipelineComponent
+attributes:
+  agents:
+    triager_openai:
+      kind: openai_assistant
+      assistant_id_env_var: OPENAI_ASSISTANT_ID
+      api_key_env_var: OPENAI_API_KEY
+      poll_interval_seconds: 1
+      poll_timeout_seconds: 60
+
+    ops_bot:
+      kind: remote_agent
+      url: "https://ops-bot.internal.example.com/chat"
+      method: POST
+      auth_bearer_env_var: OPS_BOT_TOKEN   # → Authorization: Bearer <token>
+      payload_template:
+        prompt: "{prompt}"
+        priority: "{extra.priority}"
+      response_text_path: "$.output.text"
+      # Async / long-poll (optional — only if the endpoint returns a status_url)
+      poll_url_path: "$.status_url"
+      poll_terminal_status_path: "$.status"
+      poll_terminal_success: [completed]
+      poll_interval_seconds: 2
+      poll_timeout_seconds: 120
+
+    plan_and_act:
+      kind: handoff
+      entry_module: mypkg.agents
+      entry_callable: run_langgraph_agent
+      framework: langgraph
+
+  source: {kind: literal, text: "Look up ticket #4131 and summarize."}
+
+  steps:
+    - id: replied
+      op: agent_call
+      agent: ops_bot
+      prompt_template: "{text}"
+      extra_context:
+        priority: "high"
+```
+
+**Agent kinds**:
+
+| kind | What it is | Required fields |
+|---|---|---|
+| `openai_assistant` | Thread + run against OpenAI's Assistants API. The assistant's tools / files / system prompt are configured on OpenAI's side; you pass the user prompt and poll the run to completion. | `assistant_id_env_var`, `api_key_env_var` |
+| `remote_agent` | Authenticated HTTP call to your own deployed agent. Supports sync (immediate JSON reply) and async (returns a `status_url`; polled until terminal status). | `url`, `method` (default `POST`), `response_text_path` (JSON path into the reply) |
+| `handoff` | Python callable — for wrapping LangGraph / AutoGen / CrewAI / DSPy agents. The callable receives `(prompt, **kwargs)` and returns `{"final_answer": str, "n_llm_calls": int, "cost_usd": float}`. | `entry_module`, `entry_callable` |
+
+**`op: agent_call` fields**:
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `agent` | ✅ | — | Name of an agent declared in the top-level `agents:` block. |
+| `prompt_template` |  | `"{text}"` | Prompt sent to the agent. Supports `{text}` (source), `{port_name}` (typed inputs), and `{extra.<key>}` for values from `extra_context`. |
+| `system_prompt` |  | — | For `remote_agent` / `handoff` agents that accept a system prompt (forwarded in `payload_template` / callable kwargs). |
+| `extra_context` |  | — | Free-form `{key: value}` map passed into the prompt (`{extra.key}`) and into the outbound payload / callable kwargs. |
+| `source` / `inputs` |  | — | Standard step-input plumbing (same shape as every other op). |
+
+**Nested pipelines** — agents declared at the top level are inherited into `sub_pipeline` steps automatically (same as personas).
 
 ### Common fields (every step)
 
@@ -349,6 +419,8 @@ The router / specialist / drafter / critic / proposer / arbitrator / synthesizer
 | `system_prompt` |  | — | System prompt for this LLM's persona. |
 | `temperature` |  | `0.0` | Sampling temperature. |
 | `max_tokens` |  | `2048` | Max completion tokens. |
+| `reasoning_effort` |  | — | Reasoning-model effort level (`low` / `medium` / `high`). Forwarded to OpenAI `o1` / `o3` models via LiteLLM `reasoning_effort`. Silently dropped by models that don't accept it (LiteLLM `drop_params=true`). |
+| `thinking_budget` |  | — | Max tokens the model may spend on reasoning traces before the visible answer. Forwarded to Gemini 2.5+ (`thinking_budget`) and Anthropic thinking models. Set `0` on Gemini for short structured outputs to avoid silent truncation (thinking tokens are drawn from `max_tokens`). Silently dropped by models that don't accept it. |
 
 ### `op: llm_call`
 
@@ -577,6 +649,20 @@ Invoke an inline sub-pipeline (a `steps:` list) as ONE step of the outer pipelin
 | `inputs` |  | — | Typed inputs — each `port_name` becomes a readable step id inside the sub-pipeline (sub-steps can `source: <port_name>`). |
 
 Sub-pipeline state is completely isolated from outer state — sub-steps can't see outer step ids (except via `inputs:` port bridging). Cost / latency / tokens roll up from the sub-pipeline into this step's metadata.
+
+### `op: agent_call`
+
+Dispatch to a pre-built agent declared in the top-level `agents:` block. See the [Named agents](#named-agents--call-pre-built-agents-by-name-agent_call) section above for the agent-declaration shape + supported kinds (`openai_assistant`, `remote_agent`, `handoff`).
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `agent` | ✅ | — | Name of an agent from the top-level `agents:` block. |
+| `prompt_template` |  | `"{text}"` | Prompt string. Supports `{text}`, `{port_name}` (from `inputs:`), and `{extra.<key>}` (from `extra_context:`). |
+| `system_prompt` |  | — | System prompt; forwarded to `remote_agent` payloads / `handoff` callable kwargs where supported. |
+| `extra_context` |  | — | `{key: value}` map — passed into the prompt (`{extra.key}`) and into the outbound payload / callable kwargs. |
+| `source` / `inputs` |  | — | Standard input plumbing. |
+
+Metadata: `agent`, `agent_kind`, `n_llm_calls`, `cost_usd` (when the agent reports it), `latency_ms`. The `remote_agent` kind additionally surfaces `url`, `method`, `status_code`, and `polled` (bool — whether the async-poll path was taken).
 
 ## State model
 

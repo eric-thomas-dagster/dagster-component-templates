@@ -237,8 +237,18 @@ def _completion(
     max_tokens: int,
     tools: Optional[List[Dict[str, Any]]] = None,
     tool_choice: Optional[str] = None,
+    reasoning_effort: Optional[str] = None,
+    thinking_budget: Optional[int] = None,
 ) -> Dict[str, Any]:
-    """Thin LiteLLM wrapper. Returns {"content": str, "tool_calls": [...], "usage": {...}}."""
+    """Thin LiteLLM wrapper. Returns {"content": str, "tool_calls": [...], "usage": {...}}.
+
+    Reasoning params (both optional, silently dropped on non-reasoning models via
+    `litellm.drop_params = True`):
+      - reasoning_effort: 'low' | 'medium' | 'high' — OpenAI o1/o3, DeepSeek-R1
+      - thinking_budget: int (max reasoning tokens) — Anthropic Claude thinking
+                         mode, Gemini 2.5 thinking_budget. LiteLLM normalizes
+                         the param name across providers.
+    """
     try:
         import litellm
     except ImportError:
@@ -270,12 +280,47 @@ def _completion(
         kwargs["tools"] = tools
     if tool_choice:
         kwargs["tool_choice"] = tool_choice
+    # Reasoning params are provider-specific. LiteLLM's `drop_params=True`
+    # doesn't reliably strip them when forwarding to a provider that
+    # doesn't accept them (thinking_budget → OpenAI reaches the wire and
+    # errors), so filter client-side by model family:
+    #   - reasoning_effort: OpenAI o-series (o1/o3/o4), Groq (LiteLLM
+    #     passes through). We include ALL OpenAI models (LiteLLM will
+    #     drop for non-o models) but skip Anthropic/Gemini which reject.
+    #   - thinking_budget: Gemini 2.5+ (native param), Anthropic thinking
+    #     mode (LiteLLM canonical shape is `thinking={type: enabled,
+    #     budget_tokens: N}`).
+    m_lower = model.lower()
+    is_openai_ish = m_lower.startswith(("gpt-", "o1", "o3", "o4", "openai/", "azure/", "groq/"))
+    is_gemini = m_lower.startswith(("gemini/", "google/", "vertex_ai/gemini"))
+    is_anthropic = (
+        "claude" in m_lower
+        or m_lower.startswith(("anthropic/", "bedrock/anthropic."))
+    )
+    if reasoning_effort is not None and (is_openai_ish or is_gemini):
+        kwargs["reasoning_effort"] = reasoning_effort
+    if thinking_budget is not None:
+        if is_gemini:
+            kwargs["thinking_budget"] = int(thinking_budget)
+        elif is_anthropic:
+            kwargs["thinking"] = {"type": "enabled", "budget_tokens": int(thinking_budget)}
 
     call_started_at = time.time()
     response = litellm.completion(**kwargs)
     latency_ms = int((time.time() - call_started_at) * 1000)
     msg = response.choices[0].message
     content = msg.content or ""
+
+    # Surface reasoning traces when the provider returns them (Claude
+    # thinking blocks, DeepSeek reasoning_content, some LiteLLM-wrapped
+    # providers expose it on the message). Silently None for models that
+    # don't emit reasoning.
+    reasoning_content = getattr(msg, "reasoning_content", None) or None
+    if not reasoning_content:
+        # LiteLLM sometimes shoves it into `provider_specific_fields`.
+        psf = getattr(msg, "provider_specific_fields", None)
+        if isinstance(psf, dict):
+            reasoning_content = psf.get("reasoning_content")
 
     tool_calls_out = []
     for tc in (msg.tool_calls or []):
@@ -318,6 +363,7 @@ def _completion(
         "latency_ms": latency_ms,
         "tokens_total": tokens_total,
         "temperature": temperature,
+        "reasoning_content": reasoning_content,
     }
 
 
@@ -538,6 +584,8 @@ def _do_llm_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         api_base_env_var=step.get("api_base_env_var"),
         temperature=temperature,
         max_tokens=step.get("max_tokens", 2048),
+        reasoning_effort=step.get("reasoning_effort"),
+        thinking_budget=step.get("thinking_budget"),
     )
     return {
         "text": result["content"],
@@ -616,6 +664,8 @@ def _do_route(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         max_tokens=router.get("max_tokens", 512),
         tools=tools,
         tool_choice="required",
+        reasoning_effort=router.get("reasoning_effort"),
+        thinking_budget=router.get("thinking_budget"),
     )
 
     selected = None
@@ -652,6 +702,8 @@ def _do_route(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         api_base_env_var=specialist.get("api_base_env_var"),
         temperature=specialist.get("temperature", 0.0),
         max_tokens=specialist.get("max_tokens", 2048),
+        reasoning_effort=specialist.get("reasoning_effort"),
+        thinking_budget=specialist.get("thinking_budget"),
     )
 
     return {
@@ -822,6 +874,8 @@ def _do_conditional_route(step: dict, state: Dict[str, Any], context) -> Dict[st
         api_base_env_var=specialist.get("api_base_env_var"),
         temperature=specialist.get("temperature", 0.0),
         max_tokens=specialist.get("max_tokens", 2048),
+        reasoning_effort=specialist.get("reasoning_effort"),
+        thinking_budget=specialist.get("thinking_budget"),
     )
 
     return {
@@ -875,6 +929,8 @@ def _do_debate(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
             api_base_env_var=p.get("api_base_env_var"),
             temperature=p.get("temperature", 0.7),
             max_tokens=p.get("max_tokens", 2048),
+            reasoning_effort=p.get("reasoning_effort"),
+            thinking_budget=p.get("thinking_budget"),
         )
         proposals.append({"index": i, "model": p["model"], "text": r["content"]})
         proposer_usage.append(r["usage"])
@@ -921,6 +977,8 @@ def _do_debate(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         max_tokens=arbitrator.get("max_tokens", 512),
         tools=tools,
         tool_choice="required",
+        reasoning_effort=arbitrator.get("reasoning_effort"),
+        thinking_budget=arbitrator.get("thinking_budget"),
     )
 
     winner_index = None
@@ -1034,6 +1092,8 @@ def _do_critique_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
         api_base_env_var=drafter.get("api_base_env_var"),
         temperature=drafter.get("temperature", 0.0),
         max_tokens=drafter.get("max_tokens", 2048),
+        reasoning_effort=drafter.get("reasoning_effort"),
+        thinking_budget=drafter.get("thinking_budget"),
     )
     current_draft = draft_result["content"]
     history = [{"iteration": 0, "phase": "initial_draft", "text": current_draft}]
@@ -1070,6 +1130,8 @@ def _do_critique_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
             api_base_env_var=critic.get("api_base_env_var"),
             temperature=critic.get("temperature", 0.0),
             max_tokens=critic.get("max_tokens", 1024),
+            reasoning_effort=critic.get("reasoning_effort"),
+            thinking_budget=critic.get("thinking_budget"),
         )
         critique = critique_result["content"]
         entry = {"iteration": i + 1, "phase": "critique", "text": critique}
@@ -1110,6 +1172,8 @@ def _do_critique_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
             api_base_env_var=drafter.get("api_base_env_var"),
             temperature=drafter.get("temperature", 0.0),
             max_tokens=drafter.get("max_tokens", 2048),
+            reasoning_effort=drafter.get("reasoning_effort"),
+            thinking_budget=drafter.get("thinking_budget"),
         )
         current_draft = revise_result["content"]
         history.append({"iteration": i + 1, "phase": "revised_draft", "text": current_draft})
@@ -1196,6 +1260,8 @@ def _do_synthesize(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]
         api_base_env_var=step.get("api_base_env_var"),
         temperature=temperature,
         max_tokens=step.get("max_tokens", 4096),
+        reasoning_effort=step.get("reasoning_effort"),
+        thinking_budget=step.get("thinking_budget"),
     )
 
     return {
@@ -1675,6 +1741,8 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
     max_iterations = int(step.get("max_iterations", 10))
     temperature = step.get("temperature", 0.0)
     max_tokens_per_call = step.get("max_tokens", 2048)
+    reasoning_effort = step.get("reasoning_effort")
+    thinking_budget = step.get("thinking_budget")
     finalize_name = step.get("finalize_tool_name", "finalize")
 
     system_prompt = step.get("system_prompt") or (
@@ -1752,6 +1820,20 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
             "tools": tool_schemas,
             "tool_choice": "auto",
         }
+        # Provider-aware reasoning-param routing (see _completion()).
+        _ml = model.lower()
+        _is_openai_ish = _ml.startswith(("gpt-", "o1", "o3", "o4", "openai/", "azure/", "groq/"))
+        _is_gemini = _ml.startswith(("gemini/", "google/", "vertex_ai/gemini"))
+        _is_anthropic = (
+            "claude" in _ml or _ml.startswith(("anthropic/", "bedrock/anthropic."))
+        )
+        if reasoning_effort is not None and (_is_openai_ish or _is_gemini):
+            kwargs["reasoning_effort"] = reasoning_effort
+        if thinking_budget is not None:
+            if _is_gemini:
+                kwargs["thinking_budget"] = int(thinking_budget)
+            elif _is_anthropic:
+                kwargs["thinking"] = {"type": "enabled", "budget_tokens": int(thinking_budget)}
         if api_key_env_var and os.environ.get(api_key_env_var):
             kwargs["api_key"] = os.environ[api_key_env_var]
         if api_base_env_var and os.environ.get(api_base_env_var):
@@ -2158,6 +2240,8 @@ def _do_map(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     api_base_env_var = step.get("api_base_env_var")
     temperature = step.get("temperature", 0.0)
     max_tokens = step.get("max_tokens", 1024)
+    reasoning_effort = step.get("reasoning_effort")
+    thinking_budget = step.get("thinking_budget")
     prompt_template = step.get("prompt_template", "{item}")
     system_prompt = step.get("system_prompt")
     if system_prompt:
@@ -2180,6 +2264,7 @@ def _do_map(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
             model=model, system_prompt=system_prompt, user_prompt=user_prompt,
             api_key_env_var=api_key_env_var, api_base_env_var=api_base_env_var,
             temperature=temperature, max_tokens=max_tokens,
+            reasoning_effort=reasoning_effort, thinking_budget=thinking_budget,
         )
 
     results: List[Any] = [None] * len(items)  # per-item output blobs
@@ -2289,6 +2374,8 @@ def _do_extract(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         max_tokens=step.get("max_tokens", 1024),
         tools=[tool],
         tool_choice="required",
+        reasoning_effort=step.get("reasoning_effort"),
+        thinking_budget=step.get("thinking_budget"),
     )
 
     extracted: Optional[Dict[str, Any]] = None
@@ -2396,6 +2483,8 @@ def _do_classify(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         max_tokens=step.get("max_tokens", 256),
         tools=[tool],
         tool_choice="required",
+        reasoning_effort=step.get("reasoning_effort"),
+        thinking_budget=step.get("thinking_budget"),
     )
 
     label: Optional[str] = None
@@ -2517,6 +2606,8 @@ def _do_reduce(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
             model=model, system_prompt=system_prompt, user_prompt=user_prompt,
             api_key_env_var=api_key_env_var, api_base_env_var=api_base_env_var,
             temperature=temperature, max_tokens=max_tokens,
+            reasoning_effort=step.get("reasoning_effort"),
+            thinking_budget=step.get("thinking_budget"),
         )
         all_llm_results.append(result)
         prior_summary = result["content"]
@@ -2593,6 +2684,8 @@ def _do_self_reflect(step: dict, state: Dict[str, Any], context) -> Dict[str, An
         api_base_env_var=step.get("api_base_env_var"),
         temperature=step.get("temperature", 0.0),
         max_tokens=step.get("max_tokens", 4096),
+        reasoning_effort=step.get("reasoning_effort"),
+        thinking_budget=step.get("thinking_budget"),
     )
     content = result["content"] or ""
 
@@ -2658,6 +2751,7 @@ def _do_sub_pipeline(step: dict, state: Dict[str, Any], context) -> Dict[str, An
         "source": {"text": src_text, "source_kind": "sub_pipeline_input"},
         "__ctx__": _ctx_of(state),  # inherit partition context
         "__personas__": state.get("__personas__") or {},  # inherit personas
+        "__agents__": state.get("__agents__") or {},  # inherit agents
     }
     sub_source = step.get("sub_source")
     if sub_source:
@@ -2725,6 +2819,360 @@ def _do_sub_pipeline(step: dict, state: Dict[str, Any], context) -> Dict[str, An
     }
 
 
+# ── agent_call op ─────────────────────────────────────────────────────
+#
+# Universal dispatcher for pre-built agents declared in the top-level
+# `agents:` block. The step-level YAML is agent-kind-agnostic:
+#
+#     - id: security_review
+#       op: agent_call
+#       agent: cisobot                    # name in agents: block
+#       prompt_template: "Review: {text}"
+#       extra_context:                    # optional dict merged into payload
+#         priority: "{partition.priority}"
+#
+# Three kinds handled: openai_assistant, remote_agent, handoff.
+
+
+def _json_path_get(obj: Any, path: str) -> Any:
+    """Very light JSON-path — supports dot navigation into dicts + [N]
+    integer indexing into lists. `$.foo.bar[0].baz`. Returns None on any
+    miss rather than raising."""
+    if not path or path == "$":
+        return obj
+    if path.startswith("$."):
+        path = path[2:]
+    elif path.startswith("$"):
+        path = path[1:].lstrip(".")
+    node: Any = obj
+    for part in path.split("."):
+        if not part:
+            continue
+        while "[" in part and part.endswith("]"):
+            base, idx = part[:-1].split("[", 1)
+            if base:
+                if not isinstance(node, dict) or base not in node:
+                    return None
+                node = node[base]
+            try:
+                node = node[int(idx)]
+            except (ValueError, IndexError, TypeError):
+                return None
+            part = ""
+        if part:
+            if not isinstance(node, dict) or part not in node:
+                return None
+            node = node[part]
+    return node
+
+
+def _sub_agent_placeholders(value: Any, prompt: str, extra: Dict[str, Any]) -> Any:
+    """Deep-substitute `{prompt}` and `{extra.<key>}` into all string
+    values in a dict/list/scalar tree. Non-strings pass through."""
+    if isinstance(value, str):
+        result = value.replace("{prompt}", prompt)
+        for k, v in (extra or {}).items():
+            result = result.replace("{extra." + k + "}", str(v) if not isinstance(v, str) else v)
+        return result
+    if isinstance(value, list):
+        return [_sub_agent_placeholders(x, prompt, extra) for x in value]
+    if isinstance(value, dict):
+        return {k: _sub_agent_placeholders(v, prompt, extra) for k, v in value.items()}
+    return value
+
+
+def _call_openai_assistant(agent_cfg: Dict[str, Any], prompt: str, context) -> Dict[str, Any]:
+    """OpenAI Assistants API — create thread + add message + create run +
+    poll to completion + extract latest assistant message."""
+    try:
+        from openai import OpenAI
+    except ImportError as e:
+        raise ImportError(
+            "agent_call (kind=openai_assistant) requires the openai SDK: "
+            "pip install 'openai>=1.30.0'"
+        ) from e
+
+    assistant_id = agent_cfg.get("assistant_id")
+    if not assistant_id and agent_cfg.get("assistant_id_env_var"):
+        assistant_id = os.environ.get(agent_cfg["assistant_id_env_var"])
+    if not assistant_id:
+        raise ValueError(
+            "openai_assistant agent needs `assistant_id:` OR `assistant_id_env_var:`"
+        )
+
+    client_kwargs: Dict[str, Any] = {}
+    if agent_cfg.get("api_key_env_var"):
+        v = os.environ.get(agent_cfg["api_key_env_var"])
+        if v:
+            client_kwargs["api_key"] = v
+    if agent_cfg.get("api_base_env_var"):
+        v = os.environ.get(agent_cfg["api_base_env_var"])
+        if v:
+            client_kwargs["base_url"] = v
+    client = OpenAI(**client_kwargs)
+
+    max_wait = int(agent_cfg.get("max_wait_seconds", 300))
+    thread_id = agent_cfg.get("thread_id")
+    if not thread_id and agent_cfg.get("thread_id_env_var"):
+        thread_id = os.environ.get(agent_cfg["thread_id_env_var"])
+
+    t0 = time.time()
+    if thread_id:
+        context.log.info(f"[agent_call/openai_assistant] reusing thread {thread_id}")
+        thread = client.beta.threads.retrieve(thread_id)
+    else:
+        thread = client.beta.threads.create()
+
+    client.beta.threads.messages.create(thread_id=thread.id, role="user", content=prompt)
+    run = client.beta.threads.runs.create_and_poll(
+        thread_id=thread.id, assistant_id=assistant_id, timeout=max_wait,
+    )
+    latency_ms = int((time.time() - t0) * 1000)
+
+    if run.status != "completed":
+        raise RuntimeError(
+            f"openai_assistant run status={run.status!r}: {getattr(run, 'last_error', None)}"
+        )
+
+    messages = client.beta.threads.messages.list(thread_id=thread.id, order="desc", limit=1)
+    if not messages.data:
+        raise RuntimeError("openai_assistant run completed but returned no messages")
+    latest = messages.data[0]
+    parts = [b.text.value for b in (latest.content or []) if getattr(b, "type", None) == "text"]
+    text = "\n".join(parts)
+
+    tokens_total = None
+    usage = getattr(run, "usage", None)
+    if usage is not None:
+        try:
+            tokens_total = int(usage.total_tokens)
+        except (AttributeError, TypeError):
+            tokens_total = None
+
+    return {
+        "text": text,
+        "thread_id": thread.id,
+        "run_id": run.id,
+        "assistant_id": assistant_id,
+        "status": run.status,
+        "latency_ms": latency_ms,
+        "tokens_total": tokens_total,
+        "n_llm_calls": 1,
+    }
+
+
+def _call_remote_agent(
+    agent_cfg: Dict[str, Any], prompt: str, extra: Dict[str, Any], context,
+) -> Dict[str, Any]:
+    """Generic HTTP agent — sync POST/GET/PUT OR async poll pattern.
+    Auth via bearer OR arbitrary headers (literal + env-backed)."""
+    import requests
+
+    url = agent_cfg.get("url")
+    if not url and agent_cfg.get("url_env_var"):
+        url = os.environ.get(agent_cfg["url_env_var"])
+    if not url:
+        raise ValueError("remote_agent needs `url:` OR `url_env_var:`")
+
+    method = str(agent_cfg.get("method", "POST")).upper()
+    timeout = int(agent_cfg.get("timeout_seconds", 60))
+
+    headers: Dict[str, str] = {}
+    if agent_cfg.get("auth_bearer_env_var"):
+        tok = os.environ.get(agent_cfg["auth_bearer_env_var"])
+        if not tok:
+            raise ValueError(
+                f"remote_agent auth_bearer_env_var {agent_cfg['auth_bearer_env_var']!r} not set"
+            )
+        headers["Authorization"] = f"Bearer {tok}"
+    for k, v in (agent_cfg.get("headers") or {}).items():
+        headers[str(k)] = str(v)
+    for header_name, env_var in (agent_cfg.get("headers_env") or {}).items():
+        val = os.environ.get(env_var)
+        if val is None:
+            raise ValueError(
+                f"remote_agent headers_env {header_name!r} references env {env_var!r} but it's unset"
+            )
+        headers[header_name] = val
+
+    payload = agent_cfg.get("payload_template")
+    body_str = agent_cfg.get("body_template")
+    content_type = agent_cfg.get("content_type", "application/json")
+
+    request_kwargs: Dict[str, Any] = {"headers": headers, "timeout": timeout}
+    if payload is not None:
+        request_kwargs["json"] = _sub_agent_placeholders(payload, prompt, extra)
+    elif body_str is not None:
+        request_kwargs["data"] = _sub_agent_placeholders(body_str, prompt, extra)
+        headers.setdefault("Content-Type", content_type)
+    else:
+        if method == "POST":
+            request_kwargs["json"] = {"prompt": prompt, **(extra or {})}
+
+    t0 = time.time()
+    context.log.info(f"[agent_call/remote_agent] {method} {url}")
+    resp = requests.request(method, url, **request_kwargs)
+    resp.raise_for_status()
+    body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {"_raw": resp.text}
+
+    poll_url_path = agent_cfg.get("poll_url_path")
+    poll_url: Optional[str] = _json_path_get(body, poll_url_path) if poll_url_path else None
+    if poll_url:
+        status_path = agent_cfg.get("poll_terminal_status_path", "$.status")
+        success = set(agent_cfg.get("poll_terminal_success", ["completed", "succeeded", "done"]))
+        failure = set(agent_cfg.get("poll_terminal_failure", ["failed", "cancelled", "error"]))
+        poll_interval = int(agent_cfg.get("poll_interval_seconds", 5))
+        poll_timeout = int(agent_cfg.get("poll_timeout_seconds", 300))
+
+        deadline = time.time() + poll_timeout
+        while time.time() < deadline:
+            time.sleep(poll_interval)
+            pr = requests.get(poll_url, headers=headers, timeout=timeout)
+            pr.raise_for_status()
+            body = pr.json()
+            status = _json_path_get(body, status_path)
+            context.log.info(f"[agent_call/remote_agent] poll status={status!r}")
+            if status in success:
+                break
+            if status in failure:
+                raise RuntimeError(f"remote_agent async job failed: status={status!r}")
+        else:
+            raise RuntimeError(f"remote_agent async job did not complete within {poll_timeout}s")
+
+    latency_ms = int((time.time() - t0) * 1000)
+
+    text_path = agent_cfg.get("response_text_path", "$.text")
+    text = _json_path_get(body, text_path)
+    if text is None:
+        text = json.dumps(body, indent=2, default=str)[:2000]
+        context.log.warning(
+            f"[agent_call/remote_agent] response_text_path {text_path!r} extracted no value; "
+            f"returning raw body preview instead"
+        )
+
+    return {
+        "text": str(text),
+        "url": url,
+        "method": method,
+        "status_code": resp.status_code,
+        "response_body": body,
+        "polled": bool(poll_url),
+        "latency_ms": latency_ms,
+    }
+
+
+def _call_handoff_agent(
+    agent_cfg: Dict[str, Any], prompt: str, extra: Dict[str, Any], context,
+) -> Dict[str, Any]:
+    """Handoff kind — invoke a Python callable. Same shape as the
+    stand-alone `handoff` op, packaged as an agents:-block entry so
+    step-level YAML matches openai_assistant / remote_agent."""
+    import importlib
+
+    entry_module = agent_cfg.get("entry_module")
+    entry_callable = agent_cfg.get("entry_callable")
+    if not entry_module or not entry_callable:
+        raise ValueError("handoff agent needs `entry_module` + `entry_callable`")
+    output_text_key = agent_cfg.get("output_text_key", "final_answer")
+    framework = agent_cfg.get("framework")
+
+    initial_state = {"prompt": prompt}
+    initial_state.update(extra or {})
+
+    try:
+        mod = importlib.import_module(entry_module)
+    except ImportError as e:
+        raise ImportError(f"handoff agent: could not import {entry_module!r}: {e}") from e
+    fn = getattr(mod, entry_callable, None)
+    if fn is None or not callable(fn):
+        raise ValueError(f"handoff agent: {entry_callable!r} is not callable in {entry_module!r}")
+
+    t0 = time.time()
+    context.log.info(f"[agent_call/handoff] {framework or 'user'} → {entry_module}.{entry_callable}")
+    result = fn(**initial_state)
+    latency_ms = int((time.time() - t0) * 1000)
+
+    if isinstance(result, dict):
+        text_val = result.get(output_text_key, "")
+        text = text_val if isinstance(text_val, str) else json.dumps(text_val, default=str)
+    elif isinstance(result, str):
+        text = result
+    else:
+        text = str(result)
+
+    return {
+        "text": text,
+        "framework": framework,
+        "entry_module": entry_module,
+        "entry_callable": entry_callable,
+        "framework_result": result if isinstance(result, dict) else {"_result": result},
+        "latency_ms": latency_ms,
+    }
+
+
+_AGENT_KIND_HANDLERS = {
+    "openai_assistant": _call_openai_assistant,
+    "remote_agent": _call_remote_agent,
+    "handoff": _call_handoff_agent,
+}
+
+
+def _do_agent_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
+    """Dispatch to a pre-built agent declared in the top-level `agents:` block.
+
+    Config:
+      agent           — name in `agents:` (required)
+      prompt_template — user prompt (default `{text}`). Placeholders:
+                        `{text}` (source), `{port_name}` (typed inputs),
+                        `{partition.<name>}` (composite partition key parts).
+      source / inputs — usual upstream ref
+      extra_context   — optional dict; merged into the agent's payload
+                        (available as `{extra.<key>}` in payload_template).
+    """
+    materialized_at = _now_iso()
+    source_id = step.get("source", _last_step_id(state))
+    src_text = _get_source_text(state, source_id) if source_id else ""
+    inputs = _resolve_inputs(step, state)
+
+    agents = state.get("__agents__") or {}
+    agent_name = step.get("agent")
+    if not agent_name:
+        raise ValueError("agent_call requires `agent: <name>` (a name in the top-level agents: block)")
+    if agent_name not in agents:
+        raise ValueError(
+            f"agent_call: agent {agent_name!r} not in `agents:` block. "
+            f"Available: {sorted(agents.keys())}"
+        )
+    agent_cfg = dict(agents[agent_name])
+    kind = agent_cfg.pop("kind", None)
+    if kind not in _AGENT_KIND_HANDLERS:
+        raise ValueError(
+            f"agent_call: agent {agent_name!r} has invalid kind {kind!r}. "
+            f"Valid: {sorted(_AGENT_KIND_HANDLERS.keys())}"
+        )
+
+    prompt_template = step.get("prompt_template", "{text}")
+    prompt = prompt_template.replace("{text}", src_text)
+    prompt = _substitute_ports(prompt, inputs)
+    extra_context = _sub_agent_placeholders(step.get("extra_context") or {}, src_text, {})
+    for k, v in inputs.items():
+        prompt = prompt.replace("{" + k + "}", v if isinstance(v, str) else str(v))
+
+    handler = _AGENT_KIND_HANDLERS[kind]
+    if kind == "openai_assistant":
+        result = handler(agent_cfg, prompt, context)
+    else:
+        result = handler(agent_cfg, prompt, extra_context, context)
+
+    return {
+        **result,
+        "agent": agent_name,
+        "agent_kind": kind,
+        "materialized_at": materialized_at,
+        "op": "agent_call",
+    }
+
+
 _OPS = {
     "llm_call": _do_llm_call,
     "route": _do_route,
@@ -2741,6 +3189,7 @@ _OPS = {
     "reduce": _do_reduce,
     "self_reflect": _do_self_reflect,
     "sub_pipeline": _do_sub_pipeline,
+    "agent_call": _do_agent_call,
 }
 
 
@@ -2840,11 +3289,13 @@ def _deep_apply_ctx_substitutions(obj: Any, partition_key: Optional[str], partit
 #               critique_loop.drafter, critique_loop.critic
 #
 # The bundle fields (all optional): model, api_key_env_var,
-# api_base_env_var, system_prompt, temperature, max_tokens.
+# api_base_env_var, system_prompt, temperature, max_tokens,
+# reasoning_effort, thinking_budget.
 
 _PERSONA_FIELDS = (
     "model", "api_key_env_var", "api_base_env_var",
     "system_prompt", "temperature", "max_tokens",
+    "reasoning_effort", "thinking_budget",
 )
 
 
@@ -3019,14 +3470,32 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
         description=(
             "Named reusable LLM sub-configs. Each persona bundles "
             "`{model, api_key_env_var, api_base_env_var, system_prompt, "
-            "temperature, max_tokens}`. Reference from any step / sub-config "
-            "via `persona: <name>`; declared fields on the persona are merged "
-            "into the step's sub-config (explicit inline fields win). "
-            "Applies to: step-level (llm_call, classify, extract, reduce, "
-            "self_reflect, map, tool_use_loop) and sub-configs (route.router, "
+            "temperature, max_tokens, reasoning_effort, thinking_budget}`. "
+            "Reference from any step / sub-config via `persona: <name>`; "
+            "declared fields on the persona are merged into the step's "
+            "sub-config (explicit inline fields win). Applies to: step-level "
+            "(llm_call, classify, extract, reduce, self_reflect, map, "
+            "tool_use_loop) and sub-configs (route.router, "
             "route.specialists[*], debate.proposers[*], debate.arbitrator, "
             "critique_loop.drafter, critique_loop.critic, conditional_route."
             "specialists[*])."
+        ),
+    )
+    agents: Optional[Dict[str, Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Named pre-built agents. Each entry declares `kind:` plus "
+            "kind-specific connection config. Reference from a step via "
+            "`op: agent_call, agent: <name>`. Supported kinds: "
+            "`openai_assistant` (assistant_id + api_key_env_var — creates "
+            "thread + message + run + polls), `remote_agent` (arbitrary "
+            "HTTP endpoint — bearer / headers auth, POST / GET, sync or "
+            "async polling, JSON-path response extraction), `handoff` "
+            "(user-provided Python callable — same shape as the `handoff` "
+            "op). Use to unify tier-3 pre-built agents behind a stable "
+            "step-level interface: swap where an agent lives (OpenAI → "
+            "self-hosted → Vercel) by editing the `agents:` block; every "
+            "step referencing that agent keeps working."
         ),
     )
     group_name: Optional[str] = Field(default="agents", description="Group name for emitted assets.")
@@ -3399,6 +3868,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     "partition_fields": partition_fields,
                 },
                 "__personas__": self.personas or {},
+                "__agents__": self.agents or {},
             }
 
             steps_to_run_set = set(steps_to_run_ids)
@@ -3576,6 +4046,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                         "partition_fields": partition_fields,
                     },
                     "__personas__": _self.personas or {},
+                    "__agents__": _self.agents or {},
                 }
         else:
             @dg.op(name=f"{prefix}_ingest")
@@ -3597,6 +4068,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                         "partition_fields": partition_fields,
                     },
                     "__personas__": _self.personas or {},
+                    "__agents__": _self.agents or {},
                 }
 
         # --- step ops (one per step) ---

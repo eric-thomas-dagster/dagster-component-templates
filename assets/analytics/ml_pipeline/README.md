@@ -34,7 +34,7 @@ attributes:
          schema: ml_output, partition_column: prediction_date, if_exists: append}
 ```
 
-## Op menu (27 total)
+## Op menu (28 total)
 
 **Preprocessing** (9): `impute`, `scale`, `one_hot_encode`, `label_encode`, `tile_binning`, `outlier_clip`, `missing_indicator`, `quantile_transformer`, `power_transformer`
 
@@ -44,9 +44,78 @@ attributes:
 
 **Time-series** (2): `lag_features`, `rolling_window`
 
-**Split + train** (4): `split`, `train`, `grid_search`, `random_search`
+**Split + train** (5): `split`, `train`, `grid_search`, `random_search`, `bayesian_search`
 
 **Evaluate + interpret** (7): `predict`, `predict_proba`, `evaluate`, `confusion_matrix`, `importance`, `cross_validate`, `shap_values`
+
+### `bayesian_search` — Optuna TPE sampler
+
+Reach for this instead of `random_search` when hyperparameter tuning has a real cost budget. Optuna's TPE (Tree-structured Parzen Estimator) uses each trial's result to guide the next — typically finds a near-best config in 20–40 trials vs 100+ for random search on the same distribution.
+
+```yaml
+- id: tuned
+  op: bayesian_search
+  task_type: classification
+  model_type: gradient_boosting          # or `sklearn_class: xgboost.XGBClassifier`
+  base_params: {random_state: 42}         # forwarded unchanged to every trial
+  n_trials: 30
+  cv: 5
+  scoring: f1_weighted                    # optional; defaults to estimator's default scorer
+  direction: maximize                     # or 'minimize' for regression MAE / MSE
+  timeout: 3600                           # optional wall-clock cap in seconds
+  random_state: 42
+  param_space:
+    n_estimators: {type: int,   low: 50, high: 300}
+    max_depth:    {type: int,   low: 3,  high: 15}
+    learning_rate: {type: float, low: 0.01, high: 0.3, log: true}
+    subsample:    {type: float, low: 0.6, high: 1.0}
+    booster:      {type: categorical, choices: [gbtree, dart]}
+```
+
+Returns the refit best estimator. `experiment_tracking:` (see below) logs the best params + best CV score automatically.
+
+## Experiment tracking — MLflow / W&B declared once
+
+Opt-in top-level `experiment_tracking:` block. Any `train`, `evaluate`, `cross_validate`, `grid_search`, `random_search`, or `bayesian_search` step in the pipeline auto-logs params + metrics through both backends.
+
+```yaml
+experiment_tracking:
+  mlflow:
+    tracking_uri_env_var: MLFLOW_TRACKING_URI      # http://mlflow.internal / sqlite:///... / etc.
+    experiment_name: churn_v3
+    run_name_template: "{prefix}_{partition_key}"  # placeholders: prefix / partition_key / run_id
+    log_model: true                                 # persist the fitted best estimator as an artifact
+    tags:
+      env: prod
+      owner: analytics-team
+
+  wandb:
+    project_env_var: WANDB_PROJECT
+    api_key_env_var: WANDB_API_KEY
+    run_name_template: "{prefix}_{run_id}"
+    tags: [ml_pipeline]
+```
+
+**Silently no-ops when the library isn't installed** — declare both backends in the YAML, install `mlflow` in dev, add `wandb` later in prod. No code change.
+
+**Metric prefixing** — every step's metrics are logged as `{step_id}.{metric_name}` so multiple `evaluate` steps (train + validation + test) can share a run without collisions. Example logged names: `tuned.n_estimators`, `tuned.max_depth`, `metrics.accuracy`, `metrics.f1`, `cv.cv_mean_test_score`.
+
+## Rich metadata (emitted on every step listed in `outputs.assets`)
+
+Every step emits a bundle of typed `MetadataValue`s so Dagster+ Insights can turn them into dashboards + alerts.
+
+| Field | Type | Emitted from |
+|---|---|---|
+| `elapsed_seconds` | Float | every step |
+| `rows`, `cols` | Int | any step returning a DataFrame |
+| `model_class` | Text | train / *_search |
+| `n_estimators`, `max_depth`, `learning_rate`, ... | Int / Float | train / *_search (hyperparameter names come from the discovered params) |
+| `accuracy`, `f1`, `precision`, `recall`, `roc_auc` (classification) | Float | `evaluate` |
+| `mae`, `rmse`, `r2`, `explained_variance` (regression) | Float | `evaluate` |
+| `cv_mean_test_score`, `cv_std_test_score`, `cv_folds` | Float / Int | `cross_validate` |
+| `top_feature`, `top_importance` | Text / Float | `importance` |
+
+Promote any of these to a Dagster+ Insights custom metric via the UI — one click, no code.
 
 **Persistence** (1): `save_model`
 

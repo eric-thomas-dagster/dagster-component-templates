@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.MLPipelineComponent",
-  "description": "Standardized end-to-end ML pipeline in one YAML — source + steps + outputs. 27 ops covering feature engineering, hyperparameter tuning, evaluation, interpretability, and model persistence. Any sklearn/XGBoost/LightGBM estimator via sklearn_class: escape hatch. Warehouse-connected via any Dagster resource. Partition-aware.",
+  "description": "Standardized end-to-end ML pipeline in one YAML — source + steps + outputs. 28 ops covering feature engineering, hyperparameter tuning (grid / random / **bayesian** via Optuna), evaluation, interpretability, and model persistence. Any sklearn / XGBoost / LightGBM estimator via `sklearn_class:` escape hatch. Opt-in `experiment_tracking:` block auto-logs params / metrics / model artifacts to MLflow and/or Weights & Biases from every train / evaluate / *_search / cross_validate step. Rich per-step metadata (elapsed_seconds, model_class, hyperparams, CV mean/std, evaluate metrics, top feature) surfaces as `MetadataValue` on emitted assets — promote to Dagster+ Insights for training-cost / accuracy dashboards. Warehouse-connected via any Dagster resource. Partition-aware.",
   "category": "analytics",
   "icon": "Workflow",
   "x-dagster-io": {
@@ -21,10 +21,13 @@
                            "description": "Feature columns fed to train/predict/cross_validate."},
 
     "steps":              {"type": "array",  "required": true, "label": "Steps", "items": {"type": "object"},
-                           "description": "Ordered pipeline steps. Each: {id, op, ...op-specific args}. Steps chain by id — a step with `source:` (or `input:`, `model:`) points at another step's output; omit `source:` and it defaults to the most recent DataFrame in state. 27 ops available across preprocessing / feature-engineering / selection / time-series / split / train / evaluate / interpret / persist."},
+                           "description": "Ordered pipeline steps. Each: {id, op, ...op-specific args}. Steps chain by id — a step with `source:` (or `input:`, `model:`) points at another step's output; omit `source:` and it defaults to the most recent DataFrame in state. 28 ops: preprocessing (impute / scale / one_hot_encode / label_encode / tile_binning / outlier_clip / missing_indicator / quantile_transformer / power_transformer), selection + generation (filter / select / date_features / polynomial_features / pca), text features (tfidf / hashing_vectorizer), feature selection (variance_threshold / correlation_filter / mutual_info_selection), time-series (lag_features / rolling_window), split + CV (split / cross_validate), train (`train` / `grid_search` / `random_search` / **`bayesian_search`** — Optuna TPE sampler with `param_space:` and `n_trials`), evaluate / interpret (predict / predict_proba / evaluate / confusion_matrix / importance / shap_values), persist (save_model)."},
 
     "outputs":            {"type": "object", "required": true, "label": "Outputs",
                            "description": "Output declaration. Shape: {assets: [<step_ids>], csv_sinks: [], parquet_sinks: [], table_sinks: []}. `assets:` step outputs become first-class Dagster assets; sinks are side effects. All sink paths are `{partition_key}`-aware; table_sinks accept a `partition_column:` for the analytics-friendly single-table pattern."},
+
+    "experiment_tracking": {"type": "object", "label": "Experiment Tracking",
+                           "description": "Opt-in tracker config for train / evaluate / cross_validate / grid_search / random_search / bayesian_search steps. Two backends (either OR both — silently no-op when the library isn't installed): `mlflow: {tracking_uri_env_var, experiment_name, run_name_template, log_model, tags}` (auto-`log_params` + `log_metrics` from every tracker-aware op; `log_model: true` uses `mlflow.sklearn.log_model`), `wandb: {project_env_var, api_key_env_var, entity_env_var, run_name_template, tags}`. `run_name_template` supports `{prefix}` / `{partition_key}` / `{run_id}`. Metrics are prefixed with the step id (e.g. `tuned.n_estimators`, `metrics.accuracy`) so multiple steps can log to the same run without collisions."},
 
     "group_name":         {"type": "string", "label": "Group Name", "description": "Group name for emitted assets. Default: 'ml'."},
     "kinds":              {"type": "array",  "label": "Kinds", "items": {"type": "string"},

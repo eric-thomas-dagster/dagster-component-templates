@@ -22,17 +22,36 @@ attributes:
     - "sulphates"
     - "alcohol"
 
+  # Opt-in: log every train / evaluate / *_search / cross_validate step to
+  # MLflow. Silently no-ops if `mlflow` isn't installed. Add `wandb:` under
+  # this block to log to Weights & Biases too.
+  experiment_tracking:
+    mlflow:
+      experiment_name: wine_quality
+      log_model: true
+
   steps:
     - {id: scaled,  op: scale, method: standard}
     - {id: split,   op: split, test_size: 0.2, stratify_column: quality, random_state: 42}
-    - {id: trained, op: train, model_type: decision_tree, task_type: classification,
-                    params: {max_depth: 6, random_state: 42}}
-    - {id: preds,   op: predict, model: trained, input: scaled}
-    - {id: metrics, op: evaluate, model: trained, input: preds, task_type: classification}
-    - {id: imp,     op: importance, model: trained}
+    # bayesian_search — Optuna TPE (typically finds near-best in 20-40 trials).
+    - id: tuned
+      op: bayesian_search
+      task_type: classification
+      model_type: random_forest
+      base_params: {random_state: 42}
+      n_trials: 30
+      cv: 5
+      direction: maximize
+      param_space:
+        n_estimators: {type: int,   low: 50,  high: 300}
+        max_depth:    {type: int,   low: 3,   high: 15}
+        min_samples_split: {type: int, low: 2, high: 10}
+    - {id: preds,   op: predict, model: tuned, input: scaled}
+    - {id: metrics, op: evaluate, model: tuned, input: preds, task_type: classification}
+    - {id: imp,     op: importance, model: tuned}
     - {id: cv,      op: cross_validate, source: scaled,
-                    model_type: decision_tree, task_type: classification,
-                    params: {max_depth: 6, random_state: 42}, cv: 5}
+                    model_type: random_forest, task_type: classification,
+                    params: {n_estimators: 100, random_state: 42}, cv: 5}
 
   outputs:
     assets: [preds, metrics, imp, cv]

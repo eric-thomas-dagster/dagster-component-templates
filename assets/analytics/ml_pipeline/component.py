@@ -342,6 +342,156 @@ def _do_split(df, step: dict, target: str, features: list, context):
     return pd.concat(parts, ignore_index=True)
 
 
+# ── Experiment tracker (MLflow + Weights & Biases) ─────────────────────
+#
+# Wraps both backends behind a small interface. Init once in build_defs,
+# stash in state["__tracker__"], and every train / evaluate / *_search /
+# cross_validate op logs params/metrics/artifacts through it. Silently
+# no-ops when the library isn't installed OR when experiment_tracking:
+# is unset.
+
+
+class _ExperimentTracker:
+    """Thin wrapper over mlflow + wandb. Either OR both may be active."""
+
+    def __init__(self, cfg: Optional[Dict[str, Any]], run_context: Dict[str, str], log):
+        self.cfg = cfg or {}
+        self.run_context = run_context
+        self.log = log
+        self.mlflow = None
+        self.wandb = None
+        self._active = False
+        self._init_mlflow()
+        self._init_wandb()
+
+    def _init_mlflow(self):
+        c = self.cfg.get("mlflow")
+        if not c:
+            return
+        try:
+            import mlflow
+        except ImportError:
+            self.log.warning("experiment_tracking.mlflow declared but `mlflow` not installed — skipping.")
+            return
+        import os as _os
+        uri_env = c.get("tracking_uri_env_var")
+        if uri_env and _os.environ.get(uri_env):
+            mlflow.set_tracking_uri(_os.environ[uri_env])
+        exp = c.get("experiment_name")
+        if exp:
+            mlflow.set_experiment(exp)
+        run_name = _render_run_name(c.get("run_name_template"), self.run_context)
+        active = mlflow.start_run(run_name=run_name)
+        for k, v in (c.get("tags") or {}).items():
+            mlflow.set_tag(k, v)
+        self.mlflow = mlflow
+        self._active = True
+        self.log.info(f"mlflow run started: {active.info.run_id} (experiment={exp!r})")
+
+    def _init_wandb(self):
+        c = self.cfg.get("wandb")
+        if not c:
+            return
+        try:
+            import wandb
+        except ImportError:
+            self.log.warning("experiment_tracking.wandb declared but `wandb` not installed — skipping.")
+            return
+        import os as _os
+        api_key_env = c.get("api_key_env_var") or "WANDB_API_KEY"
+        api_key = _os.environ.get(api_key_env)
+        if api_key:
+            _os.environ["WANDB_API_KEY"] = api_key
+        project_env = c.get("project_env_var")
+        project = _os.environ.get(project_env) if project_env else c.get("project")
+        entity_env = c.get("entity_env_var")
+        entity = _os.environ.get(entity_env) if entity_env else c.get("entity")
+        run_name = _render_run_name(c.get("run_name_template"), self.run_context)
+        run = wandb.init(
+            project=project, entity=entity, name=run_name,
+            tags=c.get("tags") or None, reinit=True,
+        )
+        self.wandb = wandb
+        self._active = True
+        self.log.info(f"wandb run started: {run.name!r} (project={project!r})")
+
+    def log_params(self, step_id: str, params: Dict[str, Any]):
+        if not params or not self._active:
+            return
+        prefixed = {f"{step_id}.{k}": v for k, v in params.items()}
+        if self.mlflow:
+            try:
+                self.mlflow.log_params({k: str(v) for k, v in prefixed.items()})
+            except Exception as e:  # noqa: BLE001
+                self.log.warning(f"mlflow.log_params failed: {e}")
+        if self.wandb:
+            try:
+                self.wandb.config.update(prefixed, allow_val_change=True)
+            except Exception as e:  # noqa: BLE001
+                self.log.warning(f"wandb.config.update failed: {e}")
+
+    def log_metrics(self, step_id: str, metrics: Dict[str, float]):
+        if not metrics or not self._active:
+            return
+        prefixed = {f"{step_id}.{k}": float(v) for k, v in metrics.items() if isinstance(v, (int, float))}
+        if self.mlflow:
+            try:
+                self.mlflow.log_metrics(prefixed)
+            except Exception as e:  # noqa: BLE001
+                self.log.warning(f"mlflow.log_metrics failed: {e}")
+        if self.wandb:
+            try:
+                self.wandb.log(prefixed)
+            except Exception as e:  # noqa: BLE001
+                self.log.warning(f"wandb.log failed: {e}")
+
+    def log_model(self, step_id: str, model, features: list):
+        if not self._active:
+            return
+        c = (self.cfg.get("mlflow") or {})
+        if self.mlflow and c.get("log_model"):
+            try:
+                self.mlflow.sklearn.log_model(model, artifact_path=step_id)
+            except Exception as e:  # noqa: BLE001
+                self.log.warning(f"mlflow.log_model failed: {e}")
+        # W&B model logging is left to the user's own artifact code — auto-uploading
+        # can hit W&B storage quotas surprisingly quickly.
+
+    def end(self):
+        if self.mlflow:
+            try:
+                self.mlflow.end_run()
+            except Exception:
+                pass
+        if self.wandb:
+            try:
+                self.wandb.finish()
+            except Exception:
+                pass
+
+
+def _render_run_name(template: Optional[str], ctx: Dict[str, str]) -> Optional[str]:
+    if not template:
+        return None
+    out = template
+    for k, v in ctx.items():
+        out = out.replace("{" + k + "}", str(v))
+    return out
+
+
+def _tracker(state: Dict[str, Any]) -> Optional[_ExperimentTracker]:
+    """Fetch the tracker stashed in state (may be None)."""
+    return state.get("__tracker__") if isinstance(state, dict) else None
+
+
+def _step_meta(state: Dict[str, Any], step_id: str, **fields):
+    """Append MetadataValue-compatible fields for a step's output.
+    Consumed after _run_step completes to call context.add_output_metadata."""
+    if not isinstance(state.get("__step_metadata__"), dict):
+        return
+    state["__step_metadata__"].setdefault(step_id, {}).update(fields)
+
+
 def _do_train(df, step: dict, target: str, features: list, context):
     """Fit an estimator on the 'train' subset (or the whole df if no split column)."""
     output_col = step.get("split_column", "split")
@@ -586,6 +736,76 @@ def _do_random_search(df, step: dict, target: str, features: list, context):
     return rs.best_estimator_
 
 
+def _do_bayesian_search(df, step: dict, target: str, features: list, context):
+    """Optuna-driven Bayesian hyperparameter search.
+
+    Config:
+      model_type / sklearn_class + task_type — same as train.
+      base_params: dict — fixed params passed to the model constructor.
+      param_space: dict[name, {type, low, high, [log], [step], [choices]}]
+                   type ∈ {int, float, categorical}
+      n_trials: int (default 30)
+      cv: int (default 5) — CV folds per trial.
+      scoring: str — sklearn scorer name (default None → estimator's default).
+      direction: 'maximize' | 'minimize' (default 'maximize').
+      timeout: int — seconds to cap the full search (default None = no cap).
+      random_state: int (default 42).
+
+    Returns the best fitted estimator, refit on the full training data.
+    """
+    try:
+        import optuna
+    except ImportError:
+        raise ImportError("bayesian_search requires optuna: pip install optuna")
+    from sklearn.model_selection import cross_val_score
+
+    output_col = step.get("split_column", "split")
+    train_df = df[df[output_col] == "train"] if output_col in df.columns else df
+
+    cls = _resolve_model_class(step.get("model_type"), step.get("sklearn_class"), step.get("task_type", "classification"))
+    base_params = step.get("base_params", {}) or {}
+    param_space = step.get("param_space") or {}
+    if not param_space:
+        raise ValueError("bayesian_search: `param_space:` is required (see README).")
+    n_trials = int(step.get("n_trials", 30))
+    cv = int(step.get("cv", 5))
+    scoring = step.get("scoring")
+    direction = step.get("direction", "maximize")
+    timeout = step.get("timeout")
+    random_state = int(step.get("random_state", 42))
+
+    def _suggest(trial, name: str, spec: dict):
+        t = spec.get("type", "float")
+        if t == "int":
+            return trial.suggest_int(name, spec["low"], spec["high"], step=spec.get("step", 1))
+        if t == "float":
+            return trial.suggest_float(name, spec["low"], spec["high"], log=bool(spec.get("log")))
+        if t == "categorical":
+            return trial.suggest_categorical(name, spec["choices"])
+        raise ValueError(f"bayesian_search param_space[{name}]: unknown type {t!r}")
+
+    def _objective(trial):
+        trial_params = {**base_params}
+        for name, spec in param_space.items():
+            trial_params[name] = _suggest(trial, name, spec)
+        model = cls(**trial_params)
+        scores = cross_val_score(model, train_df[features], train_df[target], cv=cv, scoring=scoring)
+        return float(scores.mean())
+
+    sampler = optuna.samplers.TPESampler(seed=random_state)
+    study = optuna.create_study(direction=direction, sampler=sampler)
+    study.optimize(_objective, n_trials=n_trials, timeout=timeout, show_progress_bar=False)
+
+    context.log.info(
+        f"bayesian_search: best_params={study.best_params} best_value={study.best_value:.4f} "
+        f"(trials={len(study.trials)})"
+    )
+    # Refit on the full train set with the best params.
+    best = cls(**{**base_params, **study.best_params})
+    best.fit(train_df[features], train_df[target])
+    return best
+
+
 # ── Model apply — 3 more (evaluate + confusion + shap) ─────────────────
 
 def _do_evaluate(model, df, step: dict, target: str, features: list, context):
@@ -741,9 +961,10 @@ _FRAME_OPS = {
 }
 # Ops that produce a model given a DataFrame input.
 _MODEL_TRAIN_OPS = {
-    "train":         _do_train,
-    "grid_search":   _do_grid_search,
-    "random_search": _do_random_search,
+    "train":            _do_train,
+    "grid_search":      _do_grid_search,
+    "random_search":    _do_random_search,
+    "bayesian_search":  _do_bayesian_search,
 }
 # Ops that take a model + DataFrame and produce a DataFrame.
 _MODEL_APPLY_OPS = {
@@ -771,8 +992,11 @@ def _last_frame_id(state: Dict[str, Any]) -> str:
 
 
 def _run_step(step: dict, state: Dict[str, Any], target: str, features: list, context) -> None:
+    import time as _time
     op = step["op"]
     step_id = step["id"]
+    tracker = _tracker(state)
+    t0 = _time.time()
 
     if op in _FRAME_OPS:
         source_id = step.get("source") or _last_frame_id(state)
@@ -801,6 +1025,69 @@ def _run_step(step: dict, state: Dict[str, Any], target: str, features: list, co
         raise ValueError(
             f"unknown op: {op!r}. valid: {sorted(set(_FRAME_OPS) | _MODEL_TRAIN_OPS | set(_MODEL_APPLY_OPS) | set(_MODEL_ONLY_OPS))}"
         )
+
+    elapsed = _time.time() - t0
+
+    # Rich per-step metadata — Dagster MetadataValues + tracker log_metrics.
+    import pandas as pd
+    step_meta: Dict[str, Any] = {"op": op, "elapsed_seconds": round(elapsed, 3)}
+    result = state[step_id]
+
+    if op in _MODEL_TRAIN_OPS:
+        # Log model params + attach model size estimate.
+        params = _extract_model_params(step, result)
+        step_meta["model_class"] = type(result).__name__
+        step_meta.update(params)
+        if tracker:
+            tracker.log_params(step_id, params)
+            tracker.log_metrics(step_id, {"fit_seconds": elapsed})
+            tracker.log_model(step_id, result, features)
+    elif op == "evaluate":
+        # `evaluate` returns a DataFrame with (metric, value) columns.
+        if isinstance(result, pd.DataFrame) and {"metric", "value"} <= set(result.columns):
+            metrics = dict(zip(result["metric"], result["value"]))
+            step_meta.update({k: float(v) for k, v in metrics.items() if isinstance(v, (int, float))})
+            if tracker:
+                tracker.log_metrics(step_id, metrics)
+    elif op == "cross_validate":
+        # Fold-by-fold DataFrame; log mean train/test score.
+        if isinstance(result, pd.DataFrame) and "test_score" in result.columns:
+            step_meta["cv_mean_test_score"] = float(result["test_score"].mean())
+            step_meta["cv_std_test_score"] = float(result["test_score"].std())
+            step_meta["cv_folds"] = int(len(result))
+            if tracker:
+                tracker.log_metrics(step_id, {
+                    "cv_mean_test_score": step_meta["cv_mean_test_score"],
+                    "cv_std_test_score": step_meta["cv_std_test_score"],
+                })
+    elif op == "importance":
+        if isinstance(result, pd.DataFrame) and "importance" in result.columns:
+            step_meta["top_feature"] = str(result.iloc[0]["feature"])
+            step_meta["top_importance"] = float(result.iloc[0]["importance"])
+    elif isinstance(result, pd.DataFrame):
+        step_meta["rows"] = int(len(result))
+        step_meta["cols"] = int(len(result.columns))
+
+    _step_meta(state, step_id, **step_meta)
+
+
+def _extract_model_params(step: dict, model) -> Dict[str, Any]:
+    """Extract loggable model hyperparameters from the step config + the
+    fitted model. Prefers the step's declared `params`; falls back to
+    the fitted model's `.get_params()` for searches that discovered them."""
+    step_params = step.get("params") or step.get("base_params") or {}
+    if step["op"] in ("grid_search", "random_search", "bayesian_search") and hasattr(model, "get_params"):
+        # Search ops return the fitted best_estimator_ — merge its params.
+        try:
+            fitted = model.get_params()
+            # Keep only the keys that were in the search space
+            search_keys = set(
+                (step.get("param_grid") or step.get("param_distributions") or step.get("param_space") or {}).keys()
+            )
+            step_params = {**step_params, **{k: fitted[k] for k in search_keys if k in fitted}}
+        except Exception:  # noqa: BLE001
+            pass
+    return step_params
 
 
 # ── The component ──────────────────────────────────────────────────────
@@ -841,6 +1128,22 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             "{assets: [<step_ids>], csv_sinks: [{from: <step_id>, path: <path>}]}. "
             "`assets:` step outputs become first-class Dagster assets; `csv_sinks:` "
             "writes side-outputs to disk without creating assets."
+        ),
+    )
+    experiment_tracking: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Experiment-tracker config. Auto-logged from train / evaluate / "
+            "cross_validate / grid_search / random_search / bayesian_search "
+            "steps. Two backends (either OR both):\n"
+            "  `mlflow:` — `{tracking_uri_env_var, experiment_name, "
+            "run_name_template, log_params, log_metrics, log_model, "
+            "log_artifacts, tags}`\n"
+            "  `wandb:` — `{project_env_var, api_key_env_var, entity_env_var, "
+            "run_name_template, tags}`\n"
+            "`run_name_template` supports `{prefix}` / `{partition_key}` / "
+            "`{run_id}` substitutions. Silently no-ops if the tracker library "
+            "isn't installed."
         ),
     )
     group_name: Optional[str] = Field(default="ml", description="Group name for emitted assets.")
@@ -920,11 +1223,29 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     f"ingested {len(initial_frame)} rows via {source_config.get('kind', 'url')}"
                 )
 
-            state: Dict[str, Any] = {"source": initial_frame}
+            # Init experiment tracker (mlflow / wandb / both / neither).
+            tracker = _ExperimentTracker(
+                cfg=_self.experiment_tracking,
+                run_context={
+                    "prefix": prefix,
+                    "partition_key": str(partition_key or ""),
+                    "run_id": context.run_id,
+                },
+                log=context.log,
+            )
+
+            state: Dict[str, Any] = {
+                "source": initial_frame,
+                "__tracker__": tracker,
+                "__step_metadata__": {},
+            }
 
             # Run each step in order.
-            for step in steps:
-                _run_step(step, state, target, features, context)
+            try:
+                for step in steps:
+                    _run_step(step, state, target, features, context)
+            finally:
+                tracker.end()
 
             # Write CSV sinks — side effects, not first-class assets.
             # Path is partition-aware via `{partition_key}` templating.
@@ -988,6 +1309,26 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     table, engine, schema=schema, if_exists=if_exists, index=False,
                 )
                 context.log.info(f"table_sink {from_id!r} → {schema+'.' if schema else ''}{table} (via {resource_key}, {if_exists})")
+
+            # Emit per-step MetadataValue for every step that maps to an output asset.
+            step_meta = state.get("__step_metadata__") or {}
+            for aid in asset_ids:
+                meta = step_meta.get(aid) or {}
+                if not meta:
+                    continue
+                mv: Dict[str, Any] = {}
+                for k, v in meta.items():
+                    if isinstance(v, bool):
+                        mv[k] = dg.MetadataValue.bool(v)
+                    elif isinstance(v, int):
+                        mv[k] = dg.MetadataValue.int(v)
+                    elif isinstance(v, float):
+                        mv[k] = dg.MetadataValue.float(v)
+                    elif isinstance(v, (dict, list)):
+                        mv[k] = dg.MetadataValue.json(v)
+                    else:
+                        mv[k] = dg.MetadataValue.text(str(v))
+                context.add_output_metadata(output_name=f"{prefix}_{aid}", metadata=mv)
 
             # Return the values of the assets in the order of outs.
             missing = [aid for aid in asset_ids if aid not in state]

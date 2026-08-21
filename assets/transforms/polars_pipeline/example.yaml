@@ -10,8 +10,14 @@ attributes:
     - op: filter
       predicate: "status = 'paid'"
     - op: with_columns
+      # `expressions:` is SQL (polars.sql_expr — a subset). If you need
+      # things polars-SQL can't do (like `NOW()`), use `python_expressions:`
+      # instead — it runs Python with `pl`, `datetime`, `timezone` bound.
       expressions:
-        net_amount: "amount - tax"
+        total_amount: "amount * quantity + shipping"     # unambiguously SQL
+      python_expressions:
+        ingest_ts: "pl.lit(datetime.utcnow())"           # ← polars Python API
+        # date_key:   "pl.lit(date.today())"
     - op: group_by
       group_by: [region, customer_id]
       aggregations:

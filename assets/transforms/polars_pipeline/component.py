@@ -261,8 +261,48 @@ def _apply_op(pl, lf, op: Dict[str, Any], step_outputs: Dict[str, Any]):
         ctx = pl.SQLContext({"self": lf, **step_outputs})
         return ctx.execute(f"SELECT * FROM self WHERE {op['predicate']}", eager=False)
     if kind == "with_columns":
-        exprs = op["expressions"]
-        return lf.with_columns([pl.sql_expr(e).alias(name) for name, e in exprs.items()])
+        # Two escape hatches:
+        #   expressions: {col: "SQL EXPR"}      # via pl.sql_expr — SQL subset
+        #   python_expressions: {col: "PY EXPR"} # via eval — full pl.* API
+        # Both may appear in the same op; SQL first, then Python (Python can
+        # reference columns that SQL just created).
+        exprs = op.get("expressions") or {}
+        py_exprs = op.get("python_expressions") or {}
+        if not exprs and not py_exprs:
+            raise ValueError(
+                "with_columns needs either `expressions:` (SQL — parsed by "
+                "polars.sql_expr) or `python_expressions:` (Python — eval'd "
+                "with pl bound). See the polars SQL reference at "
+                "https://docs.pola.rs/api/python/stable/reference/sql.html"
+            )
+        try:
+            if exprs:
+                lf = lf.with_columns([pl.sql_expr(e).alias(name) for name, e in exprs.items()])
+        except Exception as e:  # noqa: BLE001
+            raise ValueError(
+                f"with_columns.expressions failed at SQL parse. Expressions "
+                f"are polars-SQL (NOT the Python pl.* API). Common gotchas: "
+                f"NOW() isn't in polars-SQL — use `python_expressions:` with "
+                f"pl.lit(datetime.utcnow()) instead. Original error: {e}"
+            )
+        if py_exprs:
+            # Restricted eval — namespace exposes polars + safe stdlib bits.
+            # Users write pl.lit(datetime.utcnow()) style; no builtins.
+            from datetime import datetime as _dt, timezone as _tz, date as _date, timedelta as _td
+            _ns = {"pl": pl, "datetime": _dt, "timezone": _tz, "date": _date, "timedelta": _td}
+            built_exprs = []
+            for name, code in py_exprs.items():
+                try:
+                    e_obj = eval(code, {"__builtins__": {}}, _ns)  # noqa: S307
+                except Exception as e:  # noqa: BLE001
+                    raise ValueError(
+                        f"python_expressions[{name!r}] eval failed: {e}. "
+                        f"Namespace has: pl, datetime, timezone, date, timedelta. "
+                        f"Example: 'pl.lit(datetime.utcnow())'"
+                    )
+                built_exprs.append(e_obj.alias(name))
+            lf = lf.with_columns(built_exprs)
+        return lf
     if kind == "select":
         return lf.select(op["columns"])
     if kind == "drop":
@@ -342,6 +382,31 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
     Supported ops: filter, with_columns, select, drop, rename, group_by,
     sort, head/limit, tail, head_per_group, unique, drop_nulls, fill_null,
     cast, join, sql.
+
+    **Expression syntax is SQL, not Python.** Every string value under
+    `filter.predicate`, `with_columns.expressions.<col>`, and `sort.by`
+    is parsed via `polars.sql_expr()` — you write `"amount - tax"` or
+    `"COALESCE(status, 'unknown')"`, NOT `pl.col('amount') - pl.col('tax')`.
+    See the polars SQL reference:
+      https://docs.pola.rs/api/python/stable/reference/sql.html
+    for the supported function catalog. `CAST(x AS INT)`, `CASE WHEN`,
+    `LIKE`, string / substring / concat / regex functions all work.
+
+    **Escape hatch: `python_expressions:` on `with_columns`.** When the
+    polars-SQL subset is too narrow — e.g. `NOW()` isn't in polars-SQL —
+    use the Python API instead:
+
+        operations:
+          - op: with_columns
+            expressions:                        # SQL — polars.sql_expr
+              total: "amount * quantity"
+            python_expressions:                 # Python — pl.* API
+              ingest_ts: "pl.lit(datetime.utcnow())"
+              partition_col: "pl.lit(context.partition_key)"
+
+    Namespace exposes `pl` + `datetime` / `timezone` / `date` /
+    `timedelta`. Both blocks may co-exist; SQL runs first, then Python
+    (so Python expressions can reference SQL-created columns).
 
     `op: sql` uses polars's SQLContext where the current chain is available
     as `self` and earlier step outputs are available by id.

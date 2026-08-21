@@ -144,7 +144,14 @@ class DocumentIngestionComponent(Component, Model, Resolvable):
 
     source_path: Optional[str] = Field(
         default=None,
-        description="Path to documents directory or file"
+        description=(
+            "Documents directory or file. Local paths (`/data/docs/`) and "
+            "cloud URIs (`s3://bucket/docs/`, `gs://bucket/docs/`, "
+            "`az://container/docs/`, `abfs://`) both work — cloud sources "
+            "route through fsspec, so install the matching backend "
+            "(`s3fs` / `gcsfs` / `adlfs`). Walks recursively for "
+            "`.txt`, `.md`, `.pdf`, `.doc`, `.docx`, `.html`."
+        ),
     )
 
     description: Optional[str] = Field(
@@ -379,60 +386,116 @@ class DocumentIngestionComponent(Component, Model, Resolvable):
 
             documents = []
 
-            if source_path and os.path.exists(source_path):
+            # Universal source resolution — local paths OR cloud URIs
+            # (s3://, gs://, az://, abfs://, http(s)://). Uses fsspec so a
+            # single code path handles both. Requires an fsspec backend for
+            # cloud (s3fs / gcsfs / adlfs — install once, works everywhere).
+            _is_uri_source = source_path and "://" in source_path
+
+            def _list_files(root: str, extensions: List[str]) -> List[str]:
+                """Return absolute paths for files under `root` matching any extension."""
+                if _is_uri_source:
+                    try:
+                        import fsspec
+                    except ImportError:
+                        raise ImportError(
+                            "document_ingestion: cloud sources require fsspec + a backend "
+                            "(pip install 's3fs' / 'gcsfs' / 'adlfs')."
+                        )
+                    fs, _root = fsspec.core.url_to_fs(root)
+                    hits: List[str] = []
+                    # fs.walk yields (dirpath, dirnames, filenames)
+                    for dirpath, _dirs, files in fs.walk(_root):
+                        for fname in files:
+                            for ext in extensions:
+                                if fname.lower().endswith(ext):
+                                    # Reconstruct the URI so downstream reads route back via fsspec.
+                                    _proto = fs.protocol if isinstance(fs.protocol, str) else fs.protocol[0]
+                                    hits.append(f"{_proto}://{dirpath}/{fname}")
+                                    break
+                    return hits
+                # Local path
+                root_path = Path(root)
+                return [str(p) for ext in extensions for p in root_path.rglob(f"*{ext}")]
+
+            def _read_text(uri: str) -> str:
+                if "://" in uri:
+                    import fsspec
+                    with fsspec.open(uri, "r", encoding="utf-8") as f:
+                        return f.read()
+                with open(uri, "r", encoding="utf-8") as f:
+                    return f.read()
+
+            def _is_source_available(root: str) -> bool:
+                if not root:
+                    return False
+                if "://" in root:
+                    try:
+                        import fsspec
+                        fs, _root = fsspec.core.url_to_fs(root)
+                        return fs.exists(_root)
+                    except Exception:  # noqa: BLE001
+                        return False
+                return os.path.exists(root)
+
+            if source_path and _is_source_available(source_path):
                 context.log.info(f"Reading documents from: {source_path}")
 
-                path = Path(source_path)
+                # Look for common document types
+                extensions = ['.txt', '.md', '.pdf', '.doc', '.docx', '.html']
+                text_exts = {'.txt', '.md'}
 
-                # Handle directory
-                if path.is_dir():
-                    # Look for common document types
-                    extensions = ['.txt', '.md', '.pdf', '.doc', '.docx', '.html']
-                    for ext in extensions:
-                        for file_path in path.rglob(f'*{ext}'):
-                            try:
-                                # Read text files
-                                if ext in ['.txt', '.md']:
-                                    with open(file_path, 'r', encoding='utf-8') as f:
-                                        content = f.read()
-                                        documents.append({
-                                            'doc_id': str(file_path),
-                                            'filename': file_path.name,
-                                            'file_type': ext,
-                                            'content': content,
-                                            'content_length': len(content),
-                                            'source_path': str(file_path)
-                                        })
-                                        context.log.info(f"Ingested: {file_path.name}")
-                                else:
-                                    # For other types, add placeholder
-                                    documents.append({
-                                        'doc_id': str(file_path),
-                                        'filename': file_path.name,
-                                        'file_type': ext,
-                                        'content': f'[Document: {file_path.name}]',
-                                        'content_length': 0,
-                                        'source_path': str(file_path),
-                                        'needs_extraction': True
-                                    })
-                            except Exception as e:
-                                context.log.warning(f"Could not read {file_path}: {e}")
+                # Directory-walk for both local and cloud. For a single file,
+                # _list_files still works if `source_path` is the file itself
+                # AND the extension matches — otherwise fall through to the
+                # single-file branch below.
+                candidate_paths = _list_files(source_path, extensions) if _is_uri_source or Path(source_path).is_dir() else []
 
-                # Handle single file
-                elif path.is_file():
+                if candidate_paths:
+                    for file_path in candidate_paths:
+                        ext = ("." + file_path.rsplit(".", 1)[-1]).lower() if "." in file_path else ""
+                        try:
+                            filename = file_path.rsplit("/", 1)[-1] if "://" in file_path else Path(file_path).name
+                            if ext in text_exts:
+                                content = _read_text(file_path)
+                                documents.append({
+                                    'doc_id': str(file_path),
+                                    'filename': filename,
+                                    'file_type': ext,
+                                    'content': content,
+                                    'content_length': len(content),
+                                    'source_path': str(file_path),
+                                })
+                                context.log.info(f"Ingested: {filename}")
+                            else:
+                                documents.append({
+                                    'doc_id': str(file_path),
+                                    'filename': filename,
+                                    'file_type': ext,
+                                    'content': f'[Document: {filename}]',
+                                    'content_length': 0,
+                                    'source_path': str(file_path),
+                                    'needs_extraction': True,
+                                })
+                        except Exception as e:  # noqa: BLE001
+                            context.log.warning(f"Could not read {file_path}: {e}")
+
+                # Single-file branch (local only — cloud single-files are
+                # handled by the walk above if the ext matches).
+                elif not _is_uri_source and Path(source_path).is_file():
+                    path = Path(source_path)
                     try:
-                        with open(path, 'r', encoding='utf-8') as f:
-                            content = f.read()
-                            documents.append({
-                                'doc_id': str(path),
-                                'filename': path.name,
-                                'file_type': path.suffix,
-                                'content': content,
-                                'content_length': len(content),
-                                'source_path': str(path)
-                            })
-                            context.log.info(f"Ingested single document: {path.name}")
-                    except Exception as e:
+                        content = _read_text(str(path))
+                        documents.append({
+                            'doc_id': str(path),
+                            'filename': path.name,
+                            'file_type': path.suffix,
+                            'content': content,
+                            'content_length': len(content),
+                            'source_path': str(path),
+                        })
+                        context.log.info(f"Ingested single document: {path.name}")
+                    except Exception as e:  # noqa: BLE001
                         context.log.warning(f"Could not read {path}: {e}")
 
             # If no documents found, create sample documents

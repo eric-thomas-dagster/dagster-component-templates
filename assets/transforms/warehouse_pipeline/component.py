@@ -663,6 +663,7 @@ class WarehousePipelineComponent(Component, Model, Resolvable):
         @asset(**asset_kwargs)
         def _warehouse_pipeline_asset(context: AssetExecutionContext):
             import sqlalchemy
+            import time as _time
             # Substitute <<partition_key>> placeholders in steps/sinks so the
             # user can reference the current partition in op:filter predicates,
             # op:sql bodies, and sink table names without their own templating.
@@ -676,15 +677,18 @@ class WarehousePipelineComponent(Component, Model, Resolvable):
             if partition_key:
                 context.log.info(f"warehouse_pipeline: partition_key={partition_key!r}")
             engine = sqlalchemy.create_engine(resolve_url())
+            _compile_t0 = _time.time()
             all_ctes, step_refs = _compile_pipeline(local_steps, dialect)  # type: ignore[arg-type]
+            compile_seconds = round(_time.time() - _compile_t0, 4)
             context.log.info(
                 f"warehouse_pipeline: compiled {len(steps)} step(s), "
-                f"{len(all_ctes)} CTE(s), into {len(sinks)} sink(s)"
+                f"{len(all_ctes)} CTE(s), into {len(sinks)} sink(s) in {compile_seconds}s"
             )
 
             sink_metadata: Dict[str, Any] = {}
             primary_row_count = 0
             sql_log: List[str] = []
+            total_execution_seconds = 0.0
             with engine.begin() as conn:
                 for sink in local_sinks:  # type: ignore[union-attr]
                     sql = _emit_sink_sql(sink, step_refs, all_ctes, dialect)
@@ -696,21 +700,62 @@ class WarehousePipelineComponent(Component, Model, Resolvable):
                         sql = _emit_sink_sql(sink_for_create, step_refs, all_ctes, dialect)
                     context.log.info(f"sink {sink['table']}: executing")
                     sql_log.append(f"-- → {sink['table']}\n{sql}")
+                    _exec_t0 = _time.time()
                     conn.exec_driver_sql(sql)  # type: ignore[arg-type]
+                    exec_seconds = round(_time.time() - _exec_t0, 4)
+                    total_execution_seconds += exec_seconds
                     row_count = int(conn.exec_driver_sql(
                         f"SELECT COUNT(*) FROM {_quote(sink['table'], dialect)}"
                     ).scalar() or 0)
                     sink_metadata[f"warehouse/{sink['table']}/row_count"] = MetadataValue.int(row_count)
+                    sink_metadata[f"warehouse/{sink['table']}/execution_seconds"] = MetadataValue.float(exec_seconds)
+                    sink_metadata[f"warehouse/{sink['table']}/rows_per_second"] = MetadataValue.float(
+                        round(row_count / max(exec_seconds, 1e-6), 1)
+                    )
+                    context.log.info(
+                        f"sink {sink['table']}: {row_count} rows in {exec_seconds}s "
+                        f"({round(row_count / max(exec_seconds, 1e-6), 1)} rows/s)"
+                    )
                     if not primary_row_count:
                         primary_row_count = row_count
+
+                # Column schema for the primary sink — pulled via INFORMATION_SCHEMA
+                # equivalent through SQLAlchemy's inspector so it works across all
+                # supported dialects.
+                col_schema_meta = None
+                try:
+                    from dagster import TableSchema, TableColumn
+                    inspector = sqlalchemy.inspect(engine)
+                    primary_sink_table = sinks[0]["table"]
+                    # Split "schema.table" if present.
+                    schema_name = None
+                    table_only = primary_sink_table
+                    if "." in primary_sink_table:
+                        schema_name, table_only = primary_sink_table.split(".", 1)
+                    cols = inspector.get_columns(table_only, schema=schema_name)
+                    if cols:
+                        col_schema_meta = MetadataValue.table_schema(TableSchema(columns=[
+                            TableColumn(name=c["name"], type=str(c.get("type", "unknown")))
+                            for c in cols
+                        ]))
+                except Exception as _e:  # noqa: BLE001
+                    context.log.warning(f"warehouse_pipeline: column schema probe failed: {_e}")
 
                 metadata: Dict[str, Any] = {
                     "dagster/row_count": MetadataValue.int(primary_row_count),
                     "warehouse/dialect": MetadataValue.text(dialect),
                     "warehouse/step_count": MetadataValue.int(len(steps)),
                     "warehouse/sink_count": MetadataValue.int(len(sinks)),
+                    "warehouse/compile_seconds": MetadataValue.float(compile_seconds),
+                    "warehouse/execution_seconds": MetadataValue.float(round(total_execution_seconds, 4)),
+                    "warehouse/rows_per_second": MetadataValue.float(
+                        round(primary_row_count / max(total_execution_seconds, 1e-6), 1)
+                    ),
+                    "warehouse/cte_count": MetadataValue.int(len(all_ctes)),
                     "warehouse/sql": MetadataValue.md("```sql\n" + "\n\n".join(sql_log) + "\n```"),
                 }
+                if col_schema_meta is not None:
+                    metadata["dagster/column_schema"] = col_schema_meta
                 metadata.update(sink_metadata)
                 if include_preview and primary_row_count > 0:
                     primary = sinks[0]["table"]

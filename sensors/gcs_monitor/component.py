@@ -229,8 +229,14 @@ class GCSMonitorSensorComponent(Component, Model, Resolvable):
                         "project": project or "",
                     }
                     if partition_mode in ("dynamic_partition", "both"):
+                        from pathlib import PurePosixPath as _PP
+                        _p = _PP(blob.name)
+                        _rel = blob.name[len(prefix):] if prefix and blob.name.startswith(prefix) else blob.name
                         partition_key = partition_key_template.format(
-                            bucket=bucket_name, name=blob.name, prefix=prefix
+                            bucket=bucket_name, name=blob.name, prefix=prefix,
+                            file_stem=_p.stem,
+                            file_name=_p.name,
+                            name_stem=str(_PP(_rel).with_suffix("")),
                         )
                         new_partition_keys.append(partition_key)
                         run_requests.append(

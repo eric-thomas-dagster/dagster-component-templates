@@ -119,11 +119,15 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
         default="{key}",
         description=(
             "Template for the partition key registered per detected S3 object. "
-            "Available fields: {bucket}, {key}, {prefix}. Default `{key}` makes "
-            "the partition key equal to the S3 object key. Use "
-            "`s3://{bucket}/{key}` if you want the full URI as the partition "
-            "key (so `file_ingestion`'s uri_template can just be "
-            "`{partition_key}` with no further interpolation)."
+            "Available fields: `{bucket}`, `{key}` (full S3 key), `{prefix}`, "
+            "`{file_stem}` (filename without extension, e.g. `event-abc123`), "
+            "`{file_name}` (full filename with extension, e.g. `event-abc123.json`), "
+            "`{key_stem}` (key relative to prefix, with extension stripped — "
+            "e.g. `2026/08/event-abc123` when prefix is `inbox/`). Default "
+            "`{key}` makes the partition key equal to the full S3 object key "
+            "(may contain slashes — valid but awkward for asset selectors). "
+            "For a slash-free key parity with FilesystemMonitorSensorComponent, "
+            "use `{file_stem}`."
         ),
     )
 
@@ -278,8 +282,14 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
                         }
 
                         if partition_mode in ("dynamic_partition", "both"):
+                            from pathlib import PurePosixPath as _PP
+                            _p = _PP(key)
+                            _rel = key[len(prefix):] if prefix and key.startswith(prefix) else key
                             partition_key = partition_key_template.format(
-                                bucket=bucket_name, key=key, prefix=prefix
+                                bucket=bucket_name, key=key, prefix=prefix,
+                                file_stem=_p.stem,
+                                file_name=_p.name,
+                                key_stem=str(_PP(_rel).with_suffix("")),
                             )
                             new_partition_keys.append(partition_key)
                             run_requests.append(

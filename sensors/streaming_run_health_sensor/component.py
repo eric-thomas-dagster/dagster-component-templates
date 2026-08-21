@@ -121,10 +121,11 @@ class StreamingRunHealthSensorComponent(Component, dg.Model, dg.Resolvable):
                     f"({run.run_id[:8]}, status={run.status.value})"
                 )
 
-            # No active run — fire one. Include cursor-derived run_key so
+            # No active run — fire one. Include a wall-clock run_key so
             # duplicate RunRequests within the same tick are deduped by
             # Dagster's run-key idempotency.
-            run_key = f"{sensor_name}_{int(context.instance.get_current_timestamp() * 1000)}"
+            import time as _time
+            run_key = f"{sensor_name}_{int(_time.time() * 1000)}"
             kwargs = {"run_key": run_key}
             if asset_selection:
                 from dagster import AssetKey

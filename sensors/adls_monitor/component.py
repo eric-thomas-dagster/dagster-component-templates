@@ -290,11 +290,15 @@ class ADLSMonitorSensorComponent(Component, Model, Resolvable):
                             }
                         }
                     if partition_mode in ("dynamic_partition", "both"):
+                        from pathlib import PurePosixPath as _PP
+                        _p = _PP(file_path)
                         partition_key = partition_key_template.format(
                             storage_account=storage_account_name,
                             container=container_name,
                             file_path=file_path,
                             file_name=file_name,
+                            file_stem=_p.stem,
+                            path_stem=str(_p.with_suffix("")),
                         )
                         new_partition_keys.append(partition_key)
                         run_requests.append(

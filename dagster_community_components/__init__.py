@@ -951,6 +951,8 @@ _CLASS_PATHS: dict[str, str] = {
     "VercelDeploymentSensorComponent": "sensors/vercel_deployment_sensor/component.py",
     "VercelAIGatewayAgentComponent": "assets/ai/vercel_ai_gateway_agent/component.py",
     "VoyageEmbeddingBatchComponent": "assets/ai/voyage_embedding_batch/component.py",
+    "StreamingConsumerComponent": "assets/ingestion/streaming_consumer/component.py",
+    "StreamingRunHealthSensorComponent": "sensors/streaming_run_health_sensor/component.py",
     "ExternalVercelDeploymentAsset": "external_assets/external_vercel_deployment/component.py",
     "TestOfMeansComponent": "assets/analytics/test_of_means/component.py",
     "TextChunkerComponent": "assets/ai/text_chunker/component.py",

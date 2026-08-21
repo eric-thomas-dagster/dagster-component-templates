@@ -1,0 +1,28 @@
+type: dagster_community_components.StreamingConsumerComponent
+attributes:
+  asset_name: order_events
+  group_name: streaming
+
+  queue:
+    kind: kafka
+    topic: orders
+    bootstrap_servers_env_var: KAFKA_BROKERS       # e.g. "broker1:9092,broker2:9092"
+    group_id: order_ingest_v1
+    auto_offset_reset: latest                       # or 'earliest' for full replay
+    value_deserializer: json
+
+  batch_size: 500
+  batch_timeout_ms: 1000
+  max_seconds: 3600         # bounded run — health sensor restarts (set to null for truly unbounded)
+
+  transform:
+    - {op: filter, predicate: "amount > 0"}
+    - op: with_columns
+      expressions:
+        ingest_ts: "NOW()"
+
+  sink:
+    kind: duckdb            # register-and-INSERT — fast path
+    resource_key: duckdb
+    table: order_events
+    if_exists: append

@@ -1,0 +1,21 @@
+{
+  "component_type": "dagster_community_components.StreamingRunHealthSensorComponent",
+  "description": "Companion sensor to StreamingConsumerComponent. Polls every N seconds; if no run of `job_name` is currently RUNNING/STARTING/QUEUED, fires a new RunRequest. Gives 24/7 uptime from a chain of bounded runs — the consumer exits cleanly, the sensor restarts. Restart gap is bounded by minimum_interval_seconds.",
+  "category": "sensor",
+  "icon": "Heart",
+  "x-dagster-io": {
+    "outputs": {"type": "RunRequest", "description": "One RunRequest whenever no active run of job_name exists."}
+  },
+  "attributes": {
+    "sensor_name": {"type": "string", "required": true, "label": "Sensor Name"},
+    "job_name": {"type": "string", "required": true, "label": "Job Name",
+                 "description": "Job to watch + restart. For asset-based deployments this is typically `__ASSET_JOB`."},
+    "asset_selection": {"type": "array", "items": {"type": "string"}, "label": "Asset Selection",
+                       "description": "Optional list of asset keys — narrow the launched run to just the streaming asset(s)."},
+    "minimum_interval_seconds": {"type": "integer", "default": 60, "minimum": 5, "label": "Minimum Interval Seconds"},
+    "default_status": {"type": "string", "default": "running", "enum": ["running", "stopped"], "label": "Default Status"},
+    "description": {"type": "string", "label": "Description"}
+  },
+  "tags": ["sensor", "streaming", "self-heal", "always-on", "run-health"],
+  "name": "Streaming Run Health Sensor"
+}

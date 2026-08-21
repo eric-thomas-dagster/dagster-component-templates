@@ -1,0 +1,33 @@
+{
+  "component_type": "dagster_community_components.StreamingConsumerComponent",
+  "description": "Always-running queue → transform → sink asset. Compute is a bounded (or unbounded) consumer loop, not a sensor firing per-batch. Emits one AssetMaterialization heartbeat per batch. Pair with StreamingRunHealthSensorComponent for auto-restart. v1 supports queue.kind: kafka.",
+  "category": "ingestion",
+  "icon": "Radio",
+  "x-dagster-io": {
+    "outputs": {"type": "any", "description": "Summary dict + per-batch AssetMaterialization heartbeats"}
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "required": true, "label": "Asset Name"},
+    "queue": {"type": "object", "required": true, "label": "Queue",
+              "description": "Queue config. v1: `{kind: kafka, topic, bootstrap_servers OR bootstrap_servers_env_var, group_id, auto_offset_reset?, value_deserializer?: json|utf-8|bytes, extra_config?, sasl_*/ssl_*?}`."},
+    "batch_size": {"type": "integer", "default": 100, "minimum": 1, "label": "Batch Size"},
+    "batch_timeout_ms": {"type": "integer", "default": 500, "minimum": 10, "label": "Batch Timeout (ms)",
+                        "description": "Max wait per batch before flushing partial (ms)."},
+    "max_seconds": {"type": "integer", "default": 3600, "label": "Max Seconds",
+                   "description": "Bounded run duration. `null` = unbounded (runs until killed; health sensor auto-restarts)."},
+    "max_messages": {"type": "integer", "label": "Max Messages",
+                    "description": "Optional cap on total messages consumed before exit."},
+    "transform": {"type": "array", "items": {"type": "object"}, "label": "Transform",
+                 "description": "Polars ops (same shape as polars_pipeline): filter / with_columns / select / drop / rename / cast / drop_nulls / fill_null / sort / limit / unique."},
+    "sink": {"type": "object", "required": true, "label": "Sink",
+            "description": "`{kind: table | duckdb, resource_key, table, schema?, if_exists?: append|replace}`. `kind: duckdb` uses register-and-INSERT — 10-100x faster than SQLAlchemy `table`."},
+    "group_name": {"type": "string", "label": "Group Name"},
+    "description": {"type": "string", "label": "Description"},
+    "asset_tags": {"type": "object", "label": "Tags"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds"},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners"},
+    "deps": {"type": "array", "items": {"type": "string"}, "label": "Lineage Deps"}
+  },
+  "tags": ["ingestion", "streaming", "kafka", "polars", "queue", "consumer", "long-running"],
+  "name": "Streaming Consumer"
+}

@@ -1,0 +1,5 @@
+polars>=1.0.0
+
+# Install ONE queue backend depending on which you use:
+#   confluent-kafka>=2.0.0     # for queue.kind: kafka
+# Coming: rabbitmq, sqs, redis_stream, nats.

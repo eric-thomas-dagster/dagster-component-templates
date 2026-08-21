@@ -1,0 +1,7 @@
+type: dagster_community_components.StreamingRunHealthSensorComponent
+attributes:
+  sensor_name: order_events_health
+  job_name: __ASSET_JOB
+  asset_selection: [order_events]
+  minimum_interval_seconds: 60
+  default_status: running

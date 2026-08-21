@@ -24140,6 +24140,80 @@
       }
     },
     {
+      "id": "streaming_consumer",
+      "name": "Streaming Consumer",
+      "category": "ingestion",
+      "description": "Always-running queue → transform → sink asset. Compute is a bounded (or unbounded) consumer loop, not a sensor firing per-batch. Emits AssetMaterialization per batch (heartbeat). Pair with StreamingRunHealthSensorComponent for auto-restart. v1 supports queue.kind: kafka; coming: rabbitmq, sqs, redis_stream, nats. Polars-backed transform (same op vocabulary as polars_pipeline). Sink kinds: `duckdb` (register-and-INSERT, fast path) or `table` (SQLAlchemy via any Dagster resource).",
+      "path": "assets/ingestion/streaming_consumer",
+      "tags": [
+        "ingestion",
+        "streaming",
+        "kafka",
+        "polars",
+        "queue",
+        "consumer",
+        "long-running",
+        "always-on",
+        "duckdb",
+        "one-yaml"
+      ],
+      "dependencies": {
+        "pip": [
+          "polars>=1.0.0"
+        ]
+      },
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/streaming_consumer/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/streaming_consumer/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/streaming_consumer/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/streaming_consumer/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/streaming_consumer/schema.json",
+      "icon": "Radio",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/streaming_consumer/example.yaml",
+        "last_validated": "2026-08-21"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ]
+    },
+    {
+      "id": "streaming_run_health_sensor",
+      "name": "Streaming Run Health Sensor",
+      "category": "sensor",
+      "description": "Companion sensor to StreamingConsumerComponent. Polls Dagster's run store every N seconds; if no run of the target job is currently RUNNING/STARTING/QUEUED, fires a new RunRequest. Gives 24/7 uptime from a chain of bounded runs — the consumer exits cleanly at max_seconds, the sensor detects the gap and relaunches. Restart gap ≤ minimum_interval_seconds. Works for any long-running job, not just streaming consumers.",
+      "path": "sensors/streaming_run_health_sensor",
+      "tags": [
+        "sensor",
+        "streaming",
+        "self-heal",
+        "always-on",
+        "run-health",
+        "restart"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/streaming_run_health_sensor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/streaming_run_health_sensor/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/streaming_run_health_sensor/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/streaming_run_health_sensor/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/streaming_run_health_sensor/schema.json",
+      "icon": "Heart",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/streaming_run_health_sensor/example.yaml",
+        "last_validated": "2026-08-21"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "sensor"
+      ]
+    },
+    {
       "id": "litellm_function_calling",
       "name": "Litellm Function Calling",
       "category": "ai",

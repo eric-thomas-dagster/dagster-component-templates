@@ -124,6 +124,34 @@ class VercelAIGatewayAgentComponent(Component, Model, Resolvable):
     )
     temperature: float = Field(default=0.0, description="Sampling temperature.")
     max_tokens: int = Field(default=2048, description="Max tokens per model call.")
+    reasoning_effort: Optional[str] = Field(
+        default=None,
+        description=(
+            "Reasoning-model effort level: 'low' | 'medium' | 'high'. "
+            "Forwarded to OpenAI o-series (openai/o1, openai/o3) and "
+            "Gemini 2.5+ (google/gemini-2.5-*) via the Vercel gateway. "
+            "Filtered client-side by provider prefix; ignored for other providers."
+        ),
+    )
+    thinking_budget: Optional[int] = Field(
+        default=None,
+        description=(
+            "Max reasoning-trace tokens. Forwarded as `thinking_budget` "
+            "for Gemini 2.5+ models or `thinking: {type: enabled, "
+            "budget_tokens: N}` for Anthropic models routed through the "
+            "gateway. Ignored for other providers."
+        ),
+    )
+    prompt_caching: bool = Field(
+        default=False,
+        description=(
+            "Anthropic prompt caching. When true AND the model prefix is "
+            "'anthropic/', wraps the system prompt with `cache_control: "
+            "{type: ephemeral}` so subsequent calls within ~5 min hit the "
+            "cache. Ignored for non-Anthropic models. Vercel forwards the "
+            "block through to Anthropic."
+        ),
+    )
     max_iterations: int = Field(default=10, ge=1, le=100, description="Max tool-call rounds.")
     mcp_servers: List[MCPServerSpec] = Field(
         default_factory=list,
@@ -190,6 +218,9 @@ class VercelAIGatewayAgentComponent(Component, Model, Resolvable):
                             max_tokens=_self.max_tokens,
                             max_iterations=_self.max_iterations,
                             mcp_servers=[s.model_dump() for s in _self.mcp_servers],
+                            reasoning_effort=_self.reasoning_effort,
+                            thinking_budget=_self.thinking_budget,
+                            prompt_caching=_self.prompt_caching,
                         )
                     )
                     result["model_used"] = m
@@ -334,6 +365,9 @@ async def _run_agent(
     max_tokens: int,
     max_iterations: int,
     mcp_servers: List[Dict[str, Any]],
+    reasoning_effort: Optional[str] = None,
+    thinking_budget: Optional[int] = None,
+    prompt_caching: bool = False,
 ) -> Dict[str, Any]:
     import os
     import json
@@ -370,12 +404,30 @@ async def _run_agent(
 
     client = AsyncOpenAI(api_key=api_key, base_url=api_base_url)
 
+    # Vercel routes on `<provider>/<model>` prefix — key off that for
+    # provider-specific params (reasoning_effort / thinking_budget /
+    # prompt_caching). If a caller sets a Vercel model with no `/`,
+    # treat it as OpenAI.
+    _ml = model.lower()
+    _is_openai_ish = _ml.startswith("openai/") or "/" not in _ml
+    _is_gemini = _ml.startswith("google/")
+    _is_anthropic = _ml.startswith("anthropic/")
+
     async with AsyncExitStack() as stack:
         tool_index, openai_tools, servers_used = await _connect_mcp(stack, log, mcp_servers)
 
         messages: List[Dict[str, Any]] = []
         if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
+            if prompt_caching and _is_anthropic:
+                messages.append({
+                    "role": "system",
+                    "content": [
+                        {"type": "text", "text": system_prompt,
+                         "cache_control": {"type": "ephemeral"}}
+                    ],
+                })
+            else:
+                messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
         tool_call_details: List[Dict[str, Any]] = []
@@ -391,6 +443,16 @@ async def _run_agent(
                 "temperature": temperature,
                 "max_tokens": max_tokens,
             }
+            if reasoning_effort is not None and (_is_openai_ish or _is_gemini):
+                kwargs["reasoning_effort"] = reasoning_effort
+            if thinking_budget is not None:
+                if _is_gemini:
+                    kwargs["thinking_budget"] = int(thinking_budget)
+                elif _is_anthropic:
+                    kwargs["thinking"] = {
+                        "type": "enabled",
+                        "budget_tokens": int(thinking_budget),
+                    }
             if openai_tools:
                 kwargs["tools"] = openai_tools
 

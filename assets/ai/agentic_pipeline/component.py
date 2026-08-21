@@ -239,15 +239,21 @@ def _completion(
     tool_choice: Optional[str] = None,
     reasoning_effort: Optional[str] = None,
     thinking_budget: Optional[int] = None,
+    prompt_caching: bool = False,
 ) -> Dict[str, Any]:
     """Thin LiteLLM wrapper. Returns {"content": str, "tool_calls": [...], "usage": {...}}.
 
-    Reasoning params (both optional, silently dropped on non-reasoning models via
-    `litellm.drop_params = True`):
-      - reasoning_effort: 'low' | 'medium' | 'high' — OpenAI o1/o3, DeepSeek-R1
-      - thinking_budget: int (max reasoning tokens) — Anthropic Claude thinking
-                         mode, Gemini 2.5 thinking_budget. LiteLLM normalizes
-                         the param name across providers.
+    Reasoning params (both optional, silently dropped on non-reasoning models):
+      - reasoning_effort: 'low' | 'medium' | 'high' — OpenAI o1/o3, Gemini 2.5+
+      - thinking_budget: int — max reasoning-trace tokens for Gemini 2.5+
+                         (native) or Anthropic thinking mode (auto-mapped to
+                         `thinking={type: enabled, budget_tokens: N}`).
+
+    Prompt caching (`prompt_caching=True`): wraps the system prompt with
+    Anthropic's `cache_control: {type: ephemeral}` block. Only applied to
+    Anthropic-family models — silently ignored on OpenAI / Gemini / etc.
+    First hit warms the cache (~25% surcharge on that call); subsequent
+    calls within 5 min read from cache (~90% cheaper on the cached prefix).
     """
     try:
         import litellm
@@ -261,9 +267,33 @@ def _completion(
     # from this component.
     litellm.drop_params = True
 
+    # Provider detection is used for reasoning-param routing AND for the
+    # Anthropic-only prompt_caching wrapping (compute once, reuse below).
+    m_lower = model.lower()
+    is_openai_ish = m_lower.startswith(("gpt-", "o1", "o3", "o4", "openai/", "azure/", "groq/"))
+    is_gemini = m_lower.startswith(("gemini/", "google/", "vertex_ai/gemini"))
+    is_anthropic = (
+        "claude" in m_lower
+        or m_lower.startswith(("anthropic/", "bedrock/anthropic."))
+    )
+
     messages: List[Dict[str, Any]] = []
     if system_prompt:
-        messages.append({"role": "system", "content": system_prompt})
+        # Anthropic prompt caching: wrap the system prompt with a
+        # cache_control block. LiteLLM translates this to Anthropic's
+        # native cache_control header on the outbound request. Only
+        # sends the wrapped shape to Anthropic — string shape used
+        # everywhere else (OpenAI etc. don't accept the block shape).
+        if prompt_caching and is_anthropic:
+            messages.append({
+                "role": "system",
+                "content": [
+                    {"type": "text", "text": system_prompt,
+                     "cache_control": {"type": "ephemeral"}}
+                ],
+            })
+        else:
+            messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": user_prompt})
 
     kwargs: Dict[str, Any] = {
@@ -283,20 +313,7 @@ def _completion(
     # Reasoning params are provider-specific. LiteLLM's `drop_params=True`
     # doesn't reliably strip them when forwarding to a provider that
     # doesn't accept them (thinking_budget → OpenAI reaches the wire and
-    # errors), so filter client-side by model family:
-    #   - reasoning_effort: OpenAI o-series (o1/o3/o4), Groq (LiteLLM
-    #     passes through). We include ALL OpenAI models (LiteLLM will
-    #     drop for non-o models) but skip Anthropic/Gemini which reject.
-    #   - thinking_budget: Gemini 2.5+ (native param), Anthropic thinking
-    #     mode (LiteLLM canonical shape is `thinking={type: enabled,
-    #     budget_tokens: N}`).
-    m_lower = model.lower()
-    is_openai_ish = m_lower.startswith(("gpt-", "o1", "o3", "o4", "openai/", "azure/", "groq/"))
-    is_gemini = m_lower.startswith(("gemini/", "google/", "vertex_ai/gemini"))
-    is_anthropic = (
-        "claude" in m_lower
-        or m_lower.startswith(("anthropic/", "bedrock/anthropic."))
-    )
+    # errors), so filter client-side by model family (detected above).
     if reasoning_effort is not None and (is_openai_ish or is_gemini):
         kwargs["reasoning_effort"] = reasoning_effort
     if thinking_budget is not None:
@@ -349,11 +366,26 @@ def _completion(
         cost_usd = None
 
     tokens_total = None
+    cache_read_tokens = 0
+    cache_creation_tokens = 0
     if usage is not None:
         # Both litellm and openai use the same key name.
         tt = usage.get("total_tokens")
         if isinstance(tt, (int, float)):
             tokens_total = int(tt)
+        # LiteLLM surfaces Anthropic's cache-hit counters here for
+        # anthropic/claude models when prompt_caching is on. Silently 0
+        # when caching is off OR provider is non-Anthropic.
+        for k in ("cache_read_input_tokens", "cache_read"):
+            v = usage.get(k)
+            if isinstance(v, (int, float)):
+                cache_read_tokens = int(v)
+                break
+        for k in ("cache_creation_input_tokens", "cache_creation"):
+            v = usage.get(k)
+            if isinstance(v, (int, float)):
+                cache_creation_tokens = int(v)
+                break
 
     return {
         "content": content,
@@ -364,6 +396,8 @@ def _completion(
         "tokens_total": tokens_total,
         "temperature": temperature,
         "reasoning_content": reasoning_content,
+        "cache_read_tokens": cache_read_tokens,
+        "cache_creation_tokens": cache_creation_tokens,
     }
 
 
@@ -586,6 +620,7 @@ def _do_llm_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         max_tokens=step.get("max_tokens", 2048),
         reasoning_effort=step.get("reasoning_effort"),
         thinking_budget=step.get("thinking_budget"),
+        prompt_caching=bool(step.get("prompt_caching", False)),
     )
     return {
         "text": result["content"],
@@ -666,6 +701,7 @@ def _do_route(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         tool_choice="required",
         reasoning_effort=router.get("reasoning_effort"),
         thinking_budget=router.get("thinking_budget"),
+        prompt_caching=bool(router.get("prompt_caching", False)),
     )
 
     selected = None
@@ -704,6 +740,7 @@ def _do_route(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         max_tokens=specialist.get("max_tokens", 2048),
         reasoning_effort=specialist.get("reasoning_effort"),
         thinking_budget=specialist.get("thinking_budget"),
+        prompt_caching=bool(specialist.get("prompt_caching", False)),
     )
 
     return {
@@ -876,6 +913,7 @@ def _do_conditional_route(step: dict, state: Dict[str, Any], context) -> Dict[st
         max_tokens=specialist.get("max_tokens", 2048),
         reasoning_effort=specialist.get("reasoning_effort"),
         thinking_budget=specialist.get("thinking_budget"),
+        prompt_caching=bool(specialist.get("prompt_caching", False)),
     )
 
     return {
@@ -931,6 +969,7 @@ def _do_debate(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
             max_tokens=p.get("max_tokens", 2048),
             reasoning_effort=p.get("reasoning_effort"),
             thinking_budget=p.get("thinking_budget"),
+            prompt_caching=bool(p.get("prompt_caching", False)),
         )
         proposals.append({"index": i, "model": p["model"], "text": r["content"]})
         proposer_usage.append(r["usage"])
@@ -979,6 +1018,7 @@ def _do_debate(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         tool_choice="required",
         reasoning_effort=arbitrator.get("reasoning_effort"),
         thinking_budget=arbitrator.get("thinking_budget"),
+        prompt_caching=bool(arbitrator.get("prompt_caching", False)),
     )
 
     winner_index = None
@@ -1094,6 +1134,7 @@ def _do_critique_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
         max_tokens=drafter.get("max_tokens", 2048),
         reasoning_effort=drafter.get("reasoning_effort"),
         thinking_budget=drafter.get("thinking_budget"),
+        prompt_caching=bool(drafter.get("prompt_caching", False)),
     )
     current_draft = draft_result["content"]
     history = [{"iteration": 0, "phase": "initial_draft", "text": current_draft}]
@@ -1132,6 +1173,7 @@ def _do_critique_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
             max_tokens=critic.get("max_tokens", 1024),
             reasoning_effort=critic.get("reasoning_effort"),
             thinking_budget=critic.get("thinking_budget"),
+            prompt_caching=bool(critic.get("prompt_caching", False)),
         )
         critique = critique_result["content"]
         entry = {"iteration": i + 1, "phase": "critique", "text": critique}
@@ -1262,6 +1304,7 @@ def _do_synthesize(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]
         max_tokens=step.get("max_tokens", 4096),
         reasoning_effort=step.get("reasoning_effort"),
         thinking_budget=step.get("thinking_budget"),
+        prompt_caching=bool(step.get("prompt_caching", False)),
     )
 
     return {
@@ -1743,6 +1786,7 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
     max_tokens_per_call = step.get("max_tokens", 2048)
     reasoning_effort = step.get("reasoning_effort")
     thinking_budget = step.get("thinking_budget")
+    prompt_caching = bool(step.get("prompt_caching", False))
     finalize_name = step.get("finalize_tool_name", "finalize")
 
     system_prompt = step.get("system_prompt") or (
@@ -1794,9 +1838,31 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
         + (" …" if len(tool_index) > 10 else "")
     )
 
-    # Message history — accumulates across iterations.
+    # Provider detection (used for reasoning-param routing + cache_control below).
+    _ml = model.lower()
+    _is_openai_ish = _ml.startswith(("gpt-", "o1", "o3", "o4", "openai/", "azure/", "groq/"))
+    _is_gemini = _ml.startswith(("gemini/", "google/", "vertex_ai/gemini"))
+    _is_anthropic = (
+        "claude" in _ml or _ml.startswith(("anthropic/", "bedrock/anthropic."))
+    )
+
+    # Message history — accumulates across iterations. When prompt_caching
+    # is on AND provider is Anthropic, wrap the system prompt with
+    # cache_control so the (typically-long) system prompt + tool schemas
+    # are cached across every iteration of this loop. Cache lives ~5 min;
+    # subsequent iterations hit it directly.
+    if prompt_caching and _is_anthropic:
+        system_msg: Dict[str, Any] = {
+            "role": "system",
+            "content": [
+                {"type": "text", "text": system_prompt,
+                 "cache_control": {"type": "ephemeral"}}
+            ],
+        }
+    else:
+        system_msg = {"role": "system", "content": system_prompt}
     messages: List[Dict[str, Any]] = [
-        {"role": "system", "content": system_prompt},
+        system_msg,
         {"role": "user", "content": user_prompt},
     ]
 
@@ -1821,12 +1887,6 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
             "tool_choice": "auto",
         }
         # Provider-aware reasoning-param routing (see _completion()).
-        _ml = model.lower()
-        _is_openai_ish = _ml.startswith(("gpt-", "o1", "o3", "o4", "openai/", "azure/", "groq/"))
-        _is_gemini = _ml.startswith(("gemini/", "google/", "vertex_ai/gemini"))
-        _is_anthropic = (
-            "claude" in _ml or _ml.startswith(("anthropic/", "bedrock/anthropic."))
-        )
         if reasoning_effort is not None and (_is_openai_ish or _is_gemini):
             kwargs["reasoning_effort"] = reasoning_effort
         if thinking_budget is not None:
@@ -2242,6 +2302,7 @@ def _do_map(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     max_tokens = step.get("max_tokens", 1024)
     reasoning_effort = step.get("reasoning_effort")
     thinking_budget = step.get("thinking_budget")
+    prompt_caching = bool(step.get("prompt_caching", False))
     prompt_template = step.get("prompt_template", "{item}")
     system_prompt = step.get("system_prompt")
     if system_prompt:
@@ -2265,6 +2326,7 @@ def _do_map(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
             api_key_env_var=api_key_env_var, api_base_env_var=api_base_env_var,
             temperature=temperature, max_tokens=max_tokens,
             reasoning_effort=reasoning_effort, thinking_budget=thinking_budget,
+            prompt_caching=prompt_caching,
         )
 
     results: List[Any] = [None] * len(items)  # per-item output blobs
@@ -2376,6 +2438,7 @@ def _do_extract(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         tool_choice="required",
         reasoning_effort=step.get("reasoning_effort"),
         thinking_budget=step.get("thinking_budget"),
+        prompt_caching=bool(step.get("prompt_caching", False)),
     )
 
     extracted: Optional[Dict[str, Any]] = None
@@ -2485,6 +2548,7 @@ def _do_classify(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         tool_choice="required",
         reasoning_effort=step.get("reasoning_effort"),
         thinking_budget=step.get("thinking_budget"),
+        prompt_caching=bool(step.get("prompt_caching", False)),
     )
 
     label: Optional[str] = None
@@ -2608,6 +2672,7 @@ def _do_reduce(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
             temperature=temperature, max_tokens=max_tokens,
             reasoning_effort=step.get("reasoning_effort"),
             thinking_budget=step.get("thinking_budget"),
+            prompt_caching=bool(step.get("prompt_caching", False)),
         )
         all_llm_results.append(result)
         prior_summary = result["content"]
@@ -2686,6 +2751,7 @@ def _do_self_reflect(step: dict, state: Dict[str, Any], context) -> Dict[str, An
         max_tokens=step.get("max_tokens", 4096),
         reasoning_effort=step.get("reasoning_effort"),
         thinking_budget=step.get("thinking_budget"),
+        prompt_caching=bool(step.get("prompt_caching", False)),
     )
     content = result["content"] or ""
 
@@ -3290,12 +3356,12 @@ def _deep_apply_ctx_substitutions(obj: Any, partition_key: Optional[str], partit
 #
 # The bundle fields (all optional): model, api_key_env_var,
 # api_base_env_var, system_prompt, temperature, max_tokens,
-# reasoning_effort, thinking_budget.
+# reasoning_effort, thinking_budget, prompt_caching.
 
 _PERSONA_FIELDS = (
     "model", "api_key_env_var", "api_base_env_var",
     "system_prompt", "temperature", "max_tokens",
-    "reasoning_effort", "thinking_budget",
+    "reasoning_effort", "thinking_budget", "prompt_caching",
 )
 
 

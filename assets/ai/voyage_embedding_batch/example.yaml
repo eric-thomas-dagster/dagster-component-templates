@@ -1,0 +1,13 @@
+type: dagster_community_components.VoyageEmbeddingBatchComponent
+attributes:
+  asset_name: article_embeddings
+  upstream_asset_key: chunked_articles
+  text_column: chunk_text
+  output_column: embedding
+  model: voyage-3-large           # SOTA MTEB retrieval (also: voyage-3, voyage-3-lite, voyage-code-3)
+  input_type: document            # 'document' for corpus, 'query' at search time
+  output_dimension: 1024          # 256 / 512 / 1024 (default) / 2048
+  truncation: true
+  batch_size: 128
+  api_key_env_var: VOYAGE_API_KEY
+  group_name: ai_embeddings

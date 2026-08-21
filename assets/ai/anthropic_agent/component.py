@@ -81,6 +81,28 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
     base_url_env_var: Optional[str] = Field(default=None, description="Optional env var with a custom base_url.")
     temperature: float = Field(default=0.0, description="Sampling temperature.")
     max_tokens: int = Field(default=2048, description="Max tokens per model call.")
+    thinking_budget: Optional[int] = Field(
+        default=None,
+        description=(
+            "Max reasoning-trace tokens for Claude thinking mode "
+            "(claude-opus-4.1+, claude-sonnet-4+). When set, Anthropic returns "
+            "a `thinking` block alongside the visible answer showing the "
+            "model's reasoning trace. Cost implication: thinking tokens are "
+            "billed as output tokens. Leave None (default) for standard "
+            "non-thinking behavior."
+        ),
+    )
+    prompt_caching: bool = Field(
+        default=False,
+        description=(
+            "Anthropic prompt caching. When true, wraps the system prompt "
+            "with `cache_control: {type: ephemeral}`. First call warms "
+            "the cache (~25% surcharge on that call); subsequent calls "
+            "within ~5 min read from cache (~90% cheaper on the cached "
+            "prefix). Big win for long system prompts + MCP tool schemas "
+            "that repeat across pipeline runs OR across loop iterations."
+        ),
+    )
     max_iterations: int = Field(default=10, ge=1, le=100, description="Max tool-call rounds.")
     mcp_servers: List[MCPServerSpec] = Field(default_factory=list, description="MCP servers to expose as tools.")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
@@ -115,6 +137,8 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
         base_url_env_var = self.base_url_env_var
         temperature = self.temperature
         max_tokens = self.max_tokens
+        thinking_budget = self.thinking_budget
+        prompt_caching = self.prompt_caching
         max_iterations = self.max_iterations
         mcp_servers = self.mcp_servers
         group_name = self.group_name
@@ -188,6 +212,8 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
                     max_tokens=max_tokens,
                     max_iterations=max_iterations,
                     mcp_servers=[s.model_dump() for s in mcp_servers],
+                    thinking_budget=thinking_budget,
+                    prompt_caching=prompt_caching,
                 )
             )
 
@@ -405,6 +431,8 @@ async def _run_agent(
     max_tokens: int,
     max_iterations: int,
     mcp_servers: List[Dict[str, Any]],
+    thinking_budget: Optional[int] = None,
+    prompt_caching: bool = False,
 ) -> Dict[str, Any]:
     import os
     from contextlib import AsyncExitStack
@@ -443,9 +471,28 @@ async def _run_agent(
                 "temperature": temperature,
             }
             if system_prompt:
-                kwargs["system"] = system_prompt
+                # Anthropic prompt caching lives on the system field. When on,
+                # convert the string form to a content-block list with a
+                # cache_control marker. The Anthropic SDK translates it to the
+                # `anthropic-beta: prompt-caching-2024-07-31` request header
+                # transparently.
+                if prompt_caching:
+                    kwargs["system"] = [
+                        {"type": "text", "text": system_prompt,
+                         "cache_control": {"type": "ephemeral"}}
+                    ]
+                else:
+                    kwargs["system"] = system_prompt
             if anthropic_tools:
                 kwargs["tools"] = anthropic_tools
+            # Claude thinking mode: enabled per-request. thinking tokens are
+            # billed as output tokens and appear as a `thinking` block in the
+            # response alongside the visible `text` block.
+            if thinking_budget is not None:
+                kwargs["thinking"] = {
+                    "type": "enabled",
+                    "budget_tokens": int(thinking_budget),
+                }
 
             response = await client.messages.create(**kwargs)
             # Append the assistant's full content list back into messages.

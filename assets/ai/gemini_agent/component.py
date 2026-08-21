@@ -92,6 +92,16 @@ class GeminiAgentComponent(Component, Model, Resolvable):
         default=0,
         description="Gemini 2.5+ thinking budget. Defaults to 0 — thinking tokens come out of max_output_tokens and can silently truncate short outputs. Raise (e.g. 1024) only if your prompt needs multi-step reasoning beyond what the iteration loop already provides.",
     )
+    reasoning_effort: Optional[str] = Field(
+        default=None,
+        description=(
+            "Gemini 2.5+ reasoning effort: 'low' | 'medium' | 'high'. "
+            "Applied via the underlying `thinking_config.include_thoughts` "
+            "+ implicit budget scaling on models that support it. Prefer "
+            "explicit `thinking_budget` for fine-grained control; use "
+            "`reasoning_effort` as a coarse-grained alternative."
+        ),
+    )
     max_iterations: int = Field(default=10, ge=1, le=100, description="Max tool-call rounds.")
     mcp_servers: List[MCPServerSpec] = Field(default_factory=list, description="MCP servers to expose as tools.")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
@@ -126,6 +136,7 @@ class GeminiAgentComponent(Component, Model, Resolvable):
         temperature = self.temperature
         max_output_tokens = self.max_output_tokens
         thinking_budget = self.thinking_budget
+        reasoning_effort = self.reasoning_effort
         max_iterations = self.max_iterations
         mcp_servers = self.mcp_servers
         group_name = self.group_name
@@ -197,6 +208,7 @@ class GeminiAgentComponent(Component, Model, Resolvable):
                     temperature=temperature,
                     max_output_tokens=max_output_tokens,
                     thinking_budget=thinking_budget,
+                    reasoning_effort=reasoning_effort,
                     max_iterations=max_iterations,
                     mcp_servers=[s.model_dump() for s in mcp_servers],
                 )
@@ -423,6 +435,7 @@ async def _run_agent(
     thinking_budget: Optional[int],
     max_iterations: int,
     mcp_servers: List[Dict[str, Any]],
+    reasoning_effort: Optional[str] = None,
 ) -> Dict[str, Any]:
     import os
     from contextlib import AsyncExitStack
@@ -454,10 +467,17 @@ async def _run_agent(
             cfg_kwargs["system_instruction"] = system_prompt
         if gemini_tools:
             cfg_kwargs["tools"] = gemini_tools
-        if thinking_budget is not None:
-            cfg_kwargs["thinking_config"] = gtypes.ThinkingConfig(
-                thinking_budget=int(thinking_budget)
-            )
+        if thinking_budget is not None or reasoning_effort is not None:
+            # Both fields flow through gtypes.ThinkingConfig. reasoning_effort
+            # is Gemini 2.5+ only and is normalized upstream by google-genai
+            # into an implicit budget; explicit thinking_budget always wins
+            # when both are set.
+            _tk = {}
+            if thinking_budget is not None:
+                _tk["thinking_budget"] = int(thinking_budget)
+            if reasoning_effort is not None:
+                _tk["reasoning_effort"] = reasoning_effort
+            cfg_kwargs["thinking_config"] = gtypes.ThinkingConfig(**_tk)
 
         tool_call_details: List[Dict[str, Any]] = []
         iterations = 0

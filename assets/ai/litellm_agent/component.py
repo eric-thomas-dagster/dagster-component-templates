@@ -110,6 +110,37 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
     )
     temperature: float = Field(default=0.0, description="Sampling temperature.")
     max_tokens: int = Field(default=2048, description="Max tokens per model call.")
+    reasoning_effort: Optional[str] = Field(
+        default=None,
+        description=(
+            "Reasoning-model effort level: 'low' | 'medium' | 'high'. "
+            "Forwarded to OpenAI o1/o3 and Gemini 2.5+ reasoning models "
+            "(silently dropped for other providers)."
+        ),
+    )
+    thinking_budget: Optional[int] = Field(
+        default=None,
+        description=(
+            "Max reasoning-trace tokens. Forwarded to Gemini 2.5+ "
+            "(native `thinking_budget`) and Anthropic thinking mode "
+            "(auto-mapped to `thinking: {type: enabled, budget_tokens: N}`). "
+            "On Gemini, set 0 for short structured outputs to avoid "
+            "silent truncation (thinking tokens draw from `max_tokens`). "
+            "Silently dropped for OpenAI / Groq / other non-thinking providers."
+        ),
+    )
+    prompt_caching: bool = Field(
+        default=False,
+        description=(
+            "Anthropic prompt caching. When true AND the model is "
+            "Anthropic-family (claude / anthropic / bedrock/anthropic.), "
+            "wraps the system prompt with `cache_control: {type: ephemeral}` "
+            "so subsequent runs within ~5 min hit the cache. Big win for "
+            "long system prompts + MCP tool schemas that repeat across "
+            "loop iterations (~90% cheaper on cached prefix). Silently "
+            "ignored on non-Anthropic providers."
+        ),
+    )
     max_iterations: int = Field(
         default=10,
         ge=1,
@@ -161,6 +192,9 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
         api_base_env_var = self.api_base_env_var
         temperature = self.temperature
         max_tokens = self.max_tokens
+        reasoning_effort = self.reasoning_effort
+        thinking_budget = self.thinking_budget
+        prompt_caching = self.prompt_caching
         max_iterations = self.max_iterations
         mcp_servers = self.mcp_servers
         group_name = self.group_name
@@ -239,6 +273,9 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
                     max_tokens=max_tokens,
                     max_iterations=max_iterations,
                     mcp_servers=[s.model_dump() for s in mcp_servers],
+                    reasoning_effort=reasoning_effort,
+                    thinking_budget=thinking_budget,
+                    prompt_caching=prompt_caching,
                 )
             )
 
@@ -389,6 +426,9 @@ async def _run_agent(
     max_tokens: int,
     max_iterations: int,
     mcp_servers: List[Dict[str, Any]],
+    reasoning_effort: Optional[str] = None,
+    thinking_budget: Optional[int] = None,
+    prompt_caching: bool = False,
 ) -> Dict[str, Any]:
     """Run the agent loop. Returns the final result dict."""
     import json
@@ -399,6 +439,19 @@ async def _run_agent(
         import litellm
     except ImportError:
         raise ImportError("pip install 'litellm>=1.30.0'")
+    # Silently drop provider-neutral params that a specific model doesn't
+    # accept (temperature-only Anthropic quirks, etc.). Reasoning params
+    # are still filtered client-side below since drop_params doesn't
+    # strip provider-specific ones like thinking_budget → OpenAI.
+    litellm.drop_params = True
+
+    # Provider detection for reasoning-param + prompt_caching routing.
+    _ml = model.lower()
+    _is_openai_ish = _ml.startswith(("gpt-", "o1", "o3", "o4", "openai/", "azure/", "groq/"))
+    _is_gemini = _ml.startswith(("gemini/", "google/", "vertex_ai/gemini"))
+    _is_anthropic = (
+        "claude" in _ml or _ml.startswith(("anthropic/", "bedrock/anthropic."))
+    )
 
     # Connect to every MCP server. Use one AsyncExitStack so cleanup happens
     # even if any single connection fails mid-startup.
@@ -484,10 +537,21 @@ async def _run_agent(
             servers_used.append(name)
             log.info(f"[mcp:{name}] discovered {len(tools_response.tools)} tools")
 
-        # Build the initial message list.
+        # Build the initial message list. Anthropic prompt caching wraps
+        # the system prompt with a cache_control block; LiteLLM translates
+        # this to Anthropic's native header on the outbound request.
         messages: List[Dict[str, Any]] = []
         if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
+            if prompt_caching and _is_anthropic:
+                messages.append({
+                    "role": "system",
+                    "content": [
+                        {"type": "text", "text": system_prompt,
+                         "cache_control": {"type": "ephemeral"}}
+                    ],
+                })
+            else:
+                messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
         completion_kwargs: Dict[str, Any] = {
@@ -499,6 +563,19 @@ async def _run_agent(
             completion_kwargs["api_key"] = os.environ[api_key_env_var]
         if api_base_env_var:
             completion_kwargs["api_base"] = os.environ[api_base_env_var]
+        # Reasoning params — filtered by provider family since LiteLLM's
+        # drop_params doesn't strip thinking_budget when forwarding to
+        # OpenAI (which then 400s).
+        if reasoning_effort is not None and (_is_openai_ish or _is_gemini):
+            completion_kwargs["reasoning_effort"] = reasoning_effort
+        if thinking_budget is not None:
+            if _is_gemini:
+                completion_kwargs["thinking_budget"] = int(thinking_budget)
+            elif _is_anthropic:
+                completion_kwargs["thinking"] = {
+                    "type": "enabled",
+                    "budget_tokens": int(thinking_budget),
+                }
 
         tool_call_details: List[Dict[str, Any]] = []
         iterations = 0

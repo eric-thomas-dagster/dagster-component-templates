@@ -114,6 +114,17 @@ class OpenAIAgentComponent(Component, Model, Resolvable):
     )
     temperature: float = Field(default=0.0, description="Sampling temperature.")
     max_tokens: int = Field(default=2048, description="Max tokens per model call.")
+    reasoning_effort: Optional[str] = Field(
+        default=None,
+        description=(
+            "Reasoning-model effort level: 'low' | 'medium' | 'high'. "
+            "Forwarded to OpenAI o1/o3/o4 reasoning models. Passed through "
+            "unchanged for other OpenAI models — OpenAI returns 400 if the "
+            "model doesn't accept it, so only set on reasoning models. "
+            "Note: OpenAI applies prompt caching automatically on prompts "
+            ">1024 tokens; there's no client-side flag for it."
+        ),
+    )
     max_iterations: int = Field(
         default=10,
         ge=1,
@@ -161,6 +172,7 @@ class OpenAIAgentComponent(Component, Model, Resolvable):
         organization_env_var = self.organization_env_var
         temperature = self.temperature
         max_tokens = self.max_tokens
+        reasoning_effort = self.reasoning_effort
         max_iterations = self.max_iterations
         mcp_servers = self.mcp_servers
         group_name = self.group_name
@@ -235,6 +247,7 @@ class OpenAIAgentComponent(Component, Model, Resolvable):
                     max_tokens=max_tokens,
                     max_iterations=max_iterations,
                     mcp_servers=[s.model_dump() for s in mcp_servers],
+                    reasoning_effort=reasoning_effort,
                 )
             )
 
@@ -382,6 +395,7 @@ async def _run_agent(
     max_tokens: int,
     max_iterations: int,
     mcp_servers: List[Dict[str, Any]],
+    reasoning_effort: Optional[str] = None,
 ) -> Dict[str, Any]:
     import json
     import os
@@ -501,6 +515,11 @@ async def _run_agent(
                 "temperature": temperature,
                 "max_tokens": max_tokens,
             }
+            # Forward reasoning_effort to o1/o3/o4 models. If the caller
+            # sets it on a non-reasoning model, OpenAI returns 400 — that's
+            # a user config error, not something we should silently swallow.
+            if reasoning_effort is not None:
+                kwargs["reasoning_effort"] = reasoning_effort
             if openai_tools:
                 kwargs["tools"] = openai_tools
 

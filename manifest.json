@@ -24095,6 +24095,51 @@
       ]
     },
     {
+      "id": "voyage_embedding_batch",
+      "name": "Voyage Embedding Batch",
+      "category": "ai",
+      "description": "Batched embeddings via Voyage AI's native SDK — SOTA MTEB retrieval quality (voyage-3-large / voyage-3 / voyage-code-3), asymmetric query/document embeddings (input_type), configurable dimensionality (256/512/1024/2048), domain-tuned models (finance, law, multilingual). Sibling of litellm_embedding_batch for single-vendor shops who want no LiteLLM dep.",
+      "path": "assets/ai/voyage_embedding_batch",
+      "tags": [
+        "ai",
+        "embeddings",
+        "voyage",
+        "voyage-ai",
+        "vectors",
+        "semantic-search",
+        "rag",
+        "nlp"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/voyage_embedding_batch/schema.json",
+      "component_type": "dagster_community_components.VoyageEmbeddingBatchComponent",
+      "icon": "Database",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/voyage_embedding_batch/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/voyage_embedding_batch/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/voyage_embedding_batch/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/voyage_embedding_batch/requirements.txt",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/voyage_embedding_batch/example.yaml",
+        "last_validated": "2026-08-21"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "voyageai>=0.3.0",
+          "pandas>=1.5.0"
+        ]
+      },
+      "produces": [
+        "asset",
+        "asset_check"
+      ],
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame"
+      }
+    },
+    {
       "id": "litellm_function_calling",
       "name": "Litellm Function Calling",
       "category": "ai",

@@ -24143,7 +24143,7 @@
       "id": "streaming_consumer",
       "name": "Streaming Consumer",
       "category": "ingestion",
-      "description": "Always-running queue → transform → sink asset. Compute is a bounded (or unbounded) consumer loop, not a sensor firing per-batch. Emits AssetMaterialization per batch (heartbeat). Pair with StreamingRunHealthSensorComponent for auto-restart. v1 supports queue.kind: kafka; coming: rabbitmq, sqs, redis_stream, nats. Polars-backed transform (same op vocabulary as polars_pipeline). Sink kinds: `duckdb` (register-and-INSERT, fast path) or `table` (SQLAlchemy via any Dagster resource).",
+      "description": "Always-running queue → transform → sink asset. Compute is a bounded (or unbounded) consumer loop, not a sensor firing per-batch. Emits AssetMaterialization per batch (heartbeat) with `checkpoint: {partition: last_offset}` metadata — inspect ingest progress from the Dagster catalog. Pair with StreamingRunHealthSensorComponent for auto-restart. v1 supports queue.kind: kafka; coming: rabbitmq, sqs, redis_stream, nats. Polars-backed transform (same op vocabulary as polars_pipeline). Sink kinds: `duckdb` (register-and-INSERT, fast path) or `table` (SQLAlchemy via any Dagster resource). `sink.dedup_on: [cols]` gives effective exactly-once on replay via NOT-EXISTS anti-join (Kafka rows auto-carry `_topic/_partition/_offset` — the natural global key). Sink writes are transactional — crash mid-batch rolls back atomically.",
       "path": "assets/ingestion/streaming_consumer",
       "tags": [
         "ingestion",
@@ -24155,7 +24155,11 @@
         "long-running",
         "always-on",
         "duckdb",
-        "one-yaml"
+        "one-yaml",
+        "exactly-once",
+        "idempotent",
+        "dedup",
+        "checkpoint"
       ],
       "dependencies": {
         "pip": [

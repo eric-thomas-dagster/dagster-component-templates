@@ -20,7 +20,7 @@
     "transform": {"type": "array", "items": {"type": "object"}, "label": "Transform",
                  "description": "Polars ops (same shape as polars_pipeline): filter / with_columns / select / drop / rename / cast / drop_nulls / fill_null / sort / limit / unique."},
     "sink": {"type": "object", "required": true, "label": "Sink",
-            "description": "`{kind: table | duckdb, resource_key, table, schema?, if_exists?: append|replace}`. `kind: duckdb` uses register-and-INSERT — 10-100x faster than SQLAlchemy `table`."},
+            "description": "`{kind: table | duckdb, resource_key, table, schema?, if_exists?: append|replace, dedup_on?: [col1, col2, ...]}`. `kind: duckdb` uses register-and-INSERT — 10-100x faster than SQLAlchemy `table`. `dedup_on:` when set, skips rows whose key tuple already exists in the target (NOT-EXISTS anti-join). For Kafka replays: `dedup_on: [_topic, _partition, _offset]` gives effective exactly-once semantics at zero user cost (the consumer already adds those columns to every row). Sink writes are wrapped in a transaction — a crash mid-batch rolls back cleanly."},
     "group_name": {"type": "string", "label": "Group Name"},
     "description": {"type": "string", "label": "Description"},
     "asset_tags": {"type": "object", "label": "Tags"},

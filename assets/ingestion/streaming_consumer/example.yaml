@@ -26,3 +26,8 @@ attributes:
     resource_key: duckdb
     table: order_events
     if_exists: append
+    # Idempotent replays — Kafka messages have a global unique key of
+    # (_topic, _partition, _offset), which the consumer prepends to every
+    # row. If the run crashes after sink write but before offset commit,
+    # the restart will re-consume those messages; dedup_on skips them.
+    dedup_on: [_topic, _partition, _offset]

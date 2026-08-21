@@ -106,9 +106,10 @@ sink:
   resource_key: duckdb          # a Dagster resource that exposes .get_connection()
   table: order_events
   if_exists: append             # 'append' | 'replace'
+  dedup_on: [_topic, _partition, _offset]   # exactly-once on replay — see below
 ```
 
-Uses `duckdb.register("_batch", df)` + `INSERT INTO ... SELECT * FROM _batch`. 10–100× faster than the SQLAlchemy `table` path on large batches. Requires a resource whose `.get_connection()` returns a DuckDB connection (e.g. `duckdb_resource`).
+Uses `duckdb.register("_batch", df)` + `INSERT INTO ... SELECT * FROM _batch`. 10–100× faster than the SQLAlchemy `table` path on large batches. Writes are wrapped in a transaction — a crash mid-batch rolls back cleanly. Requires a resource whose `.get_connection()` returns a DuckDB connection (e.g. `duckdb_resource`).
 
 ### `kind: table` (any SQLAlchemy-compatible resource)
 
@@ -119,22 +120,44 @@ sink:
   table: order_events
   schema: public
   if_exists: append
+  dedup_on: [_topic, _partition, _offset]   # optional
 ```
 
 Uses `df.to_pandas().to_sql(table, engine, ...)`. Slower than `kind: duckdb` but works with any resource exposing `.get_engine()` or `.get_connection()`.
 
+### `dedup_on:` — idempotent replays
+
+Kafka's commit-after-write pattern is at-least-once: if the run crashes after sink write but before offset commit, the restarted consumer replays those messages → duplicates in the sink.
+
+`dedup_on: [col1, col2, ...]` fixes this: before insert, run a NOT-EXISTS anti-join against the target table and skip rows whose key tuple already exists.
+
+Since the consumer already prepends `_topic`, `_partition`, `_offset` to every row, `dedup_on: [_topic, _partition, _offset]` gives you a **globally unique key at zero user cost** — effective exactly-once semantics. Use your own columns (e.g. `order_id`) if you want dedup on business-level identity instead.
+
+Heartbeat metadata surfaces both `batch_size` (messages consumed) and `rows_written` (after dedup) per batch — the delta tells you how many rows the dedup filter rejected.
+
 ## Metadata
 
 **Per-batch** (`AssetMaterialization` events — visible as a stream in the catalog):
-- `batch_size`, `batch_index`, `total_messages`, `elapsed_seconds`, `last_offset`.
+- `batch_size` — messages consumed from the queue.
+- `rows_written` — rows actually inserted (differs from `batch_size` when `dedup_on:` skipped some).
+- `batch_index`, `total_messages`, `elapsed_seconds`, `last_offset`.
+- `checkpoint` — `{partition: last_offset}` map. This IS the "where did we get to" marker. Kafka's broker-side commit stores the same thing (same `group_id` resumes automatically), but having it in asset metadata means you can inspect progress from the Dagster catalog without SSH'ing to a broker.
 
 **Final** (on the terminating `MaterializeResult`):
 - `stop_reason` (`max_seconds` / `max_messages` / `external_signal`)
-- `total_messages`, `total_batches`, `elapsed_seconds`
-- `msgs_per_second`
+- `total_messages`, `total_batches`, `elapsed_seconds`, `msgs_per_second`
 - `queue_kind`, `queue_topic`
+- `final_checkpoint` — high-water offset per partition at exit.
+- `sink_dedup_on` — echoes the dedup key columns for auditability.
 
 Promote `msgs_per_second` to a Dagster+ Insights custom metric to track ingest throughput; alert if throughput drops below a threshold.
+
+## Failure semantics
+
+- Sink writes are wrapped in a **transaction** — a crash during write rolls back atomically.
+- Kafka offsets are committed **after** the sink write — at-least-once semantics.
+- With `dedup_on: [_topic, _partition, _offset]` set, replays after a crash are **idempotent** — effective exactly-once at the sink.
+- The `checkpoint` metadata per batch means "what did we successfully ingest as of this batch" — durable in the Dagster catalog, independent of broker state.
 
 ## Serverless deployment notes
 

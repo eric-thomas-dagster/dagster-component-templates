@@ -157,19 +157,48 @@ def _agg_expr(func: str, col: str, dialect: str) -> str:
     raise ValueError(f"agg func {func!r} not supported. Use one of {sorted(_SUPPORTED_AGGS)}")
 
 
-def _resolve_sql_template(sql: str, prev_ref: str, step_refs: Dict[str, str], dialect: str) -> str:
-    """Replace <<self>> and <<step_id>> placeholders with quoted CTE names.
+def _resolve_sql_template(sql: str, prev_ref: str, step_refs: Dict[str, str], dialect: str,
+                          this_table: Optional[str] = None) -> str:
+    """Replace SQL placeholders with quoted CTE / table names.
 
-    Placeholder syntax is `<<name>>` (angle-bracket chevrons) — chosen so it
-    doesn't collide with Jinja `{{ ... }}`, which Dagster's component YAML
-    loader pre-renders before this component sees the value.
+    Two syntaxes supported, both resolving to the same CTE name:
+
+    1. Native (`<<name>>` / `<<self>>`) — angle-bracket chevrons; chosen
+       so they never collide with Dagster's component-YAML Jinja renderer.
+
+    2. **dbt-friendly** — `$ref('step_id')` / `$self` / `$this`. dbt uses
+       `{{ ref(...) }}` / `{{ this }}` in Jinja, but Dagster's YAML layer
+       eats those before this component sees them, so we use the `$` sigil
+       (never Jinja-processed) to give dbt users a familiar look.
+
+       - `$ref('step_id')` → the referenced step's output CTE.
+       - `$self` → the previous CTE in this step (same as `<<self>>`).
+       - `$this` → the CURRENT SINK's target table. Handy for
+         incremental predicates: `WHERE updated_at > (SELECT MAX(updated_at) FROM $this)`.
     """
+    import re as _re
     out = sql
+    # Native <<...>> syntax.
     out = out.replace("<<self>>", _quote(prev_ref, dialect))
     out = out.replace("<< self >>", _quote(prev_ref, dialect))
     for sid, ref in step_refs.items():
         out = out.replace(f"<<{sid}>>", _quote(ref, dialect))
         out = out.replace(f"<< {sid} >>", _quote(ref, dialect))
+
+    # dbt-style $ref('step_id') / $self / $this.
+    out = out.replace("$self", _quote(prev_ref, dialect))
+    if this_table is not None:
+        out = out.replace("$this", _quote(this_table, dialect))
+
+    def _ref_sub(m):
+        sid = m.group(1)
+        if sid not in step_refs:
+            raise ValueError(
+                f"$ref({sid!r}) — no step with that id. Available: {sorted(step_refs.keys())}"
+            )
+        return _quote(step_refs[sid], dialect)
+
+    out = _re.sub(r"\$ref\(\s*['\"]([^'\"]+)['\"]\s*\)", _ref_sub, out)
     return out
 
 
@@ -415,9 +444,30 @@ def _compile_pipeline(steps: List[Dict[str, Any]], dialect: str
     return all_ctes, step_refs
 
 
+def _sanitize_sink_asset_name(table: str) -> str:
+    """Turn a fully-qualified table like `mart.gold_orders` into a valid
+    Dagster asset name — `mart_gold_orders`. Consumers can override with
+    `sink.asset_name` if the auto-derivation isn't right."""
+    import re as _re
+    s = _re.sub(r"[^0-9a-zA-Z_]+", "_", table).strip("_")
+    return s or "warehouse_output"
+
+
 def _emit_sink_sql(sink: Dict[str, Any], step_refs: Dict[str, str],
                     all_ctes: List[Tuple[str, str]], dialect: str) -> Optional[str]:
-    """One CTAS per sink. Returns None if mode=replace on a dialect without OR REPLACE."""
+    """Emit the SQL for one sink. Returns None when the caller must issue
+    a DROP + CREATE fallback (mode=replace on dialects without OR REPLACE).
+
+    Supported modes (dbt-analog):
+      - `replace` / `overwrite` — CREATE OR REPLACE TABLE (default).
+      - `create_if_not_exists` — CREATE TABLE IF NOT EXISTS.
+      - `view` — CREATE OR REPLACE VIEW. Cheap; the query re-runs on read.
+      - `incremental` — INSERT INTO target SELECT ... WHERE
+        <incremental_key> > (SELECT COALESCE(MAX(<incremental_key>), <bootstrap>)
+        FROM target). On first materialization when the target doesn't
+        exist, falls through to a full CTAS. Requires `incremental_key`
+        column in the SELECT output.
+    """
     from_step = sink.get("from")
     if not from_step:
         raise ValueError("each sink requires a 'from' field (matching a step id)")
@@ -447,7 +497,57 @@ def _emit_sink_sql(sink: Dict[str, Any], step_refs: Dict[str, str],
         return None
     if mode == "create_if_not_exists":
         return f"CREATE TABLE IF NOT EXISTS {out_quoted} AS\n{select_sql}"
-    raise ValueError(f"sink.mode must be 'replace'/'overwrite' or 'create_if_not_exists', got {mode!r}")
+    if mode == "view":
+        return f"CREATE OR REPLACE VIEW {out_quoted} AS\n{select_sql}"
+    if mode == "incremental":
+        key = sink.get("incremental_key")
+        if not key:
+            raise ValueError(
+                f"sink {table!r} mode=incremental requires `incremental_key: <column>`"
+            )
+        # Two-statement plan: create if missing, then INSERT ... WHERE > watermark.
+        # Emitted as one string joined by `;` — the caller uses exec_driver_sql
+        # which handles multi-statement scripts on supported dialects.
+        bootstrap = sink.get("incremental_bootstrap", "NULL")
+        merge_key = sink.get("incremental_merge_key")  # optional dedup on merge
+
+        # Build the watermark subquery — use a scalar subquery on the target.
+        # When target has no rows, MAX returns NULL → the > filter is falsy for
+        # everything → 0 new rows, which is correct on empty tables.
+        watermark = (
+            f"(SELECT COALESCE(MAX({_quote(key, dialect)}), {bootstrap}) FROM {out_quoted})"
+        )
+        # Wrap select_sql in a subquery so we can filter on the incremental key.
+        insert_sql = (
+            f"INSERT INTO {out_quoted}\n"
+            f"WITH _incoming AS (\n{select_sql}\n)\n"
+            f"SELECT * FROM _incoming WHERE {_quote(key, dialect)} > {watermark}"
+        )
+        if merge_key:
+            # Anti-join dedup on the merge key — keeps incremental idempotent
+            # if you re-run the same window twice.
+            insert_sql = (
+                f"INSERT INTO {out_quoted}\n"
+                f"WITH _incoming AS (\n{select_sql}\n)\n"
+                f"SELECT i.* FROM _incoming i "
+                f"WHERE i.{_quote(key, dialect)} > {watermark} "
+                f"AND NOT EXISTS ("
+                f"SELECT 1 FROM {out_quoted} t "
+                f"WHERE t.{_quote(merge_key, dialect)} = i.{_quote(merge_key, dialect)})"
+            )
+        # Bootstrap: create the target on first run. Uses CREATE TABLE IF NOT
+        # EXISTS with a WHERE FALSE to get the schema without any rows, then
+        # the INSERT populates it.
+        create_sql = (
+            f"CREATE TABLE IF NOT EXISTS {out_quoted} AS\n"
+            f"WITH _schema AS (\n{select_sql}\n)\n"
+            f"SELECT * FROM _schema WHERE 1=0"
+        )
+        return f"{create_sql};\n{insert_sql}"
+    raise ValueError(
+        f"sink.mode must be 'replace' | 'overwrite' | 'create_if_not_exists' | "
+        f"'view' | 'incremental', got {mode!r}"
+    )
 
 
 class WarehousePipelineComponent(Component, Model, Resolvable):
@@ -637,6 +737,35 @@ class WarehousePipelineComponent(Component, Model, Resolvable):
             self.partition_values, self.dynamic_partition_name,
         )
 
+        _retry_policy = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            _retry_policy = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
+
+        # Decide the shape: single-sink → @asset (backward compat with the
+        # flat shape). Multi-sink → @multi_asset(can_subset=True), one Dagster
+        # asset per sink — the dbt-model equivalent.
+        use_multi_asset = len(sinks) > 1
+
+        # Derive per-sink Dagster asset names. Explicit `sink.asset_name`
+        # wins; otherwise sanitize `sink.table` (replace `.` with `_`, etc.)
+        for _sink in sinks:
+            if "asset_name" not in _sink:
+                _sink["asset_name"] = _sanitize_sink_asset_name(_sink["table"])
+
+        if use_multi_asset:
+            return self._build_multi_asset_defs(
+                sinks=sinks, steps=steps, dialect=dialect,
+                partitions_def=partitions_def, retry_policy=_retry_policy,
+                all_tags=all_tags, kinds=kinds, resolve_url=resolve_url,
+                include_preview=include_preview, preview_rows=preview_rows,
+            )
+
+        # Single-sink path — @asset, backward-compatible.
         asset_kwargs: Dict[str, Any] = dict(
             name=asset_name,
             description=self.description or self.get_description(),
@@ -650,15 +779,8 @@ class WarehousePipelineComponent(Component, Model, Resolvable):
             asset_kwargs["partitions_def"] = partitions_def
         if self.automation_condition is not None:
             asset_kwargs["automation_condition"] = self.automation_condition
-
-        # Retry policy (opt-in via retry_policy_max_retries).
-        if self.retry_policy_max_retries is not None:
-            from dagster import Backoff, RetryPolicy
-            asset_kwargs["retry_policy"] = RetryPolicy(
-                max_retries=self.retry_policy_max_retries,
-                delay=self.retry_policy_delay_seconds or 1,
-                backoff=Backoff[self.retry_policy_backoff.upper()],
-            )
+        if _retry_policy is not None:
+            asset_kwargs["retry_policy"] = _retry_policy
 
         @asset(**asset_kwargs)
         def _warehouse_pipeline_asset(context: AssetExecutionContext):
@@ -699,9 +821,14 @@ class WarehousePipelineComponent(Component, Model, Resolvable):
                         sink_for_create = dict(sink, mode="create_if_not_exists")
                         sql = _emit_sink_sql(sink_for_create, step_refs, all_ctes, dialect)
                     context.log.info(f"sink {sink['table']}: executing")
+                    assert sql is not None, "emit_sink_sql returned None post-fallback"
                     sql_log.append(f"-- → {sink['table']}\n{sql}")
                     _exec_t0 = _time.time()
-                    conn.exec_driver_sql(sql)  # type: ignore[arg-type]
+                    # Split multi-statement SQL (used by mode=incremental)
+                    # into individual statements — many drivers only accept
+                    # one statement per exec_driver_sql call.
+                    for _stmt in [s.strip() for s in sql.split(";\n") if s.strip()]:
+                        conn.exec_driver_sql(_stmt)  # type: ignore[arg-type]
                     exec_seconds = round(_time.time() - _exec_t0, 4)
                     total_execution_seconds += exec_seconds
                     row_count = int(conn.exec_driver_sql(
@@ -788,3 +915,199 @@ class WarehousePipelineComponent(Component, Model, Resolvable):
             return dg.MaterializeResult(metadata=metadata)
 
         return Definitions(assets=[_warehouse_pipeline_asset])
+
+    def _build_multi_asset_defs(
+        self,
+        *,
+        sinks: List[Dict[str, Any]],
+        steps: List[Dict[str, Any]],
+        dialect: str,
+        partitions_def,
+        retry_policy,
+        all_tags: Dict[str, str],
+        kinds: List[str],
+        resolve_url,
+        include_preview: bool,
+        preview_rows: int,
+    ) -> Definitions:
+        """Multi-sink path — one Dagster asset per sink. `can_subset=True`
+        so users can retry or backfill a single sink without rerunning
+        the whole pipeline. dbt-analog: each sink is a "model"."""
+        from dagster import AssetOut, multi_asset, MaterializeResult, AssetKey as _AssetKey
+        outs: Dict[str, AssetOut] = {}
+        # Cross-sink deps: if sink A's `from` step also feeds sink B, then
+        # from Dagster's POV those sinks are peers (not upstream/downstream
+        # of each other). Lineage between sinks would require a separate
+        # design. Today all sinks share the same CTE preamble → they're
+        # siblings under the same @multi_asset.
+        for sink in sinks:
+            out_kwargs: Dict[str, Any] = {
+                "kinds": set(kinds),
+                "group_name": self.group_name,
+            }
+            if sink.get("description"):
+                out_kwargs["description"] = sink["description"]
+            elif self.description:
+                out_kwargs["description"] = self.description
+            outs[sink["asset_name"]] = AssetOut(**out_kwargs)
+
+        # multi_asset() accepts a subset of @asset kwargs — `owners` + `tags`
+        # live on each AssetOut rather than on the decorator. `is_required=False`
+        # is critical: with `can_subset=True`, Dagster still expects every
+        # declared output to be yielded PER RUN unless the output is marked
+        # optional. is_required=False lets the compute yield only the
+        # selected sinks without triggering DagsterStepOutputNotFoundError.
+        outs = {name: AssetOut(**{
+            "is_required": False,
+            **({"kinds": set(kinds)} if kinds else {}),
+            **({"group_name": self.group_name} if self.group_name else {}),
+            **({"owners": self.owners} if self.owners else {}),
+            **({"tags": all_tags} if all_tags else {}),
+            **({"description": _sink.get("description") or self.description}
+               if (_sink.get("description") or self.description) else {}),
+        }) for (name, _), _sink in zip(outs.items(), sinks)}
+
+        ma_kwargs: Dict[str, Any] = dict(
+            outs=outs,
+            can_subset=True,
+            name=self.asset_name,
+            deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
+        )
+        if partitions_def is not None:
+            ma_kwargs["partitions_def"] = partitions_def
+        if retry_policy is not None:
+            ma_kwargs["retry_policy"] = retry_policy
+
+        # Snapshot the closed-over refs for the compute fn.
+        _sinks = list(sinks)
+        _steps = list(steps)
+        _dialect = dialect
+        _include_preview = include_preview
+        _preview_rows = preview_rows
+
+        @multi_asset(**ma_kwargs)
+        def _warehouse_pipeline_multi_asset(context: AssetExecutionContext):
+            import sqlalchemy
+            import time as _time
+            partition_key = context.partition_key if context.has_partition_key else None
+            local_steps: List[Dict[str, Any]] = (
+                _substitute_partition_key(_steps, partition_key) if partition_key else _steps  # type: ignore[assignment]
+            )
+            local_sinks: List[Dict[str, Any]] = (
+                _substitute_partition_key(_sinks, partition_key) if partition_key else _sinks  # type: ignore[assignment]
+            )
+            if partition_key:
+                context.log.info(f"warehouse_pipeline: partition_key={partition_key!r}")
+
+            # Determine which sinks are selected for this run. can_subset=True
+            # means a run may materialize a subset. If nothing is queried,
+            # default to all (defensive — Dagster usually provides this).
+            try:
+                selected_names = set(context.op_execution_context.selected_output_names)  # type: ignore[union-attr]
+            except Exception:  # noqa: BLE001
+                selected_names = {s["asset_name"] for s in local_sinks}
+            selected_sinks = [s for s in local_sinks if s["asset_name"] in selected_names]
+            if not selected_sinks:
+                # All were somehow deselected — nothing to do.
+                context.log.info("warehouse_pipeline: no sinks selected; skipping.")
+                return
+
+            context.log.info(
+                f"warehouse_pipeline: {len(selected_sinks)}/{len(local_sinks)} sink(s) selected: "
+                f"{[s['asset_name'] for s in selected_sinks]}"
+            )
+
+            engine = sqlalchemy.create_engine(resolve_url())
+            _compile_t0 = _time.time()
+            # Compile the FULL CTE chain — selected sinks may reference any
+            # earlier step's output. Compilation is cheap; execution is what
+            # subsetting saves.
+            all_ctes, step_refs = _compile_pipeline(local_steps, _dialect)  # type: ignore[arg-type]
+            compile_seconds = round(_time.time() - _compile_t0, 4)
+
+            with engine.begin() as conn:
+                # Auto-create any schema referenced in a sink `table:` (dbt-parity).
+                _schemas_needed = {
+                    t.split(".", 1)[0] for t in (s["table"] for s in selected_sinks) if "." in t
+                }
+                for _sch in sorted(_schemas_needed):
+                    try:
+                        conn.exec_driver_sql(f"CREATE SCHEMA IF NOT EXISTS {_quote(_sch, _dialect)}")
+                    except Exception as _e:  # noqa: BLE001
+                        context.log.warning(f"schema {_sch!r} auto-create failed: {_e}")
+                for sink in selected_sinks:
+                    sql = _emit_sink_sql(sink, step_refs, all_ctes, _dialect)
+                    if sql is None:
+                        out_quoted = _quote(sink["table"], _dialect)
+                        conn.exec_driver_sql(f"DROP TABLE IF EXISTS {out_quoted}")
+                        sink_for_create = dict(sink, mode="create_if_not_exists")
+                        sql = _emit_sink_sql(sink_for_create, step_refs, all_ctes, _dialect)
+                    assert sql is not None, "emit_sink_sql returned None post-fallback"
+                    context.log.info(f"sink {sink['table']}: executing")
+                    _exec_t0 = _time.time()
+                    for _stmt in [s.strip() for s in sql.split(";\n") if s.strip()]:
+                        conn.exec_driver_sql(_stmt)  # type: ignore[arg-type]
+                    exec_seconds = round(_time.time() - _exec_t0, 4)
+                    # Views don't have a stable row count; COUNT(*) still works.
+                    row_count = int(conn.exec_driver_sql(
+                        f"SELECT COUNT(*) FROM {_quote(sink['table'], _dialect)}"
+                    ).scalar() or 0)
+
+                    # Column schema for THIS sink (per-asset metadata).
+                    col_schema_meta = None
+                    try:
+                        from dagster import TableSchema, TableColumn
+                        inspector = sqlalchemy.inspect(engine)
+                        schema_name = None
+                        table_only = sink["table"]
+                        if "." in table_only:
+                            schema_name, table_only = table_only.split(".", 1)
+                        cols = inspector.get_columns(table_only, schema=schema_name)
+                        if cols:
+                            col_schema_meta = MetadataValue.table_schema(TableSchema(columns=[
+                                TableColumn(name=c["name"], type=str(c.get("type", "unknown")))
+                                for c in cols
+                            ]))
+                    except Exception:  # noqa: BLE001
+                        pass
+
+                    md: Dict[str, Any] = {
+                        "dagster/row_count": MetadataValue.int(row_count),
+                        "warehouse/dialect": MetadataValue.text(_dialect),
+                        "warehouse/mode": MetadataValue.text(sink.get("mode") or "replace"),
+                        "warehouse/table": MetadataValue.text(sink["table"]),
+                        "warehouse/compile_seconds": MetadataValue.float(compile_seconds),
+                        "warehouse/execution_seconds": MetadataValue.float(exec_seconds),
+                        "warehouse/rows_per_second": MetadataValue.float(
+                            round(row_count / max(exec_seconds, 1e-6), 1)
+                        ),
+                        "warehouse/cte_count": MetadataValue.int(len(all_ctes)),
+                        "warehouse/sql": MetadataValue.md(f"```sql\n{sql}\n```"),
+                    }
+                    if col_schema_meta is not None:
+                        md["dagster/column_schema"] = col_schema_meta
+                    if _include_preview and row_count > 0:
+                        try:
+                            prev_rows = conn.exec_driver_sql(
+                                f"SELECT * FROM {_quote(sink['table'], _dialect)} LIMIT {_preview_rows}"
+                            ).fetchall()
+                            if prev_rows:
+                                cols_p = list(prev_rows[0]._mapping.keys())
+                                md["preview"] = MetadataValue.md(
+                                    "| " + " | ".join(cols_p) + " |\n"
+                                    "| " + " | ".join(["---"] * len(cols_p)) + " |\n" +
+                                    "\n".join("| " + " | ".join(str(v) for v in r) + " |" for r in prev_rows)
+                                )
+                        except Exception as e:  # noqa: BLE001
+                            context.log.warning(f"preview emission failed: {e}")
+
+                    context.log.info(
+                        f"sink {sink['table']}: {row_count} rows in {exec_seconds}s "
+                        f"({round(row_count / max(exec_seconds, 1e-6), 1)} rows/s)"
+                    )
+                    yield MaterializeResult(
+                        asset_key=_AssetKey.from_user_string(sink["asset_name"]),
+                        metadata=md,
+                    )
+
+        return Definitions(assets=[_warehouse_pipeline_multi_asset])

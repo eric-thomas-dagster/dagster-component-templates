@@ -234,6 +234,12 @@ def _write_sink(df, sink_cfg: Dict[str, Any], context) -> int:
     kind = (sink_cfg.get("kind") or "table").lower()
     dedup_on: List[str] = list(sink_cfg.get("dedup_on") or [])
 
+    # Backward compat: `kind: duckdb` is now handled as an auto-detected
+    # fast path under `kind: table`. Old YAML with `kind: duckdb` still
+    # routes correctly since we probe the resource for `.register()`.
+    if kind == "duckdb":
+        kind = "table"
+
     if kind == "table":
         resource_key = sink_cfg.get("resource_key")
         if not resource_key:
@@ -242,54 +248,20 @@ def _write_sink(df, sink_cfg: Dict[str, Any], context) -> int:
         schema = sink_cfg.get("schema")
         if_exists = sink_cfg.get("if_exists", "append")
         resource = getattr(context.resources, resource_key)
-        if hasattr(resource, "get_engine"):
-            engine = resource.get_engine()
-        elif hasattr(resource, "get_connection"):
-            engine = resource.get_connection()
-        else:
-            raise ValueError(f"resource {resource_key!r} must expose .get_engine() or .get_connection()")
 
-        if dedup_on and if_exists == "append":
-            # Filter batch to exclude keys already in the target table.
-            # Read existing keys (only the dedup cols — cheap) and anti-join.
-            pdf = df.to_pandas()
-            qual = f"{schema}.{table}" if schema else table
-            select_cols = ", ".join(dedup_on)
-            try:
-                import pandas as _pd
-                existing = _pd.read_sql(f"SELECT DISTINCT {select_cols} FROM {qual}", engine)
-            except Exception:  # noqa: BLE001
-                # Table probably doesn't exist yet — first insert is a full write.
-                existing = None
-            if existing is not None and not existing.empty:
-                pdf = pdf.merge(existing, on=dedup_on, how="left", indicator=True)
-                pdf = pdf[pdf["_merge"] == "left_only"].drop(columns=["_merge"])
-            if len(pdf) == 0:
-                return 0
-            pdf.to_sql(table, engine, schema=schema, if_exists=if_exists, index=False)
-            return len(pdf)
-        df.to_pandas().to_sql(table, engine, schema=schema, if_exists=if_exists, index=False)
-        return df.height
-
-    if kind == "duckdb":
-        resource_key = sink_cfg.get("resource_key")
-        if not resource_key:
-            raise ValueError("sink kind=duckdb requires resource_key")
-        table = sink_cfg["table"]
-        if_exists = sink_cfg.get("if_exists", "append")
-        resource = getattr(context.resources, resource_key)
-
-        # Dagster's DuckDBResource.get_connection() is @contextlib.contextmanager
-        # (yields a connection). Wrap in `with` so we don't try to call methods
-        # on a _GeneratorContextManager. Fall back to .get_engine() for
-        # resources that return a raw connection object directly.
-        from contextlib import contextmanager, nullcontext
+        # Auto-detect the fast path: if the resource yields something with a
+        # `.register()` method (DuckDB-style — register polars/pandas as a
+        # view, then INSERT ... SELECT * FROM registered_view), use it — the
+        # register-and-INSERT path is 10-100x faster than SQLAlchemy to_sql on
+        # large batches. Otherwise fall back to SQLAlchemy to_sql, which
+        # works with every SQLAlchemy resource (postgres / snowflake /
+        # bigquery / mysql / mssql / oracle / db2 / …). Users write
+        # `kind: table` either way — no vendor-specific YAML flags.
+        from contextlib import nullcontext
 
         def _acquire():
             if hasattr(resource, "get_connection"):
                 gc = resource.get_connection()
-                # If it's already a context manager, use it directly; if it's
-                # a raw connection, wrap in nullcontext.
                 if hasattr(gc, "__enter__"):
                     return gc
                 return nullcontext(gc)
@@ -301,43 +273,67 @@ def _write_sink(df, sink_cfg: Dict[str, Any], context) -> int:
             raise ValueError(f"resource {resource_key!r} needs .get_connection() or .get_engine()")
 
         with _acquire() as conn:
-            # Register the polars DF as a view — faster than to_pandas().
-            conn.register("_batch", df)
-            try:
-                if if_exists == "replace":
-                    conn.execute(f"CREATE OR REPLACE TABLE {table} AS SELECT * FROM _batch")
-                    return df.height
-                # append (default)
-                conn.execute(f"CREATE TABLE IF NOT EXISTS {table} AS SELECT * FROM _batch WHERE 1=0")
-                if dedup_on:
-                    match = " AND ".join(f"t.{c} = b.{c}" for c in dedup_on)
+            # Fast path: connection has DuckDB's `.register()` method (register
+            # polars/pandas as a view + INSERT ... SELECT * FROM). Zero-copy
+            # for polars; much faster than to_sql. Auto-detected — user only
+            # ever writes `kind: table`.
+            if hasattr(conn, "register") and hasattr(conn, "execute") and hasattr(conn, "unregister"):
+                conn.register("_batch", df)
+                try:
+                    if if_exists == "replace":
+                        conn.execute(f"CREATE OR REPLACE TABLE {table} AS SELECT * FROM _batch")
+                        return df.height
+                    conn.execute(f"CREATE TABLE IF NOT EXISTS {table} AS SELECT * FROM _batch WHERE 1=0")
+                    if dedup_on:
+                        match = " AND ".join(f"t.{c} = b.{c}" for c in dedup_on)
+                        conn.execute("BEGIN TRANSACTION")
+                        try:
+                            conn.execute(
+                                f"INSERT INTO {table} "
+                                f"SELECT b.* FROM _batch b "
+                                f"WHERE NOT EXISTS (SELECT 1 FROM {table} t WHERE {match})"
+                            )
+                            conn.execute("COMMIT")
+                        except Exception:
+                            conn.execute("ROLLBACK")
+                            raise
+                        return df.height  # optimistic; dedup rate visible via heartbeat delta
                     conn.execute("BEGIN TRANSACTION")
                     try:
-                        conn.execute(
-                            f"INSERT INTO {table} "
-                            f"SELECT b.* FROM _batch b "
-                            f"WHERE NOT EXISTS (SELECT 1 FROM {table} t WHERE {match})"
-                        )
+                        conn.execute(f"INSERT INTO {table} SELECT * FROM _batch")
                         conn.execute("COMMIT")
                     except Exception:
                         conn.execute("ROLLBACK")
                         raise
-                    return df.height  # optimistic; dedup rate visible via heartbeat delta
-                # No dedup — straight INSERT wrapped in a tx.
-                conn.execute("BEGIN TRANSACTION")
+                    return df.height
+                finally:
+                    try:
+                        conn.unregister("_batch")
+                    except Exception:  # noqa: BLE001
+                        pass
+
+            # Fallback: SQLAlchemy path (postgres / snowflake / bigquery / mysql
+            # / mssql / oracle / db2 / duckdb-via-SQLAlchemy / ...). Slower but
+            # portable. `conn` here is a SQLAlchemy Connection or Engine.
+            if dedup_on and if_exists == "append":
+                pdf = df.to_pandas()
+                qual = f"{schema}.{table}" if schema else table
+                select_cols = ", ".join(dedup_on)
                 try:
-                    conn.execute(f"INSERT INTO {table} SELECT * FROM _batch")
-                    conn.execute("COMMIT")
-                except Exception:
-                    conn.execute("ROLLBACK")
-                    raise
-                return df.height
-            finally:
-                try:
-                    conn.unregister("_batch")
+                    import pandas as _pd
+                    existing = _pd.read_sql(f"SELECT DISTINCT {select_cols} FROM {qual}", conn)
                 except Exception:  # noqa: BLE001
-                    pass
-    raise ValueError(f"streaming_consumer sink kind={kind!r} not supported. Use 'table' or 'duckdb'.")
+                    existing = None
+                if existing is not None and not existing.empty:
+                    pdf = pdf.merge(existing, on=dedup_on, how="left", indicator=True)
+                    pdf = pdf[pdf["_merge"] == "left_only"].drop(columns=["_merge"])
+                if len(pdf) == 0:
+                    return 0
+                pdf.to_sql(table, conn, schema=schema, if_exists=if_exists, index=False)
+                return len(pdf)
+            df.to_pandas().to_sql(table, conn, schema=schema, if_exists=if_exists, index=False)
+            return df.height
+    raise ValueError(f"streaming_consumer sink kind={kind!r} not supported. Use 'table'.")
 
 
 # ── The component ─────────────────────────────────────────────────────

@@ -94,8 +94,23 @@ class _KafkaConsumer:
                 if v is None:
                     raise ValueError(f"kafka {k}={cfg[k]!r} but env var unset")
                 conf[k.replace("_env_var", "").replace("_", ".")] = v
+        # extra_config keys ending in `_env_var` are unwrapped from the
+        # environment before dispatch — same convention as the top-level
+        # `bootstrap_servers_env_var` / `sasl_password_env_var` fields.
+        # Keeps secrets out of committed YAML.
         for k, v in (cfg.get("extra_config") or {}).items():
-            conf[k] = v
+            if k.endswith("_env_var"):
+                actual_key = k[: -len("_env_var")]
+                env_name = str(v)
+                val = _os.environ.get(env_name)
+                if val is None:
+                    raise ValueError(
+                        f"streaming_consumer extra_config {k}={env_name!r} "
+                        f"but env var unset"
+                    )
+                conf[actual_key] = val
+            else:
+                conf[k] = v
 
         self._consumer = Consumer(conf)
         self._topic = cfg["topic"]
@@ -263,57 +278,65 @@ def _write_sink(df, sink_cfg: Dict[str, Any], context) -> int:
         table = sink_cfg["table"]
         if_exists = sink_cfg.get("if_exists", "append")
         resource = getattr(context.resources, resource_key)
-        # Prefer .get_connection() (returns a DuckDB connection); fall back to .get_engine().
-        conn = None
-        if hasattr(resource, "get_connection"):
-            conn = resource.get_connection()
-        elif hasattr(resource, "get_engine"):
-            conn = resource.get_engine()
-        else:
+
+        # Dagster's DuckDBResource.get_connection() is @contextlib.contextmanager
+        # (yields a connection). Wrap in `with` so we don't try to call methods
+        # on a _GeneratorContextManager. Fall back to .get_engine() for
+        # resources that return a raw connection object directly.
+        from contextlib import contextmanager, nullcontext
+
+        def _acquire():
+            if hasattr(resource, "get_connection"):
+                gc = resource.get_connection()
+                # If it's already a context manager, use it directly; if it's
+                # a raw connection, wrap in nullcontext.
+                if hasattr(gc, "__enter__"):
+                    return gc
+                return nullcontext(gc)
+            if hasattr(resource, "get_engine"):
+                eng = resource.get_engine()
+                if hasattr(eng, "__enter__"):
+                    return eng
+                return nullcontext(eng)
             raise ValueError(f"resource {resource_key!r} needs .get_connection() or .get_engine()")
-        # Register the polars DF as a view and INSERT/CREATE — faster than to_pandas().
-        conn.register("_batch", df)
-        try:
-            if if_exists == "replace":
-                conn.execute(f"CREATE OR REPLACE TABLE {table} AS SELECT * FROM _batch")
-                return df.height
-            # append (default)
-            conn.execute(f"CREATE TABLE IF NOT EXISTS {table} AS SELECT * FROM _batch WHERE 1=0")
-            if dedup_on:
-                # NOT-EXISTS anti-join — DuckDB is very fast at this.
-                match = " AND ".join(f"t.{c} = b.{c}" for c in dedup_on)
-                # Wrap in transaction so a crash doesn't leave partial rows.
+
+        with _acquire() as conn:
+            # Register the polars DF as a view — faster than to_pandas().
+            conn.register("_batch", df)
+            try:
+                if if_exists == "replace":
+                    conn.execute(f"CREATE OR REPLACE TABLE {table} AS SELECT * FROM _batch")
+                    return df.height
+                # append (default)
+                conn.execute(f"CREATE TABLE IF NOT EXISTS {table} AS SELECT * FROM _batch WHERE 1=0")
+                if dedup_on:
+                    match = " AND ".join(f"t.{c} = b.{c}" for c in dedup_on)
+                    conn.execute("BEGIN TRANSACTION")
+                    try:
+                        conn.execute(
+                            f"INSERT INTO {table} "
+                            f"SELECT b.* FROM _batch b "
+                            f"WHERE NOT EXISTS (SELECT 1 FROM {table} t WHERE {match})"
+                        )
+                        conn.execute("COMMIT")
+                    except Exception:
+                        conn.execute("ROLLBACK")
+                        raise
+                    return df.height  # optimistic; dedup rate visible via heartbeat delta
+                # No dedup — straight INSERT wrapped in a tx.
                 conn.execute("BEGIN TRANSACTION")
                 try:
-                    result = conn.execute(
-                        f"INSERT INTO {table} "
-                        f"SELECT b.* FROM _batch b "
-                        f"WHERE NOT EXISTS (SELECT 1 FROM {table} t WHERE {match})"
-                    )
-                    # DuckDB returns changes via result.fetchall() on INSERT? No —
-                    # use SELECT COUNT(*) diff before/after.
+                    conn.execute(f"INSERT INTO {table} SELECT * FROM _batch")
                     conn.execute("COMMIT")
                 except Exception:
                     conn.execute("ROLLBACK")
                     raise
-                # DuckDB doesn't expose rowcount reliably; approximate via a
-                # SELECT — but the batch size is a good-enough upper bound for
-                # heartbeat metadata (dedup detail is logged, not counted).
-                return df.height  # optimistic; dedup rate visible via heartbeat delta
-            # No dedup — straight INSERT wrapped in a tx.
-            conn.execute("BEGIN TRANSACTION")
-            try:
-                conn.execute(f"INSERT INTO {table} SELECT * FROM _batch")
-                conn.execute("COMMIT")
-            except Exception:
-                conn.execute("ROLLBACK")
-                raise
-            return df.height
-        finally:
-            try:
-                conn.unregister("_batch")
-            except Exception:  # noqa: BLE001
-                pass
+                return df.height
+            finally:
+                try:
+                    conn.unregister("_batch")
+                except Exception:  # noqa: BLE001
+                    pass
     raise ValueError(f"streaming_consumer sink kind={kind!r} not supported. Use 'table' or 'duckdb'.")
 
 

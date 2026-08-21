@@ -1,6 +1,6 @@
 {
-  "component_type": "dagster_component_templates.RAGPipelineComponent",
-  "description": "Component for RAG pipeline.",
+  "component_type": "dagster_community_components.RAGPipelineComponent",
+  "description": "RAG pipeline — retrieve, (optional) rerank, generate. Two shapes: (1) legacy monolithic (embed → retrieve → generate hardcoded to chromadb/pinecone + openai/anthropic) — set `vector_store_provider`+`collection_name`+`llm_provider`+`llm_model`. (2) Ops mode (opt-in via `steps:`) — chain of named ops (`retrieve` / `hybrid_search` / `rerank` / `expand_query` / `generate`) with reusable `personas:` / `retrievers:` / `rerankers:` blocks, LiteLLM for generation, Voyage/Cohere reranking, BM25+vector hybrid search via RRF, HyDE query expansion, and reasoning + prompt caching support.",
   "category": "ai",
   "icon": "Sparkles",
   "x-dagster-io": {
@@ -21,71 +21,36 @@
       "description": "Name of the asset",
       "required": true
     },
-    "vector_store_provider": {
-      "type": "string",
-      "label": "Vector Store Provider",
-      "description": "Vector store provider",
-      "required": true
+    "personas": {
+      "type": "object",
+      "label": "Personas",
+      "description": "Ops mode only. Named reusable LLM sub-configs. Each entry: `{provider, model, api_key_env_var, api_base_env_var, system_prompt, temperature, max_tokens, reasoning_effort, thinking_budget, prompt_caching}`. Reference from any step via `persona: <name>`; explicit inline fields ALWAYS win. Applies to `generate`, `expand_query`, `refine` ops.",
+      "required": false
     },
-    "collection_name": {
-      "type": "string",
-      "label": "Collection Name",
-      "description": "Collection name",
-      "required": true
+    "retrievers": {
+      "type": "object",
+      "label": "Retrievers",
+      "description": "Ops mode only. Named reusable vector-store configs. Each: `{kind: chromadb|pinecone|qdrant|pgvector|weaviate, collection_name / index_name / table, path / url_env_var, embedding: {provider, model, api_key_env_var}}`. Reference from `retrieve` / `hybrid_search` steps via `retriever: <name>`.",
+      "required": false
     },
-    "llm_provider": {
-      "type": "string",
-      "label": "Llm Provider",
-      "description": "LLM provider",
-      "required": true
+    "rerankers": {
+      "type": "object",
+      "label": "Rerankers",
+      "description": "Ops mode only. Named reusable reranker configs. Each: `{provider: voyage|cohere, model, api_key_env_var}`. Reference from `rerank` steps via `reranker: <name>`. Voyage rerank-2.5 and Cohere rerank-3.5 both supported.",
+      "required": false
     },
-    "llm_model": {
-      "type": "string",
-      "label": "Llm Model",
-      "description": "LLM model",
-      "required": true
+    "steps": {
+      "type": "array",
+      "label": "Steps",
+      "items": {"type": "object"},
+      "description": "Opt-in ops-based mode. When set, replaces the legacy monolithic behavior with a chain of named ops. Each: `{id, op, ...op-specific}`. Supported ops: `retrieve` (vector search), `hybrid_search` (BM25 + vector via RRF), `rerank` (Voyage/Cohere reranker over prior-step docs), `expand_query` (HyDE — LLM writes a hypothetical answer to embed), `generate` (final answer using retrieved docs). Steps read from prior steps via `source: <id>` (docs), `query_source: <id>` (query text), or default to most recent. Every op supports `persona: <name>` where applicable.",
+      "required": false
     },
-    "embedding_provider": {
+    "query_prompt_template": {
       "type": "string",
-      "label": "Embedding Provider",
-      "description": "Embedding provider",
-      "required": false,
-      "default": "openai"
-    },
-    "embedding_model": {
-      "type": "string",
-      "label": "Embedding Model",
-      "description": "Embedding model",
-      "required": false,
-      "default": "text-embedding-3-small"
-    },
-    "top_k": {
-      "type": "integer",
-      "label": "Top K",
-      "description": "Number of documents to retrieve",
-      "required": false,
-      "default": 5
-    },
-    "vector_store_connection": {
-      "type": "string",
-      "label": "Vector Store Connection",
-      "description": "Vector store connection",
-      "required": false,
-      "default": null
-    },
-    "llm_api_key": {
-      "type": "string",
-      "label": "Llm Api Key",
-      "description": "LLM API key with ${VAR_NAME} syntax",
-      "required": false,
-      "default": null
-    },
-    "embedding_api_key": {
-      "type": "string",
-      "label": "Embedding Api Key",
-      "description": "Embedding API key with ${VAR_NAME} syntax",
-      "required": false,
-      "default": null
+      "label": "Query Prompt Template",
+      "description": "Ops mode only. Template applied to `query_column` values before the first step. Placeholders: `{query}`, `{partition_key}`, `{partition.<name>}`. Leave unset to pass through unchanged.",
+      "required": false
     },
     "include_sources": {
       "type": "boolean",
@@ -94,13 +59,6 @@
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
-    },
-    "temperature": {
-      "type": "number",
-      "label": "Temperature",
-      "description": "LLM temperature",
-      "required": false,
-      "default": 0.7
     },
     "query_column": {
       "type": "string",

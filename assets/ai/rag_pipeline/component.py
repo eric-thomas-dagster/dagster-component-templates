@@ -126,37 +126,62 @@ def _build_partitions_def(
 
 
 class RAGPipelineComponent(Component, Model, Resolvable):
-    """Component for RAG pipeline.
+    """One YAML, whole RAG pipeline — retrieve, (optional) rerank, generate.
 
-    Accepts query from upstream assets via IO manager.
+    Pipeline shape: `personas:` + `retrievers:` + `rerankers:` + `steps:`.
+    Every row in the upstream DataFrame's `query_column` gets its own
+    trip through the ops chain. Family sibling of AgenticPipeline /
+    MLPipeline / PolarsPipeline.
+
+    Ops menu:
+      - retrieve         — vector search against a named retriever
+      - hybrid_search    — BM25 + vector combined via RRF
+      - rerank           — Voyage rerank-2.5 / Cohere rerank-3.5 over docs
+      - expand_query     — HyDE — LLM writes a hypothetical answer to embed
+      - generate         — LLM answer using retrieved docs as context;
+                           full reasoning + prompt-caching support
 
     Example:
         ```yaml
-        type: dagster_component_templates.RAGPipelineComponent
+        type: dagster_community_components.RAGPipelineComponent
         attributes:
-          asset_name: rag_response
-          vector_store_provider: chromadb
-          collection_name: documents
-          llm_provider: openai
-          llm_model: gpt-4
-          llm_api_key: ${OPENAI_API_KEY}
-          embedding_api_key: ${OPENAI_API_KEY}
+          asset_name: docs_qa
+          upstream_asset_key: user_questions
+
+          retrievers:
+            docs_vs:
+              kind: chromadb
+              collection_name: product_docs
+              path: ./chroma_db
+              embedding:
+                provider: voyage
+                model: voyage-3-large
+                input_type: query
+                api_key_env_var: VOYAGE_API_KEY
+
+          rerankers:
+            voyage_rr:
+              provider: voyage
+              model: rerank-2.5
+              api_key_env_var: VOYAGE_API_KEY
+
+          steps:
+            - {id: retrieved, op: retrieve, retriever: docs_vs, top_k: 20}
+            - {id: reranked, op: rerank, source: retrieved, reranker: voyage_rr, top_k: 5}
+            - id: answered
+              op: generate
+              source: reranked
+              provider: openai
+              model: gpt-4o-mini
+              api_key_env_var: OPENAI_API_KEY
         ```
     """
 
-    asset_name: str = Field(description="Name of the asset")
-    vector_store_provider: str = Field(description="Vector store provider")
-    collection_name: str = Field(description="Collection name")
-    llm_provider: str = Field(description="LLM provider")
-    llm_model: str = Field(description="LLM model")
-    embedding_provider: str = Field(default="openai", description="Embedding provider")
-    embedding_model: str = Field(default="text-embedding-3-small", description="Embedding model")
-    top_k: int = Field(default=5, description="Number of documents to retrieve")
-    vector_store_connection: Optional[str] = Field(default=None, description="Vector store connection")
-    llm_api_key: Optional[str] = Field(default=None, description="LLM API key with ${VAR_NAME} syntax")
-    embedding_api_key: Optional[str] = Field(default=None, description="Embedding API key with ${VAR_NAME} syntax")
-    include_sources: bool = Field(default=True, description="Include source documents")
-    temperature: float = Field(default=0.7, description="LLM temperature")
+    asset_name: str = Field(description="Output asset name")
+    include_sources: bool = Field(
+        default=True,
+        description="Emit the retrieved docs list as `sources_column` on each output row.",
+    )
     query_column: Union[str, int] = Field(default="query", description="Column name containing query text")
     answer_column: Union[str, int] = Field(default="answer", description="Column name for generated answers")
     sources_column: Union[str, int] = Field(default="sources", description="Column name for retrieved source documents")
@@ -240,6 +265,70 @@ class RAGPipelineComponent(Component, Model, Resolvable):
     )
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame with query text")
 
+    # ── OPS-BASED MODE (opt-in via `steps:`) ────────────────────────────
+    #
+    # When `steps:` is set, the pipeline runs as a chain of named ops
+    # (retrieve → rerank → generate → …) instead of the monolithic single-
+    # asset shape. Enables multi-hop retrieval, hybrid search, reranking,
+    # query expansion, and reasoning-model + prompt-caching support on the
+    # generation step. All backward-compat: when `steps:` is empty/unset,
+    # the pipeline behaves exactly as before.
+
+    personas: Optional[Dict[str, Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Named reusable LLM sub-configs (ops mode only). Each persona "
+            "bundles `{provider, model, api_key_env_var, api_base_env_var, "
+            "system_prompt, temperature, max_tokens, reasoning_effort, "
+            "thinking_budget, prompt_caching}`. Reference from a step via "
+            "`persona: <name>`; the persona's fields are merged into the "
+            "step (explicit inline fields win). Applies to `generate`, "
+            "`expand_query`, and `refine` ops. Same shape as "
+            "AgenticPipelineComponent."
+        ),
+    )
+    retrievers: Optional[Dict[str, Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Named reusable vector-store configs (ops mode only). Each "
+            "entry declares `{kind: chromadb|pinecone|qdrant|pgvector|"
+            "weaviate, collection_name / index_name, connection / path / "
+            "url, embedding: {provider, model, api_key_env_var}}`. "
+            "Reference from a step via `retriever: <name>`."
+        ),
+    )
+    rerankers: Optional[Dict[str, Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Named reusable reranker configs (ops mode only). Each entry: "
+            "`{provider: voyage|cohere, model, api_key_env_var}`. "
+            "Reference from a `rerank` step via `reranker: <name>`."
+        ),
+    )
+    steps: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Ordered ops chain (opt-in — unlocks the ops-based mode). "
+            "Each entry: `{id, op, ...op-specific}`. Supported ops: "
+            "`retrieve` (vector search across a named retriever), "
+            "`hybrid_search` (BM25 + vector combined via RRF), "
+            "`rerank` (Voyage rerank-2.5 or Cohere rerank-3.5 over "
+            "retrieved docs), `expand_query` (HyDE-style — LLM generates "
+            "a hypothetical document to embed instead of the query), "
+            "`generate` (final answer using retrieved docs as context). "
+            "See README for per-op field reference."
+        ),
+    )
+    query_prompt_template: Optional[str] = Field(
+        default=None,
+        description=(
+            "Ops mode only. Template applied to `query_column` values before "
+            "they're fed into the first step. Placeholders: `{query}` "
+            "(raw query text), `{partition_key}`, `{partition.<name>}`. "
+            "Leave unset (default) to pass queries through unchanged."
+        ),
+    )
+
     retry_policy_max_retries: Optional[int] = Field(
 
         default=None,
@@ -272,305 +361,15 @@ class RAGPipelineComponent(Component, Model, Resolvable):
     )
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
-        asset_name = self.asset_name
-        include_preview = self.include_preview_metadata
-        preview_rows = self.preview_rows
-        vector_store_provider = self.vector_store_provider
-        collection_name = self.collection_name
-        llm_provider = self.llm_provider
-        llm_model = self.llm_model
-        embedding_provider = self.embedding_provider
-        embedding_model = self.embedding_model
-        top_k = self.top_k
-        vector_store_connection = self.vector_store_connection
-        llm_api_key = self.llm_api_key
-        embedding_api_key = self.embedding_api_key
-        include_sources = self.include_sources
-        temperature = self.temperature
-        query_column = self.query_column
-        answer_column = self.answer_column
-        sources_column = self.sources_column
-        description = self.description or "RAG pipeline"
-        group_name = self.group_name
-        upstream_asset_key = self.upstream_asset_key
-
-        partitions_def = _build_partitions_def(
-            self.partition_type,
-            self.partition_start,
-            self.partition_values,
-            self.dynamic_partition_name,
-            self.partition_dimensions,
-        )
-        partition_type = self.partition_type
-        partition_date_column = self.partition_date_column
-        partition_static_column = self.partition_static_column
-        partition_static_dim = self.partition_static_dim
-
-        # Infer kinds from component name if not explicitly set
-        _comp_name = "rag_pipeline"  # component directory name
-        _kind_map = {
-            "snowflake": "snowflake", "bigquery": "bigquery", "redshift": "redshift",
-            "postgres": "postgres", "postgresql": "postgres", "mysql": "mysql",
-            "s3": "s3", "adls": "azure", "azure": "azure", "gcs": "gcp",
-            "google": "gcp", "databricks": "databricks", "dbt": "dbt",
-            "kafka": "kafka", "mongodb": "mongodb", "redis": "redis",
-            "neo4j": "neo4j", "elasticsearch": "elasticsearch", "pinecone": "pinecone",
-            "chromadb": "chromadb", "pgvector": "postgres",
-        }
-        _inferred_kinds = self.kinds or []
-        if not _inferred_kinds:
-            _comp_lower = asset_name.lower()
-            for keyword, kind in _kind_map.items():
-                if keyword in _comp_lower:
-                    _inferred_kinds.append(kind)
-            if not _inferred_kinds:
-                _inferred_kinds = ["python"]
-
-        # Build combined tags: user tags + kind tags
-        _all_tags = dict(self.asset_tags or {})
-        for _kind in _inferred_kinds:
-            _all_tags[f"dagster/kind/{_kind}"] = ""
-
-        # Build freshness policy
-        _freshness_policy = None
-        if self.freshness_max_lag_minutes is not None:
-            from dagster import FreshnessPolicy
-            _freshness_policy = FreshnessPolicy(
-                maximum_lag_minutes=self.freshness_max_lag_minutes,
-                cron_schedule=self.freshness_cron,
+        if not self.steps:
+            raise ValueError(
+                f"RAGPipelineComponent {self.asset_name!r}: `steps:` is required. "
+                "Define a chain of ops — at minimum `retrieve` + `generate`. "
+                "See the component README for examples."
             )
-
-        owners = self.owners or []
-        column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
+        return _build_ops_mode(self)
 
 
-        # Build retry policy (auto-generated; opt-in via retry_policy_max_retries).
-
-
-        _retry_policy = None
-
-
-        if self.retry_policy_max_retries is not None:
-
-
-            from dagster import Backoff, RetryPolicy
-
-
-            _retry_policy = RetryPolicy(
-
-
-                max_retries=self.retry_policy_max_retries,
-
-
-                delay=self.retry_policy_delay_seconds or 1,
-
-
-                backoff=Backoff[self.retry_policy_backoff.upper()],
-
-
-            )
-
-
-
-        @asset(retry_policy=_retry_policy,
-            key=AssetKey.from_user_string(asset_name),
-            description=description,
-            partitions_def=partitions_def,
-                        owners=owners,
-            tags=_all_tags,
-            freshness_policy=_freshness_policy,
-            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
-group_name=group_name,
-            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
-        )
-        def rag_pipeline_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
-            # Filter to current partition if partitioned
-            if context.has_partition_key:
-                _pk = context.partition_key
-                _is_multi = hasattr(_pk, "keys_by_dimension")
-                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
-                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
-                if partition_date_column and partition_date_column in upstream.columns and _date_key:
-                    upstream = upstream[upstream[partition_date_column].astype(str) == _date_key]
-                if partition_static_column and partition_static_column in upstream.columns and _static_key:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
-                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
-            """Execute RAG pipeline for each query row in upstream DataFrame.
-
-            This component orchestrates a complete RAG pipeline per row:
-            1. Generate query embeddings
-            2. Retrieve relevant documents from vector store
-            3. Generate response using LLM with retrieved context
-            """
-
-            df = upstream.copy()
-
-            if query_column not in df.columns:
-                raise ValueError(f"Query column '{query_column}' not found. Available: {list(df.columns)}")
-
-            context.log.info(f"Running RAG pipeline on {len(df)} queries")
-
-            # Expand environment variables in API keys
-            expanded_llm_api_key = None
-            if llm_api_key:
-                expanded_llm_api_key = os.path.expandvars(llm_api_key)
-                if expanded_llm_api_key == llm_api_key and '${' in llm_api_key:
-                    raise ValueError(f"Environment variable in llm_api_key '{llm_api_key}' is not set")
-
-            expanded_embedding_api_key = None
-            if embedding_api_key:
-                expanded_embedding_api_key = os.path.expandvars(embedding_api_key)
-                if expanded_embedding_api_key == embedding_api_key and '${' in embedding_api_key:
-                    raise ValueError(f"Environment variable in embedding_api_key '{embedding_api_key}' is not set")
-
-            def get_query_embedding(query: str) -> list:
-                if embedding_provider == "openai":
-                    import openai
-                    client = _make_openai_client(expanded_embedding_api_key)
-                    response = client.embeddings.create(model=embedding_model, input=[query])
-                    return response.data[0].embedding
-                elif embedding_provider == "sentence_transformers":
-                    from sentence_transformers import SentenceTransformer
-                    st_model = SentenceTransformer(embedding_model)
-                    return st_model.encode([query])[0].tolist()
-                else:
-                    raise ValueError(f"Unsupported embedding provider: {embedding_provider}")
-
-            def retrieve_docs(query_embedding: list) -> list:
-                retrieved = []
-                if vector_store_provider == "chromadb":
-                    import chromadb
-                    client = chromadb.PersistentClient(path=vector_store_connection or "./chroma_db")
-                    collection = client.get_collection(name=collection_name)
-                    results = collection.query(query_embeddings=[query_embedding], n_results=top_k)
-                    for i in range(len(results['ids'][0])):
-                        retrieved.append({
-                            "text": results['documents'][0][i] if 'documents' in results else "",
-                            "metadata": results['metadatas'][0][i] if 'metadatas' in results else {}
-                        })
-                elif vector_store_provider == "pinecone":
-                    from pinecone import Pinecone
-                    pc = Pinecone(api_key=expanded_embedding_api_key)
-                    index = pc.Index(collection_name)
-                    results = index.query(vector=query_embedding, top_k=top_k, include_metadata=True)
-                    for match in results['matches']:
-                        retrieved.append({
-                            "text": match.get('metadata', {}).get('text', ''),
-                            "metadata": match.get('metadata', {})
-                        })
-                else:
-                    raise ValueError(f"Unsupported vector store provider: {vector_store_provider}")
-                return retrieved
-
-            def generate_answer(query: str, retrieved_docs: list) -> str:
-                context_text = "\n\n".join([doc["text"] for doc in retrieved_docs])
-                prompt = f"""Answer the following question based on the provided context.
-
-Context:
-{context_text}
-
-Question: {query}
-
-Answer:"""
-                if llm_provider == "openai":
-                    import openai
-                    client = _make_openai_client(expanded_llm_api_key)
-                    response = client.chat.completions.create(
-                        model=llm_model,
-                        messages=[{"role": "user", "content": prompt}],
-                        temperature=temperature
-                    )
-                    return response.choices[0].message.content
-                elif llm_provider == "anthropic":
-                    import anthropic
-                    client = anthropic.Anthropic(api_key=expanded_llm_api_key)
-                    message = client.messages.create(
-                        model=llm_model,
-                        max_tokens=4096,
-                        temperature=temperature,
-                        messages=[{"role": "user", "content": prompt}]
-                    )
-                    return message.content[0].text
-                else:
-                    raise ValueError(f"Unsupported LLM provider: {llm_provider}")
-
-            answers = []
-            sources_list = []
-
-            for idx, row in df.iterrows():
-                query = str(row[query_column])
-                context.log.info(f"Processing query {idx + 1}/{len(df)}: {query[:80]}...")
-
-                query_embedding = get_query_embedding(query)
-                retrieved_docs = retrieve_docs(query_embedding)
-                answer = generate_answer(query, retrieved_docs)
-
-                answers.append(answer)
-                sources_list.append(retrieved_docs if include_sources else [])
-
-            df[answer_column] = answers
-            if include_sources:
-                df[sources_column] = sources_list
-
-            context.log.info(f"RAG pipeline complete: {len(df)} queries processed")
-            context.add_output_metadata({
-                "rows_processed": len(df),
-                "vector_store_provider": vector_store_provider,
-                "llm_provider": llm_provider,
-                "top_k": top_k,
-            })
-
-            # Build column schema metadata
-            from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
-            _col_schema = TableSchema(columns=[
-                TableColumn(name=str(col), type=str(df.dtypes[col]))
-                for col in df.columns
-            ])
-            _metadata = {
-                "dagster/row_count": MetadataValue.int(len(df)),
-                "dagster/column_schema": MetadataValue.table_schema(_col_schema),
-            }
-            # Use explicit lineage, or auto-infer passthrough columns at runtime
-            _effective_lineage = column_lineage
-            if not _effective_lineage:
-                try:
-                    _upstream_cols = set(upstream.columns)
-                    _effective_lineage = {
-                        col: [col] for col in _col_schema.columns_by_name
-                        if col in _upstream_cols
-                    }
-                except Exception:
-                    pass
-            if _effective_lineage:
-                _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
-                if _upstream_key:
-                    _lineage_deps = {}
-                    for out_col, in_cols in _effective_lineage.items():
-                        _lineage_deps[str(out_col)] = [
-                            TableColumnDep(asset_key=_upstream_key, column_name=str(ic))
-                            for ic in in_cols
-                        ]
-                    _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
-                        TableColumnLineage(_lineage_deps)
-                    )
-            if include_preview and len(df) > 0:
-                try:
-                    _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
-                    _metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
-                except Exception as _e:
-                    context.log.warning(f"preview emission failed: {_e}")
-            context.add_output_metadata(_metadata)
-
-            return df
-
-        from dagster import build_column_schema_change_checks
-
-
-        _schema_checks = build_column_schema_change_checks(assets=[rag_pipeline_asset])
-
-
-        return Definitions(assets=[rag_pipeline_asset], asset_checks=list(_schema_checks))
 
 
 
@@ -603,3 +402,712 @@ def _make_openai_client(api_key):
         azure_endpoint=azure_endpoint,
         api_version=api_version,
     )
+
+
+# ═════════════════════════════════════════════════════════════════════
+# Ops-based mode (opt-in via `steps:`)
+# ═════════════════════════════════════════════════════════════════════
+#
+# The ops-based mode decomposes RAG into named steps
+# (retrieve → rerank → generate → ...) each producing a state dict that
+# subsequent steps consume by id. Backed by LiteLLM for the generation
+# side and native provider SDKs for the retrieval side. Fully opt-in:
+# absent `steps:`, the legacy monolithic mode above runs unchanged.
+
+
+# ── Persona / retriever / reranker resolution ─────────────────────────
+
+_PERSONA_FIELDS = (
+    "provider", "model", "api_key_env_var", "api_base_env_var",
+    "system_prompt", "temperature", "max_tokens",
+    "reasoning_effort", "thinking_budget", "prompt_caching",
+)
+
+
+def _merge_persona(target: dict, persona: dict) -> dict:
+    """Merge persona fields into `target`. Explicit inline fields on
+    `target` win — persona is a defaults-provider."""
+    merged = dict(target)
+    for k in _PERSONA_FIELDS:
+        if k in persona and merged.get(k) is None:
+            merged[k] = persona[k]
+    merged.pop("persona", None)
+    return merged
+
+
+def _resolve_persona(step: dict, personas: Optional[Dict[str, Dict[str, Any]]]) -> dict:
+    """If step has `persona: <name>`, merge that persona's fields into step."""
+    if not personas or "persona" not in step:
+        return step
+    name = step["persona"]
+    if name not in personas:
+        raise ValueError(
+            f"step {step.get('id', '?')!r} references persona {name!r} not in "
+            f"personas: block. Available: {sorted(personas.keys())}"
+        )
+    return _merge_persona(step, personas[name])
+
+
+def _resolve_retriever(name: str, retrievers: Optional[Dict[str, Dict[str, Any]]]) -> dict:
+    """Look up a retriever spec by name."""
+    if not retrievers or name not in retrievers:
+        raise ValueError(
+            f"retriever {name!r} not declared in `retrievers:` block. "
+            f"Available: {sorted((retrievers or {}).keys())}"
+        )
+    return retrievers[name]
+
+
+def _resolve_reranker(name: str, rerankers: Optional[Dict[str, Dict[str, Any]]]) -> dict:
+    """Look up a reranker spec by name."""
+    if not rerankers or name not in rerankers:
+        raise ValueError(
+            f"reranker {name!r} not declared in `rerankers:` block. "
+            f"Available: {sorted((rerankers or {}).keys())}"
+        )
+    return rerankers[name]
+
+
+# ── LLM completion (LiteLLM + reasoning + caching) ────────────────────
+#
+# Mirrors AgenticPipelineComponent._completion. Kept self-contained per
+# the "components are self-contained" convention — no shared helpers.
+
+def _rag_completion(
+    *,
+    model: str,
+    system_prompt: Optional[str],
+    user_prompt: str,
+    api_key_env_var: Optional[str],
+    api_base_env_var: Optional[str],
+    temperature: float,
+    max_tokens: int,
+    reasoning_effort: Optional[str] = None,
+    thinking_budget: Optional[int] = None,
+    prompt_caching: bool = False,
+) -> Dict[str, Any]:
+    """Thin LiteLLM wrapper; returns
+    {"content": str, "usage": {...}, "cost_usd": float, "latency_ms": int,
+     "tokens_total": int, "cache_read_tokens": int, "cache_creation_tokens": int}."""
+    import time as _time
+    try:
+        import litellm
+    except ImportError:
+        raise ImportError("rag_pipeline ops mode requires litellm>=1.30.0")
+    litellm.drop_params = True
+
+    m_lower = model.lower()
+    is_openai_ish = m_lower.startswith(("gpt-", "o1", "o3", "o4", "openai/", "azure/", "groq/"))
+    is_gemini = m_lower.startswith(("gemini/", "google/", "vertex_ai/gemini"))
+    is_anthropic = (
+        "claude" in m_lower or m_lower.startswith(("anthropic/", "bedrock/anthropic."))
+    )
+
+    messages: List[Dict[str, Any]] = []
+    if system_prompt:
+        if prompt_caching and is_anthropic:
+            messages.append({
+                "role": "system",
+                "content": [
+                    {"type": "text", "text": system_prompt,
+                     "cache_control": {"type": "ephemeral"}}
+                ],
+            })
+        else:
+            messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": user_prompt})
+
+    kwargs: Dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+    if api_key_env_var and os.environ.get(api_key_env_var):
+        kwargs["api_key"] = os.environ[api_key_env_var]
+    if api_base_env_var and os.environ.get(api_base_env_var):
+        kwargs["api_base"] = os.environ[api_base_env_var]
+    if reasoning_effort is not None and (is_openai_ish or is_gemini):
+        kwargs["reasoning_effort"] = reasoning_effort
+    if thinking_budget is not None:
+        if is_gemini:
+            kwargs["thinking_budget"] = int(thinking_budget)
+        elif is_anthropic:
+            kwargs["thinking"] = {"type": "enabled", "budget_tokens": int(thinking_budget)}
+
+    t0 = _time.time()
+    response = litellm.completion(**kwargs)
+    latency_ms = int((_time.time() - t0) * 1000)
+
+    msg = response.choices[0].message
+    content = msg.content or ""
+    usage = None
+    u = getattr(response, "usage", None)
+    if u is not None:
+        try:
+            usage = u.model_dump()
+        except AttributeError:
+            try:
+                usage = dict(u)
+            except (TypeError, ValueError):
+                usage = None
+
+    cost_usd = 0.0
+    try:
+        cost_usd = float(litellm.completion_cost(completion_response=response))
+    except Exception:
+        cost_usd = 0.0
+
+    tokens_total = 0
+    cache_read_tokens = 0
+    cache_creation_tokens = 0
+    if usage is not None:
+        tt = usage.get("total_tokens")
+        if isinstance(tt, (int, float)):
+            tokens_total = int(tt)
+        for k in ("cache_read_input_tokens", "cache_read"):
+            v = usage.get(k)
+            if isinstance(v, (int, float)):
+                cache_read_tokens = int(v)
+                break
+        for k in ("cache_creation_input_tokens", "cache_creation"):
+            v = usage.get(k)
+            if isinstance(v, (int, float)):
+                cache_creation_tokens = int(v)
+                break
+
+    return {
+        "content": content,
+        "usage": usage,
+        "cost_usd": cost_usd,
+        "latency_ms": latency_ms,
+        "tokens_total": tokens_total,
+        "cache_read_tokens": cache_read_tokens,
+        "cache_creation_tokens": cache_creation_tokens,
+    }
+
+
+# ── Provider dispatchers ──────────────────────────────────────────────
+
+
+def _embed_query(embedding_cfg: dict, query: str) -> List[float]:
+    """Embed a single query using the retriever's declared embedding provider."""
+    provider = (embedding_cfg or {}).get("provider", "openai")
+    model = (embedding_cfg or {}).get("model", "text-embedding-3-small")
+    api_key = os.environ.get((embedding_cfg or {}).get("api_key_env_var") or "OPENAI_API_KEY")
+
+    if provider == "openai":
+        client = _make_openai_client(api_key)
+        return client.embeddings.create(model=model, input=[query]).data[0].embedding
+    if provider == "voyage":
+        try:
+            import voyageai
+        except ImportError:
+            raise ImportError("voyage embedding requires: pip install 'voyageai>=0.3.0'")
+        client = voyageai.Client(api_key=api_key)
+        input_type = (embedding_cfg or {}).get("input_type", "query")
+        result = client.embed(texts=[query], model=model, input_type=input_type)
+        return result.embeddings[0]
+    if provider == "cohere":
+        try:
+            import cohere
+        except ImportError:
+            raise ImportError("cohere embedding requires: pip install cohere")
+        client = cohere.Client(api_key=api_key)
+        r = client.embed(texts=[query], model=model, input_type="search_query")
+        return list(r.embeddings[0])
+    if provider == "sentence_transformers":
+        from sentence_transformers import SentenceTransformer
+        st = SentenceTransformer(model)
+        return st.encode([query])[0].tolist()
+    raise ValueError(f"unsupported embedding provider: {provider!r}")
+
+
+def _vector_search(retriever: dict, embedding: List[float], top_k: int) -> List[Dict[str, Any]]:
+    """Run a vector search against a named retriever. Returns list of
+    `{text, metadata, score}` dicts."""
+    kind = retriever.get("kind")
+    if kind == "chromadb":
+        import chromadb
+        client = chromadb.PersistentClient(path=retriever.get("path") or "./chroma_db")
+        collection = client.get_collection(name=retriever["collection_name"])
+        results = collection.query(query_embeddings=[embedding], n_results=top_k)
+        docs = []
+        for i in range(len(results["ids"][0])):
+            docs.append({
+                "text": results["documents"][0][i] if "documents" in results else "",
+                "metadata": results["metadatas"][0][i] if "metadatas" in results else {},
+                "score": 1.0 - float(results["distances"][0][i]) if "distances" in results else 0.0,
+            })
+        return docs
+    if kind == "pinecone":
+        from pinecone import Pinecone
+        api_key = os.environ.get(retriever.get("api_key_env_var") or "PINECONE_API_KEY")
+        pc = Pinecone(api_key=api_key)
+        index = pc.Index(retriever["index_name"])
+        r = index.query(
+            vector=embedding, top_k=top_k, include_metadata=True,
+            namespace=retriever.get("namespace"),
+        )
+        return [
+            {"text": m.get("metadata", {}).get("text", ""),
+             "metadata": m.get("metadata", {}),
+             "score": float(m.get("score", 0.0))}
+            for m in r["matches"]
+        ]
+    if kind == "qdrant":
+        from qdrant_client import QdrantClient
+        url_env = retriever.get("url_env_var")
+        url = os.environ.get(url_env) if url_env else retriever.get("url")
+        api_key = os.environ.get(retriever.get("api_key_env_var") or "QDRANT_API_KEY")
+        client = QdrantClient(url=url, api_key=api_key) if url else QdrantClient(path=retriever.get("path") or "./qdrant_db")
+        hits = client.search(
+            collection_name=retriever["collection_name"],
+            query_vector=embedding, limit=top_k,
+        )
+        return [
+            {"text": (h.payload or {}).get("text", ""),
+             "metadata": h.payload or {},
+             "score": float(h.score)}
+            for h in hits
+        ]
+    if kind == "pgvector":
+        # Uses psycopg + a simple ORDER BY <cosine> LIMIT k. Assumes
+        # column names {content_column, embedding_column, metadata_column?}.
+        import psycopg2
+        conn_env = retriever.get("connection_env_var") or "PGVECTOR_URL"
+        conn = psycopg2.connect(os.environ[conn_env])
+        try:
+            table = retriever["table"]
+            emb_col = retriever.get("embedding_column", "embedding")
+            content_col = retriever.get("content_column", "content")
+            meta_col = retriever.get("metadata_column")
+            select_cols = f"{content_col}, 1 - ({emb_col} <=> %s::vector) AS score"
+            if meta_col:
+                select_cols += f", {meta_col}"
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"SELECT {select_cols} FROM {table} ORDER BY {emb_col} <=> %s::vector LIMIT %s",
+                    (embedding, embedding, top_k),
+                )
+                rows = cur.fetchall()
+            docs = []
+            for row in rows:
+                d = {"text": row[0], "score": float(row[1]), "metadata": {}}
+                if meta_col:
+                    d["metadata"] = row[2] if isinstance(row[2], dict) else {}
+                docs.append(d)
+            return docs
+        finally:
+            conn.close()
+    if kind == "weaviate":
+        import weaviate
+        url_env = retriever.get("url_env_var") or "WEAVIATE_URL"
+        client = weaviate.Client(url=os.environ[url_env])
+        class_name = retriever["collection_name"]
+        result = (client.query
+                  .get(class_name, [retriever.get("content_property", "text")])
+                  .with_near_vector({"vector": embedding})
+                  .with_limit(top_k)
+                  .with_additional(["distance"])
+                  .do())
+        objs = result.get("data", {}).get("Get", {}).get(class_name, [])
+        content_prop = retriever.get("content_property", "text")
+        return [
+            {"text": o.get(content_prop, ""), "metadata": o,
+             "score": 1.0 - float(o.get("_additional", {}).get("distance", 0.0))}
+            for o in objs
+        ]
+    raise ValueError(f"unsupported retriever kind: {kind!r}")
+
+
+def _rerank_docs(reranker: dict, query: str, docs: List[Dict[str, Any]], top_k: int) -> List[Dict[str, Any]]:
+    """Rerank candidate docs with Voyage or Cohere. Preserves original
+    metadata; overwrites `score` with the reranker's relevance score."""
+    provider = reranker.get("provider", "voyage")
+    model = reranker.get("model", "rerank-2.5" if provider == "voyage" else "rerank-3.5")
+    api_key = os.environ.get(reranker.get("api_key_env_var") or ("VOYAGE_API_KEY" if provider == "voyage" else "COHERE_API_KEY"))
+    doc_texts = [d.get("text", "") for d in docs]
+
+    if provider == "voyage":
+        try:
+            import voyageai
+        except ImportError:
+            raise ImportError("voyage rerank requires: pip install 'voyageai>=0.3.0'")
+        client = voyageai.Client(api_key=api_key)
+        r = client.rerank(query=query, documents=doc_texts, model=model, top_k=top_k)
+        # r.results is a list of RerankingResult with `.index` + `.relevance_score`
+        out = []
+        for res in r.results:
+            base = docs[res.index]
+            out.append({**base, "score": float(res.relevance_score)})
+        return out
+    if provider == "cohere":
+        try:
+            import cohere
+        except ImportError:
+            raise ImportError("cohere rerank requires: pip install cohere")
+        client = cohere.Client(api_key=api_key)
+        r = client.rerank(query=query, documents=doc_texts, model=model, top_n=top_k)
+        out = []
+        for res in r.results:
+            base = docs[res.index]
+            out.append({**base, "score": float(res.relevance_score)})
+        return out
+    raise ValueError(f"unsupported rerank provider: {provider!r}")
+
+
+def _bm25_search(docs: List[Dict[str, Any]], query: str, top_k: int) -> List[Dict[str, Any]]:
+    """Rank a corpus of already-loaded docs with BM25. Returns top_k."""
+    try:
+        from rank_bm25 import BM25Okapi
+    except ImportError:
+        raise ImportError("hybrid_search requires: pip install rank_bm25")
+    tokenized_corpus = [d.get("text", "").lower().split() for d in docs]
+    bm25 = BM25Okapi(tokenized_corpus)
+    scores = bm25.get_scores(query.lower().split())
+    ranked = sorted(zip(scores, docs), key=lambda x: x[0], reverse=True)[:top_k]
+    return [{**d, "score": float(s)} for s, d in ranked]
+
+
+def _rrf_combine(ranked_lists: List[List[Dict[str, Any]]], k: int = 60, top_k: int = 10) -> List[Dict[str, Any]]:
+    """Reciprocal Rank Fusion — combine N ranked lists into one.
+    Dedupes by doc text; assigns each doc a fused score of Σ 1/(k + rank)."""
+    fused: Dict[str, Dict[str, Any]] = {}
+    for lst in ranked_lists:
+        for rank, doc in enumerate(lst, start=1):
+            key = doc.get("text", "")[:500]  # cheap dedupe key
+            entry = fused.get(key) or {**doc, "score": 0.0}
+            entry["score"] = float(entry["score"]) + 1.0 / (k + rank)
+            fused[key] = entry
+    ordered = sorted(fused.values(), key=lambda d: d["score"], reverse=True)
+    return ordered[:top_k]
+
+
+# ── Ops (5): retrieve / hybrid_search / rerank / expand_query / generate ─
+
+
+def _current_query(state: Dict[str, Any], step: dict) -> str:
+    """Resolve the query string for this step. Steps can override with
+    `query_source: <step_id>` to consume a prior step's `query` field
+    (used by expand_query → retrieve for HyDE)."""
+    src = step.get("query_source")
+    if src:
+        if src not in state:
+            raise ValueError(f"query_source={src!r} not in state; known: {sorted(state)}")
+        s = state[src]
+        return s.get("query") or s.get("text") or ""
+    return state.get("__query__", "")
+
+
+def _current_docs(state: Dict[str, Any], step: dict) -> List[Dict[str, Any]]:
+    """Resolve the doc list to feed a downstream step (rerank / generate)."""
+    src = step.get("source")
+    if src:
+        if src not in state:
+            raise ValueError(f"source={src!r} not in state; known: {sorted(state)}")
+        return state[src].get("docs") or []
+    # Fall back to most recent step that produced docs.
+    for k in reversed(list(state.keys())):
+        if isinstance(state[k], dict) and state[k].get("docs") is not None:
+            return state[k]["docs"]
+    return []
+
+
+def _do_retrieve(step: dict, state: Dict[str, Any], comp: "RAGPipelineComponent", context) -> Dict[str, Any]:
+    """Vector search across a named retriever."""
+    retriever = _resolve_retriever(step["retriever"], comp.retrievers)
+    top_k = int(step.get("top_k", 10))
+    query = _current_query(state, step)
+    if not query:
+        raise ValueError("retrieve: no query available (set __query__ or query_source)")
+    emb = _embed_query(retriever.get("embedding") or {}, query)
+    docs = _vector_search(retriever, emb, top_k)
+    context.log.info(f"[retrieve:{step['id']}] retriever={step['retriever']!r} top_k={top_k} → {len(docs)} docs")
+    return {"op": "retrieve", "query": query, "docs": docs, "top_k": top_k,
+            "retriever": step["retriever"]}
+
+
+def _do_hybrid_search(step: dict, state: Dict[str, Any], comp: "RAGPipelineComponent", context) -> Dict[str, Any]:
+    """BM25 + vector search combined via Reciprocal Rank Fusion (RRF).
+    Requires `retriever:` (vector) + `bm25_corpus_source:` (a prior step
+    that produced docs) OR `bm25_corpus_docs:` inline."""
+    retriever = _resolve_retriever(step["retriever"], comp.retrievers)
+    top_k = int(step.get("top_k", 10))
+    query = _current_query(state, step)
+
+    # Vector arm — pull top_k*2 to give RRF headroom.
+    emb = _embed_query(retriever.get("embedding") or {}, query)
+    vec_hits = _vector_search(retriever, emb, top_k * 2)
+
+    # BM25 arm — needs an in-memory corpus. Users pass a prior step id
+    # whose docs form the BM25 corpus (typical pattern: retrieve → bm25
+    # on same corpus with a wider recall to get more diversity), OR
+    # supply an inline list.
+    corpus_source = step.get("bm25_corpus_source")
+    if corpus_source:
+        if corpus_source not in state:
+            raise ValueError(f"bm25_corpus_source={corpus_source!r} not in state")
+        corpus = state[corpus_source].get("docs") or []
+    else:
+        corpus = step.get("bm25_corpus_docs") or vec_hits  # default: rerank same vec_hits
+    bm25_hits = _bm25_search(corpus, query, top_k * 2)
+
+    fused = _rrf_combine([vec_hits, bm25_hits], k=int(step.get("rrf_k", 60)), top_k=top_k)
+    context.log.info(f"[hybrid_search:{step['id']}] vec={len(vec_hits)} bm25={len(bm25_hits)} → fused={len(fused)}")
+    return {"op": "hybrid_search", "query": query, "docs": fused, "top_k": top_k,
+            "retriever": step["retriever"]}
+
+
+def _do_rerank(step: dict, state: Dict[str, Any], comp: "RAGPipelineComponent", context) -> Dict[str, Any]:
+    """Rerank docs from a prior step using Voyage rerank-2.5 or Cohere rerank-3.5."""
+    reranker = _resolve_reranker(step["reranker"], comp.rerankers)
+    docs = _current_docs(state, step)
+    query = _current_query(state, step)
+    top_k = int(step.get("top_k", 5))
+    if not docs:
+        return {"op": "rerank", "query": query, "docs": [], "top_k": top_k, "reranker": step["reranker"]}
+    reranked = _rerank_docs(reranker, query, docs, top_k)
+    context.log.info(f"[rerank:{step['id']}] {step['reranker']!r} {len(docs)}→{len(reranked)}")
+    return {"op": "rerank", "query": query, "docs": reranked, "top_k": top_k, "reranker": step["reranker"]}
+
+
+def _do_expand_query(step: dict, state: Dict[str, Any], comp: "RAGPipelineComponent", context) -> Dict[str, Any]:
+    """HyDE — LLM generates a hypothetical answer to embed instead of the
+    raw query. Improves retrieval when queries are short/underspecified."""
+    step = _resolve_persona(step, comp.personas)
+    query = _current_query(state, step)
+    system_prompt = step.get("system_prompt") or (
+        "Given a user question, write a concise, factual paragraph that would "
+        "answer it. This will be used for semantic search, so include the "
+        "kind of terminology and details you'd expect in a source document."
+    )
+    prompt_template = step.get("prompt_template", "Question: {query}\n\nHypothetical answer:")
+    prompt = prompt_template.replace("{query}", query)
+
+    result = _rag_completion(
+        model=step.get("model") or "gpt-4o-mini",
+        system_prompt=system_prompt,
+        user_prompt=prompt,
+        api_key_env_var=step.get("api_key_env_var"),
+        api_base_env_var=step.get("api_base_env_var"),
+        temperature=float(step.get("temperature", 0.3)),
+        max_tokens=int(step.get("max_tokens", 300)),
+        reasoning_effort=step.get("reasoning_effort"),
+        thinking_budget=step.get("thinking_budget"),
+        prompt_caching=bool(step.get("prompt_caching", False)),
+    )
+    hypothetical = result["content"] or ""
+    # New "query" downstream steps will see is the hypothetical answer;
+    # keep the original query available under original_query.
+    context.log.info(f"[expand_query:{step['id']}] {len(hypothetical)}c hypothetical")
+    return {
+        "op": "expand_query",
+        "query": hypothetical,
+        "original_query": query,
+        "cost_usd": result["cost_usd"],
+        "latency_ms": result["latency_ms"],
+        "tokens_total": result["tokens_total"],
+    }
+
+
+def _do_generate(step: dict, state: Dict[str, Any], comp: "RAGPipelineComponent", context) -> Dict[str, Any]:
+    """Generate the final answer using retrieved/reranked docs as context."""
+    step = _resolve_persona(step, comp.personas)
+    query = _current_query(state, step)
+    docs = _current_docs(state, step)
+    docs_context = "\n\n---\n\n".join(
+        d.get("text", "") for d in docs
+    )
+    prompt_template = step.get("prompt_template") or (
+        "Answer the question using ONLY the provided context. If the context "
+        "doesn't contain the answer, say so explicitly.\n\n"
+        "Context:\n{context}\n\nQuestion: {query}\n\nAnswer:"
+    )
+    prompt = (
+        prompt_template
+        .replace("{context}", docs_context)
+        .replace("{query}", query)
+    )
+    result = _rag_completion(
+        model=step.get("model") or "gpt-4o-mini",
+        system_prompt=step.get("system_prompt"),
+        user_prompt=prompt,
+        api_key_env_var=step.get("api_key_env_var"),
+        api_base_env_var=step.get("api_base_env_var"),
+        temperature=float(step.get("temperature", 0.0)),
+        max_tokens=int(step.get("max_tokens", 2048)),
+        reasoning_effort=step.get("reasoning_effort"),
+        thinking_budget=step.get("thinking_budget"),
+        prompt_caching=bool(step.get("prompt_caching", False)),
+    )
+    context.log.info(f"[generate:{step['id']}] {result['tokens_total']} tokens, ${result['cost_usd']:.5f}")
+    return {
+        "op": "generate",
+        "query": query,
+        "answer": result["content"],
+        "docs": docs,  # forward downstream
+        "cost_usd": result["cost_usd"],
+        "latency_ms": result["latency_ms"],
+        "tokens_total": result["tokens_total"],
+        "cache_read_tokens": result["cache_read_tokens"],
+        "cache_creation_tokens": result["cache_creation_tokens"],
+    }
+
+
+_OPS = {
+    "retrieve": _do_retrieve,
+    "hybrid_search": _do_hybrid_search,
+    "rerank": _do_rerank,
+    "expand_query": _do_expand_query,
+    "generate": _do_generate,
+}
+
+
+# ── Ops-mode asset builder ────────────────────────────────────────────
+
+
+def _build_ops_mode(comp: "RAGPipelineComponent") -> Definitions:
+    """Build the ops-mode asset: for each row in `upstream_asset_key`,
+    run the `steps:` chain and materialize the final step's answer +
+    aggregate cost/latency."""
+    asset_name = comp.asset_name
+    steps_cfg = list(comp.steps or [])
+    upstream_asset_key = comp.upstream_asset_key
+    query_column = comp.query_column
+    answer_column = comp.answer_column
+    sources_column = comp.sources_column
+    include_sources = comp.include_sources
+    query_prompt_template = comp.query_prompt_template
+
+    if not steps_cfg:
+        raise ValueError("ops mode requires at least one step in `steps:`")
+    for s in steps_cfg:
+        if "id" not in s or "op" not in s:
+            raise ValueError(f"every step needs {{id, op}}; got: {s}")
+        if s["op"] not in _OPS:
+            raise ValueError(
+                f"step {s['id']!r} op={s['op']!r} unsupported. Valid: {sorted(_OPS)}"
+            )
+
+    partitions_def = _build_partitions_def(
+        comp.partition_type, comp.partition_start, comp.partition_values,
+        comp.dynamic_partition_name, comp.partition_dimensions,
+    )
+    group_name = comp.group_name
+    owners = comp.owners or []
+    description = comp.description or "RAG pipeline (ops mode)"
+
+    _inferred_kinds = list(comp.kinds or ["ai", "rag", "pipeline"])
+    _all_tags = dict(comp.asset_tags or {})
+    for _kind in _inferred_kinds:
+        _all_tags[f"dagster/kind/{_kind}"] = ""
+
+    _freshness_policy = None
+    if comp.freshness_max_lag_minutes is not None:
+        from dagster import FreshnessPolicy
+        _freshness_policy = FreshnessPolicy(
+            maximum_lag_minutes=comp.freshness_max_lag_minutes,
+            cron_schedule=comp.freshness_cron,
+        )
+
+    _retry_policy = None
+    if comp.retry_policy_max_retries is not None:
+        from dagster import Backoff, RetryPolicy
+        _retry_policy = RetryPolicy(
+            max_retries=comp.retry_policy_max_retries,
+            delay=comp.retry_policy_delay_seconds or 1,
+            backoff=Backoff[comp.retry_policy_backoff.upper()],
+        )
+
+    @asset(
+        key=AssetKey.from_user_string(asset_name),
+        partitions_def=partitions_def,
+        group_name=group_name,
+        description=description,
+        owners=owners,
+        tags=_all_tags,
+        freshness_policy=_freshness_policy,
+        retry_policy=_retry_policy,
+        ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
+        deps=[AssetKey.from_user_string(k) for k in (comp.deps or [])],
+    )
+    def _rag_ops_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        # Defensive Output/MaterializeResult unwrap.
+        if hasattr(upstream, "value") and hasattr(upstream, "metadata"):
+            upstream = upstream.value
+        if isinstance(upstream, dict):
+            _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
+            upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
+
+        df = upstream.copy()
+        if query_column not in df.columns:
+            raise ValueError(f"query_column {query_column!r} not in upstream columns: {list(df.columns)}")
+
+        # Partition-key substitution values.
+        subs = {"run_id": context.run_id}
+        if context.has_partition_key:
+            pk = context.partition_key
+            if hasattr(pk, "keys_by_dimension"):
+                subs["partition_key"] = str(pk)
+                subs["partition"] = dict(pk.keys_by_dimension)
+            else:
+                subs["partition_key"] = str(pk)
+                subs["partition"] = {}
+
+        answers: List[str] = []
+        sources_per_row: List[List[Dict[str, Any]]] = []
+        totals = {"cost_usd": 0.0, "latency_ms": 0, "tokens_total": 0,
+                  "cache_read_tokens": 0, "cache_creation_tokens": 0}
+
+        for idx, row in df.iterrows():
+            raw_query = str(row[query_column])
+            query = raw_query
+            if query_prompt_template:
+                query = query_prompt_template.replace("{query}", raw_query).replace(
+                    "{partition_key}", str(subs.get("partition_key", ""))
+                )
+                for k, v in (subs.get("partition") or {}).items():
+                    query = query.replace(f"{{partition.{k}}}", str(v))
+            state: Dict[str, Any] = {"__query__": query}
+
+            for step in steps_cfg:
+                op_fn = _OPS[step["op"]]
+                context.log.info(f"[row {idx+1}/{len(df)}] step={step['id']} op={step['op']}")
+                state[step["id"]] = op_fn(step, state, comp, context)
+
+            # The last step's outputs become this row's answer.
+            last = state[steps_cfg[-1]["id"]]
+            answers.append(last.get("answer") or last.get("content") or "")
+            sources_per_row.append(last.get("docs") or [])
+
+            for k in totals:
+                # Sum across all steps this row.
+                for step_out in state.values():
+                    if isinstance(step_out, dict) and k in step_out:
+                        totals[k] += step_out[k] or 0
+
+        df[answer_column] = answers
+        if include_sources:
+            df[sources_column] = sources_per_row
+
+        from dagster import TableSchema, TableColumn
+        _col_schema = TableSchema(columns=[
+            TableColumn(name=str(c), type=str(df.dtypes[c])) for c in df.columns
+        ])
+        context.add_output_metadata({
+            "dagster/row_count": MetadataValue.int(len(df)),
+            "dagster/column_schema": MetadataValue.table_schema(_col_schema),
+            "n_steps": MetadataValue.int(len(steps_cfg)),
+            "step_ids": MetadataValue.text(" → ".join(s["id"] for s in steps_cfg)),
+            "total_cost_usd": MetadataValue.float(totals["cost_usd"]),
+            "total_latency_ms": MetadataValue.int(totals["latency_ms"]),
+            "total_tokens": MetadataValue.int(totals["tokens_total"]),
+            "cache_read_tokens": MetadataValue.int(totals["cache_read_tokens"]),
+            "cache_creation_tokens": MetadataValue.int(totals["cache_creation_tokens"]),
+        })
+        return df
+
+    from dagster import build_column_schema_change_checks
+    _schema_checks = build_column_schema_change_checks(assets=[_rag_ops_asset])
+    return Definitions(assets=[_rag_ops_asset], asset_checks=list(_schema_checks))

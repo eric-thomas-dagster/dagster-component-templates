@@ -32886,23 +32886,30 @@
       "id": "rag_pipeline",
       "name": "RAG Pipeline",
       "category": "ai",
-      "description": "Component for RAG pipeline.",
-      "version": "1.0.0",
+      "description": "Whole RAG pipeline in one YAML. `personas:` + `retrievers:` + `rerankers:` + `steps:` — decomposes RAG into 5 named ops: `retrieve` (vector search across chromadb / pinecone / qdrant / pgvector / weaviate), `hybrid_search` (BM25 + vector via RRF), `rerank` (Voyage rerank-2.5 or Cohere rerank-3.5), `expand_query` (HyDE — LLM writes a hypothetical answer to embed), `generate` (LiteLLM-backed answer with `reasoning_effort` / `thinking_budget` / `prompt_caching` support). Every row of the upstream `query_column` runs through the ops chain. Family sibling of AgenticPipeline / MLPipeline / PolarsPipeline.",
+      "version": "2.0.0",
       "author": "Dagster Community",
       "path": "assets/ai/rag_pipeline",
       "tags": [
         "ai",
         "rag",
-        "pipeline"
+        "pipeline",
+        "voyage",
+        "cohere",
+        "chromadb",
+        "pinecone",
+        "qdrant",
+        "pgvector",
+        "weaviate",
+        "reranker",
+        "hybrid-search",
+        "hyde",
+        "litellm"
       ],
       "dependencies": {
         "pip": [
-          "openai>=1.0.0",
-          "anthropic>=0.18.0",
-          "chromadb>=0.4.0",
-          "pinecone-client>=3.0.0",
-          "qdrant-client>=1.7.0",
-          "sentence-transformers>=2.0.0"
+          "litellm>=1.30.0",
+          "pandas>=1.5.0"
         ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rag_pipeline/README.md",
@@ -32912,9 +32919,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rag_pipeline/requirements.txt",
       "icon": "Sparkles",
       "validation": {
-        "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vector_rag.md",
-        "last_validated": "2026-05-08"
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rag_pipeline/example.yaml",
+        "last_validated": "2026-08-21"
       },
       "produces": [
         "asset",

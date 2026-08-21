@@ -1,686 +1,264 @@
-# RAG Pipeline Asset
+# RAG Pipeline
 
-> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+> **🔑 API keys required.** LLM (`OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / etc. — LiteLLM-backed) and any vector store / reranker (`VOYAGE_API_KEY`, `COHERE_API_KEY`, `PINECONE_API_KEY`, `PGVECTOR_URL`, ...).
 
-Complete Retrieval-Augmented Generation pipeline combining query embedding, vector search, and LLM generation to answer questions using your document knowledge base. Works seamlessly with Dagster's IO manager pattern - connect query assets and automatically generate answers!
+**One YAML. Whole RAG pipeline.** Family sibling of `agentic_pipeline` / `ml_pipeline` / `polars_pipeline`. Decomposes RAG into named ops: `retrieve` / `hybrid_search` / `rerank` / `expand_query` / `generate`.
 
-## Purpose
+## Why Dagster (not just a job runner)
 
-This asset component implements a full RAG (Retrieval-Augmented Generation) pipeline that:
-1. Generates embeddings for user queries
-2. Searches vector databases for relevant documents
-3. Uses LLMs to generate contextual answers
+Every step's cost / latency / token usage rolls up into first-class asset metadata. Click the asset, see every past materialization: which docs the retriever picked, reranker scores, generator tokens + cost + cache-hit rate — no log-grepping.
 
-**Compatible with:**
-- Any asset producing string query text
-- Any asset producing dict with 'query' or 'text' key
-- REST API Fetcher (with query input)
-- Can also accept direct query via `query` parameter
+**Metadata emitted per materialization** (all present by default):
 
-Perfect for:
-- Question-answering systems
-- Document search and Q&A
-- Knowledge base assistants
-- Context-aware chatbots
-- Research and analysis tools
+| Field | Type | What Dagster does with it |
+|---|---|---|
+| `total_cost_usd` | Float | Promote to a Dagster+ Insights custom metric via the UI; dashboards + alerts follow. |
+| `total_latency_ms` | Int | Same — plot over time / alert on regressions. |
+| `total_tokens` | Int | Same — set token budget alerts. |
+| `cache_read_tokens` | Int | Anthropic cache-hit tokens (when `prompt_caching: true`). Ratio to `total_tokens` = cache-hit rate. |
+| `cache_creation_tokens` | Int | Anthropic cache-warm-up tokens on first call. |
+| `n_steps`, `step_ids` | Int / Text | Which ops ran, in order. |
+| `dagster/row_count`, `dagster/column_schema` | Row + column shape. |
 
-## Features
+## Quick example
 
-- **Complete Pipeline**: Embedding → Retrieval → Generation in one component
-- **Multiple Vector Stores**: ChromaDB, Pinecone, Qdrant support
-- **Multiple LLM Providers**: OpenAI, Anthropic
-- **Multiple Embedding Providers**: OpenAI, Sentence Transformers
-- **Source Attribution**: Include source documents in responses
-- **Configurable Retrieval**: Control number of documents retrieved (top_k)
-- **Temperature Control**: Fine-tune LLM creativity
+```yaml
+type: dagster_community_components.RAGPipelineComponent
+attributes:
+  asset_name: docs_qa
+  upstream_asset_key: user_questions      # DataFrame with a `query` column
+  query_column: query
+  answer_column: answer
+  sources_column: sources
 
-## Configuration
+  personas:
+    fast_gen:
+      provider: openai
+      model: gpt-4o-mini
+      api_key_env_var: OPENAI_API_KEY
+      temperature: 0.0
+      max_tokens: 1024
 
-### Required Parameters
+  retrievers:
+    docs_vs:
+      kind: chromadb
+      collection_name: product_docs
+      path: ./chroma_db
+      embedding:
+        provider: voyage                    # SOTA MTEB retrieval
+        model: voyage-3-large
+        input_type: query                   # asymmetric — pair with input_type=document at indexing
+        api_key_env_var: VOYAGE_API_KEY
 
-- **asset_name** (string) - Name of the asset
-- **query** (string) - User query/question
-- **vector_store_provider** (string) - Vector store: `"chromadb"`, `"pinecone"`, `"qdrant"`
-- **collection_name** (string) - Vector store collection name
-- **llm_provider** (string) - LLM provider: `"openai"`, `"anthropic"`
-- **llm_model** (string) - LLM model name
+  rerankers:
+    voyage_rr:
+      provider: voyage
+      model: rerank-2.5
+      api_key_env_var: VOYAGE_API_KEY
 
-### Optional Parameters
+  steps:
+    - id: retrieved
+      op: retrieve
+      retriever: docs_vs
+      top_k: 20                              # wide recall
 
-- **embedding_provider** (string) - Embedding provider (default: `"openai"`)
-- **embedding_model** (string) - Embedding model (default: `"text-embedding-3-small"`)
-- **top_k** (integer) - Number of documents to retrieve (default: `5`)
-- **vector_store_connection** (string) - Vector store connection string/path
-- **llm_api_key** (string) - LLM API key (use `${API_KEY}`)
-- **embedding_api_key** (string) - Embedding API key (use `${API_KEY}`)
-- **include_sources** (boolean) - Include source documents (default: `true`)
-- **temperature** (number) - LLM temperature (default: `0.7`)
-- **description** (string) - Asset description
-- **group_name** (string) - Asset group
+    - id: reranked
+      op: rerank
+      source: retrieved
+      reranker: voyage_rr
+      top_k: 5                               # narrow to top-5 for the LLM
 
-## Input & Output
+    - id: answered
+      op: generate
+      source: reranked
+      persona: fast_gen
+      system_prompt: >
+        You are a helpful product docs assistant. Answer using ONLY the
+        provided context. If the answer isn't in the context, say so.
+```
 
-### Input Requirements
-Accepts query from upstream assets via IO manager (optional if `query` parameter is provided):
-- **String**: Query text directly
-- **Dict**: Dictionary with 'query' or 'text' key containing the query
-- **Alternative**: Can use `query` parameter instead of upstream input
+## Op menu
 
-### Output Format
-Returns a dictionary with:
-- `response`: Generated answer from LLM
-- `query`: Original query text
-- `sources`: List of source documents (if `include_sources: true`)
-- `num_sources`: Count of retrieved documents
+| op | What it does | Config |
+|---|---|---|
+| `retrieve` | Vector search against a named retriever. Embeds the query using the retriever's declared embedding provider (openai / voyage / cohere / sentence_transformers), then hits the vector store. | `retriever: <name>`, `top_k` |
+| `hybrid_search` | BM25 + vector combined via Reciprocal Rank Fusion (RRF). BM25 corpus comes from a prior step (`bm25_corpus_source`) OR falls back to the vector hits. Big precision lift on keyword-heavy queries. | `retriever: <name>`, `top_k`, `bm25_corpus_source`, `rrf_k` |
+| `rerank` | Reranks docs from a prior step with Voyage `rerank-2.5` or Cohere `rerank-3.5`. Overwrites `score` on each doc. Ideal shape: retrieve wide (top_20) → rerank narrow (top_5). | `reranker: <name>`, `source`, `top_k` |
+| `expand_query` | HyDE — LLM writes a hypothetical answer to the query; downstream `retrieve` embeds that instead of the raw query. Improves retrieval on short/underspecified queries. | `persona`, `system_prompt`, `prompt_template` |
+| `generate` | Final answer using retrieved/reranked docs as `{context}` in the prompt. LiteLLM-backed; supports `reasoning_effort` (o1/o3, Gemini 2.5+) + `thinking_budget` (Gemini native / Anthropic thinking) + `prompt_caching` (Anthropic ephemeral cache). | `persona`, `system_prompt`, `prompt_template`, `source` |
 
-[//]: # (FIELDS:START - auto-generated by tools/regen_readme_fields.py)
+**Wiring:** any step reads docs from a prior step via `source: <step_id>` and query text via `query_source: <step_id>` (or falls back to the row's query). Omit both to consume the most recent step.
 
-## Fields
+## Reusable blocks
+
+### `personas:` — reusable LLM sub-configs
+
+Declare once, reference by name from any `generate` / `expand_query` step. Fields (all optional; merged into the referencing step, explicit inline fields win):
+
+```
+provider, model, api_key_env_var, api_base_env_var,
+system_prompt, temperature, max_tokens,
+reasoning_effort, thinking_budget, prompt_caching
+```
+
+Same shape as `AgenticPipelineComponent.personas`, so `reasoning_effort: low|medium|high` (OpenAI o1/o3 + Gemini 2.5+), `thinking_budget: <int>` (Gemini native / Anthropic thinking mode), and `prompt_caching: true` (Anthropic — wraps system prompt with `cache_control: {type: ephemeral}`) all just work. Provider-family-filtered so a persona can be reused across mixed-provider steps.
+
+### `retrievers:` — reusable vector-store configs
+
+| kind | Required fields | Optional |
+|---|---|---|
+| `chromadb` | `collection_name` | `path` (default `./chroma_db`) |
+| `pinecone` | `index_name` | `namespace`, `api_key_env_var` (default `PINECONE_API_KEY`) |
+| `qdrant` | `collection_name` + (`url` or `url_env_var` or `path`) | `api_key_env_var` (default `QDRANT_API_KEY`) |
+| `pgvector` | `table`, `connection_env_var` (default `PGVECTOR_URL`) | `embedding_column` (default `embedding`), `content_column` (default `content`), `metadata_column` |
+| `weaviate` | `collection_name`, `url_env_var` (default `WEAVIATE_URL`) | `content_property` (default `text`) |
+
+Every retriever declares its **embedding provider** — that's what runs on query text at retrieval time:
+
+```yaml
+retrievers:
+  docs_vs:
+    kind: chromadb
+    collection_name: docs
+    path: ./chroma_db
+    embedding:
+      provider: voyage                # or 'openai' | 'cohere' | 'sentence_transformers'
+      model: voyage-3-large
+      input_type: query               # Voyage asymmetric — 'query' at retrieval, 'document' when indexing
+      api_key_env_var: VOYAGE_API_KEY
+```
+
+### `rerankers:` — reusable reranker configs
+
+```yaml
+rerankers:
+  voyage_rr:
+    provider: voyage
+    model: rerank-2.5                # Voyage SOTA reranker
+    api_key_env_var: VOYAGE_API_KEY
+
+  cohere_rr:
+    provider: cohere
+    model: rerank-3.5
+    api_key_env_var: COHERE_API_KEY
+```
+
+## Composition patterns
+
+### Hybrid search + rerank
+
+```yaml
+steps:
+  - id: hybrid_hits
+    op: hybrid_search
+    retriever: docs_vs
+    top_k: 30
+
+  - id: reranked
+    op: rerank
+    source: hybrid_hits
+    reranker: voyage_rr
+    top_k: 5
+
+  - id: answered
+    op: generate
+    source: reranked
+    persona: fast_gen
+```
+
+### HyDE query expansion
+
+```yaml
+steps:
+  - id: hyde
+    op: expand_query
+    persona: fast_gen                  # cheap LLM writes a hypothetical answer
+
+  - id: retrieved
+    op: retrieve
+    query_source: hyde                 # embed the HyDE output, not the raw query
+    retriever: docs_vs
+    top_k: 10
+
+  - id: answered
+    op: generate
+    source: retrieved
+    persona: fast_gen
+```
+
+### Reasoning-model generation with prompt caching
+
+```yaml
+personas:
+  thinking_gen:
+    provider: anthropic
+    model: claude-sonnet-4-6
+    api_key_env_var: ANTHROPIC_API_KEY
+    thinking_budget: 4096              # Claude thinking mode — reasoning trace
+    prompt_caching: true               # ~90% cheaper on cached system prompt
+
+steps:
+  - id: retrieved
+    op: retrieve
+    retriever: docs_vs
+    top_k: 5
+
+  - id: answered
+    op: generate
+    source: retrieved
+    persona: thinking_gen
+    system_prompt: |
+      <long system prompt — hits the cache on subsequent runs>
+```
+
+## Fields (top-level)
 
 ### Required
 
 | Field | Type | Description |
 |---|---|---|
-| `asset_name` | `str` | Name of the asset |
-| `vector_store_provider` | `str` | Vector store provider |
-| `collection_name` | `str` | Collection name |
-| `llm_provider` | `str` | LLM provider |
-| `llm_model` | `str` | LLM model |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with query text |
+| `asset_name` | `str` | Output asset name. |
+| `upstream_asset_key` | `str` | Upstream asset providing a DataFrame with `query_column`. |
+| `steps` | `list` | Ordered ops chain. Minimum: `retrieve` + `generate`. |
 
-### Catalog metadata
+### Reusable blocks (optional)
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `description` | `str` | — | Asset description |
-| `group_name` | `str` | — | Asset group |
-| `owners` | `List[str]` | — | Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com'] |
-| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'} |
-| `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from component name if not set. |
-| `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']} |
-| `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime). |
+| Field | Type | Description |
+|---|---|---|
+| `personas` | `dict` | Named LLM sub-configs. |
+| `retrievers` | `dict` | Named vector-store configs. |
+| `rerankers` | `dict` | Named reranker configs. |
 
-### Freshness
+### Query / output plumbing
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `freshness_max_lag_minutes` | `int` | — | Maximum acceptable lag in minutes before the asset is considered stale. Defines a FreshnessPolicy. |
-| `freshness_cron` | `str` | — | Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am). |
+| Field | Default | Description |
+|---|---|---|
+| `query_column` | `query` | Upstream column with the query text. |
+| `answer_column` | `answer` | Output column for generated answers. |
+| `sources_column` | `sources` | Output column for retrieved docs (`{text, metadata, score}`). |
+| `include_sources` | `true` | Emit the `sources` column. |
+| `query_prompt_template` | — | Template applied to `query_column` values before the first step. Placeholders: `{query}`, `{partition_key}`, `{partition.<name>}`. |
 
-### Partitions
+Plus the full partition / freshness / retry / metadata field surface — see the schema for the complete list.
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
-| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
-| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
-| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
-| `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+## Model support
 
-### Retry policy
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `retry_policy_max_retries` | `int` | — | Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc. |
-| `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
-| `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
-
-### Other
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `embedding_provider` | `str` | `"openai"` | Embedding provider |
-| `embedding_model` | `str` | `"text-embedding-3-small"` | Embedding model |
-| `top_k` | `int` | `5` | Number of documents to retrieve |
-| `vector_store_connection` | `str` | — | Vector store connection |
-| `llm_api_key` | `str` | — | LLM API key with ${VAR_NAME} syntax |
-| `embedding_api_key` | `str` | — | Embedding API key with ${VAR_NAME} syntax |
-| `include_sources` | `bool` | `true` | Include source documents |
-| `temperature` | `float` | `0.7` | LLM temperature |
-| `query_column` | `Union[str, int]` | `"query"` | Column name containing query text |
-| `answer_column` | `Union[str, int]` | `"answer"` | Column name for generated answers |
-| `sources_column` | `Union[str, int]` | `"sources"` | Column name for retrieved source documents |
-| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
-| `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 25 rows or a sample) for builder UIs. |
-| `preview_rows` | `int` | `25` | Rows to include in the preview metadata. For long DataFrames (>10x preview_rows), a random sample is used; otherwise head(). |
-
-[//]: # (FIELDS:END)
-
-## Example Pipeline
-
-### Complete RAG Query Pipeline
+**Generation** — any LiteLLM-backed provider:
 
 ```yaml
-# 1. Query input (hypothetical upstream component)
-- type: RestApiFetcherComponent
-  attributes:
-    asset_name: user_query
-    api_url: https://api.example.com/questions/latest
-    output_format: dict
-
-# 2. RAG Pipeline to answer query
-- type: RAGPipelineComponent
-  attributes:
-    asset_name: rag_response
-    vector_store_provider: chromadb
-    collection_name: my_docs
-    vector_store_connection: ./chroma_db
-    llm_provider: openai
-    llm_model: gpt-4
-    llm_api_key: ${OPENAI_API_KEY}
-    embedding_provider: openai
-    embedding_model: text-embedding-3-small
-    embedding_api_key: ${OPENAI_API_KEY}
-    top_k: 5
-    include_sources: true
+provider: openai    → model: gpt-4o, gpt-4o-mini, o1-mini, o3
+provider: anthropic → model: claude-opus-4-7, claude-sonnet-4-6, claude-haiku-4-5-20251001
+provider: gemini    → model: gemini/gemini-2.5-flash, gemini/gemini-2.5-pro
+provider: groq      → model: groq/llama-3.3-70b-versatile
+provider: bedrock   → model: bedrock/anthropic.claude-3-5-sonnet-…
+provider: ollama    → model: ollama/llama3.2
 ```
 
-**Visual Connections:**
-```
-user_query → rag_response
-```
+**Embeddings** (declared per retriever) — `openai` / `voyage` / `cohere` / `sentence_transformers`.
 
-## Standalone Examples
+**Rerankers** — `voyage` (rerank-2.5) / `cohere` (rerank-3.5).
 
-### Basic RAG with ChromaDB and OpenAI
+## When to reach for this vs `AgenticPipelineComponent`
 
-```yaml
-type: dagster_component_templates.RAGPipelineComponent
-attributes:
-  asset_name: qa_response
-  query: "What is machine learning?"
-  vector_store_provider: chromadb
-  collection_name: documents
-  llm_provider: openai
-  llm_model: gpt-4
-  llm_api_key: ${OPENAI_API_KEY}
-  embedding_api_key: ${OPENAI_API_KEY}
-```
-
-### With Custom Retrieval Count
-
-```yaml
-type: dagster_component_templates.RAGPipelineComponent
-attributes:
-  asset_name: detailed_answer
-  query: "Explain quantum computing"
-  vector_store_provider: chromadb
-  collection_name: technical_docs
-  llm_provider: openai
-  llm_model: gpt-4
-  top_k: 10  # Retrieve 10 most relevant documents
-  llm_api_key: ${OPENAI_API_KEY}
-  embedding_api_key: ${OPENAI_API_KEY}
-```
-
-### With Anthropic Claude
-
-```yaml
-type: dagster_component_templates.RAGPipelineComponent
-attributes:
-  asset_name: claude_rag
-  query: "${USER_QUESTION}"
-  vector_store_provider: chromadb
-  collection_name: knowledge_base
-  llm_provider: anthropic
-  llm_model: claude-3-5-sonnet-20241022
-  embedding_provider: openai
-  llm_api_key: ${ANTHROPIC_API_KEY}
-  embedding_api_key: ${OPENAI_API_KEY}
-  temperature: 0.3
-```
-
-### With Pinecone Vector Store
-
-```yaml
-type: dagster_component_templates.RAGPipelineComponent
-attributes:
-  asset_name: pinecone_rag
-  query: "How do I deploy to production?"
-  vector_store_provider: pinecone
-  collection_name: deployment-docs
-  llm_provider: openai
-  llm_model: gpt-4
-  llm_api_key: ${OPENAI_API_KEY}
-  embedding_api_key: ${PINECONE_API_KEY}
-  top_k: 5
-```
-
-### With Local Sentence Transformers
-
-```yaml
-type: dagster_component_templates.RAGPipelineComponent
-attributes:
-  asset_name: local_rag
-  query: "${QUESTION}"
-  vector_store_provider: chromadb
-  collection_name: documents
-  llm_provider: openai
-  llm_model: gpt-4
-  embedding_provider: sentence_transformers
-  embedding_model: all-MiniLM-L6-v2
-  llm_api_key: ${OPENAI_API_KEY}
-```
-
-### Without Source Attribution
-
-```yaml
-type: dagster_component_templates.RAGPipelineComponent
-attributes:
-  asset_name: answer_only
-  query: "What are the benefits of exercise?"
-  vector_store_provider: chromadb
-  collection_name: health_articles
-  llm_provider: openai
-  llm_model: gpt-4
-  include_sources: false  # Don't include source documents
-  llm_api_key: ${OPENAI_API_KEY}
-  embedding_api_key: ${OPENAI_API_KEY}
-```
-
-## How RAG Works
-
-### 1. Query Embedding
-
-Your query is converted to a vector embedding:
-```
-"What is machine learning?" → [0.023, -0.145, 0.432, ...]
-```
-
-### 2. Vector Search
-
-The embedding searches the vector database for similar documents:
-```
-Top 5 most relevant documents retrieved based on cosine similarity
-```
-
-### 3. Context Building
-
-Retrieved documents are combined into context:
-```
-Context:
-Document 1: Machine learning is a subset of AI...
-Document 2: ML algorithms learn from data...
-Document 3: Types of ML include supervised...
-```
-
-### 4. LLM Generation
-
-The LLM generates an answer using the context:
-```
-Question: What is machine learning?
-Context: [Retrieved documents]
-Answer: Machine learning is a subset of artificial intelligence...
-```
-
-## Vector Store Configuration
-
-### ChromaDB (Local)
-
-```yaml
-vector_store_provider: chromadb
-vector_store_connection: ./chroma_db  # Local path
-```
-
-**Best for:** Development, small datasets, local testing
-
-### Pinecone (Cloud)
-
-```yaml
-vector_store_provider: pinecone
-collection_name: my-index
-embedding_api_key: ${PINECONE_API_KEY}
-```
-
-**Best for:** Production, large scale, managed service
-
-### Qdrant
-
-```yaml
-vector_store_provider: qdrant
-vector_store_connection: localhost  # or cloud URL
-embedding_api_key: ${QDRANT_API_KEY}
-```
-
-**Best for:** High performance, self-hosted or cloud
-
-## Embedding Models
-
-### OpenAI (Default)
-
-```yaml
-embedding_provider: openai
-embedding_model: text-embedding-3-small  # Fast, economical
-# or
-embedding_model: text-embedding-3-large  # Higher quality
-```
-
-**Dimensions:** 1536 (small), 3072 (large)
-
-### Sentence Transformers (Local)
-
-```yaml
-embedding_provider: sentence_transformers
-embedding_model: all-MiniLM-L6-v2  # Fast, good quality
-# or
-embedding_model: all-mpnet-base-v2  # Higher quality
-```
-
-**Best for:** No API costs, privacy, offline use
-
-## LLM Models
-
-### OpenAI GPT-4
-
-```yaml
-llm_provider: openai
-llm_model: gpt-4  # Best quality
-# or
-llm_model: gpt-4-turbo  # Faster, cheaper
-# or
-llm_model: gpt-3.5-turbo  # Fastest, cheapest
-```
-
-### Anthropic Claude
-
-```yaml
-llm_provider: anthropic
-llm_model: claude-3-5-sonnet-20241022  # Balanced
-# or
-llm_model: claude-3-opus-20240229  # Highest quality
-# or
-llm_model: claude-3-haiku-20240307  # Fastest
-```
-
-## Tuning Retrieval
-
-### Top-K Selection
-
-Number of documents to retrieve:
-
-```yaml
-top_k: 3   # Fast, focused answers
-top_k: 5   # Balanced (default)
-top_k: 10  # Comprehensive, more context
-top_k: 20  # Maximum context, slower
-```
-
-**Guidelines:**
-- Simple questions: 3-5 documents
-- Complex questions: 10-15 documents
-- Research/analysis: 15-20 documents
-
-### Temperature Control
-
-Control answer creativity:
-
-```yaml
-temperature: 0.0  # Deterministic, factual
-temperature: 0.3  # Slightly varied, consistent
-temperature: 0.7  # Balanced (default)
-temperature: 1.0  # Creative, diverse
-```
-
-**Guidelines:**
-- Factual Q&A: 0.0-0.3
-- General questions: 0.5-0.7
-- Brainstorming: 0.8-1.0
-
-## Common Use Cases
-
-### 1. Documentation Q&A
-
-```yaml
-type: dagster_component_templates.RAGPipelineComponent
-attributes:
-  asset_name: docs_qa
-  query: "${USER_QUESTION}"
-  vector_store_provider: chromadb
-  collection_name: product_docs
-  llm_provider: openai
-  llm_model: gpt-4
-  top_k: 5
-  temperature: 0.3
-  llm_api_key: ${OPENAI_API_KEY}
-  embedding_api_key: ${OPENAI_API_KEY}
-  description: Answer questions from product documentation
-  group_name: support
-```
-
-### 2. Research Assistant
-
-```yaml
-type: dagster_component_templates.RAGPipelineComponent
-attributes:
-  asset_name: research_answer
-  query: "What are the latest findings on ${TOPIC}?"
-  vector_store_provider: pinecone
-  collection_name: research-papers
-  llm_provider: anthropic
-  llm_model: claude-3-5-sonnet-20241022
-  top_k: 15
-  temperature: 0.5
-  llm_api_key: ${ANTHROPIC_API_KEY}
-  embedding_api_key: ${PINECONE_API_KEY}
-  include_sources: true
-  group_name: research
-```
-
-### 3. Customer Support Bot
-
-```yaml
-type: dagster_component_templates.RAGPipelineComponent
-attributes:
-  asset_name: support_response
-  query: "${CUSTOMER_QUESTION}"
-  vector_store_provider: chromadb
-  collection_name: support_articles
-  llm_provider: openai
-  llm_model: gpt-3.5-turbo
-  top_k: 5
-  temperature: 0.2
-  llm_api_key: ${OPENAI_API_KEY}
-  embedding_api_key: ${OPENAI_API_KEY}
-  group_name: support
-```
-
-### 4. Code Documentation Search
-
-```yaml
-type: dagster_component_templates.RAGPipelineComponent
-attributes:
-  asset_name: code_docs_search
-  query: "How do I use the ${FUNCTION_NAME} function?"
-  vector_store_provider: chromadb
-  collection_name: code_documentation
-  llm_provider: openai
-  llm_model: gpt-4
-  top_k: 8
-  temperature: 0.1
-  llm_api_key: ${OPENAI_API_KEY}
-  embedding_api_key: ${OPENAI_API_KEY}
-  group_name: developer_tools
-```
-
-## Response Structure
-
-### With Sources (default)
-
-```json
-{
-  "query": "What is machine learning?",
-  "answer": "Machine learning is a subset of artificial intelligence...",
-  "num_sources": 5,
-  "sources": [
-    {
-      "text": "Machine learning is...",
-      "metadata": {"title": "ML Basics", "page": 1}
-    },
-    ...
-  ]
-}
-```
-
-### Without Sources
-
-```json
-{
-  "query": "What is machine learning?",
-  "answer": "Machine learning is a subset of artificial intelligence...",
-  "num_sources": 5
-}
-```
-
-## Building a Complete RAG System
-
-### Step 1: Document Ingestion
-
-Use Document Text Extractor to extract text from PDFs/documents.
-
-### Step 2: Text Chunking
-
-Use Text Chunker to split documents into chunks.
-
-### Step 3: Generate Embeddings
-
-Use Embedding Generator to create embeddings for chunks.
-
-### Step 4: Store in Vector DB
-
-Use Vector Store Writer to store embeddings.
-
-### Step 5: Query with RAG Pipeline
-
-Use RAG Pipeline component to answer questions!
-
-## Environment Variables
-
-```bash
-# LLM APIs
-export OPENAI_API_KEY="sk-..."
-export ANTHROPIC_API_KEY="sk-ant-..."
-
-# Vector Store APIs
-export PINECONE_API_KEY="..."
-export QDRANT_API_KEY="..."
-```
-
-## Error Handling
-
-- **Empty Results**: Returns answer indicating no relevant documents found
-- **API Errors**: Logged and raised with context
-- **Invalid Query**: Handled gracefully with error message
-- **Vector Store Connection**: Clear error messages for connection issues
-
-## Metadata
-
-Each materialization includes:
-- Query text
-- Number of sources retrieved
-- Answer length in characters
-- LLM and embedding models used
-
-## Troubleshooting
-
-### Issue: "No relevant documents found"
-
-**Solution:**
-- Check that vector store has documents
-- Verify collection name is correct
-- Try increasing `top_k`
-
-### Issue: "Poor answer quality"
-
-**Solution:**
-- Increase `top_k` for more context
-- Lower `temperature` for more factual answers
-- Use better embedding model
-- Improve document chunking strategy
-
-### Issue: "Slow responses"
-
-**Solution:**
-- Reduce `top_k`
-- Use faster LLM model (gpt-3.5-turbo, claude-haiku)
-- Use local embeddings (sentence-transformers)
-- Optimize vector store indices
-
-### Issue: "Out of context answers"
-
-**Solution:**
-- Verify correct documents in vector store
-- Check embedding model matches stored embeddings
-- Review retrieved sources to ensure relevance
-
-## Performance Tips
-
-1. **Optimize Top-K**: Start with 5, adjust based on results
-2. **Use Faster Models**: gpt-3.5-turbo for simple Q&A
-3. **Local Embeddings**: Use sentence-transformers to avoid embedding API calls
-4. **Cache Common Queries**: Cache frequent query results
-5. **Batch Processing**: Process multiple queries in parallel
-
-## Cost Optimization
-
-1. **Embedding Costs**:
-   - OpenAI: ~$0.0001/1K tokens
-   - Sentence Transformers: Free (local)
-
-2. **LLM Costs**:
-   - GPT-3.5-turbo: ~$0.002/1K tokens
-   - GPT-4: ~$0.03/1K tokens
-   - Claude Haiku: ~$0.0025/1K tokens
-
-3. **Vector Store**:
-   - ChromaDB: Free (local)
-   - Pinecone: Paid, scales with index size
-   - Qdrant: Self-hosted (free) or cloud (paid)
-
-## Security Best Practices
-
-1. **Use Environment Variables**:
-```yaml
-llm_api_key: ${OPENAI_API_KEY}
-embedding_api_key: ${OPENAI_API_KEY}
-```
-
-2. **Sanitize Queries**: Validate and sanitize user queries
-3. **Rate Limiting**: Implement rate limits for API usage
-4. **Access Control**: Restrict access to sensitive documents
-5. **Audit Logging**: Log all queries for monitoring
-
-## Requirements
-
-- openai >= 1.0.0
-- anthropic >= 0.18.0
-- chromadb >= 0.4.0
-- pinecone-client >= 3.0.0
-- qdrant-client >= 1.7.0
-- sentence-transformers >= 2.0.0
-
-## Asset Dependencies & Lineage
-
-This component supports a `deps` field for declaring upstream Dagster asset dependencies:
-
-```yaml
-attributes:
-  # ... other fields ...
-  deps:
-    - raw_orders              # simple asset key
-    - raw/schema/orders       # asset key with path prefix
-```
-
-`deps` draws lineage edges in the Dagster asset graph without loading data at runtime. Use it to express that this asset depends on upstream tables or assets produced by other components.
-
-Dependencies can also be wired externally via `map_resolved_asset_specs()` in `definitions.py` — the same approach used by [Dagster Designer](https://github.com/eric-thomas-dagster/dagster_designer).
-
-## Contributing
-
-Found a bug or have a feature request?
-- GitHub Issues: https://github.com/eric-thomas-dagster/dagster-component-templates/issues
-
-## License
-
-MIT License
+- **`rag_pipeline`** — the pipeline shape IS retrieval → generation. Every row of upstream is a query; output is an answer. Batteries-included for RAG (retrievers, rerankers, HyDE, hybrid search).
+- **`agentic_pipeline`** — general multi-step LLM workflow: debate, critique loops, tool use, sub-pipelines. Use if you want to compose RAG as one step of a larger agent workflow.

@@ -1,18 +1,53 @@
-# RAG Pipeline receives query from upstream assets via IO manager
-# Draw connection from any asset producing query text (string, dict with 'query' key, etc.)
-# Example upstream: user input asset, query generator, or static text asset
-
-type: dagster_component_templates.RAGPipelineComponent
+type: dagster_community_components.RAGPipelineComponent
 attributes:
-  asset_name: rag_answer
-  upstream_asset_key: raw_documents
-  vector_store_provider: chromadb
-  collection_name: documents
-  llm_provider: openai
-  llm_model: gpt-4
-  embedding_provider: openai
-  embedding_model: text-embedding-3-small
-  top_k: 5
-  llm_api_key: ${OPENAI_API_KEY}
-  embedding_api_key: ${OPENAI_API_KEY}
+  asset_name: docs_qa
+  upstream_asset_key: user_questions
+  query_column: query
+  answer_column: answer
+  sources_column: sources
   group_name: rag
+
+  personas:
+    fast_gen:
+      provider: openai
+      model: gpt-4o-mini
+      api_key_env_var: OPENAI_API_KEY
+      temperature: 0.0
+      max_tokens: 1024
+
+  retrievers:
+    docs_vs:
+      kind: chromadb
+      collection_name: product_docs
+      path: ./chroma_db
+      embedding:
+        provider: voyage
+        model: voyage-3-large
+        input_type: query
+        api_key_env_var: VOYAGE_API_KEY
+
+  rerankers:
+    voyage_rr:
+      provider: voyage
+      model: rerank-2.5
+      api_key_env_var: VOYAGE_API_KEY
+
+  steps:
+    - id: retrieved
+      op: retrieve
+      retriever: docs_vs
+      top_k: 20
+
+    - id: reranked
+      op: rerank
+      source: retrieved
+      reranker: voyage_rr
+      top_k: 5
+
+    - id: answered
+      op: generate
+      source: reranked
+      persona: fast_gen
+      system_prompt: >
+        You are a helpful product docs assistant. Answer using ONLY the
+        provided context. If the answer isn't in the context, say so.

@@ -1086,6 +1086,7 @@ _CLASS_PATHS: dict[str, str] = {
 }
 
 _loaded: dict[str, object] = {}
+_stubs: dict[str, type] = {}
 
 
 class _MissingDepsPlaceholder:
@@ -1109,46 +1110,198 @@ class _MissingDepsPlaceholder:
         return f"<MissingDeps {self._component_name}: {self._cause}>"
 
 
-def __getattr__(name: str):
-    """Lazy-load a community component class on first access.
+# ── Lazy stub mechanism (import-tax fix) ──────────────────────────────
+#
+# Dagster's component discovery walks `dir(pkg)` and calls
+# `getattr(pkg, name)` on every entry, checking `hasattr(cls,
+# "__dg_package_entry__") and not inspect.isabstract(cls)`. If our
+# `__getattr__` returned the REAL class, that check triggered the
+# full component-module import (+ transitive deps like polars, mlflow,
+# sklearn, xgboost, wandb, ...) for every one of 1000+ components — a
+# ~7 second tax on cold interpreters, ~15-20s on Dagster+ Serverless
+# slow storage. That was 25%+ of every non-isolated run's wall time.
+#
+# Fix: return a lightweight STUB class that satisfies the discovery
+# check without importing the real module. The stub has
+# `__dg_package_entry__` set (so hasattr passes) and isn't abstract.
+# When a YAML file actually references the component and Dagster
+# tries to instantiate it, the stub's metaclass `__call__` triggers
+# the real import + delegates.
+#
+# Result: discovery pays ONE tiny lookup per component (no imports);
+# only components actually referenced in defs.yaml pay their real
+# import cost.
 
-    Resolves the component's file path via _CLASS_PATHS, converts that path
-    to a dotted module name inside this package, and uses importlib.import_module
-    so that relative imports and @dataclass work correctly.
+
+def _load_real_class(name: str):
+    """Import the component's real module + return the real class.
+
+    Cached in `_loaded` so subsequent lookups are O(1)."""
+    if name in _loaded:
+        return _loaded[name]
+    if name not in _CLASS_PATHS:
+        raise AttributeError(f"Unknown component: {name!r}")
+    rel = _CLASS_PATHS[name]
+    path = _PACKAGE_ROOT / rel
+    if not path.exists():
+        raise ImportError(
+            f"Component file missing for '{name}' at {path}. "
+            f"The package may be incomplete — try reinstalling."
+        )
+    rel_no_ext = rel[:-3] if rel.endswith(".py") else rel
+    mod_name = "dagster_community_components." + rel_no_ext.replace("/", ".")
+    try:
+        mod = importlib.import_module(mod_name)
+    except ImportError as e:
+        placeholder = _MissingDepsPlaceholder(name, str(e))
+        _loaded[name] = placeholder
+        return placeholder
+    cls = getattr(mod, name, None)
+    if cls is None:
+        raise AttributeError(f"Class '{name}' not found in {path} — registry/source mismatch.")
+    _loaded[name] = cls
+    return cls
+
+
+class _LazyComponentMeta(type):
+    """Metaclass for stub classes. Delegates class-level access + instantiation
+    to the real component class, imported lazily on first use.
+
+    Discovery-safe attributes (`__dg_package_entry__`, `__scaffolder_cls__`,
+    `__abstractmethods__`, `__name__`, `__module__`) live on the stub itself
+    and never trigger a real load. Everything else routes through
+    `_resolve_real()`.
+
+    Note: `__instancecheck__` and `__subclasscheck__` are what make
+    `issubclass(stub, Component)` return True WITHOUT the stub actually
+    inheriting from `Component`. We can't inherit (that would pull the real
+    class's method resolution order in, defeating the metaclass __getattr__
+    delegation for inherited methods like `get_model_cls`).
     """
+
+    def _resolve_real(cls):  # noqa: N805 — metaclass method uses `cls` conventionally
+        return _load_real_class(cls.__name__)
+
+    def __call__(cls, *args, **kwargs):
+        return cls._resolve_real()(*args, **kwargs)
+
+    def __instancecheck__(cls, instance):
+        return isinstance(instance, cls._resolve_real())
+
+    def __subclasscheck__(cls, subclass):
+        # `issubclass(SOMETHING, stub)` — answer True if SOMETHING is a
+        # subclass of the real class this stub represents.
+        return issubclass(subclass, cls._resolve_real())
+
+    def __getattr__(cls, attr):
+        # Fires for names NOT set on the stub class itself. This is where
+        # `.get_model_cls()`, `.get_schema()`, `.model_fields`, `.model_json_schema()`
+        # etc. route back to the real class after a lazy load.
+        return getattr(cls._resolve_real(), attr)
+
+
+def _get_component_base():
+    """Import + cache the real `dagster.components.Component` base class.
+
+    Dagster's YAML type resolver does `issubclass(cls, Component)`, so our
+    stubs MUST inherit from the real base. Dagster is already imported by
+    the time our discovery runs (Dagster loads code locations), so this is
+    a one-time cost that doesn't add to the tax we're eliminating.
+    """
+    global _COMPONENT_BASE
+    if _COMPONENT_BASE is None:
+        from dagster.components import Component as _RealComponentBase
+        _COMPONENT_BASE = _RealComponentBase
+    return _COMPONENT_BASE
+
+
+_COMPONENT_BASE = None
+
+
+def _make_stub(name: str) -> type:
+    """Build a per-component stub class. Cached in `_stubs`.
+
+    Stubs INHERIT from `dagster.components.Component` (so
+    `issubclass(stub, Component)` returns True via Python's normal MRO —
+    metaclass `__subclasscheck__` doesn't fire on that direction). We
+    override the specific class methods Dagster calls between discovery
+    and instantiation (`get_model_cls`, `get_schema`, `get_spec`) to
+    delegate to the real class. All other attribute access falls through
+    to the metaclass `__getattr__` (also delegates).
+    """
+    if name in _stubs:
+        return _stubs[name]
+
+    _ComponentBase = _get_component_base()
+
+    # Delegating classmethods. Each triggers a real-class load on first
+    # call — but ONLY for the component(s) actually referenced in defs.yaml.
+    def _delegate(method_name: str):
+        def _fn(cls):
+            real = _load_real_class(cls.__name__)
+            # Missing-deps placeholder — fall back to the real Component
+            # base's default so snapshot builders don't crash on components
+            # whose optional deps aren't installed. Real use raises via
+            # the placeholder's __call__.
+            if isinstance(real, _MissingDepsPlaceholder):
+                return getattr(_ComponentBase, method_name)()
+            # Some `_CLASS_PATHS` entries are non-Component submodels (e.g.
+            # pydantic Field types used inside other components). They don't
+            # implement Component's classmethods. Fall back to the base
+            # default so `dg list` / snapshot builders can iterate the full
+            # registry without KeyError'ing on non-Component names.
+            m = getattr(real, method_name, None)
+            if m is None or not callable(m):
+                return getattr(_ComponentBase, method_name)()
+            return m()
+        return classmethod(_fn)
+
+    ns: dict = {
+        "__module__": "dagster_community_components",
+        "__qualname__": name,
+        "__abstractmethods__": frozenset(),
+        "__repr__": lambda self: f"<lazy {name} — real class loads on use>",
+        # Delegate the classmethods Dagster calls during schema-building.
+        # `Component.get_model_cls` returns EmptyAttributesModel by default
+        # unless overridden — we NEED delegation so we get the real subclass's model.
+        "get_model_cls": _delegate("get_model_cls"),
+        "get_schema": _delegate("get_schema"),
+        "get_spec": _delegate("get_spec"),
+    }
+    # Dynamic metaclass composition to avoid conflict with Component's own
+    # metaclass (typically pydantic's ModelMetaclass or ABCMeta).
+    _base_meta = type(_ComponentBase)
+    if issubclass(_LazyComponentMeta, _base_meta):
+        composed = _LazyComponentMeta
+    else:
+        composed = type(
+            "_LazyComponentComposedMeta",
+            (_LazyComponentMeta, _base_meta),
+            {},
+        )
+    stub = composed(name, (_ComponentBase,), ns)
+    # ABC / pydantic sets __abstractmethods__ automatically based on
+    # inherited abstract methods; clear it post-creation so
+    # inspect.isabstract() returns False (discovery filter).
+    stub.__abstractmethods__ = frozenset()
+    _stubs[name] = stub
+    return stub
+
+
+def __getattr__(name: str):
+    """Return a lazy stub for `name`. Real class loads only on first use.
+
+    See the `_LazyComponentMeta` docstring above for the design rationale
+    (Dagster discovery walks `dir()` + `getattr` on every entry — returning
+    real classes here would cost ~7 seconds of imports at every code-location
+    load). The stub satisfies discovery cheaply; real load happens later.
+    """
+    # Already-loaded real classes short-circuit — no stub wrapping needed
+    # once the module has been imported.
     if name in _loaded:
         return _loaded[name]
     if name in _CLASS_PATHS:
-        rel = _CLASS_PATHS[name]
-        path = _PACKAGE_ROOT / rel
-        if not path.exists():
-            raise ImportError(
-                f"Component file missing for '{name}' at {path}. "
-                f"The package may be incomplete — try reinstalling."
-            )
-        # Convert "assets/ai/foo/component.py" -> "dagster_community_components.assets.ai.foo.component"
-        # so relative imports (from .io_manager import X) and @dataclass work.
-        rel_no_ext = rel[:-3] if rel.endswith(".py") else rel
-        mod_name = "dagster_community_components." + rel_no_ext.replace("/", ".")
-        try:
-            mod = importlib.import_module(mod_name)
-        except ImportError as e:
-            # Optional dep missing — return an inert placeholder so dagster's
-            # plugin discovery (which iterates dir()) doesn't abort the whole
-            # scan. The placeholder is truthy-obvious in error messages, and
-            # dagster's discover_package_objects skips it because it lacks
-            # PACKAGE_ENTRY_ATTR. Users get a real error only when they try
-            # to actually use the class.
-            placeholder = _MissingDepsPlaceholder(name, str(e))
-            _loaded[name] = placeholder
-            return placeholder
-        cls = getattr(mod, name, None)
-        if cls is None:
-            raise AttributeError(
-                f"Class '{name}' not found in {path} — registry/source mismatch."
-            )
-        _loaded[name] = cls
-        return cls
+        return _make_stub(name)
     raise AttributeError(
         f"module 'dagster_community_components' has no attribute {name!r}. "
         f"See https://dagster-component-ui.vercel.app/ for available components."
@@ -1159,4 +1312,25 @@ def __dir__() -> list[str]:
     return sorted(set(_CLASS_PATHS) | set(_loaded))
 
 
-__all__ = sorted(_CLASS_PATHS)
+# `__all__` is intentionally EMPTY.
+#
+# Historically we listed every component class here (1000+ names) — but
+# Dagster's plugin discovery walked `__all__` on code-location load and did
+# `getattr(pkg, name)` for each entry, which triggered our lazy loader
+# for EVERY component. That imported every component's module +
+# transitive deps (pandas, polars, sklearn, litellm, mlflow, wandb,
+# xgboost, ...) and cost ~7 seconds on cold interpreters. On Dagster+
+# Serverless with non-isolated runs this was 25%+ of every run's wall
+# time.
+#
+# Emptying `__all__` blocks the discovery walk. The lazy `__getattr__`
+# below still resolves any class by name — from YAML (`type:
+# dagster_community_components.PolarsPipelineComponent`) or from an
+# explicit Python import (`from dagster_community_components import
+# PolarsPipelineComponent`). Only star-imports break, which no sane
+# code uses on a 1000-class registry anyway.
+#
+# `__dir__` (defined above) still returns the full list of registered
+# class names so IDE completion + `dir()` in the REPL still work — that
+# path does NOT trigger the lazy load.
+__all__: list[str] = []

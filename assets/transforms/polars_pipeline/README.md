@@ -38,6 +38,16 @@ Rule of thumb: if each step deserves its own catalog entry + lineage, use per-as
 | `kinds` | `List[str]` | — | — |
 | `owners` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
+| `metadata` | `Dict[str, Any]` | — | Asset-level metadata dict — passed straight through to `@asset(metadata=...)`. Useful for keys the IO manager reads at handle_output time (e.g. `{partition_expr: created_at}` for `DuckDBPolarsIOManagerComponent`, or `{dagster/column_schema: <schema>}` for a hand-authored schema). Kept separate from `asset_tags` — tags are for catalog filtering, metadata is arbitrary key-value data consumed by tooling. |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'dynamic' \| 'multi' \| None for unpartitioned. |
+| `partition_start` | `str` | — | ISO date for time-based partition types (daily/weekly/monthly/hourly). |
+| `partition_values` | `Any` | — | Comma-separated string OR list — the fixed partition keys for static/multi partitioning. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec (list of {name, type, start, values, dynamic_partition_name} dicts). Set INSTEAD of partition_type for multi-dimensional partitioning. |
 
 ### Source / target
 
@@ -50,11 +60,13 @@ Rule of thumb: if each step deserves its own catalog entry + lineage, use per-as
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Top-level single-source shape: Dagster upstream asset key (pandas or polars DataFrame) |
-| `operations` | `List[Dict[str, Any]]` | — | Flat shape: ordered list of ops applied to upstream_asset_key. Compiles to one anonymous step. |
+| `upstream_asset_key` | `str` | — | Top-level single-source shape: Dagster upstream asset key (pandas or polars DataFrame). Mutually exclusive with `source:`. |
+| `source` | `Dict[str, Any]` | — | File / URL source shape. `{kind: file, path, format?, delimiter?}` or `{kind: url, url, format?, delimiter?}` or `{kind: upstream_asset, upstream_asset_key}`. `path`/`url` support `{partition_key}` and `{partition.<name>}` templating. Format is inferred from extension (.json / .ndjson / .csv / .parquet / .ipc / .avro) when unset. Mutually exclusive with `upstream_asset_key`. |
+| `operations` | `List[Dict[str, Any]]` | — | Flat shape: ordered list of ops applied to upstream_asset_key OR source. Compiles to one anonymous step. |
 | `steps` | `List[Dict[str, Any]]` | — | Named steps. Each: {id, source: {kind: upstream\|ref, upstream_asset_key\|ref}, operations: [...]}. |
 | `sinks` | `List[Dict[str, Any]]` | — | Optional side-output writes. Each: {from: <step_id>, kind: parquet\|csv, path: '...'}. These run after the chain finishes; the asset's return value comes from primary_step. |
 | `primary_step` | `str` | — | Step id whose frame is returned as the asset's output (default: last step). |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. Must match the sensor's `dynamic_partitions_name`. |
 | `include_preview_metadata` | `bool` | `false` | — |
 | `preview_rows` | `int` | `25` | — |
 

@@ -497,6 +497,18 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
     kinds: Optional[List[str]] = Field(default=None)
     owners: Optional[List[str]] = Field(default=None)
     deps: Optional[List[str]] = Field(default=None)
+    metadata: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Asset-level metadata dict — passed straight through to "
+            "`@asset(metadata=...)`. Useful for keys the IO manager reads at "
+            "handle_output time (e.g. `{partition_expr: created_at}` for "
+            "`DuckDBPolarsIOManagerComponent`, or "
+            "`{dagster/column_schema: <schema>}` for a hand-authored schema). "
+            "Kept separate from `asset_tags` — tags are for catalog filtering, "
+            "metadata is arbitrary key-value data consumed by tooling."
+        ),
+    )
     include_preview_metadata: bool = Field(default=False)
     preview_rows: int = Field(default=25, ge=1, le=500)
 
@@ -632,6 +644,7 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
             kinds=set(kinds),
             partitions_def=partitions_def,
             required_resource_keys=required_resource_keys or None,
+            metadata=self.metadata or {},
         )
         def _pipeline_asset(context: AssetExecutionContext, **upstreams: Any) -> Any:
             import polars as pl
@@ -732,7 +745,18 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
                 elif kind == "table":
                     # Write to any Dagster resource that exposes .get_engine() /
                     # .get_connection() (e.g. postgres_resource, duckdb_resource,
-                    # snowflake_resource, ...). Mirrors ml_pipeline.table_sinks.
+                    # snowflake_resource, ...). Mirrors ml_pipeline.table_sinks
+                    # and streaming_consumer._write_sink.
+                    #
+                    # Auto-detects DuckDB's `.register()` fast path: if the
+                    # yielded connection has .register/.execute/.unregister, we
+                    # register the polars frame as a view and INSERT ... SELECT
+                    # * FROM view — 10-100x faster than SQLAlchemy to_sql on
+                    # large batches and zero-copy for polars. Otherwise falls
+                    # back to df.to_pandas().to_sql (works with every
+                    # SQLAlchemy resource: postgres / snowflake / bigquery /
+                    # mysql / mssql / oracle / db2 / …). Users always write
+                    # `kind: table` — no vendor-specific YAML flags.
                     resource_key = sink.get("resource_key")
                     if not resource_key:
                         raise ValueError(f"sink from={from_id!r} kind=table: 'resource_key' is required")
@@ -742,6 +766,16 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
                     schema = sink.get("schema")
                     if_exists = sink.get("if_exists", "append")
                     partition_col = sink.get("partition_column")
+                    # `mode: upsert_on_match` + `match: [col, ...]` gives partition-
+                    # rewrite idempotency: DELETE existing rows keyed by match, then
+                    # INSERT the new batch. Safe to re-run the same partition without
+                    # duplicating rows. When absent, falls back to `if_exists` semantics.
+                    mode = (sink.get("mode") or "").lower() or None
+                    match_cols: List[str] = list(sink.get("match") or [])
+                    if mode == "upsert_on_match" and not match_cols:
+                        raise ValueError(
+                            f"sink from={from_id!r} mode=upsert_on_match requires 'match: [col, ...]'"
+                        )
 
                     # Add partition_column with the partition_key value — analytics-friendly
                     # single-table pattern (WHERE partition_date = ...).
@@ -749,23 +783,135 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
                         df = df.with_columns(pl.lit(str(partition_key)).alias(partition_col))
 
                     resource = getattr(context.resources, resource_key)
-                    if hasattr(resource, "get_engine"):
-                        engine = resource.get_engine()
-                    elif hasattr(resource, "get_connection"):
-                        engine = resource.get_connection()
-                    else:
+                    from contextlib import nullcontext
+
+                    def _acquire():
+                        if hasattr(resource, "get_connection"):
+                            gc = resource.get_connection()
+                            return gc if hasattr(gc, "__enter__") else nullcontext(gc)
+                        if hasattr(resource, "get_engine"):
+                            eng = resource.get_engine()
+                            return eng if hasattr(eng, "__enter__") else nullcontext(eng)
                         raise ValueError(
-                            f"resource {resource_key!r} must expose .get_engine() or .get_connection()"
+                            f"resource {resource_key!r} must expose .get_connection() or .get_engine()"
                         )
-                    df.to_pandas().to_sql(
-                        table, engine, schema=schema, if_exists=if_exists, index=False,
-                    )
-                    sink_metadata[f"polars/sink/{from_id}/table"] = MetadataValue.text(
-                        f"{schema+'.' if schema else ''}{table}"
-                    )
+
+                    qualified = f"{schema}.{table}" if schema else table
+                    with _acquire() as conn:
+                        # Fast path: DuckDB-style .register() / .execute() / .unregister().
+                        if (
+                            hasattr(conn, "register")
+                            and hasattr(conn, "execute")
+                            and hasattr(conn, "unregister")
+                        ):
+                            conn.register("_polars_sink_batch", df)
+                            try:
+                                if mode == "upsert_on_match":
+                                    # DELETE rows whose match tuple exists in the batch,
+                                    # then INSERT the batch. Idempotent per-partition.
+                                    conn.execute(
+                                        f"CREATE TABLE IF NOT EXISTS {qualified} AS "
+                                        f"SELECT * FROM _polars_sink_batch WHERE 1=0"
+                                    )
+                                    match_tuple = ", ".join(match_cols)
+                                    conn.execute("BEGIN TRANSACTION")
+                                    try:
+                                        conn.execute(
+                                            f"DELETE FROM {qualified} WHERE ({match_tuple}) IN "
+                                            f"(SELECT DISTINCT {match_tuple} FROM _polars_sink_batch)"
+                                        )
+                                        conn.execute(
+                                            f"INSERT INTO {qualified} "
+                                            f"SELECT * FROM _polars_sink_batch"
+                                        )
+                                        conn.execute("COMMIT")
+                                    except Exception:
+                                        conn.execute("ROLLBACK")
+                                        raise
+                                    sink_metadata[f"polars/sink/{from_id}/mode"] = MetadataValue.text(
+                                        f"upsert_on_match({','.join(match_cols)})"
+                                    )
+                                elif if_exists == "replace":
+                                    conn.execute(
+                                        f"CREATE OR REPLACE TABLE {qualified} AS "
+                                        f"SELECT * FROM _polars_sink_batch"
+                                    )
+                                else:
+                                    conn.execute(
+                                        f"CREATE TABLE IF NOT EXISTS {qualified} AS "
+                                        f"SELECT * FROM _polars_sink_batch WHERE 1=0"
+                                    )
+                                    conn.execute("BEGIN TRANSACTION")
+                                    try:
+                                        conn.execute(
+                                            f"INSERT INTO {qualified} "
+                                            f"SELECT * FROM _polars_sink_batch"
+                                        )
+                                        conn.execute("COMMIT")
+                                    except Exception:
+                                        conn.execute("ROLLBACK")
+                                        raise
+                                sink_metadata[f"polars/sink/{from_id}/fast_path"] = MetadataValue.text(
+                                    "duckdb-register"
+                                )
+                            finally:
+                                try:
+                                    conn.unregister("_polars_sink_batch")
+                                except Exception:  # noqa: BLE001
+                                    pass
+                        else:
+                            # Fallback: SQLAlchemy path. `mode: upsert_on_match` runs
+                            # DELETE + to_sql(append) in a single transaction.
+                            if mode == "upsert_on_match":
+                                pdf = df.to_pandas()
+                                match_tuple = ", ".join(match_cols)
+                                # Build a values-list for the DELETE. Small batches only —
+                                # for huge fanouts, prefer the DuckDB fast path or a
+                                # temp-table strategy (future work).
+                                distinct = pdf[match_cols].drop_duplicates()
+                                if len(distinct) > 0:
+                                    from sqlalchemy import text as _sa_text
+                                    placeholders = ", ".join(
+                                        "(" + ", ".join(f":v{i}_{j}" for j in range(len(match_cols))) + ")"
+                                        for i in range(len(distinct))
+                                    )
+                                    params = {}
+                                    for i, row in enumerate(distinct.itertuples(index=False)):
+                                        for j, v in enumerate(row):
+                                            params[f"v{i}_{j}"] = v
+                                    tx = conn.begin() if hasattr(conn, "begin") else nullcontext()
+                                    with tx:
+                                        conn.execute(
+                                            _sa_text(
+                                                f"DELETE FROM {qualified} "
+                                                f"WHERE ({match_tuple}) IN ({placeholders})"
+                                            ),
+                                            params,
+                                        )
+                                        pdf.to_sql(
+                                            table, conn, schema=schema,
+                                            if_exists="append", index=False,
+                                        )
+                                else:
+                                    pdf.to_sql(
+                                        table, conn, schema=schema,
+                                        if_exists="append", index=False,
+                                    )
+                                sink_metadata[f"polars/sink/{from_id}/mode"] = MetadataValue.text(
+                                    f"upsert_on_match({','.join(match_cols)})"
+                                )
+                            else:
+                                df.to_pandas().to_sql(
+                                    table, conn, schema=schema, if_exists=if_exists, index=False,
+                                )
+                            sink_metadata[f"polars/sink/{from_id}/fast_path"] = MetadataValue.text(
+                                "sqlalchemy-to_sql"
+                            )
+
+                    sink_metadata[f"polars/sink/{from_id}/table"] = MetadataValue.text(qualified)
                     sink_metadata[f"polars/sink/{from_id}/resource_key"] = MetadataValue.text(resource_key)
                     context.log.info(
-                        f"table sink {from_id!r} → {schema+'.' if schema else ''}{table} "
+                        f"table sink {from_id!r} → {qualified} "
                         f"(via {resource_key}, {if_exists}, {df.height} rows)"
                     )
                 else:

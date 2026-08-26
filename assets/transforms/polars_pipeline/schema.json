@@ -17,7 +17,7 @@
     "steps":               {"type": "array", "items": {"type": "object"},
                              "description": "Multi-step form. Each step: {id, source: {kind: upstream|ref, upstream_asset_key|ref}, operations: [...]}. Use 'op: sql' to drop into polars SQLContext (current chain = 'self'; prior steps usable by id)."},
     "sinks":               {"type": "array", "items": {"type": "object"},
-                             "description": "Optional side-output writes. Each: {from: <step_id>, kind: parquet|csv, path: '...'}. Asset's return value still comes from primary_step."},
+                             "description": "Optional side-output writes. Each: {from: <step_id>, kind: parquet|csv|table, path: '...' (parquet/csv), resource_key/table/schema/if_exists/partition_column (table), mode: upsert_on_match + match: [col, col] (idempotent partition-rewrite: DELETE-then-INSERT keyed by match tuple in a transaction — safe to re-run the same partition). kind:table auto-detects DuckDB .register() fast path (10-100x faster than to_sql), else SQLAlchemy fallback. Asset's return value still comes from primary_step."},
     "primary_step":        {"type": "string", "description": "Step id whose frame is the asset's return value (default: last step)"},
 
     "output_type":         {"type": "string", "label": "Output Type", "enum": ["polars", "pandas"], "default": "polars"},

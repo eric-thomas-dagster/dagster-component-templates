@@ -534,6 +534,145 @@ Framework-composition op. Invoke a user-provided callable — bring your own Lan
 
 Framework deps live in the customer's project (not `dagster-community-components`) — the component imports by string at runtime. Best-effort roll-up: if the callable's return dict has `cost_usd` / `n_nodes_executed` / `n_llm_calls` / `n_tool_calls` / `tokens_total`, those surface at the top level so they land in Insights alongside native Dagster + LiteLLM cost tracking.
 
+### CrewAI end-to-end example
+
+Compose a two-agent CrewAI research/writer crew as ONE step of a Dagster pipeline. Adjacent steps stay native `llm_call` / `route` / `synthesize` — you get CrewAI's multi-agent orchestration on the inside of one asset, and Dagster's asset graph, cost/latency metadata, backfills, and Insights outside.
+
+**1. Install CrewAI in your project (not in `dagster-community-components`):**
+
+```bash
+uv add crewai crewai-tools langchain-openai
+```
+
+**2. Write the crew as a plain Python callable — `my_project/crews/research.py`:**
+
+```python
+from crewai import Agent, Crew, Process, Task
+from langchain_openai import ChatOpenAI
+
+
+def run_research_crew(topic: str, **_) -> dict:
+    """Two-agent crew: researcher → writer. Returns the shape the
+    `handoff` op expects (final_answer + best-effort cost roll-up)."""
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
+
+    researcher = Agent(
+        role="Senior Research Analyst",
+        goal=f"Uncover the most important recent developments in {topic}",
+        backstory="You are a rigorous analyst who prefers primary sources.",
+        llm=llm,
+        verbose=False,
+    )
+    writer = Agent(
+        role="Technical Writer",
+        goal="Turn research bullets into a concise executive brief",
+        backstory="You write clean, quotable prose. No fluff.",
+        llm=llm,
+        verbose=False,
+    )
+
+    research_task = Task(
+        description=f"Research the latest on: {topic}",
+        agent=researcher,
+        expected_output="A bulleted list of the 5 most important findings, each with a citable source.",
+    )
+    write_task = Task(
+        description="Turn the research bullets into a 200-word executive brief.",
+        agent=writer,
+        expected_output="A polished 200-word brief.",
+        context=[research_task],
+    )
+
+    crew = Crew(
+        agents=[researcher, writer],
+        tasks=[research_task, write_task],
+        process=Process.sequential,
+        verbose=False,
+    )
+    result = crew.kickoff()
+
+    # CrewAI 0.60+ tracks usage; roll it up into the shape `op: handoff`
+    # picks up automatically (cost_usd / n_llm_calls / tokens_total /
+    # n_nodes_executed become asset metadata + feed Dagster+ Insights).
+    usage = getattr(crew, "usage_metrics", None)
+    tokens = int(getattr(usage, "total_tokens", 0) or 0) if usage else 0
+    n_calls = int(getattr(usage, "successful_requests", 0) or 0) if usage else 0
+
+    return {
+        "final_answer": str(result),
+        "n_llm_calls": n_calls,
+        "tokens_total": tokens,
+        "n_nodes_executed": len(crew.tasks),
+        # cost_usd optional — supply if you compute it yourself; LiteLLM's
+        # native cost tracking on adjacent steps still works regardless.
+    }
+```
+
+**3. Point the pipeline at it — `defs/research.yaml`:**
+
+```yaml
+type: dagster_community_components.AgenticPipelineComponent
+attributes:
+  asset_name: research_brief
+  group_name: research
+
+  source:
+    kind: literal
+    text: "quantum computing chip breakthroughs 2026"
+
+  steps:
+    # The CrewAI multi-agent handoff. This entire two-agent crew is ONE
+    # Dagster asset — its internal graph (researcher → writer) lives in
+    # metadata, not in Dagster's asset graph.
+    - id: crew_research
+      op: handoff
+      framework: crewai
+      entry_module: my_project.crews.research
+      entry_callable: run_research_crew
+      initial_state:
+        topic: "{text}"       # {text} = the upstream literal source
+
+    # Adjacent native Dagster step — critique the crew's brief for
+    # accuracy + hedge language. Runs on gpt-4o-mini via LiteLLM.
+    - id: critique
+      op: critique_loop
+      source: crew_research
+      model: gpt-4o-mini
+      api_key_env_var: OPENAI_API_KEY
+      max_rounds: 1
+      critique_prompt: |
+        Flag any claim that isn't sourced or that hedges without a citation.
+        Return the tightened brief.
+
+  outputs:
+    text_sinks:
+      - {from: critique, path: "output/research_brief_{partition_key}.md"}
+```
+
+**4. What lands in Dagster:**
+
+Two assets — `crew_research` and `critique` — each with the standard cost/latency/tokens metadata. `crew_research`'s metadata carries the CrewAI-specific roll-up you returned from `run_research_crew`:
+
+```
+crew_research
+  polars/... (n/a for handoff)
+  framework:             crewai
+  n_llm_calls:           4        ← from crew.usage_metrics.successful_requests
+  tokens_total:          2847     ← total across both agents
+  n_nodes_executed:      2        ← len(crew.tasks)
+  handoff_wall_seconds:  6.31
+  handoff_entry:         my_project.crews.research.run_research_crew
+```
+
+**Why compose instead of wrap**
+
+- **Backfills / retries / partitions** — `dg launch --assets research_brief --partition 2026-08-24` re-runs one day of the CrewAI crew as a first-class Dagster run. CrewAI itself has no concept of partitions.
+- **Cost visibility** — CrewAI's usage bubbles up alongside adjacent LiteLLM cost from the `critique` step. One asset, one row in Insights.
+- **Substitution without rewrite** — swap `handoff` for a native `debate` op later without touching the surrounding pipeline. Or add a `route` step upstream to send only certain topics to the CrewAI crew and route the rest to a cheaper single-model path.
+- **Framework deps stay in YOUR project** — `dagster-community-components` doesn't import `crewai`. Users who don't use CrewAI don't pay for its install footprint or version pins.
+
+The same shape works for LangGraph, AutoGen, LlamaIndex Agents, DSPy — swap the `framework:` label and the callable. See `op: agent_call` (below the op menu) for the pre-declared-agent pattern when you want to reuse the same crew across multiple pipelines.
+
 ### `op: conditional_route`
 
 Deterministic picker — regex / contains / equals / JSON-path against upstream text — routes to the matching specialist. Sibling of `route`, but the pick is a code path, not an LLM call.

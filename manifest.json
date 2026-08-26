@@ -2758,7 +2758,8 @@
         "outputs": "Define a named Dagster job from a set of asset keys (without scheduling it)."
       },
       "keywords": [
-        "infra"
+        "infra",
+        "partitioned"
       ]
     },
     {
@@ -8160,7 +8161,13 @@
         "outputs": "Run an asset selection on a cron schedule."
       },
       "keywords": [
-        "infra"
+        "infra",
+        "build_schedule_from_partitioned_job",
+        "partitioned job schedule",
+        "partitioned asset schedule",
+        "schedule partitioned assets",
+        "cron over partitioned job",
+        "partitioned"
       ]
     },
     {
@@ -24043,7 +24050,8 @@
         "outputs": "Run an asset selection at a fixed interval (every N minutes / hours / days)."
       },
       "keywords": [
-        "infra"
+        "infra",
+        "partitioned"
       ]
     },
     {
@@ -33275,7 +33283,8 @@
       },
       "keywords": [
         "job",
-        "materialize batch"
+        "materialize batch",
+        "partitioned"
       ]
     },
     {
@@ -33347,7 +33356,8 @@
       },
       "keywords": [
         "job",
-        "materialize batch"
+        "materialize batch",
+        "partitioned"
       ]
     },
     {

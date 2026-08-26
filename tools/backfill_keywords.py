@@ -301,6 +301,32 @@ CONCEPT_ALIASES: dict[str, list[str]] = {
     "text to sql": [
         "databricks_genie_query",
     ],
+    # cron_schedule wraps build_schedule_from_partitioned_job when partition
+    # fields are supplied — attach the vocabulary a schedule-writing task
+    # will actually type. Prevents rediscovery of the wheel as a custom
+    # component (as happened in a customer project 2026-08).
+    "build_schedule_from_partitioned_job": [
+        "cron_schedule",
+    ],
+    "partitioned job schedule": [
+        "cron_schedule",
+    ],
+    "partitioned asset schedule": [
+        "cron_schedule",
+    ],
+    "schedule partitioned assets": [
+        "cron_schedule",
+    ],
+    "cron over partitioned job": [
+        "cron_schedule",
+    ],
+    "partitioned": [
+        "cron_schedule",
+        "interval_schedule",
+        "asset_job",
+        "per_partition_backfill_job",
+        "partitioned_asset_launcher_job",
+    ],
     "tool use loop": [
         "agentic_pipeline",
     ],

@@ -295,6 +295,39 @@
       "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "required": false,
       "default": null
+    },
+    "response_path": {
+      "type": "string",
+      "label": "Response Path (JMESPath)",
+      "description": "JMESPath expression selecting the array of records to iterate. Used with column_map to normalize a nested/heterogeneous API response into a tabular batch. Example: 'output.rateReplyDetails' or 'data.results[?status==`active`]'. Requires: pip install jmespath.",
+      "required": false,
+      "default": null
+    },
+    "column_map": {
+      "type": "object",
+      "label": "Column Map (JMESPath)",
+      "description": "Dict of {output_column: jmespath_expression} evaluated against each element of the array selected by response_path. Produces one row per element with named columns extracted from arbitrary JSON shapes. Requires: pip install jmespath.",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "endpoints": {
+      "type": "object",
+      "label": "Endpoints (per-partition dispatch)",
+      "description": "Dict keyed by partition_static_dim value (multi-partition) or partition key (single-dim static). When set, overrides api_url/method/headers/params/auth/response_path/column_map for the matching partition. Each endpoint config supports: api_url, method, headers (dict), params (dict), body (JSON string), auth_type, auth_username_env_var, auth_password_env_var, auth_token_env_var, timeout, response_path, column_map. Enables 'N different vendor APIs land in one warehouse table' without custom Python.",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "sinks": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Sinks (warehouse writes)",
+      "description": "Optional list of table sinks. Each: {kind: table, resource_key: <name>, table: <name>, schema: <optional>, if_exists: append|replace, mode: upsert_on_match, match: [col, col], partition_dim_columns: {output_col: partition_dim_name}}. mode:upsert_on_match gives partition-rewrite idempotency (DELETE-then-INSERT keyed by match, in a transaction). Auto-detects DuckDB .register() fast path (10-100x faster than to_sql); falls back to SQLAlchemy for postgres/snowflake/bigquery/mysql/mssql.",
+      "required": false,
+      "default": null
     }
   },
   "tags": [

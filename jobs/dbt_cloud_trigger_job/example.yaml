@@ -1,0 +1,31 @@
+type: dagster_community_components.DbtCloudTriggerJobComponent
+attributes:
+  job_name: dbt_build_hourly_job
+  dbt_cloud_job_id: 67890
+  dbt_cloud_resource_key: dbt_cloud_resource
+  wait_for_completion: true
+  poll_interval_seconds: 10
+  # No poll_timeout_seconds → wait indefinitely
+  cause: "Triggered by Dagster on Snowpipe load event"
+
+  # Optional per-run overrides — omit if the dbt Cloud job's own config
+  # is what you want. These are the same fields dbt Cloud's own API
+  # supports.
+  # steps_override: ["dbt build --select tag:hourly"]
+  # schema_override: "dagster_${var('branch_name', 'main')}"
+  # git_branch: "feature/faster-freshness"
+
+  # Optional: after a successful run, emit AssetMaterialization for each
+  # key so this run edges into the Dagster asset graph. Use the exact
+  # slash-form asset keys of the dbt models the job builds.
+  emit_materializations_for:
+    - mart/daily_summary
+    - mart/hourly_pricing
+
+  # Optional cron schedule — DEFAULT is no schedule (the job runs when
+  # another sensor / trigger targets it). Set this only for calendar-
+  # driven runs.
+  # schedule: "0 3 * * *"
+  # default_status: STOPPED
+
+  # tags: {tier: production, dbt_project: fuel_and_trading}

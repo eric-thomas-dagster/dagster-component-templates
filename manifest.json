@@ -2299,6 +2299,58 @@
       ]
     },
     {
+      "id": "approval_audit_asset",
+      "name": "Approval Audit Asset",
+      "component_type": "dagster_community_components.ApprovalAuditAssetComponent",
+      "path": "assets/ai/approval_audit_asset",
+      "category": "ai",
+      "icon": "History",
+      "description": "Materialize the full who/when/why history of an approval workflow as a Dagster DataFrame asset. Reads every JSON approval token in a shared `approval_dir` (written by HumanApprovalGate / SlackApprovalGate / TeamsApprovalGate / external webhook) and emits one row per token with columns: partition_key, approved, approver, reason, feedback, decided_at, token_file, upstream_asset, source. Governance-grade audit surface \u2014 point Insights at it, join to run history, export to GRC on a schedule. Independent of which component WROTE the token \u2014 audits Human/Slack/Teams/external tokens uniformly. Complements the approval-gate components (read-only, additive, no coupling). `approval_dir` accepts local paths OR cloud URIs (`s3://`, `gs://`, `abfs://`) via fsspec \u2014 production Dagster+ Serverless deploys need cloud storage since containers don't share a local FS.",
+      "tags": [
+        "ai",
+        "approval",
+        "governance",
+        "audit",
+        "hitl",
+        "compliance"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/approval_audit_asset/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/approval_audit_asset/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/approval_audit_asset/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/approval_audit_asset/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/assets/ai/approval_audit_asset/schema.json",
+      "dependencies": {
+        "pip": [
+          "pandas>=1.5",
+          "tabulate>=0.9"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/hitl_bundle.md",
+        "last_validated": "2026-08-20"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "one_dataframe_asset_per_approval_dir"
+        ],
+        "requires_pip": [
+          "pandas",
+          "tabulate"
+        ],
+        "when_to_use": "Whenever HumanApprovalGate / SlackApprovalGate / TeamsApprovalGate is in use and governance / compliance needs a queryable audit of every approval decision. Point at the same approval_dir. Read-only, additive."
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "llm",
+        "genai"
+      ]
+    },
+    {
       "id": "archive_fetcher",
       "name": "Archive Fetcher",
       "category": "ingestion",
@@ -2895,58 +2947,6 @@
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame"
       },
-      "keywords": [
-        "llm",
-        "genai"
-      ]
-    },
-    {
-      "id": "approval_audit_asset",
-      "name": "Approval Audit Asset",
-      "component_type": "dagster_community_components.ApprovalAuditAssetComponent",
-      "path": "assets/ai/approval_audit_asset",
-      "category": "ai",
-      "icon": "History",
-      "description": "Materialize the full who/when/why history of an approval workflow as a Dagster DataFrame asset. Reads every JSON approval token in a shared `approval_dir` (written by HumanApprovalGate / SlackApprovalGate / TeamsApprovalGate / external webhook) and emits one row per token with columns: partition_key, approved, approver, reason, feedback, decided_at, token_file, upstream_asset, source. Governance-grade audit surface \u2014 point Insights at it, join to run history, export to GRC on a schedule. Independent of which component WROTE the token \u2014 audits Human/Slack/Teams/external tokens uniformly. Complements the approval-gate components (read-only, additive, no coupling). `approval_dir` accepts local paths OR cloud URIs (`s3://`, `gs://`, `abfs://`) via fsspec \u2014 production Dagster+ Serverless deploys need cloud storage since containers don't share a local FS.",
-      "tags": [
-        "ai",
-        "approval",
-        "governance",
-        "audit",
-        "hitl",
-        "compliance"
-      ],
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/approval_audit_asset/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/approval_audit_asset/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/approval_audit_asset/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/approval_audit_asset/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/assets/ai/approval_audit_asset/schema.json",
-      "dependencies": {
-        "pip": [
-          "pandas>=1.5",
-          "tabulate>=0.9"
-        ]
-      },
-      "validation": {
-        "level": "code",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/hitl_bundle.md",
-        "last_validated": "2026-08-20"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "agent_hints": {
-        "outputs": [
-          "one_dataframe_asset_per_approval_dir"
-        ],
-        "requires_pip": [
-          "pandas",
-          "tabulate"
-        ],
-        "when_to_use": "Whenever HumanApprovalGate / SlackApprovalGate / TeamsApprovalGate is in use and governance / compliance needs a queryable audit of every approval decision. Point at the same approval_dir. Read-only, additive."
-      },
-      "produces": [
-        "asset"
-      ],
       "keywords": [
         "llm",
         "genai"
@@ -13028,6 +13028,72 @@
         "dbt cloud",
         "connection",
         "connect"
+      ]
+    },
+    {
+      "id": "dbt_cloud_trigger_job",
+      "name": "DbtCloudTriggerJobComponent",
+      "category": "jobs",
+      "description": "Trigger a dbt Cloud job run from a Dagster op-job \u2014 the missing 'Dagster kicks off dbt Cloud' primitive. Wraps `DbtCloudResource.run_job_and_poll` behind YAML. Companion to dbt_cloud_resource (registers the resource) and dbt_cloud_job_sensor (reverse direction: observes dbt Cloud, triggers Dagster).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/dbt_cloud_trigger_job",
+      "tags": [
+        "job",
+        "dbt",
+        "dbt-cloud",
+        "trigger",
+        "task"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster-dbt>=0.28.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dbt_cloud_trigger_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dbt_cloud_trigger_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dbt_cloud_trigger_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dbt_cloud_trigger_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dbt_cloud_trigger_job/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-08-26"
+      },
+      "produces": [
+        "job",
+        "schedule"
+      ],
+      "consumes": [
+        "resource:dbt_cloud"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to TRIGGER a dbt Cloud job run from Dagster \u2014 e.g., in response to a Snowpipe load event, on a Dagster schedule, or from a sensor targeting the job by name. This is the missing counterpart to dbt_cloud_job_sensor (which observes dbt Cloud completions to trigger downstream Dagster work). For running dbt Core via subprocess use dbt_run_job.",
+        "typical_upstream": "Sensor / schedule / RunRequest / snowflake_workspace polling_sensor emitting AssetObservation on Snowpipe loads.",
+        "typical_downstream": "AssetMaterialization events for keys in emit_materializations_for propagate into the asset graph; downstream automation conditions trip on those events.",
+        "example_prompts": [
+          "Trigger dbt Cloud job 67890 when Snowpipe FUEL_PIPE completes a load",
+          "Kick off a dbt Cloud build with a custom cause string and steps_override for hourly-tagged models",
+          "Emit AssetMaterialization for mart/daily_summary and mart/hourly_pricing after the dbt Cloud run succeeds"
+        ],
+        "anti_uses": "Do NOT use this to observe dbt Cloud (use dbt_cloud_job_sensor). Do NOT use this to run dbt Core (use dbt_run_job).",
+        "requires_pip": [
+          "dagster-dbt>=0.28.0"
+        ],
+        "requires_resources": [
+          "dbt_cloud_resource (via dbt_cloud_resource community component)"
+        ]
+      },
+      "keywords": [
+        "data build tool",
+        "dbt-core",
+        "dbt cloud",
+        "trigger dbt cloud",
+        "run_job",
+        "run_job_and_poll",
+        "job",
+        "task",
+        "trigger",
+        "materialize batch"
       ]
     },
     {
@@ -26965,147 +27031,6 @@
       ]
     },
     {
-      "id": "voyage_embedding_batch",
-      "name": "Voyage Embedding Batch",
-      "category": "ai",
-      "description": "Batched embeddings via Voyage AI's native SDK \u2014 SOTA MTEB retrieval quality (voyage-3-large / voyage-3 / voyage-code-3), asymmetric query/document embeddings (input_type), configurable dimensionality (256/512/1024/2048), domain-tuned models (finance, law, multilingual). Sibling of litellm_embedding_batch for single-vendor shops who want no LiteLLM dep.",
-      "path": "assets/ai/voyage_embedding_batch",
-      "tags": [
-        "ai",
-        "embeddings",
-        "voyage",
-        "voyage-ai",
-        "vectors",
-        "semantic-search",
-        "rag",
-        "nlp"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/voyage_embedding_batch/schema.json",
-      "component_type": "dagster_community_components.VoyageEmbeddingBatchComponent",
-      "icon": "Database",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/voyage_embedding_batch/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/voyage_embedding_batch/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/voyage_embedding_batch/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/voyage_embedding_batch/requirements.txt",
-      "validation": {
-        "level": "code",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/voyage_embedding_batch/example.yaml",
-        "last_validated": "2026-08-21"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "voyageai>=0.3.0",
-          "pandas>=1.5.0"
-        ]
-      },
-      "produces": [
-        "asset",
-        "asset_check"
-      ],
-      "agent_hints": {
-        "input_type": "pd.DataFrame",
-        "output_type": "pd.DataFrame"
-      },
-      "keywords": [
-        "voyageai",
-        "voyage ai",
-        "vector embedding",
-        "embed text",
-        "llm",
-        "genai"
-      ]
-    },
-    {
-      "id": "streaming_consumer",
-      "name": "Streaming Consumer",
-      "category": "ingestion",
-      "description": "Always-running queue \u2192 transform \u2192 sink asset. Compute is a bounded (or unbounded) consumer loop, not a sensor firing per-batch. Emits AssetMaterialization per batch (heartbeat) with `checkpoint: {partition: last_offset}` metadata \u2014 inspect ingest progress from the Dagster catalog. Pair with StreamingRunHealthSensorComponent for auto-restart. v1 supports queue.kind: kafka; coming: rabbitmq, sqs, redis_stream, nats. Polars-backed transform (same op vocabulary as polars_pipeline). Sink kinds: `duckdb` (register-and-INSERT, fast path) or `table` (SQLAlchemy via any Dagster resource). `sink.dedup_on: [cols]` gives effective exactly-once on replay via NOT-EXISTS anti-join (Kafka rows auto-carry `_topic/_partition/_offset` \u2014 the natural global key). Sink writes are transactional \u2014 crash mid-batch rolls back atomically.",
-      "path": "assets/ingestion/streaming_consumer",
-      "tags": [
-        "ingestion",
-        "streaming",
-        "kafka",
-        "polars",
-        "queue",
-        "consumer",
-        "long-running",
-        "always-on",
-        "duckdb",
-        "one-yaml",
-        "exactly-once",
-        "idempotent",
-        "dedup",
-        "checkpoint"
-      ],
-      "dependencies": {
-        "pip": [
-          "polars>=1.0.0"
-        ]
-      },
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/streaming_consumer/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/streaming_consumer/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/streaming_consumer/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/streaming_consumer/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/streaming_consumer/schema.json",
-      "icon": "Radio",
-      "validation": {
-        "level": "code",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/streaming_consumer/example.yaml",
-        "last_validated": "2026-08-21"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "produces": [
-        "asset"
-      ],
-      "keywords": [
-        "ingest",
-        "read from",
-        "upsert"
-      ]
-    },
-    {
-      "id": "streaming_run_health_sensor",
-      "name": "Streaming Run Health Sensor",
-      "category": "sensor",
-      "description": "Companion sensor to StreamingConsumerComponent. Polls Dagster's run store every N seconds; if no run of the target job is currently RUNNING/STARTING/QUEUED, fires a new RunRequest. Gives 24/7 uptime from a chain of bounded runs \u2014 the consumer exits cleanly at max_seconds, the sensor detects the gap and relaunches. Restart gap \u2264 minimum_interval_seconds. Works for any long-running job, not just streaming consumers.",
-      "path": "sensors/streaming_run_health_sensor",
-      "tags": [
-        "sensor",
-        "streaming",
-        "self-heal",
-        "always-on",
-        "run-health",
-        "restart"
-      ],
-      "dependencies": {
-        "pip": []
-      },
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/streaming_run_health_sensor/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/streaming_run_health_sensor/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/streaming_run_health_sensor/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/streaming_run_health_sensor/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/streaming_run_health_sensor/schema.json",
-      "icon": "Heart",
-      "validation": {
-        "level": "code",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/streaming_run_health_sensor/example.yaml",
-        "last_validated": "2026-08-21"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "produces": [
-        "sensor"
-      ],
-      "keywords": [
-        "trigger",
-        "event listener",
-        "watcher"
-      ]
-    },
-    {
       "id": "litellm_function_calling",
       "name": "Litellm Function Calling",
       "category": "ai",
@@ -32950,6 +32875,79 @@
       ]
     },
     {
+      "id": "partitioned_asset_launcher_job",
+      "name": "PartitionedAssetLauncherJobComponent",
+      "category": "jobs",
+      "description": "Launch a partitioned materialization from a run-config form. Config \u2192 derived partition key \u2192 dynamic-partition register \u2192 target-asset run \u2014 the config-driven entry point for any dynamic-partitioned pipeline.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/partitioned_asset_launcher_job",
+      "tags": [
+        "job",
+        "partition",
+        "launcher",
+        "dynamic-partition",
+        "config-driven"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/partitioned_asset_launcher_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/partitioned_asset_launcher_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/partitioned_asset_launcher_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/partitioned_asset_launcher_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/partitioned_asset_launcher_job/requirements.txt",
+      "validation": {
+        "level": "live",
+        "evidence": "Validated end-to-end 2026-08-18: partition registration + inline target materialization + composite-key parser round-trip",
+        "last_validated": "2026-08-18"
+      },
+      "produces": [
+        "job"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants a config-driven entry point for a dynamic-partitioned pipeline. Config (owner/repo/issue_number, tenant_id, uploaded_file_uri, etc.) is submitted via the launchpad form or an external RunConfig POST; the launcher formats a partition key from `partition_key_template`, registers it on `dynamic_partitions_name`, then materializes `target_asset_keys` with that partition_key. Pairs with any dynamic-partitioned multi_asset (typically AgenticPipelineComponent with `partition_key_parser:` set).",
+        "typical_upstream": "None \u2014 this IS the entry point. Callers: humans clicking Materialize in the UI, external systems POSTing run_config via the Dagster GraphQL API, or a sensor wanting a shared entry point.",
+        "typical_downstream": "The target asset selection (dynamic-partitioned) \u2014 one materialization run per invocation, tagged with the derived partition_key.",
+        "example_prompts": [
+          "Make my mir_intake pipeline invokable by config \u2014 user types issue_number, launcher derives the partition, pipeline runs.",
+          "I want a form that takes tenant_id + upload_uri and kicks off a per-tenant partitioned run.",
+          "One config-shaped entry point so an external system can POST to launch a partitioned run without picking the partition key manually."
+        ],
+        "requires_pip": [],
+        "example_yaml_snippet": {
+          "type": "dagster_community_components.PartitionedAssetLauncherJobComponent",
+          "attributes": {
+            "job_name": "launch_mir",
+            "target_asset_keys": [
+              "mir_intake",
+              "mir_final_report"
+            ],
+            "dynamic_partitions_name": "mir_investigations",
+            "partition_key_template": "{owner}/{repo}#{issue_number}",
+            "config_schema": {
+              "owner": {
+                "type": "str",
+                "default": "dagster-io"
+              },
+              "repo": {
+                "type": "str",
+                "default": "dagster"
+              },
+              "issue_number": {
+                "type": "int"
+              }
+            }
+          }
+        }
+      },
+      "keywords": [
+        "job",
+        "materialize batch",
+        "partitioned"
+      ]
+    },
+    {
       "id": "pca",
       "name": "PCA",
       "category": "analytics",
@@ -33280,79 +33278,6 @@
       ],
       "agent_hints": {
         "outputs": "Cron-driven parallel backfill of N partitions of an existing partitioned asset."
-      },
-      "keywords": [
-        "job",
-        "materialize batch",
-        "partitioned"
-      ]
-    },
-    {
-      "id": "partitioned_asset_launcher_job",
-      "name": "PartitionedAssetLauncherJobComponent",
-      "category": "jobs",
-      "description": "Launch a partitioned materialization from a run-config form. Config \u2192 derived partition key \u2192 dynamic-partition register \u2192 target-asset run \u2014 the config-driven entry point for any dynamic-partitioned pipeline.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "jobs/partitioned_asset_launcher_job",
-      "tags": [
-        "job",
-        "partition",
-        "launcher",
-        "dynamic-partition",
-        "config-driven"
-      ],
-      "dependencies": {
-        "pip": []
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/partitioned_asset_launcher_job/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/partitioned_asset_launcher_job/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/partitioned_asset_launcher_job/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/partitioned_asset_launcher_job/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/partitioned_asset_launcher_job/requirements.txt",
-      "validation": {
-        "level": "live",
-        "evidence": "Validated end-to-end 2026-08-18: partition registration + inline target materialization + composite-key parser round-trip",
-        "last_validated": "2026-08-18"
-      },
-      "produces": [
-        "job"
-      ],
-      "agent_hints": {
-        "when_to_use": "User wants a config-driven entry point for a dynamic-partitioned pipeline. Config (owner/repo/issue_number, tenant_id, uploaded_file_uri, etc.) is submitted via the launchpad form or an external RunConfig POST; the launcher formats a partition key from `partition_key_template`, registers it on `dynamic_partitions_name`, then materializes `target_asset_keys` with that partition_key. Pairs with any dynamic-partitioned multi_asset (typically AgenticPipelineComponent with `partition_key_parser:` set).",
-        "typical_upstream": "None \u2014 this IS the entry point. Callers: humans clicking Materialize in the UI, external systems POSTing run_config via the Dagster GraphQL API, or a sensor wanting a shared entry point.",
-        "typical_downstream": "The target asset selection (dynamic-partitioned) \u2014 one materialization run per invocation, tagged with the derived partition_key.",
-        "example_prompts": [
-          "Make my mir_intake pipeline invokable by config \u2014 user types issue_number, launcher derives the partition, pipeline runs.",
-          "I want a form that takes tenant_id + upload_uri and kicks off a per-tenant partitioned run.",
-          "One config-shaped entry point so an external system can POST to launch a partitioned run without picking the partition key manually."
-        ],
-        "requires_pip": [],
-        "example_yaml_snippet": {
-          "type": "dagster_community_components.PartitionedAssetLauncherJobComponent",
-          "attributes": {
-            "job_name": "launch_mir",
-            "target_asset_keys": [
-              "mir_intake",
-              "mir_final_report"
-            ],
-            "dynamic_partitions_name": "mir_investigations",
-            "partition_key_template": "{owner}/{repo}#{issue_number}",
-            "config_schema": {
-              "owner": {
-                "type": "str",
-                "default": "dagster-io"
-              },
-              "repo": {
-                "type": "str",
-                "default": "dagster"
-              },
-              "issue_number": {
-                "type": "int"
-              }
-            }
-          }
-        }
       },
       "keywords": [
         "job",
@@ -43818,6 +43743,94 @@
       ]
     },
     {
+      "id": "streaming_consumer",
+      "name": "Streaming Consumer",
+      "category": "ingestion",
+      "description": "Always-running queue \u2192 transform \u2192 sink asset. Compute is a bounded (or unbounded) consumer loop, not a sensor firing per-batch. Emits AssetMaterialization per batch (heartbeat) with `checkpoint: {partition: last_offset}` metadata \u2014 inspect ingest progress from the Dagster catalog. Pair with StreamingRunHealthSensorComponent for auto-restart. v1 supports queue.kind: kafka; coming: rabbitmq, sqs, redis_stream, nats. Polars-backed transform (same op vocabulary as polars_pipeline). Sink kinds: `duckdb` (register-and-INSERT, fast path) or `table` (SQLAlchemy via any Dagster resource). `sink.dedup_on: [cols]` gives effective exactly-once on replay via NOT-EXISTS anti-join (Kafka rows auto-carry `_topic/_partition/_offset` \u2014 the natural global key). Sink writes are transactional \u2014 crash mid-batch rolls back atomically.",
+      "path": "assets/ingestion/streaming_consumer",
+      "tags": [
+        "ingestion",
+        "streaming",
+        "kafka",
+        "polars",
+        "queue",
+        "consumer",
+        "long-running",
+        "always-on",
+        "duckdb",
+        "one-yaml",
+        "exactly-once",
+        "idempotent",
+        "dedup",
+        "checkpoint"
+      ],
+      "dependencies": {
+        "pip": [
+          "polars>=1.0.0"
+        ]
+      },
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/streaming_consumer/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/streaming_consumer/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/streaming_consumer/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/streaming_consumer/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/streaming_consumer/schema.json",
+      "icon": "Radio",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/streaming_consumer/example.yaml",
+        "last_validated": "2026-08-21"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "ingest",
+        "read from",
+        "upsert"
+      ]
+    },
+    {
+      "id": "streaming_run_health_sensor",
+      "name": "Streaming Run Health Sensor",
+      "category": "sensor",
+      "description": "Companion sensor to StreamingConsumerComponent. Polls Dagster's run store every N seconds; if no run of the target job is currently RUNNING/STARTING/QUEUED, fires a new RunRequest. Gives 24/7 uptime from a chain of bounded runs \u2014 the consumer exits cleanly at max_seconds, the sensor detects the gap and relaunches. Restart gap \u2264 minimum_interval_seconds. Works for any long-running job, not just streaming consumers.",
+      "path": "sensors/streaming_run_health_sensor",
+      "tags": [
+        "sensor",
+        "streaming",
+        "self-heal",
+        "always-on",
+        "run-health",
+        "restart"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/streaming_run_health_sensor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/streaming_run_health_sensor/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/streaming_run_health_sensor/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/streaming_run_health_sensor/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/streaming_run_health_sensor/schema.json",
+      "icon": "Heart",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/streaming_run_health_sensor/example.yaml",
+        "last_validated": "2026-08-21"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "sensor"
+      ],
+      "keywords": [
+        "trigger",
+        "event listener",
+        "watcher"
+      ]
+    },
+    {
       "id": "stripe_event_sensor",
       "name": "StripeEventSensor",
       "category": "sensor",
@@ -44839,6 +44852,45 @@
       ]
     },
     {
+      "id": "synthetic_pdf_generator",
+      "name": "Synthetic Pdf Generator",
+      "category": "source",
+      "description": "Generate sample PDFs and emit a DataFrame describing them.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/source/synthetic_pdf_generator",
+      "tags": [
+        "synthetic-pdf-generator",
+        "source"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "reportlab"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_pdf_generator/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_pdf_generator/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_pdf_generator/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_pdf_generator/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_pdf_generator/requirements.txt",
+      "validation": {
+        "level": "live",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "output_type": "pd.DataFrame"
+      },
+      "keywords": [
+        "read",
+        "load"
+      ]
+    },
+    {
       "id": "synthetic_prompt_generator",
       "name": "Synthetic Prompt Generator",
       "category": "source",
@@ -44888,45 +44940,6 @@
           "LLM-elevated prompt paraphraser \u2014 feed topics + levers, get diverse natural-sounding variants",
           "adversarial prompt eval: include_wrong_variants sprinkles under-specified / jargon-heavy prompts every 3rd variant"
         ]
-      },
-      "keywords": [
-        "read",
-        "load"
-      ]
-    },
-    {
-      "id": "synthetic_pdf_generator",
-      "name": "Synthetic Pdf Generator",
-      "category": "source",
-      "description": "Generate sample PDFs and emit a DataFrame describing them.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "assets/source/synthetic_pdf_generator",
-      "tags": [
-        "synthetic-pdf-generator",
-        "source"
-      ],
-      "dependencies": {
-        "pip": [
-          "pandas",
-          "reportlab"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_pdf_generator/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_pdf_generator/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_pdf_generator/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_pdf_generator/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_pdf_generator/requirements.txt",
-      "validation": {
-        "level": "live",
-        "evidence": "",
-        "last_validated": "2026-05-11"
-      },
-      "produces": [
-        "asset"
-      ],
-      "agent_hints": {
-        "output_type": "pd.DataFrame"
       },
       "keywords": [
         "read",
@@ -48297,6 +48310,59 @@
         "input_type": "pd.DataFrame"
       },
       "keywords": [
+        "llm",
+        "genai"
+      ]
+    },
+    {
+      "id": "voyage_embedding_batch",
+      "name": "Voyage Embedding Batch",
+      "category": "ai",
+      "description": "Batched embeddings via Voyage AI's native SDK \u2014 SOTA MTEB retrieval quality (voyage-3-large / voyage-3 / voyage-code-3), asymmetric query/document embeddings (input_type), configurable dimensionality (256/512/1024/2048), domain-tuned models (finance, law, multilingual). Sibling of litellm_embedding_batch for single-vendor shops who want no LiteLLM dep.",
+      "path": "assets/ai/voyage_embedding_batch",
+      "tags": [
+        "ai",
+        "embeddings",
+        "voyage",
+        "voyage-ai",
+        "vectors",
+        "semantic-search",
+        "rag",
+        "nlp"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/voyage_embedding_batch/schema.json",
+      "component_type": "dagster_community_components.VoyageEmbeddingBatchComponent",
+      "icon": "Database",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/voyage_embedding_batch/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/voyage_embedding_batch/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/voyage_embedding_batch/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/voyage_embedding_batch/requirements.txt",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/voyage_embedding_batch/example.yaml",
+        "last_validated": "2026-08-21"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "voyageai>=0.3.0",
+          "pandas>=1.5.0"
+        ]
+      },
+      "produces": [
+        "asset",
+        "asset_check"
+      ],
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame"
+      },
+      "keywords": [
+        "voyageai",
+        "voyage ai",
+        "vector embedding",
+        "embed text",
         "llm",
         "genai"
       ]

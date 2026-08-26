@@ -1,0 +1,119 @@
+{
+  "component_type": "dagster_community_components.DbtCloudTriggerJobComponent",
+  "description": "Trigger a dbt Cloud job run from a Dagster op-job — the missing 'Dagster kicks off dbt Cloud' primitive. Wraps `DbtCloudResource.run_job_and_poll`.",
+  "category": "jobs",
+  "icon": "PlayCircle",
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster op-job name. Sensors/schedules target this string.",
+      "required": true
+    },
+    "dbt_cloud_job_id": {
+      "type": "integer",
+      "label": "dbt Cloud Job ID",
+      "description": "Numeric dbt Cloud job ID to trigger.",
+      "required": true
+    },
+    "dbt_cloud_resource_key": {
+      "type": "string",
+      "label": "dbt Cloud Resource Key",
+      "description": "Resource key of a registered `dagster_dbt.DbtCloudResource` (via `dbt_cloud_resource` community component).",
+      "required": false,
+      "default": "dbt_cloud_resource"
+    },
+    "wait_for_completion": {
+      "type": "boolean",
+      "label": "Wait For Completion",
+      "description": "If true, the op blocks until the dbt Cloud run terminates. If false, returns as soon as dbt Cloud accepts the trigger.",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "poll_interval_seconds": {
+      "type": "number",
+      "label": "Poll Interval (seconds)",
+      "description": "Seconds between polls to dbt Cloud for run status.",
+      "required": false,
+      "default": 10.0
+    },
+    "poll_timeout_seconds": {
+      "type": "number",
+      "label": "Poll Timeout (seconds)",
+      "description": "Overall timeout for a synchronous run. Null = no timeout.",
+      "required": false,
+      "default": null
+    },
+    "cause": {
+      "type": "string",
+      "label": "Cause",
+      "description": "dbt Cloud's `cause` field on the run — short string shown in dbt Cloud UI.",
+      "required": false,
+      "default": "Triggered by Dagster"
+    },
+    "steps_override": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Steps Override",
+      "description": "dbt Cloud per-run `steps_override` — replaces the job's configured steps for this run only.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "schema_override": {
+      "type": "string",
+      "label": "Schema Override",
+      "description": "dbt Cloud per-run `schema_override` — target schema for this run only.",
+      "required": false,
+      "default": null
+    },
+    "git_branch": {
+      "type": "string",
+      "label": "Git Branch",
+      "description": "dbt Cloud per-run `git_branch` — run against this branch.",
+      "required": false,
+      "default": null
+    },
+    "git_sha": {
+      "type": "string",
+      "label": "Git SHA",
+      "description": "dbt Cloud per-run `git_sha` — run against this exact commit.",
+      "required": false,
+      "default": null
+    },
+    "emit_materializations_for": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Emit Materializations For",
+      "description": "Optional asset keys (slash-form). After success, emit AssetMaterialization for each so the run edges into Dagster's asset graph.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Cron Schedule",
+      "description": "Optional cron string. Attaches a ScheduleDefinition to trigger this job on cron.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "cron"
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "Initial schedule status.",
+      "required": false,
+      "default": "STOPPED",
+      "enum": ["STOPPED", "RUNNING"],
+      "ui:widget": "select"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Dagster job tags — applied to every run of this job.",
+      "required": false,
+      "ui:widget": "key-value"
+    }
+  },
+  "tags": ["jobs", "dbt", "dbt-cloud", "trigger"],
+  "name": "dbt Cloud Trigger Job"
+}

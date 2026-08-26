@@ -1292,6 +1292,16 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 schema = sink.get("schema")
                 if_exists = sink.get("if_exists", "append")
                 partition_col = sink.get("partition_column")
+                # `mode: upsert_on_match` + `match: [col, ...]` — partition-rewrite
+                # idempotency (DELETE-then-INSERT keyed by match tuple, in a
+                # transaction). Safe to re-run the same partition. Mirrors the
+                # same primitive in polars_pipeline and rest_api_fetcher.
+                mode = (sink.get("mode") or "").lower() or None
+                match_cols: List[str] = list(sink.get("match") or [])
+                if mode == "upsert_on_match" and not match_cols:
+                    raise ValueError(
+                        f"table_sinks[{from_id!r}] mode=upsert_on_match requires 'match: [col, ...]'"
+                    )
                 if from_id not in state:
                     raise ValueError(f"table_sinks: unknown step id {from_id!r}")
 
@@ -1315,10 +1325,69 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     raise ValueError(
                         f"resource {resource_key!r} must expose .get_engine() or .get_connection()"
                     )
-                df_to_write.to_sql(
-                    table, engine, schema=schema, if_exists=if_exists, index=False,
-                )
-                context.log.info(f"table_sink {from_id!r} → {schema+'.' if schema else ''}{table} (via {resource_key}, {if_exists})")
+
+                qualified = f"{schema}.{table}" if schema else table
+                if mode == "upsert_on_match":
+                    # DELETE keyed by match tuple, then INSERT — in a single
+                    # transaction. Uses SQLAlchemy; works on postgres / snowflake /
+                    # bigquery / mysql / mssql / duckdb-via-sqlalchemy / …
+                    from sqlalchemy import text as _sa_text
+                    distinct = df_to_write[match_cols].drop_duplicates()
+                    match_tuple = ", ".join(match_cols)
+                    if len(distinct) > 0:
+                        placeholders = ", ".join(
+                            "(" + ", ".join(f":v{i}_{j}" for j in range(len(match_cols))) + ")"
+                            for i in range(len(distinct))
+                        )
+                        params = {}
+                        for i, row in enumerate(distinct.itertuples(index=False)):
+                            for j, v in enumerate(row):
+                                params[f"v{i}_{j}"] = v
+                        # engine may be a Connection or Engine; both support .begin()
+                        tx = engine.begin() if hasattr(engine, "begin") else None
+                        if tx is not None:
+                            with tx as _conn:
+                                _conn.execute(
+                                    _sa_text(
+                                        f"DELETE FROM {qualified} "
+                                        f"WHERE ({match_tuple}) IN ({placeholders})"
+                                    ),
+                                    params,
+                                )
+                                df_to_write.to_sql(
+                                    table, _conn, schema=schema,
+                                    if_exists="append", index=False,
+                                )
+                        else:
+                            engine.execute(
+                                _sa_text(
+                                    f"DELETE FROM {qualified} "
+                                    f"WHERE ({match_tuple}) IN ({placeholders})"
+                                ),
+                                params,
+                            )
+                            df_to_write.to_sql(
+                                table, engine, schema=schema,
+                                if_exists="append", index=False,
+                            )
+                    else:
+                        df_to_write.to_sql(
+                            table, engine, schema=schema,
+                            if_exists="append", index=False,
+                        )
+                    context.log.info(
+                        f"table_sink {from_id!r} → {qualified} "
+                        f"(via {resource_key}, upsert_on_match({','.join(match_cols)}), "
+                        f"{len(df_to_write)} rows)"
+                    )
+                else:
+                    df_to_write.to_sql(
+                        table, engine, schema=schema, if_exists=if_exists, index=False,
+                    )
+                    context.log.info(
+                        f"table_sink {from_id!r} → {qualified} "
+                        f"(via {resource_key}, {if_exists})"
+                    )
 
             # Emit per-step MetadataValue for every step that maps to an output asset.
             step_meta = state.get("__step_metadata__") or {}

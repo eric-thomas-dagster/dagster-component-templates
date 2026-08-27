@@ -25,6 +25,7 @@ Each vendor page has the same shape:
 | [InfluxDB](influxdb.md) | 2 — resource + dataframe sink (line protocol). Covers InfluxDB 2.x + 3.x |
 | [Microsoft](microsoft.md) | ~25 — SQL Server + Synapse + Fabric + Azure Data Factory + Power BI + MSGraph + Dynamics + SharePoint + Azure OpenAI + Sentinel |
 | [Precisely](precisely.md) | 6 — Connect ETL (sensor, trigger, external asset), DIS DQ check, Address Verify, Data360 lineage sink |
+| [Prefect](prefect.md) | 3 — resource + trigger asset + terminal-state sensor (Python-first durable-execution workflow engine — closer to Temporal than to Dagster) |
 | [Snowflake](snowflake.md) | 29 — workspace + Snowpark + DT/MV/Iceberg/Cortex + tasks + procs + alerts + OpenFlow + Snowpipe |
 | [StarRocks](starrocks.md) | 3 — resource + dataframe sink (Stream Load) + external table (Doris fork; same wire protocol) |
 | [Temporal](temporal.md) | 5 — full four-mode Dagster ↔ Temporal integration: trigger, sensor, external, signal_asset (push), query_asset (pull) |

@@ -1,7 +1,11 @@
 type: dagster_community_components.QlikComposeWorkspaceComponent
 attributes:
-  base_url_env_var: QLIK_COMPOSE_URL
-  api_token_env_var: QLIK_COMPOSE_TOKEN
+  workspace:
+    base_url:  "{{ env.QLIK_COMPOSE_URL }}"
+    api_token: "{{ env.QLIK_COMPOSE_TOKEN }}"
+    # username: "{{ env.QLIK_COMPOSE_USER }}"       # legacy basic-auth
+    # password: "{{ env.QLIK_COMPOSE_PASSWORD }}"
+    # verify_ssl: false                              # self-signed dev only
 
   # Filter — per-kind selectors (Fivetran shape)
   projects: [FinanceDW, SalesDW]

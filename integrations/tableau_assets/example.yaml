@@ -4,4 +4,4 @@ attributes:
   site_name: <fill in>
   token_name_env_var: <fill in>
   token_value_env_var: <fill in>
-  online: <fill in>
+  online: false

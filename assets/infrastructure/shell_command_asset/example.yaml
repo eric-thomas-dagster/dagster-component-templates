@@ -3,7 +3,7 @@ attributes:
   asset_name: <fill in>
   command: <fill in>
   cwd: <fill in>
-  env_vars: <fill in>
+  env_vars: {}
   group_name: <fill in>
   description: <fill in>
-  deps: <fill in>
+  deps: []

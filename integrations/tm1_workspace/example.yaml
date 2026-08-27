@@ -1,9 +1,11 @@
 type: dagster_community_components.TM1WorkspaceComponent
 attributes:
-  base_url_env_var: TM1_URL
-  username_env_var: TM1_USER
-  password_env_var: TM1_PASSWORD
-  # cam_namespace_env_var: TM1_CAM_NS         # CAM SSO — omit for native auth
+  workspace:
+    base_url:      "{{ env.TM1_URL }}"           # e.g. https://tm1.acme.com:5495
+    username:      "{{ env.TM1_USER }}"
+    password:      "{{ env.TM1_PASSWORD }}"
+    # cam_namespace: "{{ env.TM1_CAM_NS }}"       # CAM SSO — omit for native auth
+    # verify_ssl:   false                          # self-signed dev only
 
   # Filter — object-per-kind selectors. Each mirrors Fivetran's connector_selector.
   cube_selector:
@@ -18,9 +20,6 @@ attributes:
   wait_for_completion: true
   timeout_seconds: 1800
 
-  # State backing
   defs_state:
     management_type: LOCAL_FILESYSTEM
     refresh_if_dev: true
-
-  # verify_ssl: false                           # only for self-signed dev

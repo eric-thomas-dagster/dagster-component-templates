@@ -2,8 +2,8 @@ type: dagster_component_templates.ClickhousePolarsIOManagerComponent
 attributes:
   resource_key: <fill in>
   host: <fill in>
-  port: <fill in>
+  port: 0
   username_env_var: <fill in>
   password_env_var: <fill in>
   database: <fill in>
-  secure: <fill in>
+  secure: false

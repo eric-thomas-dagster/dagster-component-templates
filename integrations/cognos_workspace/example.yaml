@@ -1,10 +1,11 @@
 type: dagster_community_components.CognosWorkspaceComponent
 attributes:
-  base_url_env_var: COGNOS_URL
-  username_env_var: COGNOS_USER
-  password_env_var: COGNOS_PASSWORD
-  namespace_env_var: COGNOS_NAMESPACE
-  verify_ssl: false
+  workspace:
+    base_url:   "{{ env.COGNOS_URL }}"
+    username:   "{{ env.COGNOS_USER }}"
+    password:   "{{ env.COGNOS_PASSWORD }}"
+    namespace:  "{{ env.COGNOS_NAMESPACE }}"    # Cognos security namespace
+    verify_ssl: false                            # self-signed lab servers
 
   # Walk these folders. Cognos uses searchPath-style paths.
   # folder_ids: ["/content/folder[@name='Finance']", "/content/folder[@name='Ops']"]

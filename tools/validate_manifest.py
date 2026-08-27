@@ -88,6 +88,11 @@ _OPTIONAL_DEPS = {
     "dagster_msteams", "dagster_pagerduty", "dagster_slack", "dagster_papertrail",
     "dagster_pyspark", "dagster_spark",
     "dagster_datadog", "dagster_deltalake_pandas", "dagster_deltalake_polars",
+    # Missing from prior list — batch discovered 2026-08-27 while
+    # promoting FAIL → SKIP_OPTIONAL_DEP for optional-SDK misses:
+    "dagster_clickhouse_pandas", "dagster_clickhouse_polars",
+    "dagstermill", "dagster_docker", "dagster_k8s",
+    "dagster_pandera", "dagster_prometheus", "dagster_tableau",
     "dagster_dlt", "dagster_gemini", "dagster_github", "dagster_hex",
     "dagster_iceberg", "dagster_looker", "dagster_openai", "dagster_polars",
     "dagster_qdrant", "dagster_salesforce", "dagster_sigma", "dagster_sling",

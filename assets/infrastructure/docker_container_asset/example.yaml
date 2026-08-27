@@ -2,8 +2,8 @@ type: dagster_component_templates.DockerContainerAssetComponent
 attributes:
   asset_name: <fill in>
   image: <fill in>
-  command: <fill in>
-  env_vars: <fill in>
+  command: []
+  env_vars: {}
   network: <fill in>
   group_name: <fill in>
-  deps: <fill in>
+  deps: []

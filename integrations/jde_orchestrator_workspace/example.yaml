@@ -1,8 +1,11 @@
 type: dagster_community_components.JDEOrchestratorWorkspaceComponent
 attributes:
-  base_url_env_var: JDE_AIS_URL
-  username_env_var: JDE_USER
-  password_env_var: JDE_PASSWORD
+  workspace:
+    base_url:        "{{ env.JDE_AIS_URL }}"
+    username:        "{{ env.JDE_USER }}"
+    password:        "{{ env.JDE_PASSWORD }}"
+    # api_path_prefix: "/jderest/v3/orchestrator"   # override if non-standard
+    # verify_ssl:      false                        # self-signed dev only
 
   orchestration_selector:
     by_pattern: ["JDE_*"]

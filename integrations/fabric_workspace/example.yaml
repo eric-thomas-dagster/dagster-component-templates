@@ -1,16 +1,19 @@
-type: dagster_component_templates.FabricWorkspaceComponent
+type: dagster_community_components.FabricWorkspaceComponent
 attributes:
-  workspace_id: "12345678-1234-1234-1234-123456789012"
-
-  # Auth — omit env vars in Azure compute (managed identity used automatically)
-  tenant_id_env_var: AZURE_TENANT_ID
-  client_id_env_var: AZURE_CLIENT_ID
-  client_secret_env_var: AZURE_CLIENT_SECRET
+  workspace:
+    workspace_id:  "12345678-1234-1234-1234-123456789012"
+    # Service principal auth — omit all three in Azure compute (falls
+    # back to DefaultAzureCredential: env vars, Azure CLI, managed identity).
+    tenant_id:     "{{ env.AZURE_TENANT_ID }}"
+    client_id:     "{{ env.AZURE_CLIENT_ID }}"
+    client_secret: "{{ env.AZURE_CLIENT_SECRET }}"
+    max_wait_seconds: 3600
+    poll_interval_seconds: 15
 
   # Pick which item types to import as Dagster assets
-  import_lakehouses: true        # → external assets
-  import_warehouses: true        # → external assets
-  import_pipelines: true         # → trigger assets (materialize to run)
+  import_lakehouses: true         # → external assets
+  import_warehouses: true         # → external assets
+  import_pipelines: true          # → trigger assets (materialize to run)
   import_notebooks: false
   import_dataflows: false
 

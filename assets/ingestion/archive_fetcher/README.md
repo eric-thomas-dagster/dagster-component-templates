@@ -101,7 +101,7 @@ Downstream assets can either:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `extract_to` | `str` | — | Destination for extracted files. Either a local directory path (`/tmp/foo`, `file:///tmp/foo`) or a remote URI: `s3://bucket/prefix/`, `gs://bucket/prefix/`, `abfss://container@account.dfs.core.windows.net/prefix/` (canonical ADLS Gen2), `abfs://...`, or `az://container/prefix/` (adlfs alias). For remote URIs the archive is extracted to a local temp dir, uploaded via fsspec, then the temp dir is cleaned up. Auth uses fsspec's ambient credential discovery (env vars, ~/.aws/credentials, IRSA, instance role, etc.). Install s3fs / gcsfs / adlfs for the scheme you need. Default: `/tmp/<asset_name>/`. |
+| `extract_to` | `str` | — | Destination for extracted files. Either a local directory path (`/tmp/foo`, `file:///tmp/foo`) or a remote URI: `s3://bucket/prefix/`, `gs://bucket/prefix/`, `abfss://container@account.dfs.core.windows.net/prefix/` (cano… _(full docs in schema.json + component README)_ |
 | `archive_type` | `str` | — | Archive type: 'zip', 'tar', 'tar.gz', 'tar.bz2', 'tar.xz', 'gz', 'bz2'. If omitted, inferred from the URL extension. |
 | `flatten` | `bool` | `false` | If True and all archive entries share a single top-level directory (e.g. `ml-latest-small/movies.csv`), strip that directory so files land directly under `extract_to`. |
 | `include_glob` | `List[str]` | — | Optional list of fnmatch patterns (e.g. `['*.csv', '*.tsv']`) to restrict which extracted files appear in the asset's output dict. Files that don't match are still extracted to disk but omitted from the returned mapping + metadata. |

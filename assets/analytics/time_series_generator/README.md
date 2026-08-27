@@ -129,7 +129,7 @@ Combination of trend + seasonal + noise.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `pattern_type` | `Literal['trend', 'seasonal', 'random_walk', 'sine_wave', 'step_function', 'spike', 'complex']` | `"complex"` | Pattern to generate in the time series |
+| `pattern_type` | `Literal['trend', 'seasonal', 'random_walk', 'sine_wave', 's…` | `"complex"` | Pattern to generate in the time series |
 | `start_date` | `str` | — | Start date (YYYY-MM-DD format) |
 | `end_date` | `str` | — | End date (YYYY-MM-DD format) |
 | `frequency` | `Literal['1min', '5min', '15min', '30min', '1h', '1d']` | `"1h"` | Data point frequency |

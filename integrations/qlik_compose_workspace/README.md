@@ -42,7 +42,7 @@ Same shape for `data_mart_selector`. Omit → include everything.
 
 | Field | Type | Description |
 |---|---|---|
-| `workspace` | `Annotated[QlikComposeResource, Resolver(lambda context, model: QlikComposeResource(**resolve_fields(model, QlikComposeResource, context)))]` | Qlik Compose connection as a QlikComposeResource (base_url + either api_token OR username/password + verify_ssl). Secrets typically arrive via `{{ env.XXX }}` Jinja templating in defs.yaml. |
+| `workspace` | `QlikComposeResource` | Qlik Compose connection as a QlikComposeResource (base_url + either api_token OR username/password + verify_ssl). Secrets typically arrive via `{{ env.XXX }}` Jinja templating in defs.yaml. |
 
 ### Execution
 
@@ -62,13 +62,13 @@ Same shape for `data_mart_selector`. Omit → include everything.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `translation` | `Annotated[Optional[TranslationFn[QlikComposeObjectProps]], TranslationFnResolver(template_vars_for_translation_fn=lambda data: {'props': data})]` | — | Function used to translate Compose object properties into Dagster asset specs. Called for each imported workflow / data mart. If unset, the base translator's default AssetSpec is used. |
+| `translation` | `TranslationFn[QlikComposeObjectProps]` | — | Function used to translate Compose object properties into Dagster asset specs. Called for each imported workflow / data mart. If unset, the base translator's default AssetSpec is used. |
 | `projects` | `List[str]` | — | Optional whitelist of Compose project (data-warehouse) names. None means all discoverable projects. |
 | `workflow_selector` | `ComposeObjectSelector` | — | Optional inclusion/exclusion filter for workflow names. |
 | `data_mart_selector` | `ComposeObjectSelector` | — | Optional inclusion/exclusion filter for data-mart names. |
 | `asset_key_prefix` | `List[str]` | `lambda: ['qlik_compose']()` | Key prefix used for all emitted AssetKeys. |
 | `compute_kind` | `str` | `"qlik_compose"` | Compute kind tag for all imported assets. |
-| `generate_sensor` | `bool` | `false` | If true, opts in to a polling sensor that detects new Compose workflow runs and emits AssetObservation events into Dagster's event log. Matches the `polling_sensor` convention on FivetranAccountComponent / SnowflakeWorkspaceComponent. Off by default -- opt in explicitly. |
+| `generate_sensor` | `bool` | `false` | If true, opts in to a polling sensor that detects new Compose workflow runs and emits AssetObservation events into Dagster's event log. Matches the `polling_sensor` convention on FivetranAccountComponent / SnowflakeWorks… _(full docs in schema.json + component README)_ |
 | `assets_by_name` | `Dict[str, Dict[str, Any]]` | — | Per-object overrides keyed by the imported object's name (workflow name / data-mart name). Values are dicts of @asset kwargs applied on top of the auto-generated ones (group_name, tags, metadata, description, etc.). |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for prod runs against Dagster Cloud. |
 

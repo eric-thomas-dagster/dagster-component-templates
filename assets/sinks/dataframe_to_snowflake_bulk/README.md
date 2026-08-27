@@ -58,7 +58,7 @@ Memory-efficient bulk load of a pandas DataFrame into a Snowflake table via chun
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `partition_column` | `str` | — | When set AND the asset is partitioned, appends this column to every row with the current partition key as its value. Enables the single-table + partition_column analytics pattern (WHERE partition_date = '2025-01-15') without needing per-partition tables. Prefer this over `{partition_key}` templating in the `table:` field for warehouse sinks — analytics queries stay clean. See docs/partition_patterns.md. |
+| `partition_column` | `str` | — | When set AND the asset is partitioned, appends this column to every row with the current partition key as its value. Enables the single-table + partition_column analytics pattern (WHERE partition_date = '2025-01-15') wit… _(full docs in schema.json + component README)_ |
 
 ### Retry policy
 

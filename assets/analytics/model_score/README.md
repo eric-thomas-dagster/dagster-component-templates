@@ -64,8 +64,8 @@ Loads a pickled scikit-learn estimator from disk and runs `predict` (and `predic
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `include_proba` | `bool` | `false` | For classifiers: also emit predict_proba columns. |
-| `score_classes` | `List[str]` | — | Optional list of class labels to emit `Score_<class>` probability columns for. Used when the model can't be loaded (stub / demo runs) so downstream chains that reference a specific Score_<Yes>/Score_<Lost>/etc. still resolve. When the model loads successfully, this field is ignored — real classes come from `model.classes_`. |
-| `framework` | `str` | `"auto"` | How the model was serialized. 'auto' (default) tries joblib then pickle; 'sklearn' forces joblib; 'statsmodels' uses sm.load() and prepends a constant column (statsmodels' GLM.predict expects the design matrix with intercept). Set explicitly when scoring count_regression / gamma_regression / other statsmodels-fit components. |
+| `score_classes` | `List[str]` | — | Optional list of class labels to emit `Score_<class>` probability columns for. Used when the model can't be loaded (stub / demo runs) so downstream chains that reference a specific Score_<Yes>/Score_<Lost>/etc. still res… _(full docs in schema.json + component README)_ |
+| `framework` | `str` | `"auto"` | How the model was serialized. 'auto' (default) tries joblib then pickle; 'sklearn' forces joblib; 'statsmodels' uses sm.load() and prepends a constant column (statsmodels' GLM.predict expects the design matrix with inter… _(full docs in schema.json + component README)_ |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output DataFrame in metadata (for builder UIs). |
 | `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. |
 

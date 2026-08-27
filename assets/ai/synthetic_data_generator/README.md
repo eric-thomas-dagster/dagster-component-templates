@@ -323,13 +323,13 @@ ACORD insurance XML envelopes — for acord_xml_parser demos:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `schema_type` | `Literal['customers', 'orders', 'products', 'transactions', 'ab_experiment', 'events', 'sensors', 'users', 'subscriptions', 'sparse_sensors', 'customer_churn_metrics', 'stripe_charges', 'stripe_subscriptions', 'support_tickets', 'product_reviews', 'audio_samples', 'image_prompts', 'employees', 'fhir_patients', 'hl7_messages', 'iso20022_payments', 'x12_messages', 'fix_messages', 'acord_messages', 'moderation_content']` | `"customers"` | Type of data schema to generate |
+| `schema_type` | `Literal['customers', 'orders', 'products', 'transactions',…` | `"customers"` | Type of data schema to generate |
 | `row_count` | `int` | `100` | Number of rows to generate |
 | `random_state` | `int` | — | Random seed for reproducible data generation (leave empty for random) |
-| `schema_options` | `Dict[str, Any]` | — | Per-schema knobs. Keys recognized by specific schemas: subscriptions: tiers: list of {name, weight, daily_churn_rate, max_days} defaults: free (55%, 2%/day, 180d), pro (35%, 0.5%/day, 365d), enterprise (10%, 0.1%/day, 730d) sparse_sensors: sensor_count: int (default 3) duration_hours: int (default 336 = 14 days) dropout_rate: float in [0,1] (default 0.25) base_temp: float (default 22.0) noise_amplitude: float (default 2.0) start_date: 'YYYY-MM-DD' (default '2026-04-01') |
+| `schema_options` | `Dict[str, Any]` | — | Per-schema knobs. Keys recognized by specific schemas: subscriptions: tiers: list of {name, weight, daily_churn_rate, max_days} defaults: free (55%, 2%/day, 180d), pro (35%, 0.5%/day, 365d), enterprise (10%, 0.1%/day, 73… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as markdown table). Used by builder UIs to render asset shape without warehouse access. |
-| `inject_dq_issues` | `bool` | `false` | If True, seed intentional data-quality issues into the output DataFrame — approximately 5% nulls per numeric column, ~3% duplicate rows, ~2% outliers (10x-50x scale) on the first numeric column, and ~5% trailing-whitespace corruption on the first string column. Used to demo agentic DQ pipelines (data_remediation_asset). |
+| `inject_dq_issues` | `bool` | `false` | If True, seed intentional data-quality issues into the output DataFrame — approximately 5% nulls per numeric column, ~3% duplicate rows, ~2% outliers (10x-50x scale) on the first numeric column, and ~5% trailing-whitespa… _(full docs in schema.json + component README)_ |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
 
 [//]: # (FIELDS:END)

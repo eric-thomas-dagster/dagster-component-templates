@@ -97,7 +97,7 @@ Get a key at <https://aistudio.google.com/app/apikey>.
 | `temperature` | `float` | `0.0` | Temperature (0.0–2.0). 0 = deterministic. |
 | `top_p` | `float` | — | Optional nucleus sampling parameter. |
 | `top_k` | `int` | — | Optional top-k sampling parameter. |
-| `thinking_budget` | `int` | — | Tokens reserved for internal reasoning on Gemini 2.5+ thinking models. max_output_tokens is the budget for thinking + visible output combined; if thinking burns most of it, the visible response gets truncated. Set to 0 to disable thinking entirely (recommended for short, structured outputs like one-sentence summaries or labels). Leave unset to let the model decide. |
+| `thinking_budget` | `int` | — | Tokens reserved for internal reasoning on Gemini 2.5+ thinking models. max_output_tokens is the budget for thinking + visible output combined; if thinking burns most of it, the visible response gets truncated. Set to 0 t… _(full docs in schema.json + component README)_ |
 | `rate_limit_delay` | `float` | `0.2` | Seconds to sleep between API calls. |
 | `dynamic_partition_name` | `str` | — | — |
 

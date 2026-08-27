@@ -91,7 +91,7 @@ google-api-python-client>=2.0.0
 |---|---|---|---|
 | `credentials` | `Dict[str, Any]` | — | — |
 | `credentials_path` | `str` | — | Path to service-account JSON. Falls back to GOOGLE_APPLICATION_CREDENTIALS. |
-| `calendar_id` | `str` | `"primary"` | Calendar ID. Use 'primary' for the SA's own (empty) calendar, OR a user's email address (the SA must be shared on that user's calendar). Note: the SA can't see a user's `primary` calendar without delegation; use the user's email or share a specific named calendar instead. |
+| `calendar_id` | `str` | `"primary"` | Calendar ID. Use 'primary' for the SA's own (empty) calendar, OR a user's email address (the SA must be shared on that user's calendar). Note: the SA can't see a user's `primary` calendar without delegation; use the user… _(full docs in schema.json + component README)_ |
 | `time_min` | `str` | — | RFC3339 lower bound (e.g. '2026-05-01T00:00:00Z'). Defaults to now. |
 | `time_max` | `str` | — | RFC3339 upper bound. Defaults to now + 30 days. |
 | `days_ahead` | `int` | `30` | Used when time_max is unset: now → now+days_ahead. |

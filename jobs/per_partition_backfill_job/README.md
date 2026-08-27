@@ -69,7 +69,7 @@ on the run coordinator).
 | `schedule` | `str` | — | Cron schedule |
 | `dynamic_partitions_def_name` | `str` | — | Name of the DynamicPartitionsDefinition to read keys from (when strategy=dynamic_all or dynamic_subset). Must match the name argument the target asset's partitions_def was constructed with. |
 | `dynamic_filter` | `str` | — | Python regex applied to each dynamic-partition key (when strategy=dynamic_subset). Keys matching are kept; others are dropped. |
-| `concurrency_key_template` | `str` | — | If set, each per-partition op gets a `dagster/concurrency_key` tag rendered from this template. Available placeholder: {partition_key}. e.g. 'tenant-{partition_key}' makes same-tenant runs serialize but cross-tenant parallelize. Mutually exclusive with max_concurrent_tag_value. |
+| `concurrency_key_template` | `str` | — | If set, each per-partition op gets a `dagster/concurrency_key` tag rendered from this template. Available placeholder: {partition_key}. e.g. 'tenant-{partition_key}' makes same-tenant runs serialize but cross-tenant para… _(full docs in schema.json + component README)_ |
 | `max_concurrent_tag_value` | `str` | — | Legacy: a single static concurrency-key applied to every per-partition op. Use concurrency_key_template for the more useful per-partition shape. |
 | `fail_on_empty` | `bool` | `false` | — |
 | `job_tags` | `dict` | — | — |

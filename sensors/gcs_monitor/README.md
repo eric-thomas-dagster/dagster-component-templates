@@ -34,7 +34,7 @@ Perfect for:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `partition_mode` | `str` | `"run_config"` | How the sensor surfaces detected GCS objects: 'run_config' (default, embeds metadata in run_config), 'dynamic_partition' (registers each new blob name as a dynamic partition + yields RunRequest(partition_key=...)), or 'both'. Pair with `file_ingestion`'s matching input mode. |
+| `partition_mode` | `str` | `"run_config"` | How the sensor surfaces detected GCS objects: 'run_config' (default, embeds metadata in run_config), 'dynamic_partition' (registers each new blob name as a dynamic partition + yields RunRequest(partition_key=...)), or 'b… _(full docs in schema.json + component README)_ |
 | `partition_key_template` | `str` | `"{name}"` | Template for the partition key per detected object. Fields: {bucket}, {name}, {prefix}. Default `{name}` makes the partition key equal to the blob name. Use `gs://{bucket}/{name}` for the full URI as the partition key. |
 
 ### Sensor configuration

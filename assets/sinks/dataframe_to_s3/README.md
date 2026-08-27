@@ -16,7 +16,7 @@ This component receives a DataFrame from an upstream Dagster asset and writes it
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `key` | `str` | S3 object key / path within bucket, e.g. `data/output/results.parquet`. Supports opt-in placeholders substituted at materialization time: `{partition_key}` (stringified `context.partition_key`), `{run_id}` (`context.run.run_id`), and — for `MultiPartitionKey` — any axis name as `{<dim>}` (e.g. `{date}`, `{customer}`). If `key` contains no placeholders the path is written literally. Can be combined with `partition_cols` to nest pyarrow Hive partitions inside a per-run folder. |
+| `key` | `str` | S3 object key / path within bucket, e.g. `data/output/results.parquet`. Supports opt-in placeholders substituted at materialization time: `{partition_key}` (stringified `context.partition_key`), `{run_id}` (`context.run… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 

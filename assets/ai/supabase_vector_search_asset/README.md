@@ -43,7 +43,7 @@ Requires a `SupabaseResource` (see `resources/supabase_resource`).
 | `top_k` | `int` | `10` | Number of nearest neighbors to return per query. |
 | `metric` | `str` | `"cosine"` | Distance metric: 'cosine' (<=>), 'l2' (<->), or 'inner' (<#>). Only meaningful with RPC that respects it. |
 | `additional_columns` | `List[str]` | — | Extra columns to return alongside the match (defaults to all columns). |
-| `rpc_name` | `str` | — | Name of a Postgres function callable via ``client.rpc(...)`` that accepts named args ``query_embedding`` (vector), ``match_count`` (int), and optionally ``match_threshold`` (float). Recommended way to run pgvector searches through Supabase — see README for the canonical function body. |
+| `rpc_name` | `str` | — | Name of a Postgres function callable via ``client.rpc(...)`` that accepts named args ``query_embedding`` (vector), ``match_count`` (int), and optionally ``match_threshold`` (float). Recommended way to run pgvector search… _(full docs in schema.json + component README)_ |
 | `match_threshold` | `float` | — | Optional similarity threshold forwarded to the RPC as ``match_threshold``. |
 
 [//]: # (FIELDS:END)

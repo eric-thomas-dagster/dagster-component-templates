@@ -90,7 +90,7 @@ Required SA roles: `roles/bigquery.modelDataViewer` + `roles/bigquery.jobUser`.
 | `credentials_path` | `str` | — | Falls back to GOOGLE_APPLICATION_CREDENTIALS. |
 | `project_id` | `str` | — | — |
 | `location` | `str` | — | — |
-| `operation` | `Literal['predict', 'forecast', 'explain_predict', 'detect_anomalies']` | `"predict"` | `predict` → ML.PREDICT; `forecast` → ML.FORECAST (ARIMA models); `explain_predict` → ML.EXPLAIN_PREDICT; `detect_anomalies` → ML.DETECT_ANOMALIES. |
+| `operation` | `Literal['predict', 'forecast', 'explain_predict', 'detect_a…` | `"predict"` | `predict` → ML.PREDICT; `forecast` → ML.FORECAST (ARIMA models); `explain_predict` → ML.EXPLAIN_PREDICT; `detect_anomalies` → ML.DETECT_ANOMALIES. |
 | `options` | `Dict[str, Any]` | — | Options struct passed to ML.PREDICT/ML.FORECAST/etc. Example for forecast: {horizon: 10, confidence_level: 0.95}. |
 | `threshold` | `float` | — | For LOGISTIC_REG / DNN_CLASSIFIER / boosted-tree classifiers — set the score threshold. |
 | `keep_input_columns` | `bool` | `true` | If True (default), prediction output preserves all input columns alongside the predicted ones. |

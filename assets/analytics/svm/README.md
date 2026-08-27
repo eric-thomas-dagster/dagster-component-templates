@@ -57,7 +57,7 @@ Fits a Support Vector Classifier or Regressor (sklearn). Configurable kernel, re
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `model_path` | `str` | — | If set, joblib-dump the trained model to this path after fit. Supports local paths and any fsspec URL (s3://, gs://, abfs://). Downstream `model_score` component loads this path to predict on new data — closes the train-once / score-later loop. |
+| `model_path` | `str` | — | If set, joblib-dump the trained model to this path after fit. Supports local paths and any fsspec URL (s3://, gs://, abfs://). Downstream `model_score` component loads this path to predict on new data — closes the train-… _(full docs in schema.json + component README)_ |
 
 ### Other
 

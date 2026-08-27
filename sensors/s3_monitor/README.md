@@ -34,8 +34,8 @@ Perfect for:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `partition_mode` | `str` | `"run_config"` | How the sensor surfaces detected S3 objects to downstream assets: 'run_config' (default) — yields RunRequest with full S3 metadata in run_config (bucket, key, size, etag, last_modified, prefix, region). Pair with `file_ingestion.from_run_config`. 'dynamic_partition' — registers each new S3 key as a dynamic partition via context.instance.add_dynamic_partitions(), then yields RunRequest(partition_key=key). Pair with `file_ingestion` where `partition_type: dynamic` and `from_run_config.uri_template` uses `{partition_key}`. Lets you track every processed file and re-run any specific one on demand from the UI. 'both' — does both: registers a dynamic partition AND embeds the S3 metadata in run_config. Most info but the asset's config class must accept those fields. |
-| `partition_key_template` | `str` | `"{key}"` | Template for the partition key registered per detected S3 object. Available fields: {bucket}, {key}, {prefix}. Default `{key}` makes the partition key equal to the S3 object key. Use `s3://{bucket}/{key}` if you want the full URI as the partition key (so `file_ingestion`'s uri_template can just be `{partition_key}` with no further interpolation). |
+| `partition_mode` | `str` | `"run_config"` | How the sensor surfaces detected S3 objects to downstream assets: 'run_config' (default) — yields RunRequest with full S3 metadata in run_config (bucket, key, size, etag, last_modified, prefix, region). Pair with `file_i… _(full docs in schema.json + component README)_ |
+| `partition_key_template` | `str` | `"{key}"` | Template for the partition key registered per detected S3 object. Available fields: `{bucket}`, `{key}` (full S3 key), `{prefix}`, `{file_stem}` (filename without extension, e.g. `event-abc123`), `{file_name}` (full file… _(full docs in schema.json + component README)_ |
 
 ### Sensor configuration
 
@@ -49,7 +49,7 @@ Perfect for:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `prefix` | `str` | — | S3 key prefix to scope monitoring (e.g., 'incoming/' or 'data/2024/') |
-| `source_asset_key` | `str` | — | Optional asset key (e.g. 's3_landing_zone') to receive an AssetObservation on every tick that yields new objects. Metadata includes bucket, prefix, new_objects, last_key, last_modified — lets an observable-source asset in the graph show a live timeline of object arrivals in the Dagster UI. |
+| `source_asset_key` | `str` | — | Optional asset key (e.g. 's3_landing_zone') to receive an AssetObservation on every tick that yields new objects. Metadata includes bucket, prefix, new_objects, last_key, last_modified — lets an observable-source asset i… _(full docs in schema.json + component README)_ |
 
 ### Other
 
@@ -58,8 +58,8 @@ Perfect for:
 | `key_pattern` | `str` | `".*"` | Regex pattern to match object keys (e.g., '.*\.parquet$' for Parquet files) |
 | `region_name` | `str` | — | AWS region name (e.g., 'us-east-1'). Uses default boto3 region if not set. |
 | `dynamic_partitions_name` | `str` | — | Required when partition_mode is 'dynamic_partition' or 'both'. Must match the asset's `dynamic_partition_name:` field. |
-| `op_name` | `str` | `"config"` | Op name to key the run_config under. Emitted as `{'ops': {op_name: {'config': {...}}}}`. Defaults to 'config' for backward compat, but if the target job's op is not named 'config' (e.g. an @asset or @multi_asset with a custom name), set this to the actual op name — otherwise Dagster rejects the run config with 'Received unexpected config entry "config" at path root:ops'. |
-| `emit_materialization` | `bool` | `true` | When True (default), emit AssetMaterialization on the target asset key. External assets show healthy/green in the Dagster UI and downstream AutomationCondition.eager() fires naturally on parent updates. When False, emit AssetObservation — free of Dagster+ credit charges, but the target asset renders as observed-external (dashed border, gray) and downstream conditions that gate on ~any_deps_missing() (including eager()) will not fire. Both event types carry the same dagster/data_version tag. |
+| `op_name` | `str` | `"config"` | Op name to key the run_config under. Emitted as `{'ops': {op_name: {'config': {...}}}}`. Defaults to 'config' for backward compat, but if the target job's op is not named 'config' (e.g. an @asset or @multi_asset with a c… _(full docs in schema.json + component README)_ |
+| `emit_materialization` | `bool` | `true` | When True (default), emit AssetMaterialization on the target asset key. External assets show healthy/green in the Dagster UI and downstream AutomationCondition.eager() fires naturally on parent updates. When False, emit… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

@@ -188,7 +188,7 @@ Use standardized data with:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the standardized output asset |
-| `platform` | `Literal['facebook_ads', 'google_ads', 'linkedin_ads', 'tiktok_ads', 'twitter_ads']` | Source platform to standardize |
+| `platform` | `Literal['facebook_ads', 'google_ads', 'linkedin_ads', 'tikt…` | Source platform to standardize |
 
 ### Catalog metadata
 

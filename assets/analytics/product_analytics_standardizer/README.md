@@ -86,7 +86,7 @@ Standardized product analytics metrics:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the standardized output asset |
-| `platform` | `Literal['google_analytics_4', 'matomo', 'mixpanel', 'amplitude']` | Source platform to standardize |
+| `platform` | `Literal['google_analytics_4', 'matomo', 'mixpanel', 'amplit…` | Source platform to standardize |
 
 ### Catalog metadata
 

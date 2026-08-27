@@ -38,7 +38,7 @@ Rule of thumb: if each step deserves its own catalog entry + lineage, use per-as
 | `kinds` | `List[str]` | — | — |
 | `owners` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
-| `metadata` | `Dict[str, Any]` | — | Asset-level metadata dict — passed straight through to `@asset(metadata=...)`. Useful for keys the IO manager reads at handle_output time (e.g. `{partition_expr: created_at}` for `DuckDBPolarsIOManagerComponent`, or `{dagster/column_schema: <schema>}` for a hand-authored schema). Kept separate from `asset_tags` — tags are for catalog filtering, metadata is arbitrary key-value data consumed by tooling. |
+| `metadata` | `Dict[str, Any]` | — | Asset-level metadata dict — passed straight through to `@asset(metadata=...)`. Useful for keys the IO manager reads at handle_output time (e.g. `{partition_expr: created_at}` for `DuckDBPolarsIOManagerComponent`, or `{da… _(full docs in schema.json + component README)_ |
 
 ### Partitions
 
@@ -61,7 +61,7 @@ Rule of thumb: if each step deserves its own catalog entry + lineage, use per-as
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `upstream_asset_key` | `str` | — | Top-level single-source shape: Dagster upstream asset key (pandas or polars DataFrame). Mutually exclusive with `source:`. |
-| `source` | `Dict[str, Any]` | — | File / URL source shape. `{kind: file, path, format?, delimiter?}` or `{kind: url, url, format?, delimiter?}` or `{kind: upstream_asset, upstream_asset_key}`. `path`/`url` support `{partition_key}` and `{partition.<name>}` templating. Format is inferred from extension (.json / .ndjson / .csv / .parquet / .ipc / .avro) when unset. Mutually exclusive with `upstream_asset_key`. |
+| `source` | `Dict[str, Any]` | — | File / URL source shape. `{kind: file, path, format?, delimiter?}` or `{kind: url, url, format?, delimiter?}` or `{kind: upstream_asset, upstream_asset_key}`. `path`/`url` support `{partition_key}` and `{partition.<name>… _(full docs in schema.json + component README)_ |
 | `operations` | `List[Dict[str, Any]]` | — | Flat shape: ordered list of ops applied to upstream_asset_key OR source. Compiles to one anonymous step. |
 | `steps` | `List[Dict[str, Any]]` | — | Named steps. Each: {id, source: {kind: upstream\|ref, upstream_asset_key\|ref}, operations: [...]}. |
 | `sinks` | `List[Dict[str, Any]]` | — | Optional side-output writes. Each: {from: <step_id>, kind: parquet\|csv, path: '...'}. These run after the chain finishes; the asset's return value comes from primary_step. |

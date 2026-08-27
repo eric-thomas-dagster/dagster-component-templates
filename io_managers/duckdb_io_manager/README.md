@@ -24,7 +24,7 @@ pip install dagster-duckdb-pandas
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `schema_name` | `str` | `"main"` | Schema within DuckDB for asset tables. |
-| `quack_remote` | `str` | — | If set, routes all reads/writes through a remote Quack server. Format: `quack:host` or `quack:host:port`. Each connection opened by the IO manager installs+loads the `quack` extension, creates a SECRET with `quack_token`, ATTACHes the remote as `<quack_attach_as>`, and uses it as the default schema target (asset tables land in `<quack_attach_as>.<schema_name>.<table>`). |
+| `quack_remote` | `str` | — | If set, routes all reads/writes through a remote Quack server. Format: `quack:host` or `quack:host:port`. Each connection opened by the IO manager installs+loads the `quack` extension, creates a SECRET with `quack_token`… _(full docs in schema.json + component README)_ |
 | `quack_token` | `str` | — | Auth token for the remote Quack server. Prefer env-var reference: `"{{ env('QUACK_TOKEN') }}"`. |
 | `quack_attach_as` | `str` | `"remote"` | Name under which the remote Quack database is ATTACHed. |
 | `quack_extension_repo` | `str` | `"core_nightly"` | Repo to install the `quack` extension from (`core_nightly` until the extension stabilizes). |

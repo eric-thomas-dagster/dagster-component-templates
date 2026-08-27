@@ -52,7 +52,7 @@ botocore>=1.29.0
 | `import_pipelines` | `bool` | `true` | Import pipeline definitions as materializable assets |
 | `exclude_name_pattern` | `str` | — | Regex pattern to exclude entities by name |
 | `generate_sensor` | `bool` | `true` | Generate observation sensor for completed jobs |
-| `asset_overrides` | `Dict[str, AssetOverride]` | — | Per-asset overrides keyed by the emitted asset's name (e.g. `training_job_xgboost_v1`, `pipeline_customer_scoring`). Today supports `depends_on: [upstream_key, ...]` to add Dagster asset dependencies. Matches the pattern used by the official Databricks workspace component. |
+| `asset_overrides` | `Dict[str, AssetOverride]` | — | Per-asset overrides keyed by the emitted asset's name (e.g. `training_job_xgboost_v1`, `pipeline_customer_scoring`). Today supports `depends_on: [upstream_key, ...]` to add Dagster asset dependencies. Matches the pattern… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

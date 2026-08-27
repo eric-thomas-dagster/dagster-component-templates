@@ -94,7 +94,7 @@ attributes:
 | `credentials_path` | `str` | — | Falls back to GOOGLE_APPLICATION_CREDENTIALS. |
 | `project_id` | `str` | — | GCP project. Defaults to the SA's project. |
 | `location` | `str` | `"us-central1"` | Vertex AI region. |
-| `task_type` | `str` | `"RETRIEVAL_DOCUMENT"` | Vertex task hint that tunes the embedding for downstream use. Options: RETRIEVAL_QUERY, RETRIEVAL_DOCUMENT, SEMANTIC_SIMILARITY, CLASSIFICATION, CLUSTERING, QUESTION_ANSWERING, FACT_VERIFICATION, CODE_RETRIEVAL_QUERY. Set to null to omit (some older models don't accept it). |
+| `task_type` | `str` | `"RETRIEVAL_DOCUMENT"` | Vertex task hint that tunes the embedding for downstream use. Options: RETRIEVAL_QUERY, RETRIEVAL_DOCUMENT, SEMANTIC_SIMILARITY, CLASSIFICATION, CLUSTERING, QUESTION_ANSWERING, FACT_VERIFICATION, CODE_RETRIEVAL_QUERY. Se… _(full docs in schema.json + component README)_ |
 | `rate_limit_delay` | `float` | `0.2` | — |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 

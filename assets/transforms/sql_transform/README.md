@@ -114,7 +114,7 @@ When the asset runs, the following are available in the template (no need to dec
 |---|---|---|---|
 | `destination_table` | `str` | — | Fully-qualified destination table. Format depends on the warehouse: 'DB.SCHEMA.TABLE' for Snowflake, 'project.dataset.table' (or backticked) for BigQuery, 'schema.table' for Redshift. Required when return_dataframe=false. |
 | `template_vars` | `Dict[str, str]` | — | Variables to interpolate into the SQL template. Rendered via Jinja2 when installed (so `{% if ... %}` / `{% for ... %}` work), otherwise a simple `{{ name }}` str.replace fallback. |
-| `return_dataframe` | `bool` | `false` | When true, execute the SQL as a SELECT and return its result as a DataFrame asset (no CTAS / INSERT). Useful for inline reads downstream of pandas transforms. When false (default), the SQL is wrapped in CREATE TABLE / INSERT INTO `destination_table`. |
+| `return_dataframe` | `bool` | `false` | When true, execute the SQL as a SELECT and return its result as a DataFrame asset (no CTAS / INSERT). Useful for inline reads downstream of pandas transforms. When false (default), the SQL is wrapped in CREATE TABLE / IN… _(full docs in schema.json + component README)_ |
 | `upstream_asset_keys` | `List[str]` | — | Upstream Dagster asset keys this transform depends on. Typically external_snowflake_table / external_bigquery_table assets that represent the source warehouse tables. |
 
 [//]: # (FIELDS:END)

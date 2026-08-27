@@ -59,7 +59,7 @@ The Document Ingestion component scans a directory for documents, extracts metad
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `source_path` | `str` | — | Path to documents directory or file |
+| `source_path` | `str` | — | Documents directory or file. Local paths (`/data/docs/`) and cloud URIs (`s3://bucket/docs/`, `gs://bucket/docs/`, `az://container/docs/`, `abfs://`) both work — cloud sources route through fsspec, so install the matchin… _(full docs in schema.json + component README)_ |
 
 ### Other
 

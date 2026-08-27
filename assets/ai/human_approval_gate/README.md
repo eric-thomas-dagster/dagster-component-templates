@@ -52,7 +52,7 @@ attributes:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset whose value passes through the gate when approved. String (not an AssetKey object). For single-part asset keys use the bare name (e.g. `triage_report`). For multi-part keys use slash notation (e.g. `analytics/orders/daily_totals`) — this maps to `AssetKey.from_user_string()` at wiring time. |
+| `upstream_asset_key` | `str` | Upstream asset whose value passes through the gate when approved. String (not an AssetKey object). For single-part asset keys use the bare name (e.g. `triage_report`). For multi-part keys use slash notation (e.g. `analyt… _(full docs in schema.json + component README)_ |
 | `approval_dir` | `str` | Absolute path to the directory of approval token JSON files. Filename is `<partition_key>.json` (or `<default_approval_key>.json` when unpartitioned). |
 
 ### Catalog metadata

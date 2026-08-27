@@ -25,7 +25,7 @@ pip install duckdb
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `quack_remote` | `str` | — | If set, enables Quack client mode. Format: `quack:host` or `quack:host:port` (default port 9494). The component installs+loads the `quack` extension on each connection, creates a SECRET with the auth token, and ATTACHes the remote as `<quack_attach_as>`. Reference remote tables as `<quack_attach_as>.<table>` in your SQL (or `USE <quack_attach_as>;` to default unqualified references to remote). |
+| `quack_remote` | `str` | — | If set, enables Quack client mode. Format: `quack:host` or `quack:host:port` (default port 9494). The component installs+loads the `quack` extension on each connection, creates a SECRET with the auth token, and ATTACHes… _(full docs in schema.json + component README)_ |
 | `quack_token` | `str` | — | Auth token for the remote Quack server (matches the server's `quack_serve(token=...)`). Prefer env-var reference: `"{{ env('QUACK_TOKEN') }}"`. |
 | `quack_attach_as` | `str` | `"remote"` | Name under which the remote Quack database is ATTACHed in the local session. |
 | `quack_extension_repo` | `str` | `"core_nightly"` | Repo to install the `quack` extension from. As of the May-2026 release, Quack lives in `core_nightly`; switch to `core` once the extension stabilizes. |

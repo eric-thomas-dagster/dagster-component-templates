@@ -41,7 +41,7 @@ Pick one (or combine `strip_patterns` with anything):
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | — | Dagster resource key to use as the HTTP client. When set, context.resources.<resource_key> is used instead of creating a new requests client from the other fields. The resource must expose a `request(method, url, headers=..., timeout=...)` method returning an object with `.status_code`, `.text`, and `.json()`. Use for demo-mode seams (swap in a fixture-backed client) or shared auth (retry/backoff wrappers). |
+| `resource_key` | `str` | — | Dagster resource key to use as the HTTP client. When set, context.resources.<resource_key> is used instead of creating a new requests client from the other fields. The resource must expose a `request(method, url, headers… _(full docs in schema.json + component README)_ |
 
 ### Execution
 

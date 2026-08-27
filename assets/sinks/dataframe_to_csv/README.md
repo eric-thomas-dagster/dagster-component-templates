@@ -14,7 +14,7 @@ Writes a Pandas DataFrame to a CSV file. This is a terminal sink component — i
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `file_path` | `str` | Destination file path or fsspec URI. Local paths (`/tmp/out.csv`) and remote URIs (`s3://bucket/out.csv`, `gs://bucket/out.csv`, `az://container/out.csv`) both work — pandas' `to_csv()` accepts fsspec URIs natively when the matching driver (`s3fs` / `gcsfs` / `adlfs`) is installed. Supports env-var substitution (e.g. `${OUTPUT_DIR}/results.csv`) and opt-in placeholders substituted at materialization time: `{partition_key}` (stringified `context.partition_key`), `{run_id}` (`context.run.run_id`), and — for `MultiPartitionKey` — any axis name as `{<dim>}` (e.g. `{date}`, `{customer}`). Legacy placeholders `{partition_date}` / `{partition_date_next}` remain supported for daily-partitioned assets. |
+| `file_path` | `str` | Destination file path or fsspec URI. Local paths (`/tmp/out.csv`) and remote URIs (`s3://bucket/out.csv`, `gs://bucket/out.csv`, `az://container/out.csv`) both work — pandas' `to_csv()` accepts fsspec URIs natively when… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -24,7 +24,7 @@ Writes a Pandas DataFrame to a CSV file. This is a terminal sink component — i
 | `owners` | `List[str]` | — | Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com'] |
 | `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'} |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from component name if not set. |
-| `automation_condition` | `Any` | — | AutomationCondition for this asset. In YAML, write as a Jinja template against the dg namespace, e.g. '{{ dg.AutomationCondition.eager() }}' — Dagster's component loader resolves it to the actual AutomationCondition object. Useful when this sink's upstream is a multi-asset with sparse per-partition materialization (only fires for partitions the upstream actually emitted). |
+| `automation_condition` | `Any` | — | AutomationCondition for this asset. In YAML, write as a Jinja template against the dg namespace, e.g. '{{ dg.AutomationCondition.eager() }}' — Dagster's component loader resolves it to the actual AutomationCondition obje… _(full docs in schema.json + component README)_ |
 | `description` | `str` | — | Asset description shown in the Dagster catalog. |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime). |
@@ -63,6 +63,7 @@ Writes a Pandas DataFrame to a CSV file. This is a terminal sink component — i
 | `delimiter` | `str` | `","` | Column delimiter |
 | `include_index` | `bool` | `false` | Include row index in output |
 | `encoding` | `str` | `"utf-8"` | File encoding |
+| `storage_options` | `Dict[str, Any]` | — | Optional fsspec storage options forwarded to pandas' `to_csv()` for cloud writes. Example: `{key: '...', secret: '...'}` for S3, or `{token: 'anon'}` for public GCS. Env-var-backed secrets belong in the ambient environme… _(full docs in schema.json + component README)_ |
 | `columns` | `List[Union[str, int]]` | — | Subset of columns to write. If None, all columns are written. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the DataFrame about to be written, in metadata, so builder UIs can show 'what's being sunk' without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. Random sample if len > 10x preview_rows; else head. |

@@ -80,7 +80,7 @@ Deprecated by most modern OAuth providers. Useful only for older SAP NetWeaver G
 |---|---|---|---|
 | `grant_type` | `str` | `"client_credentials"` | 'client_credentials' \| 'refresh_token' \| 'password' |
 | `refresh_token_env_var` | `str` | — | grant_type=refresh_token |
-| `refresh_writeback_command_env_var` | `str` | — | If set: when grant_type=refresh_token and the provider returns a NEW refresh_token, the resource executes this command (env-var holds the command template) with `{token}` substituted. Use this to persist rotated tokens back to your secret store. Example value: 'aws secretsmanager update-secret --secret-id myapp/refresh_token --secret-string {token}'. |
+| `refresh_writeback_command_env_var` | `str` | — | If set: when grant_type=refresh_token and the provider returns a NEW refresh_token, the resource executes this command (env-var holds the command template) with `{token}` substituted. Use this to persist rotated tokens b… _(full docs in schema.json + component README)_ |
 | `refresh_writeback_file` | `str` | — | Simpler alternative: write the new refresh token to this file path. Useful for k8s persistent-volume scenarios. |
 | `scope` | `str` | — | OAuth scope string (space-separated) |
 | `audience` | `str` | — | Auth0-style audience parameter |

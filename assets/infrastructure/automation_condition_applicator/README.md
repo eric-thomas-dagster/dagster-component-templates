@@ -722,7 +722,7 @@ If a rule isn't applying:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `preserve_existing` | `bool` | `true` | If true (default): assets that already have automation_condition set by their own component are NOT overwritten. Like CSS !important — explicit per-asset wins over broad rules. |
-| `precedence` | `str` | `"first_match"` | How overlapping rule selections resolve. 'first_match' (default): list narrow rules first, broad catch-alls last — first match wins. 'last_match': list defaults first, overrides later — like CSS cascade / dbt config layering, last match wins. |
+| `precedence` | `str` | `"first_match"` | How overlapping rule selections resolve. 'first_match' (default): list narrow rules first, broad catch-alls last — first match wins. 'last_match': list defaults first, overrides later — like CSS cascade / dbt config laye… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

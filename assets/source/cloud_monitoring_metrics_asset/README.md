@@ -78,8 +78,8 @@ Browse all at <https://cloud.google.com/monitoring/api/metrics_gcp>.
 | `project_id` | `str` | — | — |
 | `lookback_minutes` | `int` | `60` | Time window (minutes from now backwards). |
 | `alignment_period_seconds` | `int` | `60` | Bucket size for per-series alignment. |
-| `aligner` | `Literal['NONE', 'MEAN', 'MIN', 'MAX', 'SUM', 'COUNT', 'RATE', 'DELTA', 'PERCENT_CHANGE', 'PERCENTILE_99', 'PERCENTILE_95', 'PERCENTILE_50']` | `"MEAN"` | — |
-| `cross_series_reducer` | `Literal['NONE', 'MEAN', 'MIN', 'MAX', 'SUM', 'COUNT', 'PERCENTILE_99', 'PERCENTILE_95', 'PERCENTILE_50']` | — | Optional cross-series reducer (combines all series matching the filter). |
+| `aligner` | `Literal['NONE', 'MEAN', 'MIN', 'MAX', 'SUM', 'COUNT', 'RATE…` | `"MEAN"` | — |
+| `cross_series_reducer` | `Literal['NONE', 'MEAN', 'MIN', 'MAX', 'SUM', 'COUNT', 'PERC…` | — | Optional cross-series reducer (combines all series matching the filter). |
 | `group_by_fields` | `List[str]` | — | Resource labels to retain when reducing (e.g. ['resource.labels.zone']). |
 | `view` | `Literal['FULL', 'HEADERS']` | `"FULL"` | FULL returns data points; HEADERS returns series metadata only. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |

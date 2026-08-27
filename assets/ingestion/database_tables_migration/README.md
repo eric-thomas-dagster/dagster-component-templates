@@ -86,7 +86,7 @@ The pre-flight log surfaces a `⚠` for each non-enforced constraint at the star
 | `target_connection_env_var` | `str` | — | Env var with target SQLAlchemy URL. Set this OR target_connection. |
 | `target_schema` | `str` | — | Override target schema (e.g. 'RAW' → all tables land in RAW.<name>). Default: keep source schema name. |
 | `table_replacements` | `Dict[str, str]` | — | FK reference rewrites (old qualified name → new). Used when foreign keys point at tables that landed in different schemas on target. |
-| `table_ddl_overrides` | `Dict[str, str]` | — | Per-table CREATE TABLE override. Keys are source qualified names (e.g. 'HR.WEIRD_TABLE'), values are full CREATE TABLE SQL for the TARGET (already pointing at the target schema/name). Used when the auto-generated DDL fails because of dialect-specific types (XMLTYPE, OBJECT, etc.) or quirky constraints. Status is reported as 'override_success' / 'override_failed' in the DataFrame. |
+| `table_ddl_overrides` | `Dict[str, str]` | — | Per-table CREATE TABLE override. Keys are source qualified names (e.g. 'HR.WEIRD_TABLE'), values are full CREATE TABLE SQL for the TARGET (already pointing at the target schema/name). Used when the auto-generated DDL fai… _(full docs in schema.json + component README)_ |
 
 ### Other
 
@@ -101,7 +101,7 @@ The pre-flight log surfaces a `⚠` for each non-enforced constraint at the star
 | `include_check_constraints` | `bool` | `true` | Include CHECK constraints. Dialect-specific functions in CHECK expressions can fail on target — use function_replacements or table_ddl_overrides. |
 | `include_unique_constraints` | `bool` | `true` | Include UNIQUE constraints (non-PK). |
 | `function_replacements` | `Dict[str, str]` | — | Case-insensitive whole-word substitutions applied to CHECK expressions. E.g. {'NVL': 'COALESCE', 'REGEXP_LIKE': 'REGEXP_MATCHES'}. |
-| `dry_run` | `bool` | `false` | If true, generate target DDL and TRY each CREATE TABLE against the target inside a transaction, then ROLLBACK — no state changes on target. Status rows use 'would_succeed' / 'would_fail' instead of 'success' / 'failed'. Use this before the real run to see what would happen. Note: Oracle DDL is auto-committed, so dry_run is best-effort for Oracle targets. |
+| `dry_run` | `bool` | `false` | If true, generate target DDL and TRY each CREATE TABLE against the target inside a transaction, then ROLLBACK — no state changes on target. Status rows use 'would_succeed' / 'would_fail' instead of 'success' / 'failed'… _(full docs in schema.json + component README)_ |
 | `fail_on_any_error` | `bool` | `false` | If true, asset materialization fails when any table fails. Default: report in status DataFrame and succeed. |
 
 [//]: # (FIELDS:END)

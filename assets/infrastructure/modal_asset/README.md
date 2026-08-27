@@ -70,7 +70,7 @@ Modal lets you define Python functions that run on managed, scalable cloud infra
 | `kwargs` | `dict` | — | Keyword arguments forwarded to the Modal function. |
 | `modal_token_id_env_var` | `str` | — | Name of the environment variable containing the Modal token ID. When set, the component overrides the ``MODAL_TOKEN_ID`` subprocess environment variable or configures the SDK client accordingly. |
 | `modal_token_secret_env_var` | `str` | — | Name of the environment variable containing the Modal token secret. Paired with ``modal_token_id_env_var`` for non-default credential injection. |
-| `detach` | `bool` | `false` | When True, fire-and-forget: the asset completes as soon as the function is dispatched without waiting for it to finish. Metadata will not include return values. Use with care — Dagster will mark the asset as materialised even if the Modal function subsequently fails. |
+| `detach` | `bool` | `false` | When True, fire-and-forget: the asset completes as soon as the function is dispatched without waiting for it to finish. Metadata will not include return values. Use with care — Dagster will mark the asset as materialised… _(full docs in schema.json + component README)_ |
 | `environment_name` | `str` | — | Modal environment (workspace namespace) to target. Defaults to the environment configured in the active Modal profile. |
 
 [//]: # (FIELDS:END)

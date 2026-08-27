@@ -28,7 +28,7 @@ Perfect for:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `partition_mode` | `str` | `"run_config"` | How the sensor surfaces detected files: 'run_config' (default — embed file metadata in run_config), 'static_partition' (yield RunRequest(partition_key=<from partition_key_template>) — use when the target asset has a static/dynamic partitions_def), or 'dynamic_partition' (also registers each key on the given DynamicPartitionsDefinition first). |
+| `partition_mode` | `str` | `"run_config"` | How the sensor surfaces detected files: 'run_config' (default — embed file metadata in run_config), 'static_partition' (yield RunRequest(partition_key=<from partition_key_template>) — use when the target asset has a stat… _(full docs in schema.json + component README)_ |
 | `partition_key_template` | `str` | `"{file_stem}"` | Template for the partition key per detected file. Fields: {file_path}, {file_name}, {file_stem} (filename without extension). Default `{file_stem}` — e.g. `/tmp/approvals/t3.json` → `t3`. |
 
 ### Sensor configuration

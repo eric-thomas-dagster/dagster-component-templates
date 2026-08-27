@@ -15,7 +15,7 @@ Groups a DataFrame by one or more columns and applies aggregation functions to p
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
 | `group_by` | `List[Union[str, int]]` | Columns to group by |
-| `aggregations` | `Dict` | Mapping of output column name to aggregation. Two forms: - Simple: `revenue: sum` — aggregate that column with that func. - Named: `avg_rating: {col: rating, agg: mean}` — output a named column from a chosen source column. Use this when you need two aggregations on the same source column (e.g. avg_rating=(rating, mean) AND num_ratings=(rating, count)). |
+| `aggregations` | `Dict` | Mapping of output column name to aggregation. Two forms: - Simple: `revenue: sum` — aggregate that column with that func. - Named: `avg_rating: {col: rating, agg: mean}` — output a named column from a chosen source colum… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -60,7 +60,7 @@ Groups a DataFrame by one or more columns and applies aggregation functions to p
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `backend` | `str` | `"pandas"` | Execution backend: 'pandas' (default) or 'polars'. Polars gives substantially better performance + lower memory on large frames and supports the same aggregations API. Either way the component accepts pandas OR polars input; when backend='polars' the output is a polars DataFrame, otherwise pandas. |
+| `backend` | `str` | `"pandas"` | Execution backend: 'pandas' (default) or 'polars'. Polars gives substantially better performance + lower memory on large frames and supports the same aggregations API. Either way the component accepts pandas OR polars in… _(full docs in schema.json + component README)_ |
 | `group_by_rename` | `Dict[str, str]` | — | Post-aggregation rename map applied to group_by columns. Useful when the source column name should be presented under a different label in the output (e.g. group_by=['Value'], group_by_rename={'Value': 'Team'}). Missing keys ignored. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |

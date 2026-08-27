@@ -64,7 +64,7 @@ Join two upstream DataFrame assets using pandas merge. Supports all standard joi
 | `left_on` | `List[Union[str, int]]` | — | Left join columns (when column names differ) |
 | `right_on` | `List[Union[str, int]]` | — | Right join columns (when column names differ) |
 | `suffixes` | `List[str]` | `['_x', '_y']` | Suffixes for overlapping column names |
-| `right_prefix` | `str` | — | If set, the post-merge `rename` and `drop_columns` will fuzzy-match keys that start with this prefix against the actual merged column names: try `prefix + col`, then `col`, then `col + suffixes[1]`. Useful when the rename map was authored against a tool that prefixes right-side columns (e.g. 'Right_') but pandas only suffixes on collision. |
+| `right_prefix` | `str` | — | If set, the post-merge `rename` and `drop_columns` will fuzzy-match keys that start with this prefix against the actual merged column names: try `prefix + col`, then `col`, then `col + suffixes[1]`. Useful when the renam… _(full docs in schema.json + component README)_ |
 | `rename` | `Dict[str, Union[str, int]]` | — | Post-merge rename map, e.g. {'Right_Age': 'Age At Win'}. Missing keys are ignored. |
 | `drop_columns` | `List[Union[str, int]]` | — | Post-merge columns to drop (applied AFTER `rename`). Missing columns are ignored. |
 | `keep_only_columns` | `List[str]` | — | If set, keep only these columns post-merge (applied AFTER `rename` and `drop_columns`). Missing columns are ignored. |

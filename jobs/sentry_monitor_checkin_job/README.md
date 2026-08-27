@@ -43,7 +43,7 @@ Sentry Cron Monitoring catches both. Configure once, get paged when the cadence 
 | `dsn_env_var` | `str` | `"SENTRY_DSN"` | Env var holding the Sentry DSN. |
 | `environment` | `str` | — | Sentry environment tag (e.g. 'prod', 'staging'). |
 | `release` | `str` | — | Sentry release tag. |
-| `monitor_config` | `Dict[str, Any]` | — | Sentry monitor_config dict — see https://docs.sentry.io/product/crons/getting-started/http/. Example: {schedule: {type: 'crontab', value: '0 3 * * *'}, checkin_margin: 5, max_runtime: 15, timezone: 'America/New_York'}. When set, Sentry auto-creates or updates the monitor on the first check-in. |
+| `monitor_config` | `Dict[str, Any]` | — | Sentry monitor_config dict — see https://docs.sentry.io/product/crons/getting-started/http/. Example: {schedule: {type: 'crontab', value: '0 3 * * *'}, checkin_margin: 5, max_runtime: 15, timezone: 'America/New_York'}. W… _(full docs in schema.json + component README)_ |
 | `fail_on_error` | `bool` | `false` | If True, the job step fails when the Sentry check-in raises. Default False for cron monitors — you don't want a Sentry outage to make your scheduler flap. |
 
 [//]: # (FIELDS:END)

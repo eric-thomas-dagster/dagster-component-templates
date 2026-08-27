@@ -43,7 +43,7 @@ Watch Apache Doris Routine Load jobs (Kafka→Doris continuous ingestion) for st
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `query_port` | `int` | `9030` | Doris MySQL-protocol query port. |
-| `emit_materialization` | `bool` | `true` | When True (default), emit AssetMaterialization on the target asset key. External assets show healthy/green in the Dagster UI and downstream AutomationCondition.eager() fires naturally on parent updates. When False, emit AssetObservation — free of Dagster+ credit charges, but the target asset renders as observed-external (dashed border, gray) and downstream conditions that gate on ~any_deps_missing() (including eager()) will not fire. Both event types carry the same dagster/data_version tag. |
+| `emit_materialization` | `bool` | `true` | When True (default), emit AssetMaterialization on the target asset key. External assets show healthy/green in the Dagster UI and downstream AutomationCondition.eager() fires naturally on parent updates. When False, emit… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

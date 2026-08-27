@@ -66,7 +66,7 @@ Works against any Prometheus-compatible HTTP API:
 | `range_query` | `bool` | `false` | False (default): instant query at time 'now' (single value per series). True: range query (returns a time series per matching series). |
 | `range_seconds` | `int` | `3600` | Range duration in seconds (only used when range_query=true). Default: last hour. |
 | `step_seconds` | `int` | `60` | Step (sample interval) in seconds for range queries. Default: 60s. |
-| `bearer_token_env_var` | `str` | — | Env var holding a Bearer token for Authorization header. Required for Azure Managed Prometheus, Grafana Cloud, and any auth-protected server. For Azure Managed Prometheus: az account get-access-token --resource https://prometheus.monitor.azure.com |
+| `bearer_token_env_var` | `str` | — | Env var holding a Bearer token for Authorization header. Required for Azure Managed Prometheus, Grafana Cloud, and any auth-protected server. For Azure Managed Prometheus: az account get-access-token --resource https://p… _(full docs in schema.json + component README)_ |
 | `basic_auth_user_env_var` | `str` | — | — |
 | `basic_auth_pass_env_var` | `str` | — | — |
 | `extra_headers` | `Dict[str, str]` | — | Optional headers (e.g. X-Scope-OrgID for Cortex/Mimir tenants) |

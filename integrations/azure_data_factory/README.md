@@ -85,80 +85,77 @@ per-deploy for Dagster Cloud).
 
 | Field | Type | Description |
 |---|---|---|
-| `subscription_id` | `str` | Azure subscription ID |
-| `resource_group_name` | `str` | Azure resource group name |
-| `factory_name` | `str` | Azure Data Factory name |
-
-### Connection
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `client_id` | `str` | — | Azure AD client/application ID (optional) |
-| `client_secret` | `str` | — | Azure AD client secret (optional) |
+| `workspace` | `AzureDataFactoryResource` | Azure Data Factory connection as an AzureDataFactoryResource. Fields: subscription_id + resource_group_name + factory_name + optional {tenant_id_env_var, client_id_env_var, client_secret_env_var} (Service Principal) OR o… _(full docs in schema.json + component README)_ |
 
 ### Execution
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `poll_interval_seconds` | `int` | `60` | Sensor poll interval (s) |
-| `wait_for_completion` | `bool` | `true` | If False, fire-and-forget — yield Submitted immediately and don't poll. |
+| `poll_interval_seconds` | `int` | `60` | Sensor polling interval (seconds). |
+| `wait_for_completion` | `bool` | `true` | — |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `group_name` | `str` | `"azure_data_factory"` | Asset group name |
-| `description` | `str` | — | Component description |
-| `owners` | `list` | — | Asset owners (team or email). |
-| `asset_tags` | `dict` | — | Catalog tags. |
+| `group_name` | `str` | `"azure_data_factory"` | Asset group. |
+| `description` | `str` | — | — |
+| `owners` | `List[str]` | — | — |
+| `asset_tags` | `Dict[str, str]` | — | — |
 
 ### Freshness
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `freshness_max_lag_minutes` | `int` | — | Freshness SLO in minutes (legacy FreshnessPolicy). |
-| `freshness_cron` | `str` | — | Cron schedule for the freshness policy. |
+| `freshness_max_lag_minutes` | `int` | — | — |
+| `freshness_cron` | `str` | — | — |
 
 ### Partitions
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `partition_parameter_name` | `str` | — | When the asset is partitioned, auto-pass the partition_key as this ADF pipeline parameter (default: 'partition_key'). Example: a daily-partitioned asset with partition_parameter_name='ODATE' passes ODATE='2026-05-06' to the ADF pipeline at run time. |
-| `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| None (unpartitioned). |
-| `partition_start` | `str` | — | Start date for time-based partitions, ISO format (e.g. '2024-01-01'). |
-| `partition_values` | `list` | — | List of partition values for static partitions (e.g. ['us', 'eu', 'apac']). |
+| `partition_parameter_name` | `str` | — | — |
+| `partition_type` | `str` | — | — |
+| `partition_start` | `str` | — | — |
+| `partition_values` | `List[str]` | — | — |
 
 ### Retry policy
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `retry_policy_max_retries` | `int` | — | Max retries on asset failure (transient network/rate-limit issues) |
-| `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1) |
-| `retry_policy_backoff` | `str` | `"exponential"` | Backoff: 'linear' or 'exponential' |
+| `retry_policy_max_retries` | `int` | — | — |
+| `retry_policy_delay_seconds` | `int` | — | — |
+| `retry_policy_backoff` | `str` | `"exponential"` | — |
 
 ### Source / target
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `filter_by_name_pattern` | `str` | — | Regex to filter entities by name |
-| `filter_by_tags` | `str` | — | Comma-separated tag keys to filter entities |
+| `filter_by_name_pattern` | `str` | — | Regex to filter entities by name. |
+| `filter_by_tags` | `str` | — | Comma-separated tag keys entities must carry. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tenant_id` | `str` | — | Azure AD tenant ID (optional — uses DefaultAzureCredential if absent) |
-| `import_pipelines` | `bool` | `true` | Import pipelines as assets |
-| `import_triggers` | `bool` | `false` | Import triggers as assets |
-| `exclude_name_pattern` | `str` | — | Regex to exclude entities by name |
-| `generate_sensor` | `bool` | `true` | Generate observation sensor |
-| `assets_by_pipeline_name` | `dict` | — | Override or expand AssetSpecs for specific ADF pipelines. Keys are ADF pipeline names; values are either a single spec-override dict or a list of spec-override dicts (one pipeline -> multiple Dagster assets). Supported keys per override: key, description, group_name, metadata, tags, kinds, deps. |
-| `pipeline_parameters` | `dict` | — | Parameters dict passed to every ADF pipeline run (key→value). |
-| `max_wait_seconds` | `int` | `3600` | How long to wait for the pipeline to complete before timing out. |
-| `run_poll_interval_seconds` | `int` | `30` | Seconds between status polls while a run is in progress. |
-| `capture_activity_metadata` | `bool` | `true` | On completion, fetch each ADF activity's status/duration/error/output and surface as metadata. |
-| `extra_kinds` | `list` | — | Additional asset kinds beyond the default {azure, adf}. |
-| `upstream_asset_keys` | `list` | — | Asset keys that ALL imported ADF pipeline assets should depend on. Lets non-ADF Dagster assets gate ADF pipeline runs (e.g. only run ADF pipelines after dbt has refreshed the upstream tables). For per-pipeline overrides, use assets_by_pipeline_name's `deps` key. |
+| `translation` | `TranslationFn[AzureDataFactoryObjectProps]` | — | Function used to translate ADF object properties into Dagster asset specs. Called for each imported pipeline / trigger / linked_service / dataset / data_flow / integration_runtime. Signature: `def fn(props: AzureDataFact… _(full docs in schema.json + component README)_ |
+| `import_pipelines` | `bool` | `true` | Import ADF pipelines as materializable assets (default true). |
+| `import_triggers` | `bool` | `false` | Import ADF triggers as observable external assets. |
+| `import_linked_services` | `bool` | `false` | **Untested.** Import ADF linked services (source/sink connection configurations) as external Dagster assets. Read-only surface — no runtime action. Validate against your factory before use. |
+| `import_datasets` | `bool` | `false` | **Untested.** Import ADF datasets (schemas over linked services) as external Dagster assets. Read-only surface. Validate before use. |
+| `import_data_flows` | `bool` | `false` | **Untested.** Import ADF Mapping Data Flows (visual transformations) as external Dagster assets. Read-only surface. Validate before use. |
+| `import_integration_runtimes` | `bool` | `false` | **Untested.** Import ADF Integration Runtimes (SSIS / Azure IR / Self-hosted IR) as external Dagster assets. Read-only surface. Validate before use. |
+| `exclude_name_pattern` | `str` | — | Regex to exclude entities by name. |
+| `polling_sensor` | `bool` | `true` | Emit a polling sensor that observes ADF pipeline-run status and emits AssetObservation events. |
+| `extra_kinds` | `List[str]` | — | Extra `dagster/kind/*` tags applied to every asset. |
+| `asset_key_prefix` | `List[str]` | `list()` | Optional key prefix. Every asset key gets `[<prefix>..., adf_<kind>_<name>]`. |
+| `assets_by_pipeline_name` | `Dict[str, Any]` | — | Override or expand AssetSpecs for specific ADF pipelines. Keys are ADF pipeline names; values are either a single spec-override dict OR a list of them (one pipeline → multiple Dagster assets). Supported override keys: ke… _(full docs in schema.json + component README)_ |
+| `pipeline_parameters` | `Dict[str, Any]` | — | — |
+| `max_wait_seconds` | `int` | `3600` | — |
+| `run_poll_interval_seconds` | `int` | `30` | — |
+| `capture_activity_metadata` | `bool` | `true` | — |
+| `upstream_asset_keys` | `List[str]` | — | — |
+| `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Override per-deploy for Dagster Cloud. |
 
 [//]: # (FIELDS:END)
 

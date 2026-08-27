@@ -73,7 +73,7 @@ Transform files automatically when triggered by file sensors, or process files o
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream DataFrame asset key. When set, the component reads the DataFrame from the upstream asset (no file I/O on input) and writes it to output_directory in the requested output_format. Mutually exclusive with input_file_path / run_config-driven file paths. |
+| `upstream_asset_key` | `str` | — | Upstream DataFrame asset key. When set, the component reads the DataFrame from the upstream asset (no file I/O on input) and writes it to output_directory in the requested output_format. Mutually exclusive with input_fil… _(full docs in schema.json + component README)_ |
 | `csv_delimiter` | `str` | `","` | CSV delimiter character |
 | `csv_encoding` | `str` | `"utf-8"` | CSV file encoding |
 | `json_orient` | `str` | `"records"` | JSON orientation: 'records', 'split', 'index', 'columns', 'values' |

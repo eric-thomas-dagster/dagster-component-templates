@@ -98,7 +98,7 @@ OpenRouter ids are `<provider>/<model>`. Browse + pricing at https://openrouter.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `text_model` | `str` | `"anthropic/claude-haiku-4-5"` | OpenRouter model id ('<provider>/<model>'). Examples: anthropic/claude-haiku-4-5, openai/gpt-4o-mini, google/gemini-2.5-flash, meta-llama/llama-3.3-70b-instruct, deepseek/deepseek-chat-v3, mistralai/mistral-large-latest, x-ai/grok-2-1212. Full list: https://openrouter.ai/models |
+| `text_model` | `str` | `"anthropic/claude-haiku-4-5"` | OpenRouter model id ('<provider>/<model>'). Examples: anthropic/claude-haiku-4-5, openai/gpt-4o-mini, google/gemini-2.5-flash, meta-llama/llama-3.3-70b-instruct, deepseek/deepseek-chat-v3, mistralai/mistral-large-latest… _(full docs in schema.json + component README)_ |
 | `provider_preferences` | `Dict[str, Any]` | — | Optional `provider` object passed to OpenRouter for routing control: e.g. {'order': ['anthropic'], 'allow_fallbacks': true}. See https://openrouter.ai/docs/provider-routing for the full schema. |
 | `transforms` | `List[str]` | — | Optional list of OpenRouter transforms (e.g. ['middle-out']). |
 | `referer` | `str` | — | HTTP-Referer header — your app's URL. Optional, shown on https://openrouter.ai/rankings. |

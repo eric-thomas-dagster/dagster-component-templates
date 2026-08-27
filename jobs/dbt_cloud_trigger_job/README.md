@@ -95,7 +95,7 @@ The chain: Snowpipe load → sensor tick → sensor emits `RunRequest(job_name="
 | `schema_override` | `str` | — | dbt Cloud per-run `schema_override` — target schema for this run only. Useful for branch-deployment isolation. |
 | `git_branch` | `str` | — | dbt Cloud per-run `git_branch` — run against this branch instead of the job's configured branch. |
 | `git_sha` | `str` | — | dbt Cloud per-run `git_sha` — run against this exact commit. |
-| `emit_materializations_for` | `List[str]` | — | Optional list of asset keys (slash-separated form, e.g. 'mart/daily_summary'). After the dbt Cloud run succeeds, the op emits one `AssetMaterialization` event per key so the run edges into Dagster's asset graph. Requires `wait_for_completion: true`. |
+| `emit_materializations_for` | `List[str]` | — | Optional list of asset keys (slash-separated form, e.g. 'mart/daily_summary'). After the dbt Cloud run succeeds, the op emits one `AssetMaterialization` event per key so the run edges into Dagster's asset graph. Requires… _(full docs in schema.json + component README)_ |
 | `schedule` | `str` | — | Optional cron string (e.g. '0 3 * * *'). If set, attaches a `ScheduleDefinition` that triggers this job on cron. |
 
 [//]: # (FIELDS:END)

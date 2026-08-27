@@ -75,7 +75,7 @@ Plus optional enrichments:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `backend` | `str` | `"pandas"` | Accept polars input via auto-conversion. The describe() computation itself runs in pandas — the profiling output shape (transposed table of stats per column) is pandas-shaped. Setting backend='polars' accepts polars input but does NOT change the output type. |
+| `backend` | `str` | `"pandas"` | Accept polars input via auto-conversion. The describe() computation itself runs in pandas — the profiling output shape (transposed table of stats per column) is pandas-shaped. Setting backend='polars' accepts polars inpu… _(full docs in schema.json + component README)_ |
 | `include` | `str` | `"all"` | Which columns to profile: 'all', 'number', 'object', or 'datetime'. Mirrors pandas describe(include=...). |
 | `percentiles` | `List[float]` | — | Percentiles to compute (default [.25, .5, .75]). Values between 0 and 1. |
 | `include_dtypes_column` | `bool` | `true` | Add a 'dtype' column showing each source column's dtype. |

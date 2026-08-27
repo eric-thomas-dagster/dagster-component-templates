@@ -23,7 +23,7 @@ Defines a `ScheduleDefinition` + an underlying asset job that materializes the c
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. Note: only time-based types ('daily'/'weekly'/'monthly'/'hourly') work with this schedule's partitioned-job path — 'static' / 'dynamic' raise ValueError. |
+| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. Note: only time-based types ('daily'/'weekly'/'monthly'/'hourly') work with this schedule's partitioned-job… _(full docs in schema.json + component README)_ |
 | `partition_start` | `str` | — | Partition start in ISO format (e.g. '2024-01-01' or '2024-01-01-00:00' for hourly). Required for time-based types. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning. Only used if you also set partition_type='multi' (and even then the schedule rejects pure static — see partition_type). |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
@@ -39,7 +39,7 @@ Defines a `ScheduleDefinition` + an underlying asset job that materializes the c
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `cron_expression` | `str` | — | Cron expression (5 fields: m h dom mon dow). E.g. '0 9 * * *' = daily 09:00. REQUIRED when no partition fields are set; OPTIONAL in the partitioned-job path (cadence is inferred from the partitions_def). If supplied in the partitioned path, validated against the partitions_def cadence. |
+| `cron_expression` | `str` | — | Cron expression (5 fields: m h dom mon dow). E.g. '0 9 * * *' = daily 09:00. REQUIRED when no partition fields are set; OPTIONAL in the partitioned-job path (cadence is inferred from the partitions_def). If supplied in t… _(full docs in schema.json + component README)_ |
 | `execution_timezone` | `str` | `"UTC"` | IANA timezone for cron evaluation, e.g. 'America/Los_Angeles'. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). NOTE: the schedule rejects dynamic-only partitions. |
 

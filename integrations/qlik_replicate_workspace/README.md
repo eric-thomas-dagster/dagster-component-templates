@@ -49,7 +49,7 @@ Most customers should start with `qlik_replicate_workspace` — it's the shortes
 
 | Field | Type | Description |
 |---|---|---|
-| `workspace` | `Annotated[QlikReplicateResource, Resolver(lambda context, model: QlikReplicateResource(**resolve_fields(model, QlikReplicateResource, context)))]` | Qlik Replicate Enterprise Manager connection as a QlikReplicateResource (base_url + optional api_token / basic-auth + verify_ssl). Secrets typically arrive via `{{ env.XXX }}` Jinja templating in defs.yaml. |
+| `workspace` | `QlikReplicateResource` | Qlik Replicate Enterprise Manager connection as a QlikReplicateResource (base_url + optional api_token / basic-auth + verify_ssl). Secrets typically arrive via `{{ env.XXX }}` Jinja templating in defs.yaml. |
 
 ### Execution
 
@@ -69,14 +69,14 @@ Most customers should start with `qlik_replicate_workspace` — it's the shortes
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `translation` | `Annotated[Optional[TranslationFn[QlikReplicateObjectProps]], TranslationFnResolver(template_vars_for_translation_fn=lambda data: {'props': data})]` | — | Function used to translate Qlik Replicate object properties into Dagster asset specs. Called for each imported task. If unset, the base translator's default AssetSpec is used. |
+| `translation` | `TranslationFn[QlikReplicateObjectProps]` | — | Function used to translate Qlik Replicate object properties into Dagster asset specs. Called for each imported task. If unset, the base translator's default AssetSpec is used. |
 | `servers` | `List[str]` | — | Optional server-name filter. None = all servers under the EM instance. |
 | `task_selector` | `TaskSelector` | — | Optional inclusion/exclusion filter for task names. |
 | `asset_key_prefix` | `List[str]` | `lambda: ['qlik_replicate']()` | Key prefix used for all emitted AssetKeys. |
 | `compute_kind` | `str` | `"qlik_replicate"` | Compute kind tag for all imported assets. |
 | `action` | `str` | `"run"` | Action sent to Qlik EM on materialize: run \| reload \| stop. |
 | `run_option` | `str` | `"RESUME_PROCESSING"` | `option` query-string arg for the `run` action. |
-| `generate_sensor` | `bool` | `false` | If true, adds a polling sensor that detects Qlik Replicate task state changes and emits AssetObservation events into Dagster's event log. Matches the `polling_sensor` convention on FivetranAccountComponent / SnowflakeWorkspaceComponent / MLflowWorkspaceComponent. Off by default — opt in explicitly. |
+| `generate_sensor` | `bool` | `false` | If true, adds a polling sensor that detects Qlik Replicate task state changes and emits AssetObservation events into Dagster's event log. Matches the `polling_sensor` convention on FivetranAccountComponent / SnowflakeWor… _(full docs in schema.json + component README)_ |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for prod runs against Dagster Cloud. |
 
 [//]: # (FIELDS:END)

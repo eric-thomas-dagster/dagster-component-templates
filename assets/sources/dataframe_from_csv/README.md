@@ -59,14 +59,14 @@ Reads a CSV file from the local filesystem and outputs a Pandas DataFrame asset.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `delimiter` | `str` | `"auto"` | Column delimiter character. Default `auto` uses csv.Sniffer on the first 4 KB to detect , ; \| tab. Pass an explicit char to skip the sniff. |
-| `encoding` | `str` | `"auto"` | File encoding. Default `auto` sniffs the first 4 KB with charset-normalizer and picks the most likely encoding (handles UTF-8-with-BOM, Windows-1252, ISO-8859-1, UTF-16, etc.). Pass an explicit name like 'utf-8' / 'cp1252' / 'latin-1' to skip the sniff. |
+| `encoding` | `str` | `"auto"` | File encoding. Default `auto` sniffs the first 4 KB with charset-normalizer and picks the most likely encoding (handles UTF-8-with-BOM, Windows-1252, ISO-8859-1, UTF-16, etc.). Pass an explicit name like 'utf-8' / 'cp125… _(full docs in schema.json + component README)_ |
 | `parse_dates` | `List[str]` | — | Columns to parse as dates |
 | `dtype` | `Dict[str, str]` | — | Column dtype overrides, e.g. {id: str, amount: float} |
 | `skiprows` | `int` | — | Number of rows to skip at the start of the file |
 | `nrows` | `int` | — | Maximum number of rows to read |
 | `add_filename_column` | `bool` | `false` | If True, add a column to the output containing the source file's basename. Useful when reading a glob pattern that matches multiple files and downstream needs to identify which file each row came from. |
 | `filename_column_name` | `Union[str, int]` | `"FileName"` | Name of the auto-added filename column (only used when add_filename_column=True). |
-| `filename_strip_extension` | `bool` | `false` | If True, the auto-added filename column contains the basename WITHOUT extension (e.g. `bodies_karts` instead of `bodies_karts.csv`). Matches Alteryx's Input Data 'Output File Name as Field' semantics. Only meaningful when add_filename_column=True. |
+| `filename_strip_extension` | `bool` | `false` | If True, the auto-added filename column contains the basename WITHOUT extension (e.g. `bodies_karts` instead of `bodies_karts.csv`). Matches Alteryx's Input Data 'Output File Name as Field' semantics. Only meaningful whe… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |

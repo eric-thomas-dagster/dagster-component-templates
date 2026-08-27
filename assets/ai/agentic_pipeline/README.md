@@ -924,8 +924,8 @@ This is the "compose it all yourself in one YAML" alternative — the AI-side ma
 |---|---|---|
 | `asset_name_prefix` | `str` | Prefix for emitted asset names. Each step in outputs.assets becomes '{prefix}_{step_id}'. |
 | `source` | `Dict[str, Any]` | Data source. Shapes: {kind: literal, text: '...'} \| {kind: file, path: '...'} \| {kind: url, url: '...'} \| {kind: upstream_asset, upstream_asset_key: '...'}. All string fields are {partition_key}-templated. |
-| `steps` | `List[Dict[str, Any]]` | Ordered pipeline steps. Each step: {id, op, ...op-specific args}. Two wiring modes (choose per step, they compose): 1. **Legacy single-source**: `source: <step_id>` reads that step's text into `{text}` in the prompt (default: most recent step). Reserved id `source` = initial pipeline source (use `source: source` to fan multiple steps off the same starting text). 2. **Typed named inputs** (recommended for joins): `inputs: {<port_name>: {from: <step_id>} \| {literal: <value>}}`. Each port becomes a `{<port_name>}` placeholder in `prompt_template` AND `system_prompt` (and, for `mcp_call`, in string `tool_args`). Any step can join from any number of prior steps by port name — the shape common in agentic-orchestration graphs (fan-out → typed-join). 6 ops. LLM ops (llm_call/route/debate/critique_loop/synthesize) all support optional `max_tokens`, `temperature`, `system_prompt`, `prompt_template`: - **llm_call**: {model, api_key_env_var}. One LLM call. Supports both `source:` and `inputs:` for multi-input joins. - **route**: {router: {model, api_key_env_var}, specialists: [{name, description, model, api_key_env_var, system_prompt}], fallback: name}. Router picks specialist, specialist answers. - **debate**: {proposers: [{model, api_key_env_var, system_prompt}], arbitrator: {model, api_key_env_var, system_prompt}}. N proposers, arbitrator picks winner. - **critique_loop**: {drafter: {model, api_key_env_var, system_prompt}, critic: {model, api_key_env_var, system_prompt}, iterations: int}. Drafter → critic → drafter, N iterations. - **synthesize**: {model, api_key_env_var, sources: [<step_ids>] \| inputs: {port: {from: id}}}. Merge multiple upstream step outputs. Prefer `inputs:` for named typed joins (Prefect-style execution-plan shape); `sources:` for positional legacy shape. - **mcp_call**: {server: {name, type: stdio\|http\|sse, command\|url, env\|headers\|headers_env}, mcp_tool_name, tool_args, parse_as: auto\|json\|text}. Direct MCP tool call (no LLM); string `tool_args` support `{text}` substitution against source AND `{port_name}` substitution from `inputs:`. |
-| `outputs` | `Dict[str, Any]` | Output declaration. Shape: {assets: [<step_ids>], text_sinks: [{from, path}], json_sinks: [{from, path}]}. `assets:` step outputs become first-class Dagster assets; `text_sinks:` writes step text to disk; `json_sinks:` writes full step dict. |
+| `steps` | `List[Dict[str, Any]]` | Ordered pipeline steps. Each step: {id, op, ...op-specific args}. Two wiring modes (choose per step, they compose): 1. **Legacy single-source**: `source: <step_id>` reads that step's text into `{text}` in the prompt (def… _(full docs in schema.json + component README)_ |
+| `outputs` | `Dict[str, Any]` | Output declaration. Shape: {assets: [<step_ids>], text_sinks: [{from, path}], json_sinks: [{from, path}]}. `assets:` step outputs become first-class Dagster assets; `text_sinks:` writes step text to disk; `json_sinks:` w… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -936,5 +936,24 @@ This is the "compose it all yourself in one YAML" alternative — the AI-side ma
 | `tags` | `Dict[str, str]` | — | Additional tags on emitted assets. |
 | `owners` | `List[str]` | — | Asset owners. |
 | `description` | `str` | — | Description on emitted assets. |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'dynamic' \| 'multi' \| None (unpartitioned). |
+| `partition_start` | `str` | — | ISO date for time-based partition types (daily/weekly/monthly/hourly/multi). |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated string OR list — the fixed partition keys for static/multi partitioning. e.g. ['NVDA', 'TSLA', 'META'] or 'NVDA,TSLA,META'. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name}. Set instead of partition_type for multi-dimensional partitioning. |
+| `partition_key_parser` | `str` | — | Format template for parsing composite partition keys into named fields — e.g. '{owner}/{repo}#{issue_number}' means partition key 'dagster-io/dagster#30000' → {owner: 'dagster-io', repo: 'dagster', issue_number: '30000'}… _(full docs in schema.json + component README)_ |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `personas` | `Dict[str, Dict[str, Any]]` | — | Named reusable LLM sub-configs. Each persona bundles `{model, api_key_env_var, api_base_env_var, system_prompt, temperature, max_tokens, reasoning_effort, thinking_budget}`. Reference from any step / sub-config via `pers… _(full docs in schema.json + component README)_ |
+| `agents` | `Dict[str, Dict[str, Any]]` | — | Named pre-built agents. Each entry declares `kind:` plus kind-specific connection config. Reference from a step via `op: agent_call, agent: <name>`. Supported kinds: `openai_assistant` (assistant_id + api_key_env_var — c… _(full docs in schema.json + component README)_ |
+| `per_step_ops` | `bool` | `false` | When True, emit as a `@dg.graph_multi_asset` with one @op per step (visible in the Runs page + finer-grained retry). State dict flows through the IO manager between ops. Default False keeps the single-op @multi_asset sha… _(full docs in schema.json + component README)_ |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 
 [//]: # (FIELDS:END)

@@ -66,7 +66,7 @@ that do NOT match).
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `backend` | `str` | `"pandas"` | Execution backend: 'pandas' (default) or 'polars'. Polars runs the filter via its SQL engine over the same condition string and returns a polars DataFrame; pandas uses .query() and returns a pandas DataFrame. The condition syntax is identical across backends for common predicates (col op value, AND/OR, IN, IS NULL, etc.). |
+| `backend` | `str` | `"pandas"` | Execution backend: 'pandas' (default) or 'polars'. Polars runs the filter via its SQL engine over the same condition string and returns a polars DataFrame; pandas uses .query() and returns a pandas DataFrame. The conditi… _(full docs in schema.json + component README)_ |
 | `negate` | `bool` | `false` | If True, keep rows that do NOT match the condition |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output DataFrame in metadata (for builder UIs). |
 | `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. |

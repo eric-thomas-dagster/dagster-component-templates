@@ -14,7 +14,7 @@ This component uses Dagster's IO manager to pass DataFrames between assets. No I
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `operations` | `List[Dict[str, Any]]` | List of operation dicts. Each dict requires: output_column (str), column (str), operation (str: lag\|lead\|rolling_mean\|rolling_sum\|rolling_min\|rolling_max\|rolling_std\|diff\|pct_change\|cumsum\|cummax\|cummin). Optional: periods (int, default 1), window (int, default 3), min_periods (int, default 1). |
+| `operations` | `List[Dict[str, Any]]` | List of operation dicts. Each dict requires: output_column (str), column (str), operation (str: lag\|lead\|rolling_mean\|rolling_sum\|rolling_min\|rolling_max\|rolling_std\|diff\|pct_change\|cumsum\|cummax\|cummin). Opti… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 

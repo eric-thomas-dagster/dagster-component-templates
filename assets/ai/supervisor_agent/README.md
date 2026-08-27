@@ -45,7 +45,7 @@ One YAML block → `2 + N` assets:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `model` | `str` | — | Optional per-tool model override. When None (default), the component-level `model` is used for this tool. Set this to use a search-capable model (e.g., 'perplexity/sonar-pro' via Vercel AI Gateway) for tools that need real web / retrieval, while keeping cheap models for arithmetic-style tools. |
+| `model` | `str` | — | Optional per-tool model override. When None (default), the component-level `model` is used for this tool. Set this to use a search-capable model (e.g., 'perplexity/sonar-pro' via Vercel AI Gateway) for tools that need re… _(full docs in schema.json + component README)_ |
 
 ### Other
 

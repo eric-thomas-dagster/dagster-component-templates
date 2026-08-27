@@ -43,7 +43,7 @@ Emits `2 + N` assets per YAML block:
 |---|---|---|---|
 | `type` | `str` | `"stdio"` | Transport: 'stdio' \| 'http' \| 'sse'. |
 | `command` | `List[str]` | — | stdio: [executable, ...args]. |
-| `env` | `Dict[str, str]` | — | stdio: extra env vars — LITERAL values only, no `${VAR}` interpolation (the dict is passed straight to `StdioServerParameters`). If you need to pass a secret without inlining it in YAML, leave `env` unset — the stdio subprocess inherits the parent Dagster process's env, so any vars already exported (e.g. `GITHUB_PERSONAL_ACCESS_TOKEN`) are visible. |
+| `env` | `Dict[str, str]` | — | stdio: extra env vars — LITERAL values only, no `${VAR}` interpolation (the dict is passed straight to `StdioServerParameters`). If you need to pass a secret without inlining it in YAML, leave `env` unset — the stdio sub… _(full docs in schema.json + component README)_ |
 | `headers` | `Dict[str, str]` | — | http/sse: literal HTTP headers. |
 | `headers_env` | `Dict[str, str]` | — | http/sse: map of header_name → env_var_name (value read from env at call time). Use this for deferred secrets — the secret name lives in YAML, the secret value never does. |
 

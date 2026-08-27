@@ -13,7 +13,7 @@ Auto-emit Dagster assets for both **MLflow experiments** (recent runs + metrics 
 
 | Field | Type | Description |
 |---|---|---|
-| `workspace` | `Annotated[MLflowResource, Resolver(lambda context, model: MLflowResource(**resolve_fields(model, MLflowResource, context)))]` | MLflow connection as an MLflowResource (tracking_uri + optional basic-auth username/password + verify_ssl). Secrets typically arrive via `{{ env.XXX }}` Jinja templating in defs.yaml. |
+| `workspace` | `MLflowResource` | MLflow connection as an MLflowResource (tracking_uri + optional basic-auth username/password + verify_ssl). Secrets typically arrive via `{{ env.XXX }}` Jinja templating in defs.yaml. |
 
 ### Execution
 
@@ -37,12 +37,12 @@ Auto-emit Dagster assets for both **MLflow experiments** (recent runs + metrics 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `translation` | `Annotated[Optional[TranslationFn[MLflowObjectProps]], TranslationFnResolver(template_vars_for_translation_fn=lambda data: {'props': data})]` | — | Function used to translate MLflow object properties into Dagster asset specs. Called for each imported experiment / registered model. If unset, the base translator's default AssetSpec is used. |
+| `translation` | `TranslationFn[MLflowObjectProps]` | — | Function used to translate MLflow object properties into Dagster asset specs. Called for each imported experiment / registered model. If unset, the base translator's default AssetSpec is used. |
 | `experiment_selector` | `MLflowSelector` | — | Optional inclusion/exclusion filter for experiment names. |
 | `runs_limit` | `int` | `100` | Max runs fetched per experiment on each materialization. |
 | `asset_key_prefix` | `List[str]` | `lambda: ['mlflow']()` | Key prefix used for all emitted AssetKeys. |
 | `compute_kind` | `str` | `"mlflow"` | Compute kind tag for all imported assets. |
-| `generate_sensor` | `bool` | `false` | If true, adds a polling sensor that detects new MLflow runs landing in enumerated experiments and emits AssetObservation events into Dagster's event log. Useful when MLflow training jobs are triggered outside Dagster (e.g., a data scientist manually kicks off `mlflow.start_run()`) and you want the downstream Dagster graph to react. Matches the `polling_sensor` convention on FivetranAccountComponent and SnowflakeWorkspaceComponent. Off by default — the MLflow workspace has no cheap change-signal, so opt in explicitly. |
+| `generate_sensor` | `bool` | `false` | If true, adds a polling sensor that detects new MLflow runs landing in enumerated experiments and emits AssetObservation events into Dagster's event log. Useful when MLflow training jobs are triggered outside Dagster (e… _(full docs in schema.json + component README)_ |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for prod runs against Dagster Cloud. |
 
 [//]: # (FIELDS:END)

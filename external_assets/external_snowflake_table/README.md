@@ -39,7 +39,7 @@ This component does not read from or write to Snowflake Table. It is a **lineage
 | `partition_type` | `str` | — | Partition type: 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'dynamic' \| 'multi' (legacy date×static), or None for unpartitioned. For richer multi-axis combinations, use partition_dimensions. |
 | `partition_start` | `str` | — | ISO start date for time-based partition types (e.g. '2024-01-01'). Required for daily/weekly/monthly/hourly. |
 | `partition_values` | `str` | — | Comma-separated values for static / multi partition types (e.g. 'us,eu,apac'). |
-| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec. List of dim dicts: [{name, type: daily\|weekly\|monthly\|hourly\|static\|dynamic, start, values, dynamic_partition_name}]. Overrides the flat fields when set. Use this for (tenant, date), (static, static), (dynamic, date), etc. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec. List of dim dicts: [{name, type: daily\|weekly\|monthly\|hourly\|static\|dynamic, start, values, dynamic_partition_name}]. Overrides the flat fields when set. Use this for (tenant, date), (stat… _(full docs in schema.json + component README)_ |
 
 ### Other
 

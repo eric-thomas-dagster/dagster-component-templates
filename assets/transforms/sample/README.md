@@ -75,7 +75,7 @@ Sample rows from a DataFrame. Pick a `method`:
 |---|---|---|---|
 | `range_start` | `int` | — | 1-indexed inclusive start row for method='range'. e.g. 3 keeps rows 3, 4, 5, ... `Ranges=3-21` in some ETL tools maps to `range_start=3, range_end=21`. |
 | `range_end` | `int` | — | 1-indexed inclusive end row for method='range'. |
-| `method` | `str` | `"random"` | Sampling method: 'random' (default — uses sample_size/frac), 'head' (first N), 'tail' (last N), 'every_nth' (keep every Nth row, starting at index 0), 'skip_head' (drop the first N rows, return the rest). For non-random methods, only sample_size is used. |
+| `method` | `str` | `"random"` | Sampling method: 'random' (default — uses sample_size/frac), 'head' (first N), 'tail' (last N), 'every_nth' (keep every Nth row, starting at index 0), 'skip_head' (drop the first N rows, return the rest). For non-random… _(full docs in schema.json + component README)_ |
 | `sample_size` | `int` | — | Number of rows (random/head/tail/skip_head) or step value (every_nth). Mutually exclusive with frac for method='random'. |
 | `frac` | `float` | — | Fraction of rows to sample, e.g. 0.1 for 10%. Random method only. Mutually exclusive with sample_size. |
 | `random_state` | `int` | `42` | Random seed for reproducibility (random method only) |

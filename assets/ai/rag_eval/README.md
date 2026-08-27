@@ -17,7 +17,7 @@ Run a golden-set retrieval eval against a specific `vector_index_snapshot` parti
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
 | `snapshot_root_dir` | `str` | Same snapshot_root_dir the upstream vector_index_snapshot writes to. The partition_key (snapshot_id) locates the specific snapshot directory. |
-| `golden_set` | `List[Dict[str, Any]]` | List of {query: str, expected_terms: [str]} dicts. Each query is issued against the snapshot; the score is the fraction of `expected_terms` that appear (case-insensitive substring match) in any of the top-k retrieved chunks. Mean across queries is the asset's precision@k. |
+| `golden_set` | `List[Dict[str, Any]]` | List of {query: str, expected_terms: [str]} dicts. Each query is issued against the snapshot; the score is the fraction of `expected_terms` that appear (case-insensitive substring match) in any of the top-k retrieved chu… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 

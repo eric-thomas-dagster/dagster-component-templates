@@ -149,7 +149,7 @@ That's it! The IO manager automatically passes the DataFrame.
 | `unpivot_config` | `str` | — | JSON config for unpivot/melt: {"id_vars": ["id", "name"], "value_vars": ["q1", "q2", "q3"], "var_name": "quarter", "value_name": "sales"} |
 | `upstream_asset_key` | `str` | — | Single upstream asset key. Convenience field for the common single-source case. |
 | `upstream_asset_keys` | `List[str]` | — | Multiple upstream asset keys for multi-source transforms. |
-| `asset_overrides` | `Dict[str, AssetOverride]` | — | Per-asset overrides keyed by the emitted asset's name (typically `asset_name`). Today supports `depends_on: [upstream_key, ...]` to add Dagster asset dependencies (merged with `upstream_asset_key(s)`). Matches the pattern used by the official Databricks workspace component. |
+| `asset_overrides` | `Dict[str, AssetOverride]` | — | Per-asset overrides keyed by the emitted asset's name (typically `asset_name`). Today supports `depends_on: [upstream_key, ...]` to add Dagster asset dependencies (merged with `upstream_asset_key(s)`). Matches the patter… _(full docs in schema.json + component README)_ |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
 

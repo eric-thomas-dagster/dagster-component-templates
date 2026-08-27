@@ -40,8 +40,8 @@ A dry-run returns the BigQuery query plan + estimated bytes scanned without actu
 | `project_id` | `str` | — | — |
 | `location` | `str` | — | BQ location (e.g. 'US', 'EU'). |
 | `max_bytes` | `int` | — | Max estimated bytes scanned. Check fails if exceeded. E.g. 100_000_000_000 = 100 GB. Pick this OR max_cost_usd (or both — strictest wins). |
-| `max_cost_usd` | `float` | — | Max estimated USD cost. NOTE: BigQuery's dry-run does NOT return a cost — only bytes. This is computed locally as bytes_scanned / 1e12 * on_demand_price_per_tb_usd. The rate is YOUR responsibility to keep current. For flat-rate / capacity reservations, this number is meaningless — use max_slot_ms instead. |
-| `on_demand_price_per_tb_usd` | `float` | `6.25` | On-demand $/TB rate used to compute `max_cost_usd`. Default $6.25/TB (US, on-demand, as of 2025). Verify against https://cloud.google.com/bigquery/pricing#analysis_pricing for your region + contract. If you're on capacity reservations, ignore this — use max_slot_ms. |
+| `max_cost_usd` | `float` | — | Max estimated USD cost. NOTE: BigQuery's dry-run does NOT return a cost — only bytes. This is computed locally as bytes_scanned / 1e12 * on_demand_price_per_tb_usd. The rate is YOUR responsibility to keep current. For fl… _(full docs in schema.json + component README)_ |
+| `on_demand_price_per_tb_usd` | `float` | `6.25` | On-demand $/TB rate used to compute `max_cost_usd`. Default $6.25/TB (US, on-demand, as of 2025). Verify against https://cloud.google.com/bigquery/pricing#analysis_pricing for your region + contract. If you're on capacit… _(full docs in schema.json + component README)_ |
 | `max_slot_ms` | `int` | — | Optional cap on estimated slot-ms. Useful for capacity-reservation projects where bytes/cost don't reflect actual spend. |
 | `severity` | `Literal['ERROR', 'WARN']` | `"ERROR"` | — |
 | `blocking` | `bool` | `true` | — |

@@ -38,7 +38,7 @@
 |---|---|---|---|
 | `tool_type` | `str` | `"llm_roleplay"` | 'llm_roleplay' (LLM plays the tool) \| 'sql' (real SQL) \| 'http' (real HTTP call). |
 | `system_message` | `str` | — | Only used when tool_type='llm_roleplay'. System prompt for the tool's LLM. Receives the planner's args string as the user message. |
-| `resource` | `str` | — | Dagster resource key. For tool_type='sql': the resource must expose a get_connection() context manager returning a DB-API connection (e.g., dagster-duckdb's DuckDBResource). For tool_type='http': the resource may expose a .request() method; if omitted, plain `requests` is used. |
+| `resource` | `str` | — | Dagster resource key. For tool_type='sql': the resource must expose a get_connection() context manager returning a DB-API connection (e.g., dagster-duckdb's DuckDBResource). For tool_type='http': the resource may expose… _(full docs in schema.json + component README)_ |
 | `sql_template` | `str` | — | Only used when tool_type='sql'. SQL template with `{args}` substitution. Example: "SELECT * FROM baggage WHERE id = '{args}'". |
 | `http_method` | `str` | `"GET"` | Only used when tool_type='http'. HTTP method. |
 | `http_url` | `str` | — | Only used when tool_type='http'. URL template with `{args}` substitution. Example: "https://airports/api/{args}". |

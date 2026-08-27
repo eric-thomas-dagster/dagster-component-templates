@@ -119,6 +119,6 @@ Reference of public MCP servers: [github.com/modelcontextprotocol/servers](https
 | `command` | `List[str]` | — | stdio only: [executable, ...args]. Example: ['npx', '-y', '@modelcontextprotocol/server-filesystem', '/tmp']. |
 | `env` | `Dict[str, str]` | — | stdio only: extra environment variables to set on the subprocess. |
 | `headers` | `Dict[str, str]` | — | http / sse: literal HTTP headers (don't put secrets here — use `headers_env` instead). |
-| `headers_env` | `Dict[str, str]` | — | http / sse: map of header_name → env_var_name; the header value is read from the named env var at materialization time. Use this for tokens (e.g. {'Authorization': 'DAGSTER_PLUS_TOKEN'} where DAGSTER_PLUS_TOKEN env var holds 'Bearer xyz123'). |
+| `headers_env` | `Dict[str, str]` | — | http / sse: map of header_name → env_var_name; the header value is read from the named env var at materialization time. Use this for tokens (e.g. {'Authorization': 'DAGSTER_PLUS_TOKEN'} where DAGSTER_PLUS_TOKEN env var h… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)

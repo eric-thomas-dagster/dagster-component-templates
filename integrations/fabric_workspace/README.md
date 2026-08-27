@@ -25,7 +25,7 @@ family with a different API surface.
 
 | Field | Type | Description |
 |---|---|---|
-| `workspace` | `Annotated[FabricResource, Resolver(lambda context, model: FabricResource(**resolve_fields(model, FabricResource, context)))]` | Fabric connection as a FabricResource (workspace_id + optional tenant_id/client_id/client_secret for service-principal auth). Secrets typically arrive via `{{ env.XXX }}` Jinja templating in defs.yaml. Falls back to DefaultAzureCredential when the service-principal triple is unset. |
+| `workspace` | `FabricResource` | Fabric connection as a FabricResource (workspace_id + optional tenant_id/client_id/client_secret for service-principal auth). Secrets typically arrive via `{{ env.XXX }}` Jinja templating in defs.yaml. Falls back to Defa… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -43,7 +43,7 @@ family with a different API surface.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `translation` | `Annotated[Optional[TranslationFn[FabricObjectProps]], TranslationFnResolver(template_vars_for_translation_fn=lambda data: {'props': data})]` | — | Function used to translate Fabric object properties into Dagster asset specs. Called for each imported lakehouse / warehouse / notebook / pipeline / dataflow / semantic model / report. If unset, the base translator's default AssetSpec is used. |
+| `translation` | `TranslationFn[FabricObjectProps]` | — | Function used to translate Fabric object properties into Dagster asset specs. Called for each imported lakehouse / warehouse / notebook / pipeline / dataflow / semantic model / report. If unset, the base translator's def… _(full docs in schema.json + component README)_ |
 | `import_lakehouses` | `bool` | `true` | — |
 | `import_warehouses` | `bool` | `true` | — |
 | `import_notebooks` | `bool` | `false` | Notebooks become materializable @assets -- materializing them runs the notebook job. |
@@ -53,7 +53,7 @@ family with a different API surface.
 | `import_reports` | `bool` | `false` | — |
 | `exclude_name_pattern` | `str` | — | Regex applied to Fabric item display names for exclusion. |
 | `upstream_asset_keys` | `List[str]` | — | Asset keys that all imported assets wait for (lineage-only). |
-| `generate_sensor` | `bool` | `false` | If true, adds a polling sensor that detects new Fabric item job completions and emits AssetObservation events. Matches the `polling_sensor` convention on FivetranAccountComponent and SnowflakeWorkspaceComponent. Off by default -- opt in explicitly. |
+| `generate_sensor` | `bool` | `false` | If true, adds a polling sensor that detects new Fabric item job completions and emits AssetObservation events. Matches the `polling_sensor` convention on FivetranAccountComponent and SnowflakeWorkspaceComponent. Off by d… _(full docs in schema.json + component README)_ |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for prod runs against Dagster Cloud. |
 
 [//]: # (FIELDS:END)

@@ -25,7 +25,7 @@ observation mode to record terminal status on the same asset.
 
 | Field | Type | Description |
 |---|---|---|
-| `asset_key` | `str` | Dagster asset key for the Precisely job (e.g. 'precisely/etl/load_customers'). Use '/' separators for nested keys. Same value an ``external_precisely_job`` would use — but do NOT use both components on the same key; pick the Case (A or B in the module docstring) that matches your schedule ownership. |
+| `asset_key` | `str` | Dagster asset key for the Precisely job (e.g. 'precisely/etl/load_customers'). Use '/' separators for nested keys. Same value an ``external_precisely_job`` would use — but do NOT use both components on the same key; pick… _(full docs in schema.json + component README)_ |
 | `job_id` | `str` | Precisely Connect ETL stable job id (the job to trigger). |
 
 ### Connection

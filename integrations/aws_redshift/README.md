@@ -48,7 +48,7 @@ botocore>=1.29.0
 | `import_materialized_views` | `bool` | `true` | Import materialized views as materializable assets |
 | `exclude_name_pattern` | `str` | — | Regex pattern to exclude entities by name |
 | `schema_name` | `str` | `"public"` | Schema name to query for procedures and views |
-| `asset_overrides` | `Dict[str, AssetOverride]` | — | Per-asset overrides keyed by the emitted asset's name (e.g. `procedure_daily_rollup`, `matview_customer_summary`). Today supports `depends_on: [upstream_key, ...]` to add Dagster asset dependencies. Matches the pattern used by the official Databricks workspace component. |
+| `asset_overrides` | `Dict[str, AssetOverride]` | — | Per-asset overrides keyed by the emitted asset's name (e.g. `procedure_daily_rollup`, `matview_customer_summary`). Today supports `depends_on: [upstream_key, ...]` to add Dagster asset dependencies. Matches the pattern u… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

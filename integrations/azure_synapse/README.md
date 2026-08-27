@@ -58,7 +58,7 @@ Import Azure Synapse Analytics entities as Dagster assets for comprehensive data
 | `import_notebooks` | `bool` | `false` | Import notebooks as materializable assets |
 | `exclude_name_pattern` | `str` | — | Regex pattern to exclude entities by name |
 | `generate_sensor` | `bool` | `true` | Generate observation sensor for pipeline runs |
-| `asset_overrides` | `Dict[str, AssetOverride]` | — | Per-asset overrides keyed by the emitted asset's name (e.g. `synapse_pipeline_orders_load`, `synapse_notebook_scoring`). Today supports `depends_on: [upstream_key, ...]` to add Dagster asset dependencies. Matches the pattern used by the official Databricks workspace component. |
+| `asset_overrides` | `Dict[str, AssetOverride]` | — | Per-asset overrides keyed by the emitted asset's name (e.g. `synapse_pipeline_orders_load`, `synapse_notebook_scoring`). Today supports `depends_on: [upstream_key, ...]` to add Dagster asset dependencies. Matches the pat… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

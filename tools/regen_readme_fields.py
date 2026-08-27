@@ -215,15 +215,65 @@ def _is_optional(type_str: str) -> bool:
 
 
 def _clean_type(t: str) -> str:
-    """Shorten Optional[X] → X for readability (Default column already signals
-    optionality)."""
+    """Normalize the type column for a narrow README table.
+
+    Rules (applied in order):
+      - Strip `Optional[X]` → `X` (the Default column signals optionality).
+      - Strip trailing ` | None`.
+      - Collapse `Annotated[T, ...]` → just `T` (drop the resolver / validator
+        metadata — irrelevant to the reader of the fields table).
+      - Cap at MAX_TYPE_LEN chars, ellipsize if longer.
+    """
+    MAX_TYPE_LEN = 60
     t = t.strip()
+
+    # `Annotated[T, meta, meta, ...]` → `T` (only the first arg matters here)
+    # Careful bracket-aware parsing so we don't over-strip nested generics.
+    while t.startswith("Annotated["):
+        depth = 0
+        first_comma_at_depth_1 = None
+        for i, ch in enumerate(t[len("Annotated["):], start=len("Annotated[")):
+            if ch == "[":
+                depth += 1
+            elif ch == "]":
+                if depth == 0:
+                    break
+                depth -= 1
+            elif ch == "," and depth == 0:
+                first_comma_at_depth_1 = i
+                break
+        if first_comma_at_depth_1 is None:
+            break
+        # The inner type is Annotated[<inner>, meta...]
+        inner = t[len("Annotated["):first_comma_at_depth_1].strip()
+        t = inner
+
+    # Strip Optional wrapper
     m = re.match(r"^Optional\[(.+)\]$", t)
     if m:
-        return m.group(1)
+        t = m.group(1).strip()
     # Strip trailing " | None"
     t = re.sub(r"\s*\|\s*None\s*$", "", t)
+
+    if len(t) > MAX_TYPE_LEN:
+        t = t[:MAX_TYPE_LEN - 1].rstrip() + "…"
     return t
+
+
+def _clean_description(d: str) -> str:
+    """Cap description at MAX_DESC_LEN chars for the README table cell.
+
+    The full description remains in the component's `Field(description=...)`
+    Pydantic model + emitted schema.json (used for the Component UI tooltip),
+    so nothing is lost — this is a table-rendering constraint only.
+
+    Truncated descriptions gain a `See README below.` suffix so readers know
+    there's more."""
+    MAX_DESC_LEN = 240
+    d = (d or "").strip()
+    if len(d) <= MAX_DESC_LEN:
+        return d
+    return d[:MAX_DESC_LEN - 20].rstrip().rstrip(".,;:") + "… _(full docs in schema.json + component README)_"
 
 
 def bucket(fields: list[dict]) -> dict[str, list[dict]]:
@@ -284,7 +334,7 @@ def render(buckets: dict[str, list[dict]]) -> str:
             out.append("|---|---|---|")
             for r in rows:
                 out.append(
-                    f"| `{r['name']}` | `{r['type_str']}` | {r['description'] or '—'} |"
+                    f"| `{r['name']}` | `{r['type_str']}` | {_clean_description(r['description']) or '—'} |"
                 )
         else:
             out.append("| Field | Type | Default | Description |")
@@ -292,7 +342,7 @@ def render(buckets: dict[str, list[dict]]) -> str:
             for r in rows:
                 default = r["default_str"] if r["default_str"] is not None else "—"
                 out.append(
-                    f"| `{r['name']}` | `{r['type_str']}` | {default} | {r['description'] or '—'} |"
+                    f"| `{r['name']}` | `{r['type_str']}` | {default} | {_clean_description(r['description']) or '—'} |"
                 )
         out.append("")
     return "\n".join(out).rstrip() + "\n"

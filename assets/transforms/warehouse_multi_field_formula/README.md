@@ -57,7 +57,7 @@ attributes:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_mode` | `str` | `"add_suffix"` | 'replace' — transformed values overwrite the original columns (uses SELECT * EXCEPT(); duckdb/bigquery/snowflake/databricks only). 'add_suffix' — original passes through plus new <col><suffix> columns. 'add_prefix' — same with prefix instead of suffix. |
+| `output_mode` | `str` | `"add_suffix"` | 'replace' — transformed values overwrite the original columns (uses SELECT * EXCEPT(); duckdb/bigquery/snowflake/databricks only). 'add_suffix' — original passes through plus new <col><suffix> columns. 'add_prefix' — sam… _(full docs in schema.json + component README)_ |
 | `prefix` | `str` | `"calc_"` | Used when output_mode='add_prefix'. |
 | `mode` | `str` | `"replace"` | 'replace' or 'create_if_not_exists' |
 

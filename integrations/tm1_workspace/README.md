@@ -45,7 +45,7 @@ Same shape for `process_selector` and `chore_selector`. Omit a selector → incl
 
 | Field | Type | Description |
 |---|---|---|
-| `workspace` | `Annotated[TM1Resource, Resolver(lambda context, model: TM1Resource(**resolve_fields(model, TM1Resource, context)))]` | TM1 connection as a TM1Resource (base_url + optional username/password/cam_namespace + verify_ssl). Secrets typically arrive via `{{ env.XXX }}` Jinja templating in defs.yaml. |
+| `workspace` | `TM1Resource` | TM1 connection as a TM1Resource (base_url + optional username/password/cam_namespace + verify_ssl). Secrets typically arrive via `{{ env.XXX }}` Jinja templating in defs.yaml. |
 
 ### Execution
 
@@ -64,13 +64,13 @@ Same shape for `process_selector` and `chore_selector`. Omit a selector → incl
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `translation` | `Annotated[Optional[TranslationFn[TM1ObjectProps]], TranslationFnResolver(template_vars_for_translation_fn=lambda data: {'props': data})]` | — | Function used to translate TM1 object properties into Dagster asset specs. Called for each imported cube / process / chore. If unset, the base translator's default AssetSpec is used. |
+| `translation` | `TranslationFn[TM1ObjectProps]` | — | Function used to translate TM1 object properties into Dagster asset specs. Called for each imported cube / process / chore. If unset, the base translator's default AssetSpec is used. |
 | `cube_selector` | `TM1ObjectSelector` | — | Optional inclusion/exclusion filter for cube names. |
 | `process_selector` | `TM1ObjectSelector` | — | Optional inclusion/exclusion filter for process names. |
 | `chore_selector` | `TM1ObjectSelector` | — | Optional inclusion/exclusion filter for chore names. |
 | `asset_key_prefix` | `List[str]` | `lambda: ['tm1']()` | Key prefix used for all emitted AssetKeys. |
 | `compute_kind` | `str` | `"tm1"` | Compute kind tag for all imported assets. |
-| `generate_sensor` | `bool` | `false` | Reserved: if true, add a polling sensor that detects new TM1 process runs and emits AssetObservation events. Matches the `polling_sensor` convention on FivetranAccountComponent and SnowflakeWorkspaceComponent. Off by default — TM1 has no cheap change-signal, so opt in explicitly. |
+| `generate_sensor` | `bool` | `false` | Reserved: if true, add a polling sensor that detects new TM1 process runs and emits AssetObservation events. Matches the `polling_sensor` convention on FivetranAccountComponent and SnowflakeWorkspaceComponent. Off by def… _(full docs in schema.json + component README)_ |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for prod runs against Dagster Cloud. |
 
 [//]: # (FIELDS:END)

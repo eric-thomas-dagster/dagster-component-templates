@@ -71,7 +71,7 @@ For DataFrame-mediated alternatives (slower but vendor-agnostic), see `dataframe
 |---|---|---|---|
 | `source_table_id` | `str` | — | Fully-qualified BQ table id to extract. Mutually exclusive with source_query. |
 | `source_query` | `str` | — | SELECT to export via EXPORT DATA. Supports {placeholder} substitution. |
-| `format` | `Literal['parquet', 'csv', 'json', 'newline_delimited_json', 'avro']` | `"parquet"` | Output format (json == newline_delimited_json — JSONL). |
+| `format` | `Literal['parquet', 'csv', 'json', 'newline_delimited_json',…` | `"parquet"` | Output format (json == newline_delimited_json — JSONL). |
 
 ### Other
 

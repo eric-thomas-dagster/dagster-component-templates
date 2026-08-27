@@ -12,7 +12,7 @@ The workspace-shape peer of the low-level `cognos_*` components.
 
 | Field | Type | Description |
 |---|---|---|
-| `workspace` | `Annotated[CognosResource, Resolver(lambda context, model: CognosResource(**resolve_fields(model, CognosResource, context)))]` | Cognos connection as a CognosResource (base_url + username / password / namespace + verify_ssl). Secrets typically arrive via `{{ env.XXX }}` Jinja templating in defs.yaml. |
+| `workspace` | `CognosResource` | Cognos connection as a CognosResource (base_url + username / password / namespace + verify_ssl). Secrets typically arrive via `{{ env.XXX }}` Jinja templating in defs.yaml. |
 
 ### Execution
 
@@ -37,12 +37,12 @@ The workspace-shape peer of the low-level `cognos_*` components.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `translation` | `Annotated[Optional[TranslationFn[CognosObjectProps]], TranslationFnResolver(template_vars_for_translation_fn=lambda data: {'props': data})]` | — | Function used to translate Cognos object properties into Dagster asset specs. Called for each imported report. If unset, the base translator's default AssetSpec is used. |
+| `translation` | `TranslationFn[CognosObjectProps]` | — | Function used to translate Cognos object properties into Dagster asset specs. Called for each imported report. If unset, the base translator's default AssetSpec is used. |
 | `folder_ids` | `List[str]` | — | Cognos searchPath-style folder paths to walk. Omit for root (`/`). Example: `/content/folder[@name='Finance']`. |
 | `report_selector` | `CognosReportSelector` | — | Optional inclusion/exclusion filter for report names. |
 | `asset_key_prefix` | `List[str]` | `lambda: ['cognos', 'report']()` | Key prefix used for all emitted AssetKeys. |
 | `compute_kind` | `str` | `"cognos"` | Compute kind tag for all imported assets. |
-| `generate_sensor` | `bool` | `false` | If true, adds a polling sensor that detects new Cognos report runs and emits AssetObservation events into Dagster's event log. Matches the `polling_sensor` convention on FivetranAccountComponent and SnowflakeWorkspaceComponent. Off by default — Cognos has no cheap change-signal, so opt in explicitly. |
+| `generate_sensor` | `bool` | `false` | If true, adds a polling sensor that detects new Cognos report runs and emits AssetObservation events into Dagster's event log. Matches the `polling_sensor` convention on FivetranAccountComponent and SnowflakeWorkspaceCom… _(full docs in schema.json + component README)_ |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for prod runs against Dagster Cloud. |
 
 [//]: # (FIELDS:END)

@@ -65,7 +65,7 @@ This component expects to receive a DataFrame from an upstream asset. Use the **
 | `owners` | `List[str]` | — | Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com'] |
 | `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'} |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from component name if not set. |
-| `automation_condition` | `Any` | — | AutomationCondition for this asset. In YAML, write as a Jinja template against the dg namespace, e.g. '{{ dg.AutomationCondition.eager() }}' — Dagster's component loader resolves it to the actual AutomationCondition object. Useful when the upstream is a multi-asset with sparse per-partition materialization. |
+| `automation_condition` | `Any` | — | AutomationCondition for this asset. In YAML, write as a Jinja template against the dg namespace, e.g. '{{ dg.AutomationCondition.eager() }}' — Dagster's component loader resolves it to the actual AutomationCondition obje… _(full docs in schema.json + component README)_ |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime). |
 

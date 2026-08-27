@@ -82,7 +82,7 @@ attributes:
 | `credentials_path` | `str` | — | — |
 | `project_id` | `str` | — | — |
 | `info_types` | `List[str]` | `lambda: ['EMAIL_ADDRESS', 'PHONE_NUMBER', 'US_SOCIAL_SECURITY_NUMBER', 'CREDIT_CARD_NUMBER', 'PERSON_NAME', 'STREET_ADDRESS']()` | List of Cloud DLP infoType names to detect. See https://cloud.google.com/dlp/docs/infotypes-reference |
-| `min_likelihood` | `Literal['LIKELIHOOD_UNSPECIFIED', 'VERY_UNLIKELY', 'UNLIKELY', 'POSSIBLE', 'LIKELY', 'VERY_LIKELY']` | `"POSSIBLE"` | Minimum likelihood to surface as a finding. |
+| `min_likelihood` | `Literal['LIKELIHOOD_UNSPECIFIED', 'VERY_UNLIKELY', 'UNLIKEL…` | `"POSSIBLE"` | Minimum likelihood to surface as a finding. |
 | `max_findings_per_row` | `int` | `20` | Cap on how many individual findings are recorded per row. |
 | `include_quote` | `bool` | `false` | If True, include the matching substring in `dlp_findings`. Disabled by default — quotes can themselves be PII. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |

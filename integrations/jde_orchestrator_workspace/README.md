@@ -12,7 +12,7 @@ The workspace-shape peer of the `jde_orchestrator_*` low-level components.
 
 | Field | Type | Description |
 |---|---|---|
-| `workspace` | `Annotated[JDEOrchestratorResource, Resolver(lambda context, model: JDEOrchestratorResource(**resolve_fields(model, JDEOrchestratorResource, context)))]` | JDE Orchestrator connection as a JDEOrchestratorResource. Carries base_url (AIS server), username/password (Basic auth), api_path_prefix (v3 for JDE Tools 9.2.7+, v2 for older) and verify_ssl. Secrets typically arrive via `{{ env.XXX }}` Jinja templating in defs.yaml. |
+| `workspace` | `JDEOrchestratorResource` | JDE Orchestrator connection as a JDEOrchestratorResource. Carries base_url (AIS server), username/password (Basic auth), api_path_prefix (v3 for JDE Tools 9.2.7+, v2 for older) and verify_ssl. Secrets typically arrive vi… _(full docs in schema.json + component README)_ |
 
 ### Execution
 
@@ -32,12 +32,12 @@ The workspace-shape peer of the `jde_orchestrator_*` low-level components.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `translation` | `Annotated[Optional[TranslationFn[JDEOrchestratorObjectProps]], TranslationFnResolver(template_vars_for_translation_fn=lambda data: {'props': data})]` | — | Function used to translate JDE object properties into Dagster asset specs. Called for each imported orchestration / report / xmlrequest. If unset, the base translator's default AssetSpec is used. |
+| `translation` | `TranslationFn[JDEOrchestratorObjectProps]` | — | Function used to translate JDE object properties into Dagster asset specs. Called for each imported orchestration / report / xmlrequest. If unset, the base translator's default AssetSpec is used. |
 | `orchestration_selector` | `OrchestrationSelector` | — | Optional inclusion/exclusion filter for orchestration names. |
 | `asset_key_prefix` | `List[str]` | `lambda: ['jde', 'orchestration']()` | Key prefix used for all emitted AssetKeys. |
 | `compute_kind` | `str` | `"jde"` | Compute kind tag for all imported assets. |
 | `async_mode` | `bool` | `false` | If true, submit orchestrations with ``?asynchronous=true`` so AIS returns a jobId immediately. Pairs with ``wait_for_completion`` to poll the status endpoint until terminal. |
-| `generate_sensor` | `bool` | `false` | If true, adds a polling sensor that detects newly completed AIS orchestration runs and emits AssetObservation events into Dagster's event log. Matches the ``polling_sensor`` convention on FivetranAccountComponent / SnowflakeWorkspaceComponent. Off by default — JDE AIS doesn't push change events, so opt in explicitly. |
+| `generate_sensor` | `bool` | `false` | If true, adds a polling sensor that detects newly completed AIS orchestration runs and emits AssetObservation events into Dagster's event log. Matches the ``polling_sensor`` convention on FivetranAccountComponent / Snowf… _(full docs in schema.json + component README)_ |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for prod runs against Dagster Cloud. |
 
 [//]: # (FIELDS:END)

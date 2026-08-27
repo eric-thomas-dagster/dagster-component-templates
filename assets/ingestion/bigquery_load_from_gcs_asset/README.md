@@ -73,7 +73,7 @@ For DataFrame-mediated alternatives (slower but vendor-agnostic), see `gcs_to_da
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `format` | `Literal['parquet', 'csv', 'json', 'newline_delimited_json', 'avro', 'orc']` | `"parquet"` | — |
+| `format` | `Literal['parquet', 'csv', 'json', 'newline_delimited_json',…` | `"parquet"` | — |
 | `write_disposition` | `Literal['WRITE_TRUNCATE', 'WRITE_APPEND', 'WRITE_EMPTY']` | `"WRITE_TRUNCATE"` | WRITE_TRUNCATE replaces table contents; WRITE_APPEND adds rows; WRITE_EMPTY fails if table has rows. |
 | `table_schema` | `List[Dict[str, Any]]` | — | Explicit schema as a list of {name, type, mode?} dicts. Only used when autodetect=false. (Field is named `table_schema` rather than `schema` to avoid a Pydantic name collision.) |
 

@@ -94,7 +94,7 @@ String parameter values (and `flow_run_name`) support `{partition_key}` and `{ru
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `wait_for_result` | `bool` | `true` | Wait for the flow run to reach a terminal state before the Dagster asset finishes materializing. When False, the asset returns immediately after submitting the flow run — use this for fire-and-forget triggers and pair with `prefect_flow_run_sensor` downstream. |
+| `wait_for_result` | `bool` | `true` | Wait for the flow run to reach a terminal state before the Dagster asset finishes materializing. When False, the asset returns immediately after submitting the flow run — use this for fire-and-forget triggers and pair wi… _(full docs in schema.json + component README)_ |
 | `flow_run_name` | `str` | — | Optional flow run name. Templated with `{partition_key}` and `{run_id}` like parameter values. |
 | `api_url` | `str` | `"http://127.0.0.1:4200/api"` | Prefect API URL. Default is local server at :4200. |
 | `fail_on_flow_run_failure` | `bool` | `true` | When True and wait_for_result=True, the Dagster asset fails if the Prefect flow run ends in a non-COMPLETED state (FAILED, CRASHED, CANCELLED). When False, the asset always materializes successfully — inspect the state in the metadata. |

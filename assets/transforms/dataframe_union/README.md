@@ -56,7 +56,7 @@ Stack two or more upstream DataFrame assets vertically, equivalent to SQL UNION 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `mode` | `str` | `"by_name"` | 'by_name' (default): match columns by name across inputs (pandas concat default). 'by_position': take column names from the FIRST input and force all subsequent inputs to use those names positionally. Use when sources share row shape but differ in column names (e.g. drivers.csv has 'Driver' as first col, tires.csv has 'Tire'). |
+| `mode` | `str` | `"by_name"` | 'by_name' (default): match columns by name across inputs (pandas concat default). 'by_position': take column names from the FIRST input and force all subsequent inputs to use those names positionally. Use when sources sh… _(full docs in schema.json + component README)_ |
 
 ### Other
 

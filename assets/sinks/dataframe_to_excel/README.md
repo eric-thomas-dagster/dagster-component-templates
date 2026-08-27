@@ -14,7 +14,7 @@ Writes a Pandas DataFrame to an Excel `.xlsx` file. This is a terminal sink comp
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `file_path` | `str` | Destination path or fsspec URI. Local (`/tmp/out.xlsx`) and remote URIs (`s3://...`, `gs://...`, `abfss://...`) both work — pandas' `to_excel()` accepts fsspec URIs when the matching driver (`s3fs` / `gcsfs` / `adlfs`) is installed. Supports env-var substitution. |
+| `file_path` | `str` | Destination path or fsspec URI. Local (`/tmp/out.xlsx`) and remote URIs (`s3://...`, `gs://...`, `abfss://...`) both work — pandas' `to_excel()` accepts fsspec URIs when the matching driver (`s3fs` / `gcsfs` / `adlfs`) i… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 

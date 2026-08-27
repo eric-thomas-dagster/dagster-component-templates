@@ -24,7 +24,7 @@ Plus the original source columns with `vendor_` prefix (unless `drop_extra_colum
 |---|---|---|
 | `asset_name` | `str` | Output asset name (the normalized employee table). |
 | `upstream_asset_key` | `str` | Upstream DataFrame asset — the raw HRIS data. |
-| `column_map` | `Dict[str, Union[str, int]]` | {canonical_field: source_column}. Canonical fields: employee_id, email, first_name, last_name, full_name, manager_employee_id, department, job_title, location, country, employment_status, employment_type, hire_date, termination_date. Missing canonical fields are filled with None. |
+| `column_map` | `Dict[str, Union[str, int]]` | {canonical_field: source_column}. Canonical fields: employee_id, email, first_name, last_name, full_name, manager_employee_id, department, job_title, location, country, employment_status, employment_type, hire_date, term… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 

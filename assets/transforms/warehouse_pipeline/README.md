@@ -76,7 +76,7 @@ Think of it as a YAML-defined view-building or stored-procedure-shape — analog
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 | `include_preview_metadata` | `bool` | `false` | — |
 | `preview_rows` | `int` | `25` | — |
-| `return_dataframe` | `bool` | `false` | When true, after running the CTAS the asset SELECTs from the primary sink table and returns the result as a pandas DataFrame so downstream pandas-consuming assets can read it via Dagster's IO manager. the boundary where data leaves the warehouse and lands in memory. Leave false (default) for pure SQL chains that end at a final warehouse table; flip on when this is the bridge step between warehouse-side SQL and downstream pandas work. |
+| `return_dataframe` | `bool` | `false` | When true, after running the CTAS the asset SELECTs from the primary sink table and returns the result as a pandas DataFrame so downstream pandas-consuming assets can read it via Dagster's IO manager. the boundary where… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

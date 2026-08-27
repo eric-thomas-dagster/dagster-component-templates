@@ -202,6 +202,6 @@ Full end-to-end demo + comparison against 7 alternative shapes (raw `@dg.asset`,
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `experiment_tracking` | `Dict[str, Any]` | — | Experiment-tracker config. Auto-logged from train / evaluate / cross_validate / grid_search / random_search / bayesian_search steps. Two backends (either OR both): `mlflow:` — `{tracking_uri_env_var, experiment_name, run_name_template, log_params, log_metrics, log_model, log_artifacts, tags}` `wandb:` — `{project_env_var, api_key_env_var, entity_env_var, run_name_template, tags}` `run_name_template` supports `{prefix}` / `{partition_key}` / `{run_id}` substitutions. Silently no-ops if the tracker library isn't installed. |
+| `experiment_tracking` | `Dict[str, Any]` | — | Experiment-tracker config. Auto-logged from train / evaluate / cross_validate / grid_search / random_search / bayesian_search steps. Two backends (either OR both): `mlflow:` — `{tracking_uri_env_var, experiment_name, run… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)

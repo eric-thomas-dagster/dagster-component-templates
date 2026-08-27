@@ -61,13 +61,13 @@ This component takes two upstream assets: one for points and one for regions.
 |---|---|---|---|
 | `lat_column` | `Union[str, int]` | `"latitude"` | Column name in the points DataFrame for latitude |
 | `lng_column` | `Union[str, int]` | `"longitude"` | Column name in the points DataFrame for longitude |
-| `points_geometry_column` | `Union[str, int]` | — | If set, use this column from the points DataFrame as already-built Shapely geometries (Point/LineString/Polygon) instead of building from lat_column + lng_column. Useful when the upstream emits geometries directly (e.g. CreatePoints, PolyBuild, geocoder). |
+| `points_geometry_column` | `Union[str, int]` | — | If set, use this column from the points DataFrame as already-built Shapely geometries (Point/LineString/Polygon) instead of building from lat_column + lng_column. Useful when the upstream emits geometries directly (e.g… _(full docs in schema.json + component README)_ |
 | `geometry_column` | `Union[str, int]` | `"geometry"` | Column in the regions DataFrame containing GeoJSON geometry dicts or strings |
 | `how` | `str` | `"left"` | Join type: 'left' (keep all points) or 'inner' (keep only matched points) |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
-| `rename` | `Dict[str, Union[str, int]]` | — | Post-join column renames applied to the joined DataFrame. Maps current column name → new column name. Use this when an upstream ETL tool's embedded select-and-rename block produced colliding left/right columns that need to land under specific names downstream (e.g. Target_address → NewAddress). |
+| `rename` | `Dict[str, Union[str, int]]` | — | Post-join column renames applied to the joined DataFrame. Maps current column name → new column name. Use this when an upstream ETL tool's embedded select-and-rename block produced colliding left/right columns that need… _(full docs in schema.json + component README)_ |
 | `drop_columns` | `List[Union[str, int]]` | — | Post-join column drops applied to the joined DataFrame. Lists column names to remove. Use this when an upstream ETL tool's embedded select block opted columns OUT. |
 
 [//]: # (FIELDS:END)

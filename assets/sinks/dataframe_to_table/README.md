@@ -73,7 +73,7 @@ Writes a Pandas DataFrame to a relational database table. This is a terminal sin
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `database_url` | `str` | — | SQLAlchemy database URL (e.g. 'postgres://user:pass@host/db'). Set this OR database_url_env_var. |
-| `drop_timezone` | `bool` | `true` | Drop tz from tz-aware datetime columns before INSERT. Default True because SQLite has no native tz, MySQL silently truncates, and even Postgres-bound users often want a normalized UTC. Set False to keep tz info (works on Postgres TIMESTAMPTZ via SQLAlchemy). |
+| `drop_timezone` | `bool` | `true` | Drop tz from tz-aware datetime columns before INSERT. Default True because SQLite has no native tz, MySQL silently truncates, and even Postgres-bound users often want a normalized UTC. Set False to keep tz info (works on… _(full docs in schema.json + component README)_ |
 | `chunksize` | `int` | — | Rows per batch when writing to the database |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 

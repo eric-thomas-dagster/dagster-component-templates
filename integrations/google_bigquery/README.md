@@ -65,7 +65,7 @@ Import BigQuery entities as Dagster assets with comprehensive orchestration and 
 | `import_routines` | `bool` | `false` | Import routines (UDFs/procedures) as observable assets |
 | `exclude_name_pattern` | `str` | — | Regex pattern to exclude entities by name |
 | `generate_sensor` | `bool` | `true` | Create a sensor to observe scheduled query runs |
-| `asset_overrides` | `Dict[str, AssetOverride]` | — | Per-asset overrides keyed by the emitted asset's name (e.g. `scheduled_query_daily_rollup`, `mv_customer_summary`, `table_orders`). Today supports `depends_on: [upstream_key, ...]` to add Dagster asset dependencies. Matches the pattern used by the official Databricks workspace component. |
+| `asset_overrides` | `Dict[str, AssetOverride]` | — | Per-asset overrides keyed by the emitted asset's name (e.g. `scheduled_query_daily_rollup`, `mv_customer_summary`, `table_orders`). Today supports `depends_on: [upstream_key, ...]` to add Dagster asset dependencies. Matc… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

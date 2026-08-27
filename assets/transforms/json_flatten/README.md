@@ -56,7 +56,7 @@ Recursively flatten nested dict columns into dot-notation columns (e.g. `address
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_format` | `str` | `"wide"` | Output shape. 'wide' (default) emits flattened dot-notation columns (e.g. `address.city`). 'long' emits one row per (key-path, value) pair with two extra columns: `JSON_Name` and `JSON_ValueString` — useful for downstream key-prefix filtering or to re-pivot dynamically. |
+| `output_format` | `str` | `"wide"` | Output shape. 'wide' (default) emits flattened dot-notation columns (e.g. `address.city`). 'long' emits one row per (key-path, value) pair with two extra columns: `JSON_Name` and `JSON_ValueString` — useful for downstrea… _(full docs in schema.json + component README)_ |
 
 ### Other
 

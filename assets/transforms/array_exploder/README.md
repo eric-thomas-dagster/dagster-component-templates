@@ -12,7 +12,7 @@ Expand an array-valued column so each element becomes its own row. Wraps `pandas
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `column` | `Union[str, List[str]]` | Column(s) containing arrays to explode. A single column name explodes that column; a list of column names explodes them in parallel (zip-style — each row's lists must be the same length, useful after xml_parser mode='findall' returns matched pairs). |
+| `column` | `Union[str, List[str]]` | Column(s) containing arrays to explode. A single column name explodes that column; a list of column names explodes them in parallel (zip-style — each row's lists must be the same length, useful after xml_parser mode='fin… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 

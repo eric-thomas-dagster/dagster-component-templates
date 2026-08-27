@@ -36,7 +36,7 @@ Perfect for:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `partition_mode` | `str` | `"run_config"` | How the sensor surfaces detected ADLS files: 'run_config' (default, embeds metadata in run_config), 'dynamic_partition' (registers each new file path as a dynamic partition + yields RunRequest(partition_key=...)), or 'both'. Pair with `file_ingestion`'s matching input mode. |
+| `partition_mode` | `str` | `"run_config"` | How the sensor surfaces detected ADLS files: 'run_config' (default, embeds metadata in run_config), 'dynamic_partition' (registers each new file path as a dynamic partition + yields RunRequest(partition_key=...)), or 'bo… _(full docs in schema.json + component README)_ |
 | `partition_key_template` | `str` | `"{file_path}"` | Template for the partition key per detected file. Fields: {storage_account}, {container}, {file_path}, {file_name}. Default `{file_path}` makes the partition key equal to the ADLS file path inside the container. |
 
 ### Sensor configuration
@@ -51,7 +51,7 @@ Perfect for:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `directory_path` | `str` | — | Directory path within the container to monitor (e.g., 'incoming/' or 'data/2024/') |
-| `target_op_name` | `str` | — | When the target job materializes a single config-aware op/asset, set this to the op's name (e.g. the asset name from adls_to_database_asset). The sensor will emit run_config nested under `ops.<target_op_name>.config.{container_name, blob_name, blob_size}` so the asset's Config picks up the values directly. When None, the legacy generic shape (`ops.config.<keys>`) is emitted. |
+| `target_op_name` | `str` | — | When the target job materializes a single config-aware op/asset, set this to the op's name (e.g. the asset name from adls_to_database_asset). The sensor will emit run_config nested under `ops.<target_op_name>.config.{con… _(full docs in schema.json + component README)_ |
 
 ### Other
 

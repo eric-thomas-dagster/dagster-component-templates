@@ -99,7 +99,7 @@ Downstream steps that read from prior outputs get REAL data flowing through, not
 | `synthesis_max_tokens` | `int` | `800` | — |
 | `fail_on_execution_error` | `bool` | `false` | — |
 | `synthesis_system_message` | `str` | — | — |
-| `codegen_output_dir` | `str` | — | If set, after synthesis the component writes one ready-to-commit defs.yaml per successful pick to this directory. Point at your project's `src/<pkg>/defs/` folder. The generated YAMLs reproduce the agent's trajectory as permanent Dagster assets — drop the catalog_agent config afterwards and materialize directly (zero LLM cost from that point). Preview of the equivalent YAML is ALWAYS included in the synthesis asset's metadata regardless. |
+| `codegen_output_dir` | `str` | — | If set, after synthesis the component writes one ready-to-commit defs.yaml per successful pick to this directory. Point at your project's `src/<pkg>/defs/` folder. The generated YAMLs reproduce the agent's trajectory as… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | — |
 
 [//]: # (FIELDS:END)

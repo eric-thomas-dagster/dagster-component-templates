@@ -64,7 +64,7 @@ performing a cross join (cartesian product) with a set of new rows.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `mode` | `str` | `"repeat"` | Expansion mode: 'repeat' (duplicate each row N times), 'cross_join' (cross product with new_rows), 'append' (append fixed new rows), 'loop_expression' (per-row range-loop driven by init/condition/loop Python expressions evaluated against each upstream row — emits one row per loop iteration, with the loop variable in `create_column`) |
+| `mode` | `str` | `"repeat"` | Expansion mode: 'repeat' (duplicate each row N times), 'cross_join' (cross product with new_rows), 'append' (append fixed new rows), 'loop_expression' (per-row range-loop driven by init/condition/loop Python expressions… _(full docs in schema.json + component README)_ |
 
 ### Other
 

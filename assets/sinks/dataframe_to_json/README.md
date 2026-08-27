@@ -14,7 +14,7 @@ Writes a Pandas DataFrame to a JSON or JSON Lines file. This is a terminal sink 
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `file_path` | `str` | Destination path or fsspec URI. Local (`/tmp/out.json`) and remote URIs (`s3://...`, `gs://...`, `az://...`) both work via pandas' `to_json()` + fsspec — install `s3fs` / `gcsfs` / `adlfs` for the scheme you need. Supports env-var substitution. |
+| `file_path` | `str` | Destination path or fsspec URI. Local (`/tmp/out.json`) and remote URIs (`s3://...`, `gs://...`, `az://...`) both work via pandas' `to_json()` + fsspec — install `s3fs` / `gcsfs` / `adlfs` for the scheme you need. Suppor… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -63,6 +63,7 @@ Writes a Pandas DataFrame to a JSON or JSON Lines file. This is a terminal sink 
 | `lines` | `bool` | `false` | Write as JSON Lines format (one JSON object per line). Auto-sets orient to 'records'. |
 | `indent` | `int` | — | JSON indentation level. Ignored when lines=True. |
 | `date_format` | `str` | `"iso"` | Date formatting: 'iso' (ISO 8601) or 'epoch' (milliseconds since epoch). |
+| `storage_options` | `Dict[str, Any]` | — | Optional fsspec storage options forwarded to pandas' `to_json()` for cloud writes (e.g. `{key: '...', secret: '...'}` for S3, or `{endpoint_url: 'http://minio:9000'}` for MinIO). Env-var-backed secrets belong in the ambi… _(full docs in schema.json + component README)_ |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the DataFrame about to be written, in metadata, so builder UIs can show 'what's being sunk' without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. Random sample if len > 10x preview_rows; else head. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |

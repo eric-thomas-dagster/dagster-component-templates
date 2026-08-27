@@ -72,7 +72,7 @@ attributes:
 |---|---|---|---|
 | `api_url_env_var` | `str` | `"CUBE_URL"` | Env var with Cube API base URL (e.g. http://localhost:4000 for local dev). |
 | `request_timeout_seconds` | `int` | `60` | Timeout per Cube API call. |
-| `strip_cube_prefix` | `bool` | `true` | When true (default), strip the '<CubeName>.' prefix from column names — 'Orders.customerName' becomes 'customerName'. Makes downstream consumers (dbt sources, LangChain templates that use {var} syntax, pandas transforms) friendlier. Set to false to preserve the fully-qualified Cube identifiers. |
+| `strip_cube_prefix` | `bool` | `true` | When true (default), strip the '<CubeName>.' prefix from column names — 'Orders.customerName' becomes 'customerName'. Makes downstream consumers (dbt sources, LangChain templates that use {var} syntax, pandas transforms)… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

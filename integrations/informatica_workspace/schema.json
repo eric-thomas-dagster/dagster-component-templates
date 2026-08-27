@@ -1,0 +1,68 @@
+{
+  "component_type": "dagster_community_components.InformaticaWorkspaceComponent",
+  "description": "Informatica IDMC (IICS) tasks as Dagster assets. Discovers via /public/core/v3/objects + optionally POSTs /api/v2/job + polls /api/v2/activity/activityLog. Two-step session-ticket auth against regional login URL. Fivetran-shape workspace: block + selector + polling_sensor + freshness_lag_threshold_seconds.",
+  "category": "integration",
+  "icon": "Database",
+  "attributes": {
+    "workspace": {
+      "type": "object",
+      "label": "Workspace",
+      "description": "IDMC connection (login_url + username/password OR env vars).",
+      "required": true
+    },
+    "task_selector": {
+      "type": "object",
+      "label": "Task Selector",
+      "description": "Filter which IDMC tasks become assets.",
+      "required": false
+    },
+    "action": {
+      "type": "string",
+      "label": "Action",
+      "description": "noop = external asset; execute = POST /api/v2/job + poll.",
+      "required": false,
+      "default": "noop",
+      "enum": ["noop", "execute"],
+      "ui:widget": "select"
+    },
+    "wait_for_completion": {
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "poll_interval_seconds": {"type": "integer", "required": false, "default": 30},
+    "timeout_seconds": {"type": "integer", "required": false, "default": 3600},
+    "polling_sensor": {
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "observation_interval_seconds": {"type": "integer", "required": false, "default": 300},
+    "freshness_lag_threshold_seconds": {
+      "type": "integer",
+      "label": "Freshness Lag Threshold (seconds)",
+      "required": false,
+      "default": null
+    },
+    "asset_key_prefix": {
+      "type": "array",
+      "items": {"type": "string"},
+      "required": false,
+      "ui:widget": "list"
+    },
+    "group_name": {"type": "string", "required": false, "default": "informatica_idmc"},
+    "kinds": {
+      "type": "array",
+      "items": {"type": "string"},
+      "required": false,
+      "default": ["informatica", "idmc"],
+      "ui:widget": "list"
+    },
+    "tags": {"type": "object", "required": false, "ui:widget": "key-value"},
+    "owners": {"type": "array", "items": {"type": "string"}, "required": false, "ui:widget": "list"}
+  },
+  "tags": ["informatica", "idmc", "iics", "etl", "workspace"],
+  "name": "Informatica IDMC Workspace"
+}

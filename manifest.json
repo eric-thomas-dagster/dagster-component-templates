@@ -23894,6 +23894,81 @@
       ]
     },
     {
+      "id": "informatica_workspace",
+      "name": "InformaticaWorkspaceComponent",
+      "category": "integration",
+      "description": "Informatica IDMC (Intelligent Data Management Cloud, formerly IICS) tasks as Dagster assets. Two-step session-ticket auth against regional login URL. Discovers via `/public/core/v3/objects` + optionally POSTs `/api/v2/job` + polls `/api/v2/activity/activityLog` to completion. Supports MTT / DMASK / DPS / DRS / MI_TASK task kinds. Fivetran-shape workspace: block + task_selector + polling_sensor + freshness_lag_threshold_seconds.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/informatica_workspace",
+      "tags": [
+        "informatica",
+        "idmc",
+        "iics",
+        "etl",
+        "workspace",
+        "integration"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/informatica_workspace/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/informatica_workspace/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/informatica_workspace/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/informatica_workspace/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/informatica_workspace/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-08-27",
+        "notes": "Live-validated at the shape level via mocked HTTP client (login flow, discovery filtering, action:execute code path, polling_sensor + freshness_check attachment). Full IDMC live validation requires a real IDMC org + credentials \u2014 pending. Roadmap: real-tenant validation for `live` promotion."
+      },
+      "produces": [
+        "asset",
+        "sensor",
+        "asset_check"
+      ],
+      "consumes": [
+        "informatica"
+      ],
+      "agent_hints": {
+        "when_to_use": "User runs data-integration tasks in Informatica IDMC (post-IICS rebrand, ~2022+) and wants Dagster to discover tasks + orchestrate execution + observe completions. Supports mapping tasks (MTT), data masking (DMASK), data processing (DPS), data replication (DRS), mass ingestion (MI_TASK).",
+        "typical_upstream": "IDMC org with existing tasks. Prior scheduler = IDMC's own scheduler or external orchestrator poking the REST API.",
+        "typical_downstream": "Snowflake / Databricks / BigQuery mart tables. dbt Cloud kicked off via dbt_cloud_trigger_job on completion.",
+        "example_prompts": [
+          "Discover every IDMC mapping task in a folder and represent each as a Dagster asset",
+          "Trigger an Informatica IDMC mapping task from Dagster with completion polling",
+          "Wire IDMC task completions into a downstream dbt Cloud build"
+        ],
+        "anti_uses": "This component wraps Informatica IDMC (cloud). For on-prem PowerCenter (which uses `pmcmd` CLI or SOAP-based Web Services Hub), a separate `informatica_powercenter_workspace` component is a roadmap follow-up.",
+        "requires_pip": [
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "IDMC_USERNAME",
+          "IDMC_PASSWORD"
+        ],
+        "gaps_from_full_workspace_pattern": "Does not yet support (a) `translation:` callable; (b) `StateBackedComponent` discovery caching."
+      },
+      "keywords": [
+        "informatica",
+        "idmc",
+        "iics",
+        "intelligent data management cloud",
+        "informatica cloud services",
+        "mtt",
+        "mapping task",
+        "mass ingestion",
+        "workspace",
+        "legacy etl",
+        "multi asset workspace",
+        "workspace-style component",
+        "3rd party",
+        "external system"
+      ]
+    },
+    {
       "id": "inline_dataframe",
       "name": "Inline DataFrame",
       "category": "source",
@@ -43553,6 +43628,82 @@
       ]
     },
     {
+      "id": "ssis_workspace",
+      "name": "SsisWorkspaceComponent",
+      "category": "integration",
+      "description": "SQL Server Integration Services (SSIS) as a Dagster workspace. Discovers SSISDB.catalog.packages + optionally EXECs `SSISDB.catalog.create_execution` + `start_execution` + polls `SSISDB.catalog.executions.status` to completion. Fivetran-shape workspace: block for connection + selector for filtering + polling_sensor emitting AssetObservation per completed execution since watermark + freshness_lag_threshold_seconds asset check per package.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/ssis_workspace",
+      "tags": [
+        "ssis",
+        "mssql",
+        "sql-server",
+        "etl",
+        "workspace",
+        "integration"
+      ],
+      "dependencies": {
+        "pip": [
+          "SQLAlchemy>=1.4",
+          "pyodbc>=4.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/ssis_workspace/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/ssis_workspace/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/ssis_workspace/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/ssis_workspace/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/ssis_workspace/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-08-27",
+        "notes": "Live-validated at the shape level via mocked SQLAlchemy engine (component internals, discovery filtering, polling_sensor + freshness_check attachment). Full SSISDB-catalog live validation requires a Windows SQL Server + SSIS installation (SSISDB catalog is Windows-only per MS Linux support matrix). Roadmap: Windows CI job for `live` promotion."
+      },
+      "produces": [
+        "asset",
+        "sensor",
+        "asset_check"
+      ],
+      "consumes": [
+        "mssql"
+      ],
+      "agent_hints": {
+        "when_to_use": "User has SSIS packages deployed to SSISDB (SQL Server system database) and wants Dagster to discover them as assets, observe their runs, and optionally trigger executions via `catalog.create_execution` + `start_execution`. Common at every enterprise still running SQL Server-native ETL.",
+        "typical_upstream": "SSISDB catalog on a SQL Server host. Prior scheduler = SQL Server Agent jobs, Control-M, AutoSys, or a bespoke wrapper. Dagster replaces this scheduler while keeping the packages themselves unchanged.",
+        "typical_downstream": "Snowflake / BigQuery / Databricks mart tables landed by the SSIS packages. Downstream dbt Cloud / Snowpark transforms triggered by `dbt_cloud_trigger_job` on completion.",
+        "example_prompts": [
+          "Discover every SSIS package in SSISDB and treat each as a Dagster asset",
+          "Fire dbt Cloud when the SSIS package finishes loading",
+          "Get freshness SLA alerts on legacy SSIS packages currently orchestrated by SQL Server Agent",
+          "Wrap SSIS in Dagster during migration off legacy scheduler"
+        ],
+        "anti_uses": "SSIS Catalog (SSISDB) is Windows-only. Cannot run against Linux-only SQL Server + `dtexec` alone. For file-based `.dtsx` packages executed via CLI, a separate `ssis_dtexec_workspace` component is a roadmap follow-up.",
+        "requires_pip": [
+          "SQLAlchemy>=1.4",
+          "pyodbc>=4.0"
+        ],
+        "requires_permissions": "Connecting SQL login needs `VIEW ANY DATABASE` or `ssis_admin` on SSISDB for discovery + polling; `ssis_admin` (or DBO on SSISDB) if `action: execute`.",
+        "gaps_from_full_workspace_pattern": "Does not yet support (a) `translation:` callable for per-asset customization (uniform group/kinds/tags across the workspace only); (b) `StateBackedComponent` discovery caching (hits SSISDB on every code-location load)."
+      },
+      "keywords": [
+        "ssis",
+        "ssisdb",
+        "sql server integration services",
+        "microsoft ssis",
+        "dtsx",
+        "dtexec",
+        "sql-server-agent",
+        "sql server agent",
+        "legacy etl",
+        "mssql etl",
+        "workspace",
+        "multi asset workspace",
+        "workspace-style component",
+        "3rd party",
+        "external system"
+      ]
+    },
+    {
       "id": "starburst_resource",
       "name": "Starburst Resource",
       "category": "resource",
@@ -45024,6 +45175,79 @@
         ]
       },
       "keywords": [
+        "3rd party",
+        "external system"
+      ]
+    },
+    {
+      "id": "talend_cloud_workspace",
+      "name": "TalendCloudWorkspaceComponent",
+      "category": "integration",
+      "description": "Talend Cloud (Talend Management Console / TMC) jobs / plans / routes as Dagster assets. Discovers via `GET /workspaces/{id}/executables` + optionally POSTs `/executions` + polls `/executions/{id}` to completion. Fivetran-shape workspace: block + artifact_selector + polling_sensor + freshness_lag_threshold_seconds. Post-2024 Qlik-acquired Talend Cloud (US/EU/AP regions).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/talend_cloud_workspace",
+      "tags": [
+        "talend",
+        "tmc",
+        "cloud",
+        "etl",
+        "workspace",
+        "integration"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/talend_cloud_workspace/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/talend_cloud_workspace/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/talend_cloud_workspace/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/talend_cloud_workspace/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/talend_cloud_workspace/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-08-27",
+        "notes": "Live-validated at the shape level via mocked HTTP client (discovery filtering, action:execute code path, polling_sensor + freshness_check attachment). Full TMC live validation requires a real Talend Cloud tenant + PAT \u2014 pending. Roadmap: real-tenant validation for `live` promotion."
+      },
+      "produces": [
+        "asset",
+        "sensor",
+        "asset_check"
+      ],
+      "consumes": [
+        "talend"
+      ],
+      "agent_hints": {
+        "when_to_use": "User runs jobs in Talend Cloud (post-2024 Qlik-acquired Talend Data Fabric) and wants Dagster to discover artifacts + orchestrate execution + observe completions. Covers job / plan / route artifact kinds.",
+        "typical_upstream": "Talend Cloud tenant with existing artifacts. Prior scheduler = TMC built-in scheduler or webhook triggers.",
+        "typical_downstream": "Snowflake / Databricks / BigQuery mart tables. dbt Cloud kicked off via dbt_cloud_trigger_job on completion.",
+        "example_prompts": [
+          "Discover every Talend Cloud job in a workspace and represent each as a Dagster asset",
+          "Trigger a Talend job from Dagster with wait_for_completion",
+          "Alert when a Talend Cloud job hasn't succeeded in the last hour"
+        ],
+        "anti_uses": "This component wraps Talend Cloud (TMC), not on-prem Talend Studio / TAC. For on-prem, a separate `talend_studio_workspace` component is a roadmap follow-up (different API surface).",
+        "requires_pip": [
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "TALEND_WORKSPACE_ID",
+          "TALEND_API_TOKEN"
+        ],
+        "gaps_from_full_workspace_pattern": "Does not yet support (a) `translation:` callable; (b) `StateBackedComponent` discovery caching."
+      },
+      "keywords": [
+        "talend",
+        "talend cloud",
+        "tmc",
+        "talend management console",
+        "qlik talend",
+        "data fabric",
+        "legacy etl",
+        "workspace",
+        "multi asset workspace",
+        "workspace-style component",
         "3rd party",
         "external system"
       ]

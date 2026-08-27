@@ -1,0 +1,31 @@
+# InformaticaWorkspaceComponent — IDMC (IICS) tasks as Dagster assets.
+# Backing REST: POST /public/core/v3/login → session ticket + POD URL.
+
+type: dagster_community_components.InformaticaWorkspaceComponent
+attributes:
+  workspace:
+    # IDMC regional login URL. US default; use dm-em / dm-ap for EU / AP.
+    login_url:        https://dm-us.informaticacloud.com
+    username_env_var: IDMC_USERNAME
+    password_env_var: IDMC_PASSWORD
+    request_timeout_seconds: 60
+    verify_ssl: true
+
+  task_selector:
+    by_kind: [MTT, MI_TASK]              # MTT = mapping task, MI_TASK = mass ingestion
+    by_folder_path: ["Sales/Prod"]
+    include: ["*etl*"]
+    exclude: ["*_test*"]
+
+  action: noop                           # noop | execute
+  wait_for_completion: true
+  poll_interval_seconds: 30
+  timeout_seconds: 3600
+
+  polling_sensor: true
+  observation_interval_seconds: 300
+
+  freshness_lag_threshold_seconds: 3600
+
+  group_name: informatica_prod
+  kinds: [informatica, idmc, etl]

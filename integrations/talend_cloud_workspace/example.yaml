@@ -1,0 +1,30 @@
+# TalendCloudWorkspaceComponent — Talend Cloud jobs / plans / routes as
+# Dagster assets. Backing REST: Talend Management Console (TMC) v2.7.
+
+type: dagster_community_components.TalendCloudWorkspaceComponent
+attributes:
+  workspace:
+    region:             us              # us | eu | ap | <full-URL for private tenants>
+    workspace_id:       "{{ env.TALEND_WORKSPACE_ID }}"
+    auth_token_env_var: TALEND_API_TOKEN
+    # environment_id:   "{{ env.TALEND_ENV_ID }}"   # optional
+    request_timeout_seconds: 60
+    verify_ssl: true
+
+  artifact_selector:
+    by_kind: [job]                       # job | plan | route — default: all
+    include: ["etl_*"]
+    exclude: ["*_test"]
+
+  action: noop                           # noop | execute
+  wait_for_completion: true
+  poll_interval_seconds: 30
+  timeout_seconds: 3600
+
+  polling_sensor: true
+  observation_interval_seconds: 300
+
+  freshness_lag_threshold_seconds: 3600
+
+  group_name: talend_cloud
+  kinds: [talend, etl]

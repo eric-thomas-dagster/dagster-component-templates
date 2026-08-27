@@ -1,0 +1,108 @@
+{
+  "component_type": "dagster_community_components.SsisWorkspaceComponent",
+  "description": "SSIS packages as Dagster assets. Discovers SSISDB.catalog.packages + optionally executes via create_execution/start_execution + polls to completion. Fivetran-shape workspace: block for connection + selector for filtering + polling_sensor + freshness_lag_threshold_seconds.",
+  "category": "integration",
+  "icon": "Server",
+  "attributes": {
+    "workspace": {
+      "type": "object",
+      "label": "Workspace",
+      "description": "Connection to SQL Server hosting SSISDB (SQLAlchemy URL or flat fields).",
+      "required": true
+    },
+    "package_selector": {
+      "type": "object",
+      "label": "Package Selector",
+      "description": "Filter which SSISDB packages become Dagster assets. Omit for all packages.",
+      "required": false
+    },
+    "action": {
+      "type": "string",
+      "label": "Action",
+      "description": "noop = external asset (declare-only); execute = create_execution + start_execution + poll.",
+      "required": false,
+      "default": "noop",
+      "enum": ["noop", "execute"],
+      "ui:widget": "select"
+    },
+    "wait_for_completion": {
+      "type": "boolean",
+      "label": "Wait For Completion",
+      "description": "Only used when action=execute. If true, poll until terminal status; if false, return once SSIS accepts the trigger.",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval (seconds)",
+      "required": false,
+      "default": 30
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout (seconds)",
+      "description": "Overall timeout for a synchronous execution. Set 0 for no timeout.",
+      "required": false,
+      "default": 3600
+    },
+    "polling_sensor": {
+      "type": "boolean",
+      "label": "Polling Sensor",
+      "description": "If true, emit a sensor that polls SSISDB.catalog.executions for completions and emits AssetObservation per package.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "observation_interval_seconds": {
+      "type": "integer",
+      "label": "Observation Interval (seconds)",
+      "required": false,
+      "default": 300
+    },
+    "freshness_lag_threshold_seconds": {
+      "type": "integer",
+      "label": "Freshness Lag Threshold (seconds)",
+      "description": "If set, attach an asset check per package that fails when the last successful execution is older than this threshold.",
+      "required": false,
+      "default": null
+    },
+    "asset_key_prefix": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Asset Key Prefix",
+      "description": "Default: ['ssis', <ssis_server_hostname>].",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "ssis"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Kinds",
+      "required": false,
+      "default": ["ssis", "mssql"],
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "owners": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": ["ssis", "mssql", "sql-server", "etl", "workspace"],
+  "name": "SSIS Workspace"
+}

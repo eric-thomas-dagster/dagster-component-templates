@@ -1,8 +1,8 @@
 {
   "summary": {
     "PASS": 739,
-    "WARN": 12,
     "FAIL": 87,
+    "WARN": 15,
     "SKIP_OPTIONAL_DEP": 34,
     "SKIP_EXAMPLE_MULTI_DOC": 51,
     "SKIP_PROJECT_REQUIRED": 15,
@@ -129,10 +129,8 @@
     {
       "id": "adls_to_database_asset",
       "path": "assets/ingestion/adls_to_database_asset",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"AdaptiveResearchBriefComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -162,8 +160,10 @@
     {
       "id": "airbyte_sync_sensor",
       "path": "sensors/airbyte_sync_sensor",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"AdaptiveResearchBriefComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -640,14 +640,14 @@
       "path": "integrations/aws_sagemaker",
       "status": "FAIL",
       "warnings": [],
-      "error": "Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'g/Tfll99NPqEcwbiXjr9Z2fneZjKBUEoMynt2YbefcY='.",
+      "error": "Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): '8q64exMVe+EsbBx8dE6n+3u8vIiDfPnppYzESAvd6UA='.",
       "error_class": "Exception",
       "traceback": [
         "    job_names = self._list_training_job_definitions(session)",
         "                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/aws_sagemaker/component.py\", line 225, in _list_training_job_definitions",
         "    raise Exception(f\"Failed to list training jobs: {e}\")",
-        "Exception: Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'g/Tfll99NPqEcwbiXjr9Z2fneZjKBUEoMynt2YbefcY='."
+        "Exception: Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): '8q64exMVe+EsbBx8dE6n+3u8vIiDfPnppYzESAvd6UA='."
       ]
     },
     {
@@ -944,8 +944,10 @@
     {
       "id": "cassandra_writer",
       "path": "assets/sinks/cassandra_writer",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"CatalogAgentComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -954,7 +956,6 @@
       "path": "assets/ai/catalog_agent",
       "status": "WARN",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"CatalogAgentComponent\" shadows an attribute in parent \"Resolvable\"",
         "UserWarning: Field name \"model\" in \"CatalogAgentComponent\" shadows an attribute in parent \"Resolvable\""
       ],
       "error": null,
@@ -2193,14 +2194,14 @@
       "path": "resources/dbt_cloud_resource",
       "status": "FAIL",
       "warnings": [],
-      "error": "deadlock detected by _ModuleLock('dagster_dbt.components.dbt_project.component') at 4795544400",
+      "error": "deadlock detected by _ModuleLock('dagster_dbt.components.dbt_project.component') at 4871414032",
       "error_class": "_DeadlockError",
       "traceback": [
         "    from dagster_dbt.components.dbt_project.component import DbtProjectComponent as DbtProjectComponent",
         "  File \"<frozen importlib._bootstrap>\", line 1173, in _find_and_load",
         "  File \"<frozen importlib._bootstrap>\", line 171, in __enter__",
         "  File \"<frozen importlib._bootstrap>\", line 116, in acquire",
-        "_frozen_importlib._DeadlockError: deadlock detected by _ModuleLock('dagster_dbt.components.dbt_project.component') at 4795544400"
+        "_frozen_importlib._DeadlockError: deadlock detected by _ModuleLock('dagster_dbt.components.dbt_project.component') at 4871414032"
       ]
     },
     {
@@ -2376,7 +2377,9 @@
       "id": "document_ingestion",
       "path": "assets/ingestion/document_ingestion",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-dlt` (0.28.1)."
+      ],
       "error": null,
       "error_class": null
     },
@@ -2385,6 +2388,7 @@
       "path": "assets/ai/document_layout_analyzer",
       "status": "PASS",
       "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-spark` (0.28.12).",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -2899,9 +2903,7 @@
       "id": "external_pulsar_asset",
       "path": "external_assets/external_pulsar_asset",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-sling` (0.28.1)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -2925,7 +2927,9 @@
       "id": "external_s3_asset",
       "path": "external_assets/external_s3_asset",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-sling` (0.28.1)."
+      ],
       "error": null,
       "error_class": null
     },
@@ -2997,9 +3001,7 @@
       "id": "external_temporal_workflow",
       "path": "external_assets/external_temporal_workflow",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-pyspark` (0.28.12)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -3046,9 +3048,7 @@
       "id": "fabric_pipeline_trigger_job",
       "path": "jobs/fabric_pipeline_trigger_job",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-databricks` (0.28.12)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -3423,8 +3423,11 @@
     {
       "id": "gcs_resource",
       "path": "resources/gcs_resource",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -3821,7 +3824,9 @@
       "id": "hash",
       "path": "transforms/hash",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-dbt` (0.28.12)."
+      ],
       "error": null,
       "error_class": null
     },
@@ -4170,6 +4175,16 @@
       "error_class": null
     },
     {
+      "id": "informatica_workspace",
+      "path": "integrations/informatica_workspace",
+      "status": "PASS",
+      "warnings": [
+        "UserWarning: InformaticaWorkspaceComponent: could not discover tasks (ValueError: InformaticaWorkspaceComponent.workspace: supply username/password OR username_env_var/password_env_var.). Emitting empty definitions."
+      ],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "inline_dataframe",
       "path": "assets/sources/inline_dataframe",
       "status": "PASS",
@@ -4269,7 +4284,9 @@
       "id": "jde_orchestration_trigger_job",
       "path": "jobs/jde_orchestration_trigger_job",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-pandas` (0.28.1)."
+      ],
       "error": null,
       "error_class": null
     },
@@ -4542,8 +4559,11 @@
     {
       "id": "langgraph_agent",
       "path": "assets/ai/langgraph_agent",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"LangChainChainAssetComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"LangChainChainAssetComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -4558,8 +4578,11 @@
     {
       "id": "lead_scoring",
       "path": "assets/analytics/lead_scoring",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"LangGraphStep\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"LangGraphAgentComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -4568,8 +4591,6 @@
       "path": "assets/ai/legal_document_extractor",
       "status": "WARN",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"LangGraphStep\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LangGraphAgentComponent\" shadows an attribute in parent \"Resolvable\"",
         "UserWarning: Field name \"model\" in \"LangGraphStep\" shadows an attribute in parent \"Resolvable\"",
         "UserWarning: Field name \"model\" in \"LangGraphAgentComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
@@ -4820,18 +4841,18 @@
     {
       "id": "llm_evaluator",
       "path": "assets/ai/llm_evaluator",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"LLMChainExecutorComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
     {
       "id": "llm_judge",
       "path": "assets/ai/llm_judge",
-      "status": "PASS",
+      "status": "WARN",
       "warnings": [
+        "UserWarning: Field name \"model\" in \"LLMChainExecutorComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"LLMChainExecutorComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -4865,6 +4886,7 @@
       "path": "assets/ai/llm_prompt_executor",
       "status": "WARN",
       "warnings": [
+        "UserWarning: Field name \"model\" in \"LlmMultiPathRouterComponent\" shadows an attribute in parent \"Resolvable\"",
         "UserWarning: Field name \"model\" in \"LlmMultiPathRouterComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
@@ -5066,7 +5088,6 @@
       "path": "jobs/memcached_cache_flush_job",
       "status": "WARN",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"MCPToolPickerComponent\" shadows an attribute in parent \"Resolvable\"",
         "UserWarning: Field name \"model\" in \"MCPToolPickerComponent\" shadows an attribute in parent \"Resolvable\""
       ],
       "error": null,
@@ -5617,6 +5638,7 @@
         "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
         "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
         "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
+        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
         "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0."
       ],
       "error": null,
@@ -5627,7 +5649,6 @@
       "path": "resources/odata_resource",
       "status": "PASS",
       "warnings": [
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
         "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
         "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
         "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
@@ -5682,9 +5703,8 @@
     {
       "id": "openai_llm",
       "path": "assets/ai/openai_llm",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"OllamaInferenceAssetComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -7711,6 +7731,14 @@
       "error_class": null
     },
     {
+      "id": "ssis_workspace",
+      "path": "integrations/ssis_workspace",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "starburst_resource",
       "path": "resources/starburst_resource",
       "status": "SKIP_RELATIVE_IMPORT",
@@ -7880,6 +7908,8 @@
       "status": "WARN",
       "warnings": [
         "UserWarning: Field name \"model\" in \"SupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"SupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"SupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
         "UserWarning: Field name \"model\" in \"SupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
       ],
       "error": null,
@@ -7981,6 +8011,16 @@
         "  Input should be a valid boolean, unable to interpret input [type=bool_parsing, input_value='<fill in>', input_type=str]",
         "    For further information visit https://errors.pydantic.dev/2.12/v/bool_parsing"
       ]
+    },
+    {
+      "id": "talend_cloud_workspace",
+      "path": "integrations/talend_cloud_workspace",
+      "status": "PASS",
+      "warnings": [
+        "UserWarning: TalendCloudWorkspaceComponent: could not discover artifacts (ValueError: env var 'TALEND_API_TOKEN' is empty or unset). Emitting empty definitions."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "teams_approval_gate",
@@ -8449,8 +8489,9 @@
     {
       "id": "vector_store_query",
       "path": "assets/ai/vector_store_query",
-      "status": "PASS",
+      "status": "WARN",
       "warnings": [
+        "UserWarning: Field name \"model\" in \"VantaEvidenceResponseAgentComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -8459,9 +8500,8 @@
     {
       "id": "vector_store_writer",
       "path": "assets/ai/vector_store_writer",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"VantaEvidenceResponseAgentComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,

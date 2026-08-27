@@ -1,0 +1,48 @@
+# SsisWorkspaceComponent — SSIS packages as Dagster assets.
+# Backing SQL: SSISDB.catalog.packages / executions / operation_messages.
+
+type: dagster_community_components.SsisWorkspaceComponent
+attributes:
+  workspace:
+    # Option A — one SQLAlchemy URL held in an env var
+    # connection_string_env_var: SSISDB_MSSQL_URL
+
+    # Option B — flat fields. Values via {{ env.XXX }} Jinja templating.
+    server:   "{{ env.SSIS_SERVER }}"         # sql-01.corp OR sql-01\INST1
+    database: SSISDB
+    user:     "{{ env.SSIS_USER }}"
+    password: "{{ env.SSIS_PASSWORD }}"
+    driver:   "ODBC Driver 18 for SQL Server"
+    trust_server_certificate: true            # only for lab servers with self-signed TLS
+
+  # Filter which SSISDB packages become Dagster assets.
+  # Omit `package_selector:` to import every package.
+  package_selector:
+    by_folder: [Sales, Finance]
+    include:   ["*sales*", "*revenue*"]
+    exclude:   ["*_test*"]
+
+  # What happens on materialize:
+  #   noop     — external asset (declare-only, no execution triggered)
+  #   execute  — EXEC SSISDB.catalog.create_execution + start_execution + poll
+  action: noop
+
+  # Only used when action=execute
+  wait_for_completion: true
+  poll_interval_seconds: 30
+  timeout_seconds: 3600
+
+  # Opt-in polling sensor — emits AssetObservation per package based on
+  # SSISDB.catalog.executions completions since the sensor's watermark.
+  polling_sensor: true
+  observation_interval_seconds: 300
+
+  # Opt-in per-asset check — fails when the last successful execution
+  # is older than this many seconds. Attach alerts to check state.
+  freshness_lag_threshold_seconds: 3600
+
+  group_name: ssis_prod
+  kinds: [ssis, mssql, etl]
+  # asset_key_prefix: [ssis, sql-01]     # default: [ssis, <server-host>]
+  # tags: {tier: production, domain: sales}
+  # owners: [data-platform@acme.com]

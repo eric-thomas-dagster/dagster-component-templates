@@ -522,6 +522,12 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         base_kwargs: Dict[str, Any] = dict(
             name=default_name,
             group_name=self.group_name,
+            # Per-item kinds: `fabric` + the specific workload type
+            # (`lakehouse` / `warehouse` / `semantic_model` / `report`).
+            # Renders as badges in the Dagster catalog and enables
+            # `kind:lakehouse` filtering. No first-class Dagster icons
+            # for these — they render as text-only badges, still useful.
+            kinds={"fabric", kind},
             metadata={
                 "fabric_item_id": item_id,
                 "fabric_item_type": item_type,
@@ -560,6 +566,11 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             key=dg.AssetKey.from_user_string(default_name),
             group_name=self.group_name,
             deps=upstream_keys,
+            # Per-item kinds: `fabric` + the specific workload type
+            # (`notebook` / `data_pipeline` / `dataflow`).
+            # Renders as badges in the Dagster catalog and enables
+            # `kind:notebook` filtering across the whole workspace.
+            kinds={"fabric", kind},
             metadata={
                 "fabric_item_id": item_id,
                 "fabric_item_type": item_type,

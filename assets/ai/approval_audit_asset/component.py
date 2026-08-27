@@ -164,10 +164,16 @@ class ApprovalAuditAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
         freshness = None
         if self.freshness_max_lag_minutes is not None:
-            freshness = dg.FreshnessPolicy(
-                maximum_lag_minutes=self.freshness_max_lag_minutes,
-                cron_schedule=self.freshness_cron,
-            )
+            from datetime import timedelta
+            if self.freshness_cron:
+                freshness = dg.FreshnessPolicy.cron(
+                    deadline_cron=self.freshness_cron,
+                    lower_bound_delta=timedelta(minutes=self.freshness_max_lag_minutes),
+                )
+            else:
+                freshness = dg.FreshnessPolicy.time_window(
+                    fail_window=timedelta(minutes=self.freshness_max_lag_minutes),
+                )
 
         @dg.asset(
             key=dg.AssetKey.from_user_string(asset_name),

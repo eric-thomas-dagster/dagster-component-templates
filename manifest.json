@@ -1866,66 +1866,6 @@
       ]
     },
     {
-      "id": "airtable_workspace",
-      "name": "Airtable Workspace",
-      "component_type": "dagster_community_components.AirtableWorkspaceComponent",
-      "path": "integrations/airtable_workspace",
-      "category": "ingestion",
-      "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per Airtable table by enumerating bases \u00d7 tables via the Meta API. StateBackedComponent \u2014 discovery cached to disk. Materializing an asset reads records and emits a DataFrame with flattened fields. Workspace-shape peer of airtable_ingestion.",
-      "tags": [
-        "ingestion",
-        "airtable",
-        "workspace",
-        "auto-discovery",
-        "state-backed"
-      ],
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/airtable_workspace/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/airtable_workspace/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/airtable_workspace/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/airtable_workspace/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/airtable_workspace/schema.json",
-      "dependencies": {
-        "pip": [
-          "pandas>=2.0.0",
-          "requests>=2.28.0"
-        ]
-      },
-      "validation": {
-        "level": "code"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "agent_hints": {
-        "outputs": [
-          "one_asset_per_airtable_table"
-        ],
-        "requires_pip": [
-          "pandas",
-          "requests"
-        ],
-        "chains_with": [
-          "dataframe_to_snowflake",
-          "dataframe_to_bigquery"
-        ],
-        "output_type": "pd.DataFrame"
-      },
-      "produces": [
-        "multi_asset"
-      ],
-      "stateful": true,
-      "consumes": [
-        "resource:airtable"
-      ],
-      "keywords": [
-        "airtable base",
-        "multi asset workspace",
-        "workspace-style component",
-        "ingest",
-        "read from"
-      ]
-    },
-    {
       "id": "alter_row",
       "name": "AlterRowComponent",
       "category": "transformation",
@@ -20627,69 +20567,6 @@
       ]
     },
     {
-      "id": "github_workspace",
-      "name": "GitHub Workspace",
-      "component_type": "dagster_community_components.GitHubWorkspaceComponent",
-      "path": "integrations/github_workspace",
-      "category": "ingestion",
-      "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per GitHub Actions workflow across every repo in an org (or user). StateBackedComponent \u2014 discovery cached to disk. Materializing an asset reads the most recent workflow runs and emits a DataFrame with status / conclusion / event / actor metadata.",
-      "tags": [
-        "ingestion",
-        "github",
-        "actions",
-        "workspace",
-        "auto-discovery",
-        "state-backed"
-      ],
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/github_workspace/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/github_workspace/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/github_workspace/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/github_workspace/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/github_workspace/schema.json",
-      "dependencies": {
-        "pip": [
-          "pandas>=2.0.0",
-          "requests>=2.28.0"
-        ]
-      },
-      "validation": {
-        "level": "code"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "agent_hints": {
-        "outputs": [
-          "one_asset_per_github_workflow"
-        ],
-        "requires_pip": [
-          "pandas",
-          "requests"
-        ],
-        "chains_with": [
-          "dataframe_to_snowflake",
-          "github_event_sensor"
-        ],
-        "output_type": "pd.DataFrame"
-      },
-      "produces": [
-        "multi_asset"
-      ],
-      "stateful": true,
-      "consumes": [
-        "resource:github"
-      ],
-      "keywords": [
-        "gh api",
-        "github api",
-        "octocat",
-        "multi asset workspace",
-        "workspace-style component",
-        "ingest",
-        "read from"
-      ]
-    },
-    {
       "id": "gitlab_event_sensor",
       "name": "GitlabEventSensor",
       "category": "sensor",
@@ -24767,68 +24644,6 @@
         "atlassian jira",
         "connection",
         "connect"
-      ]
-    },
-    {
-      "id": "jira_workspace",
-      "name": "Jira Workspace",
-      "component_type": "dagster_community_components.JiraWorkspaceComponent",
-      "path": "integrations/jira_workspace",
-      "category": "ingestion",
-      "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per Jira project. StateBackedComponent \u2014 discovery cached to disk. Materializing an asset runs a JQL query in that project and emits issues as a DataFrame. Configurable jql_template lets you scope by time / status / labels.",
-      "tags": [
-        "integration",
-        "jira",
-        "atlassian",
-        "workspace",
-        "auto-discovery",
-        "state-backed"
-      ],
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jira_workspace/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jira_workspace/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jira_workspace/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jira_workspace/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jira_workspace/schema.json",
-      "dependencies": {
-        "pip": [
-          "pandas>=2.0.0",
-          "requests>=2.28.0"
-        ]
-      },
-      "validation": {
-        "level": "code"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "agent_hints": {
-        "outputs": [
-          "one_asset_per_jira_project"
-        ],
-        "requires_pip": [
-          "pandas",
-          "requests"
-        ],
-        "chains_with": [
-          "dataframe_to_snowflake",
-          "dataframe_to_bigquery",
-          "jira_issue_sensor"
-        ],
-        "output_type": "pd.DataFrame"
-      },
-      "produces": [
-        "multi_asset"
-      ],
-      "stateful": true,
-      "consumes": [
-        "resource:jira"
-      ],
-      "keywords": [
-        "atlassian jira",
-        "multi asset workspace",
-        "workspace-style component",
-        "ingest",
-        "read from"
       ]
     },
     {
@@ -31292,65 +31107,6 @@
       ]
     },
     {
-      "id": "notion_workspace",
-      "name": "Notion Workspace",
-      "component_type": "dagster_community_components.NotionWorkspaceComponent",
-      "path": "integrations/notion_workspace",
-      "category": "ingestion",
-      "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per Notion database via the Search API. StateBackedComponent \u2014 discovery cached to disk. Materializing an asset queries the database and flattens property values (title/rich_text/select/multi_select/date/number/checkbox/people/url/email) into a DataFrame.",
-      "tags": [
-        "integration",
-        "notion",
-        "workspace",
-        "auto-discovery",
-        "state-backed"
-      ],
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/notion_workspace/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/notion_workspace/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/notion_workspace/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/notion_workspace/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/notion_workspace/schema.json",
-      "dependencies": {
-        "pip": [
-          "pandas>=2.0.0",
-          "requests>=2.28.0"
-        ]
-      },
-      "validation": {
-        "level": "code"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "agent_hints": {
-        "outputs": [
-          "one_asset_per_notion_database"
-        ],
-        "requires_pip": [
-          "pandas",
-          "requests"
-        ],
-        "chains_with": [
-          "dataframe_to_snowflake",
-          "dataframe_to_bigquery",
-          "notion_database_sensor"
-        ],
-        "output_type": "pd.DataFrame"
-      },
-      "produces": [
-        "multi_asset"
-      ],
-      "stateful": true,
-      "keywords": [
-        "notion pages",
-        "notion api",
-        "multi asset workspace",
-        "workspace-style component",
-        "ingest",
-        "read from"
-      ]
-    },
-    {
       "id": "o365_audit_log_ingestion",
       "name": "O365AuditLogIngestionComponent",
       "category": "ingestion",
@@ -32657,63 +32413,6 @@
       "keywords": [
         "connection",
         "connect"
-      ]
-    },
-    {
-      "id": "pagerduty_workspace",
-      "name": "PagerDuty Workspace",
-      "component_type": "dagster_community_components.PagerDutyWorkspaceComponent",
-      "path": "integrations/pagerduty_workspace",
-      "category": "ingestion",
-      "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per PagerDuty service. Materializing fetches recent incidents (statuses / assignees / timestamps) as a DataFrame \u2014 foundation for SLA dashboards and MTTR analytics.",
-      "tags": [
-        "ingestion",
-        "pagerduty",
-        "incident-management",
-        "workspace",
-        "auto-discovery",
-        "state-backed"
-      ],
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/pagerduty_workspace/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/pagerduty_workspace/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/pagerduty_workspace/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/pagerduty_workspace/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/pagerduty_workspace/schema.json",
-      "dependencies": {
-        "pip": [
-          "pandas>=2.0.0",
-          "requests>=2.28.0"
-        ]
-      },
-      "validation": {
-        "level": "code"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "agent_hints": {
-        "outputs": [
-          "one_asset_per_pagerduty_service"
-        ],
-        "requires_pip": [
-          "pandas",
-          "requests"
-        ],
-        "chains_with": [
-          "dataframe_to_snowflake",
-          "pagerduty_incident_sensor"
-        ],
-        "output_type": "pd.DataFrame"
-      },
-      "produces": [
-        "multi_asset"
-      ],
-      "stateful": true,
-      "keywords": [
-        "multi asset workspace",
-        "workspace-style component",
-        "ingest",
-        "read from"
       ]
     },
     {
@@ -44129,70 +43828,6 @@
         "stripe payments",
         "connection",
         "connect"
-      ]
-    },
-    {
-      "id": "stripe_workspace",
-      "name": "Stripe Workspace",
-      "component_type": "dagster_community_components.StripeWorkspaceComponent",
-      "path": "integrations/stripe_workspace",
-      "category": "ingestion",
-      "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per top-level Stripe resource (customers / charges / subscriptions / invoices / payment_intents / etc.). Materializing runs a paginated List call against api.stripe.com/v1/{resource}.",
-      "tags": [
-        "ingestion",
-        "stripe",
-        "billing",
-        "payments",
-        "workspace",
-        "auto-discovery",
-        "state-backed"
-      ],
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/stripe_workspace/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/stripe_workspace/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/stripe_workspace/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/stripe_workspace/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/stripe_workspace/schema.json",
-      "dependencies": {
-        "pip": [
-          "pandas>=2.0.0",
-          "requests>=2.28.0"
-        ]
-      },
-      "validation": {
-        "level": "code"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "agent_hints": {
-        "outputs": [
-          "one_asset_per_stripe_resource"
-        ],
-        "requires_pip": [
-          "pandas",
-          "requests"
-        ],
-        "chains_with": [
-          "dataframe_to_snowflake",
-          "dataframe_to_bigquery",
-          "stripe_event_sensor"
-        ],
-        "output_type": "pd.DataFrame"
-      },
-      "produces": [
-        "multi_asset"
-      ],
-      "stateful": true,
-      "consumes": [
-        "resource:stripe"
-      ],
-      "keywords": [
-        "stripe api",
-        "stripe payments",
-        "multi asset workspace",
-        "workspace-style component",
-        "ingest",
-        "read from"
       ]
     },
     {

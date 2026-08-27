@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, List, Optional
 
 import dagster as dg
+from pydantic import Field
 
 try:
     from dagster.components.component.state_backed_component import StateBackedComponent
@@ -106,12 +107,15 @@ if _HAS_STATE_BACKED:
         query_limit: int = 1000
         query_fields: Optional[List[str]] = None  # None = "SELECT FIELDS(STANDARD)"
 
-        defs_state: Optional[ResolvedDefsStateConfig] = None
+        defs_state: ResolvedDefsStateConfig = field(default_factory=DefsStateConfigArgs.local_filesystem)
 
         @property
         def defs_state_config(self) -> "DefsStateConfig":
             _key = f"SalesforceWorkspace[{hashlib.sha256(self.instance_url_env_var.encode()).hexdigest()[:12]}]"
-            return DefsStateConfig.from_args(self.defs_state, default_key=_key)
+            _s = self.defs_state
+            if isinstance(_s, dict):
+                _s = DefsStateConfigArgs(**_s)
+            return DefsStateConfig.from_args(_s, default_key=_key)
 
         def write_state_to_path(self, state_path: Path) -> None:
             import os

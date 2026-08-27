@@ -1,11 +1,11 @@
 {
   "summary": {
-    "PASS": 739,
-    "FAIL": 87,
-    "WARN": 15,
+    "PASS": 746,
+    "WARN": 11,
+    "FAIL": 66,
     "SKIP_OPTIONAL_DEP": 34,
     "SKIP_EXAMPLE_MULTI_DOC": 51,
-    "SKIP_PROJECT_REQUIRED": 15,
+    "SKIP_PROJECT_REQUIRED": 27,
     "SKIP_CREDENTIALS": 36,
     "SKIP_RELATIVE_IMPORT": 2
   },
@@ -95,8 +95,10 @@
     {
       "id": "address_standardize",
       "path": "assets/transforms/address_standardize",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"AdaptiveResearchBriefComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -160,10 +162,8 @@
     {
       "id": "airbyte_sync_sensor",
       "path": "sensors/airbyte_sync_sensor",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"AdaptiveResearchBriefComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -221,20 +221,6 @@
       "warnings": [],
       "error": null,
       "error_class": null
-    },
-    {
-      "id": "airtable_workspace",
-      "path": "integrations/airtable_workspace",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "component.py missing at /Users/ericthomas/dagster_components/dagster-component-templates /integrations/airtable_workspace/component.py",
-      "error_class": "FileNotFoundError",
-      "traceback": [
-        "Traceback (most recent call last):",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /tools/validate_manifest.py\", line 254, in _validate_one",
-        "    raise FileNotFoundError(f\"component.py missing at {component_py}\")",
-        "FileNotFoundError: component.py missing at /Users/ericthomas/dagster_components/dagster-component-templates /integrations/airtable_workspace/component.py"
-      ]
     },
     {
       "id": "alter_row",
@@ -309,17 +295,10 @@
     {
       "id": "approval_audit_asset",
       "path": "assets/ai/approval_audit_asset",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "FreshnessPolicy() takes no arguments",
-      "error_class": "TypeError",
-      "traceback": [
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /assets/ai/approval_audit_asset/component.py\", line 167, in build_defs",
-        "    freshness = dg.FreshnessPolicy(",
-        "                ^^^^^^^^^^^^^^^^^^^",
-        "TypeError: FreshnessPolicy() takes no arguments"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "archive_fetcher",
@@ -333,7 +312,9 @@
       "id": "argo_workflow_sensor",
       "path": "sensors/argo_workflow_sensor",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-airlift` (0.29.4)."
+      ],
       "error": null,
       "error_class": null
     },
@@ -536,17 +517,10 @@
     {
       "id": "aws_cdk_asset",
       "path": "assets/infrastructure/aws_cdk_asset",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "name 'AssetKey' is not defined",
-      "error_class": "NameError",
-      "traceback": [
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /assets/infrastructure/aws_cdk_asset/component.py\", line 233, in build_defs",
-        "    key=AssetKey.from_user_string(asset_name),",
-        "        ^^^^^^^^",
-        "NameError: name 'AssetKey' is not defined"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "aws_cloudtrail_ingestion",
@@ -577,14 +551,14 @@
       "path": "integrations/aws_dms",
       "status": "FAIL",
       "warnings": [],
-      "error": "Can't instantiate abstract class AWSDMSComponent with abstract method build_defs",
-      "error_class": "TypeError",
+      "error": "An error occurred (IncompleteSignatureException) when calling the DescribeReplicationTasks operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'KyzvcSzab/PHwPCBpvPd2d1zVgSBonbXLvbXyvErk38='.",
+      "error_class": "ClientError",
       "traceback": [
-        "               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/pydantic/main.py\", line 716, in model_validate",
-        "    return cls.__pydantic_validator__.validate_python(",
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "TypeError: Can't instantiate abstract class AWSDMSComponent with abstract method build_defs"
+        "    return func(*args, **kwargs)",
+        "           ^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/opt/homebrew/lib/python3.11/site-packages/botocore/client.py\", line 1078, in _make_api_call",
+        "    raise error_class(parsed_response, operation_name)",
+        "botocore.exceptions.ClientError: An error occurred (IncompleteSignatureException) when calling the DescribeReplicationTasks operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'KyzvcSzab/PHwPCBpvPd2d1zVgSBonbXLvbXyvErk38='."
       ]
     },
     {
@@ -640,14 +614,14 @@
       "path": "integrations/aws_sagemaker",
       "status": "FAIL",
       "warnings": [],
-      "error": "Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): '8q64exMVe+EsbBx8dE6n+3u8vIiDfPnppYzESAvd6UA='.",
+      "error": "Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'PZdKNOYwgUFyo3viOMorXBS3IZFNDIbiXUKACpZ4EGs='.",
       "error_class": "Exception",
       "traceback": [
         "    job_names = self._list_training_job_definitions(session)",
         "                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/aws_sagemaker/component.py\", line 225, in _list_training_job_definitions",
         "    raise Exception(f\"Failed to list training jobs: {e}\")",
-        "Exception: Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): '8q64exMVe+EsbBx8dE6n+3u8vIiDfPnppYzESAvd6UA='."
+        "Exception: Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'PZdKNOYwgUFyo3viOMorXBS3IZFNDIbiXUKACpZ4EGs='."
       ]
     },
     {
@@ -944,20 +918,16 @@
     {
       "id": "cassandra_writer",
       "path": "assets/sinks/cassandra_writer",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"CatalogAgentComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
     {
       "id": "catalog_agent",
       "path": "assets/ai/catalog_agent",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"CatalogAgentComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -1452,17 +1422,10 @@
     {
       "id": "dagster_plus_asset_events_ingestion",
       "path": "ingestion/dagster_plus_asset_events_ingestion",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "name 'AssetKey' is not defined",
-      "error_class": "NameError",
-      "traceback": [
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /ingestion/dagster_plus_asset_events_ingestion/component.py\", line 136, in build_defs",
-        "    key=AssetKey.from_user_string(self.asset_name),",
-        "        ^^^^^^^^",
-        "NameError: name 'AssetKey' is not defined"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "dagster_plus_audit_log_ingestion",
@@ -1475,17 +1438,10 @@
     {
       "id": "dagster_plus_run_events_ingestion",
       "path": "ingestion/dagster_plus_run_events_ingestion",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "name 'AssetKey' is not defined",
-      "error_class": "NameError",
-      "traceback": [
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /ingestion/dagster_plus_run_events_ingestion/component.py\", line 143, in build_defs",
-        "    key=AssetKey.from_user_string(self.asset_name),",
-        "        ^^^^^^^^",
-        "NameError: name 'AssetKey' is not defined"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "dagster_plus_to_siem_job",
@@ -2194,14 +2150,14 @@
       "path": "resources/dbt_cloud_resource",
       "status": "FAIL",
       "warnings": [],
-      "error": "deadlock detected by _ModuleLock('dagster_dbt.components.dbt_project.component') at 4871414032",
+      "error": "deadlock detected by _ModuleLock('dagster_dbt.components.dbt_project.component') at 4814607568",
       "error_class": "_DeadlockError",
       "traceback": [
         "    from dagster_dbt.components.dbt_project.component import DbtProjectComponent as DbtProjectComponent",
         "  File \"<frozen importlib._bootstrap>\", line 1173, in _find_and_load",
         "  File \"<frozen importlib._bootstrap>\", line 171, in __enter__",
         "  File \"<frozen importlib._bootstrap>\", line 116, in acquire",
-        "_frozen_importlib._DeadlockError: deadlock detected by _ModuleLock('dagster_dbt.components.dbt_project.component') at 4871414032"
+        "_frozen_importlib._DeadlockError: deadlock detected by _ModuleLock('dagster_dbt.components.dbt_project.component') at 4814607568"
       ]
     },
     {
@@ -2361,25 +2317,16 @@
     {
       "id": "document_corpus",
       "path": "assets/ai/document_corpus",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "FreshnessPolicy() takes no arguments",
-      "error_class": "TypeError",
-      "traceback": [
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /assets/ai/document_corpus/component.py\", line 192, in build_defs",
-        "    freshness = dg.FreshnessPolicy(",
-        "                ^^^^^^^^^^^^^^^^^^^",
-        "TypeError: FreshnessPolicy() takes no arguments"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "document_ingestion",
       "path": "assets/ingestion/document_ingestion",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-dlt` (0.28.1)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -2388,7 +2335,6 @@
       "path": "assets/ai/document_layout_analyzer",
       "status": "PASS",
       "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-spark` (0.28.12).",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -2465,7 +2411,9 @@
       "id": "dremio_ingestion",
       "path": "assets/ingestion/dremio_ingestion",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-spark` (0.28.12)."
+      ],
       "error": null,
       "error_class": null
     },
@@ -2887,7 +2835,9 @@
       "id": "external_precisely_job",
       "path": "external_assets/external_precisely_job",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-sling` (0.28.1)."
+      ],
       "error": null,
       "error_class": null
     },
@@ -2927,9 +2877,7 @@
       "id": "external_s3_asset",
       "path": "external_assets/external_s3_asset",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-sling` (0.28.1)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -3104,17 +3052,10 @@
     {
       "id": "facebook_ads_workspace",
       "path": "integrations/facebook_ads_workspace",
-      "status": "FAIL",
+      "status": "SKIP_PROJECT_REQUIRED",
       "warnings": [],
-      "error": "'dict' object has no attribute 'key'",
-      "error_class": "AttributeError",
-      "traceback": [
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
-        "    key=args.key or default_key,",
-        "        ^^^^^^^^",
-        "AttributeError: 'dict' object has no attribute 'key'"
-      ]
+      "error": "Could not find dg.toml or pyproject.toml in .",
+      "error_class": null
     },
     {
       "id": "feast_asset",
@@ -3423,11 +3364,8 @@
     {
       "id": "gcs_resource",
       "path": "resources/gcs_resource",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -3548,20 +3486,6 @@
       "error_class": null
     },
     {
-      "id": "github_workspace",
-      "path": "integrations/github_workspace",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "component.py missing at /Users/ericthomas/dagster_components/dagster-component-templates /integrations/github_workspace/component.py",
-      "error_class": "FileNotFoundError",
-      "traceback": [
-        "Traceback (most recent call last):",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /tools/validate_manifest.py\", line 254, in _validate_one",
-        "    raise FileNotFoundError(f\"component.py missing at {component_py}\")",
-        "FileNotFoundError: component.py missing at /Users/ericthomas/dagster_components/dagster-component-templates /integrations/github_workspace/component.py"
-      ]
-    },
-    {
       "id": "gitlab_event_sensor",
       "path": "sensors/gitlab_event_sensor",
       "status": "PASS",
@@ -3623,17 +3547,10 @@
     {
       "id": "google_analytics_workspace",
       "path": "integrations/google_analytics_workspace",
-      "status": "FAIL",
+      "status": "SKIP_PROJECT_REQUIRED",
       "warnings": [],
-      "error": "'dict' object has no attribute 'key'",
-      "error_class": "AttributeError",
-      "traceback": [
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
-        "    key=args.key or default_key,",
-        "        ^^^^^^^^",
-        "AttributeError: 'dict' object has no attribute 'key'"
-      ]
+      "error": "Could not find dg.toml or pyproject.toml in .",
+      "error_class": null
     },
     {
       "id": "google_bigquery",
@@ -3761,17 +3678,10 @@
     {
       "id": "google_sheets_workspace",
       "path": "integrations/google_sheets_workspace",
-      "status": "FAIL",
+      "status": "SKIP_PROJECT_REQUIRED",
       "warnings": [],
-      "error": "'dict' object has no attribute 'key'",
-      "error_class": "AttributeError",
-      "traceback": [
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
-        "    key=args.key or default_key,",
-        "        ^^^^^^^^",
-        "AttributeError: 'dict' object has no attribute 'key'"
-      ]
+      "error": "Could not find dg.toml or pyproject.toml in .",
+      "error_class": null
     },
     {
       "id": "google_vertex_ai",
@@ -3824,9 +3734,7 @@
       "id": "hash",
       "path": "transforms/hash",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-dbt` (0.28.12)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -3929,17 +3837,10 @@
     {
       "id": "hubspot_workspace",
       "path": "integrations/hubspot_workspace",
-      "status": "FAIL",
+      "status": "SKIP_PROJECT_REQUIRED",
       "warnings": [],
-      "error": "'dict' object has no attribute 'key'",
-      "error_class": "AttributeError",
-      "traceback": [
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
-        "    key=args.key or default_key,",
-        "        ^^^^^^^^",
-        "AttributeError: 'dict' object has no attribute 'key'"
-      ]
+      "error": "Could not find dg.toml or pyproject.toml in .",
+      "error_class": null
     },
     {
       "id": "huggingface_chat_completion",
@@ -4177,11 +4078,9 @@
     {
       "id": "informatica_workspace",
       "path": "integrations/informatica_workspace",
-      "status": "PASS",
-      "warnings": [
-        "UserWarning: InformaticaWorkspaceComponent: could not discover tasks (ValueError: InformaticaWorkspaceComponent.workspace: supply username/password OR username_env_var/password_env_var.). Emitting empty definitions."
-      ],
-      "error": null,
+      "status": "SKIP_PROJECT_REQUIRED",
+      "warnings": [],
+      "error": "Could not find dg.toml or pyproject.toml in .",
       "error_class": null
     },
     {
@@ -4256,8 +4155,11 @@
     {
       "id": "iterative_supervisor_agent",
       "path": "assets/ai/iterative_supervisor_agent",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -4284,9 +4186,7 @@
       "id": "jde_orchestration_trigger_job",
       "path": "jobs/jde_orchestration_trigger_job",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-pandas` (0.28.1)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -4336,20 +4236,6 @@
       "warnings": [],
       "error": null,
       "error_class": null
-    },
-    {
-      "id": "jira_workspace",
-      "path": "integrations/jira_workspace",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "component.py missing at /Users/ericthomas/dagster_components/dagster-component-templates /integrations/jira_workspace/component.py",
-      "error_class": "FileNotFoundError",
-      "traceback": [
-        "Traceback (most recent call last):",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /tools/validate_manifest.py\", line 254, in _validate_one",
-        "    raise FileNotFoundError(f\"component.py missing at {component_py}\")",
-        "FileNotFoundError: component.py missing at /Users/ericthomas/dagster_components/dagster-component-templates /integrations/jira_workspace/component.py"
-      ]
     },
     {
       "id": "job_posting_extractor",
@@ -4559,11 +4445,8 @@
     {
       "id": "langgraph_agent",
       "path": "assets/ai/langgraph_agent",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"LangChainChainAssetComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LangChainChainAssetComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -4578,11 +4461,8 @@
     {
       "id": "lead_scoring",
       "path": "assets/analytics/lead_scoring",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"LangGraphStep\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LangGraphAgentComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -4591,6 +4471,8 @@
       "path": "assets/ai/legal_document_extractor",
       "status": "WARN",
       "warnings": [
+        "UserWarning: Field name \"model\" in \"LangGraphStep\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"LangGraphAgentComponent\" shadows an attribute in parent \"Resolvable\"",
         "UserWarning: Field name \"model\" in \"LangGraphStep\" shadows an attribute in parent \"Resolvable\"",
         "UserWarning: Field name \"model\" in \"LangGraphAgentComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
@@ -4609,17 +4491,10 @@
     {
       "id": "lineage_graph_extractor",
       "path": "assets/sources/lineage_graph_extractor",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "name 'AssetKey' is not defined",
-      "error_class": "NameError",
-      "traceback": [
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /assets/sources/lineage_graph_extractor/component.py\", line 302, in build_defs",
-        "    key=AssetKey.from_user_string(self.asset_name),",
-        "        ^^^^^^^^",
-        "NameError: name 'AssetKey' is not defined"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "lineage_to_alation",
@@ -4727,17 +4602,10 @@
     {
       "id": "linkedin_ads_workspace",
       "path": "integrations/linkedin_ads_workspace",
-      "status": "FAIL",
+      "status": "SKIP_PROJECT_REQUIRED",
       "warnings": [],
-      "error": "'dict' object has no attribute 'key'",
-      "error_class": "AttributeError",
-      "traceback": [
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
-        "    key=args.key or default_key,",
-        "        ^^^^^^^^",
-        "AttributeError: 'dict' object has no attribute 'key'"
-      ]
+      "error": "Could not find dg.toml or pyproject.toml in .",
+      "error_class": null
     },
     {
       "id": "litellm_agent",
@@ -4841,18 +4709,18 @@
     {
       "id": "llm_evaluator",
       "path": "assets/ai/llm_evaluator",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"LLMChainExecutorComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
     {
       "id": "llm_judge",
       "path": "assets/ai/llm_judge",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"LLMChainExecutorComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LLMChainExecutorComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -4886,7 +4754,6 @@
       "path": "assets/ai/llm_prompt_executor",
       "status": "WARN",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"LlmMultiPathRouterComponent\" shadows an attribute in parent \"Resolvable\"",
         "UserWarning: Field name \"model\" in \"LlmMultiPathRouterComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
@@ -5542,20 +5409,6 @@
       "error_class": null
     },
     {
-      "id": "notion_workspace",
-      "path": "integrations/notion_workspace",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "component.py missing at /Users/ericthomas/dagster_components/dagster-component-templates /integrations/notion_workspace/component.py",
-      "error_class": "FileNotFoundError",
-      "traceback": [
-        "Traceback (most recent call last):",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /tools/validate_manifest.py\", line 254, in _validate_one",
-        "    raise FileNotFoundError(f\"component.py missing at {component_py}\")",
-        "FileNotFoundError: component.py missing at /Users/ericthomas/dagster_components/dagster-component-templates /integrations/notion_workspace/component.py"
-      ]
-    },
-    {
       "id": "o365_audit_log_ingestion",
       "path": "ingestion/o365_audit_log_ingestion",
       "status": "PASS",
@@ -5630,17 +5483,7 @@
       "id": "odata_ingestion",
       "path": "assets/ingestion/odata_ingestion",
       "status": "PASS",
-      "warnings": [
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -5693,10 +5536,8 @@
     {
       "id": "openai_agent",
       "path": "assets/ai/openai_agent",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"OllamaInferenceAssetComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -5809,20 +5650,6 @@
       "warnings": [],
       "error": null,
       "error_class": null
-    },
-    {
-      "id": "pagerduty_workspace",
-      "path": "integrations/pagerduty_workspace",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "component.py missing at /Users/ericthomas/dagster_components/dagster-component-templates /integrations/pagerduty_workspace/component.py",
-      "error_class": "FileNotFoundError",
-      "traceback": [
-        "Traceback (most recent call last):",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /tools/validate_manifest.py\", line 254, in _validate_one",
-        "    raise FileNotFoundError(f\"component.py missing at {component_py}\")",
-        "FileNotFoundError: component.py missing at /Users/ericthomas/dagster_components/dagster-component-templates /integrations/pagerduty_workspace/component.py"
-      ]
     },
     {
       "id": "pandas_dataframe_check",
@@ -6031,6 +5858,7 @@
       "path": "assets/sources/pinecone_reader",
       "status": "PASS",
       "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-gcp` (0.28.1).",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -6877,17 +6705,10 @@
     {
       "id": "salesforce_workspace",
       "path": "integrations/salesforce_workspace",
-      "status": "FAIL",
+      "status": "SKIP_PROJECT_REQUIRED",
       "warnings": [],
-      "error": "'dict' object has no attribute 'key'",
-      "error_class": "AttributeError",
-      "traceback": [
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
-        "    key=args.key or default_key,",
-        "        ^^^^^^^^",
-        "AttributeError: 'dict' object has no attribute 'key'"
-      ]
+      "error": "Could not find dg.toml or pyproject.toml in .",
+      "error_class": null
     },
     {
       "id": "sample",
@@ -7108,17 +6929,10 @@
     {
       "id": "servicenow_workspace",
       "path": "integrations/servicenow_workspace",
-      "status": "FAIL",
+      "status": "SKIP_PROJECT_REQUIRED",
       "warnings": [],
-      "error": "'dict' object has no attribute 'key'",
-      "error_class": "AttributeError",
-      "traceback": [
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
-        "    key=args.key or default_key,",
-        "        ^^^^^^^^",
-        "AttributeError: 'dict' object has no attribute 'key'"
-      ]
+      "error": "Could not find dg.toml or pyproject.toml in .",
+      "error_class": null
     },
     {
       "id": "sftp_monitor",
@@ -7214,17 +7028,10 @@
     {
       "id": "shopify_workspace",
       "path": "integrations/shopify_workspace",
-      "status": "FAIL",
+      "status": "SKIP_PROJECT_REQUIRED",
       "warnings": [],
-      "error": "'dict' object has no attribute 'key'",
-      "error_class": "AttributeError",
-      "traceback": [
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
-        "    key=args.key or default_key,",
-        "        ^^^^^^^^",
-        "AttributeError: 'dict' object has no attribute 'key'"
-      ]
+      "error": "Could not find dg.toml or pyproject.toml in .",
+      "error_class": null
     },
     {
       "id": "siem_audit_export_job",
@@ -7733,9 +7540,9 @@
     {
       "id": "ssis_workspace",
       "path": "integrations/ssis_workspace",
-      "status": "PASS",
+      "status": "SKIP_PROJECT_REQUIRED",
       "warnings": [],
-      "error": null,
+      "error": "Could not find dg.toml or pyproject.toml in .",
       "error_class": null
     },
     {
@@ -7811,20 +7618,6 @@
       "error_class": null
     },
     {
-      "id": "stripe_workspace",
-      "path": "integrations/stripe_workspace",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "component.py missing at /Users/ericthomas/dagster_components/dagster-component-templates /integrations/stripe_workspace/component.py",
-      "error_class": "FileNotFoundError",
-      "traceback": [
-        "Traceback (most recent call last):",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /tools/validate_manifest.py\", line 254, in _validate_one",
-        "    raise FileNotFoundError(f\"component.py missing at {component_py}\")",
-        "FileNotFoundError: component.py missing at /Users/ericthomas/dagster_components/dagster-component-templates /integrations/stripe_workspace/component.py"
-      ]
-    },
-    {
       "id": "subscription_metrics",
       "path": "assets/analytics/subscription_metrics",
       "status": "PASS",
@@ -7895,8 +7688,10 @@
     {
       "id": "support_ticket_standardizer",
       "path": "assets/analytics/support_ticket_standardizer",
-      "status": "PASS",
+      "status": "WARN",
       "warnings": [
+        "UserWarning: Field name \"model\" in \"SupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"SupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -7905,13 +7700,8 @@
     {
       "id": "surrogate_key",
       "path": "transforms/surrogate_key",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"SupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"SupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"SupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"SupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -7926,8 +7716,11 @@
     {
       "id": "svm",
       "path": "assets/analytics/svm",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"SupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"SupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -8015,11 +7808,9 @@
     {
       "id": "talend_cloud_workspace",
       "path": "integrations/talend_cloud_workspace",
-      "status": "PASS",
-      "warnings": [
-        "UserWarning: TalendCloudWorkspaceComponent: could not discover artifacts (ValueError: env var 'TALEND_API_TOKEN' is empty or unset). Emitting empty definitions."
-      ],
-      "error": null,
+      "status": "SKIP_PROJECT_REQUIRED",
+      "warnings": [],
+      "error": "Could not find dg.toml or pyproject.toml in .",
       "error_class": null
     },
     {
@@ -8465,8 +8256,10 @@
     {
       "id": "vanta_evidence_response_agent",
       "path": "assets/ai/vanta_evidence_response_agent",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"VantaEvidenceResponseAgentComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -8489,9 +8282,8 @@
     {
       "id": "vector_store_query",
       "path": "assets/ai/vector_store_query",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"VantaEvidenceResponseAgentComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -8652,17 +8444,10 @@
     {
       "id": "wandb_workspace",
       "path": "integrations/wandb_workspace",
-      "status": "FAIL",
+      "status": "SKIP_PROJECT_REQUIRED",
       "warnings": [],
-      "error": "'dict' object has no attribute 'key'",
-      "error_class": "AttributeError",
-      "traceback": [
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/components/utils/defs_state.py\", line 53, in from_args",
-        "    key=args.key or default_key,",
-        "        ^^^^^^^^",
-        "AttributeError: 'dict' object has no attribute 'key'"
-      ]
+      "error": "Could not find dg.toml or pyproject.toml in .",
+      "error_class": null
     },
     {
       "id": "warehouse_dedup",

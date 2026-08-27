@@ -440,7 +440,7 @@ class AWSDMSComponent(Component, Model, Resolvable):
 
         return assets
 
-    def resolve(self, load_context: ComponentLoadContext) -> Definitions:
+    def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Resolve component to Dagster definitions."""
         client = self._get_client()
 

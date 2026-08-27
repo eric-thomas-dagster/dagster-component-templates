@@ -6,6 +6,15 @@ per package. On materialize, EXECs `SSISDB.catalog.create_execution` +
 `start_execution` and polls `SSISDB.catalog.executions.status` until the
 package finishes.
 
+Full workspace-pattern shape (parity with hvr_hub_workspace /
+snowflake_workspace / qlik_replicate_workspace):
+  - `@public` class annotation
+  - `@record` props class (replaces @dataclass)
+  - `translation:` callable field for per-asset customization
+  - `StateBackedComponent` inheritance — discovery cached to disk via
+    `write_state_to_path`; code-location reloads read from JSON cache.
+    Refresh via `dg utils refresh-defs-state`.
+
 Backing SQL (all from SSISDB system database):
 
     SELECT * FROM SSISDB.catalog.packages     -- enumeration
@@ -30,14 +39,34 @@ The connecting login needs at minimum:
   - ssis_admin (or DBO on SSISDB) if you set `action: execute`
 """
 
-from __future__ import annotations
-
 import fnmatch
+import hashlib
+import json
 import time
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from pathlib import Path
+from typing import Annotated, Any, Dict, List, Optional
 
 import dagster as dg
+from dagster import (
+    AssetKey,
+    AssetSpec,
+    ComponentLoadContext,
+    Definitions,
+    Model,
+    Resolvable,
+)
+from dagster._annotations import public
+from dagster.components.component.state_backed_component import StateBackedComponent
+from dagster.components.utils.defs_state import (
+    DefsStateConfig,
+    DefsStateConfigArgs,
+    ResolvedDefsStateConfig,
+)
+from dagster.components.utils.translation import (
+    TranslationFn,
+    TranslationFnResolver,
+)
+from dagster_shared.record import record
 from pydantic import Field
 
 
@@ -54,6 +83,36 @@ SSIS_STATUS: Dict[int, str] = {
     9: "Completed",
 }
 SSIS_TERMINAL: set = {3, 4, 6, 7, 9}  # any of these = stop polling
+
+
+# ── Props (@record) for translator callable ─────────────────────────
+@record
+class SsisPackageProps:
+    """Data passed to `translation:` callables for each imported SSIS package.
+
+    Mirrors `HvrObjectProps` / `SnowflakeObjectProps` / `QlikReplicateObjectProps` —
+    a single record describing the package so `translation:` callables can
+    filter, rename, add tags, etc.
+
+    Attributes:
+        folder_name: SSISDB folder name.
+        project_name: SSISDB project name.
+        project_id: Numeric project_id from SSISDB.catalog.projects.
+        package_name: Package name (without the `.dtsx` suffix).
+        description: The package's own description string (may be None).
+        server_host: The SQL Server host (from workspace.server).
+    """
+
+    folder_name: str
+    project_name: str
+    project_id: int
+    package_name: str
+    description: Optional[str] = None
+    server_host: str = ""
+
+    @property
+    def qualified_name(self) -> str:
+        return f"{self.folder_name}/{self.project_name}/{self.package_name}"
 
 
 # ── Workspace config nested block ───────────────────────────────────
@@ -97,21 +156,6 @@ class SsisWorkspaceConfig(dg.Model):
     )
 
 
-# ── Package descriptor (from SSISDB.catalog.packages join) ──────────
-@dataclass
-class SsisPackage:
-    """One row from SSISDB.catalog.packages joined with folders + projects."""
-    folder_name: str
-    project_name: str
-    project_id: int
-    package_name: str          # without the `.dtsx` suffix
-    description: Optional[str]
-
-    @property
-    def qualified_name(self) -> str:
-        return f"{self.folder_name}/{self.project_name}/{self.package_name}"
-
-
 # ── Selector block ──────────────────────────────────────────────────
 class SsisPackageSelector(dg.Model):
     """Filter which SSISDB packages become Dagster assets.
@@ -137,13 +181,62 @@ class SsisPackageSelector(dg.Model):
     )
 
 
+# ── Base translator ─────────────────────────────────────────────────
+class SsisComponentTranslator:
+    """Base translator: SsisPackageProps → AssetSpec.
+
+    User's `translation:` callable wraps this via TranslationFn. Mirrors
+    HvrHubComponentTranslator / SnowflakeComponentTranslator / etc.
+    """
+
+    def __init__(self, component: "SsisWorkspaceComponent"):
+        self._component = component
+
+    def get_asset_spec(self, props: SsisPackageProps) -> AssetSpec:
+        prefix = self._component.asset_key_prefix or [
+            "ssis",
+            (props.server_host or "hub").split(".")[0].split("\\")[0].lower(),
+        ]
+        return AssetSpec(
+            key=AssetKey([*prefix, props.folder_name, props.project_name, props.package_name]),
+            description=(
+                props.description
+                or f"SSIS package `{props.qualified_name}` deployed to SSISDB."
+            ),
+            group_name=self._component.group_name,
+            # Dagster kinds — `mssql` has a first-class icon; `ssis` + `etl`
+            # render as text-only badges (still useful for filtering the
+            # catalog by class-of-tool + vendor).
+            kinds=set(self._component.kinds or ["ssis", "mssql", "etl"]),
+            tags=dict(self._component.tags or {}),
+            owners=list(self._component.owners or []),
+            metadata={
+                "ssis/folder": props.folder_name,
+                "ssis/project": props.project_name,
+                "ssis/package": props.package_name,
+                "ssis/project_id": props.project_id,
+            },
+        )
+
+
 # ── Component ───────────────────────────────────────────────────────
-class SsisWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
+@public
+class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
     """SQL Server Integration Services (SSIS) as a Dagster workspace.
 
     Discovers packages deployed to SSISDB, emits one AssetSpec per
     package, and (optionally) triggers `create_execution + start_execution`
     on materialize with completion polling.
+
+    Full workspace-pattern shape:
+      - Fivetran-shape `workspace:` block for auth
+      - `package_selector:` for filtering discovered packages
+      - `translation:` callable for per-asset customization
+      - `StateBackedComponent` caching — refresh via
+        `dg utils refresh-defs-state`
+      - `action: noop | execute`
+      - `polling_sensor:` opt-in observation sensor
+      - `freshness_lag_threshold_seconds:` asset check per package
 
     Example:
 
@@ -151,15 +244,17 @@ class SsisWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
     type: dagster_community_components.SsisWorkspaceComponent
     attributes:
       workspace:
-        server:   {env: SSIS_SERVER}
+        server:   "{{ env.SSIS_SERVER }}"
         database: SSISDB
-        user:     {env: SSIS_USER}
-        password: {env: SSIS_PASSWORD}
+        user:     "{{ env.SSIS_USER }}"
+        password: "{{ env.SSIS_PASSWORD }}"
         trust_server_certificate: true
       package_selector:
         by_folder: [Sales, Finance]
         include:   ["*sales*"]
         exclude:   ["*_test*"]
+      # translation: |
+      #   {{ load_python_module_attr('my_project.ssis.translate.by_domain') }}
       action: execute
       wait_for_completion: true
       poll_interval_seconds: 30
@@ -179,6 +274,22 @@ class SsisWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Filter which packages become assets. Default = every "
         "package in SSISDB.",
+    )
+    translation: Annotated[
+        Optional[TranslationFn[SsisPackageProps]],
+        TranslationFnResolver(
+            template_vars_for_translation_fn=lambda data: {"props": data}
+        ),
+    ] = Field(
+        default=None,
+        description=(
+            "Optional per-asset translation callable. Receives a "
+            "SsisPackageProps and returns a dict of AssetSpec kwargs "
+            "(key / group_name / tags / owners / kinds / metadata / "
+            "description). Use for per-folder / per-project customization "
+            "beyond the uniform group/kinds/tags. Follows the same "
+            "convention as dagster-fivetran / dagster-snowflake."
+        ),
     )
     action: str = Field(
         default="noop",
@@ -232,6 +343,41 @@ class SsisWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
     owners: Optional[List[str]] = Field(
         default=None, description="Asset owners (team names / email addresses)."
     )
+    defs_state: ResolvedDefsStateConfig = Field(
+        default_factory=DefsStateConfigArgs.local_filesystem,
+        description="StateBackedComponent state config. Default: local "
+        "filesystem cache keyed on server+database hash so multiple SSIS "
+        "servers don't collide.",
+    )
+
+    # ── Base translator (cached per instance) ─────────────────────
+    @property
+    def _base_translator(self) -> SsisComponentTranslator:
+        cached = getattr(self, "__base_translator_cached", None)
+        if cached is None:
+            cached = SsisComponentTranslator(self)
+            object.__setattr__(self, "__base_translator_cached", cached)
+        return cached
+
+    @public
+    def get_asset_spec(self, props: SsisPackageProps) -> AssetSpec:
+        """Public hook — user's `translation:` callable wraps this."""
+        base_spec = self._base_translator.get_asset_spec(props)
+        if self.translation is None:
+            return base_spec
+        # user callable → dict of overrides → merge onto base
+        overrides = self.translation(base_spec, props) or {}
+        if isinstance(overrides, AssetSpec):
+            return overrides
+        # Dict shape — merge onto base_spec
+        return base_spec._replace(**overrides) if hasattr(base_spec, "_replace") else base_spec
+
+    @property
+    def defs_state_config(self) -> DefsStateConfig:
+        composite = f"{self.workspace.server or 'ssisdb'}::{self.workspace.database}"
+        state_hash = hashlib.sha256(composite.encode()).hexdigest()[:12]
+        default_key = f"{self.__class__.__name__}[{state_hash}]"
+        return DefsStateConfig.from_args(self.defs_state, default_key=default_key)
 
     # ── Runtime helpers ────────────────────────────────────────────
     def _build_engine(self):
@@ -248,7 +394,6 @@ class SsisWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
                 )
             return create_engine(url)
 
-        # Flat fields → build a pyodbc URL
         if not (cfg.server and cfg.user and cfg.password):
             raise ValueError(
                 "SsisWorkspaceComponent.workspace: supply either "
@@ -264,8 +409,9 @@ class SsisWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
             f"@{cfg.server}/{cfg.database}?{params}"
         )
 
-    def _discover_packages(self, engine) -> List[SsisPackage]:
-        """Enumerate SSISDB.catalog.packages. Apply the selector."""
+    def _discover_packages(self, engine) -> List[Dict[str, Any]]:
+        """Enumerate SSISDB.catalog.packages. Apply the selector.
+        Returns dicts (not props objects) for JSON serialization to state."""
         from sqlalchemy import text as sa_text
         sql = sa_text(
             """
@@ -284,31 +430,29 @@ class SsisWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
         with engine.connect() as conn:
             rows = conn.execute(sql).mappings().all()
 
-        packages = [
-            SsisPackage(
-                folder_name=r["folder_name"],
-                project_name=r["project_name"],
-                project_id=r["project_id"],
-                package_name=(
-                    r["package_name"][:-5]
-                    if r["package_name"].lower().endswith(".dtsx")
-                    else r["package_name"]
-                ),
-                description=r.get("description"),
-            )
-            for r in rows
-        ]
+        packages: List[Dict[str, Any]] = []
+        for r in rows:
+            pkg_name = r["package_name"]
+            if pkg_name.lower().endswith(".dtsx"):
+                pkg_name = pkg_name[:-5]
+            packages.append({
+                "folder_name": r["folder_name"],
+                "project_name": r["project_name"],
+                "project_id": int(r["project_id"]),
+                "package_name": pkg_name,
+                "description": r.get("description"),
+            })
 
         sel = self.package_selector
         if not sel:
             return packages
 
-        def _match(p: SsisPackage) -> bool:
-            if sel.by_folder and p.folder_name not in sel.by_folder:
+        def _match(p: Dict[str, Any]) -> bool:
+            if sel.by_folder and p["folder_name"] not in sel.by_folder:
                 return False
-            if sel.by_project and p.project_name not in sel.by_project:
+            if sel.by_project and p["project_name"] not in sel.by_project:
                 return False
-            qname_lower = p.qualified_name.lower()
+            qname_lower = f"{p['folder_name']}/{p['project_name']}/{p['package_name']}".lower()
             if sel.include and not any(
                 fnmatch.fnmatch(qname_lower, pat.lower()) for pat in sel.include
             ):
@@ -321,15 +465,11 @@ class SsisWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
 
         return [p for p in packages if _match(p)]
 
-    def _execute_package(self, engine, pkg: SsisPackage, context) -> Dict[str, Any]:
-        """EXEC create_execution + start_execution + poll to completion.
-
-        Returns a dict with keys: execution_id, status, status_text, error_message.
-        """
+    def _execute_package(self, engine, props: SsisPackageProps, context) -> Dict[str, Any]:
+        """EXEC create_execution + start_execution + poll to completion."""
         from sqlalchemy import text as sa_text
-        pkg_dtsx = f"{pkg.package_name}.dtsx"
+        pkg_dtsx = f"{props.package_name}.dtsx"
 
-        # 1. create_execution — returns the execution_id in an OUTPUT param.
         with engine.connect() as conn:
             row = conn.execute(
                 sa_text(
@@ -345,20 +485,21 @@ class SsisWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
                     SELECT @exec_id AS execution_id;
                     """
                 ),
-                {"pkg": pkg_dtsx, "folder": pkg.folder_name, "project": pkg.project_name},
+                {"pkg": pkg_dtsx, "folder": props.folder_name, "project": props.project_name},
             ).mappings().first()
             execution_id = row["execution_id"] if row else None
             if execution_id is None:
-                raise RuntimeError(f"create_execution returned no execution_id for {pkg.qualified_name}")
+                raise RuntimeError(f"create_execution returned no execution_id for {props.qualified_name}")
 
             conn.execute(
                 sa_text("EXEC SSISDB.catalog.start_execution :exec_id"),
                 {"exec_id": execution_id},
             )
-            conn.commit() if hasattr(conn, "commit") else None
+            if hasattr(conn, "commit"):
+                conn.commit()
 
         context.log.info(
-            f"SSIS package {pkg.qualified_name} started — execution_id={execution_id}"
+            f"SSIS package {props.qualified_name} started — execution_id={execution_id}"
         )
 
         if not self.wait_for_completion:
@@ -369,7 +510,6 @@ class SsisWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
                 "error_message": None,
             }
 
-        # 2. Poll executions.status until terminal (or timeout).
         start_time = time.time()
         while True:
             with engine.connect() as conn:
@@ -381,11 +521,9 @@ class SsisWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
                 ).mappings().first()
             status = int(row["status"]) if row and row.get("status") is not None else None
             if status in SSIS_TERMINAL:
-                # Success in SSIS = status 7 (Succeeded). All other terminals = failure.
                 status_text = SSIS_STATUS.get(status, str(status)) if status is not None else "unknown"
                 error_message = None
                 if status != 7:
-                    # Pull most recent operation_messages that mention Error.
                     with engine.connect() as conn:
                         msgs = conn.execute(
                             sa_text(
@@ -407,87 +545,76 @@ class SsisWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
                 }
             if self.timeout_seconds and (time.time() - start_time) > self.timeout_seconds:
                 raise TimeoutError(
-                    f"SSIS package {pkg.qualified_name} exceeded timeout of {self.timeout_seconds}s"
+                    f"SSIS package {props.qualified_name} exceeded timeout of {self.timeout_seconds}s"
                     f" (last status={SSIS_STATUS.get(status, str(status)) if status is not None else 'unknown'})"
                 )
             time.sleep(self.poll_interval_seconds)
 
-    # ── Definitions build ──────────────────────────────────────────
-    def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-        _self = self
-
-        # 1. Discovery — one engine per code-location load. Wrap the
-        # engine build too — missing pyodbc / bad connection string is
-        # a run-time-only issue; don't fail load.
+    # ── StateBackedComponent contract ─────────────────────────────
+    async def write_state_to_path(self, state_path: Path) -> None:
+        """Discover packages via SSISDB query + write JSON snapshot to state_path."""
         try:
             engine = self._build_engine()
             packages = self._discover_packages(engine)
-        except Exception as e:
-            # Don't fail code-location load if SSISDB is unreachable OR
-            # the ODBC driver isn't installed — emit an empty defs + a
-            # warning. Users then fix connectivity + reload.
-            import warnings
-            warnings.warn(
-                f"SsisWorkspaceComponent: could not discover packages "
-                f"({type(e).__name__}: {e}). Emitting empty definitions."
+        except Exception:  # noqa: BLE001
+            packages = []
+        snapshot = {
+            "server_host": self.workspace.server or "",
+            "packages": packages,
+            "polled_at": time.time(),
+        }
+        state_path.write_text(json.dumps(snapshot, indent=2))
+
+    def build_defs_from_state(
+        self,
+        context: ComponentLoadContext,
+        state_path: Optional[Path],
+    ) -> Definitions:
+        if state_path is None or not state_path.exists():
+            return Definitions()
+
+        state = json.loads(state_path.read_text())
+        packages = state.get("packages", [])
+        server_host = state.get("server_host", self.workspace.server or "")
+
+        specs: List[AssetSpec] = []
+        for p in packages:
+            props = SsisPackageProps(
+                folder_name=p["folder_name"],
+                project_name=p["project_name"],
+                project_id=int(p["project_id"]),
+                package_name=p["package_name"],
+                description=p.get("description"),
+                server_host=server_host,
             )
-            return dg.Definitions()
+            specs.append(self.get_asset_spec(props))
 
-        # 2. Compute per-asset keys + specs.
-        prefix = self.asset_key_prefix or [
-            "ssis",
-            (self.workspace.server or "hub").split(".")[0].split("\\")[0].lower(),
-        ]
-        kinds = self.kinds or ["ssis", "mssql"]
-
-        specs: List[dg.AssetSpec] = []
-        for pkg in packages:
-            key_path = [*prefix, pkg.folder_name, pkg.project_name, pkg.package_name]
-            spec = dg.AssetSpec(
-                key=dg.AssetKey(key_path),
-                description=(
-                    pkg.description
-                    or f"SSIS package `{pkg.qualified_name}` deployed to SSISDB."
-                ),
-                group_name=self.group_name,
-                kinds=set(kinds),
-                tags=self.tags or {},
-                owners=self.owners or [],
-                metadata={
-                    "ssis/folder": pkg.folder_name,
-                    "ssis/project": pkg.project_name,
-                    "ssis/package": pkg.package_name,
-                    "ssis/project_id": pkg.project_id,
-                },
-            )
-            specs.append(spec)
-
-        # 3. Build the compute function(s).
+        # Build compute (external asset or executable) per action.
+        assets: List[Any] = []
         action = (self.action or "noop").lower()
 
         if action == "noop":
-            # Declare-only: emit external assets only, no compute function.
-            defs_kwargs: Dict[str, Any] = {"assets": specs}
+            assets = list(specs)
         elif action == "execute":
-            # Emit one @asset per package (not one multi_asset) so each
-            # package materializes independently.
+            _self = self
+
             @dg.multi_asset(specs=specs)
             def _ssis_execute(context: dg.AssetExecutionContext):
                 exec_engine = _self._build_engine()
                 for spec in specs:
-                    # Recover the SsisPackage from the spec's metadata.
-                    pkg = SsisPackage(
+                    props = SsisPackageProps(
                         folder_name=spec.metadata["ssis/folder"],
                         project_name=spec.metadata["ssis/project"],
                         project_id=int(spec.metadata["ssis/project_id"]),
                         package_name=spec.metadata["ssis/package"],
                         description=None,
+                        server_host=server_host,
                     )
-                    result = _self._execute_package(exec_engine, pkg, context)
+                    result = _self._execute_package(exec_engine, props, context)
                     if result.get("status") not in (None, 7):
                         raise dg.Failure(
                             description=(
-                                f"SSIS package {pkg.qualified_name} finished with "
+                                f"SSIS package {props.qualified_name} finished with "
                                 f"status={result['status_text']!r}. "
                                 f"error={result.get('error_message')!r}"
                             )
@@ -500,124 +627,136 @@ class SsisWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
                         },
                     )
 
-            defs_kwargs = {"assets": [_ssis_execute]}
+            assets = [_ssis_execute]
         else:
             raise ValueError(
                 f"SsisWorkspaceComponent.action={action!r} not supported. "
                 f"Use 'noop' or 'execute'."
             )
 
-        # 4. Polling sensor (optional).
+        # Polling sensor + freshness checks.
+        sensors: List[Any] = []
         if self.polling_sensor and specs:
-            @dg.sensor(
-                name=f"ssis_workspace_observation_sensor",
-                minimum_interval_seconds=self.observation_interval_seconds,
-                default_status=dg.DefaultSensorStatus.STOPPED,
-                asset_selection=dg.AssetSelection.assets(*(s.key for s in specs)),
+            sensors.append(self._build_observation_sensor(specs, server_host))
+
+        checks: List[Any] = []
+        if self.freshness_lag_threshold_seconds is not None and specs:
+            checks.extend(self._build_freshness_checks(specs))
+
+        return Definitions(assets=assets, sensors=sensors, asset_checks=checks)
+
+    def _build_observation_sensor(self, specs: List[AssetSpec], server_host: str):
+        _self = self
+        # Rebuild the prefix from workspace so sensor + specs agree.
+        prefix = self.asset_key_prefix or [
+            "ssis",
+            (server_host or "hub").split(".")[0].split("\\")[0].lower(),
+        ]
+
+        @dg.sensor(
+            name="ssis_workspace_observation_sensor",
+            minimum_interval_seconds=self.observation_interval_seconds,
+            default_status=dg.DefaultSensorStatus.STOPPED,
+            asset_selection=dg.AssetSelection.assets(*(s.key for s in specs)),
+        )
+        def _observation_sensor(context: dg.SensorEvaluationContext):
+            cursor_val = int(context.cursor) if context.cursor and context.cursor.isdigit() else 0
+            engine = _self._build_engine()
+            from sqlalchemy import text as sa_text
+            with engine.connect() as conn:
+                rows = conn.execute(
+                    sa_text(
+                        """
+                        SELECT e.execution_id, e.folder_name, e.project_name,
+                               e.package_name, e.status, e.end_time
+                        FROM SSISDB.catalog.executions e
+                        WHERE e.execution_id > :cursor
+                          AND e.end_time IS NOT NULL
+                        ORDER BY e.execution_id
+                        """
+                    ),
+                    {"cursor": cursor_val},
+                ).mappings().all()
+
+            observations = []
+            new_cursor = cursor_val
+            for r in rows:
+                exec_id = int(r["execution_id"])
+                new_cursor = max(new_cursor, exec_id)
+                pkg_name = r["package_name"] or ""
+                if pkg_name.lower().endswith(".dtsx"):
+                    pkg_name = pkg_name[:-5]
+                key_path = [*prefix, r["folder_name"], r["project_name"], pkg_name]
+                observations.append(
+                    dg.AssetObservation(
+                        asset_key=dg.AssetKey(key_path),
+                        metadata={
+                            "ssis/execution_id": exec_id,
+                            "ssis/status": SSIS_STATUS.get(int(r["status"]), str(r["status"])),
+                            "ssis/end_time": str(r["end_time"]),
+                        },
+                    )
+                )
+            return dg.SensorResult(
+                asset_events=observations,
+                cursor=str(new_cursor),
             )
-            def _observation_sensor(context: dg.SensorEvaluationContext):
-                # Watermark from cursor: max operation_id seen so far.
-                cursor_val = int(context.cursor) if context.cursor and context.cursor.isdigit() else 0
-                engine = _self._build_engine()
+
+        return _observation_sensor
+
+    def _build_freshness_checks(self, specs: List[AssetSpec]) -> List[Any]:
+        from datetime import datetime, timezone
+        _self = self
+        threshold = self.freshness_lag_threshold_seconds
+
+        checks = []
+        for spec in specs:
+            @dg.asset_check(
+                asset=spec.key,
+                name="ssis_freshness_lag",
+                description=(
+                    f"Fails when the last successful SSIS execution of "
+                    f"this package is older than {threshold}s."
+                ),
+            )
+            def _check(_spec_key=spec.key):
+                pkg_meta = next(
+                    s.metadata for s in specs if s.key == _spec_key
+                )
                 from sqlalchemy import text as sa_text
+                engine = _self._build_engine()
                 with engine.connect() as conn:
-                    rows = conn.execute(
+                    row = conn.execute(
                         sa_text(
                             """
-                            SELECT e.execution_id, e.folder_name, e.project_name,
-                                   e.package_name, e.status, e.end_time
-                            FROM SSISDB.catalog.executions e
-                            WHERE e.execution_id > :cursor
-                              AND e.end_time IS NOT NULL
-                            ORDER BY e.execution_id
+                            SELECT TOP 1 end_time
+                            FROM SSISDB.catalog.executions
+                            WHERE folder_name = :folder
+                              AND project_name = :project
+                              AND package_name = :package
+                              AND status = 7
+                            ORDER BY end_time DESC
                             """
                         ),
-                        {"cursor": cursor_val},
-                    ).mappings().all()
-
-                observations = []
-                new_cursor = cursor_val
-                for r in rows:
-                    exec_id = int(r["execution_id"])
-                    new_cursor = max(new_cursor, exec_id)
-                    pkg_name = r["package_name"] or ""
-                    if pkg_name.lower().endswith(".dtsx"):
-                        pkg_name = pkg_name[:-5]
-                    key_path = [*prefix, r["folder_name"], r["project_name"], pkg_name]
-                    observations.append(
-                        dg.AssetObservation(
-                            asset_key=dg.AssetKey(key_path),
-                            metadata={
-                                "ssis/execution_id": exec_id,
-                                "ssis/status": SSIS_STATUS.get(int(r["status"]), str(r["status"])),
-                                "ssis/end_time": str(r["end_time"]),
-                            },
-                        )
-                    )
-                return dg.SensorResult(
-                    asset_events=observations,
-                    cursor=str(new_cursor),
-                )
-
-            defs_kwargs["sensors"] = [_observation_sensor]
-
-        # 5. Freshness asset check per package (optional).
-        if self.freshness_lag_threshold_seconds is not None and specs:
-            from datetime import datetime, timezone
-            threshold = self.freshness_lag_threshold_seconds
-
-            checks = []
-            for spec in specs:
-                @dg.asset_check(
-                    asset=spec.key,
-                    name=f"ssis_freshness_lag",
-                    description=(
-                        f"Fails when the last successful SSIS execution of "
-                        f"this package is older than {threshold}s."
-                    ),
-                )
-                def _check(_spec_key=spec.key):
-                    # Query most recent successful execution end_time.
-                    pkg_meta = next(
-                        s.metadata for s in specs if s.key == _spec_key
-                    )
-                    from sqlalchemy import text as sa_text
-                    engine = _self._build_engine()
-                    with engine.connect() as conn:
-                        row = conn.execute(
-                            sa_text(
-                                """
-                                SELECT TOP 1 end_time
-                                FROM SSISDB.catalog.executions
-                                WHERE folder_name = :folder
-                                  AND project_name = :project
-                                  AND package_name = :package
-                                  AND status = 7
-                                ORDER BY end_time DESC
-                                """
-                            ),
-                            {
-                                "folder": pkg_meta["ssis/folder"],
-                                "project": pkg_meta["ssis/project"],
-                                "package": pkg_meta["ssis/package"] + ".dtsx",
-                            },
-                        ).mappings().first()
-                    if not row or row["end_time"] is None:
-                        return dg.AssetCheckResult(
-                            passed=False,
-                            description="No successful executions found.",
-                        )
-                    end_time = row["end_time"]
-                    if end_time.tzinfo is None:
-                        end_time = end_time.replace(tzinfo=timezone.utc)
-                    lag = (datetime.now(timezone.utc) - end_time).total_seconds()
+                        {
+                            "folder": pkg_meta["ssis/folder"],
+                            "project": pkg_meta["ssis/project"],
+                            "package": pkg_meta["ssis/package"] + ".dtsx",
+                        },
+                    ).mappings().first()
+                if not row or row["end_time"] is None:
                     return dg.AssetCheckResult(
-                        passed=lag <= threshold,
-                        description=f"lag={int(lag)}s (threshold={threshold}s)",
-                        metadata={"ssis/last_success_at": str(end_time), "ssis/lag_seconds": int(lag)},
+                        passed=False,
+                        description="No successful executions found.",
                     )
-                checks.append(_check)
-
-            defs_kwargs["asset_checks"] = checks
-
-        return dg.Definitions(**defs_kwargs)
+                end_time = row["end_time"]
+                if end_time.tzinfo is None:
+                    end_time = end_time.replace(tzinfo=timezone.utc)
+                lag = (datetime.now(timezone.utc) - end_time).total_seconds()
+                return dg.AssetCheckResult(
+                    passed=lag <= threshold,
+                    description=f"lag={int(lag)}s (threshold={threshold}s)",
+                    metadata={"ssis/last_success_at": str(end_time), "ssis/lag_seconds": int(lag)},
+                )
+            checks.append(_check)
+        return checks

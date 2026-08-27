@@ -23922,7 +23922,7 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-08-27",
-        "notes": "Live-validated at the shape level via mocked HTTP client (login flow, discovery filtering, action:execute code path, polling_sensor + freshness_check attachment). Full IDMC live validation requires a real IDMC org + credentials \u2014 pending. Roadmap: real-tenant validation for `live` promotion."
+        "notes": "Live-validated at the shape level (Phase 2 upgrade: StateBackedComponent + translation callable + @record props + @public annotations) via mocked HTTP client (login flow, discovery filtering, action:execute code path, polling_sensor + freshness_check attachment). Full IDMC live validation requires a real IDMC org + credentials \u2014 pending. Roadmap: real-tenant validation for `live` promotion."
       },
       "produces": [
         "asset",
@@ -23949,7 +23949,7 @@
           "IDMC_USERNAME",
           "IDMC_PASSWORD"
         ],
-        "gaps_from_full_workspace_pattern": "Does not yet support (a) `translation:` callable; (b) `StateBackedComponent` discovery caching."
+        "gaps_from_full_workspace_pattern": "Full workspace-pattern parity with hvr_hub_workspace / snowflake_workspace: StateBackedComponent caching, translation: callable, @public annotations, @record props all present. Live validation against a real backend (Windows SSIS / Talend Cloud / IDMC) still pending \u2014 roadmap: promote to level:live via real-tenant integration tests."
       },
       "keywords": [
         "informatica",
@@ -43657,7 +43657,7 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-08-27",
-        "notes": "Live-validated at the shape level via mocked SQLAlchemy engine (component internals, discovery filtering, polling_sensor + freshness_check attachment). Full SSISDB-catalog live validation requires a Windows SQL Server + SSIS installation (SSISDB catalog is Windows-only per MS Linux support matrix). Roadmap: Windows CI job for `live` promotion."
+        "notes": "Live-validated at the shape level (Phase 2 upgrade: StateBackedComponent + translation callable + @record props + @public annotations) via mocked SQLAlchemy engine (component internals, discovery filtering, polling_sensor + freshness_check attachment). Full SSISDB-catalog live validation requires a Windows SQL Server + SSIS installation (SSISDB catalog is Windows-only per MS Linux support matrix). Roadmap: Windows CI job for `live` promotion."
       },
       "produces": [
         "asset",
@@ -43683,7 +43683,7 @@
           "pyodbc>=4.0"
         ],
         "requires_permissions": "Connecting SQL login needs `VIEW ANY DATABASE` or `ssis_admin` on SSISDB for discovery + polling; `ssis_admin` (or DBO on SSISDB) if `action: execute`.",
-        "gaps_from_full_workspace_pattern": "Does not yet support (a) `translation:` callable for per-asset customization (uniform group/kinds/tags across the workspace only); (b) `StateBackedComponent` discovery caching (hits SSISDB on every code-location load)."
+        "gaps_from_full_workspace_pattern": "Full workspace-pattern parity with hvr_hub_workspace / snowflake_workspace: StateBackedComponent caching, translation: callable, @public annotations, @record props all present. Live validation against a real backend (Windows SSIS / Talend Cloud / IDMC) still pending \u2014 roadmap: promote to level:live via real-tenant integration tests."
       },
       "keywords": [
         "ssis",
@@ -45208,7 +45208,7 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-08-27",
-        "notes": "Live-validated at the shape level via mocked HTTP client (discovery filtering, action:execute code path, polling_sensor + freshness_check attachment). Full TMC live validation requires a real Talend Cloud tenant + PAT \u2014 pending. Roadmap: real-tenant validation for `live` promotion."
+        "notes": "Live-validated at the shape level (Phase 2 upgrade: StateBackedComponent + translation callable + @record props + @public annotations) via mocked HTTP client (discovery filtering, action:execute code path, polling_sensor + freshness_check attachment). Full TMC live validation requires a real Talend Cloud tenant + PAT \u2014 pending. Roadmap: real-tenant validation for `live` promotion."
       },
       "produces": [
         "asset",
@@ -45235,7 +45235,7 @@
           "TALEND_WORKSPACE_ID",
           "TALEND_API_TOKEN"
         ],
-        "gaps_from_full_workspace_pattern": "Does not yet support (a) `translation:` callable; (b) `StateBackedComponent` discovery caching."
+        "gaps_from_full_workspace_pattern": "Full workspace-pattern parity with hvr_hub_workspace / snowflake_workspace: StateBackedComponent caching, translation: callable, @public annotations, @record props all present. Live validation against a real backend (Windows SSIS / Talend Cloud / IDMC) still pending \u2014 roadmap: promote to level:live via real-tenant integration tests."
       },
       "keywords": [
         "talend",

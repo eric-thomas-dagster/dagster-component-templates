@@ -72,7 +72,7 @@ Values from `activityLog[].runStatus`:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `login_url` | `str` | `"https://dm-us.informaticacloud.com"` | IDMC regional login URL. Common values: `https://dm-us.informaticacloud.com` (US), `https://dm-em.informaticacloud.com` (EU), `https://dm-ap.informaticacloud.com` (AP). |
+| `login_url` | `str` | `"https://dm-us.informaticacloud.com"` | IDMC regional login URL. `https://dm-us.informaticacloud.com` (US), `https://dm-em.informaticacloud.com` (EU), `https://dm-ap.informaticacloud.com` (AP). |
 | `request_timeout_seconds` | `int` | `60` | — |
 | `verify_ssl` | `bool` | `true` | — |
 

@@ -5,13 +5,18 @@ workspace-shape component. Discovers every executable / job / plan in the
 workspace and emits one AssetSpec per artifact. On materialize, POSTs
 `/executions` and polls `/executions/{id}` until the artifact finishes.
 
+Full workspace-pattern shape (parity with hvr_hub_workspace / snowflake_workspace):
+  - `@public` class annotation
+  - `@record` props class
+  - `translation:` callable for per-asset customization
+  - `StateBackedComponent` inheritance — discovery cached to disk via
+    `write_state_to_path`. Refresh via `dg utils refresh-defs-state`.
+
 Backing REST (Talend Cloud REST API v2.7):
 
     GET  {base}/workspaces/{workspace_id}/executables   — enumeration
     POST {base}/executions                              — trigger
-        body: {"executable": "<id>", "workspaceId": "..."}
     GET  {base}/executions/{execution_id}               — poll status
-    GET  {base}/executables/{id}                        — detail (optional)
 
 Base URL by Talend Cloud region:
     US: https://api.us.cloud.talend.com/tmc/v2.7
@@ -20,26 +25,36 @@ Base URL by Talend Cloud region:
     (custom "region: <full-url>" supported for private / other tenants)
 
 Auth: `Authorization: Bearer <personal_access_token>`.
-
-Execution status values (from GET /executions/{id}.status):
-    PENDING       waiting to be picked up
-    READY         picked up, engine assigned
-    DEPLOYING     job being uploaded to engine
-    RUNNING       actively executing
-    TERMINATED    finished successfully
-    CANCELED      user-canceled
-    FAILED        error during run
-    HOLD          held (rate limit, quota)
 """
 
-from __future__ import annotations
-
 import fnmatch
+import hashlib
+import json
 import time
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from pathlib import Path
+from typing import Annotated, Any, Dict, List, Optional
 
 import dagster as dg
+from dagster import (
+    AssetKey,
+    AssetSpec,
+    ComponentLoadContext,
+    Definitions,
+    Model,
+    Resolvable,
+)
+from dagster._annotations import public
+from dagster.components.component.state_backed_component import StateBackedComponent
+from dagster.components.utils.defs_state import (
+    DefsStateConfig,
+    DefsStateConfigArgs,
+    ResolvedDefsStateConfig,
+)
+from dagster.components.utils.translation import (
+    TranslationFn,
+    TranslationFnResolver,
+)
+from dagster_shared.record import record
 from pydantic import Field
 
 
@@ -54,6 +69,33 @@ _REGION_MAP = {
 }
 
 
+# ── Props (@record) for translator callable ─────────────────────────
+@record
+class TalendArtifactProps:
+    """Data passed to `translation:` callables for each Talend artifact.
+
+    Attributes:
+        id: Global artifact ID (UUID).
+        name: Artifact name.
+        kind: `job` | `plan` | `route` etc.
+        workspace_id: Talend Cloud workspace UUID.
+        environment_id: Optional environment UUID.
+        description: The artifact's own description string.
+    """
+
+    id: str
+    name: str
+    kind: str
+    workspace_id: str
+    environment_id: Optional[str] = None
+    description: Optional[str] = None
+
+    @property
+    def qualified_name(self) -> str:
+        return f"{self.kind}/{self.name}"
+
+
+# ── Workspace config nested block ───────────────────────────────────
 class TalendCloudWorkspaceConfig(dg.Model):
     """Talend Cloud (TMC) connection."""
 
@@ -73,41 +115,19 @@ class TalendCloudWorkspaceConfig(dg.Model):
     )
     environment_id: Optional[str] = Field(
         default=None,
-        description="Optional Talend Cloud environment ID (UUID). Restricts "
-        "discovery + execution to this environment when set.",
+        description="Optional Talend Cloud environment ID (UUID).",
     )
-    request_timeout_seconds: int = Field(
-        default=60,
-        description="HTTP request timeout for individual API calls.",
-    )
-    verify_ssl: bool = Field(
-        default=True,
-        description="Verify TLS certs on requests. Set false only for lab tenants.",
-    )
+    request_timeout_seconds: int = Field(default=60)
+    verify_ssl: bool = Field(default=True)
 
 
-@dataclass
-class TalendArtifact:
-    """One row from GET /workspaces/{id}/executables."""
-    id: str                    # UUID
-    name: str
-    kind: str                  # 'job' | 'plan' | 'route' | ...
-    workspace_id: str
-    environment_id: Optional[str]
-    description: Optional[str]
-
-    @property
-    def qualified_name(self) -> str:
-        return f"{self.kind}/{self.name}"
-
-
+# ── Selector block ──────────────────────────────────────────────────
 class TalendArtifactSelector(dg.Model):
     """Filter which Talend Cloud artifacts become Dagster assets."""
 
     by_kind: Optional[List[str]] = Field(
         default=None,
-        description="Artifact kind restriction (`job` / `plan` / `route`). "
-        "Default: all kinds.",
+        description="Artifact kind restriction (`job` / `plan` / `route`). Default: all.",
     )
     include: Optional[List[str]] = Field(
         default=None,
@@ -118,8 +138,45 @@ class TalendArtifactSelector(dg.Model):
     )
 
 
-class TalendCloudWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
-    """Talend Cloud artifacts as Dagster assets.
+# ── Base translator ─────────────────────────────────────────────────
+class TalendCloudComponentTranslator:
+    """Base translator: TalendArtifactProps → AssetSpec."""
+
+    def __init__(self, component: "TalendCloudWorkspaceComponent"):
+        self._component = component
+
+    def get_asset_spec(self, props: TalendArtifactProps) -> AssetSpec:
+        prefix = self._component.asset_key_prefix or [
+            "talend_cloud",
+            props.workspace_id[:8] if props.workspace_id else "workspace",
+        ]
+        return AssetSpec(
+            key=AssetKey([*prefix, props.kind, props.name]),
+            description=(
+                props.description
+                or f"Talend Cloud {props.kind} `{props.name}` (id={props.id})"
+            ),
+            group_name=self._component.group_name,
+            # Dagster kinds — Talend has no first-class icon in Dagster,
+            # so these render as text-only badges. Still useful for
+            # catalog filtering (`kind:etl`, `kind:talend`).
+            kinds=set(self._component.kinds or ["talend", "etl"]),
+            tags=dict(self._component.tags or {}),
+            owners=list(self._component.owners or []),
+            metadata={
+                "talend/id": props.id,
+                "talend/name": props.name,
+                "talend/kind": props.kind,
+                "talend/workspace_id": props.workspace_id,
+                **({"talend/environment_id": props.environment_id} if props.environment_id else {}),
+            },
+        )
+
+
+# ── Component ───────────────────────────────────────────────────────
+@public
+class TalendCloudWorkspaceComponent(StateBackedComponent, Model, Resolvable):
+    """Talend Cloud artifacts as Dagster assets — full workspace-pattern shape.
 
     Example:
 
@@ -134,6 +191,8 @@ class TalendCloudWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
         by_kind: [job]
         include: ["etl_*"]
         exclude: ["*_test"]
+      # translation: |
+      #   {{ load_python_module_attr('my_project.talend.translate.by_environment') }}
       action: execute
       wait_for_completion: true
       poll_interval_seconds: 30
@@ -150,13 +209,25 @@ class TalendCloudWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Talend Cloud connection details."
     )
     artifact_selector: Optional[TalendArtifactSelector] = Field(
+        default=None, description="Filter which artifacts become assets. Default = all."
+    )
+    translation: Annotated[
+        Optional[TranslationFn[TalendArtifactProps]],
+        TranslationFnResolver(
+            template_vars_for_translation_fn=lambda data: {"props": data}
+        ),
+    ] = Field(
         default=None,
-        description="Filter which artifacts become assets. Default = all.",
+        description=(
+            "Optional per-asset translation callable. Receives a "
+            "TalendArtifactProps and returns AssetSpec overrides. Use for "
+            "per-environment / per-kind customization beyond uniform group/tags."
+        ),
     )
     action: str = Field(
         default="noop",
         description=(
-            "materialize() behavior. `noop` = external asset (declare-only). "
+            "materialize() behavior. `noop` = external asset. "
             "`execute` = POST /executions + poll."
         ),
     )
@@ -174,8 +245,38 @@ class TalendCloudWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
     kinds: Optional[List[str]] = Field(default=None)
     tags: Optional[Dict[str, str]] = Field(default=None)
     owners: Optional[List[str]] = Field(default=None)
+    defs_state: ResolvedDefsStateConfig = Field(
+        default_factory=DefsStateConfigArgs.local_filesystem,
+        description="StateBackedComponent state config. Default: local filesystem cache.",
+    )
 
-    # ── Helpers ───────────────────────────────────────────────────
+    # ── Base translator ─────────────────────────────────────────────
+    @property
+    def _base_translator(self) -> TalendCloudComponentTranslator:
+        cached = getattr(self, "__base_translator_cached", None)
+        if cached is None:
+            cached = TalendCloudComponentTranslator(self)
+            object.__setattr__(self, "__base_translator_cached", cached)
+        return cached
+
+    @public
+    def get_asset_spec(self, props: TalendArtifactProps) -> AssetSpec:
+        base_spec = self._base_translator.get_asset_spec(props)
+        if self.translation is None:
+            return base_spec
+        overrides = self.translation(base_spec, props) or {}
+        if isinstance(overrides, AssetSpec):
+            return overrides
+        return base_spec._replace(**overrides) if hasattr(base_spec, "_replace") else base_spec
+
+    @property
+    def defs_state_config(self) -> DefsStateConfig:
+        composite = f"{self.workspace.region}::{self.workspace.workspace_id}"
+        state_hash = hashlib.sha256(composite.encode()).hexdigest()[:12]
+        default_key = f"{self.__class__.__name__}[{state_hash}]"
+        return DefsStateConfig.from_args(self.defs_state, default_key=default_key)
+
+    # ── Runtime helpers ────────────────────────────────────────────
     def _base_url(self) -> str:
         r = (self.workspace.region or "us").lower().strip()
         if r.startswith("http"):
@@ -220,37 +321,32 @@ class TalendCloudWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
         r.raise_for_status()
         return r.json()
 
-    def _discover_artifacts(self) -> List[TalendArtifact]:
-        """Enumerate /workspaces/{id}/executables."""
+    def _discover_artifacts(self) -> List[Dict[str, Any]]:
         params = {"workspaceId": self.workspace.workspace_id}
         if self.workspace.environment_id:
             params["environmentId"] = self.workspace.environment_id
         data = self._http_get("/executables", params=params)
-        # Talend Cloud returns a list of executable objects (paginated response
-        # in some tenants — this MVP handles the flat-list shape).
         artifacts = data if isinstance(data, list) else data.get("items", []) or []
 
-        result: List[TalendArtifact] = []
+        result: List[Dict[str, Any]] = []
         for a in artifacts:
-            result.append(
-                TalendArtifact(
-                    id=str(a.get("id") or a.get("executableId") or ""),
-                    name=str(a.get("name") or a.get("artifactName") or ""),
-                    kind=(a.get("type") or a.get("artifactType") or "job").lower(),
-                    workspace_id=self.workspace.workspace_id,
-                    environment_id=self.workspace.environment_id,
-                    description=a.get("description"),
-                )
-            )
+            result.append({
+                "id": str(a.get("id") or a.get("executableId") or ""),
+                "name": str(a.get("name") or a.get("artifactName") or ""),
+                "kind": (a.get("type") or a.get("artifactType") or "job").lower(),
+                "workspace_id": self.workspace.workspace_id,
+                "environment_id": self.workspace.environment_id,
+                "description": a.get("description"),
+            })
 
         sel = self.artifact_selector
         if not sel:
             return result
 
-        def _match(a: TalendArtifact) -> bool:
-            if sel.by_kind and a.kind not in [k.lower() for k in sel.by_kind]:
+        def _match(a: Dict[str, Any]) -> bool:
+            if sel.by_kind and a["kind"] not in [k.lower() for k in sel.by_kind]:
                 return False
-            qname = a.qualified_name.lower()
+            qname = f"{a['kind']}/{a['name']}".lower()
             if sel.include and not any(
                 fnmatch.fnmatch(qname, pat.lower()) for pat in sel.include
             ):
@@ -263,10 +359,9 @@ class TalendCloudWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
 
         return [a for a in result if _match(a)]
 
-    def _execute_artifact(self, artifact: TalendArtifact, context) -> Dict[str, Any]:
-        """POST /executions + poll /executions/{id} to completion."""
+    def _execute_artifact(self, artifact: Dict[str, Any], context) -> Dict[str, Any]:
         body: Dict[str, Any] = {
-            "executable": artifact.id,
+            "executable": artifact["id"],
             "workspaceId": self.workspace.workspace_id,
         }
         if self.workspace.environment_id:
@@ -276,18 +371,16 @@ class TalendCloudWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
         execution_id = str(r.get("id") or r.get("executionId") or "")
         if not execution_id:
             raise RuntimeError(
-                f"POST /executions for {artifact.qualified_name} returned no execution id: {r}"
+                f"POST /executions for {artifact.get('kind')}/{artifact.get('name')} "
+                f"returned no execution id: {r}"
             )
         context.log.info(
-            f"Talend artifact {artifact.qualified_name} triggered — execution_id={execution_id}"
+            f"Talend artifact {artifact.get('kind')}/{artifact.get('name')} triggered "
+            f"— execution_id={execution_id}"
         )
 
         if not self.wait_for_completion:
-            return {
-                "execution_id": execution_id,
-                "status": None,
-                "error_message": None,
-            }
+            return {"execution_id": execution_id, "status": None, "error_message": None}
 
         start = time.time()
         while True:
@@ -299,92 +392,78 @@ class TalendCloudWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
                     error_message = (
                         info.get("errorMessage")
                         or info.get("failureType")
-                        or "Talend execution finished non-successfully; see execution details in TMC."
+                        or "Talend execution finished non-successfully; see TMC."
                     )
                 return {
                     "execution_id": execution_id,
                     "status": status,
                     "error_message": error_message,
-                    "duration_seconds": info.get("durationInMillis", 0) / 1000
-                    if info.get("durationInMillis")
-                    else None,
                 }
             if self.timeout_seconds and (time.time() - start) > self.timeout_seconds:
                 raise TimeoutError(
-                    f"Talend artifact {artifact.qualified_name} exceeded timeout of "
-                    f"{self.timeout_seconds}s (last status={status!r})"
+                    f"Talend artifact exceeded timeout of {self.timeout_seconds}s "
+                    f"(last status={status!r})"
                 )
             time.sleep(self.poll_interval_seconds)
 
-    # ── build_defs ────────────────────────────────────────────────
-    def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-        _self = self
-
+    # ── StateBackedComponent contract ─────────────────────────────
+    async def write_state_to_path(self, state_path: Path) -> None:
         try:
             artifacts = self._discover_artifacts()
-        except Exception as e:
-            import warnings
-            warnings.warn(
-                f"TalendCloudWorkspaceComponent: could not discover artifacts "
-                f"({type(e).__name__}: {e}). Emitting empty definitions."
-            )
-            return dg.Definitions()
+        except Exception:  # noqa: BLE001
+            artifacts = []
+        snapshot = {
+            "workspace_id": self.workspace.workspace_id,
+            "artifacts": artifacts,
+            "polled_at": time.time(),
+        }
+        state_path.write_text(json.dumps(snapshot, indent=2))
 
-        prefix = self.asset_key_prefix or [
-            "talend_cloud",
-            self.workspace.workspace_id[:8] if self.workspace.workspace_id else "workspace",
-        ]
-        kinds = self.kinds or ["talend"]
+    def build_defs_from_state(
+        self,
+        context: ComponentLoadContext,
+        state_path: Optional[Path],
+    ) -> Definitions:
+        if state_path is None or not state_path.exists():
+            return Definitions()
 
-        specs: List[dg.AssetSpec] = []
+        state = json.loads(state_path.read_text())
+        artifacts = state.get("artifacts", [])
+
+        specs: List[AssetSpec] = []
         for a in artifacts:
-            key_path = [*prefix, a.kind, a.name]
-            spec = dg.AssetSpec(
-                key=dg.AssetKey(key_path),
-                description=(
-                    a.description
-                    or f"Talend Cloud {a.kind} `{a.name}` (id={a.id})"
-                ),
-                group_name=self.group_name,
-                kinds=set(kinds),
-                tags=self.tags or {},
-                owners=self.owners or [],
-                metadata={
-                    "talend/id": a.id,
-                    "talend/name": a.name,
-                    "talend/kind": a.kind,
-                    "talend/workspace_id": a.workspace_id,
-                    **(
-                        {"talend/environment_id": a.environment_id}
-                        if a.environment_id
-                        else {}
-                    ),
-                },
+            props = TalendArtifactProps(
+                id=a["id"],
+                name=a["name"],
+                kind=a["kind"],
+                workspace_id=a["workspace_id"],
+                environment_id=a.get("environment_id"),
+                description=a.get("description"),
             )
-            specs.append(spec)
+            specs.append(self.get_asset_spec(props))
 
         action = (self.action or "noop").lower()
+        assets: List[Any] = []
 
         if action == "noop":
-            defs_kwargs: Dict[str, Any] = {"assets": specs}
+            assets = list(specs)
         elif action == "execute":
+            _self = self
+
             @dg.multi_asset(specs=specs)
             def _talend_execute(context: dg.AssetExecutionContext):
                 for spec in specs:
-                    artifact = TalendArtifact(
-                        id=spec.metadata["talend/id"],
-                        name=spec.metadata["talend/name"],
-                        kind=spec.metadata["talend/kind"],
-                        workspace_id=spec.metadata["talend/workspace_id"],
-                        environment_id=spec.metadata.get("talend/environment_id"),
-                        description=None,
-                    )
+                    artifact = {
+                        "id": spec.metadata["talend/id"],
+                        "name": spec.metadata["talend/name"],
+                        "kind": spec.metadata["talend/kind"],
+                    }
                     result = _self._execute_artifact(artifact, context)
                     if _self.wait_for_completion and result.get("status") not in TALEND_SUCCESS:
                         raise dg.Failure(
                             description=(
-                                f"Talend {artifact.qualified_name} finished with "
-                                f"status={result.get('status')!r}: "
+                                f"Talend {artifact['kind']}/{artifact['name']} "
+                                f"finished with status={result.get('status')!r}: "
                                 f"{result.get('error_message')}"
                             )
                         )
@@ -396,113 +475,126 @@ class TalendCloudWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
                         },
                     )
 
-            defs_kwargs = {"assets": [_talend_execute]}
+            assets = [_talend_execute]
         else:
             raise ValueError(
                 f"TalendCloudWorkspaceComponent.action={action!r} not supported. "
                 f"Use 'noop' or 'execute'."
             )
 
+        sensors: List[Any] = []
         if self.polling_sensor and specs:
-            @dg.sensor(
-                name="talend_cloud_workspace_observation_sensor",
-                minimum_interval_seconds=self.observation_interval_seconds,
-                default_status=dg.DefaultSensorStatus.STOPPED,
-                asset_selection=dg.AssetSelection.assets(*(s.key for s in specs)),
-            )
-            def _observation_sensor(context: dg.SensorEvaluationContext):
-                # Cursor = high-water execution timestamp (ISO 8601).
-                cursor_val = context.cursor or ""
-                params: Dict[str, Any] = {
-                    "workspaceId": _self.workspace.workspace_id,
-                    "limit": 100,
-                    "orderBy": "-startTimestamp",
-                }
-                data = _self._http_get("/executions", params=params)
-                executions = data if isinstance(data, list) else data.get("items", [])
+            sensors.append(self._build_observation_sensor(specs))
 
-                observations = []
-                new_cursor = cursor_val
-                for ex in executions:
-                    ts = ex.get("startTimestamp") or ""
-                    if cursor_val and ts <= cursor_val:
-                        continue
-                    if ex.get("status", "").upper() not in TALEND_TERMINAL:
-                        continue
-                    new_cursor = max(new_cursor, ts) if new_cursor else ts
-                    ex_id = ex.get("executable", {}) or {}
-                    ex_kind = (ex_id.get("type") or ex.get("executableType") or "job").lower()
-                    ex_name = ex_id.get("name") or ex.get("executableName") or ""
-                    if not ex_name:
-                        continue
-                    key_path = [*prefix, ex_kind, ex_name]
-                    observations.append(
-                        dg.AssetObservation(
-                            asset_key=dg.AssetKey(key_path),
-                            metadata={
-                                "talend/execution_id": ex.get("id") or "",
-                                "talend/status": ex.get("status") or "",
-                                "talend/start": ex.get("startTimestamp") or "",
-                                "talend/finish": ex.get("finishTimestamp") or "",
-                            },
-                        )
-                    )
-                return dg.SensorResult(
-                    asset_events=observations,
-                    cursor=str(new_cursor) if new_cursor else "",
-                )
-
-            defs_kwargs["sensors"] = [_observation_sensor]
-
+        checks: List[Any] = []
         if self.freshness_lag_threshold_seconds is not None and specs:
-            from datetime import datetime, timezone
-            threshold = self.freshness_lag_threshold_seconds
+            checks.extend(self._build_freshness_checks(specs))
 
-            checks = []
-            for spec in specs:
-                @dg.asset_check(
-                    asset=spec.key,
-                    name="talend_freshness_lag",
-                    description=(
-                        f"Fails when the last successful Talend execution of "
-                        f"this artifact is older than {threshold}s."
-                    ),
-                )
-                def _check(_key=spec.key):
-                    artifact_id = next(
-                        s.metadata["talend/id"] for s in specs if s.key == _key
-                    )
-                    params = {
-                        "workspaceId": _self.workspace.workspace_id,
-                        "executable": artifact_id,
-                        "status": "TERMINATED",
-                        "limit": 1,
-                        "orderBy": "-finishTimestamp",
-                    }
-                    data = _self._http_get("/executions", params=params)
-                    items = data if isinstance(data, list) else data.get("items", [])
-                    if not items:
-                        return dg.AssetCheckResult(
-                            passed=False, description="No successful executions found."
-                        )
-                    finish = items[0].get("finishTimestamp")
-                    if not finish:
-                        return dg.AssetCheckResult(
-                            passed=False,
-                            description="Most recent execution has no finishTimestamp.",
-                        )
-                    end_time = datetime.fromisoformat(finish.replace("Z", "+00:00"))
-                    lag = (datetime.now(timezone.utc) - end_time).total_seconds()
-                    return dg.AssetCheckResult(
-                        passed=lag <= threshold,
-                        description=f"lag={int(lag)}s (threshold={threshold}s)",
+        return Definitions(assets=assets, sensors=sensors, asset_checks=checks)
+
+    def _build_observation_sensor(self, specs: List[AssetSpec]):
+        _self = self
+        prefix = self.asset_key_prefix or [
+            "talend_cloud",
+            self.workspace.workspace_id[:8] if self.workspace.workspace_id else "workspace",
+        ]
+
+        @dg.sensor(
+            name="talend_cloud_workspace_observation_sensor",
+            minimum_interval_seconds=self.observation_interval_seconds,
+            default_status=dg.DefaultSensorStatus.STOPPED,
+            asset_selection=dg.AssetSelection.assets(*(s.key for s in specs)),
+        )
+        def _observation_sensor(context: dg.SensorEvaluationContext):
+            cursor_val = context.cursor or ""
+            params: Dict[str, Any] = {
+                "workspaceId": _self.workspace.workspace_id,
+                "limit": 100,
+                "orderBy": "-startTimestamp",
+            }
+            data = _self._http_get("/executions", params=params)
+            executions = data if isinstance(data, list) else data.get("items", [])
+
+            observations = []
+            new_cursor = cursor_val
+            for ex in executions:
+                ts = ex.get("startTimestamp") or ""
+                if cursor_val and ts <= cursor_val:
+                    continue
+                if ex.get("status", "").upper() not in TALEND_TERMINAL:
+                    continue
+                new_cursor = max(new_cursor, ts) if new_cursor else ts
+                ex_id = ex.get("executable", {}) or {}
+                ex_kind = (ex_id.get("type") or ex.get("executableType") or "job").lower()
+                ex_name = ex_id.get("name") or ex.get("executableName") or ""
+                if not ex_name:
+                    continue
+                key_path = [*prefix, ex_kind, ex_name]
+                observations.append(
+                    dg.AssetObservation(
+                        asset_key=dg.AssetKey(key_path),
                         metadata={
-                            "talend/last_success_at": str(end_time),
-                            "talend/lag_seconds": int(lag),
+                            "talend/execution_id": ex.get("id") or "",
+                            "talend/status": ex.get("status") or "",
+                            "talend/start": ex.get("startTimestamp") or "",
+                            "talend/finish": ex.get("finishTimestamp") or "",
                         },
                     )
-                checks.append(_check)
+                )
+            return dg.SensorResult(
+                asset_events=observations,
+                cursor=str(new_cursor) if new_cursor else "",
+            )
 
-            defs_kwargs["asset_checks"] = checks
+        return _observation_sensor
 
-        return dg.Definitions(**defs_kwargs)
+    def _build_freshness_checks(self, specs: List[AssetSpec]) -> List[Any]:
+        from datetime import datetime, timezone
+        _self = self
+        threshold = self.freshness_lag_threshold_seconds
+
+        checks = []
+        for spec in specs:
+            @dg.asset_check(
+                asset=spec.key,
+                name="talend_freshness_lag",
+                description=(
+                    f"Fails when the last successful Talend execution of "
+                    f"this artifact is older than {threshold}s."
+                ),
+            )
+            def _check(_key=spec.key):
+                artifact_id = next(
+                    s.metadata["talend/id"] for s in specs if s.key == _key
+                )
+                params = {
+                    "workspaceId": _self.workspace.workspace_id,
+                    "executable": artifact_id,
+                    "status": "TERMINATED",
+                    "limit": 1,
+                    "orderBy": "-finishTimestamp",
+                }
+                data = _self._http_get("/executions", params=params)
+                items = data if isinstance(data, list) else data.get("items", [])
+                if not items:
+                    return dg.AssetCheckResult(
+                        passed=False, description="No successful executions found."
+                    )
+                finish = items[0].get("finishTimestamp")
+                if not finish:
+                    return dg.AssetCheckResult(
+                        passed=False,
+                        description="Most recent execution has no finishTimestamp.",
+                    )
+                end_time = datetime.fromisoformat(finish.replace("Z", "+00:00"))
+                lag = (datetime.now(timezone.utc) - end_time).total_seconds()
+                return dg.AssetCheckResult(
+                    passed=lag <= threshold,
+                    description=f"lag={int(lag)}s (threshold={threshold}s)",
+                    metadata={
+                        "talend/last_success_at": str(end_time),
+                        "talend/lag_seconds": int(lag),
+                    },
+                )
+            checks.append(_check)
+        return checks

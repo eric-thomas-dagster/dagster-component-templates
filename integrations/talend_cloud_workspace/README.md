@@ -66,9 +66,9 @@ Values from `GET /executions/{id}.status`:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `region` | `str` | `"us"` | Talend Cloud region key (`us` / `eu` / `ap`) OR a full base URL for private / other tenants (must start with `http`). |
-| `environment_id` | `str` | — | Optional Talend Cloud environment ID (UUID). Restricts discovery + execution to this environment when set. |
-| `request_timeout_seconds` | `int` | `60` | HTTP request timeout for individual API calls. |
-| `verify_ssl` | `bool` | `true` | Verify TLS certs on requests. Set false only for lab tenants. |
+| `environment_id` | `str` | — | Optional Talend Cloud environment ID (UUID). |
+| `request_timeout_seconds` | `int` | `60` | — |
+| `verify_ssl` | `bool` | `true` | — |
 
 [//]: # (FIELDS:END)
 

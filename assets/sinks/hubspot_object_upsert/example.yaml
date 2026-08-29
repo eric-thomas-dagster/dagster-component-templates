@@ -1,0 +1,28 @@
+# HubSpotObjectUpsertComponent — DataFrame → HubSpot reverse ETL using the
+# native batch upsert endpoint. Atomic create-or-update per record, 100 records
+# per HTTP call.
+#
+# Requires a HubSpotResourceComponent registered under the same resource_key.
+
+type: dagster_component_templates.HubSpotObjectUpsertComponent
+attributes:
+  asset_name: hubspot_contacts_mirror
+  upstream_asset_key: dbt_marts_customers
+  resource_key: hubspot
+
+  object_type: contacts                  # contacts / companies / deals / tickets / custom
+  key_property: email                    # HubSpot property used to match rows
+  fields_map:
+    email: email                         # upstream col → HubSpot property (both required for key)
+    first_name: firstname
+    last_name: lastname
+    lifecycle_stage: lifecyclestage
+    health_score: customer_health_score  # custom property on Contacts
+
+  batch_size: 100                        # HubSpot's per-call limit (also our cap)
+  max_rows: 10000                        # overall safety cap per run
+
+  group_name: reverse_etl
+  description: "Mirror dbt customer mart into HubSpot Contacts via email match."
+  # kinds: [hubspot, reverse_etl]
+  # owners: [platform@corp.com]

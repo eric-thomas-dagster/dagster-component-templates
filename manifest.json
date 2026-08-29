@@ -22221,19 +22221,20 @@
       "id": "hubspot_resource",
       "name": "HubSpot Resource",
       "category": "resource",
-      "description": "Register a HubSpotResource wrapping the hubspot-api-client for use by other components",
-      "version": "1.0.0",
+      "description": "Self-contained HubSpot CRM API workhorse. Private App bearer token auth, raw HTTP via requests. Retries on 429 (honors Retry-After) / 5xx. Convenience methods for read (iter_objects paginated, get_object, get_object_by_property) + write (create_object, update_object, upsert_objects via native /crm/v3/objects/{type}/batch/upsert, delete_object). Pairs with hubspot_ingestion (dlt pull) + hubspot_object_upsert (reverse-ETL sink).",
+      "version": "2.0.0",
       "author": "Dagster Community",
       "path": "resources/hubspot_resource",
       "tags": [
         "resource",
         "hubspot",
         "crm",
-        "marketing"
+        "marketing",
+        "reverse-etl"
       ],
       "dependencies": {
         "pip": [
-          "hubspot-api-client"
+          "requests>=2.28"
         ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/hubspot_resource/README.md",
@@ -22247,15 +22248,20 @@
       ],
       "validation": {
         "level": "code",
-        "last_validated": "2026-05-11"
+        "last_validated": "2026-08-29",
+        "notes": "Rebuilt 2026-08-29 as self-contained workhorse (was thin wrapper around hubspot-api-client SDK). Now provides read + write methods via raw HTTP + Private App bearer auth. Live validation pending — user doesn't currently have admin access to a HubSpot portal. Roadmap: promote to level:live once portal available."
       },
       "produces": [
         "resource"
       ],
       "agent_hints": {
-        "outputs": "Register a HubSpotResource wrapping the hubspot-api-client for use by other components",
+        "when_to_use": "User wants a HubSpot CRM API client with read + write convenience methods usable by other Dagster components (sinks, custom asset code, sensors).",
+        "outputs": "HubSpotResource with iter_objects / get_object / get_object_by_property / create_object / update_object / upsert_objects (native batch) / delete_object methods.",
         "requires_pip": [
-          "hubspot-api-client"
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "HUBSPOT_ACCESS_TOKEN"
         ]
       },
       "consumes": [
@@ -22263,8 +22269,77 @@
       ],
       "keywords": [
         "hubspot crm",
-        "connection",
-        "connect"
+        "hubspot api",
+        "private app",
+        "bearer token",
+        "batch upsert",
+        "connection"
+      ]
+    },
+    {
+      "id": "hubspot_object_upsert",
+      "name": "HubSpot Object Upsert",
+      "component_type": "dagster_component_templates.HubSpotObjectUpsertComponent",
+      "path": "assets/sinks/hubspot_object_upsert",
+      "category": "sink",
+      "icon": "si:hubspot",
+      "description": "Reverse-ETL sink: mirror an upstream DataFrame into a HubSpot CRM object type (contacts / companies / deals / tickets / custom) via the native batch upsert endpoint. POST /crm/v3/objects/{objectType}/batch/upsert atomically creates or updates each record based on matching a unique property. Chunks at 100 records per HTTP call.",
+      "tags": [
+        "sink",
+        "hubspot",
+        "reverse-etl",
+        "upsert",
+        "crm"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/hubspot_object_upsert/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/hubspot_object_upsert/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/hubspot_object_upsert/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/hubspot_object_upsert/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/hubspot_object_upsert/schema.json",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-08-29",
+        "notes": "Code-validated. Live validation pending — user doesn't currently have Private App admin access on a HubSpot portal. Roadmap: promote to level:live once portal is available."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:hubspot"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to sync data from a warehouse / Dagster asset INTO HubSpot (reverse ETL). Common cases: contact enrichment from a dbt customer mart; company data from a golden-record source; deal properties from a warehouse computation.",
+        "typical_upstream": "Dagster asset producing a pandas DataFrame — dbt marts, warehouse transformations, ML model outputs.",
+        "typical_downstream": "HubSpot CRM object (contacts / companies / deals / tickets / custom). Uses native batch upsert with key_property matching.",
+        "example_prompts": [
+          "Sync a dbt contacts mart into HubSpot Contacts",
+          "Push customer health scores into a custom HubSpot property",
+          "Mirror deal outcomes from a warehouse into HubSpot Deals"
+        ],
+        "anti_uses": "Not for reading HubSpot data — use `hubspot_ingestion`. Not for one-off writes — use the resource directly.",
+        "requires_pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "HUBSPOT_ACCESS_TOKEN"
+        ]
+      },
+      "keywords": [
+        "reverse etl",
+        "hubspot upsert",
+        "crm sync",
+        "batch upsert",
+        "sink",
+        "write to hubspot"
       ]
     },
     {

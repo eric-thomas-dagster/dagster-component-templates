@@ -1,0 +1,33 @@
+{
+  "component_type": "dagster_component_templates.HubSpotObjectUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into a HubSpot CRM object type via the native batch upsert endpoint. `POST /crm/v3/objects/{objectType}/batch/upsert` atomically creates or updates records based on matching a unique key_property. Chunks at 100 records per HTTP call.",
+  "category": "sink",
+  "icon": "si:hubspot",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row → one HubSpot CRM record (upserted via key_property)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_upserted / rows_errored / batch_count). No downstream data — write side effect lands in HubSpot."
+    }
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": true, "description": "Asset providing the DataFrame."},
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "hubspot"},
+    "object_type": {"type": "string", "label": "Object Type", "required": true, "description": "contacts / companies / deals / tickets / line_items / products / quotes / or custom (like p123456_custom_thing)."},
+    "key_property": {"type": "string", "label": "Key Property", "required": true, "description": "HubSpot property used to match rows (typically 'email' for contacts, 'domain' for companies)."},
+    "fields_map": {"type": "object", "label": "Fields Map", "required": true, "description": "Upstream column → HubSpot property name.", "ui:widget": "key-value"},
+    "batch_size": {"type": "integer", "label": "Batch Size", "required": false, "default": 100, "description": "Records per HubSpot API call. Capped at 100 (HubSpot's limit)."},
+    "max_rows": {"type": "integer", "label": "Max Rows", "required": false, "default": 10000, "description": "Safety cap on total rows per run."},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "hubspot"},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+  },
+  "tags": ["hubspot", "sink", "reverse-etl", "upsert", "crm"],
+  "name": "HubSpot Object Upsert"
+}

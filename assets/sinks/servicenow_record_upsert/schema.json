@@ -1,12 +1,12 @@
 {
   "component_type": "dagster_component_templates.ServiceNowRecordUpsertComponent",
-  "description": "Reverse-ETL sink: mirror an upstream DataFrame into a ServiceNow table via the Table API. Search-then-write (ServiceNow has no native upsert) — GET by `key_field=<value>` → PATCH existing row or POST new row. In-run cache prevents double-post on eventual-consistency lag.",
+  "description": "Reverse-ETL sink: mirror a DataFrame into a ServiceNow table via the Table API. Search-then-write (ServiceNow has no native upsert) — GET by `key_field=<value>` → PATCH existing row or POST new row. In-run cache prevents double-post on eventual-consistency lag. Source can be an upstream Dagster asset OR inline SQL / CSV / literal rows.",
   "category": "sink",
   "icon": "ArrowDown",
   "x-dagster-io": {
     "inputs": {
       "type": "dataframe",
-      "description": "pandas DataFrame from an upstream asset. Each row → one ServiceNow record (upserted by matching on `key_field`)."
+      "description": "Either an upstream Dagster asset (via `upstream_asset_key`) OR an inline source config (via `source:` — SQL against a resource, a CSV file path, or literal rows). Each row → one ServiceNow record (upserted by matching on `key_field`)."
     },
     "outputs": {
       "type": "sink",
@@ -15,12 +15,13 @@
   },
   "attributes": {
     "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": true, "description": "Asset providing the DataFrame."},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "description": "Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`."},
+    "source": {"type": "object", "label": "Inline Source", "required": false, "description": "Read the DataFrame inline at run time. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. Mutually exclusive with `upstream_asset_key`."},
     "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "servicenow_resource"},
     "table": {"type": "string", "label": "ServiceNow Table", "required": true, "description": "Target table name (e.g. incident, change_request, cmdb_ci_server)."},
     "key_field": {"type": "string", "label": "Key Field", "required": true, "description": "ServiceNow field used to match existing rows (must be present in fields_map values)."},
-    "fields_map": {"type": "object", "label": "Fields Map", "required": true, "description": "Upstream column → ServiceNow field.", "ui:widget": "key-value"},
-    "batch_size": {"type": "integer", "label": "Batch Size", "required": false, "default": 500, "description": "Max upstream rows per run (safety cap)."},
+    "fields_map": {"type": "object", "label": "Fields Map", "required": true, "description": "Source column → ServiceNow field.", "ui:widget": "key-value"},
+    "batch_size": {"type": "integer", "label": "Batch Size", "required": false, "default": 500, "description": "Max rows per run (safety cap)."},
     "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "servicenow"},
     "description": {"type": "string", "label": "Description", "required": false},
     "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},

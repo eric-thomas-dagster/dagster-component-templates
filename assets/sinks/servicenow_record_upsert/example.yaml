@@ -1,16 +1,48 @@
 # ServiceNowRecordUpsertComponent — DataFrame → ServiceNow reverse ETL.
 # Requires a ServiceNowResourceComponent registered under the same resource_key.
+#
+# Supply EXACTLY ONE of:
+#   1. `upstream_asset_key:` — chain from an existing Dagster asset that produces a DataFrame.
+#   2. `source:` block       — read the DataFrame inline at run time (SQL / CSV / inline rows).
 
 type: dagster_component_templates.ServiceNowRecordUpsertComponent
 attributes:
   asset_name: servicenow_incidents_from_alerts
+
+  # ── Option 1: upstream Dagster asset ─────────────────────────────
   upstream_asset_key: alerts_to_incidents
+
+  # ── Option 2: inline source (uncomment ONE of the three shapes) ──
+  # source:
+  #   kind: sql
+  #   resource_key: analytics_postgres   # any resource w/ .get_engine() or .get_connection()
+  #   query: |
+  #     SELECT alert_id, title, details, severity, category
+  #     FROM analytics.open_alerts
+  #     WHERE created_at > now() - interval '1 day'
+  #
+  # source:
+  #   kind: sql
+  #   database_url_env_var: ANALYTICS_POSTGRES_URL   # self-contained: build engine from env var
+  #   query: "SELECT * FROM open_alerts"
+  #
+  # source:
+  #   kind: csv
+  #   path: /data/exports/alerts.csv
+  #   read_csv_kwargs: {sep: ";", encoding: latin1}
+  #
+  # source:
+  #   kind: inline
+  #   rows:
+  #     - {alert_id: A-001, title: Payment gateway down, details: "...", severity: 1, category: infra}
+  #     - {alert_id: A-002, title: Redis connection lost, details: "...", severity: 2, category: infra}
+
   resource_key: servicenow_resource
 
   table: incident                        # target ServiceNow table
   key_field: correlation_id              # match on this field (add unique index in SN)
   fields_map:
-    alert_id: correlation_id             # upstream column → ServiceNow field
+    alert_id: correlation_id             # source column → ServiceNow field
     title: short_description
     details: description
     severity: impact

@@ -12,7 +12,7 @@ Pairs with:
   - ``notion_resource`` — connection (required)
   - ``notion_page_sync`` — single-page analogue
 """
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import dagster as dg
 from pydantic import Field
@@ -109,7 +109,21 @@ class NotionDatabaseUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
     """
 
     asset_name: str = Field(description="Output Dagster asset name.")
-    upstream_asset_key: str = Field(description="Upstream asset providing the DataFrame.")
+
+    # Two source shapes — supply exactly one.
+    upstream_asset_key: Optional[str] = Field(
+        default=None,
+        description="Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`.",
+    )
+    source: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Inline source config. Mutually exclusive with `upstream_asset_key`. "
+            "Shapes: {kind: sql, resource_key/database_url_env_var, query}, "
+            "{kind: csv, path, read_csv_kwargs}, {kind: inline, rows}."
+        ),
+    )
+
     database_id: str = Field(description="Notion database ID (UUID).")
     resource_key: str = Field(
         default="notion_resource",
@@ -153,19 +167,59 @@ class NotionDatabaseUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
         kinds = set(self.kinds) if self.kinds else set()
         kinds.add("notion")
 
-        @dg.asset(
-            key=dg.AssetKey.from_user_string(_self.asset_name),
-            ins={"upstream": dg.AssetIn(key=dg.AssetKey.from_user_string(_self.upstream_asset_key))},
-            group_name=_self.group_name,
-            kinds=kinds,
-            owners=_self.owners,
-            tags=_self.tags,
-            required_resource_keys={_self.resource_key},
-            description=_self.description or (
-                f"Upsert DataFrame rows into Notion database {_self.database_id}."
-            ),
-        )
-        def _asset(context: dg.AssetExecutionContext, upstream):
+        # Validate: exactly one of upstream_asset_key OR source: must be set.
+        if bool(self.upstream_asset_key) == bool(self.source):
+            raise ValueError(
+                "NotionDatabaseUpsertComponent: supply exactly one of "
+                "`upstream_asset_key` OR `source:` (got both or neither)."
+            )
+
+        use_source = self.source is not None
+        extra_rks: set = set()
+        if use_source and (self.source.get("kind") or "").lower() == "sql":
+            _rk = self.source.get("resource_key")
+            if _rk:
+                extra_rks.add(_rk)
+
+        # ── Source resolver (self-contained per no-shared-code rule) ──────
+        def _resolve_source_df(exec_ctx):
+            import pandas as pd
+            src = _self.source or {}
+            kind = (src.get("kind") or "").lower()
+            if kind == "sql":
+                query = src.get("query")
+                if not query:
+                    raise ValueError("source kind=sql requires 'query'")
+                rk = src.get("resource_key")
+                if rk:
+                    resource = getattr(exec_ctx.resources, rk)
+                    if hasattr(resource, "get_engine"):
+                        return pd.read_sql(query, resource.get_engine())
+                    if hasattr(resource, "get_connection"):
+                        conn = resource.get_connection()
+                        if hasattr(conn, "execute") and hasattr(conn, "df"):
+                            return conn.execute(query).df()
+                        return pd.read_sql(query, conn)
+                    raise ValueError(f"source kind=sql: resource {rk!r} must expose .get_engine() or .get_connection()")
+                env = src.get("database_url_env_var")
+                if env:
+                    import os
+                    from sqlalchemy import create_engine
+                    url = os.environ.get(env, "")
+                    if not url:
+                        raise ValueError(f"database_url_env_var {env!r} is unset")
+                    return pd.read_sql(query, create_engine(url))
+                raise ValueError("source kind=sql requires 'resource_key' OR 'database_url_env_var'")
+            if kind == "csv":
+                path = src.get("path")
+                if not path:
+                    raise ValueError("source kind=csv requires 'path'")
+                return pd.read_csv(path, **(src.get("read_csv_kwargs") or {}))
+            if kind == "inline":
+                return pd.DataFrame(src.get("rows") or [])
+            raise ValueError(f"NotionDatabaseUpsertComponent source kind={kind!r} not supported (sql / csv / inline)")
+
+        def _run_upsert(context, upstream):
             notion = getattr(context.resources, _self.resource_key)
 
             import pandas as pd
@@ -278,5 +332,32 @@ class NotionDatabaseUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
                     "rows_upserted": dg.MetadataValue.int(created + updated),
                 }
             )
+
+        common_kwargs = dict(
+            key=dg.AssetKey.from_user_string(_self.asset_name),
+            group_name=_self.group_name,
+            kinds=kinds,
+            owners=_self.owners,
+            tags=_self.tags,
+            description=_self.description or (
+                f"Upsert DataFrame rows into Notion database {_self.database_id}."
+            ),
+        )
+
+        if use_source:
+            required_rks = {_self.resource_key} | extra_rks
+
+            @dg.asset(required_resource_keys=required_rks, **common_kwargs)
+            def _asset(context: dg.AssetExecutionContext):
+                df = _resolve_source_df(context)
+                return _run_upsert(context, df)
+        else:
+            @dg.asset(
+                ins={"upstream": dg.AssetIn(key=dg.AssetKey.from_user_string(_self.upstream_asset_key))},
+                required_resource_keys={_self.resource_key},
+                **common_kwargs,
+            )
+            def _asset(context: dg.AssetExecutionContext, upstream):
+                return _run_upsert(context, upstream)
 
         return dg.Definitions(assets=[_asset])

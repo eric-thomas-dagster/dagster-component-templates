@@ -18030,66 +18030,6 @@
       ]
     },
     {
-      "id": "facebook_ads_workspace",
-      "name": "Facebook Ads Workspace",
-      "component_type": "dagster_community_components.FacebookAdsWorkspaceComponent",
-      "path": "integrations/facebook_ads_workspace",
-      "category": "ingestion",
-      "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per Facebook Ads campaign across specified ad accounts. StateBackedComponent \u2014 discovery cached to disk. Materializing runs a Marketing API insights query and emits a DataFrame with impressions / clicks / spend / reach / ctr / cpc metrics.",
-      "tags": [
-        "ingestion",
-        "facebook-ads",
-        "marketing",
-        "ads",
-        "workspace",
-        "auto-discovery",
-        "state-backed"
-      ],
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/facebook_ads_workspace/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/facebook_ads_workspace/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/facebook_ads_workspace/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/facebook_ads_workspace/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/facebook_ads_workspace/schema.json",
-      "dependencies": {
-        "pip": [
-          "pandas>=2.0.0",
-          "requests>=2.28.0"
-        ]
-      },
-      "validation": {
-        "level": "code"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "agent_hints": {
-        "outputs": [
-          "one_asset_per_facebook_campaign"
-        ],
-        "requires_pip": [
-          "pandas",
-          "requests"
-        ],
-        "chains_with": [
-          "dataframe_to_snowflake",
-          "dataframe_to_bigquery"
-        ],
-        "output_type": "pd.DataFrame"
-      },
-      "produces": [
-        "multi_asset"
-      ],
-      "stateful": true,
-      "keywords": [
-        "meta ads",
-        "facebook marketing",
-        "multi asset workspace",
-        "workspace-style component",
-        "ingest",
-        "read from"
-      ]
-    },
-    {
       "id": "feast_asset",
       "name": "Feast Feature Store Asset",
       "category": "analytics",
@@ -20917,68 +20857,6 @@
       ]
     },
     {
-      "id": "google_analytics_workspace",
-      "name": "Google Analytics Workspace",
-      "component_type": "dagster_community_components.GoogleAnalyticsWorkspaceComponent",
-      "path": "integrations/google_analytics_workspace",
-      "category": "ingestion",
-      "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per GA4 property via the Admin API. StateBackedComponent \u2014 discovery cached to disk. Materializing an asset runs a runReport against the GA Data API for the configured metrics + dimensions over a rolling date range, returning a DataFrame.",
-      "tags": [
-        "ingestion",
-        "google-analytics",
-        "ga4",
-        "analytics",
-        "workspace",
-        "auto-discovery",
-        "state-backed"
-      ],
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_analytics_workspace/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_analytics_workspace/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_analytics_workspace/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_analytics_workspace/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_analytics_workspace/schema.json",
-      "dependencies": {
-        "pip": [
-          "pandas>=2.0.0",
-          "requests>=2.28.0",
-          "pyjwt[crypto]>=2.8.0"
-        ]
-      },
-      "validation": {
-        "level": "code"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "agent_hints": {
-        "outputs": [
-          "one_asset_per_ga_property"
-        ],
-        "requires_pip": [
-          "pandas",
-          "requests",
-          "pyjwt"
-        ],
-        "chains_with": [
-          "dataframe_to_snowflake",
-          "dataframe_to_bigquery"
-        ],
-        "output_type": "pd.DataFrame"
-      },
-      "produces": [
-        "multi_asset"
-      ],
-      "stateful": true,
-      "keywords": [
-        "ga4",
-        "google analytics 4",
-        "multi asset workspace",
-        "workspace-style component",
-        "ingest",
-        "read from"
-      ]
-    },
-    {
       "id": "google_bigquery",
       "name": "Google Bigquery",
       "category": "integration",
@@ -21536,65 +21414,6 @@
       "keywords": [
         "connection",
         "connect"
-      ]
-    },
-    {
-      "id": "google_sheets_workspace",
-      "name": "Google Sheets Workspace",
-      "component_type": "dagster_community_components.GoogleSheetsWorkspaceComponent",
-      "path": "integrations/google_sheets_workspace",
-      "category": "ingestion",
-      "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per (spreadsheet, tab) in a Drive folder. StateBackedComponent \u2014 discovery cached to disk. Materializing reads the tab's values via the Sheets API and returns a DataFrame (header row treated as column names).",
-      "tags": [
-        "ingestion",
-        "google-sheets",
-        "sheets",
-        "workspace",
-        "auto-discovery",
-        "state-backed"
-      ],
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_sheets_workspace/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_sheets_workspace/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_sheets_workspace/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_sheets_workspace/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_sheets_workspace/schema.json",
-      "dependencies": {
-        "pip": [
-          "pandas>=2.0.0",
-          "requests>=2.28.0",
-          "pyjwt[crypto]>=2.8.0"
-        ]
-      },
-      "validation": {
-        "level": "code"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "agent_hints": {
-        "outputs": [
-          "one_asset_per_google_sheet_tab"
-        ],
-        "requires_pip": [
-          "pandas",
-          "requests",
-          "pyjwt"
-        ],
-        "chains_with": [
-          "dataframe_to_snowflake",
-          "dataframe_to_bigquery"
-        ],
-        "output_type": "pd.DataFrame"
-      },
-      "produces": [
-        "multi_asset"
-      ],
-      "stateful": true,
-      "keywords": [
-        "multi asset workspace",
-        "workspace-style component",
-        "ingest",
-        "read from"
       ]
     },
     {
@@ -22446,67 +22265,6 @@
         "hubspot crm",
         "connection",
         "connect"
-      ]
-    },
-    {
-      "id": "hubspot_workspace",
-      "name": "HubSpot Workspace",
-      "component_type": "dagster_community_components.HubSpotWorkspaceComponent",
-      "path": "integrations/hubspot_workspace",
-      "category": "ingestion",
-      "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per HubSpot CRM object (contacts / companies / deals / tickets / products / line_items + custom objects). StateBackedComponent \u2014 discovery cached to disk. Materializing an asset fetches recent records via /crm/v3/objects/<obj>.",
-      "tags": [
-        "integration",
-        "hubspot",
-        "crm",
-        "workspace",
-        "auto-discovery",
-        "state-backed"
-      ],
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/hubspot_workspace/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/hubspot_workspace/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/hubspot_workspace/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/hubspot_workspace/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/hubspot_workspace/schema.json",
-      "dependencies": {
-        "pip": [
-          "pandas>=2.0.0",
-          "requests>=2.28.0"
-        ]
-      },
-      "validation": {
-        "level": "code"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "agent_hints": {
-        "outputs": [
-          "one_asset_per_hubspot_object"
-        ],
-        "requires_pip": [
-          "pandas",
-          "requests"
-        ],
-        "chains_with": [
-          "dataframe_to_snowflake",
-          "dataframe_to_bigquery"
-        ],
-        "output_type": "pd.DataFrame"
-      },
-      "produces": [
-        "multi_asset"
-      ],
-      "stateful": true,
-      "consumes": [
-        "resource:hubspot"
-      ],
-      "keywords": [
-        "hubspot crm",
-        "multi asset workspace",
-        "workspace-style component",
-        "ingest",
-        "read from"
       ]
     },
     {
@@ -23872,7 +23630,7 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-08-29",
-        "notes": "Code-validated. pmcmd + pmrep subprocess wrappers exercised via unit-testable pure functions (_extract_status / _extract_error parsers), full workspace-pattern shape (StateBackedComponent + translation + workflow_selector + workflow_overrides + polling_sensor + freshness_check). Real PowerCenter live validation requires an Informatica install — pending; roadmap: containerized PowerCenter demo for level:live promotion."
+        "notes": "Code-validated. pmcmd + pmrep subprocess wrappers exercised via unit-testable pure functions (_extract_status / _extract_error parsers), full workspace-pattern shape (StateBackedComponent + translation + workflow_selector + workflow_overrides + polling_sensor + freshness_check). Real PowerCenter live validation requires an Informatica install \u2014 pending; roadmap: containerized PowerCenter demo for level:live promotion."
       },
       "produces": [
         "asset",
@@ -23883,7 +23641,7 @@
         "informatica_powercenter"
       ],
       "agent_hints": {
-        "when_to_use": "User runs Informatica PowerCenter (on-prem product; NOT IDMC which is `informatica_workspace`) and wants Dagster to discover workflows via pmrep + trigger via pmcmd + poll to completion. Real customers frequently run both PowerCenter and IDMC during migrations — pair with `informatica_workspace`.",
+        "when_to_use": "User runs Informatica PowerCenter (on-prem product; NOT IDMC which is `informatica_workspace`) and wants Dagster to discover workflows via pmrep + trigger via pmcmd + poll to completion. Real customers frequently run both PowerCenter and IDMC during migrations \u2014 pair with `informatica_workspace`.",
         "typical_upstream": "PowerCenter repository (REPO_PROD or similar) with existing workflows organized by folder. Prior scheduler = PowerCenter Workflow Monitor OR pmcmd startworkflow driven by cron / Autosys / Control-M.",
         "typical_downstream": "Snowflake / Oracle / SQL Server target tables. dbt Cloud kicked off via `dbt_cloud_trigger_job` on completion.",
         "example_prompts": [
@@ -23901,7 +23659,7 @@
           "pmcmd",
           "pmrep"
         ],
-        "gaps_from_full_workspace_pattern": "Full workspace-pattern parity with informatica_workspace / ssis_workspace: StateBackedComponent caching, translation: callable, @public annotations, @record props, workflow_selector, workflow_overrides (paramfile + -parameter), polling_sensor, freshness_lag_threshold_seconds all present. Freshness check body is a placeholder pending pmrep gettaskdetails integration. Live validation requires an Informatica install — roadmap: promote to level:live via containerized PowerCenter demo."
+        "gaps_from_full_workspace_pattern": "Full workspace-pattern parity with informatica_workspace / ssis_workspace: StateBackedComponent caching, translation: callable, @public annotations, @record props, workflow_selector, workflow_overrides (paramfile + -parameter), polling_sensor, freshness_lag_threshold_seconds all present. Freshness check body is a placeholder pending pmrep gettaskdetails integration. Live validation requires an Informatica install \u2014 roadmap: promote to level:live via containerized PowerCenter demo."
       },
       "keywords": [
         "informatica",
@@ -26725,65 +26483,6 @@
         "linkedin marketing",
         "connection",
         "connect"
-      ]
-    },
-    {
-      "id": "linkedin_ads_workspace",
-      "name": "LinkedIn Ads Workspace",
-      "component_type": "dagster_community_components.LinkedInAdsWorkspaceComponent",
-      "path": "integrations/linkedin_ads_workspace",
-      "category": "ingestion",
-      "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per LinkedIn Ads campaign across specified ad accounts. Materializing runs an adAnalytics finder query and emits a DataFrame with impressions / clicks / cost / conversions.",
-      "tags": [
-        "ingestion",
-        "linkedin-ads",
-        "marketing",
-        "ads",
-        "workspace",
-        "auto-discovery",
-        "state-backed"
-      ],
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/linkedin_ads_workspace/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/linkedin_ads_workspace/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/linkedin_ads_workspace/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/linkedin_ads_workspace/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/linkedin_ads_workspace/schema.json",
-      "dependencies": {
-        "pip": [
-          "pandas>=2.0.0",
-          "requests>=2.28.0"
-        ]
-      },
-      "validation": {
-        "level": "code"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "agent_hints": {
-        "outputs": [
-          "one_asset_per_linkedin_campaign"
-        ],
-        "requires_pip": [
-          "pandas",
-          "requests"
-        ],
-        "chains_with": [
-          "dataframe_to_snowflake",
-          "dataframe_to_bigquery"
-        ],
-        "output_type": "pd.DataFrame"
-      },
-      "produces": [
-        "multi_asset"
-      ],
-      "stateful": true,
-      "keywords": [
-        "linkedin marketing",
-        "multi asset workspace",
-        "workspace-style component",
-        "ingest",
-        "read from"
       ]
     },
     {
@@ -38471,69 +38170,6 @@
       ]
     },
     {
-      "id": "salesforce_workspace",
-      "name": "Salesforce Workspace",
-      "component_type": "dagster_community_components.SalesforceWorkspaceComponent",
-      "path": "integrations/salesforce_workspace",
-      "category": "ingestion",
-      "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per Salesforce SObject by enumerating /sobjects. StateBackedComponent \u2014 discovery cached to disk. Materializing an asset runs a SOQL SELECT FIELDS(STANDARD) query and emits the result as a DataFrame. Workspace-shape peer of salesforce_ingestion.",
-      "tags": [
-        "integration",
-        "salesforce",
-        "crm",
-        "workspace",
-        "auto-discovery",
-        "state-backed"
-      ],
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/salesforce_workspace/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/salesforce_workspace/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/salesforce_workspace/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/salesforce_workspace/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/salesforce_workspace/schema.json",
-      "dependencies": {
-        "pip": [
-          "pandas>=2.0.0",
-          "requests>=2.28.0"
-        ]
-      },
-      "validation": {
-        "level": "code"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "agent_hints": {
-        "outputs": [
-          "one_asset_per_salesforce_sobject"
-        ],
-        "requires_pip": [
-          "pandas",
-          "requests"
-        ],
-        "chains_with": [
-          "dataframe_to_snowflake",
-          "dataframe_to_bigquery"
-        ],
-        "output_type": "pd.DataFrame"
-      },
-      "produces": [
-        "multi_asset"
-      ],
-      "stateful": true,
-      "consumes": [
-        "resource:salesforce"
-      ],
-      "keywords": [
-        "sfdc",
-        "salesforce crm",
-        "sf-cli",
-        "multi asset workspace",
-        "workspace-style component",
-        "ingest",
-        "read from"
-      ]
-    },
-    {
       "id": "sample",
       "name": "Sample",
       "category": "transformation",
@@ -39751,69 +39387,6 @@
       ]
     },
     {
-      "id": "servicenow_workspace",
-      "name": "ServiceNow Workspace",
-      "component_type": "dagster_community_components.ServiceNowWorkspaceComponent",
-      "path": "integrations/servicenow_workspace",
-      "category": "ingestion",
-      "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per ServiceNow table by enumerating sys_db_object. StateBackedComponent \u2014 discovery cached to disk. Materializing an asset reads recent records via the Table API. Workspace-shape peer of servicenow_ingestion.",
-      "tags": [
-        "integration",
-        "servicenow",
-        "itsm",
-        "workspace",
-        "auto-discovery",
-        "state-backed"
-      ],
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/servicenow_workspace/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/servicenow_workspace/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/servicenow_workspace/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/servicenow_workspace/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/servicenow_workspace/schema.json",
-      "dependencies": {
-        "pip": [
-          "pandas>=2.0.0",
-          "requests>=2.28.0"
-        ]
-      },
-      "validation": {
-        "level": "code"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "agent_hints": {
-        "outputs": [
-          "one_asset_per_servicenow_table"
-        ],
-        "requires_pip": [
-          "pandas",
-          "requests"
-        ],
-        "chains_with": [
-          "dataframe_to_snowflake",
-          "dataframe_to_bigquery",
-          "servicenow_sensor"
-        ],
-        "output_type": "pd.DataFrame"
-      },
-      "produces": [
-        "multi_asset"
-      ],
-      "stateful": true,
-      "consumes": [
-        "resource:servicenow"
-      ],
-      "keywords": [
-        "snow itsm",
-        "snow",
-        "multi asset workspace",
-        "workspace-style component",
-        "ingest",
-        "read from"
-      ]
-    },
-    {
       "id": "sftp_monitor",
       "name": "SFTP Monitor",
       "category": "sensor",
@@ -40293,65 +39866,6 @@
         "shopify store",
         "connection",
         "connect"
-      ]
-    },
-    {
-      "id": "shopify_workspace",
-      "name": "Shopify Workspace",
-      "component_type": "dagster_community_components.ShopifyWorkspaceComponent",
-      "path": "integrations/shopify_workspace",
-      "category": "ingestion",
-      "icon": "AccountTree",
-      "description": "Auto-emit one Dagster asset per Shopify top-level resource (products / orders / customers / inventory_items / etc.) for a single store. Materializing runs a paginated REST list call.",
-      "tags": [
-        "ingestion",
-        "shopify",
-        "e-commerce",
-        "workspace",
-        "auto-discovery",
-        "state-backed"
-      ],
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/shopify_workspace/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/shopify_workspace/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/shopify_workspace/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/shopify_workspace/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/shopify_workspace/schema.json",
-      "dependencies": {
-        "pip": [
-          "pandas>=2.0.0",
-          "requests>=2.28.0"
-        ]
-      },
-      "validation": {
-        "level": "code"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "agent_hints": {
-        "outputs": [
-          "one_asset_per_shopify_resource"
-        ],
-        "requires_pip": [
-          "pandas",
-          "requests"
-        ],
-        "chains_with": [
-          "dataframe_to_snowflake",
-          "dataframe_to_bigquery"
-        ],
-        "output_type": "pd.DataFrame"
-      },
-      "produces": [
-        "multi_asset"
-      ],
-      "stateful": true,
-      "keywords": [
-        "shopify api",
-        "shopify store",
-        "multi asset workspace",
-        "workspace-style component",
-        "ingest",
-        "read from"
       ]
     },
     {

@@ -1075,14 +1075,11 @@ _CLASS_PATHS: dict[str, str] = {
     "CognosReportStatusSensorComponent": "sensors/cognos_report_status_sensor/component.py",
     "CognosReportDataIngestionComponent": "assets/ingestion/cognos_report_data_ingestion/component.py",
     "CognosWorkspaceComponent": "integrations/cognos_workspace/component.py",
-    "SalesforceWorkspaceComponent": "integrations/salesforce_workspace/component.py",
-    "HubSpotWorkspaceComponent": "integrations/hubspot_workspace/component.py",
-    "ServiceNowWorkspaceComponent": "integrations/servicenow_workspace/component.py",
-    "GoogleAnalyticsWorkspaceComponent": "integrations/google_analytics_workspace/component.py",
-    "ShopifyWorkspaceComponent": "integrations/shopify_workspace/component.py",
-    "FacebookAdsWorkspaceComponent": "integrations/facebook_ads_workspace/component.py",
-    "LinkedInAdsWorkspaceComponent": "integrations/linkedin_ads_workspace/component.py",
-    "GoogleSheetsWorkspaceComponent": "integrations/google_sheets_workspace/component.py",
+    # 8 dlt-shaped _workspace components removed in the Bucket B reshape sweep
+    # (2026-08-29). Each one enumerated vendor items and emitted one asset per
+    # item — the exact shape `_ingestion` already provides via dlt.
+    # Use `<vendor>_ingestion` for bulk pulls and `<vendor>_resource` for
+    # ad-hoc calls; sinks land in Phase B for write-capable vendors.
     "MLflowWorkspaceComponent": "integrations/mlflow_workspace/component.py",
     "WandbWorkspaceComponent": "integrations/wandb_workspace/component.py",
     "DataVaultHubLinkSatelliteComponent": "assets/transforms/data_vault_hub_link_satellite/component.py",

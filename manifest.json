@@ -35499,6 +35499,69 @@
       ]
     },
     {
+      "id": "pyspark_feed_orchestrator",
+      "name": "PySparkFeedOrchestrator",
+      "component_type": "dagster_component_templates.PySparkFeedOrchestratorComponent",
+      "path": "assets/transforms/pyspark_feed_orchestrator",
+      "category": "transformation",
+      "icon": "Folder",
+      "description": "Folder-scan sibling of pyspark_pipeline. Point at a folder of feed.json / feed.yaml configs and get one Dagster multi_asset per file, with automatic cross-file lineage — when one feed's sink target matches another feed's source, they wire up in the asset graph. Feed shape is a superset of pyspark_pipeline (adds top-level schedule: cron + owners: + description:, plus control-flow step types condition / checkpoint / for_each).",
+      "tags": [
+        "transformation",
+        "pyspark",
+        "spark",
+        "feed",
+        "multi-asset",
+        "folder-scan",
+        "orchestration"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pyspark_feed_orchestrator/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pyspark_feed_orchestrator/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components/main/assets/transforms/pyspark_feed_orchestrator/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pyspark_feed_orchestrator/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pyspark_feed_orchestrator/schema.json",
+      "dependencies": {
+        "pip": [
+          "pyspark>=3.4",
+          "pyyaml>=6.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-08-29",
+        "notes": "Code-validated. Feed parsing + cross-feed lineage resolution tested via unit-style asserts. Live validation against a real feed folder + Spark cluster pending — roadmap: promote to level:live once a demo feed folder is authored with 3-4 representative feeds."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "multi_asset",
+        "schedule"
+      ],
+      "agent_hints": {
+        "when_to_use": "User has a folder of pipeline configs (feed.json / feed.yaml — the 'one Spark app + many configs' pattern) and wants Dagster to discover each config as a first-class multi_asset with cross-file lineage. Common in legacy Spark shops migrating from custom orchestrators to Dagster.",
+        "typical_upstream": "Warehouse tables or file paths referenced by `steps[].source` across the feed files.",
+        "typical_downstream": "Sink targets — Delta / parquet / warehouse tables written by each feed's `sinks[]`. Cross-file lineage means downstream feeds pick up upstream feed outputs automatically.",
+        "example_prompts": [
+          "Scan a folder of feed.json files and emit one Dagster asset per feed with automatic cross-file lineage",
+          "Wrap a legacy Spark feed orchestrator's configs in Dagster without changing the JSON files",
+          "Orchestrate a fleet of daily / hourly Spark pipelines defined in YAML"
+        ],
+        "anti_uses": "For a single pipeline defined inline in defs.yaml, use `pyspark_pipeline` directly. For non-Spark pipelines with the same folder-scan pattern, this component won't help — it always spawns a SparkSession per feed.",
+        "requires_pip": [
+          "pyspark>=3.4",
+          "pyyaml>=6.0"
+        ]
+      },
+      "keywords": [
+        "spark feed orchestrator",
+        "spark feed runner",
+        "feed.json",
+        "folder-driven pipeline",
+        "multi asset folder scan",
+        "cross-file lineage"
+      ]
+    },
+    {
       "id": "pyspark_resource",
       "name": "PySpark Resource",
       "category": "resource",

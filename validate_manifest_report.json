@@ -1,11 +1,11 @@
 {
   "summary": {
-    "PASS": 779,
+    "PASS": 784,
     "SKIP_OPTIONAL_DEP": 51,
     "SKIP_EXAMPLE_MULTI_DOC": 51,
     "SKIP_PROJECT_REQUIRED": 30,
     "SKIP_CREDENTIALS": 43,
-    "WARN": 14,
+    "WARN": 10,
     "SKIP_RELATIVE_IMPORT": 2
   },
   "results": [
@@ -13,7 +13,9 @@
       "id": "ab_controls",
       "path": "assets/analytics/ab_controls",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
       "error": null,
       "error_class": null
     },
@@ -235,9 +237,7 @@
       "id": "anthropic_agent",
       "path": "assets/ai/anthropic_agent",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-airlift` (0.29.4)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -534,7 +534,7 @@
       "path": "integrations/aws_dms",
       "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "An error occurred (IncompleteSignatureException) when calling the DescribeReplicationTasks operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'RODzQI8W+OFVXNX3aIqrN5FwfNPeTDUNtOdZGr2UqX0='.",
+      "error": "An error occurred (IncompleteSignatureException) when calling the DescribeReplicationTasks operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'xlj73IqLb2ru8TNffyW5Xi7FtI/HSKAtCmJKNe909Xw='.",
       "error_class": null
     },
     {
@@ -576,7 +576,7 @@
       "path": "integrations/aws_sagemaker",
       "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): '5MRPHI87JtTubFj6qBoESte5gqPLxyQX1wc+9uFvGLo='.",
+      "error": "Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): '1O8kZo3iUDNIwkUil+PFOQIhWw8hHgRIL4TXyjzdh0M='.",
       "error_class": null
     },
     {
@@ -862,10 +862,8 @@
     {
       "id": "catalog_agent",
       "path": "assets/ai/catalog_agent",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"CatalogAgentComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -2020,7 +2018,7 @@
       "path": "resources/dbt_cloud_resource",
       "status": "SKIP_PROJECT_REQUIRED",
       "warnings": [],
-      "error": "deadlock detected by _ModuleLock('dagster_dbt.components.dbt_project.component') at 4745454160",
+      "error": "deadlock detected by _ModuleLock('dagster_dbt.components.dbt_project.component') at 4824968848",
       "error_class": "_DeadlockError"
     },
     {
@@ -2278,9 +2276,7 @@
       "id": "duckdb_io_manager",
       "path": "io_managers/duckdb_io_manager",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-spark` (0.28.12)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -2455,6 +2451,7 @@
       "path": "asset_checks/enhanced_data_quality_checks",
       "status": "PASS",
       "warnings": [
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
         "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
         "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
         "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
@@ -2682,9 +2679,7 @@
       "id": "external_precisely_job",
       "path": "external_assets/external_precisely_job",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-sling` (0.28.1)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -2772,7 +2767,9 @@
       "id": "external_sql_asset",
       "path": "external_assets/external_sql_asset",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-sling` (0.28.1)."
+      ],
       "error": null,
       "error_class": null
     },
@@ -2804,7 +2801,9 @@
       "id": "external_vercel_deployment",
       "path": "external_assets/external_vercel_deployment",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-pyspark` (0.28.12)."
+      ],
       "error": null,
       "error_class": null
     },
@@ -2852,9 +2851,7 @@
       "id": "fabric_workspace_resource",
       "path": "resources/fabric_workspace_resource",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-pyspark` (0.28.12)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -3441,9 +3438,7 @@
       "id": "google_sheets_resource",
       "path": "resources/google_sheets_resource",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-pandas` (0.28.1)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -3587,9 +3582,7 @@
       "id": "hubspot_object_upsert",
       "path": "assets/sinks/hubspot_object_upsert",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-dbt` (0.28.12)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -3805,6 +3798,7 @@
       "path": "assets/transforms/imputation",
       "status": "PASS",
       "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-pandas` (0.28.1).",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -3915,19 +3909,19 @@
     {
       "id": "iterative_supervisor_agent",
       "path": "assets/ai/iterative_supervisor_agent",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
     {
       "id": "jde_orchestration_output_ingestion",
       "path": "assets/ingestion/jde_orchestration_output_ingestion",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -3942,11 +3936,8 @@
     {
       "id": "jde_orchestration_trigger_job",
       "path": "jobs/jde_orchestration_trigger_job",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -4180,6 +4171,8 @@
       "status": "WARN",
       "warnings": [
         "UserWarning: Field name \"model\" in \"LangChainChainAssetComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"LangGraphStep\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"LangGraphAgentComponent\" shadows an attribute in parent \"Resolvable\"",
         "UserWarning: Field name \"model\" in \"LangChainChainAssetComponent\" shadows an attribute in parent \"Resolvable\""
       ],
       "error": null,
@@ -4204,10 +4197,8 @@
     {
       "id": "legal_document_extractor",
       "path": "assets/ai/legal_document_extractor",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"LangGraphStep\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LangGraphAgentComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -4422,18 +4413,18 @@
     {
       "id": "llm_evaluator",
       "path": "assets/ai/llm_evaluator",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"LLMChainExecutorComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
     {
       "id": "llm_judge",
       "path": "assets/ai/llm_judge",
-      "status": "PASS",
+      "status": "WARN",
       "warnings": [
+        "UserWarning: Field name \"model\" in \"LLMChainExecutorComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"LLMChainExecutorComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -4442,19 +4433,16 @@
     {
       "id": "llm_multi_path_router",
       "path": "assets/ai/llm_multi_path_router",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"LlmMultiPathRouterComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
     {
       "id": "llm_output_parser",
       "path": "assets/ai/llm_output_parser",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"LlmMultiPathRouterComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -4463,8 +4451,10 @@
     {
       "id": "llm_prompt_executor",
       "path": "assets/ai/llm_prompt_executor",
-      "status": "PASS",
+      "status": "WARN",
       "warnings": [
+        "UserWarning: Field name \"model\" in \"LlmMultiPathRouterComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"LlmMultiPathRouterComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -4639,10 +4629,8 @@
     {
       "id": "medical_record_extractor",
       "path": "assets/ai/medical_record_extractor",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"MCPToolPickerComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"MCPToolPickerComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -4651,16 +4639,20 @@
     {
       "id": "memcached_cache_flush_job",
       "path": "jobs/memcached_cache_flush_job",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"MCPToolPickerComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
     {
       "id": "memcached_resource",
       "path": "resources/memcached_resource",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"MCPToolPickerComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -4822,9 +4814,7 @@
       "id": "mongodb_writer",
       "path": "assets/sinks/mongodb_writer",
       "status": "PASS",
-      "warnings": [
-        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/"
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -5164,15 +5154,6 @@
       "path": "resources/odata_resource",
       "status": "PASS",
       "warnings": [
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
         "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
         "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
         "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
@@ -5415,7 +5396,17 @@
       "id": "pearson_correlation",
       "path": "assets/analytics/pearson_correlation",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
+        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
+        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
+        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
+        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
+        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
+        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
+        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
+        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0."
+      ],
       "error": null,
       "error_class": null
     },
@@ -5858,6 +5849,14 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "pyspark_feed_orchestrator",
+      "path": "assets/transforms/pyspark_feed_orchestrator",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -7286,12 +7285,8 @@
     {
       "id": "support_ticket_standardizer",
       "path": "assets/analytics/support_ticket_standardizer",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"SupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"SupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"SupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"SupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -7300,8 +7295,11 @@
     {
       "id": "surrogate_key",
       "path": "transforms/surrogate_key",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"SupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"SupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -7861,6 +7859,7 @@
       "status": "WARN",
       "warnings": [
         "UserWarning: Field name \"model\" in \"VantaEvidenceResponseAgentComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"VantaEvidenceResponseAgentComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -7869,9 +7868,8 @@
     {
       "id": "vector_store_writer",
       "path": "assets/ai/vector_store_writer",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"VantaEvidenceResponseAgentComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,

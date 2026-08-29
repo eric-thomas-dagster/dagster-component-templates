@@ -1,0 +1,105 @@
+# `PySparkFeedOrchestratorComponent`
+
+Point at a folder of feed configs (JSON or YAML) and get one Dagster **multi_asset per feed** with **automatic cross-file lineage**. Same shape [`pyspark_pipeline`](../pyspark_pipeline/) accepts (source / operations / sinks / control-flow steps), plus a top-level `schedule:` cron and `owners:` metadata.
+
+## When to use this
+
+- You have a folder of pipeline configs (real or planned) — one file per pipeline — and want them all in the Dagster asset graph without hand-writing a Dagster asset per file.
+- You want cross-file dependencies to resolve automatically: if `feed_A.json` writes `warehouse.customers` and `feed_B.json` reads it, Dagster connects them.
+- You want customers / analysts to add pipelines by dropping a new file in the folder, not by editing Python.
+
+The customer story: legacy Spark orchestrators that mount one `feed.json` per run keep working unchanged — Dagster just wraps them and gives the whole graph first-class observability.
+
+## Feed shape
+
+Every feed file is a **superset of `pyspark_pipeline`**. Same source/operations/sinks + control-flow types, plus a few file-level fields:
+
+```json
+{
+  "name": "customer_daily_features",
+  "description": "Roll customer events into a daily feature matrix",
+  "schedule": "0 6 * * *",
+  "timezone": "America/New_York",
+  "owners": ["data-platform@corp.com"],
+  "group_name": "spark_marts",
+  "variables": {"target_date": "2026-08-30"},
+  "checkpoint_dir": "checkpoints",
+  "steps": [
+    {"id": "customers", "source": {"kind": "table", "table": "warehouse.customers"}, "operations": []},
+    {"id": "events",    "source": {"kind": "table", "table": "warehouse.events"},    "operations": []},
+    {
+      "id": "guard",
+      "type": "condition",
+      "when": "events.row_count > 0",
+      "on_false": "skip_rest"
+    },
+    {
+      "id": "features",
+      "source": {"kind": "ref", "ref": "customers"},
+      "operations": [
+        {"op": "join", "right": {"ref": "events"}, "on_columns": ["customer_id"]},
+        {"op": "sql", "sql": "SELECT customer_id, COUNT(*) AS n FROM self GROUP BY customer_id"}
+      ]
+    }
+  ],
+  "sinks": [
+    {"from": "features", "kind": "table", "table": "features.customer_daily", "mode": "overwrite"}
+  ]
+}
+```
+
+YAML works identically — pass `.yaml` / `.yml` and use the same keys.
+
+## Cross-file lineage
+
+For each feed the orchestrator extracts:
+- **Written keys**: `sinks[].table` (or `.path`-derived name, or `.asset_key`) — become the assets this feed materializes.
+- **Read keys**: `steps[].source.table` (`kind: table`) or `steps[].source.upstream_asset_key` (`kind: upstream`), walking into nested `for_each` steps.
+
+If a read key matches a written key in **another** feed in the same folder → they auto-wire in the graph.
+If a read key isn't produced anywhere → it's emitted as an external `AssetSpec` (dashed border, `group: external`) so it's still visible in the catalog.
+
+## Control-flow step types
+
+Inherited from `pyspark_pipeline` — see its README for the reference. Short list:
+
+- **`type: condition`** — `when:` expression + `on_false: skip_rest | fail`.
+- **`type: checkpoint`** — persist named values to `<checkpoint_dir>/<feed_name>.json` between runs.
+- **`type: for_each`** — loop inner `steps:` once per element of `over:`, with `loop.<as>` string-substituted in inner step fields.
+
+## Schedules
+
+Every feed with a top-level `schedule:` field auto-registers a `ScheduleDefinition` targeting that feed's asset. Optional `timezone:` for cron interpretation. No `dg scaffold` needed for schedules.
+
+## Example
+
+```yaml
+type: dagster_component_templates.PySparkFeedOrchestratorComponent
+attributes:
+  feeds_dir: feeds
+  file_glob: "*.json,*.yaml,*.yml"
+
+  spark_config:
+    spark.master: "local[*]"
+    spark.sql.shuffle.partitions: "4"
+
+  spark_app_name_prefix: dagster-pyspark-feed
+  checkpoint_dir: checkpoints
+
+  group_name: spark_feeds
+  kinds: [pyspark, spark]
+```
+
+Then drop your feed files under `feeds/` — the asset catalog picks them up automatically.
+
+## Pairs with
+
+- **`pyspark_pipeline`** — the single-feed sibling. This orchestrator spawns one instance per feed under the hood, so both accept identical config shapes.
+
+## Behavior + gotchas
+
+- **Feed name**: defaults to the file stem (`customer_daily_features.json` → `customer_daily_features`). Override with `"name": "..."` inside the file.
+- **Multiple sinks per feed**: the first sink's target becomes the emitted asset name. All sinks still run, but only the first shows up as the asset key.
+- **`kind: table` vs `kind: path`**: table names cross-wire automatically; path-based sinks derive a key from the last path segment, which won't cross-wire unless another feed reads it via the same derived name.
+- **Missing feeds folder**: `dg check` before you've authored the folder logs a warning + emits zero assets, no error.
+- **Spark session per multi_asset**: each feed spawns its own `SparkSession` (via `pyspark_pipeline`) so you get parallel materialization across feeds. If you want a single session across all feeds, use one big feed with the `steps:` shape instead.

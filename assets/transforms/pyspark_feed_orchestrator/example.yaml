@@ -1,0 +1,24 @@
+# PySparkFeedOrchestratorComponent — scan a folder of feed.json / feed.yaml
+# configs and emit one Dagster multi_asset per feed. Cross-file lineage
+# auto-resolves when one feed's sink target is another feed's source.
+#
+# Each feed follows the same shape PySparkPipelineComponent accepts, plus
+# the control-flow step types (condition / checkpoint / for_each) and
+# top-level `schedule:` for cron auto-registration.
+
+type: dagster_component_templates.PySparkFeedOrchestratorComponent
+attributes:
+  feeds_dir: feeds                       # relative to component YAML dir
+  file_glob: "*.json,*.yaml,*.yml"
+
+  # Base Spark config applied to every feed. Feed-level `spark_config` overlays.
+  spark_config:
+    spark.master: "local[*]"
+    spark.sql.shuffle.partitions: "4"
+
+  spark_app_name_prefix: dagster-pyspark-feed
+  checkpoint_dir: checkpoints            # each feed writes <dir>/<feed_name>.json
+
+  group_name: spark_feeds
+  kinds: [pyspark, spark]
+  # tags: {tier: production}

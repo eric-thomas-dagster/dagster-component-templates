@@ -1,0 +1,24 @@
+{
+  "component_type": "dagster_component_templates.PySparkFeedOrchestratorComponent",
+  "description": "Folder-scan sibling of pyspark_pipeline. Points at a folder of feed configs (JSON or YAML) and emits one Dagster multi_asset per file, with automatic cross-file lineage — when one feed's sink target matches another feed's source, they wire up in the asset graph. Feed shape is a superset of pyspark_pipeline (adds `schedule:` cron + `owners:` + `description:` at the top level, plus the control-flow step types condition / checkpoint / for_each).",
+  "category": "transformation",
+  "icon": "Folder",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "One Dagster multi_asset per feed file discovered in `feeds_dir`. Cross-feed edges auto-resolve when a sink target matches an upstream source. Feeds with `schedule:` also emit a ScheduleDefinition."
+    }
+  },
+  "attributes": {
+    "feeds_dir": {"type": "string", "label": "Feeds Directory", "required": true, "description": "Path to the folder of feed configs (relative to component YAML dir, or absolute)."},
+    "file_glob": {"type": "string", "label": "File Glob", "required": false, "default": "*.json,*.yaml,*.yml", "description": "Comma-separated glob patterns for feed files."},
+    "spark_config": {"type": "object", "label": "Spark Config", "required": false, "description": "Base SparkConf options applied to every feed. Feed-level `spark_config` overlays.", "ui:widget": "key-value"},
+    "spark_app_name_prefix": {"type": "string", "label": "Spark App Name Prefix", "required": false, "default": "dagster-pyspark-feed"},
+    "checkpoint_dir": {"type": "string", "label": "Checkpoint Dir", "required": false, "description": "Directory for per-feed checkpoint JSON files."},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "description": "Fallback group name (feed-level `group_name` overrides)."},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
+    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"}
+  },
+  "tags": ["transformation", "pyspark", "spark", "feed", "multi-asset", "folder-scan"],
+  "name": "PySpark Feed Orchestrator"
+}

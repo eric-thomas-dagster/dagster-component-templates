@@ -1080,6 +1080,7 @@ _CLASS_PATHS: dict[str, str] = {
     "SalesforceRecordUpsertComponent": "assets/sinks/salesforce_record_upsert/component.py",
     "HubSpotObjectUpsertComponent": "assets/sinks/hubspot_object_upsert/component.py",
     "ShopifyProductUpsertComponent": "assets/sinks/shopify_product_upsert/component.py",
+    "PySparkFeedOrchestratorComponent": "assets/transforms/pyspark_feed_orchestrator/component.py",
     # 8 dlt-shaped _workspace components removed in the Bucket B reshape sweep
     # (2026-08-29). Each one enumerated vendor items and emitted one asset per
     # item — the exact shape `_ingestion` already provides via dlt.

@@ -54,6 +54,47 @@ attributes:
 | `color` | — | — | "red", "blue", … (named) |
 | `hex_color` | — | — | `#a3b1c2` |
 
+**Faker-lite expansion** (still no deps — bundled corpora):
+
+| `type` | Required | Optional | Output |
+|---|---|---|---|
+| `word` | — | — | one lorem-ipsum word |
+| `sentence` | — | `min_words` (4), `max_words` (12) | "Lorem ipsum dolor sit amet." |
+| `paragraph` | — | `min_sentences` (3), `max_sentences` (6) | multi-sentence text block |
+| `username` | — | — | dictionary word + optional digit suffix ("dolor1234") |
+| `password` | — | `length` (12) | mixed-alphabet ("Kx8@Zp1! ...") |
+| `company` | — | — | "Acme Inc", "Globex LLC" |
+| `job_title` | — | — | "Software Engineer", "Product Manager", … |
+| `street_address` | — | — | "1234 Oak Ave" |
+| `url` | — | — | `https://example.com/path` |
+| `domain` | — | — | "example.com" |
+
+**Faker opt-in** — `type: faker` (requires `pip install faker`):
+
+The ~30 built-in types cover the common cases with zero deps. For the long tail — locale-specific data (`de_DE` names, Japanese addresses), credit cards, IBAN / BBAN / SWIFT, license plates, SSN, custom providers — install [Faker](https://faker.readthedocs.io/) and use `type: faker` with any of its ~200 providers:
+
+```yaml
+columns:
+  # Any Faker provider works — see faker.readthedocs.io/en/stable/providers.html
+  german_name:
+    type: faker
+    provider: name
+    locale: de_DE
+  license_plate:
+    type: faker
+    provider: license_plate
+  long_text:
+    type: faker
+    provider: text
+    provider_kwargs: {max_nb_chars: 500}
+  credit_card:
+    type: faker
+    provider: credit_card_number
+    provider_kwargs: {card_type: "visa16"}
+```
+
+`random_state` on the component seeds Faker for reproducibility across runs.
+
 **Computed type** — values derived from other columns:
 
 | `type` | Required | Optional | Output |

@@ -2,3 +2,7 @@
 dagster
 pandas
 tabulate
+
+# Optional — enables `type: faker` columns (locale-specific data, credit cards,
+# license plates, IBAN, custom providers, and the full ~200-provider surface).
+# faker

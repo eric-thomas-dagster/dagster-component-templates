@@ -44,7 +44,7 @@ attributes:
       probability_true: 0.9
 ```
 
-Column types:
+Column types (all pure Python, no external deps):
   - `id`           — sequential with prefix + zero-padded width
                      (`prefix: "C"`, `width: 4` → C0001 C0002 …)
   - `int`          — uniform integer in [min, max]
@@ -58,8 +58,50 @@ Column types:
   - `uuid`         — random UUID4
   - `constant`     — `value: X` (same value for every row)
 
+Mockaroo-style realistic types (bundled corpora, no deps):
+  - `first_name` / `last_name` / `full_name`
+  - `email`  — `domains: [...]` optional
+  - `city` / `state` / `country`
+  - `zip` / `phone`
+  - `ip`     — `version: 4` (default) or `6`
+  - `color`  — from named palette
+  - `hex_color`  — `#rrggbb`
+
+Faker-lite expansion (still no deps — bundled corpora):
+  - `word` — one word from a lorem-ipsum corpus
+  - `sentence` — `min_words: 4` / `max_words: 12` (defaults)
+  - `paragraph` — `min_sentences: 3` / `max_sentences: 6` (defaults)
+  - `username` — dictionary word + optional digit suffix
+  - `password` — `length: 12` (default) mixed-alphabet
+  - `company` — bundled brand roots + suffixes ("Acme Inc", "Globex LLC")
+  - `job_title` — from a curated list
+  - `street_address` — "1234 Oak Ave"
+  - `url` / `domain` — using the built-in domain corpus
+
+Faker opt-in (`type: faker`) — dispatches to a Faker instance for the
+long tail (credit cards, IBAN, license plates, locale-specific data,
+custom providers). Requires `pip install faker`.
+
+  ```yaml
+  columns:
+    german_name:
+      type: faker
+      provider: name
+      locale: de_DE
+    license_plate:
+      type: faker
+      provider: license_plate
+    long_text:
+      type: faker
+      provider: text
+      provider_kwargs: {max_nb_chars: 500}
+  ```
+
 Modifiers on any column:
   - `null_ratio: 0.1` — 10%% of values get set to null
+
+`type: formula` — computed column referencing other row values. Safe eval
+sandbox (no `__` names). Example: `formula: "annual_revenue / 12"`.
 """
 
 from dagster import AssetKey  # auto-added for hierarchical keys
@@ -110,6 +152,51 @@ _DOMAINS = "example.com example.org example.net mail.com test.io demo.co".split(
 
 _COLORS = "red blue green yellow purple orange pink black white gray brown navy teal cyan magenta lime maroon olive silver gold".split()
 
+# ── Faker-lite expansion: bundled corpora for common realistic types ─────────
+# Kept small on purpose. For the long tail (locale-specific data, credit
+# cards, license plates, IBAN, etc.), use `type: faker` with `provider:`
+# which opt-in requires `pip install faker`.
+
+_LOREM_WORDS = (
+    "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod "
+    "tempor incididunt ut labore et dolore magna aliqua enim ad minim veniam "
+    "quis nostrud exercitation ullamco laboris nisi aliquip ex ea commodo "
+    "consequat duis aute irure in reprehenderit voluptate velit esse cillum "
+    "eu fugiat nulla pariatur excepteur sint occaecat cupidatat non proident "
+    "sunt culpa qui officia deserunt mollit anim est laborum"
+).split()
+
+_STREET_NAMES = (
+    "Main Oak Pine Cedar Elm Maple Birch Willow Ash Poplar "
+    "Park Church Broadway Market High Union Center Lake River Hill "
+    "Sunset Meadow Ridge Valley Forest Chestnut Spruce Walnut Hickory Sycamore"
+).split()
+
+_STREET_SUFFIXES = "St Ave Rd Blvd Ln Dr Way Ct Pl Ter".split()
+
+_COMPANY_ROOTS = (
+    "Acme Globex Initech Umbrella Wayne Stark Wonka Cyberdyne Massive Vandelay "
+    "Pied Gringotts Tyrell Weyland Aperture Duff Krusty Bluth Dunder Prestige "
+    "Sirius Nakatomi Kappa Delta Omega Lambda Zeta Alpha Beta Gamma"
+).split()
+
+_COMPANY_SUFFIXES = (
+    "Inc Corp LLC Group Holdings Industries Systems Labs Technologies Solutions "
+    "Consulting Partners Ventures Networks Software Services Enterprises"
+).split()
+
+_JOB_TITLES = (
+    "Software Engineer|Senior Software Engineer|Staff Engineer|Principal Engineer|"
+    "Product Manager|Senior Product Manager|Engineering Manager|Director of Engineering|"
+    "Data Scientist|Data Engineer|Machine Learning Engineer|Analytics Engineer|"
+    "DevOps Engineer|SRE|Platform Engineer|Security Engineer|"
+    "UX Designer|Product Designer|Design Lead|"
+    "Marketing Manager|Content Strategist|Growth Analyst|SEO Specialist|"
+    "Sales Executive|Account Manager|Customer Success Manager|Solutions Architect|"
+    "Financial Analyst|Controller|CFO|Accountant|"
+    "HR Manager|Recruiter|People Operations Lead"
+).split("|")
+
 
 def _hex_color(rng: random.Random) -> str:
     return "#" + "".join(rng.choices("0123456789abcdef", k=6))
@@ -128,6 +215,107 @@ def _ipv4(rng: random.Random) -> str:
 
 def _ipv6(rng: random.Random) -> str:
     return ":".join(f"{rng.randint(0, 0xFFFF):04x}" for _ in range(8))
+
+
+def _word(rng: random.Random) -> str:
+    return rng.choice(_LOREM_WORDS)
+
+
+def _sentence(rng: random.Random, min_words: int = 4, max_words: int = 12) -> str:
+    n = rng.randint(min_words, max_words)
+    words = [rng.choice(_LOREM_WORDS) for _ in range(n)]
+    words[0] = words[0].capitalize()
+    return " ".join(words) + "."
+
+
+def _paragraph(rng: random.Random, min_sentences: int = 3, max_sentences: int = 6) -> str:
+    n = rng.randint(min_sentences, max_sentences)
+    return " ".join(_sentence(rng) for _ in range(n))
+
+
+def _username(rng: random.Random) -> str:
+    # word + optional 2-4 digit suffix (60% of the time)
+    base = rng.choice(_LOREM_WORDS).lower()
+    if rng.random() < 0.6:
+        return f"{base}{rng.randint(1, 9999)}"
+    return base
+
+
+def _password(rng: random.Random, length: int = 12) -> str:
+    alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+    return "".join(rng.choices(alphabet, k=length))
+
+
+def _company(rng: random.Random) -> str:
+    return f"{rng.choice(_COMPANY_ROOTS)} {rng.choice(_COMPANY_SUFFIXES)}"
+
+
+def _job_title(rng: random.Random) -> str:
+    return rng.choice(_JOB_TITLES)
+
+
+def _street_address(rng: random.Random) -> str:
+    number = rng.randint(1, 9999)
+    return f"{number} {rng.choice(_STREET_NAMES)} {rng.choice(_STREET_SUFFIXES)}"
+
+
+def _url(rng: random.Random) -> str:
+    scheme = rng.choices(["https", "http"], weights=[0.9, 0.1])[0]
+    domain = rng.choice(_DOMAINS)
+    path_bits = rng.randint(0, 3)
+    if path_bits == 0:
+        return f"{scheme}://{domain}"
+    path = "/".join(rng.choice(_LOREM_WORDS) for _ in range(path_bits))
+    return f"{scheme}://{domain}/{path}"
+
+
+def _domain(rng: random.Random) -> str:
+    return rng.choice(_DOMAINS)
+
+
+# ── Faker opt-in support ─────────────────────────────────────────────────────
+# `type: faker` columns dispatch to a Faker instance's provider method.
+# Faker is imported LAZILY per-run so users who don't opt in never see
+# the import cost. The Faker instance is cached per (locale, seed) key.
+
+_FAKER_CACHE: Dict[tuple, Any] = {}
+
+
+def _get_faker(locale: Optional[str], seed: Optional[int]):
+    """Return a cached Faker instance for (locale, seed).
+
+    Raises ImportError with a helpful message if Faker isn't installed.
+    """
+    try:
+        from faker import Faker
+    except ImportError as e:
+        raise ImportError(
+            "`type: faker` requires the Faker library. Install with "
+            "`pip install faker` and add it to your project requirements."
+        ) from e
+    key = (locale or "en_US", seed)
+    if key not in _FAKER_CACHE:
+        fk = Faker(locale or "en_US")
+        if seed is not None:
+            fk.seed_instance(seed)
+        _FAKER_CACHE[key] = fk
+    return _FAKER_CACHE[key]
+
+
+def _faker_value(spec: Dict[str, Any], seed: Optional[int]) -> Any:
+    """Dispatch a `type: faker` column to the underlying Faker provider."""
+    provider = spec.get("provider")
+    if not provider:
+        raise ValueError("type: faker requires 'provider' (e.g. `name`, `credit_card_number`, `iban`).")
+    fk = _get_faker(spec.get("locale"), seed)
+    method = getattr(fk, provider, None)
+    if method is None or not callable(method):
+        raise ValueError(
+            f"Faker provider {provider!r} not found. Full list at "
+            "https://faker.readthedocs.io/en/stable/providers.html"
+        )
+    kwargs = spec.get("provider_kwargs") or {}
+    return method(**kwargs)
 
 from dagster import (
     AssetExecutionContext,
@@ -256,6 +444,39 @@ def _gen_value(
         return rng.choice(_COLORS)
     if typ == "hex_color":
         return _hex_color(rng)
+    # ── Faker-lite expansion — text / person / company / net ──────────────
+    if typ == "word":
+        return _word(rng)
+    if typ == "sentence":
+        return _sentence(
+            rng,
+            int(spec.get("min_words", 4)),
+            int(spec.get("max_words", 12)),
+        )
+    if typ == "paragraph":
+        return _paragraph(
+            rng,
+            int(spec.get("min_sentences", 3)),
+            int(spec.get("max_sentences", 6)),
+        )
+    if typ == "username":
+        return _username(rng)
+    if typ == "password":
+        return _password(rng, int(spec.get("length", 12)))
+    if typ == "company":
+        return _company(rng)
+    if typ == "job_title":
+        return _job_title(rng)
+    if typ == "street_address":
+        return _street_address(rng)
+    if typ == "url":
+        return _url(rng)
+    if typ == "domain":
+        return _domain(rng)
+    if typ == "faker":
+        # Opt-in Faker dispatch — provider + optional locale + provider_kwargs.
+        # `random_state` on the component seeds Faker for reproducibility.
+        return _faker_value(spec, spec.get("_seed"))
     if typ == "formula":
         if row is None:
             raise ValueError("formula columns require row context (internal bug)")
@@ -410,6 +631,12 @@ class ParametricDataGeneratorComponent(Component, Model, Resolvable):
             # the annotation lets Dagster infer from the returned value,
             # which correctly unwraps `Output(value=df, ...)` to `df`.
             rng = random.Random(random_state)
+            # For `type: faker` columns, thread the component seed through so
+            # Faker seeding matches the base rng — reproducibility for the
+            # whole run when random_state is set.
+            for _spec in columns.values():
+                if isinstance(_spec, dict) and _spec.get("type") == "faker":
+                    _spec.setdefault("_seed", random_state)
             rows: List[Dict[str, Any]] = []
             for i in range(row_count):
                 row: Dict[str, Any] = {}

@@ -1,42 +1,98 @@
 type: dagster_component_templates.ParametricDataGeneratorComponent
 attributes:
-  asset_name: stores
-  row_count: 200
+  asset_name: employees
+  row_count: 500
   random_state: 42
   group_name: synthetic
   columns:
-    store_id:
+    # ── IDs + basic types ─────────────────────────────────────────
+    employee_id:
       type: id
-      prefix: "S"
-      width: 4
-    name:
-      type: choice
-      values: [Acme Foods, Globex Market, Initech Grocers, Hooli Mart, Pied Piper Provisions]
-    lat:
-      type: float
-      min: 40.55
-      max: 40.90
-      precision: 4
-    lng:
-      type: float
-      min: -74.20
-      max: -73.70
-      precision: 4
-    store_type:
-      type: choice
-      values: [urban, suburban, rural]
-      weights: [0.5, 0.4, 0.1]
-    annual_revenue:
-      type: int
-      min: 50000
-      max: 5000000
-    opened_at:
+      prefix: "E"
+      width: 5
+
+    # ── Person / demographics ────────────────────────────────────
+    first_name:
+      type: first_name
+    last_name:
+      type: last_name
+    full_name:
+      type: formula
+      formula: "first_name + ' ' + last_name"
+    email:
+      type: email
+      domains: [acme.com, subsidiary.co]
+    phone:
+      type: phone
+    username:
+      type: username
+    date_of_birth:
       type: date
-      start: "2010-01-01"
-      end: "2024-12-31"
+      start: "1960-01-01"
+      end: "2005-12-31"
+
+    # ── Address ──────────────────────────────────────────────────
+    street:
+      type: street_address           # NEW: "1234 Oak Ave"
+    city:
+      type: city
+    state:
+      type: state
+    zip:
+      type: zip
+
+    # ── Company / job ─────────────────────────────────────────────
+    company:
+      type: company                  # NEW: "Acme Inc" / "Globex LLC"
+    job_title:
+      type: job_title                # NEW: from curated list
+    salary:
+      type: int
+      min: 40000
+      max: 250000
+
+    # ── Text-heavy fields ─────────────────────────────────────────
+    bio:
+      type: paragraph                # NEW: 3-6 sentence bio
+      min_sentences: 2
+      max_sentences: 4
+    one_line_summary:
+      type: sentence                 # NEW: single sentence
+      min_words: 5
+      max_words: 15
+    tag:
+      type: word                     # NEW: single lorem word
+
+    # ── Internet ──────────────────────────────────────────────────
+    website:
+      type: url                      # NEW: https://example.com/path
+    linkedin_username:
+      type: username
+    api_key:
+      type: password                 # NEW: mixed-alphabet secret
+      length: 32
+
+    # ── Faker opt-in (requires `pip install faker`) ──────────────
+    # locale_specific_name:
+    #   type: faker
+    #   provider: name
+    #   locale: de_DE
+    # license_plate:
+    #   type: faker
+    #   provider: license_plate
+    # credit_card:
+    #   type: faker
+    #   provider: credit_card_number
+    #   provider_kwargs: {card_type: "visa16"}
+
+    # ── Nullable + choice ─────────────────────────────────────────
+    department:
+      type: choice
+      values: [Engineering, Sales, Marketing, Finance, HR, Ops]
+      weights: [0.4, 0.2, 0.15, 0.1, 0.1, 0.05]
     is_active:
       type: bool
-      probability_true: 0.9
+      probability_true: 0.95
     notes:
       type: string
       min_length: 8

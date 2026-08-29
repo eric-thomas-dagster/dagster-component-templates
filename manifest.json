@@ -40051,19 +40051,20 @@
       "id": "shopify_resource",
       "name": "Shopify Resource",
       "category": "resource",
-      "description": "Register a ShopifyResource wrapping the ShopifyAPI client for use by other components",
-      "version": "1.0.0",
+      "description": "Self-contained Shopify Admin API workhorse. Admin API access token auth (Custom App, no OAuth), raw HTTP via requests. Retries on 429 (honors Retry-After) / 5xx. Convenience methods for read (iter_products / iter_customers via Link-header pagination, find_product_by_handle, find_customer_by_email) + write (create_product, update_product, upsert_product_by_handle via search-then-write, delete_product, plus customer equivalents). Pairs with shopify_ingestion (dlt pull) + shopify_product_upsert (reverse-ETL sink).",
+      "version": "2.0.0",
       "author": "Dagster Community",
       "path": "resources/shopify_resource",
       "tags": [
         "resource",
         "shopify",
         "ecommerce",
-        "retail"
+        "retail",
+        "reverse-etl"
       ],
       "dependencies": {
         "pip": [
-          "ShopifyAPI"
+          "requests>=2.28"
         ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/shopify_resource/README.md",
@@ -40077,22 +40078,97 @@
       ],
       "validation": {
         "level": "code",
-        "last_validated": "2026-05-11"
+        "last_validated": "2026-08-29",
+        "notes": "Rebuilt 2026-08-29 as self-contained workhorse (was thin wrapper around ShopifyAPI Python SDK). Now provides read + write methods via raw HTTP + Admin API bearer token. Live validation pending — user doesn't currently have a Shopify dev store. Roadmap: promote to level:live once dev store is available."
       },
       "produces": [
         "resource"
       ],
       "agent_hints": {
-        "outputs": "Register a ShopifyResource wrapping the ShopifyAPI client for use by other components",
+        "when_to_use": "User wants a Shopify Admin API client with read + write convenience methods usable by other Dagster components (sinks, custom asset code).",
+        "outputs": "ShopifyResource with iter_products / iter_customers / get_product / find_product_by_handle / find_customer_by_email / create_product / update_product / upsert_product_by_handle / delete_product / create_customer / update_customer / upsert_customer_by_email methods.",
         "requires_pip": [
-          "ShopifyAPI"
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "SHOPIFY_ADMIN_TOKEN"
         ]
       },
       "keywords": [
         "shopify api",
         "shopify store",
-        "connection",
-        "connect"
+        "admin api",
+        "custom app",
+        "reverse etl",
+        "connection"
+      ]
+    },
+    {
+      "id": "shopify_product_upsert",
+      "name": "Shopify Product Upsert",
+      "component_type": "dagster_component_templates.ShopifyProductUpsertComponent",
+      "path": "assets/sinks/shopify_product_upsert",
+      "category": "sink",
+      "icon": "si:shopify",
+      "description": "Reverse-ETL sink: mirror an upstream DataFrame into Shopify Products via the Admin REST API. Search-then-write per row (Shopify has no native upsert) — GET /products.json?handle=X → PUT the match or POST a new product. Fields prefixed `variant_` set variants[0].<field> instead of the top-level product body. In-run cache dodges double-post on duplicate handles within a batch.",
+      "tags": [
+        "sink",
+        "shopify",
+        "reverse-etl",
+        "upsert",
+        "products",
+        "e-commerce"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/shopify_product_upsert/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/shopify_product_upsert/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/shopify_product_upsert/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/shopify_product_upsert/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/shopify_product_upsert/schema.json",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-08-29",
+        "notes": "Code-validated. Live validation pending — user doesn't currently have a Shopify dev store. Roadmap: promote to level:live once dev store is available and a Product upsert round-trip is verified."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:shopify"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to sync a warehouse-side product catalog INTO Shopify Products (reverse ETL). Common cases: PIM → Shopify sync, computed pricing overrides, inventory count refresh, product enrichment from a dbt mart.",
+        "typical_upstream": "Dagster asset producing a pandas DataFrame — usually a PIM feed, a dbt mart, or a computed pricing / inventory table.",
+        "typical_downstream": "Shopify Products (top-level + first variant). For multi-variant complex catalogs, use `shopify_resource` methods directly from custom asset code.",
+        "example_prompts": [
+          "Mirror a PIM product catalog into Shopify Products via handle match",
+          "Push computed pricing from a warehouse into Shopify variant prices as a nightly job",
+          "Sync inventory quantities from an authoritative source into Shopify"
+        ],
+        "anti_uses": "Not for reading Shopify data — use `shopify_ingestion`. Not for multi-variant catalog updates — use the resource directly.",
+        "requires_pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "SHOPIFY_ADMIN_TOKEN"
+        ]
+      },
+      "keywords": [
+        "reverse etl",
+        "shopify upsert",
+        "product sync",
+        "pim sync",
+        "variant sync",
+        "sink",
+        "write to shopify"
       ]
     },
     {

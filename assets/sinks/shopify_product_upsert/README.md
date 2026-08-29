@@ -1,0 +1,78 @@
+# `ShopifyProductUpsertComponent`
+
+Reverse-ETL sink: mirror an upstream DataFrame into **Shopify Products** via the Admin REST API. Shopify has no native upsert endpoint, so this sink does search-then-write per row:
+
+1. `GET /products.json?handle=<handle>&limit=1` — look up existing product.
+2. If found → `PUT /products/{id}.json` (partial update, unchanged fields preserved).
+3. If not found → `POST /products.json` (new product).
+
+**Handles are Shopify's per-shop unique URL slugs** — they're the natural merge key for reverse ETL. Every product in a shop has a handle; Shopify auto-generates one from the title if not supplied, but for stable reverse-ETL you should always send an explicit handle.
+
+## Nested variant fields
+
+Shopify Products have a `variants` array. Most reverse-ETL cases want to set the first variant's price / SKU / inventory count.
+
+The sink uses a **prefix convention**: any `fields_map` value starting with `variant_` is stripped of the prefix and placed on `variants[0]` instead of the top-level product body.
+
+```yaml
+fields_map:
+  slug: handle
+  price: variant_price          # → variants[0].price
+  sku: variant_sku              # → variants[0].sku
+  qty: variant_inventory_quantity  # → variants[0].inventory_quantity
+```
+
+For multi-variant products, use the resource's `create_product` / `update_product` methods directly from a custom Dagster asset — this sink handles the common single-variant case.
+
+## When to use
+
+- Sync a warehouse-side product catalog INTO Shopify Products (from a PIM, a dbt mart, or an authoritative source of truth).
+- Push computed pricing (dynamic pricing, promo overrides) into Shopify variant prices as a scheduled job.
+- Mirror inventory counts computed elsewhere into Shopify's inventory_quantity field.
+
+## Prerequisites
+
+1. **Custom App with the right scopes** — Settings → Apps and sales channels → Develop apps → Create an app:
+   - `read_products`, `write_products` at minimum.
+2. **Admin API access token** — generated when you install the Custom App. Copy it to an env var.
+
+## Pairs with
+
+- **`shopify_resource`** — Admin API bearer auth + workhorse HTTP client (required).
+- **`shopify_ingestion`** — the READ-side counterpart (dlt-based bulk pull).
+
+## Example
+
+```yaml
+type: dagster_component_templates.ShopifyProductUpsertComponent
+attributes:
+  asset_name: shopify_products_mirror
+  upstream_asset_key: catalog_products
+  resource_key: shopify
+
+  fields_map:
+    slug: handle                  # upstream slug → Shopify handle
+    product_name: title
+    body: body_html
+    vendor: vendor
+    product_type: product_type
+    variant_price: price          # → variants[0].price
+    variant_sku: sku
+    variant_inventory_quantity: inventory_quantity
+
+  batch_size: 200
+```
+
+## Behavior + gotchas
+
+- **Handle required** — every upstream row must have a value in the column mapped to `handle`; rows with `None` / `NaN` / `""` are skipped and counted in `rows_skipped_no_handle` metadata.
+- **Blank vs missing** — `None` / `NaN` values are omitted from the request body (existing Shopify value preserved). Non-null values overwrite.
+- **In-run cache** — if two upstream rows share the same handle, the sink caches the product Id created on the first occurrence and PATCHes it on the second (no double-post).
+- **Rate limits** — Shopify uses a leaky-bucket rate limiter (default 2 req/sec on standard plans, 40 req/sec on Plus). The resource retries on 429 honoring `Retry-After`, up to `max_retries` (default 3).
+- **Variant depth** — only the first variant is set via the `variant_*` prefix. Multi-variant products need custom compute using the resource directly.
+- **API version** — set on the resource (default `2024-01`). Bump quarterly to stay current with Shopify's schedule.
+
+## Related
+
+- `shopify_resource` — connection + Admin API bearer + workhorse HTTP.
+- `shopify_ingestion` — read side (dlt-backed).

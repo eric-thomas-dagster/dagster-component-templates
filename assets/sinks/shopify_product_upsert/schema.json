@@ -1,0 +1,30 @@
+{
+  "component_type": "dagster_component_templates.ShopifyProductUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into Shopify Products via the Admin REST API. Search-then-write per row (Shopify has no native upsert) — GET /products.json?handle=X → PUT the match or POST a new product. Fields prefixed `variant_` set variants[0].<field> instead of the top-level product body.",
+  "category": "sink",
+  "icon": "si:shopify",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row → one Shopify product (upserted by matching on handle)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored). No downstream data — write side effect lands in Shopify."
+    }
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": true, "description": "Asset providing the DataFrame."},
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "shopify"},
+    "fields_map": {"type": "object", "label": "Fields Map", "required": true, "description": "Upstream column → Shopify field name. MUST include a mapping to `handle`. Fields prefixed `variant_` set the first variant's property.", "ui:widget": "key-value"},
+    "batch_size": {"type": "integer", "label": "Batch Size", "required": false, "default": 200, "description": "Max upstream rows per run (safety cap)."},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "shopify"},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+  },
+  "tags": ["shopify", "sink", "reverse-etl", "upsert", "products", "e-commerce"],
+  "name": "Shopify Product Upsert"
+}

@@ -1,0 +1,29 @@
+# ShopifyProductUpsertComponent — DataFrame → Shopify Products reverse ETL.
+# Search-by-handle → PUT if found, POST if new. Shopify has no native upsert.
+#
+# Requires a ShopifyResourceComponent registered under the same resource_key.
+
+type: dagster_component_templates.ShopifyProductUpsertComponent
+attributes:
+  asset_name: shopify_products_mirror
+  upstream_asset_key: catalog_products
+  resource_key: shopify
+
+  # fields_map MUST include a mapping to Shopify field `handle` (the match key).
+  # Fields prefixed `variant_` set variants[0].<field> instead of top-level.
+  fields_map:
+    slug: handle                 # upstream slug → Shopify handle (match key)
+    product_name: title
+    body: body_html
+    vendor: vendor
+    product_type: product_type
+    variant_price: price         # nested — variants[0].price
+    variant_sku: sku
+    variant_inventory_quantity: inventory_quantity
+
+  batch_size: 200
+
+  group_name: reverse_etl
+  description: "Mirror upstream product catalog into Shopify Products via handle match."
+  # kinds: [shopify, reverse_etl]
+  # owners: [platform@corp.com]

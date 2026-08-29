@@ -69,3 +69,50 @@ attributes:
 #     - {from: enriched, kind: parquet, path: data/enriched/,   mode: overwrite}
 #     - {from: enriched, kind: csv,     path: data/enriched.csv, mode: overwrite}
 #   group_name: pyspark_pipeline_multi
+
+# ── Shape (c): control-flow — condition / checkpoint / for_each steps
+# ────────────────────────────────────────────────────────────────────────────
+#
+# type: dagster_component_templates.PySparkPipelineComponent
+# attributes:
+#   asset_name: churn_scoring
+#   spark_config: {spark.master: "local[*]"}
+#   variables:
+#     min_rows: 100
+#     dates: ["2024-08-01", "2024-08-02", "2024-08-03"]
+#   checkpoint_dir: checkpoints
+#   steps:
+#     - id: customers
+#       source: {kind: parquet, path: data/customers.parquet}
+#       operations: [{op: filter, predicate: "tier = 'gold'"}]
+#
+#     # ── Data-quality guard: skip remaining steps if empty ──
+#     - id: guard_nonempty
+#       type: condition
+#       when: "customers.row_count > vars.min_rows"
+#       on_false: skip_rest          # or: fail
+#
+#     - id: enriched
+#       source: {kind: ref, ref: customers}
+#       operations:
+#         - op: sql
+#           sql: "SELECT *, tier || '-' || region AS segment FROM self"
+#
+#     # ── Cross-run state: persist named values to JSON ──
+#     - id: snapshot
+#       type: checkpoint
+#       keys: ["customers.row_count", "vars.min_rows"]
+#       # Values available on the NEXT run as {{ checkpoint.<key> }}.
+#
+#     # ── Loop: run inner steps once per element ──
+#     - id: per_day_backfill
+#       type: for_each
+#       over: "vars.dates"
+#       as: date
+#       steps:
+#         - id: daily_slice
+#           source: {kind: parquet, path: "raw/{{ loop.date }}/data.parquet"}
+#           operations: [{op: with_columns, expressions: {run_date: "'{{ loop.date }}'"}}]
+#
+#   sinks:
+#     - {from: enriched, kind: parquet, path: data/enriched/, mode: overwrite}

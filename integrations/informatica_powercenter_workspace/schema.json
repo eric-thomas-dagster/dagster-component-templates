@@ -1,31 +1,40 @@
 {
-  "component_type": "dagster_community_components.InformaticaWorkspaceComponent",
-  "description": "Informatica IDMC (IICS) tasks as Dagster assets. Discovers via /public/core/v3/objects + optionally POSTs /api/v2/job + polls /api/v2/activity/activityLog. Two-step session-ticket auth against regional login URL. Fivetran-shape workspace: block + selector + polling_sensor + freshness_lag_threshold_seconds.",
+  "component_type": "dagster_community_components.InformaticaPowerCenterWorkspaceComponent",
+  "description": "Informatica PowerCenter (on-prem) workflows as Dagster assets. Discovers via `pmrep listobjects`, triggers via `pmcmd startworkflow`, polls via `pmcmd getworkflowdetails`. Full workspace shape: selector + translator + state-backed + polling sensor + freshness check + workflow_overrides (paramfile / -parameter).",
   "category": "integration",
   "icon": "Database",
   "x-dagster-io": {
     "outputs": {
       "type": "integration",
-      "description": "One Dagster asset per Informatica IDMC task (MTT / DPS / DRS / DMASK / MI_TASK) discovered via `/public/core/v3/objects`. With `action: noop` (default) each asset is declare-only. With `action: execute` each materialization POSTs `/api/v2/job` (with `task_overrides` applied to `mtTaskParameters` / `runtimeConfig.parameters` / `inputFiles`) and polls `activityLog` to completion. No inputs — IDMC runs its own pipelines."
+      "description": "One Dagster asset per PowerCenter workflow discovered via `pmrep listobjects`. With `action: noop` (default) each asset is declare-only. With `action: execute` each materialization shells out to `pmcmd startworkflow` (with `workflow_overrides` applied as `-paramfile` / `-parameter NAME=VALUE`) and polls `pmcmd getworkflowdetails` to a terminal status (Succeeded / Failed / Aborted / Stopped / Terminated / Unknown). No inputs — PowerCenter runs its own workflows."
     }
   },
   "attributes": {
     "workspace": {
       "type": "object",
       "label": "Workspace",
-      "description": "IDMC connection (login_url + username/password OR env vars).",
+      "description": "PowerCenter domain + repository + IS + auth.",
       "required": true
     },
-    "task_selector": {
+    "workflow_selector": {
       "type": "object",
-      "label": "Task Selector",
-      "description": "Filter which IDMC tasks become assets.",
+      "label": "Workflow Selector",
+      "description": "Filter which workflows become assets (by_folder / include / exclude fnmatch).",
+      "required": false
+    },
+    "workflow_overrides": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Workflow Overrides",
+      "description": "Runtime parameter files + variable overrides applied at execute time.",
       "required": false
     },
     "action": {
       "type": "string",
       "label": "Action",
-      "description": "noop = external asset; execute = POST /api/v2/job + poll.",
+      "description": "noop = external asset; execute = pmcmd startworkflow + poll.",
       "required": false,
       "default": "noop",
       "enum": [
@@ -78,7 +87,7 @@
     "group_name": {
       "type": "string",
       "required": false,
-      "default": "informatica_idmc"
+      "default": "informatica_powercenter"
     },
     "kinds": {
       "type": "array",
@@ -88,7 +97,8 @@
       "required": false,
       "default": [
         "informatica",
-        "idmc"
+        "powercenter",
+        "etl"
       ],
       "ui:widget": "list"
     },
@@ -108,10 +118,10 @@
   },
   "tags": [
     "informatica",
-    "idmc",
-    "iics",
+    "powercenter",
     "etl",
-    "workspace"
+    "workspace",
+    "on-prem"
   ],
-  "name": "Informatica IDMC Workspace"
+  "name": "Informatica PowerCenter Workspace"
 }

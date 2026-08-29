@@ -79,11 +79,9 @@ Both are durable-execution workflow engines that pair with Dagster the same way 
 
 Not competitive with each other — they solve slightly different needs. Both benefit from Dagster's catalog role.
 
-## Compared to Airflow
+## Design note — no `prefect_workspace` component
 
-Airflow is where most Prefect-adopting teams came FROM. The migration story is well-worn: Airflow's task-scheduling model → Prefect's flow-and-task decorators. Once teams land on Prefect, they eventually hit the same "we still don't know what data our flows produce" wall Airflow had. That's Dagster's opening.
-
-**Do not build a `<vendor>_workspace`-style discovery component for Prefect** the way we do for Snowflake / HVR / IDMC. Prefect deployments are code-defined and Prefect-native discovery + Dagster-native discovery would double-report the same objects. Use `prefect_flow_run` (Dagster owns the schedule) or `prefect_flow_run_sensor` (Prefect owns the schedule) — those cover the real integration points.
+Prefect deployments are code-defined. A `prefect_workspace`-style discovery component (mirroring `snowflake_workspace` / `hvr_hub_workspace`) would double-report the same objects Dagster-native discovery already finds, and adds no useful lineage — the flows are already Python modules the customer owns. Use `prefect_flow_run` (Dagster owns the schedule) or `prefect_flow_run_sensor` (Prefect owns the schedule) — those cover the real integration points.
 
 ## Walkthroughs
 

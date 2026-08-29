@@ -5,6 +5,6 @@ attributes:
   strategy: random
   test_size: 0.2
   val_size: 0.1
-  seed: 42
+  random_state: 42
   stratify_column: churned
   group_name: ml_datasets

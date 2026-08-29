@@ -3,3 +3,11 @@ attributes:
   asset_name: otlp_metrics_sink
   upstream_asset_key: metric_dataframe
   endpoint: http://localhost:4318
+  metric_name: orders.processed.total
+  metric_kind: counter
+  metric_unit: "1"
+  value_column: order_count
+  attribute_columns:
+    - region
+    - product_category
+  service_name: dagster

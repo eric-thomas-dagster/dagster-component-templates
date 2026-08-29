@@ -1,0 +1,45 @@
+# InformaticaPowerCenterWorkspaceComponent — PowerCenter workflows as
+# Dagster assets. Executes via pmcmd startworkflow, polls via
+# pmcmd getworkflowdetails. Companion of `informatica_workspace` (IDMC).
+
+type: dagster_community_components.InformaticaPowerCenterWorkspaceComponent
+attributes:
+  workspace:
+    domain_name:          "{{ env.PC_DOMAIN }}"          # matches pmcmd -d
+    integration_service:  IS_PROD
+    repository:           REPO_PROD
+    username_env_var:     PC_USER
+    password_env_var:     PC_PASSWORD
+    security_domain:      Native                        # Native | LDAP | ...
+    # pmcmd_path: /opt/informatica/10.5/server/bin/pmcmd
+    # pmrep_path: /opt/informatica/10.5/server/bin/pmrep
+
+  workflow_selector:
+    by_folder: [Sales, Finance]
+    include:   ["wf_load_*"]
+    exclude:   ["wf_*_test"]
+
+  # Runtime parameter file + variable overrides (only used when action=execute).
+  # `{partition_key}` substitutes at run time.
+  # workflow_overrides:
+  #   - match: "REPO_PROD/Sales/wf_load_customers"
+  #     parameter_file: "/etc/infa/params/customers_{partition_key}.par"
+  #     parameters:
+  #       $$TargetSchema: raw_sales
+  #       $$BatchDate:    "{partition_key}"
+
+  action: noop                        # noop | execute
+  wait_for_completion: true
+  poll_interval_seconds: 30
+  timeout_seconds: 3600
+
+  polling_sensor: false
+  observation_interval_seconds: 300
+
+  freshness_lag_threshold_seconds: 3600
+
+  group_name: powercenter_prod
+  kinds: [informatica, powercenter, etl]
+  # asset_key_prefix: [informatica, powercenter, repo_prod]
+  # tags: {tier: production, domain: sales}
+  # owners: [data-platform@acme.com]

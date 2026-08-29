@@ -3,3 +3,10 @@ attributes:
   asset_name: otlp_traces_sink
   upstream_asset_key: trace_dataframe
   endpoint: http://localhost:4318
+  span_name_column: operation_name
+  start_time_column: start_time
+  end_time_column: end_time
+  attribute_columns:
+    - user_id
+    - status_code
+  service_name: dagster

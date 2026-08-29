@@ -3,6 +3,12 @@
   "description": "Query a Snowflake Cortex Search Service and materialize the results as a Dagster asset.",
   "category": "ai",
   "icon": "Snowflake",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "One Dagster asset per selected item discovered in the vendor. See README for what each materialization produces."
+    }
+  },
   "attributes": {
     "asset_name": {
       "type": "string",

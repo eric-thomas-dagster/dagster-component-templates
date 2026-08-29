@@ -3,6 +3,12 @@
   "description": "Execute a JDE orchestration and emit its row-list output as a Dagster DataFrame. Common pattern: orchestrations that wrap JDE Data Services (table reads) or Business Function calls returning tabular results. Foundation for JDE \u2192 warehouse pipelines.",
   "category": "ingestion",
   "icon": "TableChart",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame with one row per vendor record. Chain a downstream sink component (dataframe_to_snowflake / _to_bigquery / _to_duckdb / ...) to persist."
+    }
+  },
   "attributes": {
     "asset_key": {
       "type": "string",

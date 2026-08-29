@@ -4,5 +4,4 @@ attributes:
   upstream_asset_key: raw_llm_output
   parser_type: json
   validation_schema: '{"type": "object", "properties": {"name": {"type": "string"}}}'
-  output_format: dict
   group_name: parsing  # Upstream assets are automatically connected via IO manager

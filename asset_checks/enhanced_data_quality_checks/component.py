@@ -1780,8 +1780,19 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
             return target
 
         if not discovered_keys:
-            # Can't discover siblings — treat as explicit single key
-            return [target] if target != "*" else []
+            # Can't discover siblings — bail out on any selector syntax
+            # (glob, group:, tag:, kind:, is:, boolean composition). Only a
+            # bare asset-key-shaped string is safe to treat as literal.
+            if (
+                target == "*"
+                or "*" in target
+                or ":" in target
+                or " and " in target
+                or " or " in target
+                or " not " in target
+            ):
+                return []
+            return [target]
 
         # "*" — return everything the caller discovered (including sources).
         # AssetSelection.all() defaults to include_sources=False on recent
@@ -1996,9 +2007,16 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         # Create a new instance with this data
         new_component = type(self)(**component_data)
         
-        # Store the asset name and asset key for use in creating asset checks
+        # Store the asset name and asset key for use in creating asset checks.
+        # Split on both '.' (schema.table style) and '/' (hierarchical group)
+        # since Dagster asset keys must be `[A-Za-z0-9_]+` per segment.
         new_component._asset_name = asset_name
-        new_component._asset_key = AssetKey(asset_name.split('.')) if '.' in asset_name else AssetKey([asset_name])
+        if '/' in asset_name:
+            new_component._asset_key = AssetKey(asset_name.split('/'))
+        elif '.' in asset_name:
+            new_component._asset_key = AssetKey(asset_name.split('.'))
+        else:
+            new_component._asset_key = AssetKey([asset_name])
 
         # Resolve the effective partitions_def for checks on this asset:
         # (1) `partitions_def: false` in YAML → force unpartitioned check.
@@ -2324,7 +2342,12 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
 
     def _build_single_asset_checks(self):
         """Build checks for a single asset (used by _create_asset_component)."""
-        if "." in self._asset_name:
+        # Match _create_asset_component: split hierarchical (`/`) keys first,
+        # then schema.table (`.`) style. Otherwise a raw `marts/foo` string
+        # becomes a single-element AssetKey and fails Dagster's name regex.
+        if "/" in self._asset_name:
+            parsed_asset_key = AssetKey(self._asset_name.split("/"))
+        elif "." in self._asset_name:
             parsed_asset_key = AssetKey(self._asset_name.split("."))
         else:
             parsed_asset_key = AssetKey([self._asset_name])
@@ -2916,7 +2939,7 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         if not db_key:
             raise ValueError("custom_sql_check requires a database_resource_key.")
             
-        @asset_check(asset=asset_key, name=check_name, required_resource_keys={db_key}, partitions_def=component._partitions_def_for_checks)
+        @asset_check(asset=asset_key, name=check_name, required_resource_keys={db_key}, partitions_def=self._partitions_def_for_checks)
         def custom_sql_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
             return self._execute_custom_sql_check(context, check_cfg, db_key)
         return custom_sql_check
@@ -2931,7 +2954,7 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
             check_name = f"{sanitized_name}_dataframe_query_check_{idx+1}"
         
         # Dataframe query checks are always dataframe-only (no database fallback)
-        @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+        @asset_check(asset=asset_key, name=check_name, partitions_def=self._partitions_def_for_checks)
         def dataframe_query_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
             return self._execute_dataframe_query_check(context, df, check_cfg)
         return dataframe_query_check
@@ -2946,7 +2969,7 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
             check_name = f"{sanitized_name}_custom_dataframe_check_{idx+1}"
         
         # Custom dataframe checks are always dataframe-only (no database fallback)
-        @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+        @asset_check(asset=asset_key, name=check_name, partitions_def=self._partitions_def_for_checks)
         def custom_dataframe_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
             return self._execute_custom_dataframe_check(context, df, check_cfg)
         return custom_dataframe_check

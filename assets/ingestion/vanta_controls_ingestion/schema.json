@@ -3,6 +3,12 @@
   "description": "Ingest Vanta compliance controls (SOC 2, ISO 27001, HIPAA, PCI, etc.) into a pandas DataFrame via GET /v1/controls.",
   "category": "ingestion",
   "icon": "Shield",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame with one row per vendor record. Chain a downstream sink component (dataframe_to_snowflake / _to_bigquery / _to_duckdb / ...) to persist."
+    }
+  },
   "x-dagster-consumes": [
     "vanta_resource"
   ],

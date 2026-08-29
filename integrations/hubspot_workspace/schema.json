@@ -3,6 +3,12 @@
   "description": "Auto-emit one Dagster asset per HubSpot CRM object (contacts / companies / deals / tickets / products / line_items + custom objects). StateBackedComponent \u2014 discovery cached to disk. Materializing an asset fetches recent records via the CRM Objects API. Workspace-shape peer of hubspot_ingestion.",
   "category": "ingestion",
   "icon": "AccountTree",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "One Dagster asset per selected item discovered in the vendor. See README for what each materialization produces."
+    }
+  },
   "attributes": {
     "access_token_env_var": {
       "type": "string",

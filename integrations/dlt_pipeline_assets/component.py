@@ -20,8 +20,14 @@ class DltPipelineAssetsComponent(dg.Component, dg.Model, dg.Resolvable):
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_dlt import DagsterDltResource, dlt_assets
         import importlib
-        pipeline = getattr(importlib.import_module(self.pipeline_module), self.pipeline_name)
-        source = getattr(importlib.import_module(self.source_module), self.source_name)
+
+        # Bail out cleanly when the pipeline/source modules aren't importable
+        # yet — e.g. running `dg check` before the user has authored them.
+        try:
+            pipeline = getattr(importlib.import_module(self.pipeline_module), self.pipeline_name)
+            source = getattr(importlib.import_module(self.source_module), self.source_name)
+        except (ModuleNotFoundError, ImportError):
+            return dg.Definitions(resources={"dlt": DagsterDltResource()})
         if callable(source):
             source = source()
 

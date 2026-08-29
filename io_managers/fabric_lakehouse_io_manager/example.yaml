@@ -1,7 +1,10 @@
 type: dagster_component_templates.FabricLakehouseIOManagerComponent
 attributes:
   resource_key: io_manager
-  workspace_id: <required>
-  lakehouse_name: <required>
+  workspace_id: 00000000-0000-0000-0000-000000000000
+  lakehouse_name: analytics_lakehouse
   if_exists: overwrite
-  table_prefix: 
+  table_prefix: ""
+  tenant_id_env_var: AZURE_TENANT_ID
+  client_id_env_var: AZURE_CLIENT_ID
+  client_secret_env_var: AZURE_CLIENT_SECRET

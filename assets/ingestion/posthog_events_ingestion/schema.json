@@ -3,15 +3,59 @@
   "description": "Ingest events from a PostHog project via the /events REST API. Cursor-paginated. Returns a DataFrame with flattened event fields.",
   "category": "ingestion",
   "icon": "BarChart",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame with one row per vendor record. Chain a downstream sink component (dataframe_to_snowflake / _to_bigquery / _to_duckdb / ...) to persist."
+    }
+  },
   "attributes": {
-    "asset_name":       {"type": "string",  "required": true},
-    "project_id":       {"type": "string",  "required": true, "description": "PostHog project ID (numeric)."},
-    "api_host":         {"type": "string",  "required": false, "default": "https://us.i.posthog.com"},
-    "api_key_env_var":  {"type": "string",  "required": false, "default": "POSTHOG_API_KEY"},
-    "event":            {"type": "string",  "required": false, "description": "Filter by event name (e.g. '$pageview')."},
-    "since_days":       {"type": "integer", "required": false, "default": 1, "minimum": 1, "maximum": 90},
-    "limit":            {"type": "integer", "required": false, "default": 1000, "minimum": 1, "maximum": 10000},
-    "description":      {"type": "string",  "required": false},
-    "group_name":       {"type": "string",  "required": false, "default": "posthog"}
+    "asset_name": {
+      "type": "string",
+      "required": true
+    },
+    "project_id": {
+      "type": "string",
+      "required": true,
+      "description": "PostHog project ID (numeric)."
+    },
+    "api_host": {
+      "type": "string",
+      "required": false,
+      "default": "https://us.i.posthog.com"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "required": false,
+      "default": "POSTHOG_API_KEY"
+    },
+    "event": {
+      "type": "string",
+      "required": false,
+      "description": "Filter by event name (e.g. '$pageview')."
+    },
+    "since_days": {
+      "type": "integer",
+      "required": false,
+      "default": 1,
+      "minimum": 1,
+      "maximum": 90
+    },
+    "limit": {
+      "type": "integer",
+      "required": false,
+      "default": 1000,
+      "minimum": 1,
+      "maximum": 10000
+    },
+    "description": {
+      "type": "string",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "default": "posthog"
+    }
   }
 }

@@ -3,6 +3,12 @@
   "description": "Auto-emit one Dagster asset per ServiceNow table by enumerating sys_db_object. StateBackedComponent \u2014 discovery cached to disk. Materializing an asset reads recent records via the Table API. Workspace-shape peer of servicenow_ingestion (single-table).",
   "category": "ingestion",
   "icon": "AccountTree",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "One Dagster asset per selected item discovered in the vendor. See README for what each materialization produces."
+    }
+  },
   "attributes": {
     "instance_env_var": {
       "type": "string",

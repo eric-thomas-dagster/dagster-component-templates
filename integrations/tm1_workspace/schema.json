@@ -3,6 +3,12 @@
   "description": "Auto-emit one Dagster asset per TM1 Cube / Process / Chore via the TM1 REST API. StateBackedComponent \u2014 discovery cached to disk, refreshed on explicit trigger. Materializing a Process/Chore asset executes it via ExecuteProcess. Materializing a Cube asset records its presence (use tm1_cube_data_ingestion for actual data). The workspace-shape peer of tm1_process_trigger_job / tm1_process_status_sensor / tm1_cube_data_ingestion.",
   "category": "ingestion",
   "icon": "AccountTree",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "One Dagster asset per selected item discovered in the vendor. See README for what each materialization produces."
+    }
+  },
   "attributes": {
     "base_url_env_var": {
       "type": "string",

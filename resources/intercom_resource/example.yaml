@@ -1,3 +1,5 @@
 type: dagster_component_templates.IntercomResourceComponent
 attributes:
-  # See schema.json for full attribute reference
+  resource_key: intercom
+  api_token_env_var: INTERCOM_ACCESS_TOKEN
+  base_url: https://api.intercom.io

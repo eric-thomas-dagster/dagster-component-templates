@@ -3,6 +3,12 @@
   "description": "Define a Snowflake ALERT (scheduled conditional action). Materialization runs CREATE OR REPLACE ALERT and resumes it.",
   "category": "integration",
   "icon": "Snowflake",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "One Dagster asset per selected item discovered in the vendor. See README for what each materialization produces."
+    }
+  },
   "attributes": {
     "asset_name": {
       "type": "string",

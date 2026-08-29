@@ -1,3 +1,6 @@
 type: dagster_component_templates.MarketoResourceComponent
 attributes:
-  # See schema.json for full attribute reference
+  resource_key: marketo
+  rest_url: "https://123-ABC-456.mktorest.com"
+  client_id_env_var: MARKETO_CLIENT_ID
+  client_secret_env_var: MARKETO_CLIENT_SECRET

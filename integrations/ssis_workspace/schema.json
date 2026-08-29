@@ -3,6 +3,12 @@
   "description": "SSIS packages as Dagster assets. Discovers SSISDB.catalog.packages + optionally executes via create_execution/start_execution + polls to completion. Fivetran-shape workspace: block for connection + selector for filtering + polling_sensor + freshness_lag_threshold_seconds.",
   "category": "integration",
   "icon": "Server",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "One Dagster asset per SSIS package discovered in SSISDB.catalog.packages. With `action: noop` (default) each asset is declare-only (external asset). With `action: execute` each materialization calls `SSISDB.catalog.create_execution + set_execution_parameter_value + start_execution` (per package_overrides) and polls to completion. No inputs — SSIS runs its own pipelines. Optional `polling_sensor` emits AssetObservation per completed execution; optional freshness check per package."
+    }
+  },
   "attributes": {
     "workspace": {
       "type": "object",
@@ -22,7 +28,10 @@
       "description": "noop = external asset (declare-only); execute = create_execution + start_execution + poll.",
       "required": false,
       "default": "noop",
-      "enum": ["noop", "execute"],
+      "enum": [
+        "noop",
+        "execute"
+      ],
       "ui:widget": "select"
     },
     "wait_for_completion": {
@@ -69,7 +78,9 @@
     },
     "asset_key_prefix": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Asset Key Prefix",
       "description": "Default: ['ssis', <ssis_server_hostname>].",
       "required": false,
@@ -83,10 +94,15 @@
     },
     "kinds": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Kinds",
       "required": false,
-      "default": ["ssis", "mssql"],
+      "default": [
+        "ssis",
+        "mssql"
+      ],
       "ui:widget": "list"
     },
     "tags": {
@@ -97,12 +113,20 @@
     },
     "owners": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Owners",
       "required": false,
       "ui:widget": "list"
     }
   },
-  "tags": ["ssis", "mssql", "sql-server", "etl", "workspace"],
+  "tags": [
+    "ssis",
+    "mssql",
+    "sql-server",
+    "etl",
+    "workspace"
+  ],
   "name": "SSIS Workspace"
 }

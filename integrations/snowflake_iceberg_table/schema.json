@@ -3,6 +3,12 @@
   "description": "Define a Snowflake ICEBERG TABLE as Dagster YAML. Materialization runs CREATE OR REPLACE ICEBERG TABLE.",
   "category": "integration",
   "icon": "Snowflake",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "One Dagster asset per selected item discovered in the vendor. See README for what each materialization produces."
+    }
+  },
   "attributes": {
     "asset_name": {
       "type": "string",

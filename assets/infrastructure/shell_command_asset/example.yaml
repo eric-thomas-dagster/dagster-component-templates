@@ -1,9 +1,10 @@
 type: dagster_component_templates.ShellCommandAssetComponent
 attributes:
-  asset_name: <fill in>
-  command: <fill in>
-  cwd: <fill in>
-  env_vars: {}
-  group_name: <fill in>
-  description: <fill in>
+  asset_name: raw_data_export
+  command: "./scripts/export_raw.sh"
+  cwd: "{{ project_root }}"
+  env_vars:
+    DATA_DIR: /tmp/exports
+  group_name: infra
+  description: "Exports raw data snapshot via a shell script."
   deps: []

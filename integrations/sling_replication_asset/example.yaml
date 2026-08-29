@@ -1,5 +1,6 @@
 type: dagster_component_templates.SlingReplicationAssetComponent
 attributes:
-  replication_config_path: <fill in>
-  group_name: <fill in>
-  name: <fill in>
+  # Path to a Sling replication YAML file (relative to project root).
+  replication_config_path: sling/replication.yaml
+  group_name: sling
+  name: sling_replication

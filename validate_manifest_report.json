@@ -1,12 +1,11 @@
 {
   "summary": {
-    "PASS": 746,
-    "SKIP_OPTIONAL_DEP": 45,
-    "FAIL": 48,
-    "SKIP_EXAMPLE_MULTI_DOC": 51,
-    "SKIP_PROJECT_REQUIRED": 33,
-    "SKIP_CREDENTIALS": 36,
+    "PASS": 776,
+    "SKIP_OPTIONAL_DEP": 52,
     "WARN": 12,
+    "SKIP_EXAMPLE_MULTI_DOC": 51,
+    "SKIP_PROJECT_REQUIRED": 38,
+    "SKIP_CREDENTIALS": 43,
     "SKIP_RELATIVE_IMPORT": 2
   },
   "results": [
@@ -161,8 +160,10 @@
     {
       "id": "airbyte_sync_trigger_job",
       "path": "jobs/airbyte_sync_trigger_job",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"AdaptiveResearchBriefComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -185,17 +186,10 @@
     {
       "id": "airlift_dag_assets",
       "path": "integrations/airlift_dag_assets",
-      "status": "FAIL",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
       "error": "cannot import name 'BasicAuthBackend' from 'dagster_airlift.core' (/opt/homebrew/lib/python3.11/site-packages/dagster_airlift/core/__init__.py)",
-      "error_class": "ImportError",
-      "traceback": [
-        "    defs = instance.build_defs(ctx)",
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/airlift_dag_assets/component.py\", line 20, in build_defs",
-        "    from dagster_airlift.core import AirflowInstance, BasicAuthBackend, build_defs_from_airflow_instance",
-        "ImportError: cannot import name 'BasicAuthBackend' from 'dagster_airlift.core' (/opt/homebrew/lib/python3.11/site-packages/dagster_airlift/core/__init__.py)"
-      ]
+      "error_class": null
     },
     {
       "id": "airtable_ingestion",
@@ -287,9 +281,7 @@
       "id": "approval_audit_asset",
       "path": "assets/ai/approval_audit_asset",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-airlift` (0.29.4)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -540,17 +532,10 @@
     {
       "id": "aws_dms",
       "path": "integrations/aws_dms",
-      "status": "FAIL",
+      "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "An error occurred (IncompleteSignatureException) when calling the DescribeReplicationTasks operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'cG4MkjI78w4dvUFvJidYrgon2Vq6Q+WC2S5gEpVVIGg='.",
-      "error_class": "ClientError",
-      "traceback": [
-        "    return func(*args, **kwargs)",
-        "           ^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/botocore/client.py\", line 1078, in _make_api_call",
-        "    raise error_class(parsed_response, operation_name)",
-        "botocore.exceptions.ClientError: An error occurred (IncompleteSignatureException) when calling the DescribeReplicationTasks operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'cG4MkjI78w4dvUFvJidYrgon2Vq6Q+WC2S5gEpVVIGg='."
-      ]
+      "error": "An error occurred (IncompleteSignatureException) when calling the DescribeReplicationTasks operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'lMreiepMCQDG7E0uFwvqpzJUOunq1FV0kOrm5aEcphw='.",
+      "error_class": null
     },
     {
       "id": "aws_glue",
@@ -563,32 +548,18 @@
     {
       "id": "aws_kinesis",
       "path": "integrations/aws_kinesis",
-      "status": "FAIL",
+      "status": "SKIP_CREDENTIALS",
       "warnings": [],
       "error": "Operation cannot be paginated: list_delivery_streams",
-      "error_class": "OperationNotPageableError",
-      "traceback": [
-        "    paginator = firehose.get_paginator(\"list_delivery_streams\")",
-        "                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/botocore/client.py\", line 1218, in get_paginator",
-        "    raise OperationNotPageableError(operation_name=operation_name)",
-        "botocore.exceptions.OperationNotPageableError: Operation cannot be paginated: list_delivery_streams"
-      ]
+      "error_class": null
     },
     {
       "id": "aws_redshift",
       "path": "integrations/aws_redshift",
-      "status": "FAIL",
+      "status": "SKIP_CREDENTIALS",
       "warnings": [],
       "error": "Failed to list stored procedures: An error occurred (ValidationException) when calling the ExecuteStatement operation: Redshift endpoint doesn't exist in this region.",
-      "error_class": "Exception",
-      "traceback": [
-        "    procedures = self._list_stored_procedures(session)",
-        "                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/aws_redshift/component.py\", line 308, in _list_stored_procedures",
-        "    raise Exception(f\"Failed to list stored procedures: {e}\")",
-        "Exception: Failed to list stored procedures: An error occurred (ValidationException) when calling the ExecuteStatement operation: Redshift endpoint doesn't exist in this region."
-      ]
+      "error_class": null
     },
     {
       "id": "aws_s3_resource",
@@ -603,17 +574,10 @@
     {
       "id": "aws_sagemaker",
       "path": "integrations/aws_sagemaker",
-      "status": "FAIL",
+      "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'KqvgDnh9tgn8cdrSyxyo+UMba/ozAZF9SXXPzKHnoLw='.",
-      "error_class": "Exception",
-      "traceback": [
-        "    job_names = self._list_training_job_definitions(session)",
-        "                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/aws_sagemaker/component.py\", line 225, in _list_training_job_definitions",
-        "    raise Exception(f\"Failed to list training jobs: {e}\")",
-        "Exception: Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'KqvgDnh9tgn8cdrSyxyo+UMba/ozAZF9SXXPzKHnoLw='."
-      ]
+      "error": "Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'sUxu+U+Q1CLO9YXtSrzyg2q06nH48oiQ2DKqbwkIbDM='.",
+      "error_class": null
     },
     {
       "id": "azure_activity_log_ingestion",
@@ -650,17 +614,10 @@
     {
       "id": "azure_openai_resource",
       "path": "resources/azure_openai_resource",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "1 validation error for AzureOpenAIResourceComponent\napi_version\n  Input should be a valid string [type=string_type, input_value=datetime.date(2024, 10, 21), input_type=date]\n    For further information visit https://errors.pydantic.dev/2.12/v/string_type",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for AzureOpenAIResourceComponent",
-        "api_version",
-        "  Input should be a valid string [type=string_type, input_value=datetime.date(2024, 10, 21), input_type=date]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/string_type"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "azure_search_indexer",
@@ -697,17 +654,10 @@
     {
       "id": "azure_table_reader",
       "path": "assets/sources/azure_table_reader",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "1 validation error for AzureTableReaderComponent\ntop\n  Extra inputs are not permitted [type=extra_forbidden, input_value=1000, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for AzureTableReaderComponent",
-        "top",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value=1000, input_type=int]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "bank_statement_extractor",
@@ -876,17 +826,12 @@
     {
       "id": "campaign_performance",
       "path": "assets/analytics/campaign_performance",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "2 validation errors for CampaignPerformanceComponent\ncampaign_data_asset_key\n  Extra inputs are not permitted [type=extra_forbidden, input_value='campaign_metrics', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden\nconversion_data_asset_key\n  Extra inputs are not permitted [type=extra_forbidden, input_value='conversions', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='campaign_metrics', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
-        "conversion_data_asset_key",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='conversions', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "cassandra_reader",
@@ -941,17 +886,10 @@
     {
       "id": "chromadb_asset",
       "path": "assets/analytics/chromadb_asset",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "1 validation error for ChromadbAssetComponent\nsource_table\n  Extra inputs are not permitted [type=extra_forbidden, input_value='public.products', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for ChromadbAssetComponent",
-        "source_table",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='public.products', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "chromadb_reader",
@@ -1548,17 +1486,10 @@
     {
       "id": "database_replication",
       "path": "assets/ingestion/database_replication",
-      "status": "FAIL",
+      "status": "SKIP_CREDENTIALS",
       "warnings": [],
       "error": "Env var 'ORACLE_DB_URL' (for source_connection) is not set",
-      "error_class": "OSError",
-      "traceback": [
-        "    source_url = _resolve(self.source_connection, self.source_connection_env_var, \"source_connection\")",
-        "                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /assets/ingestion/database_replication/component.py\", line 151, in _resolve",
-        "    raise EnvironmentError(f\"Env var '{env_var}' (for {name}) is not set\")",
-        "OSError: Env var 'ORACLE_DB_URL' (for source_connection) is not set"
-      ]
+      "error_class": "OSError"
     },
     {
       "id": "database_schema_inventory",
@@ -1595,17 +1526,10 @@
     {
       "id": "databricks_asset_bundle",
       "path": "integrations/databricks_asset_bundle",
-      "status": "FAIL",
+      "status": "SKIP_PROJECT_REQUIRED",
       "warnings": [],
       "error": "Databricks config file not found: /Users/ericthomas/dagster_components/dagster-component-templates /databricks.yml",
-      "error_class": "FileNotFoundError",
-      "traceback": [
-        "    config = self._load_bundle_config(context)",
-        "             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/databricks_asset_bundle/component.py\", line 144, in _load_bundle_config",
-        "    raise FileNotFoundError(f\"Databricks config file not found: {config_path}\")",
-        "FileNotFoundError: Databricks config file not found: /Users/ericthomas/dagster_components/dagster-component-templates /databricks.yml"
-      ]
+      "error_class": "FileNotFoundError"
     },
     {
       "id": "databricks_genie_query",
@@ -1740,17 +1664,12 @@
     {
       "id": "dataframe_join",
       "path": "assets/transforms/dataframe_join",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "1 validation error for DataframeJoin\n1\n  Keys should be strings [type=invalid_key, input_value=True, input_type=bool]\n    For further information visit https://errors.pydantic.dev/2.12/v/invalid_key",
-      "error_class": "ValidationError",
-      "traceback": [
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for DataframeJoin",
-        "1",
-        "  Keys should be strings [type=invalid_key, input_value=True, input_type=bool]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/invalid_key"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "dataframe_to_adls",
@@ -1923,32 +1842,18 @@
     {
       "id": "dataframe_to_otlp_metrics",
       "path": "assets/sinks/dataframe_to_otlp_metrics",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "2 validation errors for DataframeToOtlpMetricsComponent\nmetric_name\n  Field required [type=missing, input_value={'asset_name': 'otlp_metr...'http://localhost:4318'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nvalue_column\n  Field required [type=missing, input_value={'asset_name': 'otlp_metr...'http://localhost:4318'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Field required [type=missing, input_value={'asset_name': 'otlp_metr...'http://localhost:4318'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing",
-        "value_column",
-        "  Field required [type=missing, input_value={'asset_name': 'otlp_metr...'http://localhost:4318'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "dataframe_to_otlp_traces",
       "path": "assets/sinks/dataframe_to_otlp_traces",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "1 validation error for DataframeToOtlpTracesComponent\nspan_name_column\n  Field required [type=missing, input_value={'asset_name': 'otlp_trac...'http://localhost:4318'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for DataframeToOtlpTracesComponent",
-        "span_name_column",
-        "  Field required [type=missing, input_value={'asset_name': 'otlp_trac...'http://localhost:4318'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "dataframe_to_parquet",
@@ -2111,17 +2016,10 @@
     {
       "id": "dbt_cloud_resource",
       "path": "resources/dbt_cloud_resource",
-      "status": "FAIL",
+      "status": "SKIP_PROJECT_REQUIRED",
       "warnings": [],
-      "error": "deadlock detected by _ModuleLock('dagster_dbt.components.dbt_project.component') at 4808577360",
-      "error_class": "_DeadlockError",
-      "traceback": [
-        "    from dagster_dbt.components.dbt_project.component import DbtProjectComponent as DbtProjectComponent",
-        "  File \"<frozen importlib._bootstrap>\", line 1173, in _find_and_load",
-        "  File \"<frozen importlib._bootstrap>\", line 171, in __enter__",
-        "  File \"<frozen importlib._bootstrap>\", line 116, in acquire",
-        "_frozen_importlib._DeadlockError: deadlock detected by _ModuleLock('dagster_dbt.components.dbt_project.component') at 4808577360"
-      ]
+      "error": "deadlock detected by _ModuleLock('dagster_dbt.components.dbt_project.component') at 4879308368",
+      "error_class": "_DeadlockError"
     },
     {
       "id": "dbt_cloud_trigger_job",
@@ -2134,17 +2032,10 @@
     {
       "id": "dbt_docs_enriched_project",
       "path": "assets/dbt/dbt_docs_enriched_project",
-      "status": "FAIL",
+      "status": "SKIP_PROJECT_REQUIRED",
       "warnings": [],
       "error": "'str' object has no attribute 'defs_state_discriminator'",
-      "error_class": "AttributeError",
-      "traceback": [
-        "          ^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/dagster_dbt/components/dbt_project/component.py\", line 235, in defs_state_config",
-        "    key=f\"DbtProjectComponent[{self._project_manager.defs_state_discriminator}]\",",
-        "                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "AttributeError: 'str' object has no attribute 'defs_state_discriminator'"
-      ]
+      "error_class": "AttributeError"
     },
     {
       "id": "dbt_run_job",
@@ -2232,17 +2123,16 @@
     {
       "id": "dlt_pipeline_assets",
       "path": "integrations/dlt_pipeline_assets",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "ModuleNotFoundError: No module named '<fill in>'",
-      "error_class": "ModuleNotFoundError",
-      "traceback": [
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"<frozen importlib._bootstrap>\", line 1204, in _gcd_import",
-        "  File \"<frozen importlib._bootstrap>\", line 1176, in _find_and_load",
-        "  File \"<frozen importlib._bootstrap>\", line 1140, in _find_and_load_unlocked",
-        "ModuleNotFoundError: No module named '<fill in>'"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-dlt` (0.28.1).",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/"
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "docker_container_asset",
@@ -2351,17 +2241,10 @@
     {
       "id": "doris_workspace",
       "path": "integrations/doris_workspace",
-      "status": "FAIL",
+      "status": "SKIP_CREDENTIALS",
       "warnings": [],
       "error": "Doris workspace requires a password \u2014 set `password` or `password_env_var` (currently 'DORIS_PASSWORD').",
-      "error_class": "RuntimeError",
-      "traceback": [
-        "    pw = urllib.parse.quote_plus(self._password())",
-        "                                 ^^^^^^^^^^^^^^^^",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/doris_workspace/component.py\", line 155, in _password",
-        "    raise RuntimeError(",
-        "RuntimeError: Doris workspace requires a password \u2014 set `password` or `password_env_var` (currently 'DORIS_PASSWORD')."
-      ]
+      "error_class": "RuntimeError"
     },
     {
       "id": "dremio_ingestion",
@@ -2393,9 +2276,7 @@
       "id": "duckdb_io_manager",
       "path": "io_managers/duckdb_io_manager",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-spark` (0.28.12)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -2439,7 +2320,9 @@
       "id": "duckdb_table_writer",
       "path": "assets/sinks/duckdb_table_writer",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-duckdb-pandas` (0.28.1)."
+      ],
       "error": null,
       "error_class": null
     },
@@ -2522,17 +2405,10 @@
     {
       "id": "elasticsearch_asset",
       "path": "assets/analytics/elasticsearch_asset",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "2 validation errors for ElasticsearchAssetComponent\nsource_database_url_env_var\n  Extra inputs are not permitted [type=extra_forbidden, input_value='DATABASE_URL', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden\nsource_table_name\n  Extra inputs are not permitted [type=extra_forbidden, input_value='products', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='DATABASE_URL', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
-        "source_table_name",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='products', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "elasticsearch_reader",
@@ -2573,17 +2449,31 @@
     {
       "id": "enhanced_data_quality_checks",
       "path": "asset_checks/enhanced_data_quality_checks",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "name 'component' is not defined",
-      "error_class": "NameError",
-      "traceback": [
-        "                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /asset_checks/enhanced_data_quality_checks/component.py\", line 2919, in _create_custom_sql_check",
-        "    @asset_check(asset=asset_key, name=check_name, required_resource_keys={db_key}, partitions_def=component._partitions_def_for_checks)",
-        "                                                                                                   ^^^^^^^^^",
-        "NameError: name 'component' is not defined"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/"
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "entity_extractor",
@@ -2789,7 +2679,9 @@
       "id": "external_precisely_job",
       "path": "external_assets/external_precisely_job",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-sling` (0.28.1)."
+      ],
       "error": null,
       "error_class": null
     },
@@ -2813,9 +2705,7 @@
       "id": "external_rabbitmq_asset",
       "path": "external_assets/external_rabbitmq_asset",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-sling` (0.28.1)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -2919,26 +2809,17 @@
       "id": "fabric_capacity_admin_job",
       "path": "jobs/fabric_capacity_admin_job",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-pyspark` (0.28.12)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
     {
       "id": "fabric_lakehouse_io_manager",
       "path": "io_managers/fabric_lakehouse_io_manager",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "1 validation error for FabricLakehouseIOManagerComponent\ntable_prefix\n  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.12/v/string_type",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for FabricLakehouseIOManagerComponent",
-        "table_prefix",
-        "  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/string_type"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "fabric_lakehouse_resource",
@@ -2968,7 +2849,9 @@
       "id": "fabric_workspace_resource",
       "path": "resources/fabric_workspace_resource",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-pyspark` (0.28.12)."
+      ],
       "error": null,
       "error_class": null
     },
@@ -3028,7 +2911,9 @@
       "id": "fhir_resource_normalizer",
       "path": "assets/transforms/fhir_resource_normalizer",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-databricks` (0.28.12)."
+      ],
       "error": null,
       "error_class": null
     },
@@ -3155,17 +3040,10 @@
     {
       "id": "fivetran_assets",
       "path": "integrations/fivetran_assets",
-      "status": "FAIL",
+      "status": "SKIP_CREDENTIALS",
       "warnings": [],
       "error": "Errors while initializing resource\n    Error 1: Post processing at path root:api_key of original value {'env': '<fill in>'} failed:\ndagster._config.errors.PostProcessingError: You have attempted to fetch the environment variable \"<fill in>\" which is not set. In order for this execution to succeed it must be set in this environment.\n\nStack Trace:\n  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/_config/post_process.py\", line 83, in _post_process\n    new_value = context.config_type.post_process(config_value)\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/_config/source.py\", line 41, in post_process\n    return str(_ensure_env_variable(cfg))\n               ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/_config/source.py\", line 17, in _ensure_env_variable\n    raise PostProcessingError(\n\n    Error 2: Post processing at path root:api_secret of original value {'env': '<fill in>'} failed:\ndagster._config.errors.PostProcessingError: You have attempted to fetch the environment variable \"<fill in>\" which is not set. In order for this execution to succeed it must be set in this environment.\n\nStack Trace:\n  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/_config/post_process.py\", line 83, in _post_process\n    new_value = context.config_type.post_process(config_value)\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/_config/source.py\", line 41, in post_process\n    return str(_ensure_env_variable(cfg))\n               ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/_config/source.py\", line 17, in _ensure_env_variable\n    raise PostProcessingError(\n",
-      "error_class": "DagsterInvalidConfigError",
-      "traceback": [
-        "    return str(_ensure_env_variable(cfg))",
-        "               ^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/_config/source.py\", line 17, in _ensure_env_variable",
-        "    raise PostProcessingError(",
-        ""
-      ]
+      "error_class": null
     },
     {
       "id": "fivetran_sync_sensor",
@@ -3230,17 +3108,10 @@
     {
       "id": "funnel_analysis",
       "path": "assets/analytics/funnel_analysis",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "5 validation errors for FunnelAnalysisComponent\nupstream_asset_key\n  Extra inputs are not permitted [type=extra_forbidden, input_value='user_events', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden\nfunnel_steps\n  Extra inputs are not permitted [type=extra_forbidden, input_value='Landing,Product View,Add... Cart,Checkout,Purchase', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden\nconversion_window_hours\n  Extra inputs are not permitted [type=extra_forbidden, input_value=24, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden\nrequire_sequential\n  Extra inputs are not permitted [type=extra_forbidden, input_value=True, input_type=bool]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden\nallow_skips\n  Extra inputs are not permitted [type=extra_forbidden, input_value=False, input_type=bool]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value=True, input_type=bool]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
-        "allow_skips",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value=False, input_type=bool]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "fuzzy_match",
@@ -3504,17 +3375,10 @@
     {
       "id": "google_bigquery",
       "path": "integrations/google_bigquery",
-      "status": "FAIL",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
       "error": "cannot import name 'bigquery_datatransfer_v1' from 'google.cloud' (unknown location)",
-      "error_class": "ImportError",
-      "traceback": [
-        "  File \"<frozen importlib._bootstrap_external>\", line 940, in exec_module",
-        "  File \"<frozen importlib._bootstrap>\", line 241, in _call_with_frames_removed",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/google_bigquery/component.py\", line 15, in <module>",
-        "    from google.cloud import bigquery_datatransfer_v1",
-        "ImportError: cannot import name 'bigquery_datatransfer_v1' from 'google.cloud' (unknown location)"
-      ]
+      "error_class": null
     },
     {
       "id": "google_calendar_ingestion",
@@ -3527,62 +3391,34 @@
     {
       "id": "google_cloud_functions",
       "path": "integrations/google_cloud_functions",
-      "status": "FAIL",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
       "error": "cannot import name 'functions_v2' from 'google.cloud' (unknown location)",
-      "error_class": "ImportError",
-      "traceback": [
-        "  File \"<frozen importlib._bootstrap_external>\", line 940, in exec_module",
-        "  File \"<frozen importlib._bootstrap>\", line 241, in _call_with_frames_removed",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/google_cloud_functions/component.py\", line 12, in <module>",
-        "    from google.cloud import functions_v2",
-        "ImportError: cannot import name 'functions_v2' from 'google.cloud' (unknown location)"
-      ]
+      "error_class": null
     },
     {
       "id": "google_cloud_run_jobs",
       "path": "integrations/google_cloud_run_jobs",
-      "status": "FAIL",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
       "error": "cannot import name 'run_v2' from 'google.cloud' (unknown location)",
-      "error_class": "ImportError",
-      "traceback": [
-        "  File \"<frozen importlib._bootstrap_external>\", line 940, in exec_module",
-        "  File \"<frozen importlib._bootstrap>\", line 241, in _call_with_frames_removed",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/google_cloud_run_jobs/component.py\", line 12, in <module>",
-        "    from google.cloud import run_v2",
-        "ImportError: cannot import name 'run_v2' from 'google.cloud' (unknown location)"
-      ]
+      "error_class": null
     },
     {
       "id": "google_dataflow",
       "path": "integrations/google_dataflow",
-      "status": "FAIL",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
       "error": "cannot import name 'dataflow_v1beta3' from 'google.cloud' (unknown location)",
-      "error_class": "ImportError",
-      "traceback": [
-        "  File \"<frozen importlib._bootstrap_external>\", line 940, in exec_module",
-        "  File \"<frozen importlib._bootstrap>\", line 241, in _call_with_frames_removed",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/google_dataflow/component.py\", line 14, in <module>",
-        "    from google.cloud import dataflow_v1beta3",
-        "ImportError: cannot import name 'dataflow_v1beta3' from 'google.cloud' (unknown location)"
-      ]
+      "error_class": null
     },
     {
       "id": "google_datastream",
       "path": "integrations/google_datastream",
-      "status": "FAIL",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
       "error": "cannot import name 'datastream_v1' from 'google.cloud' (unknown location)",
-      "error_class": "ImportError",
-      "traceback": [
-        "  File \"<frozen importlib._bootstrap_external>\", line 940, in exec_module",
-        "  File \"<frozen importlib._bootstrap>\", line 241, in _call_with_frames_removed",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/google_datastream/component.py\", line 13, in <module>",
-        "    from google.cloud import datastream_v1",
-        "ImportError: cannot import name 'datastream_v1' from 'google.cloud' (unknown location)"
-      ]
+      "error_class": null
     },
     {
       "id": "google_docs_extractor",
@@ -3635,17 +3471,10 @@
     {
       "id": "google_vertex_ai",
       "path": "integrations/google_vertex_ai",
-      "status": "FAIL",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
       "error": "cannot import name 'aiplatform' from 'google.cloud' (unknown location)",
-      "error_class": "ImportError",
-      "traceback": [
-        "  File \"<frozen importlib._bootstrap_external>\", line 940, in exec_module",
-        "  File \"<frozen importlib._bootstrap>\", line 241, in _call_with_frames_removed",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/google_vertex_ai/component.py\", line 14, in <module>",
-        "    from google.cloud import aiplatform",
-        "ImportError: cannot import name 'aiplatform' from 'google.cloud' (unknown location)"
-      ]
+      "error_class": null
     },
     {
       "id": "gradient_boosting_model",
@@ -3747,9 +3576,7 @@
       "id": "http_poll_sensor",
       "path": "sensors/http_poll_sensor",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-dbt` (0.28.12)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -4027,6 +3854,14 @@
       "error_class": null
     },
     {
+      "id": "informatica_powercenter_workspace",
+      "path": "integrations/informatica_powercenter_workspace",
+      "status": "SKIP_PROJECT_REQUIRED",
+      "warnings": [],
+      "error": "Could not find dg.toml or pyproject.toml in .",
+      "error_class": null
+    },
+    {
       "id": "informatica_workspace",
       "path": "integrations/informatica_workspace",
       "status": "SKIP_PROJECT_REQUIRED",
@@ -4065,17 +3900,10 @@
     {
       "id": "intercom_resource",
       "path": "resources/intercom_resource",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "1 validation error for IntercomResourceComponent\napi_token_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for IntercomResourceComponent",
-        "api_token_env_var",
-        "  Field required [type=missing, input_value={}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "interval_schedule",
@@ -4106,11 +3934,8 @@
     {
       "id": "iterative_supervisor_agent",
       "path": "assets/ai/iterative_supervisor_agent",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -4125,11 +3950,8 @@
     {
       "id": "jde_orchestration_status_sensor",
       "path": "sensors/jde_orchestration_status_sensor",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -4336,17 +4158,10 @@
     {
       "id": "lakefs_asset",
       "path": "assets/analytics/lakefs_asset",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "2 validation errors for LakeFSAssetComponent\nendpoint\n  Field required [type=missing, input_value={'asset_name': 'data_vers...rs', 'marts/customers']}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nlakefs_endpoint_env_var\n  Extra inputs are not permitted [type=extra_forbidden, input_value='LAKEFS_ENDPOINT', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Field required [type=missing, input_value={'asset_name': 'data_vers...rs', 'marts/customers']}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing",
-        "lakefs_endpoint_env_var",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='LAKEFS_ENDPOINT', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "lakefs_io_manager",
@@ -4367,17 +4182,13 @@
     {
       "id": "langchain_chain_asset",
       "path": "assets/ai/langchain_chain_asset",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "1 validation error for LangChainChainAssetComponent\ntable_name\n  Extra inputs are not permitted [type=extra_forbidden, input_value='summarized_articles', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for LangChainChainAssetComponent",
-        "table_name",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='summarized_articles', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
-      ]
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"LangChainChainAssetComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"LangChainChainAssetComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "langgraph_agent",
@@ -4398,8 +4209,11 @@
     {
       "id": "lead_scoring",
       "path": "assets/analytics/lead_scoring",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"LangGraphStep\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"LangGraphAgentComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -4408,8 +4222,6 @@
       "path": "assets/ai/legal_document_extractor",
       "status": "WARN",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"LangGraphStep\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LangGraphAgentComponent\" shadows an attribute in parent \"Resolvable\"",
         "UserWarning: Field name \"model\" in \"LangGraphStep\" shadows an attribute in parent \"Resolvable\"",
         "UserWarning: Field name \"model\" in \"LangGraphAgentComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
@@ -4468,17 +4280,10 @@
     {
       "id": "lineage_to_file",
       "path": "assets/sinks/lineage_to_file",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "1 validation error for LineageToFileComponent\napi_token_env\n  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.12/v/string_type",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for LineageToFileComponent",
-        "api_token_env",
-        "  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/string_type"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "lineage_to_openmetadata",
@@ -4641,10 +4446,8 @@
     {
       "id": "llm_evaluator",
       "path": "assets/ai/llm_evaluator",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"LLMChainExecutorComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -4661,33 +4464,29 @@
     {
       "id": "llm_multi_path_router",
       "path": "assets/ai/llm_multi_path_router",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"LLMChainExecutorComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"LLMChainExecutorComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
     {
       "id": "llm_output_parser",
       "path": "assets/ai/llm_output_parser",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "1 validation error for LLMOutputParserComponent\noutput_format\n  Extra inputs are not permitted [type=extra_forbidden, input_value='dict', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for LLMOutputParserComponent",
-        "output_format",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='dict', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "llm_prompt_executor",
       "path": "assets/ai/llm_prompt_executor",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"LlmMultiPathRouterComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LlmMultiPathRouterComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -4696,8 +4495,10 @@
     {
       "id": "local_csv_io_manager",
       "path": "io_managers/local_csv_io_manager",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"LlmMultiPathRouterComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -4736,17 +4537,10 @@
     {
       "id": "lookup",
       "path": "transforms/lookup",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "2 validation errors for LookupComponent\non\n  Field required [type=missing, input_value={'asset_name': 'lookup_ou...oup_name': 'transforms'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\n1\n  Keys should be strings [type=invalid_key, input_value=True, input_type=bool]\n    For further information visit https://errors.pydantic.dev/2.12/v/invalid_key",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Field required [type=missing, input_value={'asset_name': 'lookup_ou...oup_name': 'transforms'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing",
-        "1",
-        "  Keys should be strings [type=invalid_key, input_value=True, input_type=bool]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/invalid_key"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "ltv_prediction",
@@ -4821,17 +4615,10 @@
     {
       "id": "marketo_resource",
       "path": "resources/marketo_resource",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "3 validation errors for MarketoResourceComponent\nrest_url\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nclient_id_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nclient_secret_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Field required [type=missing, input_value={}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing",
-        "client_secret_env_var",
-        "  Field required [type=missing, input_value={}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "matillion_job_sensor",
@@ -4876,10 +4663,8 @@
     {
       "id": "medical_record_extractor",
       "path": "assets/ai/medical_record_extractor",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"MCPToolPickerComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"MCPToolPickerComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -4888,16 +4673,20 @@
     {
       "id": "memcached_cache_flush_job",
       "path": "jobs/memcached_cache_flush_job",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"MCPToolPickerComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
     {
       "id": "memcached_resource",
       "path": "resources/memcached_resource",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"MCPToolPickerComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -5160,17 +4949,12 @@
     {
       "id": "multi_touch_attribution",
       "path": "assets/analytics/multi_touch_attribution",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "1 validation error for MultiTouchAttributionComponent\ntouchpoint_data_asset_key\n  Extra inputs are not permitted [type=extra_forbidden, input_value='marketing_touchpoints', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for MultiTouchAttributionComponent",
-        "touchpoint_data_asset_key",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='marketing_touchpoints', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "multidimensional_scaling",
@@ -5283,32 +5067,18 @@
     {
       "id": "newrelic_nrql_query",
       "path": "assets/sources/newrelic_nrql_query",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "1 validation error for NewRelicNrqlQueryComponent\naccount_id\n  Input should be a valid string [type=string_type, input_value=1234567, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.12/v/string_type",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for NewRelicNrqlQueryComponent",
-        "account_id",
-        "  Input should be a valid string [type=string_type, input_value=1234567, input_type=int]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/string_type"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "newrelic_resource",
       "path": "resources/newrelic_resource",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "1 validation error for NewRelicResourceComponent\naccount_id\n  Input should be a valid string [type=string_type, input_value=1234567, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.12/v/string_type",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for NewRelicResourceComponent",
-        "account_id",
-        "  Input should be a valid string [type=string_type, input_value=1234567, input_type=int]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/string_type"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "notion_database_sensor",
@@ -5437,17 +5207,10 @@
     {
       "id": "ollama_inference_asset",
       "path": "assets/ai/ollama_inference_asset",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "1 validation error for OllamaInferenceAssetComponent\ntable_name\n  Extra inputs are not permitted [type=extra_forbidden, input_value='categorized_feedback', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for OllamaInferenceAssetComponent",
-        "table_name",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='categorized_feedback', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "one_hot_encoding",
@@ -5464,6 +5227,7 @@
       "path": "assets/ai/openai_agent",
       "status": "WARN",
       "warnings": [
+        "UserWarning: Field name \"model\" in \"OllamaInferenceAssetComponent\" shadows an attribute in parent \"Resolvable\"",
         "UserWarning: Field name \"model\" in \"OllamaInferenceAssetComponent\" shadows an attribute in parent \"Resolvable\""
       ],
       "error": null,
@@ -5472,9 +5236,8 @@
     {
       "id": "openai_llm",
       "path": "assets/ai/openai_llm",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"OllamaInferenceAssetComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -5583,17 +5346,10 @@
     {
       "id": "pandas_dataframe_check",
       "path": "asset_checks/pandas_dataframe_check",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "\"<fill in>__pandas_check\" is not a valid name in Dagster. Names must be in regex ^[A-Za-z0-9_]+$.",
-      "error_class": "DagsterInvalidDefinitionError",
-      "traceback": [
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/_core/definitions/utils.py\", line 94, in check_valid_name",
-        "    check_valid_chars(name)",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/_core/definitions/utils.py\", line 102, in check_valid_chars",
-        "    raise DagsterInvalidDefinitionError(",
-        "dagster._core.errors.DagsterInvalidDefinitionError: \"<fill in>__pandas_check\" is not a valid name in Dagster. Names must be in regex ^[A-Za-z0-9_]+$."
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "pandera_asset_check",
@@ -5675,17 +5431,7 @@
       "id": "pearson_correlation",
       "path": "assets/analytics/pearson_correlation",
       "status": "PASS",
-      "warnings": [
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -5732,17 +5478,10 @@
     {
       "id": "pgvector_asset",
       "path": "assets/analytics/pgvector_asset",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "1 validation error for PgvectorAssetComponent\nsource_table\n  Extra inputs are not permitted [type=extra_forbidden, input_value='public.products', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for PgvectorAssetComponent",
-        "source_table",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='public.products', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "pgvector_reader",
@@ -5808,7 +5547,17 @@
       "id": "pipedrive_resource",
       "path": "resources/pipedrive_resource",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
+        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
+        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
+        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
+        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
+        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
+        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
+        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
+        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0."
+      ],
       "error": null,
       "error_class": null
     },
@@ -5823,17 +5572,10 @@
     {
       "id": "plaid_resource",
       "path": "resources/plaid_resource",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "2 validation errors for PlaidResourceComponent\nclient_id_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nsecret_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Field required [type=missing, input_value={}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing",
-        "secret_env_var",
-        "  Field required [type=missing, input_value={}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "planned_catalog_agent",
@@ -6278,6 +6020,7 @@
       "path": "observations/rabbitmq_observation_sensor",
       "status": "PASS",
       "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-gcp` (0.28.1).",
         "DeprecationWarning: Function `AssetSelection.keys` is deprecated and will be removed in 2.0. Use AssetSelection.assets instead."
       ],
       "error": null,
@@ -6882,17 +6625,10 @@
     {
       "id": "shell_command_asset",
       "path": "assets/infrastructure/shell_command_asset",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "\"<fill in>\" is not a valid asset group name. Group names must be one or more segments matching ^[A-Za-z0-9_]+$ separated by '/' (e.g. 'marketing' or 'marketing/foo/bar').",
-      "error_class": "DagsterInvalidDefinitionError",
-      "traceback": [
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/_core/definitions/assets/definition/asset_spec.py\", line 190, in __new__",
-        "    validate_group_name(group_name)",
-        "  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/_core/definitions/utils.py\", line 219, in validate_group_name",
-        "    raise DagsterInvalidDefinitionError(",
-        "dagster._core.errors.DagsterInvalidDefinitionError: \"<fill in>\" is not a valid asset group name. Group names must be one or more segments matching ^[A-Za-z0-9_]+$ separated by '/' (e.g. 'marketing' or 'marketing/foo/bar')."
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "shell_command_job",
@@ -7021,17 +6757,10 @@
     {
       "id": "sling_replication_asset",
       "path": "integrations/sling_replication_asset",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "[Errno 2] No such file or directory: '<fill in>'",
-      "error_class": "FileNotFoundError",
-      "traceback": [
-        "           ^^^^^^^^^^^^^^^^^^^^^^^^",
-        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/sling_replication_asset/component.py\", line 21, in build_defs",
-        "    with open(self.replication_config_path) as f:",
-        "         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "FileNotFoundError: [Errno 2] No such file or directory: '<fill in>'"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "smooth",
@@ -7254,17 +6983,10 @@
     {
       "id": "snowflake_workspace",
       "path": "integrations/snowflake_workspace",
-      "status": "FAIL",
+      "status": "SKIP_PROJECT_REQUIRED",
       "warnings": [],
-      "error": "3 validation errors for SnowflakeWorkspaceComponent\nworkspace.account\n  Input should be a valid string [type=string_type, input_value={'env': 'SNOWFLAKE_ACCOUNT'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/string_type\nworkspace.user\n  Input should be a valid string [type=string_type, input_value={'env': 'SNOWFLAKE_USER'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/string_type\nworkspace.password\n  Input should be a valid string [type=string_type, input_value={'env': 'SNOWFLAKE_PASSWORD'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/string_type",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Input should be a valid string [type=string_type, input_value={'env': 'SNOWFLAKE_USER'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/string_type",
-        "workspace.password",
-        "  Input should be a valid string [type=string_type, input_value={'env': 'SNOWFLAKE_PASSWORD'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/string_type"
-      ]
+      "error": "Could not find dg.toml or pyproject.toml in .",
+      "error_class": null
     },
     {
       "id": "snowpark_pipeline",
@@ -7591,10 +7313,8 @@
     {
       "id": "support_ticket_standardizer",
       "path": "assets/analytics/support_ticket_standardizer",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"SupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"SupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -7603,8 +7323,13 @@
     {
       "id": "surrogate_key",
       "path": "transforms/surrogate_key",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"SupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"SupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"SupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"SupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -7973,17 +7698,12 @@
     {
       "id": "train_test_splitter",
       "path": "assets/transforms/train_test_splitter",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "1 validation error for TrainTestSplitterComponent\nseed\n  Extra inputs are not permitted [type=extra_forbidden, input_value=42, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for TrainTestSplitterComponent",
-        "seed",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value=42, input_type=int]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "translation_api_asset",
@@ -8158,19 +7878,16 @@
     {
       "id": "vector_index_snapshot",
       "path": "assets/ai/vector_index_snapshot",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"VantaEvidenceResponseAgentComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
     {
       "id": "vector_store_query",
       "path": "assets/ai/vector_store_query",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"VantaEvidenceResponseAgentComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -8179,8 +7896,9 @@
     {
       "id": "vector_store_writer",
       "path": "assets/ai/vector_store_writer",
-      "status": "PASS",
+      "status": "WARN",
       "warnings": [
+        "UserWarning: Field name \"model\" in \"VantaEvidenceResponseAgentComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -8479,17 +8197,10 @@
     {
       "id": "workday_resource",
       "path": "resources/workday_resource",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "4 validation errors for WorkdayResourceComponent\ntenant_url\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nclient_id_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nclient_secret_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nrefresh_token_env_var\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Field required [type=missing, input_value={}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing",
-        "refresh_token_env_var",
-        "  Field required [type=missing, input_value={}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.12/v/missing"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "x12_edi_parser",

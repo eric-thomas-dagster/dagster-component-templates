@@ -23846,6 +23846,81 @@
       ]
     },
     {
+      "id": "informatica_powercenter_workspace",
+      "name": "InformaticaPowerCenterWorkspaceComponent",
+      "category": "integration",
+      "description": "Informatica PowerCenter (on-prem, distinct from IDMC) workflows as Dagster assets. Discovers via `pmrep listobjects`, triggers via `pmcmd startworkflow`, polls via `pmcmd getworkflowdetails` to completion. Full workspace shape: workflow_selector + translation + StateBackedComponent + workflow_overrides (paramfile / -parameter) + polling_sensor + freshness_lag_threshold_seconds. Companion to `informatica_workspace` (IDMC).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/informatica_powercenter_workspace",
+      "tags": [
+        "informatica",
+        "powercenter",
+        "etl",
+        "workspace",
+        "on-prem",
+        "integration"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/informatica_powercenter_workspace/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/informatica_powercenter_workspace/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/informatica_powercenter_workspace/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/informatica_powercenter_workspace/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/informatica_powercenter_workspace/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-08-29",
+        "notes": "Code-validated. pmcmd + pmrep subprocess wrappers exercised via unit-testable pure functions (_extract_status / _extract_error parsers), full workspace-pattern shape (StateBackedComponent + translation + workflow_selector + workflow_overrides + polling_sensor + freshness_check). Real PowerCenter live validation requires an Informatica install — pending; roadmap: containerized PowerCenter demo for level:live promotion."
+      },
+      "produces": [
+        "asset",
+        "sensor",
+        "asset_check"
+      ],
+      "consumes": [
+        "informatica_powercenter"
+      ],
+      "agent_hints": {
+        "when_to_use": "User runs Informatica PowerCenter (on-prem product; NOT IDMC which is `informatica_workspace`) and wants Dagster to discover workflows via pmrep + trigger via pmcmd + poll to completion. Real customers frequently run both PowerCenter and IDMC during migrations — pair with `informatica_workspace`.",
+        "typical_upstream": "PowerCenter repository (REPO_PROD or similar) with existing workflows organized by folder. Prior scheduler = PowerCenter Workflow Monitor OR pmcmd startworkflow driven by cron / Autosys / Control-M.",
+        "typical_downstream": "Snowflake / Oracle / SQL Server target tables. dbt Cloud kicked off via `dbt_cloud_trigger_job` on completion.",
+        "example_prompts": [
+          "Discover every PowerCenter workflow in the Sales folder and represent each as a Dagster asset",
+          "Trigger a PowerCenter workflow from Dagster with pmcmd and poll to completion",
+          "Pair Dagster orchestration with an existing PowerCenter deployment during IDMC migration"
+        ],
+        "anti_uses": "For Informatica IDMC (cloud), use `informatica_workspace`. This component wraps ONLY on-prem PowerCenter (pmcmd / pmrep binary access required).",
+        "requires_pip": [],
+        "requires_env_vars": [
+          "PC_USER",
+          "PC_PASSWORD"
+        ],
+        "requires_binaries": [
+          "pmcmd",
+          "pmrep"
+        ],
+        "gaps_from_full_workspace_pattern": "Full workspace-pattern parity with informatica_workspace / ssis_workspace: StateBackedComponent caching, translation: callable, @public annotations, @record props, workflow_selector, workflow_overrides (paramfile + -parameter), polling_sensor, freshness_lag_threshold_seconds all present. Freshness check body is a placeholder pending pmrep gettaskdetails integration. Live validation requires an Informatica install — roadmap: promote to level:live via containerized PowerCenter demo."
+      },
+      "keywords": [
+        "informatica",
+        "powercenter",
+        "pmcmd",
+        "pmrep",
+        "on-prem",
+        "workflow",
+        "legacy etl",
+        "workspace",
+        "integration service",
+        "repository",
+        "multi asset workspace",
+        "workspace-style component",
+        "3rd party",
+        "external system"
+      ]
+    },
+    {
       "id": "inline_dataframe",
       "name": "Inline DataFrame",
       "category": "source",

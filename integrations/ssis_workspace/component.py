@@ -181,6 +181,48 @@ class SsisPackageSelector(dg.Model):
     )
 
 
+# ── Per-package parameter override ──────────────────────────────────
+class SsisPackageOverride(dg.Model):
+    """Override runtime parameters + environment reference for packages
+    matching an fnmatch pattern against `<folder>/<project>/<package>`.
+
+    Applied at `create_execution` time via
+    `SSISDB.catalog.set_execution_parameter_value`. Values can reference
+    partitions with `{partition_key}` — the string is `.format()`-substituted
+    at run time. Environments (`environment_reference:` field) map to
+    `SSISDB.catalog.create_environment_reference`, letting the SSISDB
+    environment's variable bundle override matching parameters.
+
+    Object type mapping (SQL Server docs):
+      - `object_type=20` → project parameter (project-scoped)
+      - `object_type=30` → package parameter (package-scoped)
+      - `object_type=50` → property override (rarely needed)
+
+    Parameter scope defaults to `package` (30). Set `scope: project` to
+    write project-level parameters instead.
+    """
+
+    match: str = Field(
+        description="fnmatch pattern against `<folder>/<project>/<package>` "
+        "(case-insensitive). Example: 'Sales/*/LoadCustomers'."
+    )
+    parameters: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Parameter name → value. Value can be a Jinja-templated "
+        "string with `{partition_key}` for partitioned runs.",
+    )
+    scope: str = Field(
+        default="package",
+        description="'package' (object_type=30, default) or 'project' (object_type=20).",
+    )
+    environment_reference: Optional[str] = Field(
+        default=None,
+        description="Name of an SSISDB environment (in the same folder as the "
+        "project) to reference for this execution. Environment variables "
+        "override parameter values.",
+    )
+
+
 # ── Base translator ─────────────────────────────────────────────────
 class SsisComponentTranslator:
     """Base translator: SsisPackageProps → AssetSpec.
@@ -274,6 +316,17 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         default=None,
         description="Filter which packages become assets. Default = every "
         "package in SSISDB.",
+    )
+    package_overrides: Optional[List[SsisPackageOverride]] = Field(
+        default=None,
+        description=(
+            "Runtime parameters + environment references applied at execute "
+            "time via `SSISDB.catalog.set_execution_parameter_value` (and, "
+            "when set, `create_environment_reference`). Only used when "
+            "`action: execute`. Multiple overrides match in order — every "
+            "matching entry's parameters merge (later entries win on conflict). "
+            "See `SsisPackageOverride` for shape."
+        ),
     )
     translation: Annotated[
         Optional[TranslationFn[SsisPackageProps]],
@@ -465,12 +518,77 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
         return [p for p in packages if _match(p)]
 
+    def _resolve_overrides(self, props: SsisPackageProps, context) -> Dict[str, Any]:
+        """Merge all matching package_overrides into one {parameters, scope, environment_reference}.
+
+        `parameters` values pass through `str.format(partition_key=...)` when
+        the run is partitioned, so `"{partition_key}"` substitutes at run time.
+        """
+        merged_params: Dict[str, Any] = {}
+        env_ref: Optional[str] = None
+        # SSIS uses object_type integers on set_execution_parameter_value —
+        # 30 = package param (default), 20 = project param. Track the last
+        # explicit scope declaration per key so users can pin a specific one.
+        param_scopes: Dict[str, str] = {}
+
+        if not self.package_overrides:
+            return {"parameters": {}, "param_scopes": {}, "environment_reference": None}
+
+        qname_lower = props.qualified_name.lower()
+        partition_key = getattr(context, "partition_key", None)
+
+        for ov in self.package_overrides:
+            if not fnmatch.fnmatch(qname_lower, ov.match.lower()):
+                continue
+            if ov.parameters:
+                for k, v in ov.parameters.items():
+                    if isinstance(v, str) and partition_key is not None and "{partition_key}" in v:
+                        v = v.format(partition_key=partition_key)
+                    merged_params[k] = v
+                    param_scopes[k] = ov.scope
+            if ov.environment_reference:
+                env_ref = ov.environment_reference
+
+        return {
+            "parameters": merged_params,
+            "param_scopes": param_scopes,
+            "environment_reference": env_ref,
+        }
+
     def _execute_package(self, engine, props: SsisPackageProps, context) -> Dict[str, Any]:
-        """EXEC create_execution + start_execution + poll to completion."""
+        """EXEC create_execution + optional set_parameter_value + start_execution + poll."""
         from sqlalchemy import text as sa_text
         pkg_dtsx = f"{props.package_name}.dtsx"
 
+        override = self._resolve_overrides(props, context)
+        env_ref_name = override.get("environment_reference")
+        parameters = override.get("parameters") or {}
+        param_scopes = override.get("param_scopes") or {}
+
         with engine.connect() as conn:
+            # Environment reference (optional). SSIS environments live under
+            # a folder; the reference has to already exist against the target
+            # project (created via SSMS or `catalog.create_environment_reference`).
+            reference_id = None
+            if env_ref_name:
+                ref_row = conn.execute(
+                    sa_text(
+                        """
+                        SELECT er.reference_id
+                        FROM SSISDB.catalog.environment_references er
+                        WHERE er.project_id = :pid AND er.environment_name = :env
+                        """
+                    ),
+                    {"pid": props.project_id, "env": env_ref_name},
+                ).mappings().first()
+                if not ref_row:
+                    raise RuntimeError(
+                        f"SSIS environment_reference {env_ref_name!r} not found for "
+                        f"project_id={props.project_id}. Create it via SSMS or "
+                        f"`SSISDB.catalog.create_environment_reference` first."
+                    )
+                reference_id = int(ref_row["reference_id"])
+
             row = conn.execute(
                 sa_text(
                     """
@@ -480,16 +598,42 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                         @folder_name   = :folder,
                         @project_name  = :project,
                         @use32bitruntime = 0,
-                        @reference_id  = NULL,
+                        @reference_id  = :ref,
                         @execution_id  = @exec_id OUTPUT;
                     SELECT @exec_id AS execution_id;
                     """
                 ),
-                {"pkg": pkg_dtsx, "folder": props.folder_name, "project": props.project_name},
+                {
+                    "pkg": pkg_dtsx,
+                    "folder": props.folder_name,
+                    "project": props.project_name,
+                    "ref": reference_id,
+                },
             ).mappings().first()
             execution_id = row["execution_id"] if row else None
             if execution_id is None:
                 raise RuntimeError(f"create_execution returned no execution_id for {props.qualified_name}")
+
+            # Runtime parameter overrides — one call per parameter.
+            #   object_type 20 = project param, 30 = package param
+            for pname, pvalue in parameters.items():
+                scope = param_scopes.get(pname, "package")
+                object_type = 20 if scope == "project" else 30
+                conn.execute(
+                    sa_text(
+                        "EXEC SSISDB.catalog.set_execution_parameter_value "
+                        "@execution_id = :eid, "
+                        "@object_type  = :otype, "
+                        "@parameter_name = :pname, "
+                        "@parameter_value = :pval"
+                    ),
+                    {
+                        "eid": execution_id,
+                        "otype": object_type,
+                        "pname": pname,
+                        "pval": pvalue,
+                    },
+                )
 
             conn.execute(
                 sa_text("EXEC SSISDB.catalog.start_execution :exec_id"),
@@ -498,9 +642,15 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             if hasattr(conn, "commit"):
                 conn.commit()
 
-        context.log.info(
-            f"SSIS package {props.qualified_name} started — execution_id={execution_id}"
-        )
+        if parameters or env_ref_name:
+            context.log.info(
+                f"SSIS package {props.qualified_name} started — execution_id={execution_id}, "
+                f"parameters={list(parameters.keys())}, environment_reference={env_ref_name}"
+            )
+        else:
+            context.log.info(
+                f"SSIS package {props.qualified_name} started — execution_id={execution_id}"
+            )
 
         if not self.wait_for_completion:
             return {

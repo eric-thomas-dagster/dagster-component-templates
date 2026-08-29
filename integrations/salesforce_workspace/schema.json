@@ -3,6 +3,12 @@
   "description": "Auto-emit one Dagster asset per Salesforce SObject by enumerating /sobjects. StateBackedComponent \u2014 discovery cached to disk. Materializing an asset runs a SOQL SELECT FIELDS(STANDARD) query and emits the result as a DataFrame. Workspace-shape peer of salesforce_ingestion (single-SObject).",
   "category": "ingestion",
   "icon": "AccountTree",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "One Dagster asset per selected item discovered in the vendor. See README for what each materialization produces."
+    }
+  },
   "attributes": {
     "instance_url_env_var": {
       "type": "string",

@@ -3,6 +3,12 @@
   "description": "Auto-emit one Dagster asset per Cognos report by enumerating reports in the specified folders via the Cognos Analytics REST API. StateBackedComponent \u2014 discovery cached to disk. Materializing an asset runs the underlying report. The workspace-shape peer of the cognos_* low-level components.",
   "category": "ingestion",
   "icon": "AccountTree",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "One Dagster asset per selected item discovered in the vendor. See README for what each materialization produces."
+    }
+  },
   "attributes": {
     "base_url_env_var": {
       "type": "string",

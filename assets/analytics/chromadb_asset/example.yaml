@@ -5,7 +5,6 @@ attributes:
   chroma_host: localhost
   chroma_port: 8000
   collection_name: products
-  source_table: public.products
   id_column: product_id
   text_column: description
   metadata_columns:

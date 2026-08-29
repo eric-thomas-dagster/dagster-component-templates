@@ -17,6 +17,18 @@ attributes:
     include: ["*etl*"]
     exclude: ["*_test*"]
 
+  # Runtime parameter overrides (only used when action=execute).
+  # For MTT: parameters → mtTaskParameters. For others: → runtimeConfig.parameters.
+  # `{partition_key}` substitutes at run time.
+  # task_overrides:
+  #   - match: "Sales/Prod/mtt_load_customers"
+  #     parameters:
+  #       p_target_schema: "raw_sales"
+  #       p_batch_date:    "{partition_key}"
+  #   - match: "Sales/Prod/mi_load_files"
+  #     input_files:
+  #       - "/mnt/landing/customers_{partition_key}.csv"
+
   action: noop                           # noop | execute
   wait_for_completion: true
   poll_interval_seconds: 30

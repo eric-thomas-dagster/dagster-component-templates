@@ -22,6 +22,20 @@ attributes:
     include:   ["*sales*", "*revenue*"]
     exclude:   ["*_test*"]
 
+  # Runtime parameters + environment references (only used when action=execute).
+  # Applied at execute time via SSISDB.catalog.set_execution_parameter_value.
+  # `{partition_key}` substitutes at run time from the run's partition.
+  # package_overrides:
+  #   - match: "Sales/*/LoadCustomers"
+  #     parameters:
+  #       Extract.TargetSchema: raw_sales
+  #       Extract.BatchDate: "{partition_key}"
+  #     environment_reference: "PROD"
+  #   - match: "Sales/*/*"
+  #     scope: project                          # object_type=20 (project param)
+  #     parameters:
+  #       CM.DEST_DB.ConnectionString: "Data Source=snowflake-01;..."
+
   # What happens on materialize:
   #   noop     — external asset (declare-only, no execution triggered)
   #   execute  — EXEC SSISDB.catalog.create_execution + start_execution + poll

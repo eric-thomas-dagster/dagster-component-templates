@@ -3,11 +3,43 @@
   "description": "Poll Qlik Enterprise Manager for per-task metrics (state, latency, throughput, error count) and emit a DataFrame asset. One row per task per materialization. Foundation for CDC observability dashboards and alert-input assets.",
   "category": "ingestion",
   "icon": "TableChart",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame with one row per vendor record. Chain a downstream sink component (dataframe_to_snowflake / _to_bigquery / _to_duckdb / ...) to persist."
+    }
+  },
   "attributes": {
-    "asset_key": {"type": "string", "label": "Asset Key", "required": true, "description": "Asset key for the emitted DataFrame."},
-    "servers": {"type": "array", "label": "Servers", "required": true, "description": "Enterprise Manager server names to poll."},
-    "tasks": {"type": "array", "label": "Tasks", "required": false, "description": "Optional whitelist of task names. Leave unset to include every task on every server."},
-    "group_name": {"type": "string", "label": "Group Name", "required": false, "description": "Dagster asset group name."},
-    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "qlik_replicate_resource", "description": "Resource key to look up."}
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "required": true,
+      "description": "Asset key for the emitted DataFrame."
+    },
+    "servers": {
+      "type": "array",
+      "label": "Servers",
+      "required": true,
+      "description": "Enterprise Manager server names to poll."
+    },
+    "tasks": {
+      "type": "array",
+      "label": "Tasks",
+      "required": false,
+      "description": "Optional whitelist of task names. Leave unset to include every task on every server."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "description": "Dagster asset group name."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "qlik_replicate_resource",
+      "description": "Resource key to look up."
+    }
   }
 }

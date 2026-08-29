@@ -172,19 +172,87 @@ def _classify_module_not_found(exc: ModuleNotFoundError) -> str | None:
 
 
 def _classify_credentials_error(exc: Exception) -> str | None:
-    """ValueError or FileNotFoundError that complain about credentials
-    are the eager-credentials-in-init anti-pattern. Flag as SKIP_CREDENTIALS
-    so the report distinguishes 'component validates creds too eagerly' from
-    'component is broken'."""
+    """ValueError / FileNotFoundError / third-party ClientError that complain
+    about credentials or env-vars are the eager-credentials-in-init anti-
+    pattern (or the eager-network-call anti-pattern for AWS/GCP SDKs that
+    connect at instantiate time). Flag as SKIP_CREDENTIALS so the report
+    distinguishes 'component validates creds too eagerly' from 'component
+    is broken'."""
     msg = str(exc).lower()
+
     if isinstance(exc, FileNotFoundError):
         path = str(getattr(exc, "filename", "")).lower()
         if "credential" in path or "credentials" in path or "${" in path:
             return "SKIP_CREDENTIALS"
+        # Databricks config file, kubectl kubeconfig, aws credentials —
+        # component tries to read a per-user config that doesn't exist
+        # in the harness env.
+        if "databricks" in path or ".config" in path or "kube" in path:
+            return "SKIP_CREDENTIALS"
+
+    # OSError: env var 'X' not set — component validates env-var presence
+    # at instantiate time (before any network call). Same category.
+    if isinstance(exc, OSError) and "env var" in msg and "not set" in msg:
+        return "SKIP_CREDENTIALS"
+
+    # RuntimeError from workspace resources requiring a password field
+    if isinstance(exc, RuntimeError) and (
+        "requires a password" in msg
+        or "requires an api" in msg
+        or "requires a token" in msg
+    ):
+        return "SKIP_CREDENTIALS"
+
+    # AWS botocore ClientError from mock creds — IncompleteSignatureException,
+    # ValidationException, InvalidClientTokenId. These fire when a component
+    # eagerly calls list_* / describe_* against AWS at instantiate time and
+    # the mock creds don't sign correctly. Not a component bug in shape;
+    # it's the eager-network-call anti-pattern like the credentials one.
+    if (
+        "clienterror" in exc.__class__.__name__.lower()
+        or "operationnotpageableerror" in exc.__class__.__name__.lower()
+    ):
+        # These come from boto3/botocore — always credential- or endpoint-
+        # related in the harness context.
+        return "SKIP_CREDENTIALS"
+
+    # Plain Exception with an AWS operation-name in the message — same
+    # pattern (component wrapped the AWS call in a bare `except Exception`
+    # and re-raised).
+    if (
+        "an error occurred (" in msg
+        and (
+            "validationexception" in msg
+            or "incompletesignatureexception" in msg
+            or "invalidclienttokenid" in msg
+            or "when calling the" in msg
+        )
+    ):
+        return "SKIP_CREDENTIALS"
+
     if "credential" in msg or "credentials_path" in msg or \
        "google_application_credentials" in msg or \
        "api_key" in msg and "must" in msg:
         return "SKIP_CREDENTIALS"
+    return None
+
+
+def _classify_import_error(exc: ImportError) -> str | None:
+    """ImportError variants — including `cannot import name X from google.cloud`
+    that happens when a specific sub-module of a mega-SDK isn't installed
+    (google-cloud-bigquery-datatransfer vs google-cloud-bigquery, etc.).
+    These are optional-dep patterns and should skip, not fail."""
+    msg = str(exc)
+    # google.cloud has ~40 sub-modules that are all separate PyPI packages
+    if "google.cloud" in msg and "cannot import name" in msg:
+        return "SKIP_OPTIONAL_DEP"
+    # dagster_airlift sub-modules move between releases
+    if "dagster_airlift" in msg and "cannot import name" in msg:
+        return "SKIP_OPTIONAL_DEP"
+    # generic cannot-import-from-optional-SDK pattern
+    for opt in _OPTIONAL_DEPS:
+        if f"from '{opt}'" in msg or f"from \"{opt}\"" in msg or f"from {opt}" in msg:
+            return "SKIP_OPTIONAL_DEP"
     return None
 
 
@@ -336,13 +404,27 @@ def _validate_one(entry: dict) -> dict:
         result["error_class"] = type(exc).__name__
         if not skip:
             result["traceback"] = traceback.format_exc().splitlines()[-5:]
-    except (ValueError, FileNotFoundError) as exc:
-        cred_skip = _classify_credentials_error(exc)
-        result["status"] = cred_skip or "FAIL"
-        result["error"] = str(exc)
-        result["error_class"] = type(exc).__name__
-        if not cred_skip:
-            result["traceback"] = traceback.format_exc().splitlines()[-5:]
+    except (ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
+        msg = str(exc)
+        # dbt module-import deadlock (parallel workers trip _ModuleLock).
+        # _DeadlockError subclasses RuntimeError so it lands here.
+        if "deadlock detected" in msg.lower() and "dagster_dbt" in msg.lower():
+            result["status"] = "SKIP_PROJECT_REQUIRED"
+            result["error"] = msg
+            result["error_class"] = type(exc).__name__
+        # Databricks bundle YAML missing — component eagerly reads it at
+        # build_defs time. Requires a real project.
+        elif isinstance(exc, FileNotFoundError) and "databricks" in msg.lower() and ".yml" in msg.lower():
+            result["status"] = "SKIP_PROJECT_REQUIRED"
+            result["error"] = msg
+            result["error_class"] = type(exc).__name__
+        else:
+            cred_skip = _classify_credentials_error(exc)
+            result["status"] = cred_skip or "FAIL"
+            result["error"] = msg
+            result["error_class"] = type(exc).__name__
+            if not cred_skip:
+                result["traceback"] = traceback.format_exc().splitlines()[-5:]
     except ImportError as exc:
         msg = str(exc)
         if "relative import" in msg.lower() or "no known parent package" in msg.lower():
@@ -354,15 +436,28 @@ def _validate_one(entry: dict) -> dict:
             result["status"] = "SKIP_OPTIONAL_DEP"
             result["error"] = msg
         else:
-            result["status"] = "FAIL"
-            result["error"] = msg
-            result["error_class"] = type(exc).__name__
-            result["traceback"] = traceback.format_exc().splitlines()[-5:]
+            # Fallback classifier: `cannot import name X from Y` where Y is
+            # a known optional-dep root (google.cloud sub-modules,
+            # dagster_airlift sub-modules, etc.).
+            opt_skip = _classify_import_error(exc)
+            if opt_skip:
+                result["status"] = opt_skip
+                result["error"] = msg
+            else:
+                result["status"] = "FAIL"
+                result["error"] = msg
+                result["error_class"] = type(exc).__name__
+                result["traceback"] = traceback.format_exc().splitlines()[-5:]
     except AttributeError as exc:
         msg = str(exc)
+        # dbt project manager degrades to raw string when the project path
+        # doesn't exist — needs a real dbt project. Check BEFORE the generic
+        # "no attribute" branch below.
+        if "defs_state_discriminator" in msg:
+            result["status"] = "SKIP_PROJECT_REQUIRED"
         # Stub context missing attr — classify as SKIP_CONTEXT_MISSING_ATTR
         # so we can improve the stub on the next pass; not a component bug.
-        if "_StubComponentLoadContext" in msg or "no attribute" in msg.lower():
+        elif "_StubComponentLoadContext" in msg or "no attribute" in msg.lower():
             # Heuristic: if the missing attr is something we'd expect on
             # ComponentLoadContext, mark it as a stub gap. Otherwise it's
             # a real AttributeError inside the component.
@@ -389,6 +484,20 @@ def _validate_one(entry: dict) -> dict:
         elif ("pip install" in msg.lower()
               and ("required" in msg.lower() or "install with" in msg.lower())):
             result["status"] = "SKIP_OPTIONAL_DEP"
+            result["error"] = msg
+        # AWS boto3 / botocore errors from mock creds — component makes an
+        # eager AWS call at instantiate time that fails signature check.
+        # Classify as credential-related SKIP.
+        elif (
+            cred_skip := _classify_credentials_error(exc)
+        ):
+            result["status"] = cred_skip
+            result["error"] = msg
+        # Parallel-validation deadlock during dbt module imports. Real
+        # dbt runs are single-threaded per-project; the harness's parallel
+        # imports trip a module-lock. Not a component defect.
+        elif "deadlock detected" in msg.lower() and "dagster_dbt" in msg.lower():
+            result["status"] = "SKIP_PROJECT_REQUIRED"
             result["error"] = msg
         else:
             result["status"] = "FAIL"

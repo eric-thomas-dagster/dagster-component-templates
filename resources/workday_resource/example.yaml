@@ -1,3 +1,7 @@
 type: dagster_component_templates.WorkdayResourceComponent
 attributes:
-  # See schema.json for full attribute reference
+  resource_key: workday
+  tenant_url: "https://wd5-impl-services1.workday.com/ccx/api/v1/mytenant"
+  client_id_env_var: WORKDAY_CLIENT_ID
+  client_secret_env_var: WORKDAY_CLIENT_SECRET
+  refresh_token_env_var: WORKDAY_REFRESH_TOKEN

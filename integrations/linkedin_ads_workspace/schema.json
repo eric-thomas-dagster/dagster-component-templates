@@ -3,6 +3,12 @@
   "description": "Auto-emit one Dagster asset per LinkedIn Ads campaign across specified ad accounts. StateBackedComponent — discovery cached to disk. Materializing an asset runs an adAnalytics query for the campaign and emits a DataFrame with impressions / clicks / cost / conversions / video views.",
   "category": "ingestion",
   "icon": "AccountTree",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "One Dagster asset per selected LinkedIn Ads campaign. Each materialization pulls adAnalytics rows from the LinkedIn Marketing API and produces a pandas DataFrame keyed on (campaign_id, time bucket) with the configured analytics fields (default: impressions / clicks / costInUsd / conversions / videoViews). Sink to a warehouse by chaining a downstream `dataframe_to_snowflake` / `dataframe_to_bigquery` / etc. component. No inputs — data flows from LinkedIn."
+    }
+  },
   "attributes": {
     "access_token_env_var": {"type": "string", "label": "Access Token Env Var", "required": true, "description": "Env var with LinkedIn Marketing API access token (r_ads_reporting scope)."},
     "account_ids": {"type": "array", "label": "Ad Account IDs", "required": true, "description": "LinkedIn sponsored account IDs."},

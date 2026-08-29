@@ -1,7 +1,9 @@
 type: dagster_component_templates.DltPipelineAssetsComponent
 attributes:
-  pipeline_module: <fill in>
-  pipeline_name: <fill in>
-  source_module: <fill in>
-  source_name: <fill in>
-  group_name: <fill in>
+  # Dotted path to a Python module exposing a dlt.Pipeline object.
+  pipeline_module: my_project.dlt_pipelines
+  pipeline_name: chess_pipeline
+  # Dotted path to a Python module exposing a @dlt.source function.
+  source_module: my_project.dlt_sources
+  source_name: chess_source
+  group_name: dlt_ingestion

@@ -3,6 +3,12 @@
   "description": "Talend Cloud (TMC) artifacts as Dagster assets. Discovers /workspaces/{id}/executables + optionally POSTs /executions + polls to completion. Fivetran-shape workspace: block for auth + selector for filtering + polling_sensor + freshness_lag_threshold_seconds.",
   "category": "integration",
   "icon": "Cloud",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "One Dagster asset per selected item discovered in the vendor. See README for what each materialization produces."
+    }
+  },
   "attributes": {
     "workspace": {
       "type": "object",
@@ -22,7 +28,10 @@
       "description": "noop = external asset; execute = POST /executions + poll.",
       "required": false,
       "default": "noop",
-      "enum": ["noop", "execute"],
+      "enum": [
+        "noop",
+        "execute"
+      ],
       "ui:widget": "select"
     },
     "wait_for_completion": {
@@ -31,15 +40,27 @@
       "default": true,
       "ui:widget": "checkbox"
     },
-    "poll_interval_seconds": {"type": "integer", "required": false, "default": 30},
-    "timeout_seconds": {"type": "integer", "required": false, "default": 3600},
+    "poll_interval_seconds": {
+      "type": "integer",
+      "required": false,
+      "default": 30
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "required": false,
+      "default": 3600
+    },
     "polling_sensor": {
       "type": "boolean",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
     },
-    "observation_interval_seconds": {"type": "integer", "required": false, "default": 300},
+    "observation_interval_seconds": {
+      "type": "integer",
+      "required": false,
+      "default": 300
+    },
     "freshness_lag_threshold_seconds": {
       "type": "integer",
       "label": "Freshness Lag Threshold (seconds)",
@@ -48,21 +69,48 @@
     },
     "asset_key_prefix": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "required": false,
       "ui:widget": "list"
     },
-    "group_name": {"type": "string", "required": false, "default": "talend_cloud"},
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "default": "talend_cloud"
+    },
     "kinds": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "required": false,
-      "default": ["talend"],
+      "default": [
+        "talend"
+      ],
       "ui:widget": "list"
     },
-    "tags": {"type": "object", "required": false, "ui:widget": "key-value"},
-    "owners": {"type": "array", "items": {"type": "string"}, "required": false, "ui:widget": "list"}
+    "tags": {
+      "type": "object",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "required": false,
+      "ui:widget": "list"
+    }
   },
-  "tags": ["talend", "tmc", "cloud", "etl", "workspace"],
+  "tags": [
+    "talend",
+    "tmc",
+    "cloud",
+    "etl",
+    "workspace"
+  ],
   "name": "Talend Cloud Workspace"
 }

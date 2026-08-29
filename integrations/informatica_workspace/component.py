@@ -111,6 +111,50 @@ class InformaticaWorkspaceConfig(dg.Model):
     verify_ssl: bool = Field(default=True)
 
 
+# ── Per-task runtime override ───────────────────────────────────────
+class InformaticaTaskOverride(dg.Model):
+    """Runtime parameters + input file overrides for IDMC tasks matching
+    an fnmatch pattern against `<folder_path>/<task_name>`.
+
+    Applied at execute time via the `POST /api/v2/job` request body:
+
+        {
+          "taskId": ...,
+          "taskType": "MTT",
+          "runtimeConfig": {                          # generic override map
+            "parameters": [ {"name": ..., "value": ...} ]
+          },
+          "mtTaskParameters": [ ... ],                # MTT-specific parameters
+          "inputFiles": [ ... ]                       # Mass Ingestion input files
+        }
+
+    Values can reference `{partition_key}` — substituted at run time.
+    """
+
+    match: str = Field(
+        description="fnmatch pattern against `<folder_path>/<task_name>` (case-insensitive)."
+    )
+    parameters: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Parameter name → value. Sent as `mtTaskParameters` for MTT tasks "
+            "and as `runtimeConfig.parameters` for all other task types. "
+            "Value can be a string with `{partition_key}` for partitioned runs."
+        ),
+    )
+    input_files: Optional[List[str]] = Field(
+        default=None,
+        description="File paths sent as `inputFiles` (used by Mass Ingestion tasks).",
+    )
+    runtime_config: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Raw `runtimeConfig` block appended to the job body. Use for keys "
+            "beyond `parameters` (e.g. `emailNotification`, `parameterFileName`)."
+        ),
+    )
+
+
 # ── Selector block ──────────────────────────────────────────────────
 class InformaticaTaskSelector(dg.Model):
     """Filter which IDMC tasks become Dagster assets."""
@@ -195,6 +239,15 @@ class InformaticaWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
     workspace: InformaticaWorkspaceConfig = Field(description="IDMC connection details.")
     task_selector: Optional[InformaticaTaskSelector] = Field(default=None)
+    task_overrides: Optional[List[InformaticaTaskOverride]] = Field(
+        default=None,
+        description=(
+            "Runtime parameters + input files applied at execute time in the "
+            "`POST /api/v2/job` body. Only used when `action: execute`. "
+            "Multiple entries can match — parameters merge (later wins). "
+            "See `InformaticaTaskOverride` for shape."
+        ),
+    )
     translation: Annotated[
         Optional[TranslationFn[InformaticaTaskProps]],
         TranslationFnResolver(
@@ -358,8 +411,71 @@ class InformaticaWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
         return [t for t in tasks if _match(t)]
 
+    def _resolve_task_overrides(self, task_qname: str, task_kind: str, context) -> Dict[str, Any]:
+        """Merge all matching task_overrides into a single {parameters, input_files, runtime_config}.
+
+        String values may reference `{partition_key}` for partitioned runs.
+        """
+        merged_params: Dict[str, Any] = {}
+        merged_files: List[str] = []
+        merged_runtime: Dict[str, Any] = {}
+
+        if not self.task_overrides:
+            return {"parameters": merged_params, "input_files": merged_files, "runtime_config": merged_runtime}
+
+        partition_key = getattr(context, "partition_key", None)
+
+        def _sub(v):
+            if isinstance(v, str) and partition_key is not None and "{partition_key}" in v:
+                return v.format(partition_key=partition_key)
+            return v
+
+        for ov in self.task_overrides:
+            if not fnmatch.fnmatch(task_qname.lower(), ov.match.lower()):
+                continue
+            if ov.parameters:
+                for k, v in ov.parameters.items():
+                    merged_params[k] = _sub(v)
+            if ov.input_files:
+                merged_files.extend(_sub(f) for f in ov.input_files)
+            if ov.runtime_config:
+                for k, v in ov.runtime_config.items():
+                    merged_runtime[k] = _sub(v) if isinstance(v, (str, int, float, bool)) else v
+
+        return {
+            "parameters": merged_params,
+            "input_files": merged_files,
+            "runtime_config": merged_runtime,
+        }
+
     def _execute_task(self, task: Dict[str, Any], session_id: str, base_url: str, context) -> Dict[str, Any]:
-        body = {"taskId": task["id"], "taskType": task["kind"]}
+        body: Dict[str, Any] = {"taskId": task["id"], "taskType": task["kind"]}
+
+        # Apply user-configured runtime overrides.
+        overrides = self._resolve_task_overrides(
+            task_qname=task.get("qualified_name") or task.get("name", ""),
+            task_kind=task["kind"],
+            context=context,
+        )
+        params = overrides["parameters"]
+        input_files = overrides["input_files"]
+        runtime_cfg = dict(overrides["runtime_config"])
+
+        if params:
+            # MTT tasks use `mtTaskParameters`; other tasks use `runtimeConfig.parameters`.
+            if task["kind"].upper() == "MTT":
+                body["mtTaskParameters"] = [
+                    {"name": k, "value": v} for k, v in params.items()
+                ]
+            else:
+                runtime_cfg.setdefault("parameters", []).extend(
+                    {"name": k, "value": v} for k, v in params.items()
+                )
+        if input_files:
+            body["inputFiles"] = input_files
+        if runtime_cfg:
+            body["runtimeConfig"] = runtime_cfg
+
         r = self._http_post("/api/v2/job", session_id, base_url, body)
         run_id = str(r.get("runId") or r.get("jobRunId") or "")
         if not run_id:
@@ -443,10 +559,13 @@ class InformaticaWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             def _informatica_execute(context: dg.AssetExecutionContext):
                 session_id, base_url = _self._login()
                 for spec in specs:
+                    folder_path = spec.metadata.get("informatica/folder_path") or ""
+                    task_name = spec.metadata["informatica/name"]
                     task = {
                         "id": spec.metadata["informatica/id"],
-                        "name": spec.metadata["informatica/name"],
+                        "name": task_name,
                         "kind": spec.metadata["informatica/kind"],
+                        "qualified_name": f"{folder_path}/{task_name}" if folder_path else task_name,
                     }
                     result = _self._execute_task(task, session_id, base_url, context)
                     if _self.wait_for_completion and result.get("run_status") not in IDMC_SUCCESS:

@@ -1,6 +1,11 @@
 type: dagster_component_templates.PandasDataframeCheckComponent
 attributes:
-  asset_key: <fill in>
-  required_columns: []
-  column_types: {}
+  asset_key: analytics/orders
+  required_columns:
+    - order_id
+    - customer_id
+    - amount
+  column_types:
+    order_id: int
+    amount: float
   blocking: false

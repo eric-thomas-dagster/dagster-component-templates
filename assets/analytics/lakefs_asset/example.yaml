@@ -5,7 +5,7 @@ attributes:
   mode: commit
   branch: main
   commit_message: "Daily ETL materialization - {run_id}"
-  lakefs_endpoint_env_var: LAKEFS_ENDPOINT
+  endpoint: "https://lakefs.example.com"
   access_key_env_var: LAKEFS_ACCESS_KEY_ID
   secret_key_env_var: LAKEFS_SECRET_ACCESS_KEY
   group_name: data_versioning

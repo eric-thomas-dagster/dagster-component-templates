@@ -3,5 +3,5 @@ attributes:
   asset_name: lineage_to_file
   upstream_asset_key: lineage_graph
   catalog_url: data/exports/dagster_lineage.json
-  api_token_env: 
+  api_token_env: MYCATALOG_TOKEN
   only_push_on_change: true

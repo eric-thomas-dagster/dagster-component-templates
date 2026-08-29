@@ -2,6 +2,12 @@
   "component_type": "dagster_component_templates.ImapInboxSourceComponent",
   "description": "ImapInboxSourceComponent \u2014 fetch emails from an IMAP server.",
   "category": "source",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame with one row per vendor record. Chain a downstream sink component (dataframe_to_snowflake / _to_bigquery / _to_duckdb / ...) to persist."
+    }
+  },
   "attributes": {
     "asset_name": {
       "type": "string",

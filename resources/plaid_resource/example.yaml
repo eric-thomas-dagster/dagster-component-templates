@@ -1,3 +1,6 @@
 type: dagster_component_templates.PlaidResourceComponent
 attributes:
-  # See schema.json for full attribute reference
+  resource_key: plaid
+  environment: sandbox
+  client_id_env_var: PLAID_CLIENT_ID
+  secret_env_var: PLAID_SECRET

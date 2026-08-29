@@ -39340,6 +39340,75 @@
       ]
     },
     {
+      "id": "servicenow_record_upsert",
+      "name": "ServiceNow Record Upsert",
+      "component_type": "dagster_component_templates.ServiceNowRecordUpsertComponent",
+      "path": "assets/sinks/servicenow_record_upsert",
+      "category": "sink",
+      "icon": "ArrowDown",
+      "description": "Reverse-ETL sink: mirror an upstream DataFrame into a ServiceNow table via the Table API. Search-then-write per row (ServiceNow has no native upsert) — GET by key_field=value, then PATCH the match or POST a new record. In-run cache dodges eventual-consistency lag on ServiceNow's search index. Pairs with servicenow_resource (auth + workhorse HTTP) and servicenow_ingestion (read-side counterpart).",
+      "tags": [
+        "sink",
+        "servicenow",
+        "reverse-etl",
+        "upsert",
+        "itsm"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/servicenow_record_upsert/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/servicenow_record_upsert/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/servicenow_record_upsert/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/servicenow_record_upsert/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/servicenow_record_upsert/schema.json",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-08-29",
+        "notes": "Code-validated. Live validation against a ServiceNow Developer Instance (PDI) pending — roadmap: promote to level:live once user provisions a PDI + validates the create+update round-trip against a real incident table."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:servicenow"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to sync data from a warehouse / Dagster asset INTO a ServiceNow table (reverse ETL). Common cases: incidents from alert monitoring, CMDB items from an authoritative source of truth, catalog items from a product spec table.",
+        "typical_upstream": "Dagster asset producing a pandas DataFrame — usually a dbt model, a warehouse table read, or an alert-shaping transform.",
+        "typical_downstream": "ServiceNow table (incident / change_request / cmdb_ci_* / sc_request / custom application table).",
+        "example_prompts": [
+          "Sync alert output into ServiceNow incidents with correlation_id match",
+          "Mirror a dbt mart of business-critical services into ServiceNow CMDB",
+          "Push a computed SLA-at-risk flag from a warehouse table back into ServiceNow"
+        ],
+        "anti_uses": "Not for READING ServiceNow data — that's `servicenow_ingestion`. Not for sensing state changes — that's `servicenow_sensor`.",
+        "requires_pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "SNOW_INSTANCE",
+          "SNOW_USERNAME",
+          "SNOW_PASSWORD"
+        ]
+      },
+      "keywords": [
+        "reverse etl",
+        "servicenow upsert",
+        "itsm sync",
+        "incident sync",
+        "cmdb upsert",
+        "sink",
+        "write to servicenow"
+      ]
+    },
+    {
       "id": "servicenow_sensor",
       "name": "ServiceNow Sensor",
       "category": "sensor",

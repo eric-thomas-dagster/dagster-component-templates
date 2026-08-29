@@ -1075,6 +1075,8 @@ _CLASS_PATHS: dict[str, str] = {
     "CognosReportStatusSensorComponent": "sensors/cognos_report_status_sensor/component.py",
     "CognosReportDataIngestionComponent": "assets/ingestion/cognos_report_data_ingestion/component.py",
     "CognosWorkspaceComponent": "integrations/cognos_workspace/component.py",
+    # Bucket B Phase B — reverse-ETL sinks (2026-08-29)
+    "ServiceNowRecordUpsertComponent": "assets/sinks/servicenow_record_upsert/component.py",
     # 8 dlt-shaped _workspace components removed in the Bucket B reshape sweep
     # (2026-08-29). Each one enumerated vendor items and emitted one asset per
     # item — the exact shape `_ingestion` already provides via dlt.

@@ -1,0 +1,32 @@
+{
+  "component_type": "dagster_component_templates.ServiceNowRecordUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into a ServiceNow table via the Table API. Search-then-write (ServiceNow has no native upsert) — GET by `key_field=<value>` → PATCH existing row or POST new row. In-run cache prevents double-post on eventual-consistency lag.",
+  "category": "sink",
+  "icon": "ArrowDown",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row → one ServiceNow record (upserted by matching on `key_field`)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored). No downstream data — the write side effect lands in ServiceNow."
+    }
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": true, "description": "Asset providing the DataFrame."},
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "servicenow_resource"},
+    "table": {"type": "string", "label": "ServiceNow Table", "required": true, "description": "Target table name (e.g. incident, change_request, cmdb_ci_server)."},
+    "key_field": {"type": "string", "label": "Key Field", "required": true, "description": "ServiceNow field used to match existing rows (must be present in fields_map values)."},
+    "fields_map": {"type": "object", "label": "Fields Map", "required": true, "description": "Upstream column → ServiceNow field.", "ui:widget": "key-value"},
+    "batch_size": {"type": "integer", "label": "Batch Size", "required": false, "default": 500, "description": "Max upstream rows per run (safety cap)."},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "servicenow"},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+  },
+  "tags": ["servicenow", "sink", "reverse-etl", "upsert"],
+  "name": "ServiceNow Record Upsert"
+}

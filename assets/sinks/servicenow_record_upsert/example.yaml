@@ -1,0 +1,24 @@
+# ServiceNowRecordUpsertComponent — DataFrame → ServiceNow reverse ETL.
+# Requires a ServiceNowResourceComponent registered under the same resource_key.
+
+type: dagster_component_templates.ServiceNowRecordUpsertComponent
+attributes:
+  asset_name: servicenow_incidents_from_alerts
+  upstream_asset_key: alerts_to_incidents
+  resource_key: servicenow_resource
+
+  table: incident                        # target ServiceNow table
+  key_field: correlation_id              # match on this field (add unique index in SN)
+  fields_map:
+    alert_id: correlation_id             # upstream column → ServiceNow field
+    title: short_description
+    details: description
+    severity: impact
+    category: category
+  batch_size: 500                        # safety cap per run
+
+  group_name: reverse_etl
+  description: "Mirror upstream alerts into ServiceNow incidents with correlation_id match."
+  # kinds: [servicenow, reverse_etl]
+  # owners: [platform@corp.com]
+  # tags: {tier: production}

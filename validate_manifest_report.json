@@ -1,106 +1,8 @@
 {
   "summary": {
-    "PASS": 14,
-    "SKIP_CREDENTIALS": 1,
-    "SKIP_OPTIONAL_DEP": 1
+    "PASS": 4
   },
   "results": [
-    {
-      "id": "facebook_ads_ingestion",
-      "path": "assets/ingestion/facebook_ads_ingestion",
-      "status": "PASS",
-      "warnings": [],
-      "error": null,
-      "error_class": null
-    },
-    {
-      "id": "facebook_ads_resource",
-      "path": "resources/facebook_ads_resource",
-      "status": "PASS",
-      "warnings": [],
-      "error": null,
-      "error_class": null
-    },
-    {
-      "id": "google_analytics_ingestion",
-      "path": "assets/ingestion/google_analytics_ingestion",
-      "status": "PASS",
-      "warnings": [],
-      "error": null,
-      "error_class": null
-    },
-    {
-      "id": "google_analytics_resource",
-      "path": "resources/google_analytics_resource",
-      "status": "PASS",
-      "warnings": [],
-      "error": null,
-      "error_class": null
-    },
-    {
-      "id": "google_sheets_ingestion",
-      "path": "assets/ingestion/google_sheets_ingestion",
-      "status": "SKIP_CREDENTIALS",
-      "warnings": [],
-      "error": "1 validation error for GoogleSheetsIngestionComponent\ncredentials\n  Input should be a valid dictionary [type=dict_type, input_value='${GOOGLE_SHEETS_CREDENTIALS}', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/dict_type",
-      "error_class": "ValidationError"
-    },
-    {
-      "id": "google_sheets_resource",
-      "path": "resources/google_sheets_resource",
-      "status": "PASS",
-      "warnings": [],
-      "error": null,
-      "error_class": null
-    },
-    {
-      "id": "hubspot_ingestion",
-      "path": "assets/ingestion/hubspot_ingestion",
-      "status": "PASS",
-      "warnings": [],
-      "error": null,
-      "error_class": null
-    },
-    {
-      "id": "hubspot_resource",
-      "path": "resources/hubspot_resource",
-      "status": "PASS",
-      "warnings": [],
-      "error": null,
-      "error_class": null
-    },
-    {
-      "id": "linkedin_ads_ingestion",
-      "path": "assets/ingestion/linkedin_ads_ingestion",
-      "status": "PASS",
-      "warnings": [],
-      "error": null,
-      "error_class": null
-    },
-    {
-      "id": "linkedin_ads_resource",
-      "path": "resources/linkedin_ads_resource",
-      "status": "PASS",
-      "warnings": [],
-      "error": null,
-      "error_class": null
-    },
-    {
-      "id": "salesforce_ingestion",
-      "path": "assets/ingestion/salesforce_ingestion",
-      "status": "PASS",
-      "warnings": [],
-      "error": null,
-      "error_class": null
-    },
-    {
-      "id": "salesforce_resource",
-      "path": "resources/salesforce_resource",
-      "status": "SKIP_OPTIONAL_DEP",
-      "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'dagster_salesforce'",
-      "error_class": "ModuleNotFoundError"
-    },
     {
       "id": "servicenow_ingestion",
       "path": "assets/ingestion/servicenow_ingestion",
@@ -108,6 +10,14 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "servicenow_record_upsert",
+      "path": "assets/sinks/servicenow_record_upsert",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -120,16 +30,8 @@
       "error_class": null
     },
     {
-      "id": "shopify_ingestion",
-      "path": "assets/ingestion/shopify_ingestion",
-      "status": "PASS",
-      "warnings": [],
-      "error": null,
-      "error_class": null
-    },
-    {
-      "id": "shopify_resource",
-      "path": "resources/shopify_resource",
+      "id": "servicenow_sensor",
+      "path": "sensors/servicenow_sensor",
       "status": "PASS",
       "warnings": [],
       "error": null,

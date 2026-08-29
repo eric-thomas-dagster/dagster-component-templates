@@ -1,0 +1,34 @@
+{
+  "component_type": "dagster_component_templates.SalesforceRecordUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into a Salesforce SObject via the native External-ID upsert endpoint. `PATCH /services/data/vXX.0/sobjects/{Object}/{ExtIdField}/{Value}` atomically creates or updates in one request — no search-then-write. Composite mode batches 200 records per HTTP call for high throughput.",
+  "category": "sink",
+  "icon": "si:salesforce",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row → one Salesforce record (upserted via external_id_field)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored / composite_batching). No downstream data — the write side effect lands in Salesforce."
+    }
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": true, "description": "Asset providing the DataFrame."},
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "salesforce"},
+    "sobject": {"type": "string", "label": "SObject", "required": true, "description": "Target Salesforce SObject API name (Account / Contact / Opportunity / CustomThing__c)."},
+    "external_id_field": {"type": "string", "label": "External Id Field", "required": true, "description": "SObject field marked as 'External ID' in Salesforce (used as the upsert match key)."},
+    "fields_map": {"type": "object", "label": "Fields Map", "required": true, "description": "Upstream column → Salesforce field API name.", "ui:widget": "key-value"},
+    "batch_size": {"type": "integer", "label": "Batch Size", "required": false, "default": 5000, "description": "Max upstream rows per run (safety cap)."},
+    "use_composite": {"type": "boolean", "label": "Use Composite", "required": false, "default": true, "description": "Use /composite/sobjects for 200-record batching (fastest short of Bulk 2.0).", "ui:widget": "checkbox"},
+    "composite_all_or_none": {"type": "boolean", "label": "Composite All-or-None", "required": false, "default": false, "description": "If true, Salesforce rolls back the whole 200-record batch on any error.", "ui:widget": "checkbox"},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "salesforce"},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+  },
+  "tags": ["salesforce", "sink", "reverse-etl", "upsert", "sobject", "external-id"],
+  "name": "Salesforce Record Upsert"
+}

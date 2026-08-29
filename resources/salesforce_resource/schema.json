@@ -1,69 +1,36 @@
 {
   "component_type": "dagster_component_templates.SalesforceResourceComponent",
-  "description": "Register a dagster-salesforce SalesforceResource for use by other components",
+  "description": "Self-contained Salesforce REST API workhorse. OAuth 2.0 password grant against a Connected App, retry on 401 (token refresh) / 429 / 5xx. Convenience methods for read (soql cursor, describe_sobject, get_record, find_record) + write (create_record, update_record, upsert_record via native External-ID, composite_upsert, delete_record).",
   "category": "resource",
   "icon": "si:salesforce",
-  "x-dagster-io": {},
+  "x-dagster-io": {
+    "outputs": {
+      "type": "resource",
+      "description": "SalesforceResource with read + write convenience methods. Consumed by salesforce_record_upsert (sink) and by custom Dagster asset code that needs SOQL / SObject CRUD."
+    }
+  },
   "x-dagster-provides": [
     "salesforce_resource"
   ],
   "attributes": {
-    "resource_key": {
-      "type": "string",
-      "label": "Resource Key",
-      "description": "Key used to register this resource. Other components reference it via resource_key.",
-      "required": false,
-      "default": "salesforce_resource"
-    },
-    "username": {
-      "type": "string",
-      "label": "Username",
-      "description": "Salesforce username (email)",
-      "required": true
-    },
-    "password_env_var": {
-      "type": "string",
-      "label": "Password Env Var",
-      "description": "Environment variable holding the Salesforce password",
-      "required": true,
-      "ui:widget": "env_var"
-    },
-    "security_token_env_var": {
-      "type": "string",
-      "label": "Security Token Env Var",
-      "description": "Environment variable holding the Salesforce security token",
-      "required": false,
-      "default": null,
-      "ui:widget": "env_var"
-    },
-    "domain": {
-      "type": "string",
-      "label": "Domain",
-      "description": "Salesforce domain: 'test' for sandbox, 'login' for production (default), or custom domain",
-      "required": false,
-      "default": null
-    },
-    "consumer_key_env_var": {
-      "type": "string",
-      "label": "Consumer Key Env Var",
-      "description": "Environment variable holding the Connected App consumer key (for OAuth)",
-      "required": false,
-      "default": null,
-      "ui:widget": "env_var"
-    },
-    "consumer_secret_env_var": {
-      "type": "string",
-      "label": "Consumer Secret Env Var",
-      "description": "Environment variable holding the Connected App consumer secret (for OAuth)",
-      "required": false,
-      "default": null,
-      "ui:widget": "env_var"
-    }
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "salesforce"},
+    "username": {"type": "string", "label": "Username", "required": true, "description": "Salesforce username (usually an email)."},
+    "password_env_var": {"type": "string", "label": "Password Env Var", "required": true, "ui:widget": "env_var"},
+    "security_token_env_var": {"type": "string", "label": "Security Token Env Var", "required": false, "default": null, "ui:widget": "env_var", "description": "Optional. Appended to password at auth time — required for IP-restricted orgs."},
+    "consumer_key_env_var": {"type": "string", "label": "Consumer Key Env Var", "required": true, "ui:widget": "env_var", "description": "From Setup → App Manager → Connected App."},
+    "consumer_secret_env_var": {"type": "string", "label": "Consumer Secret Env Var", "required": true, "ui:widget": "env_var", "description": "From Setup → App Manager → Connected App."},
+    "domain": {"type": "string", "label": "Domain", "required": false, "default": "login", "description": "'login' (production), 'test' (sandbox), or 'mycompany.my' (custom)."},
+    "api_version": {"type": "string", "label": "API Version", "required": false, "default": "58.0"},
+    "request_timeout_seconds": {"type": "integer", "label": "Request Timeout (seconds)", "required": false, "default": 60},
+    "max_retries": {"type": "integer", "label": "Max Retries", "required": false, "default": 3}
   },
   "tags": [
     "resource",
     "salesforce",
-    "crm"
+    "crm",
+    "sobject",
+    "external-id",
+    "reverse-etl"
   ],
   "name": "Salesforce Resource"
 }

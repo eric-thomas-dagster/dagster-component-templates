@@ -1,0 +1,31 @@
+# SalesforceRecordUpsertComponent — DataFrame → Salesforce reverse ETL
+# using the native External-ID upsert endpoint. Atomic create-or-update,
+# no search-then-write.
+#
+# Requires a SalesforceResourceComponent registered under the same resource_key
+# AND the target External-Id field marked as "External ID" in the SObject
+# schema (Setup → Object Manager → Fields).
+
+type: dagster_component_templates.SalesforceRecordUpsertComponent
+attributes:
+  asset_name: salesforce_accounts_mirror
+  upstream_asset_key: dbt_marts_accounts
+  resource_key: salesforce
+
+  sobject: Account
+  external_id_field: External_Account_Id__c   # must be marked "External ID" in SF
+  fields_map:
+    account_id: External_Account_Id__c        # upstream col → SF field
+    name: Name
+    industry: Industry
+    annual_revenue: AnnualRevenue
+    website: Website
+
+  batch_size: 5000                            # safety cap
+  use_composite: true                         # 200-record batches (fastest)
+  composite_all_or_none: false                # partial-success semantics
+
+  group_name: reverse_etl
+  description: "Mirror dbt Accounts mart into Salesforce Accounts via External Id upsert."
+  # kinds: [salesforce, reverse_etl]
+  # owners: [platform@corp.com]

@@ -1,5 +1,13 @@
 type: dagster_component_templates.SalesforceResourceComponent
 attributes:
-  resource_key: salesforce_resource
-  username: <username>
-  password_env_var: MY_PASSWORD_ENV_VAR
+  resource_key: salesforce
+  username: svc-account@mycompany.com
+
+  password_env_var:        SF_PASSWORD
+  security_token_env_var:  SF_SECURITY_TOKEN     # optional (IP-restricted orgs)
+  consumer_key_env_var:    SF_CONSUMER_KEY       # from Connected App
+  consumer_secret_env_var: SF_CONSUMER_SECRET    # from Connected App
+
+  # 'login' for production, 'test' for sandbox, or 'mycompany.my' for custom domain
+  domain: login
+  api_version: "58.0"

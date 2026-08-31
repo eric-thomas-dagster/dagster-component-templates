@@ -1,0 +1,6 @@
+# fsspec is only needed when approval_dir is a cloud URI (s3://, gs://, abfs://).
+# Local paths use pathlib and require no extra deps.
+# Install the appropriate driver for your cloud:
+#   s3://   → pip install fsspec s3fs
+#   gs://   → pip install fsspec gcsfs
+#   abfs:// → pip install fsspec adlfs

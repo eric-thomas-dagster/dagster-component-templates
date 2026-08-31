@@ -1,0 +1,112 @@
+# `MultiApproverGateComponent`
+
+Quorum-based human-in-the-loop approval gate. Extends the base [`HumanApprovalGateComponent`](../human_approval_gate) pattern with **N-of-M semantics**: require multiple allowlisted approvers to sign off before an asset materialization passes through. Optional wall-clock timeout with configurable policy (escalate / auto-reject / auto-approve).
+
+**Backed by any storage** — local filesystem or any fsspec cloud URI (`s3://`, `gs://`, `abfs://`). On Dagster+ Serverless, point at cloud storage since the container filesystem is ephemeral.
+
+## When to use
+
+- **Two-of-three sign-off before model promotion** — data science + ML platform + product lead each vote.
+- **Multi-region deployment freeze** — regional leads each drop a vote before a config rollout.
+- **Change advisory board** — one-of-N approvers from any allowlisted CAB member unblocks a job.
+- **Any HITL gate where a single approver isn't enough**.
+
+If a single approver is enough, use `HumanApprovalGateComponent` (simpler token schema). If the approval should happen inside Slack or Teams reactions rather than by file-drop, use `SlackApprovalGateComponent` / `TeamsApprovalGateComponent` — those have quorum semantics baked in and post the request to a channel.
+
+## Vote-by-file-drop protocol
+
+Each approver writes ONE JSON file per partition:
+
+```
+<approval_dir>/<safe_partition_key>.<approver_id>.json
+```
+
+Body:
+
+```json
+{
+  "approved": true,
+  "reason": "Metrics meet SLA; approved."
+}
+```
+
+`approved: false` counts as a rejection vote (an approver can veto too).
+
+The gate scans `<safe_partition_key>.*.json` on every materialization, filters to `approver_allowlist`, and applies quorum semantics:
+
+- `len(approvers) >= required_approvers` → **approved** (asset passes through, check passes).
+- `len(rejecters) >= required_approvers` → **rejected** (empty passthrough, check fails).
+- Otherwise → **pending** (empty passthrough, check fails WARN → downstream blocks).
+
+## Storage backend
+
+`approval_dir` accepts:
+
+| Value | Backend |
+|---|---|
+| `/tmp/approvals` | Local filesystem (pathlib, no extra deps) |
+| `s3://bucket/approvals/` | S3 via fsspec (`pip install fsspec s3fs`) |
+| `gs://bucket/approvals/` | GCS via fsspec (`pip install fsspec gcsfs`) |
+| `abfs://container/approvals/` | ADLS via fsspec (`pip install fsspec adlfs`) |
+
+**Recommendation for Dagster+ Serverless**: use cloud URIs. The container filesystem is ephemeral — a token dropped by a human via SSH into a container won't survive the next run.
+
+## Timeout policy
+
+Optional. If `timeout_hours` is set and quorum isn't reached before then:
+
+| `on_timeout` | Effect |
+|---|---|
+| `escalate` (default) | Asset check emits `ERROR` severity naming the `escalate_contact`. Gate stays pending — a human still needs to write a vote file. Good default. |
+| `reject` | Automatic rejection. Gate closes, downstream doesn't fire. |
+| `approve` | Automatic approval. **Use with caution** — silent auto-approvals can mask governance failures. |
+
+Timeout clock starts on the first materialization attempt for a partition (recorded in a `<safe_key>.multi_state.json` sidecar).
+
+## Example — 2-of-3 model deploy sign-off
+
+```yaml
+type: dagster_community_components.MultiApproverGateComponent
+attributes:
+  asset_name: model_deploy_gate
+  upstream_asset_key: candidate_model_metrics
+
+  approval_dir: "s3://my-org-approvals/production/"
+
+  required_approvers: 2
+  approver_allowlist:
+    - alice@example.com
+    - bob@example.com
+    - carol@example.com
+  timeout_hours: 24
+  on_timeout: escalate
+  escalate_contact: "#ml-oncall (Slack) or platform-team@example.com"
+
+  partition_type: static
+  partition_values: "gpt-4o-mini, gpt-4o, claude-sonnet"
+
+  group_name: ml_governance
+```
+
+To vote, drop e.g. `s3://my-org-approvals/production/gpt-4o.alice@example.com.json`:
+
+```json
+{"approved": true, "reason": "eval metrics above threshold"}
+```
+
+Second approval (`.bob@example.com.json`) unblocks the gate; the third is optional.
+
+## What passes through
+
+- **Approved** — upstream value returned unchanged, with metadata: `status: approved`, `approvers`, `n_approvals`, `approval_details`.
+- **Rejected / Pending / Timeout** — empty passthrough (empty DataFrame if upstream was one, else empty dict). Downstream sees the failing asset check via `AutomationCondition.eager()` and stays idle.
+
+## Composes with
+
+- `human_approval_gate` — single-approver version. Simpler token schema. Same `approval_dir` abstraction.
+- `slack_approval_gate` / `teams_approval_gate` — reaction-driven quorum via Slack/Teams. These write single-file quorum tokens (`<key>.json`); this component writes per-approver files (`<key>.<id>.json`). Use ONE OR the other for a given partition — don't mix.
+- `filesystem_monitor` sensor — can trigger the gate's downstream on new vote-file drops. Not required if the gate uses `AutomationCondition.eager()`.
+
+## Fields
+
+See schema.json + example.yaml.

@@ -1,0 +1,39 @@
+{
+  "component_type": "dagster_community_components.MultiApproverGateComponent",
+  "description": "Quorum-based human approval gate. Extends the base human-approval pattern with N-of-M semantics: required_approvers votes from an approver_allowlist, optional timeout_hours with on_timeout policy (escalate / reject / approve). Works over local FS or any fsspec URI (s3://, gs://, abfs://). Vote-by-file-drop: each approver writes <approval_dir>/<key>.<approver_id>.json. Composes with any downstream that reads asset_check results.",
+  "category": "asset",
+  "icon": "si:handshake",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "asset",
+      "description": "One upstream asset — passes through when quorum approves."
+    },
+    "outputs": {
+      "type": "asset",
+      "description": "Gate asset with a 'quorum' asset_check that fails on pending/rejected — downstream blocks via AutomationCondition.eager()."
+    }
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": true, "description": "Asset providing the value that passes through on approval."},
+    "approval_dir": {"type": "string", "label": "Approval Directory", "required": true, "description": "Local path or fsspec URI (s3://, gs://, abfs://). Cloud URIs recommended on Dagster+ Serverless."},
+    "required_approvers": {"type": "integer", "label": "Required Approvers", "required": false, "default": 1, "description": "How many allowlisted approvers must vote the same way to open/close the gate."},
+    "approver_allowlist": {"type": "array", "items": {"type": "string"}, "label": "Approver Allowlist", "required": true, "description": "Approver IDs allowed to vote. Vote filename: <partition_key>.<approver_id>.json.", "ui:widget": "list"},
+    "timeout_hours": {"type": "number", "label": "Timeout Hours", "required": false, "default": null, "description": "Clock starts on first materialization. Omit to wait forever."},
+    "on_timeout": {"type": "string", "label": "On Timeout", "required": false, "default": "escalate", "enum": ["escalate", "reject", "approve"], "description": "Timeout policy: escalate (stay pending, emit ERROR check), reject (auto-reject), approve (auto-approve — use with care)."},
+    "escalate_contact": {"type": "string", "label": "Escalate Contact", "required": false, "default": null, "description": "Free-form (email, Slack handle, PagerDuty rotation ID) surfaced in the escalation-timeout check message."},
+    "default_approval_key": {"type": "string", "label": "Default Approval Key", "required": false, "default": "default", "description": "Filename stem used when the asset is unpartitioned."},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "asset_tags": {"type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
+    "partition_type": {"type": "string", "label": "Partition Type", "required": false, "enum": ["daily", "weekly", "monthly", "hourly", "static", "dynamic"]},
+    "partition_start": {"type": "string", "label": "Partition Start", "required": false},
+    "partition_values": {"type": "string", "label": "Partition Values", "required": false, "description": "Comma-separated for static/multi."},
+    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "required": false},
+    "partition_dimensions": {"type": "array", "items": {"type": "object"}, "label": "Partition Dimensions", "required": false, "description": "Multi-axis partitioning."}
+  },
+  "tags": ["human", "approval", "quorum", "gate", "hitl"],
+  "name": "Multi-Approver Gate"
+}

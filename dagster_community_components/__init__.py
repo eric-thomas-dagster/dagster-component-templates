@@ -630,6 +630,7 @@ _CLASS_PATHS: dict[str, str] = {
     "MqttObservationSensorComponent": "observations/mqtt_observation_sensor/component.py",
     "MssqlResource": "resources/mssql_resource/component.py",
     "MssqlResourceComponent": "resources/mssql_resource/component.py",
+    "MultiApproverGateComponent": "assets/ai/multi_approver_gate/component.py",
     "MultiFieldBinningComponent": "assets/transforms/multi_field_binning/component.py",
     "MultiFieldFormulaComponent": "assets/transforms/multi_field_formula/component.py",
     "MultiRowFormulaComponent": "assets/transforms/multi_row_formula/component.py",

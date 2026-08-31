@@ -29,12 +29,19 @@ For production OAuth, pair this resource with the community `oauth_token_resourc
 | `username_env_var` | `str` | — | Env var with ServiceNow username (for basic auth). Required unless bearer_token_env_var is set. |
 | `password_env_var` | `str` | — | Env var with ServiceNow password (for basic auth). Required unless bearer_token_env_var is set. |
 
+### Execution
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `max_retries` | `int` | `3` | Retry attempts on 429 / 5xx / transient network errors (exponential backoff, capped at 10s). |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `bearer_token_env_var` | `str` | — | Env var holding a ServiceNow OAuth bearer token. When set, basic-auth fields are ignored. Pair with `oauth_token_resource` to acquire + rotate the token. |
 | `verify_ssl` | `bool` | `true` | Enable TLS certificate verification (only set false for self-signed dev instances). |
+| `request_timeout_seconds` | `int` | `60` | Per-request timeout in seconds. |
 
 [//]: # (FIELDS:END)
 

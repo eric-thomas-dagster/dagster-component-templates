@@ -22249,7 +22249,7 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-08-29",
-        "notes": "Rebuilt 2026-08-29 as self-contained workhorse (was thin wrapper around hubspot-api-client SDK). Now provides read + write methods via raw HTTP + Private App bearer auth. Live validation pending — user doesn't currently have admin access to a HubSpot portal. Roadmap: promote to level:live once portal available."
+        "notes": "Rebuilt 2026-08-29 as self-contained workhorse (was thin wrapper around hubspot-api-client SDK). Now provides read + write methods via raw HTTP + Private App bearer auth. Live validation pending \u2014 user doesn't currently have admin access to a HubSpot portal. Roadmap: promote to level:live once portal available."
       },
       "produces": [
         "resource"
@@ -22305,7 +22305,7 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-08-29",
-        "notes": "Code-validated. Live validation pending — user doesn't currently have Private App admin access on a HubSpot portal. Roadmap: promote to level:live once portal is available."
+        "notes": "Code-validated. Live validation pending \u2014 user doesn't currently have Private App admin access on a HubSpot portal. Roadmap: promote to level:live once portal is available."
       },
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -22317,14 +22317,14 @@
       ],
       "agent_hints": {
         "when_to_use": "User wants to sync data from a warehouse / Dagster asset INTO HubSpot (reverse ETL). Common cases: contact enrichment from a dbt customer mart; company data from a golden-record source; deal properties from a warehouse computation.",
-        "typical_upstream": "Dagster asset producing a pandas DataFrame — dbt marts, warehouse transformations, ML model outputs.",
+        "typical_upstream": "Dagster asset producing a pandas DataFrame \u2014 dbt marts, warehouse transformations, ML model outputs.",
         "typical_downstream": "HubSpot CRM object (contacts / companies / deals / tickets / custom). Uses native batch upsert with key_property matching.",
         "example_prompts": [
           "Sync a dbt contacts mart into HubSpot Contacts",
           "Push customer health scores into a custom HubSpot property",
           "Mirror deal outcomes from a warehouse into HubSpot Deals"
         ],
-        "anti_uses": "Not for reading HubSpot data — use `hubspot_ingestion`. Not for one-off writes — use the resource directly.",
+        "anti_uses": "Not for reading HubSpot data \u2014 use `hubspot_ingestion`. Not for one-off writes \u2014 use the resource directly.",
         "requires_pip": [
           "pandas>=2.0.0",
           "requests>=2.28"
@@ -28479,8 +28479,8 @@
       "path": "assets/analytics/ml_pipeline",
       "category": "analytics",
       "author": "Dagster Community",
-      "version": "1.1.0",
-      "description": "End-to-end ML pipeline in one YAML \u2014 28 ops covering feature engineering, hyperparameter tuning (grid / random / bayesian via Optuna), evaluation, interpretability, model persistence. Any sklearn / XGBoost / LightGBM estimator via `sklearn_class:` escape hatch. Opt-in `experiment_tracking:` block auto-logs params / metrics / model artifacts to MLflow and/or Weights & Biases. Rich per-step MetadataValue (elapsed_seconds, model_class, hyperparams, CV mean/std, evaluate metrics, top feature) on emitted assets \u2014 promote to Dagster+ Insights. Warehouse-connected via any Dagster resource. Partition-aware.",
+      "version": "1.1.1",
+      "description": "End-to-end ML pipeline in one YAML \u2014 28 ops covering feature engineering, hyperparameter tuning (grid / random / bayesian via Optuna), evaluation, interpretability, model persistence. Any sklearn / XGBoost / LightGBM estimator via `sklearn_class:` escape hatch. Opt-in `experiment_tracking:` block auto-logs params / metrics / model artifacts to MLflow and/or Weights & Biases. Rich per-step MetadataValue (elapsed_seconds, model_class, hyperparams, CV mean/std, evaluate metrics, top feature) on emitted assets \u2014 promote to Dagster+ Insights. Warehouse-connected via any Dagster resource. Partition-aware. Supports dbt-style per-step resume (`can_subset=True`) \u2014 materializing a subset of outputs runs only the transitively-needed steps.",
       "tags": [
         "analytics",
         "ml",
@@ -29842,6 +29842,62 @@
       "keywords": [
         "connection",
         "connect"
+      ]
+    },
+    {
+      "id": "multi_approver_gate",
+      "name": "Multi-Approver Gate",
+      "category": "ai",
+      "description": "Quorum-based human approval gate. Extends the base human-approval pattern with N-of-M semantics: required_approvers votes from an approver_allowlist, optional timeout_hours with on_timeout policy (escalate / reject / approve). Works over local FS OR any fsspec URI (s3://, gs://, abfs://) \u2014 production Dagster+ Serverless deploys should use cloud storage. Vote-by-file-drop: each approver writes <approval_dir>/<partition_key>.<approver_id>.json.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/multi_approver_gate",
+      "tags": [
+        "ai",
+        "human-in-the-loop",
+        "approval",
+        "quorum",
+        "governance",
+        "agentic",
+        "gate",
+        "hitl"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/multi_approver_gate/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/multi_approver_gate/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/multi_approver_gate/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/multi_approver_gate.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/multi_approver_gate/requirements.txt",
+      "icon": "UsersRound",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-08-31",
+        "evidence": "dagster.materialize verified all three quorum states end-to-end (pending / approved / rejected) plus allowlist filter, on a fresh uvx create-dagster project."
+      },
+      "agent_hints": {
+        "inputs": "upstream_asset_key \u2014 asset whose value passes through when quorum approves.",
+        "outputs": "Upstream payload unchanged on approval, plus approvers list / n_approvals / status in materialization metadata. Empty passthrough on pending/rejected/timeout.",
+        "side_effects": "Reads vote files matching <safe_partition_key>.<approver_id>.json under approval_dir. Writes a sidecar <safe_key>.multi_state.json on first materialization (tracks timeout clock).",
+        "anti_uses": "Not for single-approver flows (use HumanApprovalGate). Not for Slack/Teams reaction voting (use SlackApprovalGate / TeamsApprovalGate). Not for programmatic decision logic (use an assessor asset upstream).",
+        "requires_resources": [],
+        "output_type": "passthrough",
+        "requires_pip": [
+          "pandas"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "human in the loop",
+        "hitl",
+        "approval",
+        "quorum",
+        "governance",
+        "gate",
+        "vote"
       ]
     },
     {
@@ -35505,7 +35561,7 @@
       "path": "assets/transforms/pyspark_feed_orchestrator",
       "category": "transformation",
       "icon": "Folder",
-      "description": "Folder-scan sibling of pyspark_pipeline. Point at a folder of feed.json / feed.yaml configs and get one Dagster multi_asset per file, with automatic cross-file lineage — when one feed's sink target matches another feed's source, they wire up in the asset graph. Feed shape is a superset of pyspark_pipeline (adds top-level schedule: cron + owners: + description:, plus control-flow step types condition / checkpoint / for_each).",
+      "description": "Folder-scan sibling of pyspark_pipeline. Point at a folder of feed.json / feed.yaml configs and get one Dagster multi_asset per file, with automatic cross-file lineage \u2014 when one feed's sink target matches another feed's source, they wire up in the asset graph. Feed shape is a superset of pyspark_pipeline (adds top-level schedule: cron + owners: + description:, plus control-flow step types condition / checkpoint / for_each).",
       "tags": [
         "transformation",
         "pyspark",
@@ -35529,7 +35585,7 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-08-29",
-        "notes": "Code-validated. Feed parsing + cross-feed lineage resolution tested via unit-style asserts. Live validation against a real feed folder + Spark cluster pending — roadmap: promote to level:live once a demo feed folder is authored with 3-4 representative feeds."
+        "notes": "Code-validated. Feed parsing + cross-feed lineage resolution tested via unit-style asserts. Live validation against a real feed folder + Spark cluster pending \u2014 roadmap: promote to level:live once a demo feed folder is authored with 3-4 representative feeds."
       },
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -35538,15 +35594,15 @@
         "schedule"
       ],
       "agent_hints": {
-        "when_to_use": "User has a folder of pipeline configs (feed.json / feed.yaml — the 'one Spark app + many configs' pattern) and wants Dagster to discover each config as a first-class multi_asset with cross-file lineage. Common in legacy Spark shops migrating from custom orchestrators to Dagster.",
+        "when_to_use": "User has a folder of pipeline configs (feed.json / feed.yaml \u2014 the 'one Spark app + many configs' pattern) and wants Dagster to discover each config as a first-class multi_asset with cross-file lineage. Common in legacy Spark shops migrating from custom orchestrators to Dagster.",
         "typical_upstream": "Warehouse tables or file paths referenced by `steps[].source` across the feed files.",
-        "typical_downstream": "Sink targets — Delta / parquet / warehouse tables written by each feed's `sinks[]`. Cross-file lineage means downstream feeds pick up upstream feed outputs automatically.",
+        "typical_downstream": "Sink targets \u2014 Delta / parquet / warehouse tables written by each feed's `sinks[]`. Cross-file lineage means downstream feeds pick up upstream feed outputs automatically.",
         "example_prompts": [
           "Scan a folder of feed.json files and emit one Dagster asset per feed with automatic cross-file lineage",
           "Wrap a legacy Spark feed orchestrator's configs in Dagster without changing the JSON files",
           "Orchestrate a fleet of daily / hourly Spark pipelines defined in YAML"
         ],
-        "anti_uses": "For a single pipeline defined inline in defs.yaml, use `pyspark_pipeline` directly. For non-Spark pipelines with the same folder-scan pattern, this component won't help — it always spawns a SparkSession per feed.",
+        "anti_uses": "For a single pipeline defined inline in defs.yaml, use `pyspark_pipeline` directly. For non-Spark pipelines with the same folder-scan pattern, this component won't help \u2014 it always spawns a SparkSession per feed.",
         "requires_pip": [
           "pyspark>=3.4",
           "pyyaml>=6.0"
@@ -38260,8 +38316,8 @@
       "id": "salesforce_resource",
       "name": "Salesforce Resource",
       "category": "resource",
-      "description": "Self-contained Salesforce REST API workhorse. OAuth 2.0 password grant against a Connected App, retries on 401 (token refresh) / 429 / 5xx. Convenience methods for read (soql cursor, describe_sobject, get_record, find_record) + write (create_record, update_record, upsert_record via native External-ID, composite_upsert, delete_record). Pairs with salesforce_ingestion (dlt pull) + salesforce_record_upsert (reverse-ETL sink).",
-      "version": "2.0.0",
+      "description": "Self-contained Salesforce REST API workhorse. Two auth modes: OAuth 2.0 password grant OR OAuth 2.0 JWT Bearer flow (SF-recommended for new orgs). Retry on 401 (token refresh) / 429 / 5xx. Convenience methods for read (soql cursor, describe_sobject, get_record, find_record) + write (create_record, update_record, upsert_record via native External-ID, composite_upsert, bulk_upsert via Bulk 2.0 async API, delete_record).",
+      "version": "2.0.1",
       "author": "Dagster Community",
       "path": "resources/salesforce_resource",
       "tags": [
@@ -38289,7 +38345,7 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-08-29",
-        "notes": "Rebuilt 2026-08-29 as self-contained workhorse (was thin wrapper around dagster-salesforce). Now provides read + write methods via raw HTTP + OAuth password flow. Live validation against a real Salesforce org still pending — roadmap: promote to level:live once user provisions a Developer Edition org + validates the External-ID upsert round-trip."
+        "notes": "Rebuilt 2026-08-29 as self-contained workhorse (was thin wrapper around dagster-salesforce). Now provides read + write methods via raw HTTP + OAuth password flow. Live validation against a real Salesforce org still pending \u2014 roadmap: promote to level:live once user provisions a Developer Edition org + validates the External-ID upsert round-trip."
       },
       "produces": [
         "resource"
@@ -38326,7 +38382,7 @@
       "path": "assets/sinks/salesforce_record_upsert",
       "category": "sink",
       "icon": "si:salesforce",
-      "description": "Reverse-ETL sink: mirror an upstream DataFrame into a Salesforce SObject via the native External-ID upsert endpoint. Atomic create-or-update in one PATCH — no search-then-write. Composite mode batches 200 records per HTTP call. Pairs with salesforce_resource (auth + workhorse HTTP) and salesforce_ingestion (read side).",
+      "description": "Reverse-ETL sink: mirror an upstream DataFrame into a Salesforce SObject via the native External-ID upsert endpoint. Three write modes \u2014 Bulk 2.0 async API (10-100x faster for >200 rows), composite (200-row batch, fastest sync, per-row errors), per-row PATCH (slowest, full per-row error isolation).",
       "tags": [
         "sink",
         "salesforce",
@@ -38349,9 +38405,9 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-08-29",
-        "notes": "Code-validated. Live validation against a real Salesforce org + a Custom External Id field pending — roadmap: promote to level:live once user provisions a Developer Edition org."
+        "notes": "Code-validated. Live validation against a real Salesforce org + a Custom External Id field pending \u2014 roadmap: promote to level:live once user provisions a Developer Edition org."
       },
-      "version": "1.0.0",
+      "version": "1.0.1",
       "author": "Dagster Community",
       "produces": [
         "asset"
@@ -38361,14 +38417,14 @@
       ],
       "agent_hints": {
         "when_to_use": "User wants to sync data from a warehouse / Dagster asset INTO Salesforce (reverse ETL). Common cases: Account mart from dbt into Salesforce Accounts; customer health scores into Contact custom fields; segmentation flags from a warehouse into Opportunities.",
-        "typical_upstream": "Dagster asset producing a pandas DataFrame — usually a dbt mart or a warehouse table transformation.",
+        "typical_upstream": "Dagster asset producing a pandas DataFrame \u2014 usually a dbt mart or a warehouse table transformation.",
         "typical_downstream": "Salesforce SObject (Account / Contact / Opportunity / custom `__c` objects). Uses native External-Id upsert (requires a field marked 'External ID' in the SObject schema).",
         "example_prompts": [
           "Sync a dbt Accounts mart into Salesforce Accounts",
           "Push customer health scores into a Salesforce Contact custom field via External Id",
           "Mirror opportunity outcomes from a warehouse computation back into Salesforce"
         ],
-        "anti_uses": "Not for reading Salesforce data — use `salesforce_ingestion`. Not for one-off SOQL queries — use the resource directly. Not usable without a Custom External Id field on the target SObject.",
+        "anti_uses": "Not for reading Salesforce data \u2014 use `salesforce_ingestion`. Not for one-off SOQL queries \u2014 use the resource directly. Not usable without a Custom External Id field on the target SObject.",
         "requires_pip": [
           "pandas>=2.0.0",
           "requests>=2.28"
@@ -39567,7 +39623,7 @@
       "path": "assets/sinks/servicenow_record_upsert",
       "category": "sink",
       "icon": "ArrowDown",
-      "description": "Reverse-ETL sink: mirror an upstream DataFrame into a ServiceNow table via the Table API. Search-then-write per row (ServiceNow has no native upsert) — GET by key_field=value, then PATCH the match or POST a new record. In-run cache dodges eventual-consistency lag on ServiceNow's search index. Pairs with servicenow_resource (auth + workhorse HTTP) and servicenow_ingestion (read-side counterpart).",
+      "description": "Reverse-ETL sink: mirror an upstream DataFrame into a ServiceNow table via the Table API. Search-then-write per row (ServiceNow has no native upsert) \u2014 GET by key_field=value, then PATCH the match or POST a new record. In-run cache dodges eventual-consistency lag on ServiceNow's search index. Pairs with servicenow_resource (auth + workhorse HTTP) and servicenow_ingestion (read-side counterpart).",
       "tags": [
         "sink",
         "servicenow",
@@ -39589,7 +39645,7 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-08-29",
-        "notes": "Code-validated. Live validation against a ServiceNow Developer Instance (PDI) pending — roadmap: promote to level:live once user provisions a PDI + validates the create+update round-trip against a real incident table."
+        "notes": "Code-validated. Live validation against a ServiceNow Developer Instance (PDI) pending \u2014 roadmap: promote to level:live once user provisions a PDI + validates the create+update round-trip against a real incident table."
       },
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -39601,14 +39657,14 @@
       ],
       "agent_hints": {
         "when_to_use": "User wants to sync data from a warehouse / Dagster asset INTO a ServiceNow table (reverse ETL). Common cases: incidents from alert monitoring, CMDB items from an authoritative source of truth, catalog items from a product spec table.",
-        "typical_upstream": "Dagster asset producing a pandas DataFrame — usually a dbt model, a warehouse table read, or an alert-shaping transform.",
+        "typical_upstream": "Dagster asset producing a pandas DataFrame \u2014 usually a dbt model, a warehouse table read, or an alert-shaping transform.",
         "typical_downstream": "ServiceNow table (incident / change_request / cmdb_ci_* / sc_request / custom application table).",
         "example_prompts": [
           "Sync alert output into ServiceNow incidents with correlation_id match",
           "Mirror a dbt mart of business-critical services into ServiceNow CMDB",
           "Push a computed SLA-at-risk flag from a warehouse table back into ServiceNow"
         ],
-        "anti_uses": "Not for READING ServiceNow data — that's `servicenow_ingestion`. Not for sensing state changes — that's `servicenow_sensor`.",
+        "anti_uses": "Not for READING ServiceNow data \u2014 that's `servicenow_ingestion`. Not for sensing state changes \u2014 that's `servicenow_sensor`.",
         "requires_pip": [
           "pandas>=2.0.0",
           "requests>=2.28"
@@ -40142,7 +40198,7 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-08-29",
-        "notes": "Rebuilt 2026-08-29 as self-contained workhorse (was thin wrapper around ShopifyAPI Python SDK). Now provides read + write methods via raw HTTP + Admin API bearer token. Live validation pending — user doesn't currently have a Shopify dev store. Roadmap: promote to level:live once dev store is available."
+        "notes": "Rebuilt 2026-08-29 as self-contained workhorse (was thin wrapper around ShopifyAPI Python SDK). Now provides read + write methods via raw HTTP + Admin API bearer token. Live validation pending \u2014 user doesn't currently have a Shopify dev store. Roadmap: promote to level:live once dev store is available."
       },
       "produces": [
         "resource"
@@ -40173,7 +40229,7 @@
       "path": "assets/sinks/shopify_product_upsert",
       "category": "sink",
       "icon": "si:shopify",
-      "description": "Reverse-ETL sink: mirror an upstream DataFrame into Shopify Products via the Admin REST API. Search-then-write per row (Shopify has no native upsert) — GET /products.json?handle=X → PUT the match or POST a new product. Fields prefixed `variant_` set variants[0].<field> instead of the top-level product body. In-run cache dodges double-post on duplicate handles within a batch.",
+      "description": "Reverse-ETL sink: mirror an upstream DataFrame into Shopify Products via the Admin REST API. Search-then-write per row (Shopify has no native upsert) \u2014 GET /products.json?handle=X \u2192 PUT the match or POST a new product. Fields prefixed `variant_` set variants[0].<field> instead of the top-level product body. In-run cache dodges double-post on duplicate handles within a batch.",
       "tags": [
         "sink",
         "shopify",
@@ -40196,7 +40252,7 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-08-29",
-        "notes": "Code-validated. Live validation pending — user doesn't currently have a Shopify dev store. Roadmap: promote to level:live once dev store is available and a Product upsert round-trip is verified."
+        "notes": "Code-validated. Live validation pending \u2014 user doesn't currently have a Shopify dev store. Roadmap: promote to level:live once dev store is available and a Product upsert round-trip is verified."
       },
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -40207,15 +40263,15 @@
         "resource:shopify"
       ],
       "agent_hints": {
-        "when_to_use": "User wants to sync a warehouse-side product catalog INTO Shopify Products (reverse ETL). Common cases: PIM → Shopify sync, computed pricing overrides, inventory count refresh, product enrichment from a dbt mart.",
-        "typical_upstream": "Dagster asset producing a pandas DataFrame — usually a PIM feed, a dbt mart, or a computed pricing / inventory table.",
+        "when_to_use": "User wants to sync a warehouse-side product catalog INTO Shopify Products (reverse ETL). Common cases: PIM \u2192 Shopify sync, computed pricing overrides, inventory count refresh, product enrichment from a dbt mart.",
+        "typical_upstream": "Dagster asset producing a pandas DataFrame \u2014 usually a PIM feed, a dbt mart, or a computed pricing / inventory table.",
         "typical_downstream": "Shopify Products (top-level + first variant). For multi-variant complex catalogs, use `shopify_resource` methods directly from custom asset code.",
         "example_prompts": [
           "Mirror a PIM product catalog into Shopify Products via handle match",
           "Push computed pricing from a warehouse into Shopify variant prices as a nightly job",
           "Sync inventory quantities from an authoritative source into Shopify"
         ],
-        "anti_uses": "Not for reading Shopify data — use `shopify_ingestion`. Not for multi-variant catalog updates — use the resource directly.",
+        "anti_uses": "Not for reading Shopify data \u2014 use `shopify_ingestion`. Not for multi-variant catalog updates \u2014 use the resource directly.",
         "requires_pip": [
           "pandas>=2.0.0",
           "requests>=2.28"

@@ -166,6 +166,19 @@ post_processing:
         owners: ["ml-team@company.com"]
 ```
 
+## Per-step resume (`can_subset=True`)
+
+When a downstream step fails or you only need to re-run one output, materialize a strict subset of the pipeline's asset outputs and only the steps transitively needed for those outputs execute. No re-training when you just want new predictions; no re-loading source data when only feature engineering changed.
+
+```bash
+# Only re-run `mldemo_predictions` (skips split + train if they've already run
+# and only pulls their upstream from state; when they haven't run for this
+# partition, they're pulled in transitively via the step-dep closure).
+dg launch --assets mldemo_predictions
+```
+
+Under the hood: `MLPipelineComponent` builds a step-dep DAG at load time from each step's `source` / `input` / `model` references (plus the implicit `_last_frame_id` fallback for FRAME/APPLY ops without an explicit source). At runtime, `context.selected_output_names` triggers closure computation — only the needed subset runs; sinks whose upstream step was skipped are silently dropped from that run. Same dbt-style per-model resume without splitting the pipeline into N `@asset` decorators.
+
 ## Walkthrough
 
 Full end-to-end demo + comparison against 7 alternative shapes (raw `@dg.asset`, `@op`+`@graph_multi_asset`, component-per-stage, etc.):

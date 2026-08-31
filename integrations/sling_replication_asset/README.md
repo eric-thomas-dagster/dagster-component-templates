@@ -24,19 +24,19 @@ Both wrap the official `dagster-sling` `@sling_assets` decorator internally. Sam
 
 | Field | Type | Description |
 |---|---|---|
-| `replication_config_path` | `str` | Path to a Sling replication YAML file. |
+| `replication_config_path` | `str` | Path to a Sling replication YAML file (relative to project root, or absolute). |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `group_name` | `str` | `"sling"` | Asset group. |
+| `group_name` | `str` | `"sling"` | Asset group applied to every stream in the replication. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `name` | `str` | `"sling_replication"` | Asset name prefix. |
+| `name` | `str` | `"sling_replication"` | Op name for the replication run. |
 
 [//]: # (FIELDS:END)
 

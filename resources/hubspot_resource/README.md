@@ -16,13 +16,26 @@ pip install hubspot-api-client
 
 | Field | Type | Description |
 |---|---|---|
-| `access_token_env_var` | `str` | Env var holding HubSpot private app access token |
+| `access_token_env_var` | `str` | Env var holding the HubSpot Private App access token (from Settings → Integrations → Private Apps). |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"hubspot_resource"` | Key used to register this resource. Other components reference it via resource_key. |
+| `resource_key` | `str` | `"hubspot"` | Resource key. Other components reference it via this name. |
+| `base_url` | `str` | `"https://api.hubapi.com"` | HubSpot API base URL. Default matches all standard portals. |
+
+### Execution
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `max_retries` | `int` | `3` | Retry attempts on 429 (honors Retry-After) / 5xx. |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `request_timeout_seconds` | `int` | `60` | Per-request timeout in seconds. |
 
 [//]: # (FIELDS:END)
 

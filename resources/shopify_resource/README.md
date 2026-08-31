@@ -16,20 +16,27 @@ pip install ShopifyAPI
 
 | Field | Type | Description |
 |---|---|---|
-| `shop_url` | `str` | Shopify store URL e.g. mystore.myshopify.com |
-| `access_token_env_var` | `str` | Env var holding Shopify Admin API access token |
+| `shop_url` | `str` | Shopify store URL — accepts 'mystore', 'mystore.myshopify.com', or the full URL. The resource normalizes it to the canonical form. |
+| `access_token_env_var` | `str` | Env var holding the Shopify Admin API access token (from the Custom App you created under Settings → Apps and sales channels → Develop apps). |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"shopify_resource"` | Key used to register this resource. Other components reference it via resource_key. |
+| `resource_key` | `str` | `"shopify"` | Resource key. Other components reference it via this name. |
 
 ### Execution
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `api_version` | `str` | `"2024-01"` | Shopify API version |
+| `api_version` | `str` | `"2024-01"` | Shopify Admin API version (YYYY-MM). Bump quarterly to stay current. |
+| `max_retries` | `int` | `3` | Retry attempts on 429 (honors Retry-After) / 5xx. |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `request_timeout_seconds` | `int` | `60` | Per-request timeout in seconds. |
 
 [//]: # (FIELDS:END)
 

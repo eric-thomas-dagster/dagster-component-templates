@@ -44,6 +44,8 @@ For small frames or single-machine work, `polars_pipeline` is lighter weight. Fo
 | `upstream_asset_key` | `str` | — | Only when (flat shape) source.kind='upstream'. |
 | `steps` | `List[Dict[str, Any]]` | — | Named steps. Each: {id, source: {kind: parquet\|table\|jdbc\|upstream\|ref\|..., ...}, operations: [...]} |
 | `sinks` | `List[Dict[str, Any]]` | — | Sinks. Each: {from: <step_id>, kind: parquet\|csv\|json\|delta\|table\|jdbc, path/table/url, mode}. |
+| `variables` | `Dict[str, Any]` | — | Feed-level constants available at run time via {{ vars.<key> }} in condition when: / for_each over: / SQL where relevant. Merged with prior-run `checkpoint.*` values (see checkpoint_dir). |
+| `checkpoint_dir` | `str` | — | Directory (relative to project root, or absolute) where `type: checkpoint` steps persist named values across runs. Default `checkpoints/` under the project root. On each run, `checkpoints/<asset_name>.json` is loaded and… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

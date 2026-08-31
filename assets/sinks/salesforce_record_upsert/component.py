@@ -108,7 +108,7 @@ class SalesforceRecordUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
         description=(
             "Use `/composite/sobjects/{Object}/{ExtIdField}` for 200-record "
             "batching. Set false for per-row PATCHes (slower, but per-row "
-            "error isolation)."
+            "error isolation). Ignored when `use_bulk: true`."
         ),
     )
     composite_all_or_none: bool = Field(
@@ -117,6 +117,30 @@ class SalesforceRecordUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
             "Only used when `use_composite: true`. If true, Salesforce rolls "
             "back the entire 200-record batch on any error. Default false "
             "(partial success — each row succeeds or fails independently)."
+        ),
+    )
+
+    use_bulk: bool = Field(
+        default=False,
+        description=(
+            "Use the Bulk 2.0 async ingest API instead of composite/per-row. "
+            "10-100x faster for >200-row loads — Salesforce chunks + "
+            "parallelizes server-side. Trade-off: async (submit + poll to "
+            "completion), and per-row error detail comes back as a separate "
+            "'Failed Results' CSV rather than inline (this component reports "
+            "aggregate counts; use the SF Setup → Bulk Data Load Jobs UI to "
+            "inspect failed rows). Recommended for loads >1,000 rows."
+        ),
+    )
+    bulk_poll_interval_seconds: float = Field(
+        default=5.0,
+        description="How often to poll the Bulk 2.0 job for completion (Bulk mode only).",
+    )
+    bulk_poll_timeout_seconds: int = Field(
+        default=900,
+        description=(
+            "Max wall-time to wait for Bulk 2.0 job completion (default 15 min). "
+            "Raises on exceed. Bulk mode only."
         ),
     )
 
@@ -269,6 +293,57 @@ class SalesforceRecordUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
             created = 0
             updated = 0
             errors: List[str] = []
+
+            if _self.use_bulk:
+                try:
+                    result = sf.bulk_upsert(
+                        _self.sobject,
+                        _self.external_id_field,
+                        records,
+                        poll_interval_seconds=_self.bulk_poll_interval_seconds,
+                        poll_timeout_seconds=_self.bulk_poll_timeout_seconds,
+                    )
+                except Exception as e:  # noqa: BLE001
+                    raise dg.Failure(
+                        f"Bulk 2.0 upsert failed: {type(e).__name__}: {e}"
+                    ) from e
+                # Bulk 2.0 returns aggregate counts; no created/updated split.
+                processed = int(result.get("records_processed") or 0)
+                failed = int(result.get("records_failed") or 0)
+                success = max(0, processed - failed)
+                context.log.info(
+                    f"Salesforce Bulk 2.0 upsert into {_self.sobject}: "
+                    f"job_id={result.get('job_id')} state={result.get('state')} "
+                    f"processed={processed} failed={failed} "
+                    f"poll_seconds={result.get('poll_seconds'):.1f}"
+                )
+                if failed:
+                    context.log.warning(
+                        f"{failed} row(s) failed in Bulk 2.0 job — inspect via "
+                        f"SF Setup → Bulk Data Load Jobs → {result.get('job_id')}"
+                    )
+                metadata = {
+                    "salesforce_sobject": dg.MetadataValue.text(_self.sobject),
+                    "external_id_field": dg.MetadataValue.text(_self.external_id_field),
+                    "bulk_job_id": dg.MetadataValue.text(str(result.get("job_id"))),
+                    "bulk_state": dg.MetadataValue.text(str(result.get("state"))),
+                    # For Bulk 2.0 we can't distinguish created vs updated;
+                    # report success under both counts consistently:
+                    "rows_upserted": dg.MetadataValue.int(success),
+                    "rows_errored": dg.MetadataValue.int(failed),
+                    "rows_skipped_no_key": dg.MetadataValue.int(skipped_no_key),
+                    "bulk_apex_time_ms": dg.MetadataValue.int(
+                        int(result.get("apex_processing_time_ms") or 0)
+                    ),
+                    "bulk_total_time_ms": dg.MetadataValue.int(
+                        int(result.get("total_processing_time_ms") or 0)
+                    ),
+                    "bulk_poll_seconds": dg.MetadataValue.float(
+                        float(result.get("poll_seconds") or 0.0)
+                    ),
+                    "write_mode": dg.MetadataValue.text("bulk_2.0"),
+                }
+                return dg.MaterializeResult(metadata=metadata)
 
             if _self.use_composite:
                 # Chunk at 200 per Salesforce composite limits.

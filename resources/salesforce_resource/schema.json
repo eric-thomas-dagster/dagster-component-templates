@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.SalesforceResourceComponent",
-  "description": "Self-contained Salesforce REST API workhorse. OAuth 2.0 password grant against a Connected App, retry on 401 (token refresh) / 429 / 5xx. Convenience methods for read (soql cursor, describe_sobject, get_record, find_record) + write (create_record, update_record, upsert_record via native External-ID, composite_upsert, delete_record).",
+  "description": "Self-contained Salesforce REST API workhorse. Two auth modes: OAuth 2.0 password grant or OAuth 2.0 JWT Bearer (SF-recommended for new orgs). Retry on 401 (token refresh) / 429 / 5xx. Convenience methods for read (soql cursor, describe_sobject, get_record, find_record) + write (create_record, update_record, upsert_record via native External-ID, composite_upsert, bulk_upsert via Bulk 2.0 async API, delete_record).",
   "category": "resource",
   "icon": "si:salesforce",
   "x-dagster-io": {
@@ -15,10 +15,14 @@
   "attributes": {
     "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "salesforce"},
     "username": {"type": "string", "label": "Username", "required": true, "description": "Salesforce username (usually an email)."},
-    "password_env_var": {"type": "string", "label": "Password Env Var", "required": true, "ui:widget": "env_var"},
-    "security_token_env_var": {"type": "string", "label": "Security Token Env Var", "required": false, "default": null, "ui:widget": "env_var", "description": "Optional. Appended to password at auth time — required for IP-restricted orgs."},
-    "consumer_key_env_var": {"type": "string", "label": "Consumer Key Env Var", "required": true, "ui:widget": "env_var", "description": "From Setup → App Manager → Connected App."},
-    "consumer_secret_env_var": {"type": "string", "label": "Consumer Secret Env Var", "required": true, "ui:widget": "env_var", "description": "From Setup → App Manager → Connected App."},
+    "auth_mode": {"type": "string", "label": "Auth Mode", "required": false, "default": "password", "description": "'password' (legacy but universal) or 'jwt_bearer' (modern headless; SF-recommended for new orgs). Field requirements differ per mode.", "enum": ["password", "jwt_bearer"]},
+    "consumer_key_env_var": {"type": "string", "label": "Consumer Key Env Var", "required": true, "ui:widget": "env_var", "description": "From Setup → App Manager → Connected App. Required for both auth modes."},
+    "password_env_var": {"type": "string", "label": "Password Env Var", "required": false, "default": null, "ui:widget": "env_var", "description": "Required when auth_mode='password'."},
+    "consumer_secret_env_var": {"type": "string", "label": "Consumer Secret Env Var", "required": false, "default": null, "ui:widget": "env_var", "description": "Required when auth_mode='password'. Not used for JWT Bearer."},
+    "security_token_env_var": {"type": "string", "label": "Security Token Env Var", "required": false, "default": null, "ui:widget": "env_var", "description": "Optional (password mode only). Appended to password at auth time — required for IP-restricted orgs."},
+    "private_key_pem_env_var": {"type": "string", "label": "Private Key PEM Env Var", "required": false, "default": null, "ui:widget": "env_var", "description": "Env var holding the RSA private key PEM content (full BEGIN/END block). Required when auth_mode='jwt_bearer'. Matching cert must be uploaded under Connected App → Digital Certificates."},
+    "jwt_subject": {"type": "string", "label": "JWT Subject", "required": false, "default": null, "description": "JWT `sub` claim — Salesforce user the assertion authorizes as. Defaults to `username`. JWT Bearer mode only."},
+    "jwt_audience": {"type": "string", "label": "JWT Audience", "required": false, "default": null, "description": "JWT `aud` claim — SF token endpoint host. Defaults to `https://{domain}.salesforce.com`. JWT Bearer mode only."},
     "domain": {"type": "string", "label": "Domain", "required": false, "default": "login", "description": "'login' (production), 'test' (sandbox), or 'mycompany.my' (custom)."},
     "api_version": {"type": "string", "label": "API Version", "required": false, "default": "58.0"},
     "request_timeout_seconds": {"type": "integer", "label": "Request Timeout (seconds)", "required": false, "default": 60},

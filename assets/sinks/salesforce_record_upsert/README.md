@@ -9,10 +9,17 @@ Salesforce returns:
 - **201 Created** if no record matched the external Id → new record inserted.
 - **204 No Content** if a match existed → record updated in place.
 
-Composite mode (`use_composite: true`, default) batches 200 records per HTTP call at:
-- `PATCH /services/data/vXX.0/composite/sobjects/{Object}/{ExternalIdField}`
+## Write modes — pick one
 
-The composite path is Salesforce's fastest sync write API short of Bulk 2.0.
+Three modes, ordered fastest → most granular error reporting:
+
+| Mode | How | Speed | Error detail |
+|---|---|---|---|
+| **Bulk 2.0** (`use_bulk: true`) | Async ingest job — Salesforce chunks + parallelizes server-side | **10-100x faster** for >200 rows | Aggregate counts; per-row errors in SF's Bulk Data Load Jobs UI |
+| **Composite** (`use_composite: true`, default) | `PATCH /composite/sobjects/{Object}/{ExtIdField}` — 200 rows per HTTP call | Fastest sync path | Per-row (inline in response) |
+| **Per-row** (`use_composite: false, use_bulk: false`) | One `PATCH /sobjects/{Object}/{ExtIdField}/{Value}` per row | Slowest | Full per-row error isolation |
+
+Rule of thumb: use Bulk 2.0 for loads >1,000 rows, composite for typical daily syncs (<1,000), per-row when you need exhaustive error detail per record.
 
 ## When to use
 
@@ -57,6 +64,29 @@ attributes:
   use_composite: true          # 200-record batches (default)
   composite_all_or_none: false # partial-success (per-row), not all-or-nothing
 ```
+
+## Example — Bulk 2.0 (large loads)
+
+```yaml
+type: dagster_community_components.SalesforceRecordUpsertComponent
+attributes:
+  asset_name: salesforce_accounts_mirror
+  upstream_asset_key: dbt_marts_all_accounts   # 50k+ rows
+  resource_key: salesforce
+  sobject: Account
+  external_id_field: External_Account_Id__c
+  fields_map:
+    account_id: External_Account_Id__c
+    name: Name
+    annual_revenue: AnnualRevenue
+
+  batch_size: 100000            # allow large upstream
+  use_bulk: true                # switch to Bulk 2.0
+  bulk_poll_interval_seconds: 5.0
+  bulk_poll_timeout_seconds: 1800  # 30 min cap
+```
+
+Bulk 2.0 output metadata: `bulk_job_id`, `bulk_state` (JobComplete/Failed/Aborted), `rows_upserted`, `rows_errored`, `bulk_apex_time_ms`, `bulk_total_time_ms`, `bulk_poll_seconds`. Per-row error detail lives in the SF Setup → Bulk Data Load Jobs UI (`bulk_job_id` links to the job).
 
 ## Behavior + gotchas
 

@@ -1,1 +1,2 @@
 requests>=2.28
+PyJWT[crypto]>=2.8  # optional — only imported when auth_mode='jwt_bearer'

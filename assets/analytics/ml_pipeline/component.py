@@ -1194,12 +1194,15 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
 
         # Build the outs dict for @multi_asset — one entry per asset id.
         # tags/kinds go on each AssetOut (multi_asset doesn't accept them at the decorator level).
+        # `is_required=False` lets can_subset=True omit outputs when the caller
+        # selects a strict subset of the pipeline.
         outs = {
             f"{prefix}_{aid}": dg.AssetOut(
                 group_name=group_name,
                 description=self.description,
                 owners=self.owners or None,
                 tags=tags,
+                is_required=False,
             )
             for aid in asset_ids
         }
@@ -1209,11 +1212,85 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
         if source_config.get("kind") == "upstream_asset":
             ins["source"] = dg.AssetIn(key=dg.AssetKey.from_user_string(source_config["upstream_asset_key"]))
 
+        # ── Step-dep DAG for can_subset resume ──
+        # For any step_id, resolve the transitive-upstream set of OTHER step
+        # ids that must have run before it. Used at runtime when the caller
+        # subset-materializes a subset of outputs — we run only the needed
+        # steps, not the whole pipeline. Mirrors the AgenticPipelineComponent
+        # pattern; dbt-style per-step resume without splitting into N @asset
+        # decorators.
+        step_by_id: Dict[str, dict] = {s["id"]: s for s in steps if s.get("id")}
+        step_ids_ordered: List[str] = [s["id"] for s in steps if s.get("id")]
+
+        def _prev_frame_id(step_index: int) -> Optional[str]:
+            """Fallback for FRAME_OPS/MODEL_TRAIN_OPS/MODEL_APPLY_OPS with no
+            explicit `source`/`input` — the last frame-producing step declared
+            before it. Matches runtime `_last_frame_id` semantics but based on
+            static declaration order rather than dict-insertion order."""
+            for j in range(step_index - 1, -1, -1):
+                prev = steps[j]
+                prev_op = prev.get("op")
+                if prev_op in _FRAME_OPS or prev_op in _MODEL_APPLY_OPS or prev_op in _MODEL_ONLY_OPS:
+                    return prev.get("id")
+            return None  # falls back to "source" at runtime
+
+        def _direct_step_deps(step: dict, step_index: int) -> List[str]:
+            """Step ids this step needs before it can run (excluding 'source')."""
+            op = step.get("op")
+            deps: List[str] = []
+            # Explicit source (FRAME_OPS + MODEL_TRAIN_OPS)
+            src = step.get("source")
+            if isinstance(src, str) and src != "source" and src in step_by_id:
+                deps.append(src)
+            elif src is None and op in _FRAME_OPS:
+                p = _prev_frame_id(step_index)
+                if p and p != "source":
+                    deps.append(p)
+            # Model apply — needs both model + input
+            if op in _MODEL_APPLY_OPS:
+                m = step.get("model")
+                if isinstance(m, str) and m in step_by_id:
+                    deps.append(m)
+                i = step.get("input")
+                if isinstance(i, str) and i != "source" and i in step_by_id:
+                    deps.append(i)
+                elif i is None:
+                    p = _prev_frame_id(step_index)
+                    if p and p != "source":
+                        deps.append(p)
+            # Model-only op (e.g. eval on model itself)
+            if op in _MODEL_ONLY_OPS:
+                m = step.get("model")
+                if isinstance(m, str) and m in step_by_id:
+                    deps.append(m)
+            return deps
+
+        _step_direct_deps: Dict[str, List[str]] = {
+            s["id"]: _direct_step_deps(s, i) for i, s in enumerate(steps) if s.get("id")
+        }
+
+        def _closure(target_ids: List[str]) -> List[str]:
+            """Return step ids to run, in original `steps:` declaration order,
+            so every target_id has its upstream deps materialized first."""
+            need: set = set()
+            stack: List[str] = list(target_ids)
+            while stack:
+                sid = stack.pop()
+                if sid in need:
+                    continue
+                need.add(sid)
+                for u in _step_direct_deps.get(sid, []):
+                    if u not in need:
+                        stack.append(u)
+            # Preserve declaration order.
+            return [sid for sid in step_ids_ordered if sid in need]
+
         @dg.multi_asset(
             outs=outs,
             name=f"{prefix}_pipeline",
             ins=ins or None,
             required_resource_keys=required_resource_keys or None,
+            can_subset=True,
         )
         def _pipeline(context: dg.AssetExecutionContext, **kwargs):
             # Partition-aware compute: read context.partition_key once + thread
@@ -1250,29 +1327,53 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 "__step_metadata__": {},
             }
 
-            # Run each step in order.
+            # can_subset: figure out which asset outputs were requested. When
+            # the caller selects a strict subset, we run only the steps
+            # transitively needed for those outputs — dbt-style per-step resume
+            # without splitting into N @asset decorators. Mirrors the
+            # AgenticPipelineComponent pattern.
+            selected_output_names = set(context.selected_output_names)
+            all_output_names = set(outs.keys())
+            is_subset = 0 < len(selected_output_names) < len(all_output_names)
+            selected_step_ids = (
+                [aid for aid in asset_ids if f"{prefix}_{aid}" in selected_output_names]
+                if is_subset else list(asset_ids)
+            )
+            steps_to_run_ids = _closure(selected_step_ids) if is_subset else step_ids_ordered
+            if is_subset:
+                context.log.info(
+                    f"can_subset ACTIVE: selected {len(selected_step_ids)}/{len(asset_ids)} asset(s) "
+                    f"({sorted(selected_step_ids)}); running {len(steps_to_run_ids)}/{len(steps)} step(s) "
+                    f"({steps_to_run_ids}) — skipping the rest"
+                )
+
+            steps_to_run_set = set(steps_to_run_ids)
+
+            # Run selected steps in original declaration order.
             try:
                 for step in steps:
-                    _run_step(step, state, target, features, context)
+                    if step.get("id") in steps_to_run_set:
+                        _run_step(step, state, target, features, context)
             finally:
                 tracker.end()
 
             # Write CSV sinks — side effects, not first-class assets.
             # Path is partition-aware via `{partition_key}` templating.
+            # When can_subset is active, skip sinks whose upstream step wasn't run.
             for sink in csv_sinks:
                 from_id = sink["from"]
-                path = _apply_partition_template(sink["path"], partition_key)
                 if from_id not in state:
-                    raise ValueError(f"csv_sinks: unknown step id {from_id!r}")
+                    continue  # subset skipped upstream; skip sink
+                path = _apply_partition_template(sink["path"], partition_key)
                 state[from_id].to_csv(path, index=False)
                 context.log.info(f"csv_sink {from_id!r} → {path}")
 
             # Write Parquet sinks — same shape as csv_sinks.
             for sink in parquet_sinks:
                 from_id = sink["from"]
-                path = _apply_partition_template(sink["path"], partition_key)
                 if from_id not in state:
-                    raise ValueError(f"parquet_sinks: unknown step id {from_id!r}")
+                    continue  # subset skipped upstream; skip sink
+                path = _apply_partition_template(sink["path"], partition_key)
                 state[from_id].to_parquet(path, index=False)
                 context.log.info(f"parquet_sink {from_id!r} → {path}")
 
@@ -1303,6 +1404,10 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                         f"table_sinks[{from_id!r}] mode=upsert_on_match requires 'match: [col, ...]'"
                     )
                 if from_id not in state:
+                    # can_subset: silently skip if upstream step was excluded.
+                    # If NOT a subset run, treat missing step id as a config error.
+                    if is_subset:
+                        continue
                     raise ValueError(f"table_sinks: unknown step id {from_id!r}")
 
                 df_to_write = state[from_id]
@@ -1389,9 +1494,22 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                         f"(via {resource_key}, {if_exists})"
                     )
 
-            # Emit per-step MetadataValue for every step that maps to an output asset.
+            # Determine which asset outputs to emit. In subset mode only emit
+            # the outputs the caller selected (plus any transitively-built ones
+            # in selected_step_ids). In full mode, emit all.
+            outputs_to_emit = (
+                [aid for aid in asset_ids if aid in selected_step_ids]
+                if is_subset else list(asset_ids)
+            )
+
+            # Validate every emitted asset id has a value in state.
+            missing = [aid for aid in outputs_to_emit if aid not in state]
+            if missing:
+                raise ValueError(f"outputs.assets references unknown step ids: {missing}")
+
+            # Emit per-step MetadataValue only for assets we're returning.
             step_meta = state.get("__step_metadata__") or {}
-            for aid in asset_ids:
+            for aid in outputs_to_emit:
                 meta = step_meta.get(aid) or {}
                 if not meta:
                     continue
@@ -1409,10 +1527,9 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                         mv[k] = dg.MetadataValue.text(str(v))
                 context.add_output_metadata(output_name=f"{prefix}_{aid}", metadata=mv)
 
-            # Return the values of the assets in the order of outs.
-            missing = [aid for aid in asset_ids if aid not in state]
-            if missing:
-                raise ValueError(f"outputs.assets references unknown step ids: {missing}")
-            return tuple(state[aid] for aid in asset_ids)
+            # Yield Output per selected asset — required for can_subset (a bare
+            # `return tuple(...)` only works when ALL outputs are always emitted).
+            for aid in outputs_to_emit:
+                yield dg.Output(state[aid], output_name=f"{prefix}_{aid}")
 
         return dg.Definitions(assets=[_pipeline])

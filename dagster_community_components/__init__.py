@@ -1295,6 +1295,18 @@ def _make_stub(name: str) -> type:
     return stub
 
 
+# Small registry of top-level helper *functions* (not component classes).
+# These resolve eagerly the first time they're imported — cheap because they
+# live in the applicator module alongside `AutomationConditionApplicatorComponent`,
+# and that module has no heavy transitive deps.
+_HELPERS = {
+    "apply_rules":
+        "dagster_community_components.assets.infrastructure.automation_condition_applicator.component:apply_rules",
+    "defs_with_automation_rules":
+        "dagster_community_components.assets.infrastructure.automation_condition_applicator.component:defs_with_automation_rules",
+}
+
+
 def __getattr__(name: str):
     """Return a lazy stub for `name`. Real class loads only on first use.
 
@@ -1302,11 +1314,21 @@ def __getattr__(name: str):
     (Dagster discovery walks `dir()` + `getattr` on every entry — returning
     real classes here would cost ~7 seconds of imports at every code-location
     load). The stub satisfies discovery cheaply; real load happens later.
+
+    Helper functions in `_HELPERS` bypass the stub path and eagerly import,
+    since they're called (not just discovered) and stub-wrapping a function
+    would break the call site.
     """
     # Already-loaded real classes short-circuit — no stub wrapping needed
     # once the module has been imported.
     if name in _loaded:
         return _loaded[name]
+    if name in _HELPERS:
+        module_path, attr = _HELPERS[name].split(":")
+        import importlib
+        real = getattr(importlib.import_module(module_path), attr)
+        _loaded[name] = real
+        return real
     if name in _CLASS_PATHS:
         return _make_stub(name)
     raise AttributeError(

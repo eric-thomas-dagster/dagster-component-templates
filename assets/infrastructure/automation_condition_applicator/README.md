@@ -31,37 +31,39 @@ Apply Dagster `AutomationCondition`s **broadly** to many assets at once via decl
 
 ---
 
-## Quick start
+## Two shapes — pick one
 
-> ⚠ **Important — this component requires TWO pieces, not one**:
-> 1. Your rules (defined in YAML or Python — your choice)
-> 2. **A call to `apply_rules(...)` in your `definitions.py`** — this is mandatory regardless of where rules live, because Dagster components can't post-process other components' output. The applicator mutates the merged Definitions AFTER all components have built; that can only happen at the project level.
->
-> Without the `definitions.py` wiring, your rules sit dormant and no automation_condition ever gets applied.
+Dagster gives you two ways to apply `AutomationCondition`s across many assets. Pick whichever fits — **no middle ground**:
 
-### Easiest path — rules in Python, single file
+| Need | Use |
+|---|---|
+| Apply ONE `AutomationCondition` per asset selection ("everything in this folder gets `eager`; assets tagged `hourly` get a cron") | **Built-in `dagster.DefsFolderComponent` with `post_processing.assets[].attributes.automation_condition`** — zero custom code, zero `definitions.py` wiring |
+| Fall-through rules, `derive_from_upstreams` (6 strategies), `tiered` / `staggered`, `business_hours_only`, `min_interval_minutes`, Python escape hatch | **This component** + one-line `defs_with_automation_rules(__file__)` in `definitions.py` |
 
-If you don't need YAML config, write rules inline in `definitions.py` — one file, done:
+### Shape 1 — built-in `DefsFolderComponent` (no this component needed)
 
-```python
-# definitions.py
-from pathlib import Path
-from dagster import definitions, load_from_defs_folder
-from dagster_community_components import apply_rules
+Drop a `defs.yaml` at the folder root:
 
-@definitions
-def defs():
-    base = load_from_defs_folder(path_within_project=Path(__file__).parent)
-    return apply_rules(base, rules=[
-        {"selection": "tag:cadence=hourly", "cron": "0 * * * *"},
-        {"selection": "group:silver", "derive_from_upstreams": True, "strategy": "most_frequent"},
-        {"selection": "*", "preset": "eager"},
-    ])
+```yaml
+# defs/analytics/defs.yaml
+type: dagster.DefsFolderComponent
+post_processing:
+  assets:
+    - target: "tag:cadence=hourly"
+      attributes:
+        automation_condition: "{{ dg.AutomationCondition.on_cron('0 * * * *') }}"
+    - target: "*"
+      attributes:
+        automation_condition: "{{ dg.AutomationCondition.eager() }}"
 ```
 
-### Alternative — rules in YAML, applied from Python
+Semantics: **last-match wins per asset** (later rules overwrite earlier on the same asset). No `definitions.py` change needed.
 
-If you want customer-editable YAML config separate from `definitions.py`:
+Can't do: fall-through (first-match), inspecting upstream cron metadata, tiered/staggered strategies, business-hours filtering, min-interval floors. If any of those matter, jump to shape 2.
+
+### Shape 2 — this component + one-line `definitions.py`
+
+Rules in YAML at any subfolder:
 
 ```yaml
 # defs/automation_rules/defs.yaml
@@ -81,9 +83,25 @@ attributes:
       preset: eager
 ```
 
+One-line `definitions.py`:
+
 ```python
-# definitions.py — STILL required, even with YAML rules
-import yaml
+from dagster_community_components import defs_with_automation_rules
+
+defs = defs_with_automation_rules(__file__)
+```
+
+The helper: loads the defs folder → walks it for any `AutomationConditionApplicatorComponent` YAML → applies each one's rules to the merged Definitions. Multiple applicator YAML files compose; each keeps its own `preserve_existing` / `precedence`.
+
+### Why the one-line wiring is unavoidable for shape 2
+
+Dagster's component tree is built bottom-up — each `build_defs` runs in isolation, merge happens above. A component can't post-process merged Definitions of its siblings without help from the project level. The one-line helper is that help.
+
+### Rules-in-Python variant (no YAML)
+
+Skip the YAML — write rules inline in `definitions.py`:
+
+```python
 from pathlib import Path
 from dagster import definitions, load_from_defs_folder
 from dagster_community_components import apply_rules
@@ -91,12 +109,12 @@ from dagster_community_components import apply_rules
 @definitions
 def defs():
     base = load_from_defs_folder(path_within_project=Path(__file__).parent)
-    with open(Path(__file__).parent / "defs/automation_rules/defs.yaml") as f:
-        config = yaml.safe_load(f)
-    return apply_rules(base, rules=config["attributes"]["rules"])
+    return apply_rules(base, rules=[
+        {"selection": "tag:cadence=hourly", "cron": "0 * * * *"},
+        {"selection": "group:silver", "derive_from_upstreams": True, "strategy": "most_frequent"},
+        {"selection": "*", "preset": "eager"},
+    ])
 ```
-
-Either approach produces the same result. **The `apply_rules` call in `definitions.py` is non-negotiable** — without it, the rules don't take effect.
 
 ---
 
@@ -518,9 +536,20 @@ Tag your root assets with `metadata: {cron_schedule: "..."}` so the applicator c
 
 ## Wiring (`definitions.py`)
 
-Components in Dagster can't post-process other components' output via `build_defs` alone — you wire the applicator at the project level:
+Components in Dagster can't post-process other components' output via `build_defs` alone — you wire the applicator at the project level. Three flavors:
 
-### Simple — one applicator
+### One-line (YAML rules, auto-discovered)
+
+```python
+# definitions.py
+from dagster_community_components import defs_with_automation_rules
+
+defs = defs_with_automation_rules(__file__)
+```
+
+The helper walks the defs folder for any `AutomationConditionApplicatorComponent` YAML files, parses each one's `rules` / `preserve_existing` / `precedence`, and applies them in filesystem-sorted order. Multiple applicator YAMLs compose.
+
+### Rules in Python (no YAML)
 
 ```python
 from pathlib import Path
@@ -537,7 +566,7 @@ def defs():
     ], preserve_existing=True)
 ```
 
-### Layered — multiple `apply_rules` calls
+### Layered — multiple explicit `apply_rules` calls
 
 Each call respects what previous calls set (via `preserve_existing=True`):
 
@@ -549,24 +578,6 @@ def defs():
     base = apply_rules(base, rules=team_rules, preserve_existing=True)
     # Global fallback policy second
     return apply_rules(base, rules=global_rules, preserve_existing=True)
-```
-
-### YAML-config + Python-applied
-
-Define rules in `defs/automation_rules/defs.yaml` (any component-style YAML), then load and apply them:
-
-```python
-# definitions.py
-import yaml
-from pathlib import Path
-from dagster_community_components import apply_rules
-
-@definitions
-def defs():
-    base = load_from_defs_folder(...)
-    with open(Path(__file__).parent / "defs/automation_rules/defs.yaml") as f:
-        config = yaml.safe_load(f)
-    return apply_rules(base, rules=config["attributes"]["rules"])
 ```
 
 ---

@@ -41,25 +41,29 @@ are preserved if `preserve_existing: true` (default).
 This is the same "first match wins" pattern as CSS selectors with
 `preserve_existing` acting like `!important` on per-asset settings.
 
-How to wire it in (definitions.py):
+How to wire it in (`definitions.py`) — one line:
 
     ```python
-    from pathlib import Path
-    from dagster import definitions, load_from_defs_folder
-    from dagster_community_components.helpers.automation_applicator import (
-        apply_automation_conditions_from_defs_folder,
-    )
+    from dagster_community_components import defs_with_automation_rules
 
-    @definitions
-    def defs():
-        base = load_from_defs_folder(path_within_project=Path(__file__).parent)
-        return apply_automation_conditions_from_defs_folder(base, Path(__file__).parent)
+    defs = defs_with_automation_rules(__file__)
     ```
 
-That helper scans for `AutomationConditionApplicatorComponent` instances and
-applies their rules to the base Definitions. Without this wiring, the
-component is a no-op — Dagster components can't post-process other components'
-output via `build_defs` alone.
+That helper loads the defs folder, walks it for any
+`AutomationConditionApplicatorComponent` YAML, and applies their rules to the
+merged Definitions. Without this wiring the component is a no-op — Dagster
+components can't post-process other components' output via `build_defs` alone.
+
+Binary choice — which shape do you need?
+
+| Need | Use |
+|---|---|
+| Apply ONE `AutomationCondition` per asset selection ("everything tagged X gets `eager`") | Built-in `dagster.DefsFolderComponent` with `post_processing.assets[].attributes.automation_condition`. Zero custom code. |
+| Fall-through rules, `derive_from_upstreams` (6 strategies), `tiered` / `staggered`, `business_hours_only`, `min_interval_minutes`, `python:` escape hatch | This component + one-line `defs_with_automation_rules(__file__)` in `definitions.py`. |
+
+The built-in shape can't express fall-through or upstream-derivation because
+post-processing overlays are static attribute writes. That's what this
+component adds on top.
 """
 
 from typing import Any, Dict, List, Optional
@@ -800,22 +804,15 @@ class AutomationConditionApplicatorComponent(dg.Component, dg.Model, dg.Resolvab
 
     Without explicit wiring, this component is a NO-OP at load time (Dagster
     doesn't allow components to post-process other components' assets directly).
-    To take effect, the user wires it in their `definitions.py`:
+    To take effect, the user wires it in their `definitions.py` — one line:
 
         ```python
-        from pathlib import Path
-        from dagster import definitions, load_from_defs_folder
-        from dagster_community_components.helpers.automation_applicator import (
-            apply_automation_conditions_from_defs_folder,
-        )
+        from dagster_community_components import defs_with_automation_rules
 
-        @definitions
-        def defs():
-            base = load_from_defs_folder(path_within_project=Path(__file__).parent)
-            return apply_automation_conditions_from_defs_folder(base, Path(__file__).parent)
+        defs = defs_with_automation_rules(__file__)
         ```
 
-    Or for custom-Python flexibility:
+    Or for custom-Python flexibility (build rules inline instead of YAML):
 
         ```python
         from dagster_component_templates.assets.infrastructure.automation_condition_applicator.component import (
@@ -905,3 +902,86 @@ class AutomationConditionApplicatorComponent(dg.Component, dg.Model, dg.Resolvab
             preserve_existing=self.preserve_existing,
             precedence=self.precedence,
         )
+
+
+# --------------------------------------------------------------------------
+# Helper — reduces the definitions.py wiring to one line
+# --------------------------------------------------------------------------
+
+
+def defs_with_automation_rules(dunder_file: str) -> "dg.Definitions":
+    """One-line replacement for ``load_from_defs_folder`` + applicator wiring.
+
+    Use in ``definitions.py`` in place of the 3-line boilerplate:
+
+        ```python
+        # definitions.py
+        from dagster_community_components import defs_with_automation_rules
+
+        defs = defs_with_automation_rules(__file__)
+        ```
+
+    Under the hood:
+
+    1. Loads the project's defs folder (same as ``load_from_defs_folder``).
+    2. Walks the ``defs/`` tree for any ``defs.yaml`` whose ``type:`` is this
+       applicator (or a subclass named ``…AutomationConditionApplicatorComponent``).
+    3. Parses each applicator's YAML config and applies its rules in file-tree
+       order, respecting each instance's own ``preserve_existing`` /
+       ``precedence``.
+
+    ``dunder_file`` should be the ``__file__`` of your ``definitions.py``.
+
+    Why this exists (and why there's no folder-scoped drop-in variant):
+
+    Dagster's component tree is built bottom-up — each component's
+    ``build_defs`` runs in isolation, and the merge happens above every
+    component. A component can't post-process the merged Definitions of its
+    siblings without help from the project level. This helper is that help,
+    in one line.
+
+    For the SIMPLE case ("apply one AutomationCondition to a selection of
+    assets in a folder"), you don't need this component at all — use
+    ``dagster.DefsFolderComponent`` with its built-in ``post_processing:``
+    block. See the component README for a comparison.
+    """
+    from pathlib import Path as _Path
+
+    project_dir = _Path(dunder_file).parent
+    base = dg.load_from_defs_folder(path_within_project=project_dir)
+    for rules_cfg in _find_applicator_yaml_configs(project_dir):
+        base = apply_rules(
+            base,
+            rules_cfg["rules"],
+            preserve_existing=rules_cfg.get("preserve_existing", True),
+            precedence=rules_cfg.get("precedence", "first_match"),
+        )
+    return base
+
+
+def _find_applicator_yaml_configs(project_dir):
+    """Walk ``project_dir`` for ``defs.yaml`` files whose ``type:`` targets
+    ``AutomationConditionApplicatorComponent``. Yield the resolved
+    ``attributes:`` dict from each match, in filesystem-sorted order for
+    determinism.
+
+    Matches on suffix ``AutomationConditionApplicatorComponent`` so
+    subclasses / re-exports resolve too.
+    """
+    import yaml as _yaml
+
+    for defs_yaml in sorted(project_dir.rglob("defs.yaml")):
+        try:
+            raw = _yaml.safe_load(defs_yaml.read_text())
+        except Exception:
+            continue
+        if not isinstance(raw, dict):
+            continue
+        typ = raw.get("type") or ""
+        if not typ.endswith("AutomationConditionApplicatorComponent"):
+            continue
+        attrs = raw.get("attributes") or {}
+        rules = attrs.get("rules")
+        if not rules:
+            continue
+        yield attrs

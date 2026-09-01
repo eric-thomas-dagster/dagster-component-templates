@@ -738,7 +738,7 @@
         "standardized"
       ],
       "produces": [
-        "asset"
+        "multi_asset"
       ],
       "dependencies": {
         "pip": [
@@ -1476,7 +1476,12 @@
         "framework handoff",
         "tool use loop",
         "tool use agent"
-      ]
+      ],
+      "emitted_assets": {
+        "pattern": "One Dagster asset per step listed in `outputs.assets`. Asset key = `{asset_name_prefix}_{asset_id}`.",
+        "source_field": "outputs.assets",
+        "key_template": "{asset_name_prefix}_{asset_id}"
+      }
     },
     {
       "id": "airbyte_assets",
@@ -1668,7 +1673,12 @@
       "keywords": [
         "3rd party",
         "external system"
-      ]
+      ],
+      "emitted_assets": {
+        "pattern": "One Dagster asset per Airflow DAG proxied from the connected Airflow instance. Asset keys mirror the DAG id + task id.",
+        "source_field": "airflow_api.dags[].tasks[]",
+        "key_template": "{dag_id}.{task_id}"
+      }
     },
     {
       "id": "airflow_trigger_job",
@@ -1761,7 +1771,12 @@
       "keywords": [
         "3rd party",
         "external system"
-      ]
+      ],
+      "emitted_assets": {
+        "pattern": "One Dagster asset per Airflow task-level proxied asset. Asset keys mirror the {dag_id}__{task_id} shape.",
+        "source_field": "airflow_api.dags[].tasks[]",
+        "key_template": "{dag_id}__{task_id}"
+      }
     },
     {
       "id": "airtable_ingestion",
@@ -6894,7 +6909,12 @@
       ],
       "keywords": [
         "infra"
-      ]
+      ],
+      "emitted_assets": {
+        "pattern": "One Dagster asset per Coalesce node/model in the fetched Coalesce project graph. Asset keys mirror the Coalesce node names.",
+        "source_field": "coalesce_api.nodes[].name",
+        "key_template": "{coalesce_node.name}"
+      }
     },
     {
       "id": "coalesce_run_asset",
@@ -9872,7 +9892,12 @@
         "databricks sql",
         "3rd party",
         "external system"
-      ]
+      ],
+      "emitted_assets": {
+        "pattern": "One Dagster asset per Databricks Asset Bundle target/pipeline/job resource. Asset keys derive from the bundle YAML.",
+        "source_field": "bundle_yaml.resources[].name",
+        "key_template": "{bundle.resource_name}"
+      }
     },
     {
       "id": "databricks_genie_query",
@@ -13087,7 +13112,12 @@
         "data build tool",
         "dbt-core",
         "dbt cloud"
-      ]
+      ],
+      "emitted_assets": {
+        "pattern": "One Dagster asset per dbt node (models + seeds + snapshots) discovered in the manifest. Asset keys mirror the dbt fully-qualified names.",
+        "source_field": "dbt_manifest.nodes[]",
+        "key_template": "{dbt_fqn}"
+      }
     },
     {
       "id": "dbt_run_job",
@@ -27272,7 +27302,12 @@
       "keywords": [
         "llm",
         "genai"
-      ]
+      ],
+      "emitted_assets": {
+        "pattern": "One Dagster asset per branch listed in `outputs[]`. Asset key = each branch's `name`.",
+        "source_field": "outputs[].name",
+        "key_template": "{outputs[i].name}"
+      }
     },
     {
       "id": "llm_output_parser",
@@ -28557,7 +28592,7 @@
         "standardized"
       ],
       "produces": [
-        "asset"
+        "multi_asset"
       ],
       "dependencies": {
         "pip": [
@@ -28601,7 +28636,12 @@
         "idempotent write",
         "partition rewrite",
         "backfill"
-      ]
+      ],
+      "emitted_assets": {
+        "pattern": "One Dagster asset per step listed in `outputs.assets`. Asset key = `{asset_name_prefix}_{asset_id}`.",
+        "source_field": "outputs.assets",
+        "key_template": "{asset_name_prefix}_{asset_id}"
+      }
     },
     {
       "id": "mlflow_experiment_sensor",
@@ -28969,7 +29009,12 @@
         "workspace-style component",
         "ingest",
         "read from"
-      ]
+      ],
+      "emitted_assets": {
+        "pattern": "One Dagster asset per registered MLflow experiment / run / registered-model target enumerated from the MLflow tracking server.",
+        "source_field": "mlflow_api.experiments[]+.registered_models[]",
+        "key_template": "{mlflow_entity.name}"
+      }
     },
     {
       "id": "modal_asset",
@@ -33826,7 +33871,12 @@
       "keywords": [
         "llm",
         "genai"
-      ]
+      ],
+      "emitted_assets": {
+        "pattern": "One Dagster asset per successful pick in the cached plan. Asset keys derive from the picked component's config (whatever asset_name that pick supplies).",
+        "source_field": "cached_plan.picks[].config.asset_name",
+        "key_template": "picked_component.asset_name"
+      }
     },
     {
       "id": "point_in_polygon",
@@ -34232,7 +34282,12 @@
       "keywords": [
         "write to",
         "output"
-      ]
+      ],
+      "emitted_assets": {
+        "pattern": "One Dagster asset per model or bulk-sync configured in the component. Asset key = each model's `asset_name`.",
+        "source_field": "models[].asset_name",
+        "key_template": "{models[i].asset_name}"
+      }
     },
     {
       "id": "postgres_backup_job",
@@ -35733,7 +35788,12 @@
         "folder-driven pipeline",
         "multi asset folder scan",
         "cross-file lineage"
-      ]
+      ],
+      "emitted_assets": {
+        "pattern": "Multi-asset per feed file. Each feed at the folder path becomes ONE @multi_asset via PySparkPipelineComponent \u2014 asset keys are the sinks defined in each feed's config.",
+        "source_field": "<folder>/*.{json,yaml}::sinks[].asset_name",
+        "key_template": "{feed.sinks[i].asset_name}"
+      }
     },
     {
       "id": "pyspark_resource",
@@ -40947,7 +41007,12 @@
         "sling data",
         "3rd party",
         "external system"
-      ]
+      ],
+      "emitted_assets": {
+        "pattern": "One Dagster asset per stream defined in `replication.streams`. Asset keys mirror the target table names from the sling YAML.",
+        "source_field": "replication.streams[]",
+        "key_template": "{sling_target_table}"
+      }
     },
     {
       "id": "smooth",
@@ -42419,7 +42484,12 @@
         "workspace-style component",
         "3rd party",
         "external system"
-      ]
+      ],
+      "emitted_assets": {
+        "pattern": "One Dagster asset per Snowflake object (tables, views, stages, streams, tasks, alerts, openflows) discovered under the specified database + schemas.",
+        "source_field": "snowflake_information_schema.[tables|views|...]",
+        "key_template": "{schema}.{object_name}"
+      }
     },
     {
       "id": "snowpark_pipeline",
@@ -48575,7 +48645,12 @@
         "workspace-style component",
         "ingest",
         "read from"
-      ]
+      ],
+      "emitted_assets": {
+        "pattern": "One Dagster asset per W&B run/model/artifact target enumerated from the W&B API.",
+        "source_field": "wandb_api.runs[]+.artifacts[]",
+        "key_template": "{wandb_entity.name}"
+      }
     },
     {
       "id": "warehouse_dedup",
@@ -48957,7 +49032,7 @@
         ]
       },
       "produces": [
-        "asset"
+        "multi_asset"
       ],
       "keywords": [
         "transform",
@@ -48965,7 +49040,12 @@
         "upsert",
         "idempotent write",
         "backfill"
-      ]
+      ],
+      "emitted_assets": {
+        "pattern": "One Dagster asset per entry in `sinks[]`. Asset key = each sink's `asset_name`.",
+        "source_field": "sinks[].asset_name",
+        "key_template": "{sinks[i].asset_name}"
+      }
     },
     {
       "id": "warehouse_schema_assets",

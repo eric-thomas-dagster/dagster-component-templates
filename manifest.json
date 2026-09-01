@@ -15352,6 +15352,66 @@
       ]
     },
     {
+      "id": "email_approval_gate",
+      "name": "Email Approval Gate",
+      "category": "ai",
+      "description": "Email-native HITL approval gate. Sends the outbound approval-request email via SMTP; polls a shared mailbox via IMAP for replies matching approve/reject keywords from allowlisted approvers; writes the standard JSON approval token on quorum. Composes with HumanApprovalGateComponent via a shared approval_dir. Works on Gmail, Office 365, Zoho, self-hosted Postfix \u2014 anywhere with IMAP + SMTP creds. Storage over local FS or any fsspec URI (s3:// / gs:// / abfs://). Dagster+ Serverless-safe: no incoming webhooks required.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/email_approval_gate",
+      "tags": [
+        "ai",
+        "human-in-the-loop",
+        "approval",
+        "email",
+        "smtp",
+        "imap",
+        "governance",
+        "hitl",
+        "gate"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/email_approval_gate/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/email_approval_gate/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/email_approval_gate/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/email_approval_gate/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/email_approval_gate/requirements.txt",
+      "icon": "Mail",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-09-01",
+        "evidence": "Reply-classifier unit-tested against 7 real subject/body shapes (subject-tagged, body-tagged, Re:/Fwd: prefixes, quoted-line skip, no-match). dg check defs load-validated on a fresh uvx create-dagster project with static-partitioned upstream. Live SMTP+IMAP round-trip not tested \u2014 requires provider creds."
+      },
+      "agent_hints": {
+        "inputs": "upstream_asset_key \u2014 asset whose text is emailed to approvers.",
+        "outputs": "Two Dagster definitions: `{asset_name}_posted` asset (sends the outbound email + writes sidecar state) and `{asset_name}_watcher` sensor (polls IMAP + writes JSON token on quorum).",
+        "side_effects": "Sends SMTP email(s) to approver_allowlist on materialize. Polls IMAP mailbox continuously via sensor. Writes {approval_dir}/{safe_partition_key}.email_state.json (sidecar) and {approval_dir}/{safe_partition_key}.json (quorum token).",
+        "anti_uses": "Not for Slack/Teams-driven approvals (use SlackApprovalGate/TeamsApprovalGate). Not for file-drop-only workflows (use MultiApproverGate). Not for Office 365 tenants with Basic Auth disabled (needs MSAL \u2014 v2 follow-up).",
+        "requires_resources": [],
+        "output_type": "asset+sensor",
+        "requires_pip": []
+      },
+      "produces": [
+        "asset",
+        "sensor"
+      ],
+      "keywords": [
+        "human in the loop",
+        "hitl",
+        "email",
+        "smtp",
+        "imap",
+        "gmail",
+        "office 365",
+        "approval",
+        "quorum",
+        "governance",
+        "gate"
+      ]
+    },
+    {
       "id": "email_parser",
       "name": "Email Parser",
       "category": "transformation",

@@ -1,0 +1,57 @@
+{
+  "component_type": "dagster_community_components.EmailApprovalGateComponent",
+  "description": "Email-native HITL approval gate. Sends the outbound approval-request email via SMTP; polls a shared mailbox via IMAP for replies matching approve/reject keywords from allowlisted approvers; writes the standard JSON approval token on quorum. Composes with HumanApprovalGateComponent via a shared approval_dir. Works over local FS or any fsspec URI (s3:// / gs:// / abfs://) — Dagster+ Serverless-safe (no incoming webhooks required).",
+  "category": "ai",
+  "icon": "Mail",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "asset",
+      "description": "One upstream asset whose text is emailed to approvers."
+    },
+    "outputs": {
+      "type": "asset",
+      "description": "Two Dagster definitions: a `{asset_name}_posted` asset (sends the email + writes sidecar state) and a `{asset_name}_watcher` sensor (polls IMAP + writes JSON approval token on quorum)."
+    }
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": true},
+    "approval_dir": {"type": "string", "label": "Approval Directory", "required": true, "description": "Local path or fsspec URI (s3://, gs://, abfs://)."},
+    "smtp_server": {"type": "string", "label": "SMTP Server", "required": true},
+    "smtp_port": {"type": "integer", "label": "SMTP Port", "required": false, "default": 587},
+    "smtp_use_tls": {"type": "boolean", "label": "SMTP Use TLS", "required": false, "default": true, "ui:widget": "checkbox"},
+    "smtp_username_env_var": {"type": "string", "label": "SMTP Username Env Var", "required": true, "ui:widget": "env_var"},
+    "smtp_password_env_var": {"type": "string", "label": "SMTP Password Env Var", "required": true, "ui:widget": "env_var"},
+    "from_email": {"type": "string", "label": "From Email", "required": true},
+    "to_emails": {"type": "array", "items": {"type": "string"}, "label": "To Emails", "required": true, "ui:widget": "list"},
+    "cc_emails": {"type": "array", "items": {"type": "string"}, "label": "CC Emails", "required": false, "default": null, "ui:widget": "list"},
+    "subject_template": {"type": "string", "label": "Subject Template", "required": false, "default": null, "description": "Placeholders: `{partition_key}`. Default `[Dagster] Approval needed: {partition_key}`."},
+    "body_template": {"type": "string", "label": "Body Template", "required": false, "default": null, "description": "Placeholders: `{upstream_text}` `{approve_keyword}` `{reject_keyword}` `{required_approvers}` `{n_allowlisted}` `{partition_key}`."},
+    "imap_server": {"type": "string", "label": "IMAP Server", "required": true},
+    "imap_port": {"type": "integer", "label": "IMAP Port", "required": false, "default": 993},
+    "imap_use_ssl": {"type": "boolean", "label": "IMAP Use SSL", "required": false, "default": true, "ui:widget": "checkbox"},
+    "imap_username_env_var": {"type": "string", "label": "IMAP Username Env Var", "required": true, "ui:widget": "env_var"},
+    "imap_password_env_var": {"type": "string", "label": "IMAP Password Env Var", "required": true, "ui:widget": "env_var"},
+    "imap_mailbox": {"type": "string", "label": "IMAP Mailbox", "required": false, "default": "INBOX"},
+    "approve_keyword": {"type": "string", "label": "Approve Keyword", "required": false, "default": "APPROVE"},
+    "reject_keyword": {"type": "string", "label": "Reject Keyword", "required": false, "default": "REJECT"},
+    "required_approvers": {"type": "integer", "label": "Required Approvers", "required": false, "default": 1},
+    "approver_allowlist": {"type": "array", "items": {"type": "string"}, "label": "Approver Allowlist", "required": true, "description": "Email addresses. Replies from anyone else are ignored.", "ui:widget": "list"},
+    "timeout_hours": {"type": "number", "label": "Timeout Hours", "required": false, "default": null},
+    "on_timeout": {"type": "string", "label": "On Timeout", "required": false, "default": "escalate", "enum": ["escalate", "reject", "approve"]},
+    "escalate_email": {"type": "string", "label": "Escalate Email", "required": false, "default": null, "description": "CC'd on the escalation follow-up. Only used when on_timeout=escalate."},
+    "poll_interval_seconds": {"type": "integer", "label": "Poll Interval (s)", "required": false, "default": 60},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "partition_type": {"type": "string", "label": "Partition Type", "required": false, "enum": ["daily", "weekly", "monthly", "hourly", "static", "dynamic"]},
+    "partition_start": {"type": "string", "label": "Partition Start", "required": false},
+    "partition_values": {"type": "string", "label": "Partition Values", "required": false, "description": "Comma-separated for static."},
+    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "required": false},
+    "partition_dimensions": {"type": "array", "items": {"type": "object"}, "label": "Partition Dimensions", "required": false, "description": "Multi-axis partitioning."}
+  },
+  "tags": ["ai", "human-in-the-loop", "approval", "email", "smtp", "imap", "governance", "hitl", "gate"],
+  "name": "Email Approval Gate"
+}

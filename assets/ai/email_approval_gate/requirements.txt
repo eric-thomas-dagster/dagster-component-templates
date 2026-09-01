@@ -1,0 +1,6 @@
+# stdlib-only (smtplib + imaplib + email are all built into Python)
+# fsspec is only needed when approval_dir is a cloud URI (s3://, gs://, abfs://).
+# Install the appropriate driver:
+#   s3://   → pip install fsspec s3fs
+#   gs://   → pip install fsspec gcsfs
+#   abfs:// → pip install fsspec adlfs

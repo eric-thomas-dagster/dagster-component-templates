@@ -323,6 +323,7 @@ _CLASS_PATHS: dict[str, str] = {
     "ElasticsearchReaderComponent": "assets/sources/elasticsearch_reader/component.py",
     "ElasticsearchResource": "resources/elasticsearch_resource/component.py",
     "ElasticsearchResourceComponent": "resources/elasticsearch_resource/component.py",
+    "EmailApprovalGateComponent": "assets/ai/email_approval_gate/component.py",
     "EmailParserComponent": "assets/transforms/email_parser/component.py",
     "EmbeddingsGeneratorComponent": "assets/ai/embeddings_generator/component.py",
     "EnhancedDataQualityChecks": "asset_checks/enhanced_data_quality_checks/component.py",

@@ -1,0 +1,41 @@
+type: dagster_community_components.EmailApprovalGateComponent
+attributes:
+  asset_name: prod_deploy_approval
+  upstream_asset_key: candidate_deploy_manifest
+  approval_dir: "s3://my-org-approvals/prod-deploys/"
+
+  # SMTP (outbound)
+  smtp_server: smtp.gmail.com
+  smtp_port: 587
+  smtp_use_tls: true
+  smtp_username_env_var: SMTP_USER
+  smtp_password_env_var: SMTP_PASS
+  from_email: dagster-approvals@example.com
+  to_emails:
+    - alice@example.com
+    - bob@example.com
+    - carol@example.com
+
+  # IMAP (inbound polling — same account works if it's a shared mailbox)
+  imap_server: imap.gmail.com
+  imap_port: 993
+  imap_use_ssl: true
+  imap_username_env_var: SMTP_USER
+  imap_password_env_var: SMTP_PASS
+
+  # Quorum
+  required_approvers: 2
+  approver_allowlist:
+    - alice@example.com
+    - bob@example.com
+    - carol@example.com
+
+  timeout_hours: 24
+  on_timeout: escalate
+  escalate_email: platform-oncall@example.com
+
+  # Partition per-deploy-manifest
+  partition_type: static
+  partition_values: "us-east, eu-west, apac"
+
+  group_name: prod_deploys

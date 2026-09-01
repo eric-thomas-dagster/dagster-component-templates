@@ -54,12 +54,13 @@ attempt.
   M seconds. Prevents wasted API budget on a downed dependency.
 """
 
+import functools
 import importlib
 import os
 import random
 import subprocess
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import dagster as dg
 from pydantic import Field
@@ -437,6 +438,141 @@ class SmartRetryComponent(dg.Component, dg.Model, dg.Resolvable):
             raise RuntimeError("smart_retry: exhausted attempts with no captured exception")
 
         return dg.Definitions(assets=[_wrapped])
+
+
+# --------------------------------------------------------------------------
+# Public: @smart_retry decorator — wrap ANY existing Python function
+# (typically the compute of an existing @dg.asset) with the same
+# classification-aware retry engine the component uses. Composable — no
+# YAML changes, no re-wiring existing components.
+# --------------------------------------------------------------------------
+
+
+def smart_retry(
+    rules: Optional[List[Dict[str, Any]]] = None,
+    *,
+    max_attempts: int = 3,
+    backoff: str = "exponential",
+    initial_delay_seconds: float = 1.0,
+    max_delay_seconds: float = 60.0,
+    jitter: bool = True,
+) -> Callable:
+    """Decorator that adds classification-aware retry to any Python function.
+
+    Applied BEFORE `@dg.asset` (or any other Dagster decorator) so the
+    retry logic wraps the compute:
+
+        ```python
+        from dagster_community_components import smart_retry
+
+        @dg.asset(ins={"raw": dg.AssetIn(...)})
+        @smart_retry(
+            rules=[
+                {"kind": "http_status",
+                 "transient_codes": [429, 500, 502, 503, 504],
+                 "permanent_codes": [400, 401, 403, 404]},
+                {"kind": "exception_class",
+                 "transient": ["ConnectionError", "TimeoutError"],
+                 "permanent": ["ValueError", "KeyError"]},
+            ],
+            max_attempts=5,
+            backoff="exponential",
+        )
+        def enriched_orders(context, raw):
+            return call_api(raw)   # existing user code, unchanged
+        ```
+
+    Same classification + backoff engine as `SmartRetryComponent`. Args
+    mirror the component's `retry_rules` + `retry_policy` fields.
+
+    On PERMANENT classification → raises `dg.Failure` immediately with
+    classification metadata.
+    On exhausted retries → raises `dg.Failure` with attempt count.
+    On success → returns the underlying function's return value.
+
+    Logs go through `context.log.*` if the function's first positional
+    arg (or `context` kwarg) has a `.log` attribute — otherwise silent.
+    """
+    _rules = list(rules or [])
+    if backoff not in ("exponential", "linear", "fixed"):
+        raise ValueError(f"backoff must be exponential|linear|fixed; got {backoff!r}")
+    if max_attempts < 1:
+        raise ValueError(f"max_attempts must be >= 1; got {max_attempts}")
+
+    def _decorator(fn: Callable) -> Callable:
+        @functools.wraps(fn)
+        def _wrapped(*args, **kwargs):
+            # Best-effort context extraction — Dagster passes context as the
+            # first positional arg for @asset/@op-shaped compute functions.
+            context = None
+            if args and hasattr(args[0], "log"):
+                context = args[0]
+            elif "context" in kwargs and hasattr(kwargs["context"], "log"):
+                context = kwargs["context"]
+
+            def _log(level: str, msg: str):
+                if context is not None:
+                    getattr(context.log, level, context.log.info)(msg)
+
+            last_exc: Optional[BaseException] = None
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    result = fn(*args, **kwargs)
+                    if attempt > 1:
+                        _log("info", f"[smart_retry] succeeded on attempt {attempt}/{max_attempts}")
+                    return result
+                except BaseException as exc:  # noqa: BLE001
+                    last_exc = exc
+                    classification = _classify(exc, _rules)
+                    exc_summary = f"{type(exc).__name__}: {str(exc)[:200]}"
+                    status = _extract_http_status(exc)
+                    status_str = f" (status={status})" if status is not None else ""
+
+                    if classification == "permanent":
+                        _log("error", f"[smart_retry] permanent failure on attempt {attempt}{status_str}: {exc_summary}")
+                        raise dg.Failure(
+                            description=f"smart_retry classified as PERMANENT{status_str} on attempt {attempt}: {exc_summary}",
+                            metadata={
+                                "classification": "permanent",
+                                "attempt": attempt,
+                                "http_status": status if status is not None else -1,
+                                "exception_class": type(exc).__name__,
+                            },
+                        ) from exc
+
+                    if attempt >= max_attempts:
+                        _log("error", f"[smart_retry] exhausted {max_attempts} attempts{status_str}: {exc_summary}")
+                        classification_str = classification or "unclassified"
+                        raise dg.Failure(
+                            description=(
+                                f"smart_retry exhausted {max_attempts} attempts "
+                                f"(last classification: {classification_str}){status_str}: {exc_summary}"
+                            ),
+                            metadata={
+                                "classification": classification_str,
+                                "attempts": attempt,
+                                "http_status": status if status is not None else -1,
+                                "exception_class": type(exc).__name__,
+                            },
+                        ) from exc
+
+                    delay = _compute_delay(attempt, backoff, initial_delay_seconds, max_delay_seconds, jitter)
+                    _log(
+                        "warning",
+                        f"[smart_retry] attempt {attempt}/{max_attempts} failed ({classification or 'unclassified'})"
+                        f"{status_str}: {exc_summary} — sleeping {delay:.1f}s",
+                    )
+                    time.sleep(delay)
+
+            if last_exc:
+                raise last_exc
+            raise RuntimeError("smart_retry: exhausted attempts with no captured exception")
+
+        # Attach the rules for introspection / testing.
+        _wrapped.__smart_retry_rules__ = _rules  # type: ignore[attr-defined]
+        return _wrapped
+
+    return _decorator
 
 
 def _build_partitions_def(

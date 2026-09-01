@@ -1308,6 +1308,8 @@ _HELPERS = {
         "dagster_community_components.assets.infrastructure.automation_condition_applicator.component:apply_rules",
     "defs_with_automation_rules":
         "dagster_community_components.assets.infrastructure.automation_condition_applicator.component:defs_with_automation_rules",
+    "smart_retry":
+        "dagster_community_components.assets.infrastructure.smart_retry.component:smart_retry",
 }
 
 

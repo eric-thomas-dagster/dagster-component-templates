@@ -147,6 +147,42 @@ On failure:
 - **Sliding-window rate limiting** — "no more than 3 retries per 60-second window" to prevent runaway retry loops.
 - **Circuit breaker** — after N total failures, refuse to attempt for M seconds. Prevents burning API budget on a downed dependency.
 
+## `@smart_retry` decorator — wrap an EXISTING asset
+
+The component above defines a new asset from YAML. To add retry to an asset defined elsewhere (Python decorator, another component's compute), use the decorator:
+
+```python
+import dagster as dg
+from dagster_community_components import smart_retry
+
+@dg.asset(ins={"raw": dg.AssetIn(key="raw_orders")})
+@smart_retry(
+    rules=[
+        {"kind": "http_status",
+         "transient_codes": [429, 500, 502, 503, 504],
+         "permanent_codes": [400, 401, 403, 404, 422]},
+        {"kind": "exception_class",
+         "transient": ["ConnectionError", "TimeoutError"],
+         "permanent": ["ValueError", "KeyError"]},
+    ],
+    max_attempts=5,
+    backoff="exponential",
+    initial_delay_seconds=1.0,
+    max_delay_seconds=60.0,
+    jitter=True,
+)
+def enriched_orders(context, raw):
+    return call_api(raw)   # existing user code, unchanged
+```
+
+**Same classification + backoff engine** as the component. Args mirror the component's `retry_rules` + `retry_policy` fields.
+
+Apply BEFORE `@dg.asset` (or `@dg.op`, `@dg.multi_asset`) so the compute is what gets wrapped. `context.log.*` is used for progress messages if the function's first positional arg has a `.log` attribute (standard Dagster asset signature).
+
+On PERMANENT classification → raises `dg.Failure` immediately with classification metadata.
+On exhausted retries → raises `dg.Failure` with attempt count + last classification.
+On success → returns the underlying function's return value unchanged.
+
 ## Why not just use Dagster's `RetryPolicy`?
 
 `RetryPolicy` retries EVERY failure the same way. That's fine for stateless compute failures ("worker died mid-step, retry"), but breaks for API failures where the code MEANS something. This component encodes what customers actually want: "retry only the errors that could plausibly succeed next time."

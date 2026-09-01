@@ -29017,6 +29017,64 @@
       ]
     },
     {
+      "id": "modal_pipes_asset",
+      "name": "Modal Pipes Asset",
+      "category": "infrastructure",
+      "description": "Launch a Modal serverless function via Dagster Pipes and materialize the emitted asset(s) with the metadata the function reports back. Streams logs + structured metadata + AssetMaterialization events over Pipes during the run \u2014 richer observability than the fire-and-track ModalAssetComponent. Requires the user's Modal function to open a dagster_pipes.open_dagster_pipes() context inside the container.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/modal_pipes_asset",
+      "tags": [
+        "modal",
+        "pipes",
+        "external",
+        "serverless",
+        "gpu",
+        "ml"
+      ],
+      "dependencies": {
+        "pip": [
+          "modal>=0.60"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/modal_pipes_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/modal_pipes_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/modal_pipes_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/modal_pipes_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/modal_pipes_asset/requirements.txt",
+      "icon": "Cloud",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-09-01",
+        "evidence": "dg check defs load-validated on a fresh uvx create-dagster project. Live Modal-launch round-trip not tested \u2014 requires modal setup credentials."
+      },
+      "agent_hints": {
+        "inputs": "None on the Dagster side. The Modal function receives function_args as CLI --flags plus DAGSTER_PARTITION_KEY env var when partitioned.",
+        "outputs": "One @asset whose materialization is driven by ctx.report_asset_materialization() called from inside the Modal function.",
+        "side_effects": "Launches subprocess `modal run app_file::function_name --args...`. Modal runs the function on their serverless infra (CPU/GPU depending on function decorator).",
+        "anti_uses": "Not for detached fire-and-forget (use ModalAssetComponent). Not for functions that don't call open_dagster_pipes() (they'll materialize but with no metadata). Not for Modal batches (use Modal's batch API directly).",
+        "requires_resources": [
+          "pipes_subprocess_client (provisioned by the component)"
+        ],
+        "output_type": "asset",
+        "requires_pip": [
+          "modal"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "modal",
+        "pipes",
+        "gpu",
+        "serverless",
+        "ml training",
+        "external compute",
+        "dagster pipes"
+      ]
+    },
+    {
       "id": "model_coefficients",
       "name": "ModelCoefficients",
       "category": "analytics",

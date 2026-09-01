@@ -1,0 +1,45 @@
+type: dagster_community_components.ModalPipesAssetComponent
+attributes:
+  asset_name: model_training
+
+  app_file: ml/training_app.py
+  function_name: train
+  function_args:
+    learning_rate: 0.001
+    epochs: 10
+
+  # Optional — only needed if the Dagster worker's env doesn't have
+  # `modal setup` credentials or you want per-env token override.
+  modal_token_id_env_var: MODAL_TOKEN_ID
+  modal_token_secret_env_var: MODAL_TOKEN_SECRET
+
+  # Optional Modal environment (e.g. 'production' vs 'staging').
+  modal_env: production
+
+  group_name: ml
+  kinds: [modal, pipes, ml, training]
+  owners:
+    - ml-platform@example.com
+
+  # Example Modal function (referenced above):
+  #
+  #   # ml/training_app.py
+  #   import modal
+  #   from dagster_pipes import open_dagster_pipes
+  #
+  #   image = modal.Image.debian_slim().pip_install("dagster-pipes", "torch", "wandb")
+  #   app = modal.App("ml-training", image=image)
+  #
+  #   @app.function(gpu="A10G")
+  #   def train(learning_rate: float, epochs: int, partition_key: str = ""):
+  #       with open_dagster_pipes() as ctx:
+  #           ctx.log.info(f"training lr={learning_rate} epochs={epochs}")
+  #           # ... train the model ...
+  #           ctx.report_asset_materialization(
+  #               metadata={
+  #                   "accuracy": 0.87,
+  #                   "loss": 0.12,
+  #                   "gpu_seconds": 234.5,
+  #                   "partition_key": partition_key,
+  #               },
+  #           )

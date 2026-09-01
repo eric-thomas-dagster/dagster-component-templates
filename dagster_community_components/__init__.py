@@ -616,6 +616,7 @@ _CLASS_PATHS: dict[str, str] = {
     "MinIOResource": "resources/minio_resource/component.py",
     "MinIOResourceComponent": "resources/minio_resource/component.py",
     "ModalAssetComponent": "assets/infrastructure/modal_asset/component.py",
+    "ModalPipesAssetComponent": "assets/infrastructure/modal_pipes_asset/component.py",
     "ModelCoefficientsComponent": "assets/analytics/model_coefficients/component.py",
     "ModelComparisonComponent": "assets/analytics/model_comparison/component.py",
     "ModelScoreComponent": "assets/analytics/model_score/component.py",

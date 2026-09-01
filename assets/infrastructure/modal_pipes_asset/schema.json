@@ -1,0 +1,34 @@
+{
+  "component_type": "dagster_community_components.ModalPipesAssetComponent",
+  "description": "Launch a Modal serverless function via Dagster Pipes and materialize the emitted asset(s) with the metadata the Modal function reports back. Streams logs + structured metadata + AssetMaterialization events over Pipes during the run — richer observability than the fire-and-track ModalAssetComponent. Requires the user's Modal function to open a `dagster_pipes.open_dagster_pipes()` context.",
+  "category": "infrastructure",
+  "icon": "si:modal",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "asset",
+      "description": "One primary asset whose materialization is triggered by the Modal function's PipesContext.report_asset_materialization(). Function can also emit additional asset materializations."
+    }
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "app_file": {"type": "string", "label": "App File", "required": true, "description": "Path (relative to Dagster process CWD) to the Python file defining the Modal app + function."},
+    "function_name": {"type": "string", "label": "Function Name", "required": true, "description": "Name of the @app.function() inside app_file."},
+    "function_args": {"type": "object", "label": "Function Args", "required": false, "default": null, "description": "Kwargs forwarded to the Modal function via CLI flags (--key=value).", "ui:widget": "key-value"},
+    "modal_token_id_env_var": {"type": "string", "label": "Modal Token ID Env Var", "required": false, "default": null, "ui:widget": "env_var", "description": "Optional — overrides MODAL_TOKEN_ID for the subprocess."},
+    "modal_token_secret_env_var": {"type": "string", "label": "Modal Token Secret Env Var", "required": false, "default": null, "ui:widget": "env_var", "description": "Optional — overrides MODAL_TOKEN_SECRET for the subprocess."},
+    "modal_env": {"type": "string", "label": "Modal Environment", "required": false, "default": null, "description": "Modal environment name (`modal run --env=<value>`)."},
+    "modal_extra_flags": {"type": "array", "items": {"type": "string"}, "label": "Modal Extra Flags", "required": false, "default": null, "description": "Extra flags passed to `modal run` (e.g. '--detach').", "ui:widget": "list"},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
+    "partition_type": {"type": "string", "label": "Partition Type", "required": false, "enum": ["daily", "weekly", "monthly", "hourly", "static", "dynamic"]},
+    "partition_start": {"type": "string", "label": "Partition Start", "required": false},
+    "partition_values": {"type": "string", "label": "Partition Values", "required": false, "description": "Comma-separated for static."},
+    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "required": false},
+    "partition_dimensions": {"type": "array", "items": {"type": "object"}, "label": "Partition Dimensions", "required": false, "description": "Multi-axis partitioning."}
+  },
+  "tags": ["modal", "pipes", "external", "serverless", "gpu", "ml"],
+  "name": "Modal Pipes Asset"
+}

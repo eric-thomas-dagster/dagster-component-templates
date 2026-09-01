@@ -1,0 +1,8 @@
+# The Modal CLI is invoked via subprocess ('modal run ...') so the CLI
+# must be on PATH in the Dagster worker environment. Install with:
+#   pip install modal
+#
+# Inside the Modal function, dagster-pipes must be installed in the Modal
+# image (Image.debian_slim(...).pip_install('dagster-pipes')). Not a
+# Dagster-side dep.
+modal>=0.60

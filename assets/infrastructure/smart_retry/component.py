@@ -59,11 +59,165 @@ import importlib
 import os
 import random
 import subprocess
+import threading
 import time
-from typing import Any, Callable, Dict, List, Optional
+from collections import deque
+from typing import Any, Callable, Deque, Dict, List, Optional, Tuple
 
 import dagster as dg
 from pydantic import Field
+
+
+# --------------------------------------------------------------------------
+# Cross-materialization state (module-level, per Python process)
+#
+# On long-running workers (Dagster+ Hybrid, K8s deployments), retries + circuit
+# state persist across materializations in the same process. On Dagster+
+# Serverless (ephemeral containers) state resets per run — that's fine for
+# rate-limit-within-one-call semantics but the circuit-breaker cross-run
+# guarantee only holds when the worker is long-lived. Cross-worker persistence
+# (fsspec sidecar) is a follow-up.
+# --------------------------------------------------------------------------
+
+_STATE_LOCK = threading.Lock()
+
+
+class _RateLimiter:
+    """Sliding-window rate limiter.
+
+    Cap `max_events` in any `window_seconds`. Records timestamps of retry
+    attempts; if a new attempt would push us over the cap, either raises
+    (mode="fail") or blocks until the window slides (mode="wait").
+    """
+    _windows: Dict[str, Deque[float]] = {}
+
+    @classmethod
+    def check_and_record(
+        cls, key: str, max_events: int, window_seconds: float, mode: str,
+    ) -> Optional[float]:
+        """Return `None` on allowed. Return the time-to-wait if `mode=wait`
+        and we'd exceed the cap. Raise `RuntimeError` if `mode=fail`."""
+        with _STATE_LOCK:
+            q = cls._windows.setdefault(key, deque())
+            now = time.time()
+            cutoff = now - window_seconds
+            while q and q[0] < cutoff:
+                q.popleft()
+            if len(q) < max_events:
+                q.append(now)
+                return None
+            # Over the cap.
+            oldest = q[0]
+            wait_s = max(0.0, window_seconds - (now - oldest) + 0.001)
+        if mode == "wait":
+            time.sleep(wait_s)
+            # Recurse — after the sleep the window has slid.
+            return cls.check_and_record(key, max_events, window_seconds, mode)
+        raise RuntimeError(
+            f"rate_limit exceeded: {len(cls._windows[key])} retries in the last "
+            f"{window_seconds}s (cap={max_events})"
+        )
+
+    @classmethod
+    def reset(cls, key: str) -> None:
+        with _STATE_LOCK:
+            cls._windows.pop(key, None)
+
+
+class _CircuitBreaker:
+    """Sliding-window circuit breaker.
+
+    Tracks failures in `observation_window_seconds`. When `threshold` failures
+    accumulate, the breaker OPENS for `cooldown_seconds` — during that window,
+    `check()` returns the remaining cooldown so the caller can fail fast without
+    attempting compute. Success resets the tracking.
+    """
+    _state: Dict[str, Dict[str, Any]] = {}
+
+    @classmethod
+    def check(cls, key: str) -> Optional[float]:
+        """Return `None` if closed. Return remaining seconds if open."""
+        with _STATE_LOCK:
+            s = cls._state.get(key)
+            if not s:
+                return None
+            open_until = s.get("open_until", 0.0)
+            now = time.time()
+            if open_until > now:
+                return open_until - now
+            return None
+
+    @classmethod
+    def record_failure(
+        cls, key: str, threshold: int, observation_window_seconds: float,
+        cooldown_seconds: float,
+    ) -> None:
+        with _STATE_LOCK:
+            s = cls._state.setdefault(key, {"failures": deque(), "open_until": 0.0})
+            now = time.time()
+            cutoff = now - observation_window_seconds
+            fq = s["failures"]
+            while fq and fq[0] < cutoff:
+                fq.popleft()
+            fq.append(now)
+            if len(fq) >= threshold:
+                s["open_until"] = now + cooldown_seconds
+                fq.clear()  # Reset window after opening.
+
+    @classmethod
+    def record_success(cls, key: str) -> None:
+        with _STATE_LOCK:
+            cls._state.pop(key, None)
+
+
+def _llm_classify(
+    exc: BaseException, model: str, api_key_env_var: str, timeout_seconds: float,
+) -> Optional[str]:
+    """LLM fallback classifier — one API call per unclassified error.
+
+    Prompts a small model with the error class + message and asks whether it's
+    likely transient (network/rate-limit/temporary) or permanent (bad
+    input/misconfig/logic bug). Returns 'transient' | 'permanent' | None on
+    parse failure or missing creds.
+    """
+    api_key = os.environ.get(api_key_env_var)
+    if not api_key:
+        return None
+    try:
+        from openai import OpenAI
+    except ImportError:
+        return None
+    exc_class = type(exc).__name__
+    exc_msg = str(exc)[:600]
+    status = _extract_http_status(exc)
+    status_note = f" (HTTP status={status})" if status is not None else ""
+    prompt = (
+        "You are classifying an error to decide whether to retry an operation.\n\n"
+        f"Error class: {exc_class}\n"
+        f"Error message: {exc_msg}\n"
+        f"Context{status_note}\n\n"
+        "Answer with ONE word: 'transient' (likely to succeed on retry — "
+        "network glitch, rate limit, temporary service outage, timeout) OR "
+        "'permanent' (retry will not help — bad input, missing config, "
+        "authorization failure, logic bug).\n\n"
+        "Answer:"
+    )
+    try:
+        client = OpenAI(api_key=api_key, timeout=timeout_seconds)
+        resp = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=8,
+            temperature=0.0,
+        )
+        content = (resp.choices[0].message.content or "").strip().lower()
+        if content.startswith("transient"):
+            return "transient"
+        if content.startswith("permanent"):
+            return "permanent"
+        return None
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def _resolve_python_callable(ref: str):
@@ -118,8 +272,18 @@ def _extract_http_status(exc: BaseException) -> Optional[int]:
     return None
 
 
-def _classify(exc: BaseException, rules: List[Dict[str, Any]]) -> Optional[str]:
-    """Return `'transient'` | `'permanent'` | None (no rule matched)."""
+def _classify(
+    exc: BaseException,
+    rules: List[Dict[str, Any]],
+    *,
+    llm_fallback: Optional[Dict[str, Any]] = None,
+) -> Optional[str]:
+    """Return `'transient'` | `'permanent'` | None (no rule matched).
+
+    If `llm_fallback` is set and no rule matches, calls an LLM classifier
+    with `{model, api_key_env_var, timeout_seconds}`. Costs ~1 API call
+    per unclassified error.
+    """
     for rule in rules:
         kind = rule.get("kind")
         if kind == "http_status":
@@ -143,6 +307,14 @@ def _classify(exc: BaseException, rules: List[Dict[str, Any]]) -> Optional[str]:
                 cls = _resolve_exception_class(dotted)
                 if cls and isinstance(exc, cls):
                     return "permanent"
+    # LLM fallback for unclassified errors.
+    if llm_fallback:
+        return _llm_classify(
+            exc,
+            model=llm_fallback.get("model", "gpt-4o-mini"),
+            api_key_env_var=llm_fallback.get("api_key_env_var", "OPENAI_API_KEY"),
+            timeout_seconds=float(llm_fallback.get("timeout_seconds", 10)),
+        )
     return None
 
 
@@ -302,6 +474,43 @@ class SmartRetryComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
 
+    llm_fallback: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "OPTIONAL. LLM classification for unclassified errors — one API call "
+            "per un-rule-matched exception. Shape: "
+            "`{model: 'gpt-4o-mini', api_key_env_var: 'OPENAI_API_KEY', timeout_seconds: 10}`. "
+            "Omit to skip LLM fallback (unclassified errors treated as retryable "
+            "up to max_attempts)."
+        ),
+    )
+
+    rate_limit: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "OPTIONAL. Sliding-window rate limit ON RETRIES. Prevents runaway "
+            "retry loops. Shape: "
+            "`{max_events: 3, window_seconds: 60, mode: fail|wait, key: null}`. "
+            "`key` defaults to `asset_name`; set explicitly to share a limit "
+            "across multiple assets (e.g. all assets hitting one API)."
+        ),
+    )
+
+    circuit_breaker: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "OPTIONAL. Cross-materialization circuit breaker. After `threshold` "
+            "failures in `observation_window_seconds`, opens the circuit for "
+            "`cooldown_seconds` — any new attempt during that window fails "
+            "IMMEDIATELY without touching the compute. Prevents burning API "
+            "budget on a downed dependency. Shape: "
+            "`{threshold: 5, observation_window_seconds: 300, cooldown_seconds: 60, key: null}`. "
+            "State is module-level (persists across materializations in the same "
+            "Python process — long-lived workers only; ephemeral Serverless "
+            "containers reset state per run)."
+        ),
+    )
+
     # Catalog / governance
     group_name: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)
@@ -343,6 +552,10 @@ class SmartRetryComponent(dg.Component, dg.Model, dg.Resolvable):
         if max_attempts < 1:
             raise ValueError(f"retry_policy.max_attempts must be >= 1; got {max_attempts}")
 
+        llm_fallback_cfg = dict(self.llm_fallback) if self.llm_fallback else None
+        rate_limit_cfg = dict(self.rate_limit) if self.rate_limit else None
+        circuit_cfg = dict(self.circuit_breaker) if self.circuit_breaker else None
+
         kinds_set = set(self.kinds or []) | {"python", "retry"}
         tag_map = dict(self.tags or {})
         for k in kinds_set:
@@ -357,6 +570,12 @@ class SmartRetryComponent(dg.Component, dg.Model, dg.Resolvable):
         if upstream_asset_key:
             ins["upstream"] = dg.AssetIn(key=dg.AssetKey.from_user_string(upstream_asset_key))
 
+        # Circuit-breaker + rate-limit keys default to asset_name so multi-instance
+        # deployments of the same YAML each have their own state; users can share
+        # via an explicit `key` on either config.
+        circuit_key = (circuit_cfg.get("key") if circuit_cfg else None) or asset_name
+        rate_limit_key = (rate_limit_cfg.get("key") if rate_limit_cfg else None) or asset_name
+
         @dg.asset(
             key=dg.AssetKey.from_user_string(asset_name),
             description=self.description or f"Smart-retry-wrapped compute for {asset_name}",
@@ -369,6 +588,29 @@ class SmartRetryComponent(dg.Component, dg.Model, dg.Resolvable):
         )
         def _wrapped(context: dg.AssetExecutionContext, **kwargs):
             upstream = kwargs.get("upstream")
+
+            # ── Circuit breaker: fail fast if OPEN ──
+            if circuit_cfg:
+                open_seconds = _CircuitBreaker.check(circuit_key)
+                if open_seconds is not None:
+                    context.log.error(
+                        f"[smart_retry] circuit OPEN for {circuit_key!r}; "
+                        f"~{open_seconds:.1f}s cooldown remaining."
+                    )
+                    raise dg.Failure(
+                        description=(
+                            f"smart_retry circuit OPEN for {circuit_key!r} — "
+                            f"~{open_seconds:.1f}s cooldown remaining. Prior "
+                            f"failures exceeded threshold; refusing to attempt "
+                            f"compute until cooldown elapses."
+                        ),
+                        metadata={
+                            "classification": "circuit_open",
+                            "circuit_key": circuit_key,
+                            "cooldown_remaining_seconds": round(open_seconds, 2),
+                        },
+                    )
+
             last_exc: Optional[BaseException] = None
             for attempt in range(1, max_attempts + 1):
                 try:
@@ -377,6 +619,10 @@ class SmartRetryComponent(dg.Component, dg.Model, dg.Resolvable):
                         context.log.info(
                             f"[smart_retry] succeeded on attempt {attempt}/{max_attempts}"
                         )
+                    # Success: reset circuit-breaker state so intermittent
+                    # failures don't accumulate toward opening.
+                    if circuit_cfg:
+                        _CircuitBreaker.record_success(circuit_key)
                     return dg.MaterializeResult(
                         metadata={
                             "attempts": attempt,
@@ -385,10 +631,20 @@ class SmartRetryComponent(dg.Component, dg.Model, dg.Resolvable):
                     )
                 except BaseException as exc:  # noqa: BLE001
                     last_exc = exc
-                    classification = _classify(exc, rules)
+                    classification = _classify(exc, rules, llm_fallback=llm_fallback_cfg)
                     exc_summary = f"{type(exc).__name__}: {str(exc)[:200]}"
                     status = _extract_http_status(exc)
                     status_str = f" (status={status})" if status is not None else ""
+
+                    # Record failure for circuit-breaker accounting BEFORE the
+                    # classification-branch decides how to fail. Success resets.
+                    if circuit_cfg:
+                        _CircuitBreaker.record_failure(
+                            circuit_key,
+                            int(circuit_cfg.get("threshold") or 5),
+                            float(circuit_cfg.get("observation_window_seconds") or 300),
+                            float(circuit_cfg.get("cooldown_seconds") or 60),
+                        )
 
                     if classification == "permanent":
                         context.log.error(
@@ -424,7 +680,31 @@ class SmartRetryComponent(dg.Component, dg.Model, dg.Resolvable):
                             },
                         ) from exc
 
-                    # Transient OR unclassified — retry
+                    # Transient OR unclassified — retry, subject to rate limit.
+                    if rate_limit_cfg:
+                        try:
+                            _RateLimiter.check_and_record(
+                                rate_limit_key,
+                                int(rate_limit_cfg.get("max_events") or 3),
+                                float(rate_limit_cfg.get("window_seconds") or 60),
+                                str(rate_limit_cfg.get("mode") or "fail"),
+                            )
+                        except RuntimeError as rl_exc:
+                            context.log.error(
+                                f"[smart_retry] rate limit hit for {rate_limit_key!r}: {rl_exc}"
+                            )
+                            raise dg.Failure(
+                                description=(
+                                    f"smart_retry rate_limit exceeded for {rate_limit_key!r} "
+                                    f"— last error: {exc_summary}"
+                                ),
+                                metadata={
+                                    "classification": "rate_limited",
+                                    "rate_limit_key": rate_limit_key,
+                                    "last_exception_class": type(exc).__name__,
+                                },
+                            ) from exc
+
                     delay = _compute_delay(attempt, backoff, initial_delay, max_delay, jitter)
                     context.log.warning(
                         f"[smart_retry] attempt {attempt}/{max_attempts} failed ({classification or 'unclassified'})"
@@ -456,6 +736,10 @@ def smart_retry(
     initial_delay_seconds: float = 1.0,
     max_delay_seconds: float = 60.0,
     jitter: bool = True,
+    llm_fallback: Optional[Dict[str, Any]] = None,
+    rate_limit: Optional[Dict[str, Any]] = None,
+    circuit_breaker: Optional[Dict[str, Any]] = None,
+    key: Optional[str] = None,
 ) -> Callable:
     """Decorator that adds classification-aware retry to any Python function.
 
@@ -477,6 +761,11 @@ def smart_retry(
             ],
             max_attempts=5,
             backoff="exponential",
+            # Optional day-1 features (all opt-in):
+            llm_fallback={"model": "gpt-4o-mini", "api_key_env_var": "OPENAI_API_KEY"},
+            rate_limit={"max_events": 3, "window_seconds": 60, "mode": "fail"},
+            circuit_breaker={"threshold": 5, "observation_window_seconds": 300, "cooldown_seconds": 60},
+            key="enrich_api",  # defaults to fn.__qualname__ if omitted
         )
         def enriched_orders(context, raw):
             return call_api(raw)   # existing user code, unchanged
@@ -485,21 +774,32 @@ def smart_retry(
     Same classification + backoff engine as `SmartRetryComponent`. Args
     mirror the component's `retry_rules` + `retry_policy` fields.
 
+    `llm_fallback` — {model, api_key_env_var, timeout_seconds}. LLM
+      classifies unrule-matched exceptions as transient/permanent.
+    `rate_limit` — {max_events, window_seconds, mode: fail|wait}. Caps
+      retries within a sliding window.
+    `circuit_breaker` — {threshold, observation_window_seconds,
+      cooldown_seconds}. Fails fast when the breaker is OPEN.
+    `key` — shared state key for rate-limit + circuit-breaker; defaults to
+      `fn.__qualname__` so each decorated function has its own state.
+
     On PERMANENT classification → raises `dg.Failure` immediately with
     classification metadata.
     On exhausted retries → raises `dg.Failure` with attempt count.
     On success → returns the underlying function's return value.
-
-    Logs go through `context.log.*` if the function's first positional
-    arg (or `context` kwarg) has a `.log` attribute — otherwise silent.
     """
     _rules = list(rules or [])
     if backoff not in ("exponential", "linear", "fixed"):
         raise ValueError(f"backoff must be exponential|linear|fixed; got {backoff!r}")
     if max_attempts < 1:
         raise ValueError(f"max_attempts must be >= 1; got {max_attempts}")
+    _llm_cfg = dict(llm_fallback) if llm_fallback else None
+    _rl_cfg = dict(rate_limit) if rate_limit else None
+    _cb_cfg = dict(circuit_breaker) if circuit_breaker else None
 
     def _decorator(fn: Callable) -> Callable:
+        _state_key = key or getattr(fn, "__qualname__", None) or getattr(fn, "__name__", "smart_retry_default")
+
         @functools.wraps(fn)
         def _wrapped(*args, **kwargs):
             # Best-effort context extraction — Dagster passes context as the
@@ -514,19 +814,43 @@ def smart_retry(
                 if context is not None:
                     getattr(context.log, level, context.log.info)(msg)
 
+            # ── Circuit breaker: fail fast if OPEN ──
+            if _cb_cfg:
+                open_seconds = _CircuitBreaker.check(_state_key)
+                if open_seconds is not None:
+                    _log("error", f"[smart_retry] circuit OPEN for {_state_key!r}; ~{open_seconds:.1f}s cooldown remaining.")
+                    raise dg.Failure(
+                        description=f"smart_retry circuit OPEN for {_state_key!r} — ~{open_seconds:.1f}s cooldown remaining.",
+                        metadata={
+                            "classification": "circuit_open",
+                            "circuit_key": _state_key,
+                            "cooldown_remaining_seconds": round(open_seconds, 2),
+                        },
+                    )
+
             last_exc: Optional[BaseException] = None
             for attempt in range(1, max_attempts + 1):
                 try:
                     result = fn(*args, **kwargs)
                     if attempt > 1:
                         _log("info", f"[smart_retry] succeeded on attempt {attempt}/{max_attempts}")
+                    if _cb_cfg:
+                        _CircuitBreaker.record_success(_state_key)
                     return result
                 except BaseException as exc:  # noqa: BLE001
                     last_exc = exc
-                    classification = _classify(exc, _rules)
+                    classification = _classify(exc, _rules, llm_fallback=_llm_cfg)
                     exc_summary = f"{type(exc).__name__}: {str(exc)[:200]}"
                     status = _extract_http_status(exc)
                     status_str = f" (status={status})" if status is not None else ""
+
+                    if _cb_cfg:
+                        _CircuitBreaker.record_failure(
+                            _state_key,
+                            int(_cb_cfg.get("threshold") or 5),
+                            float(_cb_cfg.get("observation_window_seconds") or 300),
+                            float(_cb_cfg.get("cooldown_seconds") or 60),
+                        )
 
                     if classification == "permanent":
                         _log("error", f"[smart_retry] permanent failure on attempt {attempt}{status_str}: {exc_summary}")
@@ -555,6 +879,26 @@ def smart_retry(
                                 "exception_class": type(exc).__name__,
                             },
                         ) from exc
+
+                    # Rate-limit check before scheduling the next attempt.
+                    if _rl_cfg:
+                        try:
+                            _RateLimiter.check_and_record(
+                                _state_key,
+                                int(_rl_cfg.get("max_events") or 3),
+                                float(_rl_cfg.get("window_seconds") or 60),
+                                str(_rl_cfg.get("mode") or "fail"),
+                            )
+                        except RuntimeError as rl_exc:
+                            _log("error", f"[smart_retry] rate limit hit for {_state_key!r}: {rl_exc}")
+                            raise dg.Failure(
+                                description=f"smart_retry rate_limit exceeded for {_state_key!r} — last error: {exc_summary}",
+                                metadata={
+                                    "classification": "rate_limited",
+                                    "rate_limit_key": _state_key,
+                                    "last_exception_class": type(exc).__name__,
+                                },
+                            ) from exc
 
                     delay = _compute_delay(attempt, backoff, initial_delay_seconds, max_delay_seconds, jitter)
                     _log(

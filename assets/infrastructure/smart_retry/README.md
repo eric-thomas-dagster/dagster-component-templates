@@ -141,11 +141,92 @@ On failure:
 - `http_status` — status code if extractable, else -1
 - `exception_class` — the raised exception's class name
 
-## What's coming in v2
+## Day-1 advanced features — all opt-in
 
-- **LLM classification** — a small LLM call ("is this error transient?") for unclassified errors. Gate behind `enable_llm_fallback` (costs one LLM roundtrip per unclassified error).
-- **Sliding-window rate limiting** — "no more than 3 retries per 60-second window" to prevent runaway retry loops.
-- **Circuit breaker** — after N total failures, refuse to attempt for M seconds. Prevents burning API budget on a downed dependency.
+### LLM classification fallback
+
+For errors NEITHER `http_status` NOR `exception_class` rules matched, optionally call a small LLM ("is this transient?"). One API call per unclassified error, gracefully degrades to `None` (retry until max_attempts) if the API key is missing.
+
+```yaml
+llm_fallback:
+  model: gpt-4o-mini
+  api_key_env_var: OPENAI_API_KEY
+  timeout_seconds: 10
+```
+
+Live-validated: `TimeoutError('connection timed out')` → classified `transient`; `ValueError('missing required field')` → classified `permanent`. Uses `openai` package (`pip install openai`).
+
+### Sliding-window rate limiting
+
+Cap retries in any `window_seconds` to prevent runaway loops when backoff is misconfigured or the underlying service is broken.
+
+```yaml
+rate_limit:
+  max_events: 3          # max retries...
+  window_seconds: 60     # ...per sliding 60s window
+  mode: fail             # fail | wait
+  key: null              # defaults to asset_name (or fn.__qualname__ for decorator)
+```
+
+`mode: fail` → raises `Failure(classification=rate_limited)` when cap hit. `mode: wait` → sleeps until the window slides. State is module-level (persists across materializations in the same Python process).
+
+### Circuit breaker
+
+After `threshold` failures in `observation_window_seconds`, opens the circuit for `cooldown_seconds`. New attempts during the cooldown fail IMMEDIATELY without touching the compute — prevents burning API budget on a downed dependency.
+
+```yaml
+circuit_breaker:
+  threshold: 5
+  observation_window_seconds: 300  # 5 min
+  cooldown_seconds: 60             # after 5 failures in 5 min → 60s cooldown
+  key: null                        # defaults to asset_name
+```
+
+State is module-level (persists across materializations in the same Python process — long-lived workers only; ephemeral Serverless containers reset state per run). Cross-worker persistence (fsspec sidecar) is a future add.
+
+### Full YAML example with all 3
+
+```yaml
+type: dagster_community_components.SmartRetryComponent
+attributes:
+  asset_name: enriched_orders
+  upstream_asset_key: raw_orders
+  compute:
+    kind: http
+    method: POST
+    url: "https://api.example.com/enrich"
+
+  retry_rules:
+    - kind: http_status
+      transient_codes: [429, 500, 502, 503, 504]
+      permanent_codes: [400, 401, 403, 404, 422]
+    - kind: exception_class
+      transient: ["ConnectionError", "TimeoutError"]
+      permanent: ["ValueError", "KeyError"]
+
+  retry_policy:
+    max_attempts: 5
+    backoff: exponential
+    initial_delay_seconds: 1.0
+    max_delay_seconds: 60.0
+
+  # Day-1 advanced features (all opt-in)
+  llm_fallback:
+    model: gpt-4o-mini
+    api_key_env_var: OPENAI_API_KEY
+
+  rate_limit:
+    max_events: 3
+    window_seconds: 60
+    mode: fail
+
+  circuit_breaker:
+    threshold: 5
+    observation_window_seconds: 300
+    cooldown_seconds: 60
+```
+
+Same three options are available on the `@smart_retry` decorator as kwargs (`llm_fallback=`, `rate_limit=`, `circuit_breaker=`, plus `key=` for shared state).
 
 ## `@smart_retry` decorator — wrap an EXISTING asset
 
@@ -231,6 +312,9 @@ The two are complementary — use RetryPolicy for worker-level resilience (max_r
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `upstream_asset_key` | `str` | — | Optional upstream asset the compute callable receives as second arg. |
+| `llm_fallback` | `Dict[str, Any]` | — | OPTIONAL. LLM classification for unclassified errors — one API call per un-rule-matched exception. Shape: `{model: 'gpt-4o-mini', api_key_env_var: 'OPENAI_API_KEY', timeout_seconds: 10}`. Omit to skip LLM fallback (uncla… _(full docs in schema.json + component README)_ |
+| `rate_limit` | `Dict[str, Any]` | — | OPTIONAL. Sliding-window rate limit ON RETRIES. Prevents runaway retry loops. Shape: `{max_events: 3, window_seconds: 60, mode: fail\|wait, key: null}`. `key` defaults to `asset_name`; set explicitly to share a limit acr… _(full docs in schema.json + component README)_ |
+| `circuit_breaker` | `Dict[str, Any]` | — | OPTIONAL. Cross-materialization circuit breaker. After `threshold` failures in `observation_window_seconds`, opens the circuit for `cooldown_seconds` — any new attempt during that window fails IMMEDIATELY without touchin… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | — |
 
 [//]: # (FIELDS:END)

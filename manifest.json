@@ -41018,8 +41018,8 @@
       "id": "smart_retry",
       "name": "Smart Retry",
       "category": "infrastructure",
-      "description": "Retry classification beyond Dagster's built-in RetryPolicy \u2014 retry on HTTP 429 + 5xx but fail immediately on 400/401/403/404. Classifies raised exceptions against configurable rules (HTTP status codes, exception classes) and re-raises as Dagster Failure (permanent) or in-compute sleeps+retries (transient). Wraps a Python callable, shell command, or one-off HTTP call. Configurable backoff (exponential | linear | fixed) + jitter + max attempts.",
-      "version": "1.0.0",
+      "description": "Retry classification beyond Dagster's built-in RetryPolicy. Rules classify raised exceptions as transient (sleep + retry) or permanent (fail immediately). Day-1 features: HTTP status codes + exception classes, LLM classification fallback (small LLM call for unclassified errors), sliding-window rate limiting, cross-materialization circuit breaker. Wraps Python callable, shell command, or one-off HTTP call. Companion `@smart_retry` decorator wraps any existing @dg.asset.",
+      "version": "1.0.1",
       "author": "Dagster Community",
       "path": "assets/infrastructure/smart_retry",
       "tags": [
@@ -41044,7 +41044,7 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-09-01",
-        "evidence": "Classifier unit-tested end-to-end (7/7 cases: HTTP status codes + exception classes + fall-through). Retry loop live-validated on fresh uvx create-dagster project \u2014 flaky Python callable succeeded after 2 transient failures on attempt 3/5. Permanent-classification path validated \u2014 ValueError classified permanent, failed on attempt 1 with clean dg.Failure metadata."
+        "evidence": "Full end-to-end: (1) classifier 7/7 unit-tested; (2) transient retry-then-succeed via Python callable; (3) permanent fail-fast via ValueError; (4) rate_limit fail mode (3 calls capped); (5) circuit_breaker cross-materialization (r1 opens, r2 fails without touching compute); (6) LIVE LLM classification via real gpt-4o-mini calls \u2014 TimeoutError \u2192 transient, ValueError missing-field \u2192 permanent."
       },
       "agent_hints": {
         "inputs": "Optional upstream_asset_key. Compute callable receives context (+ upstream value if wired).",

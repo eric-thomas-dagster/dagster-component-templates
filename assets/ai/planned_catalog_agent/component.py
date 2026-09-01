@@ -898,13 +898,65 @@ if _HAS_STATE_BACKED:
             _iter_timings: List[Dict[str, Any]] = []
             print(f"[planned_agent] trajectory START: model={self.llm_model} catalog={len(catalog)} tpm_budget={self.tpm_budget}")
 
+            # Schema.json cache: fetched on first failure of a component_id, keeps
+            # subsequent retries fast. Populated lazily — only components that
+            # actually fail get their schema.json included in prior_summary.
+            _schema_json_cache: Dict[str, str] = {}
+
+            def _fetch_schema_json_text(component_id: str) -> Optional[str]:
+                """Return the schema.json content for a component, or None.
+
+                Tries LOCAL FILESYSTEM first (fast, offline-safe), falls back
+                to schema_url from the manifest entry. Cached per component_id.
+                """
+                if component_id in _schema_json_cache:
+                    return _schema_json_cache[component_id] or None
+                entry = next((c for c in catalog if c["id"] == component_id), None)
+                if entry is None:
+                    _schema_json_cache[component_id] = ""
+                    return None
+                # Local filesystem attempt: <installed_pkg>/<manifest.path>/schema.json
+                text = ""
+                try:
+                    _dcc_pkg = importlib.import_module("dagster_community_components")
+                    _pkg_root = Path(_dcc_pkg.__file__).parent if _dcc_pkg.__file__ else None
+                    if _pkg_root and entry.get("path"):
+                        _p = _pkg_root / entry["path"] / "schema.json"
+                        if _p.exists():
+                            text = _p.read_text()
+                except Exception:  # noqa: BLE001
+                    pass
+                # Fall back to schema_url
+                if not text and entry.get("schema_url"):
+                    try:
+                        with urlopen(entry["schema_url"], timeout=15) as _r:
+                            text = _r.read().decode("utf-8")
+                    except Exception:  # noqa: BLE001
+                        pass
+                # Compact + cap
+                if text:
+                    try:
+                        _parsed = json.loads(text)
+                        text = json.dumps(_parsed, separators=(",", ":"))[:4000]
+                    except Exception:  # noqa: BLE001
+                        text = text[:4000]
+                _schema_json_cache[component_id] = text
+                return text or None
+
             for iteration in range(1, self.max_iterations + 1):
                 _iter_start = _time.time()
                 _llm_seconds = 0.0
                 _mat_seconds = 0.0
                 # DYNAMIC suffix — prior_summary changes every iteration.
                 _prior_lines = []
-                for p in picks:
+                # Track which component_ids failed MOST RECENTLY — only include
+                # schema.json for the last failure of each id, to keep prompt bloat
+                # bounded even when the same component fails multiple times.
+                _last_failure_by_id: Dict[str, int] = {}
+                for idx, p in enumerate(picks):
+                    if p.get("status") != "success" and p.get("component_id"):
+                        _last_failure_by_id[p["component_id"]] = idx
+                for idx, p in enumerate(picks):
                     _lbl = "SUCCESS" if p.get("status") == "success" else "FAILED"
                     _emitted = p.get("emitted_asset_names") or []
                     # For multi-asset components (router, train_test_splitter, etc.)
@@ -923,6 +975,18 @@ if _HAS_STATE_BACKED:
                     ]
                     if p.get("status") != "success":
                         _lines_p.append(f"  error: {p.get('error', '')[:400]}")
+                        # Attach the full schema.json for the LAST failure of
+                        # each component_id — helps the LLM emit correctly-shaped
+                        # config on retry. Bounded: only latest per id, capped
+                        # at 4KB per schema, so prompt bloat is O(N failed ids).
+                        _cid = p.get("component_id")
+                        if _cid and _last_failure_by_id.get(_cid) == idx:
+                            _schema_text = _fetch_schema_json_text(_cid)
+                            if _schema_text:
+                                _lines_p.append(
+                                    f"  strict_schema (adhere EXACTLY on retry, do NOT invent field names or shapes):\n"
+                                    f"  {_schema_text}"
+                                )
                     _prior_lines.append("\n".join(_lines_p))
                 prior_summary = "\n\n".join(_prior_lines) or "(no prior steps — this is step 1)"
 

@@ -1,0 +1,36 @@
+type: dagster_community_components.SmartRetryComponent
+attributes:
+  asset_name: enriched_orders
+  upstream_asset_key: raw_orders
+
+  compute:
+    kind: python
+    python: "my_project.enrichers:enrich_orders"
+
+  retry_rules:
+    # Standard HTTP: retry rate-limit + 5xx, fail-fast client errors.
+    - kind: http_status
+      transient_codes: [429, 500, 502, 503, 504]
+      permanent_codes: [400, 401, 403, 404, 422]
+    # Retry transient network failures; fail on data-shape errors.
+    - kind: exception_class
+      transient:
+        - ConnectionError
+        - TimeoutError
+        - "requests.exceptions.ConnectionError"
+        - "requests.exceptions.Timeout"
+      permanent:
+        - ValueError
+        - KeyError
+        - "pydantic.ValidationError"
+
+  retry_policy:
+    max_attempts: 5
+    backoff: exponential
+    initial_delay_seconds: 1.0
+    max_delay_seconds: 60.0
+    jitter: true
+
+  group_name: ingest
+  owners: [platform-team@example.com]
+  kinds: [python, retry, enrichment]

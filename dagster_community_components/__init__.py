@@ -862,6 +862,7 @@ _CLASS_PATHS: dict[str, str] = {
     "SlingReplicationAssetComponent": "integrations/sling_replication_asset/component.py",
     "SmoothComponent": "assets/analytics/smooth/component.py",
     "SmtpSendAssetComponent": "assets/sinks/smtp_send_asset/component.py",
+    "SmartRetryComponent": "assets/infrastructure/smart_retry/component.py",
     "SnowflakeAccessHistoryIngestionComponent": "ingestion/snowflake_access_history_ingestion/component.py",
     "SnowflakeAlertComponent": "integrations/snowflake_alert/component.py",
     "SnowflakeCortexAgentComponent": "assets/ai/snowflake_cortex_agent/component.py",

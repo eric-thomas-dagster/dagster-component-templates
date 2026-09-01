@@ -1,0 +1,2 @@
+# Only needed when compute.kind is 'http'
+requests>=2.28

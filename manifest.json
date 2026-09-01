@@ -41015,6 +41015,64 @@
       }
     },
     {
+      "id": "smart_retry",
+      "name": "Smart Retry",
+      "category": "infrastructure",
+      "description": "Retry classification beyond Dagster's built-in RetryPolicy \u2014 retry on HTTP 429 + 5xx but fail immediately on 400/401/403/404. Classifies raised exceptions against configurable rules (HTTP status codes, exception classes) and re-raises as Dagster Failure (permanent) or in-compute sleeps+retries (transient). Wraps a Python callable, shell command, or one-off HTTP call. Configurable backoff (exponential | linear | fixed) + jitter + max attempts.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/smart_retry",
+      "tags": [
+        "retry",
+        "resilience",
+        "http",
+        "backoff",
+        "classifier",
+        "infrastructure"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/smart_retry/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/smart_retry/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/smart_retry/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/smart_retry/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/smart_retry/requirements.txt",
+      "icon": "RefreshCw",
+      "validation": {
+        "level": "live",
+        "last_validated": "2026-09-01",
+        "evidence": "Classifier unit-tested end-to-end (7/7 cases: HTTP status codes + exception classes + fall-through). Retry loop live-validated on fresh uvx create-dagster project \u2014 flaky Python callable succeeded after 2 transient failures on attempt 3/5. Permanent-classification path validated \u2014 ValueError classified permanent, failed on attempt 1 with clean dg.Failure metadata."
+      },
+      "agent_hints": {
+        "inputs": "Optional upstream_asset_key. Compute callable receives context (+ upstream value if wired).",
+        "outputs": "One asset with materialization metadata: attempts (int), compute_kind. On failure adds classification / exception_class / http_status.",
+        "side_effects": "Whatever the wrapped compute does (network / shell / DB). Retries + backoff SLEEP block the step in-process \u2014 cheaper than Dagster step-level RetryPolicy which re-launches the whole step.",
+        "anti_uses": "Not for compute that has no exception-based failure mode. Not for step-level worker-death retries (use Dagster RetryPolicy for that \u2014 they compose). Not for very slow compute where in-process sleep would timeout the step.",
+        "requires_resources": [],
+        "output_type": "materialization",
+        "requires_pip": [
+          "requests"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "retry",
+        "backoff",
+        "http status",
+        "exception classification",
+        "resilience",
+        "429",
+        "5xx",
+        "flaky",
+        "transient"
+      ]
+    },
+    {
       "id": "smooth",
       "name": "Smooth",
       "category": "analytics",

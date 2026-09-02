@@ -1,0 +1,38 @@
+type: dagster_community_components.LifecycleWapComponent
+attributes:
+  asset_name: daily_orders
+
+  compute:
+    kind: python
+    python: "my_project.orders:build_daily"
+
+  write:
+    kind: filesystem
+    prod_path: "data/orders/daily.parquet"
+    format: parquet
+    # staging_path optional — auto-derived to `data/orders/.staging/daily.parquet`
+
+  audit:
+    - kind: row_count_min
+      min: 1000
+      name: rows_gte_1000
+    - kind: col_null_ratio_max
+      col: user_id
+      max: 0.0
+      name: user_id_no_nulls
+    - kind: col_unique
+      col: order_id
+      name: order_id_unique
+    - kind: col_range_min
+      col: amount
+      min: 0
+      name: amount_non_negative
+
+  on_pass: publish
+  on_fail: quarantine
+  quarantine:
+    quarantine_path: "data/orders/.quarantine/daily.parquet"
+
+  group_name: sales
+  owners: [platform-team@example.com]
+  kinds: [python, wap, sales]

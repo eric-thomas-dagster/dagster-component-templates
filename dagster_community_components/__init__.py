@@ -548,6 +548,7 @@ _CLASS_PATHS: dict[str, str] = {
     "LanguageDetectorComponent": "assets/ai/language_detector/component.py",
     "LeadScoringComponent": "assets/analytics/lead_scoring/component.py",
     "LegalDocumentExtractorComponent": "assets/ai/legal_document_extractor/component.py",
+    "LifecycleWapComponent": "assets/infrastructure/lifecycle_wap/component.py",
     "LiftChartComponent": "assets/analytics/lift_chart/component.py",
     "LineageGraphExtractorComponent": "assets/sources/lineage_graph_extractor/component.py",
     "LineageToAlationComponent": "assets/sinks/lineage_to_alation/component.py",
@@ -1310,6 +1311,8 @@ _HELPERS = {
         "dagster_community_components.assets.infrastructure.automation_condition_applicator.component:defs_with_automation_rules",
     "smart_retry":
         "dagster_community_components.assets.infrastructure.smart_retry.component:smart_retry",
+    "lifecycle":
+        "dagster_community_components.assets.infrastructure.lifecycle_wap.component:lifecycle",
 }
 
 

@@ -1,0 +1,30 @@
+{
+  "component_type": "dagster_community_components.LifecycleWapComponent",
+  "description": "Write-Audit-Publish (WAP) lifecycle for assets. Wraps a compute function; writes output to a STAGING location; runs audit checks; on ALL pass promotes staging → prod, on any fail applies quarantine/discard/tag_and_keep policy. Each audit check emits an AssetCheckResult visible in Dagster's asset-check panel — downstream can block via AutomationCondition. Three backends in v1: filesystem (parquet/csv/json, local + fsspec URIs), SQL (via sqlalchemy, transactional table swap), Iceberg (via pyiceberg, branch fast_forward). Companion `@lifecycle` decorator wraps existing @dg.asset functions.",
+  "category": "infrastructure",
+  "icon": "GitBranch",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "asset",
+      "description": "One @dg.asset whose materialization is compute → staging → audit → publish. Includes AssetCheckResult per audit. Metadata: wap_write_kind, wap_all_passed, wap_publish_outcome, wap_check_summary."
+    }
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "default": null},
+    "compute": {"type": "object", "label": "Compute", "required": true, "description": "{kind: python, python: 'mod:fn'}. Returns pandas DataFrame."},
+    "write": {"type": "object", "label": "Write", "required": true, "description": "Write backend. filesystem: {kind, prod_path, staging_path?, format?}. sql: {kind, resource_key|database_url_env_var, prod_table, staging_table?, schema?}. iceberg: {kind, catalog, table, staging_branch?}."},
+    "audit": {"type": "array", "items": {"type": "object"}, "label": "Audit Checks", "required": true, "description": "Ordered checks. Kinds: row_count_min, row_count_max, col_null_ratio_max, col_unique, col_range_min, col_range_max, python.", "ui:widget": "list"},
+    "on_pass": {"type": "string", "label": "On Pass", "required": false, "default": "publish", "enum": ["publish", "discard"]},
+    "on_fail": {"type": "string", "label": "On Fail", "required": false, "default": "quarantine", "enum": ["quarantine", "discard", "tag_and_keep"]},
+    "quarantine": {"type": "object", "label": "Quarantine", "required": false, "default": null, "description": "Target for on_fail=quarantine. filesystem: {quarantine_path}. sql: {quarantine_table}. iceberg: {quarantine_tag}."},
+    "raise_on_fail": {"type": "boolean", "label": "Raise on Fail", "required": false, "default": true, "description": "Raise dg.Failure on audit fail. Set false to materialize + rely on downstream AutomationCondition on AssetCheckResult."},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+  },
+  "tags": ["wap", "lifecycle", "write-audit-publish", "iceberg", "data-quality", "governance", "infrastructure"],
+  "name": "Lifecycle WAP"
+}

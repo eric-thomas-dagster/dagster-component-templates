@@ -25944,6 +25944,70 @@
       ]
     },
     {
+      "id": "lifecycle_wap",
+      "name": "Lifecycle WAP",
+      "category": "infrastructure",
+      "description": "Write-Audit-Publish (WAP) lifecycle for assets. Wraps compute; writes to STAGING location; runs configurable audit checks; on ALL pass promotes staging \u2192 prod (atomic), on any fail applies quarantine/discard/tag_and_keep policy. Each audit check emits AssetCheckResult visible in Dagster UI. Three backends in v1: filesystem (parquet/csv/json + fsspec URIs), SQL (via sqlalchemy \u2014 transactional table swap), Iceberg (via pyiceberg \u2014 branch fast_forward). Companion `@lifecycle` decorator wraps existing @dg.asset functions.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/lifecycle_wap",
+      "tags": [
+        "wap",
+        "lifecycle",
+        "write-audit-publish",
+        "iceberg",
+        "data-quality",
+        "governance",
+        "infrastructure"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/lifecycle_wap/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/lifecycle_wap/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/lifecycle_wap/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/lifecycle_wap/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/lifecycle_wap/requirements.txt",
+      "icon": "GitBranch",
+      "validation": {
+        "level": "live",
+        "last_validated": "2026-09-02",
+        "evidence": "Both shapes live-validated end-to-end via `dagster.materialize` on fresh uvx project: (1) pass path \u2014 6-row DataFrame + row_count_min=5 passed \u2192 PUBLISHED, prod file exists, staging removed, AssetCheckResult passed. (2) fail path \u2014 3-row DataFrame + row_count_min=100 failed \u2192 QUARANTINED (file at .quarantine/daily_fail.parquet.<ts>), prod not created, AssetCheckResult ERROR severity."
+      },
+      "agent_hints": {
+        "inputs": "Optional upstream_asset_key. Compute function is user-provided Python (returns pandas DataFrame).",
+        "outputs": "One @dg.asset emitting a DataFrame + N AssetCheckResults (one per audit rule). Materialization metadata: wap_write_kind, wap_all_passed, wap_publish_outcome, wap_row_count, wap_check_summary, backend-specific paths.",
+        "side_effects": "Writes to staging location (file / table / branch), runs audits, then either promotes to prod OR quarantines/discards. Never publishes bad data.",
+        "anti_uses": "Not for streaming assets (single DataFrame return only). Not for TB-scale in-memory (uses pandas). Not a replacement for full data-quality frameworks (Great Expectations, Soda) \u2014 the python audit-check kind can delegate to those.",
+        "requires_resources": [
+          "conditionally: sql resource_key if write.kind=sql and using a Dagster resource"
+        ],
+        "output_type": "dataframe+checks",
+        "requires_pip": [
+          "pandas",
+          "pyarrow (parquet)",
+          "sqlalchemy (sql backend)",
+          "pyiceberg (iceberg backend)"
+        ]
+      },
+      "produces": [
+        "asset",
+        "check"
+      ],
+      "keywords": [
+        "wap",
+        "write audit publish",
+        "iceberg",
+        "data quality",
+        "staging",
+        "atomic swap",
+        "quarantine",
+        "lifecycle"
+      ]
+    },
+    {
       "id": "lift_chart",
       "name": "Lift Chart",
       "category": "analytics",

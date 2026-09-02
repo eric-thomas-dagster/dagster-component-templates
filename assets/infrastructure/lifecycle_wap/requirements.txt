@@ -1,0 +1,8 @@
+pandas>=1.5
+# fsspec + driver only needed for cloud staging paths:
+#   s3://   → pip install fsspec s3fs
+#   gs://   → pip install fsspec gcsfs
+#   abfs:// → pip install fsspec adlfs
+# SQL backend uses sqlalchemy (usually already installed via other components).
+# iceberg backend requires `pip install 'pyiceberg[pyarrow]'` — only imported
+# on demand when write.kind == 'iceberg'.

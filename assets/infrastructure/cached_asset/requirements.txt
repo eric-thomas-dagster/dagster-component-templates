@@ -1,0 +1,3 @@
+pandas>=1.5
+# pyarrow needed for parquet format (default).
+# fsspec + backend driver only needed for cloud cache_dir URIs.

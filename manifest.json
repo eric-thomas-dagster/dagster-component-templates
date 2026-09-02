@@ -5647,6 +5647,57 @@
       ]
     },
     {
+      "id": "cached_asset",
+      "name": "Cached Asset",
+      "category": "infrastructure",
+      "description": "Content-addressable cache for expensive Python compute. Skip re-running when cache warm; run + save when cold. Cache key = hash(asset_key + code_version + partition_key + user key_fn output). Local FS + fsspec URIs (s3/gs/abfs). Optional TTL. Emits AssetObservation with cached_asset_status=hit|miss tags \u2014 searchable + drift-detectable via event log. Companion @cached decorator.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/cached_asset",
+      "tags": [
+        "cache",
+        "content-addressable",
+        "code-version",
+        "ttl",
+        "performance",
+        "infrastructure"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/cached_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/cached_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/cached_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/cached_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/cached_asset/requirements.txt",
+      "icon": "Database",
+      "validation": {
+        "level": "live",
+        "last_validated": "2026-09-02",
+        "evidence": "Live-validated via dagster.materialize with persistent DagsterInstance on a fresh uvx project."
+      },
+      "agent_hints": {
+        "output_type": "dataframe",
+        "requires_pip": [
+          "pandas"
+        ],
+        "requires_resources": []
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "cache",
+        "content-addressable",
+        "code-version",
+        "ttl",
+        "performance",
+        "infrastructure"
+      ]
+    },
+    {
       "id": "campaign_performance",
       "name": "Campaign Performance",
       "category": "analytics",
@@ -35185,6 +35236,57 @@
       ]
     },
     {
+      "id": "profile_asset",
+      "name": "Profile Asset",
+      "category": "infrastructure",
+      "description": "Auto-emit a data profile per materialization. Global (row_count, column_count) + per column (dtype, null_ratio, distinct_count, numeric stats, top_value_ratio for categoricals). Optional custom_probes. Profile emitted as AssetObservation with typed MetadataValue \u2014 Dagster event log is the profile history + drift is a query. Companion @profile decorator.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/profile_asset",
+      "tags": [
+        "profile",
+        "profiling",
+        "drift-detection",
+        "observability",
+        "data-quality",
+        "infrastructure"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/profile_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/profile_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/profile_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/profile_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/profile_asset/requirements.txt",
+      "icon": "ChartBar",
+      "validation": {
+        "level": "live",
+        "last_validated": "2026-09-02",
+        "evidence": "Live-validated via dagster.materialize with persistent DagsterInstance on a fresh uvx project."
+      },
+      "agent_hints": {
+        "output_type": "dataframe",
+        "requires_pip": [
+          "pandas"
+        ],
+        "requires_resources": []
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "profile",
+        "profiling",
+        "drift-detection",
+        "observability",
+        "data-quality",
+        "infrastructure"
+      ]
+    },
+    {
       "id": "prometheus_resource",
       "name": "PrometheusResource",
       "category": "resource",
@@ -40776,6 +40878,53 @@
       "keywords": [
         "report",
         "aggregate"
+      ]
+    },
+    {
+      "id": "sla_asset",
+      "name": "SLA Asset",
+      "category": "infrastructure",
+      "description": "Enforce wall-clock SLAs on asset compute. Timer wraps compute; on breach, emits AssetObservation tagged sla_breach=<key> with typed metadata (actual_seconds, expected_seconds, overrun_pct, escalated). Optional escalation counts breaches in sliding window via context.instance.get_event_records. on_breach=warn OR fail. Different from FreshnessPolicy (source freshness) \u2014 this governs compute duration.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/sla_asset",
+      "tags": [
+        "sla",
+        "wall-clock",
+        "duration",
+        "escalation",
+        "observability",
+        "infrastructure"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/sla_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/sla_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/sla_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/sla_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/sla_asset/requirements.txt",
+      "icon": "Clock",
+      "validation": {
+        "level": "live",
+        "last_validated": "2026-09-02",
+        "evidence": "Live-validated via dagster.materialize with persistent DagsterInstance on a fresh uvx project."
+      },
+      "agent_hints": {
+        "output_type": "any",
+        "requires_pip": [],
+        "requires_resources": []
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "sla",
+        "wall-clock",
+        "duration",
+        "escalation",
+        "observability",
+        "infrastructure"
       ]
     },
     {

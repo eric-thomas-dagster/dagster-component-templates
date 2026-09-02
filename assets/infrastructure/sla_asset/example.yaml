@@ -1,0 +1,16 @@
+type: dagster_community_components.SlaAssetComponent
+attributes:
+  asset_name: slow_report
+
+  compute:
+    kind: python
+    python: "my_project.reports:build_slow_report"
+
+  expected_duration_seconds: 60
+  on_breach: warn                  # warn | fail
+  escalate_after_n_breaches: 3
+  escalate_window_seconds: 3600    # 1 hour
+
+  group_name: reporting
+  owners: [reporting-oncall@example.com]
+  kinds: [python, sla, reporting]

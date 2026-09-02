@@ -1,0 +1,29 @@
+{
+  "component_type": "dagster_community_components.SlaAssetComponent",
+  "description": "Enforce wall-clock SLAs on asset compute. Timer wraps the compute call; on breach, emits AssetObservation tagged sla_breach=<key> with typed metadata (actual_seconds, expected_seconds, overrun_pct, escalated). Optional escalation: count recent breaches within a sliding window (via context.instance.get_event_records) and tag ESCALATED after N. on_breach=warn materializes with observation; on_breach=fail raises dg.Failure. Different from FreshnessPolicy — that governs SOURCE freshness; this governs compute wall-clock duration.",
+  "category": "infrastructure",
+  "icon": "Clock",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "asset",
+      "description": "One @dg.asset. On breach: emits AssetObservation with breach metadata + fail/warn per policy. Composes with any downstream sensor for alerting."
+    }
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "default": null},
+    "compute": {"type": "object", "label": "Compute", "required": true, "description": "{kind: python, python: 'mod:fn'}."},
+    "expected_duration_seconds": {"type": "number", "label": "Expected Duration (seconds)", "required": true, "description": "Compute > this = breach."},
+    "on_breach": {"type": "string", "label": "On Breach", "required": false, "default": "warn", "enum": ["warn", "fail"]},
+    "escalate_after_n_breaches": {"type": "integer", "label": "Escalate After N Breaches", "required": false, "default": null, "description": "Count breaches in window; tag ESCALATED after N."},
+    "escalate_window_seconds": {"type": "number", "label": "Escalate Window (seconds)", "required": false, "default": 3600},
+    "sla_key": {"type": "string", "label": "SLA Key", "required": false, "default": null, "description": "Shared SLA key. Defaults to asset_name. Set explicitly to group multiple assets under one SLA budget."},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+  },
+  "tags": ["sla", "wall-clock", "duration", "escalation", "observability", "infrastructure"],
+  "name": "SLA Asset"
+}

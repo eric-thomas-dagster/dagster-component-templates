@@ -132,6 +132,7 @@ _CLASS_PATHS: dict[str, str] = {
     "BufferComponent": "assets/analytics/buffer/component.py",
     "CRMDataStandardizerComponent": "assets/analytics/crm_data_standardizer/component.py",
     "CacheInvalidationJobComponent": "jobs/cache_invalidation_job/component.py",
+    "CachedAssetComponent": "assets/infrastructure/cached_asset/component.py",
     "CampaignPerformanceComponent": "assets/analytics/campaign_performance/component.py",
     "CassandraReaderComponent": "assets/sources/cassandra_reader/component.py",
     "CassandraResource": "resources/cassandra_resource/component.py",
@@ -746,6 +747,7 @@ _CLASS_PATHS: dict[str, str] = {
     "PrecisionMatchComponent": "assets/ai/precision_match/component.py",
     "PriorityScorerComponent": "assets/analytics/priority_scorer/component.py",
     "ProductAnalyticsStandardizerComponent": "assets/analytics/product_analytics_standardizer/component.py",
+    "ProfileAssetComponent": "assets/infrastructure/profile_asset/component.py",
     "ProductRecommendationsComponent": "assets/analytics/product_recommendations/component.py",
     "ProductUsageAnalyticsComponent": "assets/analytics/product_usage_analytics/component.py",
     "PrometheusResourceComponent": "resources/prometheus_resource/component.py",
@@ -856,6 +858,7 @@ _CLASS_PATHS: dict[str, str] = {
     "SiffletCheckComponent": "asset_checks/sifflet_check/component.py",
     "SimulationSamplingComponent": "assets/analytics/simulation_sampling/component.py",
     "SlackAuditLogIngestionComponent": "ingestion/slack_audit_log_ingestion/component.py",
+    "SlaAssetComponent": "assets/infrastructure/sla_asset/component.py",
     "SlackApprovalGateComponent": "assets/ai/slack_approval_gate/component.py",
     "SlackIngestionComponent": "assets/ingestion/slack_ingestion/component.py",
     "SlackNotificationJobComponent": "jobs/slack_notification_job/component.py",
@@ -1316,6 +1319,12 @@ _HELPERS = {
         "dagster_community_components.assets.infrastructure.lifecycle_wap.component:lifecycle",
     "data_contract":
         "dagster_community_components.assets.infrastructure.data_contract.component:data_contract",
+    "cached":
+        "dagster_community_components.assets.infrastructure.cached_asset.component:cached",
+    "profile":
+        "dagster_community_components.assets.infrastructure.profile_asset.component:profile",
+    "sla":
+        "dagster_community_components.assets.infrastructure.sla_asset.component:sla",
 }
 
 

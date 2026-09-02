@@ -1,0 +1,18 @@
+type: dagster_community_components.ProfileAssetComponent
+attributes:
+  asset_name: orders_profiled
+
+  compute:
+    kind: python
+    python: "my_project.orders:build_daily"
+
+  categorical_max_distinct: 100    # compute top_value_ratio for cols with <= 100 distinct
+
+  custom_probes:
+    - name: avg_order_value
+      python: "my_project.probes:avg_order_value"
+    - name: outlier_count
+      python: "my_project.probes:count_outliers_iqr"
+
+  group_name: sales
+  kinds: [python, profile, observability, sales]

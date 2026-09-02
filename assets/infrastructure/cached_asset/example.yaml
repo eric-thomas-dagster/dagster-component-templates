@@ -1,0 +1,18 @@
+type: dagster_community_components.CachedAssetComponent
+attributes:
+  asset_name: expensive_report
+
+  compute:
+    kind: python
+    python: "my_project.reports:build_expensive"
+
+  cache_dir: "s3://my-cache/reports/"
+  code_version: "1.0.0"       # bump to invalidate the cache
+  ttl_seconds: 86400          # 1 day freshness
+  format: parquet
+
+  # Optional: mix a runtime value into the cache key (e.g. config version).
+  key_fn: "my_project.reports:cache_key_extras"
+
+  group_name: reporting
+  kinds: [python, cache, reporting]

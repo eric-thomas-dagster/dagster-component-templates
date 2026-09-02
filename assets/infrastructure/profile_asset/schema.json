@@ -1,0 +1,27 @@
+{
+  "component_type": "dagster_community_components.ProfileAssetComponent",
+  "description": "Auto-emit a data profile per materialization. Global: row_count, column_count. Per column: dtype, null_count, null_ratio, distinct_count; for numerics: min/max/mean/std; for categoricals (< N distinct): top_value_ratio. Optional custom_probes for extensions. Profile emitted as AssetObservation with typed MetadataValue — searchable in Dagster event log, drift detection is free (compare over time). Companion `@profile` decorator wraps existing @dg.asset.",
+  "category": "infrastructure",
+  "icon": "ChartBar",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "asset",
+      "description": "One @dg.asset. On every materialization: computes DataFrame profile, emits AssetObservation with full profile JSON + typed metadata on the materialization."
+    }
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "default": null},
+    "compute": {"type": "object", "label": "Compute", "required": true, "description": "{kind: python, python: 'mod:fn'}. Returns pandas DataFrame."},
+    "categorical_max_distinct": {"type": "integer", "label": "Categorical Max Distinct", "required": false, "default": 50, "description": "Cols with <= this many distinct values get top_value_ratio."},
+    "top_n_columns": {"type": "integer", "label": "Top N Columns", "required": false, "default": null, "description": "Profile only first N columns (very wide DataFrames)."},
+    "custom_probes": {"type": "array", "items": {"type": "object"}, "label": "Custom Probes", "required": false, "default": null, "description": "[{name, python: 'mod:fn'}]. fn(df) returns dict.", "ui:widget": "list"},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+  },
+  "tags": ["profile", "profiling", "drift-detection", "observability", "data-quality", "infrastructure"],
+  "name": "Profile Asset"
+}

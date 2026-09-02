@@ -9201,6 +9201,66 @@
       ]
     },
     {
+      "id": "data_contract",
+      "name": "Data Contract",
+      "category": "infrastructure",
+      "description": "Enforce data contracts at materialization \u2014 schema (per-column types/nullability/uniqueness/range/enum/regex), freshness SLA (max lag from prior via event log), row-count SLA (drop% vs prior via event log). Emits one AssetCheckResult per rule + AssetObservation tagged with contract_version/owners/consumers. Contract version drives code_version on the asset so downstream detects version bumps automatically. Two shapes: YAML component defines a new asset; @data_contract decorator wraps existing @dg.asset. on_violation=block raises dg.Failure; on_violation=warn materializes anyway, downstream blocks via AutomationCondition.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/data_contract",
+      "tags": [
+        "contract",
+        "governance",
+        "data-quality",
+        "schema",
+        "freshness",
+        "sla",
+        "data-mesh",
+        "infrastructure"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/data_contract/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/data_contract/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/data_contract/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/data_contract/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/data_contract/requirements.txt",
+      "icon": "ShieldCheck",
+      "validation": {
+        "level": "live",
+        "last_validated": "2026-09-02",
+        "evidence": "Both shapes live-validated via `dagster.materialize` with a persistent DagsterInstance: (1) PASS path \u2014 3-row DataFrame, 3 schema checks (int unique + float min>=0 + string in allowed_values), all AssetCheckResults passed, asset materialized. (2) VIOLATION path \u2014 same schema, DataFrame with duplicate order_id + negative amount + bad currency \u2192 3 AssetCheckResults ERROR-severity with typed descriptions ('1 duplicate(s) in unique column', 'min=-5.0 < required 0', 'values not in allowed set: [XYZ]'), dg.Failure raised, asset did NOT materialize."
+      },
+      "agent_hints": {
+        "inputs": "Optional upstream_asset_key. Compute is user-provided Python (returns pandas DataFrame).",
+        "outputs": "One @dg.asset with N AssetCheckSpecs (one per contract rule). code_version=contract.version so downstream detects version bumps. AssetObservation tags: contract_version, contract_owners, contract_consumers.",
+        "side_effects": "Emits AssetCheckResult per rule (schema/freshness/sla), AssetObservation with contract metadata. Reads prior materializations from context.instance.get_event_records for SLA + freshness comparison.",
+        "anti_uses": "Not for streaming (returns single DataFrame). Not a replacement for full Great Expectations / dbt tests (use the python check kind to delegate). Not for cross-asset FK constraints in v1.",
+        "requires_resources": [],
+        "output_type": "dataframe+checks",
+        "requires_pip": [
+          "pandas"
+        ]
+      },
+      "produces": [
+        "asset",
+        "check"
+      ],
+      "keywords": [
+        "data contract",
+        "schema enforcement",
+        "governance",
+        "data mesh",
+        "freshness sla",
+        "row count sla",
+        "AssetCheckResult",
+        "AutomationCondition"
+      ]
+    },
+    {
       "id": "data_enricher",
       "name": "Data Enricher",
       "category": "ai",

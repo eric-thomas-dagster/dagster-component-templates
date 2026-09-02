@@ -1,0 +1,34 @@
+type: dagster_community_components.DataContractComponent
+attributes:
+  asset_name: orders
+
+  compute:
+    kind: python
+    python: "my_project.orders:build_daily"
+
+  contract:
+    version: "1.2.0"
+    owners:
+      - data-platform@example.com
+      - eric.thomas@example.com
+    consumers:
+      - analytics-team
+      - ml-recommendations-team
+      - finance-reporting
+
+    schema:
+      - {name: order_id,   type: int64,             nullable: false, unique: true}
+      - {name: user_id,    type: int64,             nullable: false}
+      - {name: amount,     type: float64,           nullable: false, min: 0, max: 1000000}
+      - {name: currency,   type: string,            nullable: false, allowed_values: [USD, EUR, GBP, JPY]}
+      - {name: status,     type: string,            allowed_values: [pending, confirmed, shipped, delivered, cancelled]}
+      - {name: email,      type: string,            regex: "^[^@]+@[^@]+\\.[^@]+$"}
+      - {name: created_at, type: "datetime64[ns]",  nullable: false}
+
+    freshness_max_lag_minutes: 60         # must materialize within 1 hour of prior
+    sla_max_row_count_drop_pct: 20        # today's rows >= 80% of yesterday's
+
+  on_violation: block
+
+  group_name: sales
+  kinds: [python, contract, sales]

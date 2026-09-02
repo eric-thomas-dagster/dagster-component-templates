@@ -200,6 +200,7 @@ _CLASS_PATHS: dict[str, str] = {
     "DagsterRunsToStatsdSensorComponent": "sensors/dagster_runs_to_statsd_sensor/component.py",
     "DagstermillNotebookAssetComponent": "assets/infrastructure/dagstermill_notebook_asset/component.py",
     "DataCleansingComponent": "assets/transforms/data_cleansing/component.py",
+    "DataContractComponent": "assets/infrastructure/data_contract/component.py",
     "DataEnricherComponent": "assets/ai/data_enricher/component.py",
     "DataFrameTransformerComponent": "assets/transforms/dataframe_transformer/component.py",
     "DataMaskingComponent": "transforms/data_masking/component.py",
@@ -1313,6 +1314,8 @@ _HELPERS = {
         "dagster_community_components.assets.infrastructure.smart_retry.component:smart_retry",
     "lifecycle":
         "dagster_community_components.assets.infrastructure.lifecycle_wap.component:lifecycle",
+    "data_contract":
+        "dagster_community_components.assets.infrastructure.data_contract.component:data_contract",
 }
 
 

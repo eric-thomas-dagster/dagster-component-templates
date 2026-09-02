@@ -1,0 +1,26 @@
+{
+  "component_type": "dagster_community_components.DataContractComponent",
+  "description": "Enforce a data contract at materialization — schema (per-column types/nullability/uniqueness/range/enum/regex), freshness SLA (max lag from prior materialization via event log), row-count SLA (drop% vs prior via event log). Emits one AssetCheckResult per contract rule + AssetObservation tagged with contract_version + owners + consumers. Contract version drives `code_version` on the asset so downstream can automatically invalidate on version bumps. Two shapes: this YAML component defines a new asset; the `@data_contract` decorator wraps an existing @dg.asset. on_violation=block raises dg.Failure (asset does not materialize); on_violation=warn materializes anyway, downstream blocks via AutomationCondition.",
+  "category": "infrastructure",
+  "icon": "ShieldCheck",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "asset",
+      "description": "One @dg.asset emitting the DataFrame + N AssetCheckResults (schema + freshness + SLA). Metadata: contract_version, contract_row_count, contract_owners, contract_consumers, contract_check_summary, all_passed."
+    }
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "default": null},
+    "compute": {"type": "object", "label": "Compute", "required": true, "description": "{kind: python, python: 'mod:fn'} — function returns a pandas DataFrame."},
+    "contract": {"type": "object", "label": "Contract", "required": true, "description": "{version, owners, consumers, schema: [{name, type?, nullable?, unique?, min?, max?, allowed_values?, regex?}], freshness_max_lag_minutes?, sla_max_row_count_drop_pct?}."},
+    "on_violation": {"type": "string", "label": "On Violation", "required": false, "default": "block", "enum": ["block", "warn"]},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list", "description": "Asset owners (defaults to contract.owners if omitted)."},
+    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+  },
+  "tags": ["contract", "governance", "data-quality", "schema", "freshness", "sla", "data-mesh", "infrastructure"],
+  "name": "Data Contract"
+}

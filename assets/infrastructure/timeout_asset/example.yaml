@@ -1,0 +1,13 @@
+type: dagster_community_components.TimeoutAssetComponent
+attributes:
+  asset_name: slow_api_call
+
+  compute:
+    kind: python
+    python: "my_project.api:call_external"
+
+  timeout_seconds: 60
+  on_timeout: fail                 # fail (default) | warn
+
+  group_name: integrations
+  kinds: [python, timeout, api]

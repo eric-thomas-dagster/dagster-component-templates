@@ -1,0 +1,18 @@
+type: dagster_community_components.HooksAssetComponent
+attributes:
+  asset_name: critical_report
+
+  compute:
+    kind: python
+    python: "my_project.reports:build_critical"
+
+  on_success:
+    - "my_project.hooks:notify_slack_success"
+    - "my_project.hooks:update_dashboard"
+
+  on_failure:
+    - "my_project.hooks:create_jira_ticket"
+    - "my_project.hooks:page_oncall"
+
+  group_name: reporting
+  kinds: [python, hooks, reporting]

@@ -1,0 +1,12 @@
+type: dagster_community_components.LogPrintsAssetComponent
+attributes:
+  asset_name: porting_script
+
+  compute:
+    kind: python
+    python: "my_project.legacy:process_batch"
+
+  prefix: "[print] "
+
+  group_name: legacy
+  kinds: [python, logging, legacy]

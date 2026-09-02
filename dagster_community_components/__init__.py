@@ -472,6 +472,7 @@ _CLASS_PATHS: dict[str, str] = {
     "HttpExternalAssetComponent": "integrations/http_external_asset/component.py",
     "HttpPollSensorComponent": "sensors/http_poll_sensor/component.py",
     "HttpWebhookJobComponent": "jobs/http_webhook_job/component.py",
+    "HooksAssetComponent": "assets/infrastructure/hooks_asset/component.py",
     "HubSpotIngestionComponent": "assets/ingestion/hubspot_ingestion/component.py",
     "HubSpotResource": "resources/hubspot_resource/component.py",
     "HubSpotResourceComponent": "resources/hubspot_resource/component.py",
@@ -580,6 +581,7 @@ _CLASS_PATHS: dict[str, str] = {
     "LocalCsvIOManagerComponent": "io_managers/local_csv_io_manager/component.py",
     "LocalJsonIOManagerComponent": "io_managers/local_json_io_manager/component.py",
     "LocalParquetIOManagerComponent": "io_managers/local_parquet_io_manager/component.py",
+    "LogPrintsAssetComponent": "assets/infrastructure/log_prints_asset/component.py",
     "LogisticRegressionModelComponent": "assets/analytics/logistic_regression_model/component.py",
     "LookerAssetsComponent": "integrations/looker_assets/component.py",
     "LookupComponent": "transforms/lookup/component.py",
@@ -980,6 +982,7 @@ _CLASS_PATHS: dict[str, str] = {
     "TikTokAdsIngestionComponent": "assets/ingestion/tiktok_ads_ingestion/component.py",
     "TileBinningComponent": "assets/transforms/tile_binning/component.py",
     "TimeSeriesGeneratorComponent": "assets/analytics/time_series_generator/component.py",
+    "TimeoutAssetComponent": "assets/infrastructure/timeout_asset/component.py",
     "TimescaleDBResource": "resources/timescaledb_resource/component.py",
     "TimescaleDBResourceComponent": "resources/timescaledb_resource/component.py",
     "TopNPerGroupComponent": "assets/transforms/top_n_per_group/component.py",
@@ -1325,6 +1328,12 @@ _HELPERS = {
         "dagster_community_components.assets.infrastructure.profile_asset.component:profile",
     "sla":
         "dagster_community_components.assets.infrastructure.sla_asset.component:sla",
+    "timeout":
+        "dagster_community_components.assets.infrastructure.timeout_asset.component:timeout",
+    "log_prints":
+        "dagster_community_components.assets.infrastructure.log_prints_asset.component:log_prints",
+    "on_hooks":
+        "dagster_community_components.assets.infrastructure.hooks_asset.component:on_hooks",
 }
 
 

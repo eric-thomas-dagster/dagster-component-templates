@@ -43,15 +43,15 @@ sleep. Sleeps happen INSIDE the compute (blocking), then RetryRequested
 is raised — Dagster's step runner picks it up + re-runs on the next
 attempt.
 
-## What's coming in v2
+## Day-1 advanced features (all opt-in)
 
-- **LLM classification** — a small LLM call ("is this error transient?")
-  when neither http_status nor exception_class rules match. Costs one
-  LLM roundtrip per unclassified error; gate behind `enable_llm_fallback`.
-- **Sliding-window rate limiting** — "no more than 3 retries per
-  60-second window" to prevent runaway loops.
-- **Circuit breaker** — after N total failures, refuse to attempt for
-  M seconds. Prevents wasted API budget on a downed dependency.
+- **LLM classification** — small LLM call ("is this transient?") for
+  errors NEITHER rule matched. Gate behind `llm_fallback: {...}`.
+- **Sliding-window rate limiting** — cap retries per `window_seconds`.
+- **Circuit breaker** — cross-run breaker via Dagster instance events
+  (`AssetObservation` tags). Survives worker restarts + Serverless
+  container churn. Falls back to in-process state when no context
+  is available (tests).
 """
 
 import functools
@@ -125,18 +125,39 @@ class _RateLimiter:
 
 
 class _CircuitBreaker:
-    """Sliding-window circuit breaker.
+    """Sliding-window circuit breaker with Dagster-instance-backed persistence.
 
-    Tracks failures in `observation_window_seconds`. When `threshold` failures
-    accumulate, the breaker OPENS for `cooldown_seconds` — during that window,
-    `check()` returns the remaining cooldown so the caller can fail fast without
-    attempting compute. Success resets the tracking.
+    Two-tier state:
+      1. **Dagster instance** (primary — cross-run, cross-worker, survives
+         Serverless container churn). Uses `context.instance.get_event_records`
+         to count prior asset-materialization FAILED steps for the key +
+         `AssetObservation` events to mark the OPEN state's cooldown window.
+      2. **In-process module dict** (fallback — for tests + code paths that
+         don't have a Dagster context available).
+
+    On Dagster-context calls: state is read/written through `context.instance`
+    so multiple worker processes + serverless containers see the same breaker.
+    On no-context calls: falls back to the module-level dict.
     """
+
+    # Fallback in-process state.
     _state: Dict[str, Dict[str, Any]] = {}
 
+    # Sentinel tag stored on AssetObservation events to mark "breaker OPEN".
+    _OPEN_TAG = "wap_circuit_open_until"
+    _FAIL_TAG = "wap_circuit_failure"
+
     @classmethod
-    def check(cls, key: str) -> Optional[float]:
+    def check(cls, key: str, context: Any = None) -> Optional[float]:
         """Return `None` if closed. Return remaining seconds if open."""
+        # Try instance-backed state first when we have a Dagster context.
+        if context is not None and getattr(context, "instance", None) is not None:
+            open_until = cls._get_instance_open_until(context, key)
+            if open_until is not None:
+                now = time.time()
+                if open_until > now:
+                    return open_until - now
+                return None
         with _STATE_LOCK:
             s = cls._state.get(key)
             if not s:
@@ -150,8 +171,54 @@ class _CircuitBreaker:
     @classmethod
     def record_failure(
         cls, key: str, threshold: int, observation_window_seconds: float,
-        cooldown_seconds: float,
+        cooldown_seconds: float, context: Any = None,
     ) -> None:
+        # Instance-backed path: query recent tagged observations, count, open if threshold hit.
+        if context is not None and getattr(context, "instance", None) is not None:
+            now = time.time()
+            # Emit the failure as an AssetObservation tagged with the key.
+            try:
+                from dagster import AssetObservation, AssetKey
+                _asset_key = None
+                if hasattr(context, "asset_key"):
+                    _asset_key = context.asset_key
+                elif hasattr(context, "assets_def"):
+                    ad = context.assets_def
+                    _asset_key = next(iter(ad.keys), None) if ad else None
+                if _asset_key is None:
+                    _asset_key = AssetKey([f"smart_retry_{key}"])
+                # Emit through the runtime context so it lands in the event log
+                # (this is what Dagster's own components do for observations).
+                if hasattr(context, "log_event"):
+                    context.log_event(AssetObservation(
+                        asset_key=_asset_key,
+                        tags={cls._FAIL_TAG: key, "ts": str(now)},
+                    ))
+            except Exception:  # noqa: BLE001
+                pass
+            # Count failures in the observation window.
+            n_failures = cls._count_instance_failures(
+                context, key, observation_window_seconds
+            )
+            if n_failures >= threshold:
+                # Open the breaker: emit an observation marking cooldown end.
+                try:
+                    from dagster import AssetObservation, AssetKey
+                    _asset_key = None
+                    if hasattr(context, "asset_key"):
+                        _asset_key = context.asset_key
+                    if _asset_key is None:
+                        _asset_key = AssetKey([f"smart_retry_{key}"])
+                    if hasattr(context, "log_event"):
+                        context.log_event(AssetObservation(
+                            asset_key=_asset_key,
+                            tags={cls._OPEN_TAG: key,
+                                  "open_until": str(now + cooldown_seconds)},
+                        ))
+                except Exception:  # noqa: BLE001
+                    pass
+            return
+        # Fallback: in-process state.
         with _STATE_LOCK:
             s = cls._state.setdefault(key, {"failures": deque(), "open_until": 0.0})
             now = time.time()
@@ -163,6 +230,58 @@ class _CircuitBreaker:
             if len(fq) >= threshold:
                 s["open_until"] = now + cooldown_seconds
                 fq.clear()  # Reset window after opening.
+
+    @classmethod
+    def _get_instance_open_until(cls, context: Any, key: str) -> Optional[float]:
+        """Query Dagster event log for the most recent `wap_circuit_open_until=<key>`
+        observation and return its `open_until` timestamp."""
+        try:
+            from dagster import EventRecordsFilter, DagsterEventType
+            records = context.instance.get_event_records(
+                event_records_filter=EventRecordsFilter(
+                    event_type=DagsterEventType.ASSET_OBSERVATION,
+                ),
+                limit=50, ascending=False,
+            )
+            for r in records:
+                tags = (r.asset_observation.tags if r.asset_observation else None) or {}
+                if tags.get(cls._OPEN_TAG) == key:
+                    try:
+                        return float(tags.get("open_until") or 0)
+                    except Exception:  # noqa: BLE001
+                        continue
+        except Exception:  # noqa: BLE001
+            return None
+        return None
+
+    @classmethod
+    def _count_instance_failures(
+        cls, context: Any, key: str, window_seconds: float,
+    ) -> int:
+        """Count `wap_circuit_failure=<key>` observations within the window."""
+        try:
+            from dagster import EventRecordsFilter, DagsterEventType
+            records = context.instance.get_event_records(
+                event_records_filter=EventRecordsFilter(
+                    event_type=DagsterEventType.ASSET_OBSERVATION,
+                ),
+                limit=200, ascending=False,
+            )
+            cutoff = time.time() - window_seconds
+            n = 0
+            for r in records:
+                tags = (r.asset_observation.tags if r.asset_observation else None) or {}
+                if tags.get(cls._FAIL_TAG) != key:
+                    continue
+                try:
+                    ts = float(tags.get("ts") or 0)
+                except Exception:  # noqa: BLE001
+                    continue
+                if ts >= cutoff:
+                    n += 1
+            return n
+        except Exception:  # noqa: BLE001
+            return 0
 
     @classmethod
     def record_success(cls, key: str) -> None:
@@ -591,7 +710,7 @@ class SmartRetryComponent(dg.Component, dg.Model, dg.Resolvable):
 
             # ── Circuit breaker: fail fast if OPEN ──
             if circuit_cfg:
-                open_seconds = _CircuitBreaker.check(circuit_key)
+                open_seconds = _CircuitBreaker.check(circuit_key, context=context)
                 if open_seconds is not None:
                     context.log.error(
                         f"[smart_retry] circuit OPEN for {circuit_key!r}; "
@@ -605,9 +724,9 @@ class SmartRetryComponent(dg.Component, dg.Model, dg.Resolvable):
                             f"compute until cooldown elapses."
                         ),
                         metadata={
-                            "classification": "circuit_open",
-                            "circuit_key": circuit_key,
-                            "cooldown_remaining_seconds": round(open_seconds, 2),
+                            "classification": dg.MetadataValue.text("circuit_open"),
+                            "circuit_key": dg.MetadataValue.text(circuit_key),
+                            "cooldown_remaining_seconds": dg.MetadataValue.float(round(open_seconds, 2)),
                         },
                     )
 
@@ -625,8 +744,8 @@ class SmartRetryComponent(dg.Component, dg.Model, dg.Resolvable):
                         _CircuitBreaker.record_success(circuit_key)
                     return dg.MaterializeResult(
                         metadata={
-                            "attempts": attempt,
-                            "compute_kind": compute.get("kind", "python"),
+                            "attempts": dg.MetadataValue.int(attempt),
+                            "compute_kind": dg.MetadataValue.text(compute.get("kind", "python")),
                         }
                     )
                 except BaseException as exc:  # noqa: BLE001
@@ -638,12 +757,16 @@ class SmartRetryComponent(dg.Component, dg.Model, dg.Resolvable):
 
                     # Record failure for circuit-breaker accounting BEFORE the
                     # classification-branch decides how to fail. Success resets.
+                    # Passes `context` so cross-run state via Dagster instance
+                    # events kicks in on real workers (falls back to in-process
+                    # state in test contexts).
                     if circuit_cfg:
                         _CircuitBreaker.record_failure(
                             circuit_key,
                             int(circuit_cfg.get("threshold") or 5),
                             float(circuit_cfg.get("observation_window_seconds") or 300),
                             float(circuit_cfg.get("cooldown_seconds") or 60),
+                            context=context,
                         )
 
                     if classification == "permanent":
@@ -655,10 +778,10 @@ class SmartRetryComponent(dg.Component, dg.Model, dg.Resolvable):
                                 f"smart_retry classified as PERMANENT{status_str} on attempt {attempt}: {exc_summary}"
                             ),
                             metadata={
-                                "classification": "permanent",
-                                "attempt": attempt,
-                                "http_status": status if status is not None else -1,
-                                "exception_class": type(exc).__name__,
+                                "classification": dg.MetadataValue.text("permanent"),
+                                "attempt": dg.MetadataValue.int(attempt),
+                                "http_status": dg.MetadataValue.int(status if status is not None else -1),
+                                "exception_class": dg.MetadataValue.text(type(exc).__name__),
                             },
                         ) from exc
 
@@ -673,10 +796,10 @@ class SmartRetryComponent(dg.Component, dg.Model, dg.Resolvable):
                                 f"(last classification: {classification_str}){status_str}: {exc_summary}"
                             ),
                             metadata={
-                                "classification": classification_str,
-                                "attempts": attempt,
-                                "http_status": status if status is not None else -1,
-                                "exception_class": type(exc).__name__,
+                                "classification": dg.MetadataValue.text(classification_str),
+                                "attempts": dg.MetadataValue.int(attempt),
+                                "http_status": dg.MetadataValue.int(status if status is not None else -1),
+                                "exception_class": dg.MetadataValue.text(type(exc).__name__),
                             },
                         ) from exc
 
@@ -699,9 +822,9 @@ class SmartRetryComponent(dg.Component, dg.Model, dg.Resolvable):
                                     f"— last error: {exc_summary}"
                                 ),
                                 metadata={
-                                    "classification": "rate_limited",
-                                    "rate_limit_key": rate_limit_key,
-                                    "last_exception_class": type(exc).__name__,
+                                    "classification": dg.MetadataValue.text("rate_limited"),
+                                    "rate_limit_key": dg.MetadataValue.text(rate_limit_key),
+                                    "last_exception_class": dg.MetadataValue.text(type(exc).__name__),
                                 },
                             ) from exc
 
@@ -815,16 +938,18 @@ def smart_retry(
                     getattr(context.log, level, context.log.info)(msg)
 
             # ── Circuit breaker: fail fast if OPEN ──
+            # Passes `context` so cross-run state via Dagster instance events kicks
+            # in on real workers (falls back to in-process state when context is None).
             if _cb_cfg:
-                open_seconds = _CircuitBreaker.check(_state_key)
+                open_seconds = _CircuitBreaker.check(_state_key, context=context)
                 if open_seconds is not None:
                     _log("error", f"[smart_retry] circuit OPEN for {_state_key!r}; ~{open_seconds:.1f}s cooldown remaining.")
                     raise dg.Failure(
                         description=f"smart_retry circuit OPEN for {_state_key!r} — ~{open_seconds:.1f}s cooldown remaining.",
                         metadata={
-                            "classification": "circuit_open",
-                            "circuit_key": _state_key,
-                            "cooldown_remaining_seconds": round(open_seconds, 2),
+                            "classification": dg.MetadataValue.text("circuit_open"),
+                            "circuit_key": dg.MetadataValue.text(_state_key),
+                            "cooldown_remaining_seconds": dg.MetadataValue.float(round(open_seconds, 2)),
                         },
                     )
 
@@ -850,6 +975,7 @@ def smart_retry(
                             int(_cb_cfg.get("threshold") or 5),
                             float(_cb_cfg.get("observation_window_seconds") or 300),
                             float(_cb_cfg.get("cooldown_seconds") or 60),
+                            context=context,
                         )
 
                     if classification == "permanent":
@@ -857,10 +983,10 @@ def smart_retry(
                         raise dg.Failure(
                             description=f"smart_retry classified as PERMANENT{status_str} on attempt {attempt}: {exc_summary}",
                             metadata={
-                                "classification": "permanent",
-                                "attempt": attempt,
-                                "http_status": status if status is not None else -1,
-                                "exception_class": type(exc).__name__,
+                                "classification": dg.MetadataValue.text("permanent"),
+                                "attempt": dg.MetadataValue.int(attempt),
+                                "http_status": dg.MetadataValue.int(status if status is not None else -1),
+                                "exception_class": dg.MetadataValue.text(type(exc).__name__),
                             },
                         ) from exc
 
@@ -873,10 +999,10 @@ def smart_retry(
                                 f"(last classification: {classification_str}){status_str}: {exc_summary}"
                             ),
                             metadata={
-                                "classification": classification_str,
-                                "attempts": attempt,
-                                "http_status": status if status is not None else -1,
-                                "exception_class": type(exc).__name__,
+                                "classification": dg.MetadataValue.text(classification_str),
+                                "attempts": dg.MetadataValue.int(attempt),
+                                "http_status": dg.MetadataValue.int(status if status is not None else -1),
+                                "exception_class": dg.MetadataValue.text(type(exc).__name__),
                             },
                         ) from exc
 
@@ -894,9 +1020,9 @@ def smart_retry(
                             raise dg.Failure(
                                 description=f"smart_retry rate_limit exceeded for {_state_key!r} — last error: {exc_summary}",
                                 metadata={
-                                    "classification": "rate_limited",
-                                    "rate_limit_key": _state_key,
-                                    "last_exception_class": type(exc).__name__,
+                                    "classification": dg.MetadataValue.text("rate_limited"),
+                                    "rate_limit_key": dg.MetadataValue.text(_state_key),
+                                    "last_exception_class": dg.MetadataValue.text(type(exc).__name__),
                                 },
                             ) from exc
 

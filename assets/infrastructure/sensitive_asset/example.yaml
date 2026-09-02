@@ -1,0 +1,18 @@
+type: dagster_community_components.SensitiveAssetComponent
+attributes:
+  asset_name: user_export
+
+  compute:
+    kind: python
+    python: "my_project.exports:build_user_export"
+
+  keys:
+    - password
+    - "*_token"
+    - ssn
+    - authorization
+
+  strategy: redact    # redact (default) | hash | mask
+
+  group_name: exports
+  kinds: [python, pii, compliance]

@@ -1,0 +1,16 @@
+type: dagster_community_components.ShadowAssetComponent
+attributes:
+  asset_name: order_totals
+
+  compute:
+    kind: python
+    python: "my_project.reports:old_order_totals"
+
+  shadow_compute:
+    kind: python
+    python: "my_project.reports:new_order_totals"
+
+  enforce_match: false          # false (default) = observe; true = fail-on-mismatch
+
+  group_name: reporting
+  kinds: [python, shadow, migration]

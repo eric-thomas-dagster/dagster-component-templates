@@ -1,0 +1,13 @@
+type: dagster_community_components.ThrottleAssetComponent
+attributes:
+  asset_name: hot_search_index
+
+  compute:
+    kind: python
+    python: "my_project.search:rebuild_index"
+
+  min_gap_seconds: 30
+  on_throttle: skip           # skip (default) | fail
+
+  group_name: search
+  kinds: [python, search, throttle]

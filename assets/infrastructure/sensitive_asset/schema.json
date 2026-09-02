@@ -1,0 +1,26 @@
+{
+  "component_type": "dagster_community_components.SensitiveAssetComponent",
+  "description": "PII / secret redaction wrapper. Wraps compute with a log proxy that scrubs matching keys from `context.log.info/warning/error` calls + `MaterializeResult.metadata` dicts before persistence. Each run emits AssetObservation(sensitive_redacted_count=N) so audits can prove the scrub ran. Case-insensitive glob patterns (`*`, `?`) on dict keys and inline `key=value` string fragments. Redaction strategies: `redact` (→ [REDACTED]), `hash` (→ sha256:xxxxxxxx), `mask` (→ ***last4). Defaults cover common PII/secret field names. Companion @sensitive decorator.",
+  "category": "infrastructure",
+  "icon": "Shield",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "asset",
+      "description": "One @dg.asset. Materialization metadata is redacted; AssetObservation carries the redaction count."
+    }
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "default": null},
+    "compute": {"type": "object", "label": "Compute", "required": true, "description": "{kind: python, python: 'mod:fn'}."},
+    "keys": {"type": "array", "items": {"type": "string"}, "label": "Redacted Keys", "required": false, "default": null, "description": "Case-insensitive globs. Defaults to a common PII/secrets list.", "ui:widget": "list"},
+    "strategy": {"type": "string", "label": "Strategy", "required": false, "default": "redact", "enum": ["redact", "hash", "mask"], "description": "How matched values are replaced."},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+  },
+  "tags": ["pii", "secrets", "redaction", "compliance", "soc2", "infrastructure"],
+  "name": "Sensitive Asset"
+}

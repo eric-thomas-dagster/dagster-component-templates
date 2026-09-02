@@ -1,0 +1,26 @@
+{
+  "component_type": "dagster_community_components.ShadowAssetComponent",
+  "description": "Dual-run: primary compute produces the canonical value (production unchanged); a shadow compute runs after primary and its output is diffed against primary. Emits AssetObservation per run with shadow_match=true|false + diff metadata (mode, diff_rows, extra/missing cols, error). Classic migration playbook — ship shadow, verify convergence, flip primary, drop shadow. Shadow exceptions trapped by default; enforce_match=true raises dg.Failure on mismatch. Companion @shadow decorator.",
+  "category": "infrastructure",
+  "icon": "GitBranch",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "asset",
+      "description": "One @dg.asset. Materialization = primary result; AssetObservation captures shadow verdict + diff metadata."
+    }
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "default": null},
+    "compute": {"type": "object", "label": "Primary Compute", "required": true, "description": "{kind: python, python: 'mod:fn'} — production impl."},
+    "shadow_compute": {"type": "object", "label": "Shadow Compute", "required": true, "description": "{kind: python, python: 'mod:fn'} — candidate impl (same signature)."},
+    "enforce_match": {"type": "boolean", "label": "Enforce Match", "required": false, "default": false, "description": "false (default) observes; true raises dg.Failure on mismatch."},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+  },
+  "tags": ["shadow", "canary", "migration", "diff", "dual-write", "infrastructure"],
+  "name": "Shadow Asset"
+}

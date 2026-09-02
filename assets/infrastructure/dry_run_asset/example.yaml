@@ -1,0 +1,12 @@
+type: dagster_community_components.DryRunAssetComponent
+attributes:
+  asset_name: costly_report
+
+  compute:
+    kind: python
+    python: "my_project.reports:build_costly"
+
+  # enabled: null   # (default) read run tag `dry_run` or env DAGSTER_DRY_RUN
+
+  group_name: reporting
+  kinds: [python, reporting, dry_run]

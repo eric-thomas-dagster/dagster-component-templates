@@ -303,6 +303,7 @@ _CLASS_PATHS: dict[str, str] = {
     "DorisWorkspaceComponent": "integrations/doris_workspace/component.py",
     "DremioIngestionComponent": "assets/ingestion/dremio_ingestion/component.py",
     "DriveTimeComponent": "assets/transforms/drive_time/component.py",
+    "DryRunAssetComponent": "assets/infrastructure/dry_run_asset/component.py",
     "DspyProgramComponent": "assets/ai/dspy_program/component.py",
     "DuckDBIOManagerComponent": "io_managers/duckdb_io_manager/component.py",
     "DuckDBPolarsIOManagerComponent": "io_managers/duckdb_polars_io_manager/component.py",
@@ -842,12 +843,14 @@ _CLASS_PATHS: dict[str, str] = {
     "SentryAlertJobComponent": "jobs/sentry_alert_job/component.py",
     "SentryIssuesIngestionComponent": "assets/ingestion/sentry_issues_ingestion/component.py",
     "SentryMonitorCheckinJobComponent": "jobs/sentry_monitor_checkin_job/component.py",
+    "SensitiveAssetComponent": "assets/infrastructure/sensitive_asset/component.py",
     "ServiceNowIngestionComponent": "assets/ingestion/servicenow_ingestion/component.py",
     "ServiceNowResource": "resources/servicenow_resource/component.py",
     "ServiceNowResourceComponent": "resources/servicenow_resource/component.py",
     "ServiceNowSensorComponent": "sensors/servicenow_sensor/component.py",
     "SftpMonitorSensorComponent": "sensors/sftp_monitor/component.py",
     "SftpPathObservationSensorComponent": "observations/sftp_path_observation_sensor/component.py",
+    "ShadowAssetComponent": "assets/infrastructure/shadow_asset/component.py",
     "SharePointMonitorSensorComponent": "sensors/sharepoint_monitor/component.py",
     "ShellCommandAssetComponent": "assets/infrastructure/shell_command_asset/component.py",
     "ShellCommandJobComponent": "jobs/shell_command_job/component.py",
@@ -870,6 +873,7 @@ _CLASS_PATHS: dict[str, str] = {
     "SmoothComponent": "assets/analytics/smooth/component.py",
     "SmtpSendAssetComponent": "assets/sinks/smtp_send_asset/component.py",
     "SmartRetryComponent": "assets/infrastructure/smart_retry/component.py",
+    "SnapshotAssetComponent": "assets/infrastructure/snapshot_asset/component.py",
     "SnowflakeAccessHistoryIngestionComponent": "ingestion/snowflake_access_history_ingestion/component.py",
     "SnowflakeAlertComponent": "integrations/snowflake_alert/component.py",
     "SnowflakeCortexAgentComponent": "assets/ai/snowflake_cortex_agent/component.py",
@@ -978,6 +982,7 @@ _CLASS_PATHS: dict[str, str] = {
     "TextPreprocessingComponent": "assets/analytics/text_preprocessing/component.py",
     "TextSimilarityComponent": "assets/ai/text_similarity/component.py",
     "TextToColumns": "assets/transforms/text_to_columns/component.py",
+    "ThrottleAssetComponent": "assets/infrastructure/throttle_asset/component.py",
     "TicketClassifierComponent": "assets/ai/ticket_classifier/component.py",
     "TikTokAdsIngestionComponent": "assets/ingestion/tiktok_ads_ingestion/component.py",
     "TileBinningComponent": "assets/transforms/tile_binning/component.py",
@@ -1334,6 +1339,16 @@ _HELPERS = {
         "dagster_community_components.assets.infrastructure.log_prints_asset.component:log_prints",
     "on_hooks":
         "dagster_community_components.assets.infrastructure.hooks_asset.component:on_hooks",
+    "throttle":
+        "dagster_community_components.assets.infrastructure.throttle_asset.component:throttle",
+    "dry_run":
+        "dagster_community_components.assets.infrastructure.dry_run_asset.component:dry_run",
+    "shadow":
+        "dagster_community_components.assets.infrastructure.shadow_asset.component:shadow",
+    "sensitive":
+        "dagster_community_components.assets.infrastructure.sensitive_asset.component:sensitive",
+    "snapshot":
+        "dagster_community_components.assets.infrastructure.snapshot_asset.component:snapshot",
 }
 
 

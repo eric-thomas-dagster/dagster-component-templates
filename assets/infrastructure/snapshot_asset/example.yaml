@@ -1,0 +1,15 @@
+type: dagster_community_components.SnapshotAssetComponent
+attributes:
+  asset_name: daily_report
+
+  compute:
+    kind: python
+    python: "my_project.reports:build_daily"
+
+  uri: "s3://backups/report_snapshots"       # or gs://, abfs://, /local/path
+  # format: null                              # auto-detect from returned value
+  retention_days: 30
+  code_version: "2.1.0"
+
+  group_name: reporting
+  kinds: [python, reporting, snapshot]

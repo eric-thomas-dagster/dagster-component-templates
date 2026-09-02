@@ -1,0 +1,5 @@
+fsspec>=2023.1.0
+# pandas + pyarrow needed for parquet auto-format
+# pandas>=1.5.0
+# pyarrow>=10.0.0
+# s3fs / gcsfs / adlfs for cloud URIs

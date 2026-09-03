@@ -4,6 +4,313 @@
 **Date:** 2026-09-03
 **Audience:** Dagster core engineering
 
+## The minimal change
+
+**~50 lines of TypeScript in the run-graph renderer. Zero Python
+changes.** Everything else in the stack already works today:
+
+| Layer | Works today? | Change needed |
+|---|---|---|
+| `instance.report_dagster_event(STEP_START, ...)` — public event emission | ✅ | none |
+| Event log storage accepts any step_key | ✅ | none |
+| `get_step_stats_for_run` returns synthetic step_keys with lifecycle timing | ✅ | none |
+| GraphQL `Run.stepStats` surfaces them | ✅ | none |
+| Frontend graph iterates `executionPlan.steps` (compile-time known) | ❌ | ~50 LOC TS |
+
+The frontend fix + a ~15-line `context.step(op_name, mapping_key)`
+context manager in user-land (which anyone can write today) — and
+that's the complete feature.
+
+### Why frontend, not backend?
+
+A backend-only fix has to pick: return the full step_key (uniqueness +
+correct `stepStats` join for status colors, but ugly labels like
+`parse_document.parse_text[block_0].parse_url[reports]`), OR return
+the short form (clean labels like `parse_url[reports]`, but stats
+lookup breaks and steps display as grey/unknown). It cannot do both
+because it returns a single value for `step.key`.
+
+The frontend can do both trivially: use the full key for `stepStats`
+lookup, render the short form as the display label. That's the
+smoking-gun reason this belongs client-side.
+
+Today the run-graph iterator does roughly:
+
+```js
+executionPlan.steps.forEach(planStep => {
+  const stat = stepStats.find(s => v(planStep.name, s.stepKey));
+  renderNode(planStep, stat);
+});
+```
+
+Flip it: iterate `stepStats` (the authoritative source of "what
+actually happened"), then derive display label + parent from a
+step_key naming convention `<parent>.<op_name>[<mapping_key>]` —
+the same convention Dagster's own `DynamicOutput` mapped steps already
+use:
+
+```js
+stepStats.forEach(stat => {
+  const suffix = /\.([A-Za-z_][A-Za-z0-9_-]*)\[([A-Za-z0-9_-]+)\]$/.exec(stat.stepKey);
+  const label = suffix ? `${suffix[1]}[${suffix[2]}]` : stat.stepKey;   // e.g. "parse_url[reports]"
+  const parent = suffix ? stat.stepKey.slice(0, suffix.index) : null;    // e.g. "parse_document.parse_text[block_0]"
+  renderNode({label, parent, stat});
+});
+```
+
+That's the whole fix. Every step_key emitted to the event log with
+this shape renders as a graph node with meaningful label, proper
+parent→child arrows, real duration + status.
+
+### Everything else already exists
+
+- **Event emission**: `instance.report_dagster_event(DagsterEvent(STEP_START, step_key=...))` — public API today.
+- **Storage**: event log accepts synthetic step_keys, indexes them, returns them.
+- **`get_step_stats_for_run`** returns them with proper `start_time` / `end_time` / `status`.
+- **GraphQL `Run.stepStats`** surfaces them via the same resolver used for real steps.
+- **Naming convention**: same shape as `DynamicOutput` mapped step keys (`op[mapping_key]`), just recursively nested.
+
+The only reason it doesn't render today is the frontend graph
+iterator uses `executionPlan.steps` (compile-time known) as the
+source of truth, not `stepStats` (runtime-authoritative).
+
+### User code
+
+Zero decorators required from Dagster core. A ~15-line context
+manager in user-land is all the sugar we need:
+
+```python
+@contextmanager
+def step(context, op_name, mapping_key):
+    parent = _active.get() or context.get_step_execution_context().step.key
+    key = f"{parent}.{op_name}[{mapping_key}]"
+    t0 = time.time()
+    context.instance.report_dagster_event(
+        DagsterEvent(event_type_value="STEP_START", job_name=context.job_name,
+                     step_key=key, message=f"[{op_name}] start"),
+        run_id=context.run.run_id,
+    )
+    token = _active.set(key)
+    try:
+        yield
+    finally:
+        _active.reset(token)
+        context.instance.report_dagster_event(
+            DagsterEvent(event_type_value="STEP_SUCCESS", job_name=context.job_name,
+                         step_key=key, event_specific_data=StepSuccessData(duration_ms=(time.time()-t0)*1000)),
+            run_id=context.run.run_id,
+        )
+```
+
+Which then lets users write plain imperative Python:
+
+```python
+@dg.asset
+def parse_document(context):
+    doc = load()
+    for block in doc["blocks"]:
+        if block["kind"] == "text":
+            with step(context, "parse_text", mapping_key=f"block_{block['index']}"):
+                for url in extract_urls(block):
+                    with step(context, "parse_url", mapping_key=urlparse(url).path):
+                        parse(url)   # real Python, real branching, real returns
+```
+
+Or wrap that in a `@task`-style decorator (~20 lines of sugar in
+user-land — see `dagster_community_components.task` in this repo for a
+reference implementation).
+
+### User code (what a customer writes today)
+
+**No decorator required.** Two ergonomic shapes, both 100% imperative
+Python. The only Dagster addition needed is a `context.step(op_name,
+mapping_key)` context manager — ~15 lines of core code that just emits
+STEP_START on entry + STEP_SUCCESS/FAILURE on exit.
+
+**Shape 1 — inline context manager (zero magic):**
+
+```python
+import dagster as dg
+
+@dg.asset
+def parse_document(context):
+    doc = load()
+    for block in doc["blocks"]:
+        if block["kind"] == "text":
+            with context.step("parse_text", mapping_key=f"block_{block['index']}"):
+                for url in extract_urls(block):
+                    with context.step("parse_url", mapping_key=urlparse(url).path):
+                        parse(url)   # any Python, real return values, nested
+```
+
+**Shape 2 — `@task`-style decorator (ergonomic sugar; user can implement themselves):**
+
+```python
+@task
+def parse_url(context, url):
+    ...
+
+@task
+def parse_text(context, block):
+    for url in extract_urls(block):
+        parse_url(context, url)     # nested — hangs off parse_text in graph
+
+@dg.asset
+def parse_document(context):
+    doc = load()
+    for block in doc["blocks"]:
+        if block["kind"] == "text":
+            parse_text(context, block)   # imperative, real branching, real returns
+```
+
+**No `yield`. No special asset decorator. No `DynamicOutput` reshape.**
+The run graph shows every call as a distinct node with proper
+parent→child arrows in a full hierarchy — every step_key visible with
+correct edges.
+
+### Why not just use `@dg.op`?
+
+`@dg.op` is a **graph-authoring construct** — declared at plan-compile
+time, executed as a plan step. You cannot call it from inside another
+op the way you'd call a Python function; it isn't a callable helper,
+it's a plan node. The runtime-visible sub-tasks use case is precisely
+the shape `@dg.op` was never designed to serve.
+
+The ask here isn't to change `@dg.op`. It's to add ONE context-manager
+helper for emitting sub-step events that show up in the graph.
+
+### What `@task` does under the hood (already works today)
+
+```python
+@contextmanager
+def child_step(context, name):
+    seq = _next_seq()
+    parent = _active_task_stack.get() or context.get_step_execution_context().step.key
+    step_key = f"{parent}.{name}[{seq}]"    # Dagster-native mapping shape
+
+    context.instance.report_dagster_event(DagsterEvent(
+        event_type_value="STEP_START", step_key=step_key,
+        job_name=context.job_name, message=f"[task:{name}] start",
+    ), run_id=context.run.run_id)
+
+    try:
+        yield
+    except BaseException as exc:
+        # emit STEP_FAILURE with StepFailureData
+        raise
+    else:
+        # emit STEP_SUCCESS with StepSuccessData(duration_ms=...)
+```
+
+That's it. Zero new Dagster APIs — we're using `instance.report_dagster_event()`
+which is already public. The events land in the event log with proper
+lifecycle timestamps.
+
+### The two GraphQL patches (the ONE thing missing)
+
+**Patch 1: `dagster_graphql/schema/pipelines/pipeline.py::resolve_executionPlan`**
+Read the event log's step_stats, derive synthetic step_snaps for any
+step_key matching the naming convention `<parent>.<name>[<seq>]`, and
+attach them to the plan:
+
+```python
+def resolve_executionPlan(self, graphene_info):
+    execution_plan_snapshot = ...  # unchanged
+    remote_plan = RemoteExecutionPlan(execution_plan_snapshot=...)
+
+    # NEW: derive synthetic steps from event log
+    real_keys = {s.key for s in remote_plan.get_steps_in_plan()}
+    stats = graphene_info.context.instance.event_log_storage.get_step_stats_for_run(self.dagster_run.run_id)
+    SUFFIX_RE = re.compile(r"\.([A-Za-z_][A-Za-z0-9_-]*)\[(\d+)\]$")
+    synthetic_keys = [s.step_key for s in stats
+                      if s.step_key not in real_keys and SUFFIX_RE.search(s.step_key)]
+
+    if not synthetic_keys:
+        return GrapheneExecutionPlan(remote_plan)
+
+    def _parent_of(k):
+        m = SUFFIX_RE.search(k)
+        return k[:m.start()] if m else None
+
+    synthetic_snaps = [
+        ExecutionStepSnap(
+            key=k, kind=StepKind.COMPUTE, metadata_items=[],
+            outputs=[ExecutionStepOutputSnap(name="result", dagster_type_key="Any")],
+            inputs=[ExecutionStepInputSnap(
+                name="parent", dagster_type_key="Any",
+                upstream_output_handles=[StepOutputHandle(step_key=_parent_of(k), output_name="result")],
+            )] if _parent_of(k) else [],
+            node_handle_id=k, tags={"synthetic": "task"},
+        )
+        for k in synthetic_keys
+    ]
+
+    remote_plan._synthetic_snap_map = {s.key: s for s in synthetic_snaps}
+    aug = GrapheneExecutionPlan(remote_plan)
+    aug._synthetic_step_snaps = synthetic_snaps
+    return aug
+```
+
+**Patch 2: `dagster_graphql/schema/execution.py`** — append synthetic
+steps to the resolver + honor them when resolving parent deps:
+
+```python
+def resolve_steps(self, _graphene_info):
+    steps = [GrapheneExecutionStep(self._remote_execution_plan, self._remote_execution_plan.get_step_by_key(step.key))
+             for step in self._remote_execution_plan.get_steps_in_plan()]
+    for snap in getattr(self, "_synthetic_step_snaps", []) or []:      # NEW
+        steps.append(GrapheneExecutionStep(self._remote_execution_plan, snap))
+    return steps
+
+def resolve_dependsOn(self, _graphene_info):
+    synth = getattr(self._remote_execution_plan, "_synthetic_snap_map", None) or {}
+    deps = []
+    for key in self._step_input_snap.upstream_step_keys:
+        if self._remote_execution_plan.key_in_plan(key):
+            deps.append(GrapheneExecutionStep(self._remote_execution_plan, self._remote_execution_plan.get_step_by_key(key)))
+        elif key in synth:                                              # NEW
+            deps.append(GrapheneExecutionStep(self._remote_execution_plan, synth[key]))
+    return deps
+```
+
+That's the whole change. **~60 lines, 2 files, GraphQL-only.**
+
+### What it looks like
+
+Live-tested end-to-end against `dagster dev` at `1.12.12`. A run of
+`parse_document` (a `@dg.asset` that calls 4 `@task`-decorated helpers
+imperatively, with nested `parse_text → parse_url → parse_domain`)
+produces a run graph with:
+
+- 1 real op: `parse_document`
+- 4 direct children: `parse_title`, `text_block_0`, `text_block_2`,
+  `text_block_3`, `table_block_1`
+- 2 grandchildren under `text_block_0` (2 URLs): `parse_url`
+- 1 grandchild under `text_block_2` (1 URL): `parse_url`
+- 3 great-grandchildren under each `parse_url`: `parse_domain`
+
+**Zero DynamicOutput reshape. Zero pre-declaration. Full runtime
+discovery. Every step key visible in the graph with correct parent
+edges.**
+
+### Why this specific naming convention
+
+`<parent>.<name>[<seq>]` mimics Dagster's existing `<op>[<mapping_key>]`
+convention for `DynamicOutput`-fanned steps. The frontend already renders
+that shape as "name" boxes with `[seq]` mapping-key badges. No frontend
+changes required.
+
+### Prior art / related mechanisms this reuses
+
+- **`RetryRequested` lifecycle** — same `STEP_START` / `STEP_UP_FOR_RETRY`
+  / `STEP_RESTARTED` / `STEP_SUCCESS` events, different naming.
+- **`DynamicOutput` mapping resolution** — same `<parent>[mapping_key]`
+  step_key convention, different origin (post-plan-compile).
+- **`context.instance.report_dagster_event()`** — same event emission
+  API. Already public.
+
+---
+
 ## TL;DR — and the key finding
 
 **This is a UI-only change.** The entire backend data path for dynamic

@@ -151,21 +151,32 @@ def _emit(context: Any, event_type: DagsterEventType, step_key: str,
 
 
 @contextlib.contextmanager
-def child_step(context: Any, name: str):
+def child_step(context: Any, op_name: str, mapping_key: Optional[str] = None):
     """Enter a child step scope. Emits STEP_START on entry; STEP_SUCCESS on
     normal exit; STEP_FAILURE on exception (and re-raises).
 
+    Step_key shape mimics Dagster's DynamicOutput convention:
+        `<parent>.<op_name>[<mapping_key>]`
+    where the frontend renders `<op_name>` as the box label + `[<mapping_key>]`
+    as a badge. If `mapping_key` isn't supplied, an auto-seq counter is used.
+
     ```python
-    with child_step(context, "parse_title"):
+    with child_step(context, "parse_title"):                     # → parse_title[1]
         title = extract_title(doc)
+    with child_step(context, "parse_url", mapping_key="acme_com"):  # → parse_url[acme_com]
+        parse(url)
     ```
     """
-    seq = _next_seq()
     parent = _parent_step_key(context)
-    safe = "".join(ch if (ch.isalnum() or ch in "._-") else "_" for ch in name)
-    suffix = f"[task.{safe}.{seq}]"
+    safe_op = "".join(ch if (ch.isalnum() or ch in "_-") else "_" for ch in op_name)
+    if mapping_key is not None:
+        safe_mk = "".join(ch if (ch.isalnum() or ch in "_-") else "_" for ch in str(mapping_key))
+    else:
+        safe_mk = str(_next_seq())
+    suffix = f".{safe_op}[{safe_mk}]"
     key = parent + suffix
     started = time.time()
+    name = f"{op_name}[{safe_mk}]"
 
     _emit(context, DagsterEventType.STEP_START, key, message=f"[task:{name}] start")
     try:
@@ -293,7 +304,11 @@ def task(fn: Optional[Callable] = None, *, name: Optional[str] = None) -> Callab
                 context = kwargs["context"]
             if context is None:
                 return inner(*args, **kwargs)
-            with child_step(context, explicit_name):
+            # `task_name` becomes the mapping_key badge; op_name stays fn.__name__
+            mapping_key = None
+            if explicit_name != step_name:
+                mapping_key = explicit_name
+            with child_step(context, step_name, mapping_key=mapping_key):
                 return inner(*args, **kwargs)
 
         _wrapped.__task_name__ = step_name  # type: ignore[attr-defined]

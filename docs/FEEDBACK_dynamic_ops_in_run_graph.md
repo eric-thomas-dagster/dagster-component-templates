@@ -58,9 +58,40 @@ stepStats.forEach(stat => {
 });
 ```
 
-That's the whole fix. Every step_key emitted to the event log with
+That's the initial render. For **live streaming** (nodes appearing as
+their STEP_START events arrive during an executing run — the run graph's
+whole point), the frontend's event subscription handler needs to add
+unknown step_keys on the fly instead of silently dropping them:
+
+```typescript
+onStepStartEvent(event) {
+  let node = nodes.find(n => n.stepKey === event.stepKey);
+  if (!node) {                                                // NEW
+    const suffix = /\.([A-Za-z_][A-Za-z0-9_-]*)\[([A-Za-z0-9_-]+)\]$/.exec(event.stepKey);
+    if (suffix) {
+      node = createNode({
+        stepKey: event.stepKey,
+        label: `${suffix[1]}[${suffix[2]}]`,
+        parent: event.stepKey.slice(0, suffix.index),
+      });
+      nodes.push(node);
+    }
+  }
+  if (node) node.state = "running";
+}
+```
+
+Without this second piece, users only see synthetic steps after a page
+refresh — which defeats the "watch your pipeline run" mental model
+that makes the run graph valuable in the first place. With this piece,
+nodes pop in as their STEP_START events stream through, exactly like
+retry attempts do today.
+
+Together: ~50 LOC in the initial-render iterator + ~15 LOC in the
+event-stream handler. Every step_key emitted to the event log with
 this shape renders as a graph node with meaningful label, proper
-parent→child arrows, real duration + status.
+parent→child arrows, real duration + status — live, not just on
+refresh.
 
 ### Everything else already exists
 

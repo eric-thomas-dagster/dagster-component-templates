@@ -1330,6 +1330,8 @@ _HELPERS = {
         "dagster_community_components.assets.infrastructure.lifecycle_wap.component:lifecycle",
     "data_contract":
         "dagster_community_components.assets.infrastructure.data_contract.component:data_contract",
+    "check_specs_for_contract":
+        "dagster_community_components.assets.infrastructure.data_contract.component:check_specs_for_contract",
     "cached":
         "dagster_community_components.assets.infrastructure.cached_asset.component:cached",
     "profile":

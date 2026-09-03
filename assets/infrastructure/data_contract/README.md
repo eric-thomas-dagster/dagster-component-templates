@@ -9,15 +9,20 @@ Two shapes, one engine:
 | **`DataContractComponent`** (YAML) | Define a new asset with a contract |
 | **`@data_contract` decorator** (Python) | Wrap an EXISTING `@dg.asset` in Python |
 
-## What gets enforced
+## What gets enforced — the contract IS the asset's checks
 
-- **Schema** — per-column type / nullability / uniqueness / min / max / allowed_values / regex.
-- **Freshness** — max minutes since prior materialization (via Dagster event log).
-- **Row-count SLA** — this materialization's row count vs. the last successful one; fails if dropped by more than `sla_max_row_count_drop_pct` percent.
-- **Contract version** — becomes `code_version` on the asset. Consumers can detect version bumps automatically via Dagster's built-in change detection.
-- **Ownership + consumer registry** — emitted as `AssetObservation` tags. Searchable in the UI; agent planners can look up who owns any asset.
+Every rule in the contract becomes a first-class Dagster asset check:
 
-Every rule is one `AssetCheckResult` — visible in the asset-check panel with severity + description + typed metadata.
+- **Per-column schema rule** → one `AssetCheckSpec(name="schema_<col>")` + one `AssetCheckResult` per materialization (type / nullable / unique / min / max / allowed_values / regex).
+- **Row-count SLA rule** → `AssetCheckSpec(name="sla_row_count")` + a runtime `AssetCheckResult` comparing today's row count against the last successful materialization.
+- **Freshness rule** → `AssetCheckSpec(name="freshness")` + a runtime `AssetCheckResult` comparing time-since-last-materialization against the contract's max lag.
+
+Plus two things that ride alongside — attached to the asset itself rather than as separate checks:
+
+- **Contract version** → set as the asset's `code_version`. Dagster's UI shows version bumps automatically; downstream can trigger re-materialization via `AutomationCondition.code_version_changed()`.
+- **Ownership + consumer registry** → emitted as an `AssetObservation` with `contract_owners` / `contract_consumers` tags. Searchable via the event log.
+
+You never declare `AssetCheckSpec` objects yourself — Shape A of the decorator derives them from the contract at import time.
 
 ## Why this belongs in Dagster (and not a separate contract tool)
 
@@ -92,31 +97,61 @@ attributes:
 
 ## `@data_contract` decorator
 
+Two shapes — both derive the check specs from the contract, both use the
+same enforcement engine. Pick based on which side of `@dg.asset` you want
+to sit.
+
+### Shape A (recommended) — applied AFTER `@dg.asset`
+
+The decorator wraps the `AssetsDefinition`. It reads the asset key, derives
+`check_specs` from the contract, and rebuilds the asset with them added.
+All the standard `@dg.asset` kwargs (`group_name`, `owners`, `tags`,
+`partitions_def`, `code_version`, `metadata`, `kinds`, `automation_condition`,
+`ins`, etc.) are preserved unchanged. You never declare a single
+`AssetCheckSpec` yourself.
+
 ```python
 import dagster as dg
 import pandas as pd
 from dagster_community_components import data_contract
 
+CONTRACT = {
+    'version': '1.2.0',
+    'owners': ['data-platform@example.com'],
+    'consumers': ['analytics-team'],
+    'schema': [
+        {'name': 'order_id', 'type': 'int64',   'nullable': False, 'unique': True},
+        {'name': 'amount',   'type': 'float64', 'nullable': False, 'min': 0},
+    ],
+    'freshness_max_lag_minutes': 60,
+    'sla_max_row_count_drop_pct': 20,
+}
+
+@data_contract(CONTRACT, on_violation='block')
+@dg.asset(group_name='revenue', owners=['data-team@example.com'])
+def orders(context) -> pd.DataFrame:
+    return build_orders()
+```
+
+Add a column to `CONTRACT['schema']`, delete one, tweak the freshness
+window — the check specs regenerate on the next import. Contract is the
+single source of truth.
+
+### Shape B (escape hatch) — applied BEFORE `@dg.asset`
+
+Reach for this only when you need `AssetCheckSpec`s beyond what the
+contract implies (e.g., custom checks alongside the contract-derived ones).
+You declare `check_specs` on `@dg.asset` yourself; `check_specs_for_contract`
+generates the contract-derived ones for you to include:
+
+```python
+from dagster_community_components import data_contract, check_specs_for_contract
+
 @dg.asset(check_specs=[
-    dg.AssetCheckSpec(name='schema_order_id', asset='orders'),
-    dg.AssetCheckSpec(name='schema_amount', asset='orders'),
-    dg.AssetCheckSpec(name='sla_row_count', asset='orders'),
-    dg.AssetCheckSpec(name='freshness', asset='orders'),
+    *check_specs_for_contract(CONTRACT, 'orders'),
+    dg.AssetCheckSpec(name='custom_downstream_reconciliation', asset='orders'),
 ])
-@data_contract(
-    contract={
-        'version': '1.2.0',
-        'owners': ['data-platform@example.com'],
-        'consumers': ['analytics-team'],
-        'schema': [
-            {'name': 'order_id', 'type': 'int64', 'nullable': False, 'unique': True},
-            {'name': 'amount', 'type': 'float64', 'nullable': False, 'min': 0},
-        ],
-        'freshness_max_lag_minutes': 60,
-        'sla_max_row_count_drop_pct': 20,
-    },
-    on_violation='block',
-)
+@data_contract(CONTRACT, on_violation='block')
 def orders(context) -> pd.DataFrame:
     return build_orders()
 ```

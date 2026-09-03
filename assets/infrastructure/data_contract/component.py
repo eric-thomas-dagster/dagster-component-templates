@@ -390,8 +390,189 @@ def _emit_contract_observation(context: Any, asset_key: Any, contract: Dict[str,
 
 
 # --------------------------------------------------------------------------
+# Public helper: derive AssetCheckSpecs from a contract dict.
+#
+# The compute-time enforcement (@data_contract) yields one AssetCheckResult
+# per contract rule. For Dagster to render those in the check panel, the
+# corresponding AssetCheckSpecs have to be declared on the asset itself
+# (via @dg.asset(check_specs=[...])). Rather than making users hand-mirror
+# every column into an AssetCheckSpec, this helper generates them from the
+# contract — so the contract stays the single source of truth.
+# --------------------------------------------------------------------------
+
+
+def check_specs_for_contract(
+    contract: Dict[str, Any],
+    asset_name: str,
+) -> "list":
+    """Derive the AssetCheckSpecs a contract implies, so users can pass them
+    to `@dg.asset(check_specs=…)` without duplicating what the contract
+    already declares.
+
+    Emits one spec per column in `contract['schema']` plus one each for
+    `sla_max_row_count_drop_pct` and `freshness_max_lag_minutes` when set.
+
+    ```python
+    CONTRACT = {...}
+
+    @dg.asset(check_specs=check_specs_for_contract(CONTRACT, "orders"))
+    @data_contract(CONTRACT)
+    def orders(context): ...
+    ```
+    """
+    import dagster as dg
+    specs = []
+    for col_spec in (contract.get("schema") or []):
+        n = col_spec.get("name")
+        if n:
+            specs.append(dg.AssetCheckSpec(
+                name=f"schema_{n}",
+                asset=dg.AssetKey.from_user_string(asset_name),
+                description=f"Column {n!r} conforms to contract",
+            ))
+    if contract.get("sla_max_row_count_drop_pct") is not None:
+        specs.append(dg.AssetCheckSpec(
+            name="sla_row_count",
+            asset=dg.AssetKey.from_user_string(asset_name),
+            description="Row count did not drop more than SLA allows",
+        ))
+    if contract.get("freshness_max_lag_minutes") is not None:
+        specs.append(dg.AssetCheckSpec(
+            name="freshness",
+            asset=dg.AssetKey.from_user_string(asset_name),
+            description="Materialization within contract freshness window",
+        ))
+    return specs
+
+
+# --------------------------------------------------------------------------
 # @data_contract decorator
 # --------------------------------------------------------------------------
+
+
+def _make_contract_compute(fn: Callable, contract: Dict[str, Any], on_violation: str) -> Callable:
+    """Wrap `fn` so calling it: (1) invokes the compute, (2) runs contract
+    checks against the returned DataFrame, (3) yields one AssetCheckResult
+    per rule + one Output with typed metadata + one AssetObservation, and
+    (4) raises dg.Failure on block-mode violations.
+
+    Shared by both @data_contract shapes (function-wrapping + AssetsDefinition-wrapping).
+    """
+    @functools.wraps(fn)
+    def _wrapped(*args, **kwargs):
+        import pandas as pd
+
+        context = None
+        if args and hasattr(args[0], "log"):
+            context = args[0]
+        elif "context" in kwargs and hasattr(kwargs["context"], "log"):
+            context = kwargs["context"]
+        if context is None:
+            raise RuntimeError(
+                "@data_contract requires a Dagster context — decorator "
+                "must wrap a Dagster asset/op compute function."
+            )
+
+        df = fn(*args, **kwargs)
+        if not isinstance(df, pd.DataFrame):
+            raise TypeError(
+                f"@data_contract: compute must return a pandas DataFrame; got {type(df).__name__}."
+            )
+
+        asset_key = getattr(context, "asset_key", None)
+
+        results = _run_contract(df, contract, context, asset_key)
+        all_passed = all(r["passed"] for r in results)
+
+        for res in _emit_check_results(context, results):
+            yield res
+        _emit_contract_observation(context, asset_key, contract)
+
+        metadata = {
+            _CONTRACT_ROWCOUNT_TAG: dg.MetadataValue.int(len(df)),
+            "contract_version": dg.MetadataValue.text(str(contract.get("version") or "")),
+            "contract_check_summary": dg.MetadataValue.text(
+                f"{sum(1 for r in results if r['passed'])}/{len(results)} passed"
+            ),
+            "contract_owners": dg.MetadataValue.json(contract.get("owners") or []),
+            "contract_consumers": dg.MetadataValue.json(contract.get("consumers") or []),
+            "all_passed": dg.MetadataValue.bool(all_passed),
+        }
+
+        if on_violation == "block" and not all_passed:
+            failed = ", ".join(r["name"] for r in results if not r["passed"])
+            raise dg.Failure(
+                description=f"data_contract violation — failed checks: {failed}",
+                metadata={
+                    **metadata,
+                    "failed_checks": dg.MetadataValue.json([
+                        {"name": r["name"], "description": r["description"]}
+                        for r in results if not r["passed"]
+                    ]),
+                },
+            )
+
+        yield dg.Output(df, metadata=metadata)
+
+    return _wrapped
+
+
+def _wrap_assets_definition(
+    assets_def, contract: Dict[str, Any], on_violation: str,
+):
+    """Rebuild a single-asset `@dg.asset` output with:
+      - check_specs derived from the contract (no hand-mirroring)
+      - compute wrapped to emit AssetCheckResults + do enforcement
+
+    Preserves every attribute the user set on `@dg.asset` (group_name, tags,
+    owners, partitions_def, code_version, ins, description, kinds, etc.) —
+    only check_specs is *added* and only compute is *wrapped*.
+    """
+    if len(assets_def.keys) != 1:
+        raise ValueError(
+            "@data_contract on an AssetsDefinition supports single-asset shapes only. "
+            "For @dg.multi_asset, apply @data_contract before @dg.multi_asset and "
+            "pass check_specs=check_specs_for_contract(CONTRACT, name) explicitly."
+        )
+
+    asset_key = next(iter(assets_def.keys))
+    asset_name = asset_key.to_user_string()
+    spec = assets_def.get_asset_spec(asset_key)
+
+    # Extract the raw user function so we can re-decorate with @dg.asset.
+    node_def = assets_def.node_def
+    compute = getattr(node_def, "compute_fn", None)
+    raw_fn = getattr(compute, "decorated_fn", None)
+    if raw_fn is None:
+        raise RuntimeError(
+            "@data_contract could not extract the compute function from the "
+            "AssetsDefinition — apply @data_contract BEFORE @dg.asset instead, "
+            "and use check_specs_for_contract() manually."
+        )
+
+    # Rebuild `ins` from the original asset's input wiring.
+    ins = {
+        input_name: dg.AssetIn(key=dep_key)
+        for input_name, dep_key in assets_def.keys_by_input_name.items()
+    }
+
+    check_specs = check_specs_for_contract(contract, asset_name)
+    wrapped_compute = _make_contract_compute(raw_fn, contract, on_violation)
+
+    return dg.asset(
+        key=asset_key,
+        description=spec.description,
+        group_name=spec.group_name,
+        owners=list(spec.owners) if spec.owners else None,
+        tags=dict(spec.tags) if spec.tags else None,
+        metadata=dict(spec.metadata) if spec.metadata else None,
+        code_version=spec.code_version,
+        partitions_def=assets_def.partitions_def,
+        automation_condition=spec.automation_condition,
+        kinds=set(spec.kinds) if spec.kinds else None,
+        check_specs=check_specs,
+        ins=ins if ins else None,
+    )(wrapped_compute)
 
 
 def data_contract(
@@ -401,105 +582,75 @@ def data_contract(
 ) -> Callable:
     """Enforce a data contract on a Dagster asset compute.
 
-    Applied BEFORE `@dg.asset` — the wrapped function's return value must be
-    a `pandas.DataFrame`. Every materialization runs the contract's schema
-    + freshness + SLA checks and yields one `AssetCheckResult` per rule.
+    Supports two shapes:
 
-    On `on_violation='block'` (default), raises `dg.Failure` if any check
-    fails; asset does NOT materialize. On `on_violation='warn'`, materializes
-    with the failing checks — downstream can block via
-    `AutomationCondition.eager()`.
+    **Shape A (recommended) — applied AFTER `@dg.asset`.** The decorator
+    receives the `AssetsDefinition`, derives `check_specs` from the
+    contract automatically, and rebuilds the asset with them merged in.
+    Users write ONE contract; check_specs are always in sync.
 
     ```python
     from dagster_community_components import data_contract
 
-    @dg.asset(check_specs=[
-        dg.AssetCheckSpec(name='schema_order_id', asset='orders'),
-        dg.AssetCheckSpec(name='schema_amount', asset='orders'),
-        dg.AssetCheckSpec(name='sla_row_count', asset='orders'),
-    ])
-    @data_contract(
-        contract={
-            'version': '1.2.0',
-            'owners': ['data-platform@example.com'],
-            'consumers': ['analytics-team'],
-            'schema': [
-                {'name': 'order_id', 'type': 'int64', 'nullable': False, 'unique': True},
-                {'name': 'amount', 'type': 'float64', 'nullable': False, 'min': 0},
-            ],
-            'sla_max_row_count_drop_pct': 20,
-        },
-        on_violation='block',
-    )
+    CONTRACT = {
+        'version': '1.2.0',
+        'owners': ['data-platform@example.com'],
+        'schema': [
+            {'name': 'order_id', 'type': 'int64', 'nullable': False, 'unique': True},
+            {'name': 'amount',   'type': 'float64', 'nullable': False, 'min': 0},
+        ],
+        'sla_max_row_count_drop_pct': 20,
+    }
+
+    @data_contract(CONTRACT, on_violation='block')
+    @dg.asset(group_name='revenue', owners=['data-team@example.com'])
     def orders(context):
         return build_orders()
     ```
+
+    All the standard `@dg.asset` kwargs (`group_name`, `owners`, `tags`,
+    `partitions_def`, `code_version`, `metadata`, `kinds`, `automation_condition`,
+    `ins`, etc.) are preserved unchanged. Only `check_specs` is added —
+    derived from the contract's schema + freshness + sla fields.
+
+    **Shape B (legacy) — applied BEFORE `@dg.asset`.** The decorator wraps
+    only the compute function. User must declare `check_specs` on
+    `@dg.asset` themselves via `check_specs_for_contract`:
+
+    ```python
+    from dagster_community_components import data_contract, check_specs_for_contract
+
+    @dg.asset(check_specs=check_specs_for_contract(CONTRACT, 'orders'))
+    @data_contract(CONTRACT, on_violation='block')
+    def orders(context):
+        return build_orders()
+    ```
+
+    Use Shape A unless you need control over check_specs beyond what the
+    contract implies (e.g., additional custom checks).
+
+    **Enforcement semantics** (both shapes):
+    - `on_violation='block'` (default) — any failing check → `dg.Failure`,
+      asset does NOT materialize, downstream doesn't fire.
+    - `on_violation='warn'` — asset materializes; failing checks visible in
+      the check panel; downstream can gate via `AutomationCondition.eager()`.
+
+    Every rule becomes one `AssetCheckResult` — visible in the asset-check
+    panel with typed metadata (actual dtype, null count, drop_pct, etc.).
     """
     if on_violation not in ("block", "warn"):
         raise ValueError(f"on_violation must be 'block' or 'warn'; got {on_violation!r}")
 
-    def _decorator(fn: Callable) -> Callable:
-        @functools.wraps(fn)
-        def _wrapped(*args, **kwargs):
-            import pandas as pd
-
-            context = None
-            if args and hasattr(args[0], "log"):
-                context = args[0]
-            elif "context" in kwargs and hasattr(kwargs["context"], "log"):
-                context = kwargs["context"]
-            if context is None:
-                raise RuntimeError(
-                    "@data_contract requires a Dagster context — decorator "
-                    "must wrap a Dagster asset/op compute function."
-                )
-
-            df = fn(*args, **kwargs)
-            if not isinstance(df, pd.DataFrame):
-                raise TypeError(
-                    f"@data_contract: compute must return a pandas DataFrame; got {type(df).__name__}."
-                )
-
-            asset_key = getattr(context, "asset_key", None)
-
-            # Run contract checks.
-            results = _run_contract(df, contract, context, asset_key)
-            all_passed = all(r["passed"] for r in results)
-
-            # Emit AssetCheckResults + AssetObservation.
-            for res in _emit_check_results(context, results):
-                yield res
-            _emit_contract_observation(context, asset_key, contract)
-
-            # Materialize with typed metadata. Include contract_row_count so
-            # future runs can compute row-count SLA drop against this one.
-            metadata = {
-                _CONTRACT_ROWCOUNT_TAG: dg.MetadataValue.int(len(df)),
-                "contract_version": dg.MetadataValue.text(str(contract.get("version") or "")),
-                "contract_check_summary": dg.MetadataValue.text(
-                    f"{sum(1 for r in results if r['passed'])}/{len(results)} passed"
-                ),
-                "contract_owners": dg.MetadataValue.json(contract.get("owners") or []),
-                "contract_consumers": dg.MetadataValue.json(contract.get("consumers") or []),
-                "all_passed": dg.MetadataValue.bool(all_passed),
-            }
-
-            if on_violation == "block" and not all_passed:
-                failed = ", ".join(r["name"] for r in results if not r["passed"])
-                raise dg.Failure(
-                    description=f"data_contract violation — failed checks: {failed}",
-                    metadata={
-                        **metadata,
-                        "failed_checks": dg.MetadataValue.json([
-                            {"name": r["name"], "description": r["description"]}
-                            for r in results if not r["passed"]
-                        ]),
-                    },
-                )
-
-            yield dg.Output(df, metadata=metadata)
-
-        return _wrapped
+    def _decorator(target):
+        # Shape A: applied AFTER @dg.asset — target is an AssetsDefinition.
+        if isinstance(target, dg.AssetsDefinition):
+            return _wrap_assets_definition(target, contract, on_violation)
+        # Shape B: applied BEFORE @dg.asset — target is a raw function.
+        if callable(target):
+            return _make_contract_compute(target, contract, on_violation)
+        raise TypeError(
+            f"@data_contract must decorate a function or AssetsDefinition; got {type(target).__name__}"
+        )
 
     return _decorator
 
@@ -575,28 +726,8 @@ class DataContractComponent(dg.Component, dg.Model, dg.Resolvable):
         # Owners on the asset itself come from contract.owners if not overridden.
         owners = self.owners or contract.get("owners") or []
 
-        # Build AssetCheckSpec per contract rule so the UI shows them on the asset.
-        check_specs: List[dg.AssetCheckSpec] = []
-        for col_spec in (contract.get("schema") or []):
-            n = col_spec.get("name")
-            if n:
-                check_specs.append(dg.AssetCheckSpec(
-                    name=f"schema_{n}",
-                    asset=dg.AssetKey.from_user_string(asset_name),
-                    description=f"Column {n!r} conforms to contract",
-                ))
-        if contract.get("sla_max_row_count_drop_pct") is not None:
-            check_specs.append(dg.AssetCheckSpec(
-                name="sla_row_count",
-                asset=dg.AssetKey.from_user_string(asset_name),
-                description="Row count did not drop more than SLA allows",
-            ))
-        if contract.get("freshness_max_lag_minutes") is not None:
-            check_specs.append(dg.AssetCheckSpec(
-                name="freshness",
-                asset=dg.AssetKey.from_user_string(asset_name),
-                description="Materialization within contract freshness window",
-            ))
+        # Contract → AssetCheckSpecs (helper is public — see @data_contract usage)
+        check_specs = check_specs_for_contract(contract, asset_name)
 
         ins = {}
         if upstream_asset_key:

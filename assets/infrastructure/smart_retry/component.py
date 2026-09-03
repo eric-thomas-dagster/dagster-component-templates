@@ -7,8 +7,19 @@ step-runner level, not the compute level, and Python exceptions get
 Dagster-Failure-wrapped before RetryPolicy sees them.
 
 This component gives customers the missing knob: classify errors at
-compute time and re-raise as `RetryRequested` (retryable — step will
-re-run) OR `Failure` (permanent — step gives up).
+compute time and re-raise as `dg.RetryRequested(seconds_to_wait=...)`
+(retryable — step goes to `up_for_retry`, sleeps in the step runner
+outside the worker slot, comes back as a NEW step attempt in the run
+graph) OR `dg.Failure` (permanent — step gives up immediately with
+classification metadata attached).
+
+The key thing: because we use Dagster's native `RetryRequested`
+lifecycle instead of a busy `for attempt in range(N): time.sleep()`
+loop inside the compute, every retry is a first-class Dagster step
+attempt — visible in the run graph, tracked in Insights, `retry_number`
+increments naturally, backoff sleep doesn't hold a worker slot. That's
+the whole reason this component is worth reaching for over hand-rolled
+try/except loops.
 
 ## Two classification rule kinds in v1
 

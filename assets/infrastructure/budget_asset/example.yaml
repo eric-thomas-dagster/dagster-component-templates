@@ -1,0 +1,17 @@
+type: dagster_community_components.BudgetAssetComponent
+attributes:
+  asset_name: llm_summarizer
+
+  compute:
+    kind: python
+    python: "my_project.llm:summarize"
+
+  # For LLMs supply a callable that returns $ from usage tokens
+  cost_fn: "my_project.pricing:openai_usd_from_result"
+
+  budget_usd: 50.0
+  window_days: 30
+  on_breach: warn        # warn (default) | fail | skip
+
+  group_name: ai
+  kinds: [python, ai, llm, budget]

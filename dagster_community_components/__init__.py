@@ -129,6 +129,7 @@ _CLASS_PATHS: dict[str, str] = {
     "BigtableReaderAssetComponent": "assets/source/bigtable_reader_asset/component.py",
     "BigtableWriterAssetComponent": "assets/sinks/bigtable_writer_asset/component.py",
     "BoundingBoxFilterComponent": "assets/analytics/bounding_box_filter/component.py",
+    "BudgetAssetComponent": "assets/infrastructure/budget_asset/component.py",
     "BufferComponent": "assets/analytics/buffer/component.py",
     "CRMDataStandardizerComponent": "assets/analytics/crm_data_standardizer/component.py",
     "CacheInvalidationJobComponent": "jobs/cache_invalidation_job/component.py",
@@ -704,6 +705,7 @@ _CLASS_PATHS: dict[str, str] = {
     "PapertrailResourceComponent": "resources/papertrail_resource/component.py",
     "ParametricDataGeneratorComponent": "assets/source/parametric_data_generator/component.py",
     "PartOfSpeechTaggerComponent": "assets/ai/part_of_speech_tagger/component.py",
+    "PartitionLockAssetComponent": "assets/infrastructure/partition_lock_asset/component.py",
     "PcaComponent": "assets/analytics/pca/component.py",
     "PctChangeComponent": "assets/transforms/pct_change/component.py",
     "PdfTextExtractorComponent": "assets/transforms/pdf_text_extractor/component.py",
@@ -1349,6 +1351,10 @@ _HELPERS = {
         "dagster_community_components.assets.infrastructure.sensitive_asset.component:sensitive",
     "snapshot":
         "dagster_community_components.assets.infrastructure.snapshot_asset.component:snapshot",
+    "partition_lock":
+        "dagster_community_components.assets.infrastructure.partition_lock_asset.component:partition_lock",
+    "budget":
+        "dagster_community_components.assets.infrastructure.budget_asset.component:budget",
 }
 
 

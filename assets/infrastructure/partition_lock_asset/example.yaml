@@ -1,0 +1,15 @@
+type: dagster_community_components.PartitionLockAssetComponent
+attributes:
+  asset_name: daily_report
+
+  compute:
+    kind: python
+    python: "my_project.reports:build_daily_partition"
+
+  ttl_seconds: 1800          # lock auto-expires after 30 min
+  on_conflict: wait          # wait (default) | skip | fail
+  max_wait_seconds: 300      # 5 min budget when waiting
+  poll_seconds: 5
+
+  group_name: reporting
+  kinds: [python, reporting, lock]

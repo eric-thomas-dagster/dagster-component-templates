@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-09-02",
+  "last_updated": "2026-09-03",
   "components": [
     {
       "id": "ab_controls",
@@ -5551,6 +5551,53 @@
       "keywords": [
         "report",
         "aggregate"
+      ]
+    },
+    {
+      "id": "budget_asset",
+      "name": "Budget Asset",
+      "category": "infrastructure",
+      "description": "Per-asset $ cost tracking with rolling window budget enforcement. Cost estimated via `cost_per_second` (wall-clock rate) OR `cost_fn` (`mod:fn` callable given (context, elapsed_s, result) → USD — required for LLM/API token pricing). Cumulative cost history read from ASSET_OBSERVATION event log (`budget_cost_estimate_usd` metadata within `window_days`). Enforcement modes: warn (observation), fail (dg.Failure pre-flight if cumulative ≥ budget or post-flight if this run breaches), skip (return MaterializeResult(budget_skipped=true) pre-flight). Companion @budget decorator.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/budget_asset",
+      "tags": [
+        "budget",
+        "cost",
+        "finops",
+        "llm-cost",
+        "compute-cost",
+        "infrastructure"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/budget_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/budget_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/budget_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/budget_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/budget_asset/requirements.txt",
+      "icon": "DollarSign",
+      "validation": {
+        "level": "live",
+        "last_validated": "2026-09-03",
+        "evidence": "Live-validated via dagster.materialize on persistent DagsterInstance: warn+cost_per_second emits cost=$0.10 for 0.1s@$1/s; cost_fn(tokens*$0.000002) emits $0.01 for 5000 tokens; on_breach=fail rejects both post-flight (cost > budget) and pre-flight (cumulative ≥ budget); on_breach=skip runs once, second run skipped with budget_skipped=true observation."
+      },
+      "agent_hints": {
+        "output_type": "any",
+        "requires_pip": [],
+        "requires_resources": []
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "budget",
+        "cost",
+        "finops",
+        "llm-cost",
+        "compute-cost",
+        "infrastructure"
       ]
     },
     {
@@ -33031,6 +33078,53 @@
       ]
     },
     {
+      "id": "partition_lock_asset",
+      "name": "Partition Lock Asset",
+      "category": "infrastructure",
+      "description": "Cross-run partition-scoped mutex via Dagster event log. Scans recent ASSET_OBSERVATION events for partition_lock_acquired=<partition_key> newer than ttl_seconds; conflicts resolve per on_conflict (wait/skip/fail). Emits partition_lock_acquired on entry + partition_lock_released post-compute. TTL auto-expires stuck holders. Probabilistic (not distributed-atomic) — adequate for backfill dedupe, not money transfers. Companion @partition_lock decorator.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/partition_lock_asset",
+      "tags": [
+        "lock",
+        "mutex",
+        "concurrency",
+        "partition",
+        "event-log",
+        "infrastructure"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/partition_lock_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/partition_lock_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/partition_lock_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/partition_lock_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/partition_lock_asset/requirements.txt",
+      "icon": "Lock",
+      "validation": {
+        "level": "live",
+        "last_validated": "2026-09-02",
+        "evidence": "Live-validated via dagster.materialize on persistent DagsterInstance: fresh acquire+release; second run acquires again after release; planted conflicting lock → on_conflict=skip returns MaterializeResult(partition_lock_skipped=true); on_conflict=fail raises dg.Failure; TTL expiry — 1s ttl + 1.5s wait → lock treated as stale, acquire succeeds."
+      },
+      "agent_hints": {
+        "output_type": "any",
+        "requires_pip": [],
+        "requires_resources": []
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "lock",
+        "mutex",
+        "concurrency",
+        "partition",
+        "event-log",
+        "infrastructure"
+      ]
+    },
+    {
       "id": "partitioned_asset_launcher_job",
       "name": "PartitionedAssetLauncherJobComponent",
       "category": "jobs",
@@ -50515,5 +50609,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 988
+  "total": 990
 }

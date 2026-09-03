@@ -5556,7 +5556,7 @@
     {
       "id": "budget_asset",
       "name": "Budget Asset",
-      "category": "infrastructure",
+      "category": "decorator",
       "description": "Per-asset $ cost tracking with rolling window budget enforcement. Cost estimated via `cost_per_second` (wall-clock rate) OR `cost_fn` (`mod:fn` callable given (context, elapsed_s, result) → USD — required for LLM/API token pricing). Cumulative cost history read from ASSET_OBSERVATION event log (`budget_cost_estimate_usd` metadata within `window_days`). Enforcement modes: warn (observation), fail (dg.Failure pre-flight if cumulative ≥ budget or post-flight if this run breaches), skip (return MaterializeResult(budget_skipped=true) pre-flight). Companion @budget decorator.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -5696,7 +5696,7 @@
     {
       "id": "cached_asset",
       "name": "Cached Asset",
-      "category": "infrastructure",
+      "category": "decorator",
       "description": "Content-addressable cache for expensive Python compute. Skip re-running when cache warm; run + save when cold. Cache key = hash(asset_key + code_version + partition_key + user key_fn output). Local FS + fsspec URIs (s3/gs/abfs). Optional TTL. Emits AssetObservation with cached_asset_status=hit|miss tags — searchable + drift-detectable via event log. Companion @cached decorator.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -9301,7 +9301,7 @@
     {
       "id": "data_contract",
       "name": "Data Contract",
-      "category": "infrastructure",
+      "category": "decorator",
       "description": "Enforce data contracts at materialization — schema (per-column types/nullability/uniqueness/range/enum/regex), freshness SLA (max lag from prior via event log), row-count SLA (drop% vs prior via event log). Emits one AssetCheckResult per rule + AssetObservation tagged with contract_version/owners/consumers. Contract version drives code_version on the asset so downstream detects version bumps automatically. Two shapes: YAML component defines a new asset; @data_contract decorator wraps existing @dg.asset. on_violation=block raises dg.Failure; on_violation=warn materializes anyway, downstream blocks via AutomationCondition.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -14560,7 +14560,7 @@
     {
       "id": "dry_run_asset",
       "name": "Dry Run Asset",
-      "category": "infrastructure",
+      "category": "decorator",
       "description": "Run compute, skip the IO manager write. Enable via run tag `dry_run=true`, env `DAGSTER_DRY_RUN=1`, or YAML `enabled: true`. Compute runs normally (side effects, timings, exceptions observable); return value is discarded and asset yields MaterializeResult(metadata={dry_run: true, elapsed_seconds, would_produce_bytes}) — no store_output call. Downstream reads via IO manager see previous non-dry-run value. Emits AssetObservation tagged dry_run=true for audit. Companion @dry_run decorator.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -22171,7 +22171,7 @@
     {
       "id": "hooks_asset",
       "name": "Hooks Asset",
-      "category": "infrastructure",
+      "category": "decorator",
       "description": "Asset-scoped success/failure callbacks. Prefect's @task(on_completion=..., on_failure=...) — Dagster's built-in hooks are job-scoped; this component gives you asset-scoped hooks as ordinary `mod:fn` refs. on_success called with (context, result); on_failure called with (context, exception). Callback exceptions are logged, not re-raised — hooks never change the compute's outcome. Companion @on_hooks decorator.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -26196,7 +26196,7 @@
     {
       "id": "lifecycle_wap",
       "name": "Lifecycle WAP",
-      "category": "infrastructure",
+      "category": "decorator",
       "description": "Write-Audit-Publish (WAP) lifecycle for assets. Wraps compute; writes to STAGING location; runs configurable audit checks; on ALL pass promotes staging → prod (atomic), on any fail applies quarantine/discard/tag_and_keep policy. Each audit check emits AssetCheckResult visible in Dagster UI. Three backends in v1: filesystem (parquet/csv/json + fsspec URIs), SQL (via sqlalchemy — transactional table swap), Iceberg (via pyiceberg — branch fast_forward). Companion `@lifecycle` decorator wraps existing @dg.asset functions.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -27858,7 +27858,7 @@
     {
       "id": "log_prints_asset",
       "name": "Log Prints Asset",
-      "category": "infrastructure",
+      "category": "decorator",
       "description": "Capture print() and stdout writes inside compute into Dagster info-level log events. Prefect's @flow(log_prints=True) — makes porting print-heavy legacy scripts Dagster-native without a rewrite. Also captures third-party lib prints (pandas warnings, tqdm progress, requests redirects). Each captured line is emitted as context.log.info with a configurable prefix. Companion @log_prints decorator.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -33080,7 +33080,7 @@
     {
       "id": "partition_lock_asset",
       "name": "Partition Lock Asset",
-      "category": "infrastructure",
+      "category": "decorator",
       "description": "Cross-run partition-scoped mutex via Dagster event log. Scans recent ASSET_OBSERVATION events for partition_lock_acquired=<partition_key> newer than ttl_seconds; conflicts resolve per on_conflict (wait/skip/fail). Emits partition_lock_acquired on entry + partition_lock_released post-compute. TTL auto-expires stuck holders. Probabilistic (not distributed-atomic) — adequate for backfill dedupe, not money transfers. Companion @partition_lock decorator.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -35471,7 +35471,7 @@
     {
       "id": "profile_asset",
       "name": "Profile Asset",
-      "category": "infrastructure",
+      "category": "decorator",
       "description": "Auto-emit a data profile per materialization. Global (row_count, column_count) + per column (dtype, null_ratio, distinct_count, numeric stats, top_value_ratio for categoricals). Optional custom_probes. Profile emitted as AssetObservation with typed MetadataValue — Dagster event log is the profile history + drift is a query. Companion @profile decorator.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -39765,7 +39765,7 @@
     {
       "id": "sensitive_asset",
       "name": "Sensitive Asset",
-      "category": "infrastructure",
+      "category": "decorator",
       "description": "PII / secret redaction wrapper. Proxies context.log.* calls + scrubs MaterializeResult.metadata before persistence — nothing sensitive lands in the Dagster event log. Case-insensitive glob patterns on dict keys + inline `key=value` string fragments. Strategies: `redact` ([REDACTED]), `hash` (sha256:xxxxxxxx), `mask` (***last4). Defaults cover common PII/secret field names. Every run emits AssetObservation(sensitive_redacted_count=N) for audit. Companion @sensitive decorator.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -40630,7 +40630,7 @@
     {
       "id": "shadow_asset",
       "name": "Shadow Asset",
-      "category": "infrastructure",
+      "category": "decorator",
       "description": "Dual-run migration/canary pattern: primary compute produces the canonical asset value (production unchanged); shadow compute runs after primary with the same inputs, output diffed against primary. Emits AssetObservation per run tagged shadow_match=true|false with typed diff metadata (mode, diff_rows, extra/missing cols). Shadow exceptions trapped by default (surfaced as shadow_error tag). enforce_match=true upgrades a mismatch to dg.Failure. Companion @shadow decorator.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -41210,7 +41210,7 @@
     {
       "id": "sla_asset",
       "name": "SLA Asset",
-      "category": "infrastructure",
+      "category": "decorator",
       "description": "Enforce wall-clock SLAs on asset compute. Timer wraps compute; on breach, emits AssetObservation tagged sla_breach=<key> with typed metadata (actual_seconds, expected_seconds, overrun_pct, escalated). Optional escalation counts breaches in sliding window via context.instance.get_event_records. on_breach=warn OR fail. Different from FreshnessPolicy (source freshness) — this governs compute duration.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -41617,7 +41617,7 @@
     {
       "id": "smart_retry",
       "name": "Smart Retry",
-      "category": "infrastructure",
+      "category": "decorator",
       "description": "Retry classification beyond Dagster's built-in RetryPolicy. Rules classify raised exceptions as transient (sleep + retry) or permanent (fail immediately). Day-1 features: HTTP status codes + exception classes, LLM classification fallback (small LLM call for unclassified errors), sliding-window rate limiting, cross-materialization circuit breaker. Wraps Python callable, shell command, or one-off HTTP call. Companion `@smart_retry` decorator wraps any existing @dg.asset.",
       "version": "1.0.1",
       "author": "Dagster Community",
@@ -41817,7 +41817,7 @@
     {
       "id": "snapshot_asset",
       "name": "Snapshot Asset",
-      "category": "infrastructure",
+      "category": "decorator",
       "description": "Point-in-time snapshot writer for asset outputs. After compute succeeds, serialize + write to fsspec URI keyed by <asset_name>/<code_version>/<timestamp>__<run_id>.<ext>. Format auto-detects: DataFrame → parquet, dict/list → json, bytes → bin, str → text, else pickle. Optional retention_days prunes older snapshots. Emits AssetObservation with snapshot_path/bytes/format/pruned_count. Snapshot failures don't fail the asset. Skips on dry_run=true tag. Rollback becomes an event-log query. Companion @snapshot decorator.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -46639,7 +46639,7 @@
     {
       "id": "throttle_asset",
       "name": "Throttle Asset",
-      "category": "infrastructure",
+      "category": "decorator",
       "description": "Cross-run rate limiting for asset compute. Reads the last ASSET_MATERIALIZATION event via context.instance.get_event_records; if the gap-since-last-materialization is smaller than min_gap_seconds, either SKIP (return + emit AssetObservation) or FAIL (dg.Failure). State lives in the event log — restart-safe, worker-safe, sensor-friendly. Complementary to schedules: schedule fires the run, @throttle decides whether to materialize. Companion @throttle decorator.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -46876,7 +46876,7 @@
     {
       "id": "timeout_asset",
       "name": "Timeout Asset",
-      "category": "infrastructure",
+      "category": "decorator",
       "description": "Hard-kill compute after a wall-clock deadline. Prefect's @task(timeout_seconds=...) — runs compute on a ThreadPoolExecutor and calls .result(timeout=) so a stuck subprocess/HTTP call/loop can't burn a whole slot. Complements @sla (which observes overruns) — @timeout aborts them. Portable + Dagster+ Serverless-safe (no SIGALRM, no subprocess). Companion @timeout decorator.",
       "version": "1.0.0",
       "author": "Dagster Community",

@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.DryRunAssetComponent",
   "description": "Run compute, skip the IO manager write. Enable via run tag `dry_run=true`, env `DAGSTER_DRY_RUN=1`, or explicit `enabled: true` in YAML. Compute executes normally (side effects, timings, exceptions all observable); the returned value is discarded and asset yields a MaterializeResult(metadata={dry_run: true, elapsed_seconds, would_produce_bytes}) — no store_output call. Downstreams reading via IO manager get the previous non-dry-run value. Companion @dry_run decorator.",
-  "category": "infrastructure",
+  "category": "decorator",
   "icon": "Beaker",
   "x-dagster-io": {
     "outputs": {
@@ -10,16 +10,71 @@
     }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "default": null},
-    "compute": {"type": "object", "label": "Compute", "required": true, "description": "{kind: python, python: 'mod:fn'}."},
-    "enabled": {"type": "boolean", "label": "Enabled", "required": false, "default": null, "description": "Explicit override; null (default) reads run tag `dry_run` then env `DAGSTER_DRY_RUN`."},
-    "group_name": {"type": "string", "label": "Group Name", "required": false},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "default": null
+    },
+    "compute": {
+      "type": "object",
+      "label": "Compute",
+      "required": true,
+      "description": "{kind: python, python: 'mod:fn'}."
+    },
+    "enabled": {
+      "type": "boolean",
+      "label": "Enabled",
+      "required": false,
+      "default": null,
+      "description": "Explicit override; null (default) reads run tag `dry_run` then env `DAGSTER_DRY_RUN`."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
   },
-  "tags": ["dry-run", "canary", "validation", "cost-audit", "infrastructure"],
+  "tags": [
+    "dry-run",
+    "canary",
+    "validation",
+    "cost-audit",
+    "infrastructure"
+  ],
   "name": "Dry Run Asset"
 }

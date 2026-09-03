@@ -708,8 +708,16 @@ class SmartRetryComponent(dg.Component, dg.Model, dg.Resolvable):
         def _wrapped(context: dg.AssetExecutionContext, **kwargs):
             upstream = kwargs.get("upstream")
 
+            # `context.retry_number` is 0 for the initial attempt, 1 for
+            # first retry, etc. We convert to a 1-based attempt number for
+            # log lines + metadata.
+            attempt = context.retry_number + 1
+
             # ── Circuit breaker: fail fast if OPEN ──
-            if circuit_cfg:
+            # Check ONLY on the initial attempt — if the breaker opens
+            # mid-retry-cycle, the current retry chain still finishes so we
+            # don't leave a step stuck in up_for_retry forever.
+            if circuit_cfg and context.retry_number == 0:
                 open_seconds = _CircuitBreaker.check(circuit_key, context=context)
                 if open_seconds is not None:
                     context.log.error(
@@ -730,115 +738,118 @@ class SmartRetryComponent(dg.Component, dg.Model, dg.Resolvable):
                         },
                     )
 
-            last_exc: Optional[BaseException] = None
-            for attempt in range(1, max_attempts + 1):
-                try:
-                    result = _run_compute(compute, context, upstream)
-                    if attempt > 1:
-                        context.log.info(
-                            f"[smart_retry] succeeded on attempt {attempt}/{max_attempts}"
-                        )
-                    # Success: reset circuit-breaker state so intermittent
-                    # failures don't accumulate toward opening.
-                    if circuit_cfg:
-                        _CircuitBreaker.record_success(circuit_key)
-                    return dg.MaterializeResult(
+            try:
+                _run_compute(compute, context, upstream)
+                if attempt > 1:
+                    context.log.info(
+                        f"[smart_retry] succeeded on attempt {attempt}/{max_attempts}"
+                    )
+                # Success: reset circuit-breaker accounting so intermittent
+                # failures don't accumulate toward opening.
+                if circuit_cfg:
+                    _CircuitBreaker.record_success(circuit_key)
+                return dg.MaterializeResult(
+                    metadata={
+                        "attempts": dg.MetadataValue.int(attempt),
+                        "compute_kind": dg.MetadataValue.text(compute.get("kind", "python")),
+                    }
+                )
+            except (dg.Failure, dg.RetryRequested):
+                # Compute already spoke Dagster's retry/failure vocabulary
+                # (e.g., nested @smart_retry, or explicit dg.Failure from a
+                # sub-component). Don't reclassify — propagate as-is.
+                raise
+            except BaseException as exc:  # noqa: BLE001
+                classification = _classify(exc, rules, llm_fallback=llm_fallback_cfg)
+                exc_summary = f"{type(exc).__name__}: {str(exc)[:200]}"
+                status = _extract_http_status(exc)
+                status_str = f" (status={status})" if status is not None else ""
+
+                # Record failure for circuit-breaker accounting BEFORE the
+                # classification-branch decides how to fail. Passes `context`
+                # so cross-run state via Dagster instance events kicks in on
+                # real workers (falls back to in-process state in test contexts).
+                if circuit_cfg:
+                    _CircuitBreaker.record_failure(
+                        circuit_key,
+                        int(circuit_cfg.get("threshold") or 5),
+                        float(circuit_cfg.get("observation_window_seconds") or 300),
+                        float(circuit_cfg.get("cooldown_seconds") or 60),
+                        context=context,
+                    )
+
+                if classification == "permanent":
+                    context.log.error(
+                        f"[smart_retry] permanent failure on attempt {attempt}{status_str}: {exc_summary}"
+                    )
+                    raise dg.Failure(
+                        description=(
+                            f"smart_retry classified as PERMANENT{status_str} on attempt {attempt}: {exc_summary}"
+                        ),
                         metadata={
+                            "classification": dg.MetadataValue.text("permanent"),
+                            "attempt": dg.MetadataValue.int(attempt),
+                            "http_status": dg.MetadataValue.int(status if status is not None else -1),
+                            "exception_class": dg.MetadataValue.text(type(exc).__name__),
+                        },
+                    ) from exc
+
+                if attempt >= max_attempts:
+                    context.log.error(
+                        f"[smart_retry] exhausted {max_attempts} attempts{status_str}: {exc_summary}"
+                    )
+                    classification_str = classification or "unclassified"
+                    raise dg.Failure(
+                        description=(
+                            f"smart_retry exhausted {max_attempts} attempts "
+                            f"(last classification: {classification_str}){status_str}: {exc_summary}"
+                        ),
+                        metadata={
+                            "classification": dg.MetadataValue.text(classification_str),
                             "attempts": dg.MetadataValue.int(attempt),
-                            "compute_kind": dg.MetadataValue.text(compute.get("kind", "python")),
-                        }
-                    )
-                except BaseException as exc:  # noqa: BLE001
-                    last_exc = exc
-                    classification = _classify(exc, rules, llm_fallback=llm_fallback_cfg)
-                    exc_summary = f"{type(exc).__name__}: {str(exc)[:200]}"
-                    status = _extract_http_status(exc)
-                    status_str = f" (status={status})" if status is not None else ""
+                            "http_status": dg.MetadataValue.int(status if status is not None else -1),
+                            "exception_class": dg.MetadataValue.text(type(exc).__name__),
+                        },
+                    ) from exc
 
-                    # Record failure for circuit-breaker accounting BEFORE the
-                    # classification-branch decides how to fail. Success resets.
-                    # Passes `context` so cross-run state via Dagster instance
-                    # events kicks in on real workers (falls back to in-process
-                    # state in test contexts).
-                    if circuit_cfg:
-                        _CircuitBreaker.record_failure(
-                            circuit_key,
-                            int(circuit_cfg.get("threshold") or 5),
-                            float(circuit_cfg.get("observation_window_seconds") or 300),
-                            float(circuit_cfg.get("cooldown_seconds") or 60),
-                            context=context,
+                # Transient OR unclassified — retry, subject to rate limit.
+                if rate_limit_cfg:
+                    try:
+                        _RateLimiter.check_and_record(
+                            rate_limit_key,
+                            int(rate_limit_cfg.get("max_events") or 3),
+                            float(rate_limit_cfg.get("window_seconds") or 60),
+                            str(rate_limit_cfg.get("mode") or "fail"),
                         )
-
-                    if classification == "permanent":
+                    except RuntimeError as rl_exc:
                         context.log.error(
-                            f"[smart_retry] permanent failure on attempt {attempt}{status_str}: {exc_summary}"
+                            f"[smart_retry] rate limit hit for {rate_limit_key!r}: {rl_exc}"
                         )
                         raise dg.Failure(
                             description=(
-                                f"smart_retry classified as PERMANENT{status_str} on attempt {attempt}: {exc_summary}"
+                                f"smart_retry rate_limit exceeded for {rate_limit_key!r} "
+                                f"— last error: {exc_summary}"
                             ),
                             metadata={
-                                "classification": dg.MetadataValue.text("permanent"),
-                                "attempt": dg.MetadataValue.int(attempt),
-                                "http_status": dg.MetadataValue.int(status if status is not None else -1),
-                                "exception_class": dg.MetadataValue.text(type(exc).__name__),
+                                "classification": dg.MetadataValue.text("rate_limited"),
+                                "rate_limit_key": dg.MetadataValue.text(rate_limit_key),
+                                "last_exception_class": dg.MetadataValue.text(type(exc).__name__),
                             },
                         ) from exc
 
-                    if attempt >= max_attempts:
-                        context.log.error(
-                            f"[smart_retry] exhausted {max_attempts} attempts{status_str}: {exc_summary}"
-                        )
-                        classification_str = classification or "unclassified"
-                        raise dg.Failure(
-                            description=(
-                                f"smart_retry exhausted {max_attempts} attempts "
-                                f"(last classification: {classification_str}){status_str}: {exc_summary}"
-                            ),
-                            metadata={
-                                "classification": dg.MetadataValue.text(classification_str),
-                                "attempts": dg.MetadataValue.int(attempt),
-                                "http_status": dg.MetadataValue.int(status if status is not None else -1),
-                                "exception_class": dg.MetadataValue.text(type(exc).__name__),
-                            },
-                        ) from exc
-
-                    # Transient OR unclassified — retry, subject to rate limit.
-                    if rate_limit_cfg:
-                        try:
-                            _RateLimiter.check_and_record(
-                                rate_limit_key,
-                                int(rate_limit_cfg.get("max_events") or 3),
-                                float(rate_limit_cfg.get("window_seconds") or 60),
-                                str(rate_limit_cfg.get("mode") or "fail"),
-                            )
-                        except RuntimeError as rl_exc:
-                            context.log.error(
-                                f"[smart_retry] rate limit hit for {rate_limit_key!r}: {rl_exc}"
-                            )
-                            raise dg.Failure(
-                                description=(
-                                    f"smart_retry rate_limit exceeded for {rate_limit_key!r} "
-                                    f"— last error: {exc_summary}"
-                                ),
-                                metadata={
-                                    "classification": dg.MetadataValue.text("rate_limited"),
-                                    "rate_limit_key": dg.MetadataValue.text(rate_limit_key),
-                                    "last_exception_class": dg.MetadataValue.text(type(exc).__name__),
-                                },
-                            ) from exc
-
-                    delay = _compute_delay(attempt, backoff, initial_delay, max_delay, jitter)
-                    context.log.warning(
-                        f"[smart_retry] attempt {attempt}/{max_attempts} failed ({classification or 'unclassified'})"
-                        f"{status_str}: {exc_summary} — sleeping {delay:.1f}s"
-                    )
-                    time.sleep(delay)
-
-            # Fallthrough — shouldn't reach here (loop always returns or raises).
-            if last_exc:
-                raise last_exc
-            raise RuntimeError("smart_retry: exhausted attempts with no captured exception")
+                delay = _compute_delay(attempt, backoff, initial_delay, max_delay, jitter)
+                context.log.warning(
+                    f"[smart_retry] attempt {attempt}/{max_attempts} failed ({classification or 'unclassified'})"
+                    f"{status_str}: {exc_summary} — requesting Dagster retry in {delay:.1f}s"
+                )
+                # ── Real Dagster retry — the step goes to up_for_retry,
+                # sleeps in the step runner (not this worker slot), and comes
+                # back as a NEW step attempt. Shows up in the run graph,
+                # tracked in Insights, and doesn't block a slot during backoff.
+                raise dg.RetryRequested(
+                    max_retries=max_attempts - 1,
+                    seconds_to_wait=delay,
+                ) from exc
 
         return dg.Definitions(assets=[_wrapped])
 
@@ -953,90 +964,101 @@ def smart_retry(
                         },
                     )
 
-            last_exc: Optional[BaseException] = None
-            for attempt in range(1, max_attempts + 1):
-                try:
-                    result = fn(*args, **kwargs)
-                    if attempt > 1:
-                        _log("info", f"[smart_retry] succeeded on attempt {attempt}/{max_attempts}")
-                    if _cb_cfg:
-                        _CircuitBreaker.record_success(_state_key)
-                    return result
-                except BaseException as exc:  # noqa: BLE001
-                    last_exc = exc
-                    classification = _classify(exc, _rules, llm_fallback=_llm_cfg)
-                    exc_summary = f"{type(exc).__name__}: {str(exc)[:200]}"
-                    status = _extract_http_status(exc)
-                    status_str = f" (status={status})" if status is not None else ""
+            if context is None or not hasattr(context, "retry_number"):
+                raise RuntimeError(
+                    "@smart_retry requires a Dagster context — apply it to the compute "
+                    "of a `@dg.asset` / `@dg.op` so the first arg is an execution context."
+                )
 
-                    if _cb_cfg:
-                        _CircuitBreaker.record_failure(
-                            _state_key,
-                            int(_cb_cfg.get("threshold") or 5),
-                            float(_cb_cfg.get("observation_window_seconds") or 300),
-                            float(_cb_cfg.get("cooldown_seconds") or 60),
-                            context=context,
-                        )
+            attempt = context.retry_number + 1  # 1-based for log lines + metadata
 
-                    if classification == "permanent":
-                        _log("error", f"[smart_retry] permanent failure on attempt {attempt}{status_str}: {exc_summary}")
-                        raise dg.Failure(
-                            description=f"smart_retry classified as PERMANENT{status_str} on attempt {attempt}: {exc_summary}",
-                            metadata={
-                                "classification": dg.MetadataValue.text("permanent"),
-                                "attempt": dg.MetadataValue.int(attempt),
-                                "http_status": dg.MetadataValue.int(status if status is not None else -1),
-                                "exception_class": dg.MetadataValue.text(type(exc).__name__),
-                            },
-                        ) from exc
+            try:
+                result = fn(*args, **kwargs)
+                if attempt > 1:
+                    _log("info", f"[smart_retry] succeeded on attempt {attempt}/{max_attempts}")
+                if _cb_cfg:
+                    _CircuitBreaker.record_success(_state_key)
+                return result
+            except (dg.Failure, dg.RetryRequested):
+                # Compute already spoke Dagster's retry/failure vocabulary
+                # (e.g., a nested @smart_retry) — propagate as-is.
+                raise
+            except BaseException as exc:  # noqa: BLE001
+                classification = _classify(exc, _rules, llm_fallback=_llm_cfg)
+                exc_summary = f"{type(exc).__name__}: {str(exc)[:200]}"
+                status = _extract_http_status(exc)
+                status_str = f" (status={status})" if status is not None else ""
 
-                    if attempt >= max_attempts:
-                        _log("error", f"[smart_retry] exhausted {max_attempts} attempts{status_str}: {exc_summary}")
-                        classification_str = classification or "unclassified"
-                        raise dg.Failure(
-                            description=(
-                                f"smart_retry exhausted {max_attempts} attempts "
-                                f"(last classification: {classification_str}){status_str}: {exc_summary}"
-                            ),
-                            metadata={
-                                "classification": dg.MetadataValue.text(classification_str),
-                                "attempts": dg.MetadataValue.int(attempt),
-                                "http_status": dg.MetadataValue.int(status if status is not None else -1),
-                                "exception_class": dg.MetadataValue.text(type(exc).__name__),
-                            },
-                        ) from exc
-
-                    # Rate-limit check before scheduling the next attempt.
-                    if _rl_cfg:
-                        try:
-                            _RateLimiter.check_and_record(
-                                _state_key,
-                                int(_rl_cfg.get("max_events") or 3),
-                                float(_rl_cfg.get("window_seconds") or 60),
-                                str(_rl_cfg.get("mode") or "fail"),
-                            )
-                        except RuntimeError as rl_exc:
-                            _log("error", f"[smart_retry] rate limit hit for {_state_key!r}: {rl_exc}")
-                            raise dg.Failure(
-                                description=f"smart_retry rate_limit exceeded for {_state_key!r} — last error: {exc_summary}",
-                                metadata={
-                                    "classification": dg.MetadataValue.text("rate_limited"),
-                                    "rate_limit_key": dg.MetadataValue.text(_state_key),
-                                    "last_exception_class": dg.MetadataValue.text(type(exc).__name__),
-                                },
-                            ) from exc
-
-                    delay = _compute_delay(attempt, backoff, initial_delay_seconds, max_delay_seconds, jitter)
-                    _log(
-                        "warning",
-                        f"[smart_retry] attempt {attempt}/{max_attempts} failed ({classification or 'unclassified'})"
-                        f"{status_str}: {exc_summary} — sleeping {delay:.1f}s",
+                if _cb_cfg:
+                    _CircuitBreaker.record_failure(
+                        _state_key,
+                        int(_cb_cfg.get("threshold") or 5),
+                        float(_cb_cfg.get("observation_window_seconds") or 300),
+                        float(_cb_cfg.get("cooldown_seconds") or 60),
+                        context=context,
                     )
-                    time.sleep(delay)
 
-            if last_exc:
-                raise last_exc
-            raise RuntimeError("smart_retry: exhausted attempts with no captured exception")
+                if classification == "permanent":
+                    _log("error", f"[smart_retry] permanent failure on attempt {attempt}{status_str}: {exc_summary}")
+                    raise dg.Failure(
+                        description=f"smart_retry classified as PERMANENT{status_str} on attempt {attempt}: {exc_summary}",
+                        metadata={
+                            "classification": dg.MetadataValue.text("permanent"),
+                            "attempt": dg.MetadataValue.int(attempt),
+                            "http_status": dg.MetadataValue.int(status if status is not None else -1),
+                            "exception_class": dg.MetadataValue.text(type(exc).__name__),
+                        },
+                    ) from exc
+
+                if attempt >= max_attempts:
+                    _log("error", f"[smart_retry] exhausted {max_attempts} attempts{status_str}: {exc_summary}")
+                    classification_str = classification or "unclassified"
+                    raise dg.Failure(
+                        description=(
+                            f"smart_retry exhausted {max_attempts} attempts "
+                            f"(last classification: {classification_str}){status_str}: {exc_summary}"
+                        ),
+                        metadata={
+                            "classification": dg.MetadataValue.text(classification_str),
+                            "attempts": dg.MetadataValue.int(attempt),
+                            "http_status": dg.MetadataValue.int(status if status is not None else -1),
+                            "exception_class": dg.MetadataValue.text(type(exc).__name__),
+                        },
+                    ) from exc
+
+                # Rate-limit check before scheduling the next attempt.
+                if _rl_cfg:
+                    try:
+                        _RateLimiter.check_and_record(
+                            _state_key,
+                            int(_rl_cfg.get("max_events") or 3),
+                            float(_rl_cfg.get("window_seconds") or 60),
+                            str(_rl_cfg.get("mode") or "fail"),
+                        )
+                    except RuntimeError as rl_exc:
+                        _log("error", f"[smart_retry] rate limit hit for {_state_key!r}: {rl_exc}")
+                        raise dg.Failure(
+                            description=f"smart_retry rate_limit exceeded for {_state_key!r} — last error: {exc_summary}",
+                            metadata={
+                                "classification": dg.MetadataValue.text("rate_limited"),
+                                "rate_limit_key": dg.MetadataValue.text(_state_key),
+                                "last_exception_class": dg.MetadataValue.text(type(exc).__name__),
+                            },
+                        ) from exc
+
+                delay = _compute_delay(attempt, backoff, initial_delay_seconds, max_delay_seconds, jitter)
+                _log(
+                    "warning",
+                    f"[smart_retry] attempt {attempt}/{max_attempts} failed ({classification or 'unclassified'})"
+                    f"{status_str}: {exc_summary} — requesting Dagster retry in {delay:.1f}s",
+                )
+                # Step goes to up_for_retry, waits in the step runner
+                # (no worker slot held), returns as a new step attempt
+                # visible in the run graph + tracked in Insights.
+                raise dg.RetryRequested(
+                    max_retries=max_attempts - 1,
+                    seconds_to_wait=delay,
+                ) from exc
 
         # Attach the rules for introspection / testing.
         _wrapped.__smart_retry_rules__ = _rules  # type: ignore[attr-defined]

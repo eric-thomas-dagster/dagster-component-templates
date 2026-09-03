@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.HooksAssetComponent",
   "description": "Asset-scoped success/failure callbacks. Prefect's @task(on_completion=..., on_failure=...) — Dagster's built-in hooks are job-scoped; this component gives you asset-scoped hooks as ordinary `mod:fn` refs. on_success called with (context, result); on_failure called with (context, exception). Callback exceptions are logged, not re-raised — hooks never change the compute's outcome (matches Prefect semantics). Companion `@on_hooks` decorator.",
-  "category": "infrastructure",
+  "category": "decorator",
   "icon": "Anchor",
   "x-dagster-io": {
     "outputs": {
@@ -10,17 +10,87 @@
     }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "default": null},
-    "compute": {"type": "object", "label": "Compute", "required": true, "description": "{kind: python, python: 'mod:fn'}."},
-    "on_success": {"type": "array", "items": {"type": "string"}, "label": "On Success", "required": false, "default": null, "description": "List of 'mod:fn' refs called with (context, result).", "ui:widget": "list"},
-    "on_failure": {"type": "array", "items": {"type": "string"}, "label": "On Failure", "required": false, "default": null, "description": "List of 'mod:fn' refs called with (context, exception).", "ui:widget": "list"},
-    "group_name": {"type": "string", "label": "Group Name", "required": false},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "default": null
+    },
+    "compute": {
+      "type": "object",
+      "label": "Compute",
+      "required": true,
+      "description": "{kind: python, python: 'mod:fn'}."
+    },
+    "on_success": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "On Success",
+      "required": false,
+      "default": null,
+      "description": "List of 'mod:fn' refs called with (context, result).",
+      "ui:widget": "list"
+    },
+    "on_failure": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "On Failure",
+      "required": false,
+      "default": null,
+      "description": "List of 'mod:fn' refs called with (context, exception).",
+      "ui:widget": "list"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
   },
-  "tags": ["hooks", "callbacks", "on-success", "on-failure", "notifications", "infrastructure"],
+  "tags": [
+    "hooks",
+    "callbacks",
+    "on-success",
+    "on-failure",
+    "notifications",
+    "infrastructure"
+  ],
   "name": "Hooks Asset"
 }

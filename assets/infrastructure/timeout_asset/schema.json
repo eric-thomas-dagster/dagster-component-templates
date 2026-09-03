@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.TimeoutAssetComponent",
   "description": "Hard-kill compute after N seconds. Wraps compute in concurrent.futures.ThreadPoolExecutor; on timeout, cancels the future and raises dg.Failure with typed metadata + emits AssetObservation tagged timeout_hit=<key> for cross-run counting. Different from @sla — @sla only OBSERVES overruns, @timeout KILLS the compute. Complementary. Portable (works on Dagster+ Serverless — no signal-based kill required). Companion `@timeout` decorator wraps existing @dg.asset.",
-  "category": "infrastructure",
+  "category": "decorator",
   "icon": "TimerOff",
   "x-dagster-io": {
     "outputs": {
@@ -10,18 +10,86 @@
     }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "default": null},
-    "compute": {"type": "object", "label": "Compute", "required": true, "description": "{kind: python, python: 'mod:fn'}."},
-    "timeout_seconds": {"type": "number", "label": "Timeout (seconds)", "required": true},
-    "on_timeout": {"type": "string", "label": "On Timeout", "required": false, "default": "fail", "enum": ["fail", "warn"]},
-    "timeout_key": {"type": "string", "label": "Timeout Key", "required": false, "default": null, "description": "Shared cross-run counting key. Defaults to asset_name."},
-    "group_name": {"type": "string", "label": "Group Name", "required": false},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "default": null
+    },
+    "compute": {
+      "type": "object",
+      "label": "Compute",
+      "required": true,
+      "description": "{kind: python, python: 'mod:fn'}."
+    },
+    "timeout_seconds": {
+      "type": "number",
+      "label": "Timeout (seconds)",
+      "required": true
+    },
+    "on_timeout": {
+      "type": "string",
+      "label": "On Timeout",
+      "required": false,
+      "default": "fail",
+      "enum": [
+        "fail",
+        "warn"
+      ]
+    },
+    "timeout_key": {
+      "type": "string",
+      "label": "Timeout Key",
+      "required": false,
+      "default": null,
+      "description": "Shared cross-run counting key. Defaults to asset_name."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
   },
-  "tags": ["timeout", "hard-kill", "deadline", "resilience", "infrastructure"],
+  "tags": [
+    "timeout",
+    "hard-kill",
+    "deadline",
+    "resilience",
+    "infrastructure"
+  ],
   "name": "Timeout Asset"
 }

@@ -50,6 +50,7 @@ Postgres advisory lock inside the compute.
 
 import functools
 import importlib
+import math
 import time
 from typing import Any, Callable, Dict, List, Optional
 
@@ -135,71 +136,85 @@ def _acquire_lock(
     """Acquire the partition lock or handle the conflict per policy.
 
     Emits `partition_lock_acquired=<partition_key>` observation on success.
+    On `on_conflict=wait`, raises `dg.RetryRequested` so the step goes to
+    up_for_retry (worker slot freed during backoff, poll visible in run graph).
     """
-    deadline = time.time() + max_wait_seconds
-    while True:
-        records = _lock_observation_records(context, asset_key, limit=200)
-        held = _lock_state(records, partition_key, ttl_seconds)
-        if held is None:
-            _emit_observation(
-                context,
-                tags={_ACQUIRED_TAG: partition_key},
-                metadata={
-                    "partition_lock_ttl_seconds": dg.MetadataValue.float(float(ttl_seconds)),
-                    "partition_key": dg.MetadataValue.text(partition_key),
-                },
-            )
-            try:
-                context.log.info(f"@partition_lock: acquired lock for partition_key={partition_key!r}")
-            except Exception:  # noqa: BLE001
-                pass
-            return
+    records = _lock_observation_records(context, asset_key, limit=200)
+    held = _lock_state(records, partition_key, ttl_seconds)
+    if held is None:
+        _emit_observation(
+            context,
+            tags={_ACQUIRED_TAG: partition_key},
+            metadata={
+                "partition_lock_ttl_seconds": dg.MetadataValue.float(float(ttl_seconds)),
+                "partition_key": dg.MetadataValue.text(partition_key),
+            },
+        )
+        try:
+            context.log.info(f"@partition_lock: acquired lock for partition_key={partition_key!r}")
+        except Exception:  # noqa: BLE001
+            pass
+        return
 
-        held_age = held.get("age_seconds", 0.0)
-        if on_conflict == "fail":
-            raise dg.Failure(
-                description=f"@partition_lock: lock held for partition_key={partition_key!r} "
-                            f"({held_age:.1f}s ago, ttl={ttl_seconds}s)",
-                metadata={
-                    "partition_key": dg.MetadataValue.text(partition_key),
-                    "held_age_seconds": dg.MetadataValue.float(float(round(held_age, 3))),
-                    "ttl_seconds": dg.MetadataValue.float(float(ttl_seconds)),
-                },
-            )
-        if on_conflict == "skip":
-            _emit_observation(
-                context,
-                tags={_SKIPPED_TAG: partition_key},
-                metadata={
-                    "partition_key": dg.MetadataValue.text(partition_key),
-                    "held_age_seconds": dg.MetadataValue.float(float(round(held_age, 3))),
-                },
-            )
-            try:
-                context.log.info(
-                    f"@partition_lock: SKIP partition_key={partition_key!r} — locked {held_age:.1f}s ago"
-                )
-            except Exception:  # noqa: BLE001
-                pass
-            raise _LockConflictSkip()
-
-        # wait
-        if time.time() >= deadline:
-            raise dg.Failure(
-                description=f"@partition_lock: wait timeout for partition_key={partition_key!r} "
-                            f"after {max_wait_seconds}s",
-                metadata={
-                    "partition_key": dg.MetadataValue.text(partition_key),
-                    "waited_seconds": dg.MetadataValue.float(float(round(max_wait_seconds, 3))),
-                },
-            )
+    held_age = held.get("age_seconds", 0.0)
+    if on_conflict == "fail":
+        raise dg.Failure(
+            description=f"@partition_lock: lock held for partition_key={partition_key!r} "
+                        f"({held_age:.1f}s ago, ttl={ttl_seconds}s)",
+            metadata={
+                "partition_key": dg.MetadataValue.text(partition_key),
+                "held_age_seconds": dg.MetadataValue.float(float(round(held_age, 3))),
+                "ttl_seconds": dg.MetadataValue.float(float(ttl_seconds)),
+            },
+        )
+    if on_conflict == "skip":
+        _emit_observation(
+            context,
+            tags={_SKIPPED_TAG: partition_key},
+            metadata={
+                "partition_key": dg.MetadataValue.text(partition_key),
+                "held_age_seconds": dg.MetadataValue.float(float(round(held_age, 3))),
+            },
+        )
         try:
             context.log.info(
-                f"@partition_lock: waiting for partition_key={partition_key!r} (held {held_age:.1f}s ago)"
+                f"@partition_lock: SKIP partition_key={partition_key!r} — locked {held_age:.1f}s ago"
             )
         except Exception:  # noqa: BLE001
             pass
-        time.sleep(poll_seconds)
+        raise _LockConflictSkip()
+
+    # `wait`: request a Dagster retry so we don't hold the worker slot
+    # while backing off. `context.retry_number` (0-based) tracks the poll
+    # count; budget = ceil(max_wait_seconds / poll_seconds).
+    max_polls = max(1, math.ceil(max_wait_seconds / max(poll_seconds, 0.001)))
+    retry_number = int(getattr(context, "retry_number", 0) or 0)
+    poll_num = retry_number + 1  # 1-based for logs
+
+    if retry_number >= max_polls:
+        raise dg.Failure(
+            description=f"@partition_lock: wait timeout for partition_key={partition_key!r} "
+                        f"after {max_polls} polls (~{max_wait_seconds}s)",
+            metadata={
+                "partition_key": dg.MetadataValue.text(partition_key),
+                "polls": dg.MetadataValue.int(poll_num),
+                "waited_seconds_budget": dg.MetadataValue.float(float(round(max_wait_seconds, 3))),
+            },
+        )
+
+    try:
+        context.log.info(
+            f"@partition_lock: waiting for partition_key={partition_key!r} "
+            f"(held {held_age:.1f}s ago, poll {poll_num}/{max_polls}) — "
+            f"requesting Dagster retry in {poll_seconds}s"
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
+    raise dg.RetryRequested(
+        max_retries=max_polls,
+        seconds_to_wait=float(poll_seconds),
+    )
 
 
 def _release_lock(context: Any, partition_key: str) -> None:

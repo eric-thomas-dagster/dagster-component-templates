@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.CachedAssetComponent",
   "description": "Content-addressable cache for expensive Python compute. Skip re-running when cache is warm; run + save when cold. Cache key = hash(asset_key + code_version + partition_key + user key_fn output). Supports local FS and fsspec URIs (s3:// / gs:// / abfs://). Optional TTL freshness. Emits AssetObservation with cached_asset_status=hit|miss tags — searchable in event log. Companion `@cached` decorator wraps existing @dg.asset.",
-  "category": "infrastructure",
+  "category": "decorator",
   "icon": "Database",
   "x-dagster-io": {
     "outputs": {
@@ -10,20 +10,104 @@
     }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "default": null},
-    "compute": {"type": "object", "label": "Compute", "required": true, "description": "{kind: python, python: 'mod:fn'}. Returns pandas DataFrame."},
-    "cache_dir": {"type": "string", "label": "Cache Dir", "required": true, "description": "Local path or fsspec URI (s3://, gs://, abfs://)."},
-    "code_version": {"type": "string", "label": "Code Version", "required": false, "default": "", "description": "Mixed into cache key + set as code_version on asset. Bump to invalidate."},
-    "ttl_seconds": {"type": "number", "label": "TTL (seconds)", "required": false, "default": null, "description": "Cache expires when file mtime older than this. Omit for no TTL."},
-    "format": {"type": "string", "label": "Format", "required": false, "default": "parquet", "enum": ["parquet", "csv", "json"]},
-    "key_fn": {"type": "string", "label": "Key Function", "required": false, "default": null, "description": "Optional `mod:fn` callable — result stringified + mixed into cache key. Perfect for config-driven invalidation."},
-    "group_name": {"type": "string", "label": "Group Name", "required": false},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "default": null
+    },
+    "compute": {
+      "type": "object",
+      "label": "Compute",
+      "required": true,
+      "description": "{kind: python, python: 'mod:fn'}. Returns pandas DataFrame."
+    },
+    "cache_dir": {
+      "type": "string",
+      "label": "Cache Dir",
+      "required": true,
+      "description": "Local path or fsspec URI (s3://, gs://, abfs://)."
+    },
+    "code_version": {
+      "type": "string",
+      "label": "Code Version",
+      "required": false,
+      "default": "",
+      "description": "Mixed into cache key + set as code_version on asset. Bump to invalidate."
+    },
+    "ttl_seconds": {
+      "type": "number",
+      "label": "TTL (seconds)",
+      "required": false,
+      "default": null,
+      "description": "Cache expires when file mtime older than this. Omit for no TTL."
+    },
+    "format": {
+      "type": "string",
+      "label": "Format",
+      "required": false,
+      "default": "parquet",
+      "enum": [
+        "parquet",
+        "csv",
+        "json"
+      ]
+    },
+    "key_fn": {
+      "type": "string",
+      "label": "Key Function",
+      "required": false,
+      "default": null,
+      "description": "Optional `mod:fn` callable — result stringified + mixed into cache key. Perfect for config-driven invalidation."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
   },
-  "tags": ["cache", "caching", "content-addressable", "code-version", "ttl", "performance", "infrastructure"],
+  "tags": [
+    "cache",
+    "caching",
+    "content-addressable",
+    "code-version",
+    "ttl",
+    "performance",
+    "infrastructure"
+  ],
   "name": "Cached Asset"
 }

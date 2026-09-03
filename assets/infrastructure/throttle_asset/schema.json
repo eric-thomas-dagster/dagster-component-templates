@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.ThrottleAssetComponent",
   "description": "Cross-run rate limiting for asset compute. Reads the last ASSET_MATERIALIZATION event via context.instance.get_event_records; if the gap-since-last-materialization is smaller than min_gap_seconds, either SKIP (return + emit AssetObservation) or FAIL (dg.Failure). State lives in the event log — restart-safe, worker-safe, sensor-friendly. Companion @throttle decorator.",
-  "category": "infrastructure",
+  "category": "decorator",
   "icon": "Timer",
   "x-dagster-io": {
     "outputs": {
@@ -10,18 +10,89 @@
     }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "default": null},
-    "compute": {"type": "object", "label": "Compute", "required": true, "description": "{kind: python, python: 'mod:fn'}."},
-    "min_gap_seconds": {"type": "number", "label": "Minimum Gap Seconds", "required": true, "description": "Minimum wall-clock gap between materializations."},
-    "on_throttle": {"type": "string", "label": "On Throttle", "required": false, "default": "skip", "enum": ["skip", "fail"], "description": "'skip' returns None + emits observation; 'fail' raises dg.Failure."},
-    "key": {"type": "string", "label": "Throttle Key", "required": false, "default": null, "description": "Optional label for the throttle_skipped observation tag. Defaults to asset name."},
-    "group_name": {"type": "string", "label": "Group Name", "required": false},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "default": null
+    },
+    "compute": {
+      "type": "object",
+      "label": "Compute",
+      "required": true,
+      "description": "{kind: python, python: 'mod:fn'}."
+    },
+    "min_gap_seconds": {
+      "type": "number",
+      "label": "Minimum Gap Seconds",
+      "required": true,
+      "description": "Minimum wall-clock gap between materializations."
+    },
+    "on_throttle": {
+      "type": "string",
+      "label": "On Throttle",
+      "required": false,
+      "default": "skip",
+      "enum": [
+        "skip",
+        "fail"
+      ],
+      "description": "'skip' returns None + emits observation; 'fail' raises dg.Failure."
+    },
+    "key": {
+      "type": "string",
+      "label": "Throttle Key",
+      "required": false,
+      "default": null,
+      "description": "Optional label for the throttle_skipped observation tag. Defaults to asset name."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
   },
-  "tags": ["throttle", "rate-limit", "cross-run", "event-log", "min-gap", "infrastructure"],
+  "tags": [
+    "throttle",
+    "rate-limit",
+    "cross-run",
+    "event-log",
+    "min-gap",
+    "infrastructure"
+  ],
   "name": "Throttle Asset"
 }

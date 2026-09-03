@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.LogPrintsAssetComponent",
   "description": "Capture print() calls inside compute and route them to context.log.info as Dagster log events. Perfect for porting legacy scripts that use print() for visibility, and for third-party libraries that write to stdout (pandas warnings, tqdm progress, etc.). Wraps compute with contextlib.redirect_stdout; each newline-terminated line becomes one Dagster log event. Companion `@log_prints` decorator.",
-  "category": "infrastructure",
+  "category": "decorator",
   "icon": "Type",
   "x-dagster-io": {
     "outputs": {
@@ -10,16 +10,71 @@
     }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "default": null},
-    "compute": {"type": "object", "label": "Compute", "required": true, "description": "{kind: python, python: 'mod:fn'}."},
-    "prefix": {"type": "string", "label": "Prefix", "required": false, "default": "[print] ", "description": "Prepended to every captured line before it lands in the log."},
-    "group_name": {"type": "string", "label": "Group Name", "required": false},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "default": null
+    },
+    "compute": {
+      "type": "object",
+      "label": "Compute",
+      "required": true,
+      "description": "{kind: python, python: 'mod:fn'}."
+    },
+    "prefix": {
+      "type": "string",
+      "label": "Prefix",
+      "required": false,
+      "default": "[print] ",
+      "description": "Prepended to every captured line before it lands in the log."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
   },
-  "tags": ["logging", "print", "stdout-capture", "legacy", "infrastructure"],
+  "tags": [
+    "logging",
+    "print",
+    "stdout-capture",
+    "legacy",
+    "infrastructure"
+  ],
   "name": "Log Prints Asset"
 }

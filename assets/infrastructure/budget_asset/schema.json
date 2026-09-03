@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.BudgetAssetComponent",
   "description": "Per-asset $ cost tracking with rolling window budget enforcement. Cost estimated via `cost_per_second` (wall-clock rate) or `cost_fn` (`mod:fn` callable given (context, elapsed_s, result) → USD). Cumulative cost history read from ASSET_OBSERVATION event log (`budget_cost_estimate_usd` metadata within `window_days`). Enforcement modes: warn (observation), fail (dg.Failure pre-flight or post-flight), skip (return MaterializeResult(budget_skipped=true) pre-flight). Companion @budget decorator.",
-  "category": "infrastructure",
+  "category": "decorator",
   "icon": "DollarSign",
   "x-dagster-io": {
     "outputs": {
@@ -10,20 +10,105 @@
     }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "default": null},
-    "compute": {"type": "object", "label": "Compute", "required": true, "description": "{kind: python, python: 'mod:fn'}."},
-    "cost_per_second": {"type": "number", "label": "Cost Per Second (USD)", "required": false, "default": null, "description": "Wall-clock USD/sec rate; used when cost_fn is null."},
-    "cost_fn": {"type": "string", "label": "Cost Function", "required": false, "default": null, "description": "Optional 'mod:fn' returning USD given (context, elapsed_s, result)."},
-    "budget_usd": {"type": "number", "label": "Budget (USD)", "required": false, "default": null, "description": "Rolling window cap; null → observation-only."},
-    "window_days": {"type": "number", "label": "Window Days", "required": false, "default": 30.0, "description": "Rolling window size (days) for cumulative cost sum."},
-    "on_breach": {"type": "string", "label": "On Breach", "required": false, "default": "warn", "enum": ["warn", "fail", "skip"], "description": "'warn' always runs + observes; 'fail' raises dg.Failure; 'skip' returns MaterializeResult(budget_skipped=true)."},
-    "group_name": {"type": "string", "label": "Group Name", "required": false},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "default": null
+    },
+    "compute": {
+      "type": "object",
+      "label": "Compute",
+      "required": true,
+      "description": "{kind: python, python: 'mod:fn'}."
+    },
+    "cost_per_second": {
+      "type": "number",
+      "label": "Cost Per Second (USD)",
+      "required": false,
+      "default": null,
+      "description": "Wall-clock USD/sec rate; used when cost_fn is null."
+    },
+    "cost_fn": {
+      "type": "string",
+      "label": "Cost Function",
+      "required": false,
+      "default": null,
+      "description": "Optional 'mod:fn' returning USD given (context, elapsed_s, result)."
+    },
+    "budget_usd": {
+      "type": "number",
+      "label": "Budget (USD)",
+      "required": false,
+      "default": null,
+      "description": "Rolling window cap; null → observation-only."
+    },
+    "window_days": {
+      "type": "number",
+      "label": "Window Days",
+      "required": false,
+      "default": 30.0,
+      "description": "Rolling window size (days) for cumulative cost sum."
+    },
+    "on_breach": {
+      "type": "string",
+      "label": "On Breach",
+      "required": false,
+      "default": "warn",
+      "enum": [
+        "warn",
+        "fail",
+        "skip"
+      ],
+      "description": "'warn' always runs + observes; 'fail' raises dg.Failure; 'skip' returns MaterializeResult(budget_skipped=true)."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
   },
-  "tags": ["budget", "cost", "finops", "llm-cost", "compute-cost", "infrastructure"],
+  "tags": [
+    "budget",
+    "cost",
+    "finops",
+    "llm-cost",
+    "compute-cost",
+    "infrastructure"
+  ],
   "name": "Budget Asset"
 }

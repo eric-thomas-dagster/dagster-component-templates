@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.PartitionLockAssetComponent",
   "description": "Cross-run partition-scoped mutex via Dagster event log. Scans recent ASSET_OBSERVATION events for partition_lock_acquired=<partition_key> newer than ttl_seconds; conflicts resolve per on_conflict (wait/skip/fail). Emits partition_lock_acquired on entry + partition_lock_released post-compute. TTL auto-expires stuck holders. Probabilistic — two runs within ~200ms could both acquire; adequate for backfill dedupe, not money transfers. Companion @partition_lock decorator.",
-  "category": "infrastructure",
+  "category": "decorator",
   "icon": "Lock",
   "x-dagster-io": {
     "outputs": {
@@ -10,20 +10,105 @@
     }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "default": null},
-    "compute": {"type": "object", "label": "Compute", "required": true, "description": "{kind: python, python: 'mod:fn'}."},
-    "ttl_seconds": {"type": "number", "label": "TTL Seconds", "required": false, "default": 3600.0, "description": "Lock auto-expires after N seconds."},
-    "on_conflict": {"type": "string", "label": "On Conflict", "required": false, "default": "wait", "enum": ["wait", "skip", "fail"], "description": "'wait' sleep-polls; 'skip' returns MaterializeResult(partition_lock_skipped=true); 'fail' raises dg.Failure."},
-    "max_wait_seconds": {"type": "number", "label": "Max Wait Seconds", "required": false, "default": 300.0, "description": "Max wait budget when on_conflict=wait."},
-    "poll_seconds": {"type": "number", "label": "Poll Seconds", "required": false, "default": 5.0, "description": "Poll interval when on_conflict=wait."},
-    "partition_key": {"type": "string", "label": "Partition Key Override", "required": false, "default": null, "description": "Override for context.partition_key."},
-    "group_name": {"type": "string", "label": "Group Name", "required": false},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "default": null
+    },
+    "compute": {
+      "type": "object",
+      "label": "Compute",
+      "required": true,
+      "description": "{kind: python, python: 'mod:fn'}."
+    },
+    "ttl_seconds": {
+      "type": "number",
+      "label": "TTL Seconds",
+      "required": false,
+      "default": 3600.0,
+      "description": "Lock auto-expires after N seconds."
+    },
+    "on_conflict": {
+      "type": "string",
+      "label": "On Conflict",
+      "required": false,
+      "default": "wait",
+      "enum": [
+        "wait",
+        "skip",
+        "fail"
+      ],
+      "description": "'wait' sleep-polls; 'skip' returns MaterializeResult(partition_lock_skipped=true); 'fail' raises dg.Failure."
+    },
+    "max_wait_seconds": {
+      "type": "number",
+      "label": "Max Wait Seconds",
+      "required": false,
+      "default": 300.0,
+      "description": "Max wait budget when on_conflict=wait."
+    },
+    "poll_seconds": {
+      "type": "number",
+      "label": "Poll Seconds",
+      "required": false,
+      "default": 5.0,
+      "description": "Poll interval when on_conflict=wait."
+    },
+    "partition_key": {
+      "type": "string",
+      "label": "Partition Key Override",
+      "required": false,
+      "default": null,
+      "description": "Override for context.partition_key."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
   },
-  "tags": ["lock", "mutex", "concurrency", "partition", "event-log", "infrastructure"],
+  "tags": [
+    "lock",
+    "mutex",
+    "concurrency",
+    "partition",
+    "event-log",
+    "infrastructure"
+  ],
   "name": "Partition Lock Asset"
 }

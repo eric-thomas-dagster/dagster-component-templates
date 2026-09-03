@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.SnapshotAssetComponent",
   "description": "Point-in-time snapshot writer for asset outputs. After compute produces a value, serialize + write to fsspec URI keyed by <asset_name>/<code_version>/<timestamp>__<run_id>.<ext>. Format auto-detects: pandas.DataFrame → parquet, dict/list → json, bytes → bin, str → text, else pickle. Explicit format supported. Optional retention_days prunes older snapshots. Emits AssetObservation(snapshot_path, snapshot_bytes, snapshot_format, snapshot_pruned_count) so rollback becomes an event-log query. Snapshot write failures don't fail the asset (warn-only). Skips when run tag dry_run=true active. Companion @snapshot decorator.",
-  "category": "infrastructure",
+  "category": "decorator",
   "icon": "Camera",
   "x-dagster-io": {
     "outputs": {
@@ -10,19 +10,100 @@
     }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "default": null},
-    "compute": {"type": "object", "label": "Compute", "required": true, "description": "{kind: python, python: 'mod:fn'}."},
-    "uri": {"type": "string", "label": "Snapshot URI", "required": true, "description": "fsspec directory URI (s3://, gs://, abfs://, /local/path, etc.)."},
-    "format": {"type": "string", "label": "Format", "required": false, "default": null, "enum": ["parquet", "json", "pickle", "text", "bin", null], "description": "Optional explicit format; null = auto-detect from returned value."},
-    "retention_days": {"type": "integer", "label": "Retention Days", "required": false, "default": null, "description": "If set, delete snapshots older than N days from this asset's folder after each successful write."},
-    "code_version": {"type": "string", "label": "Code Version", "required": false, "default": null, "description": "Sets the asset's code_version. Embedded in snapshot path so rollback tools can filter by version."},
-    "group_name": {"type": "string", "label": "Group Name", "required": false},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "default": null
+    },
+    "compute": {
+      "type": "object",
+      "label": "Compute",
+      "required": true,
+      "description": "{kind: python, python: 'mod:fn'}."
+    },
+    "uri": {
+      "type": "string",
+      "label": "Snapshot URI",
+      "required": true,
+      "description": "fsspec directory URI (s3://, gs://, abfs://, /local/path, etc.)."
+    },
+    "format": {
+      "type": "string",
+      "label": "Format",
+      "required": false,
+      "default": null,
+      "enum": [
+        "parquet",
+        "json",
+        "pickle",
+        "text",
+        "bin",
+        null
+      ],
+      "description": "Optional explicit format; null = auto-detect from returned value."
+    },
+    "retention_days": {
+      "type": "integer",
+      "label": "Retention Days",
+      "required": false,
+      "default": null,
+      "description": "If set, delete snapshots older than N days from this asset's folder after each successful write."
+    },
+    "code_version": {
+      "type": "string",
+      "label": "Code Version",
+      "required": false,
+      "default": null,
+      "description": "Sets the asset's code_version. Embedded in snapshot path so rollback tools can filter by version."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
   },
-  "tags": ["snapshot", "point-in-time", "backup", "versioning", "rollback", "infrastructure"],
+  "tags": [
+    "snapshot",
+    "point-in-time",
+    "backup",
+    "versioning",
+    "rollback",
+    "infrastructure"
+  ],
   "name": "Snapshot Asset"
 }

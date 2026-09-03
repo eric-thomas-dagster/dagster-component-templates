@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.SmartRetryComponent",
   "description": "Retry classification beyond Dagster's built-in RetryPolicy — retry on HTTP 429 + 5xx but fail immediately on 400/401/403/404. Classifies raised exceptions against configurable rules (HTTP status codes, exception classes) and re-raises as Dagster RetryRequested (retryable) or Failure (permanent). Wraps a Python callable, shell command, or one-off HTTP call. Configurable backoff + jitter + max attempts.",
-  "category": "infrastructure",
+  "category": "decorator",
   "icon": "RefreshCw",
   "x-dagster-io": {
     "outputs": {
@@ -10,25 +10,140 @@
     }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "default": null, "description": "Optional. Passed as second positional arg to the compute callable."},
-    "compute": {"type": "object", "label": "Compute", "required": true, "description": "Compute config: {kind: python|shell|http, ...kind-specific}. python: python='mod:fn'. shell: cmd=[...] or 'cmd string' + timeout_seconds. http: method/url/headers/body/params."},
-    "retry_rules": {"type": "array", "items": {"type": "object"}, "label": "Retry Rules", "required": false, "default": null, "description": "Ordered classification rules. First match wins. Kinds: http_status (transient_codes+permanent_codes), exception_class (transient+permanent dotted lists)."},
-    "retry_policy": {"type": "object", "label": "Retry Policy", "required": false, "default": null, "description": "{max_attempts=3, backoff=exponential|linear|fixed, initial_delay_seconds=1.0, max_delay_seconds=60.0, jitter=true}."},
-    "llm_fallback": {"type": "object", "label": "LLM Fallback", "required": false, "default": null, "description": "OPTIONAL. LLM classifies unrule-matched errors as transient/permanent. Shape: {model=gpt-4o-mini, api_key_env_var=OPENAI_API_KEY, timeout_seconds=10}."},
-    "rate_limit": {"type": "object", "label": "Rate Limit", "required": false, "default": null, "description": "OPTIONAL. Sliding-window cap on retries. Shape: {max_events=3, window_seconds=60, mode=fail|wait, key=null}. key defaults to asset_name."},
-    "circuit_breaker": {"type": "object", "label": "Circuit Breaker", "required": false, "default": null, "description": "OPTIONAL. Cross-materialization circuit breaker. Shape: {threshold=5, observation_window_seconds=300, cooldown_seconds=60, key=null}. State persists per Python process."},
-    "group_name": {"type": "string", "label": "Group Name", "required": false},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
-    "partition_type": {"type": "string", "label": "Partition Type", "required": false, "enum": ["daily", "weekly", "monthly", "hourly", "static", "dynamic"]},
-    "partition_start": {"type": "string", "label": "Partition Start", "required": false},
-    "partition_values": {"type": "string", "label": "Partition Values", "required": false},
-    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "required": false},
-    "partition_dimensions": {"type": "array", "items": {"type": "object"}, "label": "Partition Dimensions", "required": false}
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "default": null,
+      "description": "Optional. Passed as second positional arg to the compute callable."
+    },
+    "compute": {
+      "type": "object",
+      "label": "Compute",
+      "required": true,
+      "description": "Compute config: {kind: python|shell|http, ...kind-specific}. python: python='mod:fn'. shell: cmd=[...] or 'cmd string' + timeout_seconds. http: method/url/headers/body/params."
+    },
+    "retry_rules": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Retry Rules",
+      "required": false,
+      "default": null,
+      "description": "Ordered classification rules. First match wins. Kinds: http_status (transient_codes+permanent_codes), exception_class (transient+permanent dotted lists)."
+    },
+    "retry_policy": {
+      "type": "object",
+      "label": "Retry Policy",
+      "required": false,
+      "default": null,
+      "description": "{max_attempts=3, backoff=exponential|linear|fixed, initial_delay_seconds=1.0, max_delay_seconds=60.0, jitter=true}."
+    },
+    "llm_fallback": {
+      "type": "object",
+      "label": "LLM Fallback",
+      "required": false,
+      "default": null,
+      "description": "OPTIONAL. LLM classifies unrule-matched errors as transient/permanent. Shape: {model=gpt-4o-mini, api_key_env_var=OPENAI_API_KEY, timeout_seconds=10}."
+    },
+    "rate_limit": {
+      "type": "object",
+      "label": "Rate Limit",
+      "required": false,
+      "default": null,
+      "description": "OPTIONAL. Sliding-window cap on retries. Shape: {max_events=3, window_seconds=60, mode=fail|wait, key=null}. key defaults to asset_name."
+    },
+    "circuit_breaker": {
+      "type": "object",
+      "label": "Circuit Breaker",
+      "required": false,
+      "default": null,
+      "description": "OPTIONAL. Cross-materialization circuit breaker. Shape: {threshold=5, observation_window_seconds=300, cooldown_seconds=60, key=null}. State persists per Python process."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "dynamic"
+      ]
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "required": false
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "required": false
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "required": false
+    }
   },
-  "tags": ["retry", "resilience", "http", "backoff", "classifier", "infrastructure"],
+  "tags": [
+    "retry",
+    "resilience",
+    "http",
+    "backoff",
+    "classifier",
+    "infrastructure"
+  ],
   "name": "Smart Retry"
 }

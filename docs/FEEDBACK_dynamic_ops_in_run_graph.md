@@ -87,6 +87,17 @@ that makes the run graph valuable in the first place. With this piece,
 nodes pop in as their STEP_START events stream through, exactly like
 retry attempts do today.
 
+**This is empirically why the fix belongs in the frontend.** Our
+backend GraphQL PoC — the ~60-line Python shim referenced below —
+can only respond to queries; it cannot push new nodes into the
+frontend's live subscription state. Users of the PoC see synthetic
+steps only after a page refresh. Every subsequent live run displays
+as one long-running root step until the user hits reload, at which
+point the full graph fills in retrospectively. Fine for demoing
+"here's what actually happened" but not for "here's what's happening
+right now" — which is what the run graph is *for*. The frontend
+event-subscription handler is the only place this can be fixed.
+
 Together: ~50 LOC in the initial-render iterator + ~15 LOC in the
 event-stream handler. Every step_key emitted to the event log with
 this shape renders as a graph node with meaningful label, proper

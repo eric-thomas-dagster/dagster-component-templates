@@ -582,52 +582,53 @@ def data_contract(
 ) -> Callable:
     """Enforce a data contract on a Dagster asset compute.
 
-    Supports two shapes:
-
-    **Shape A (recommended) — applied AFTER `@dg.asset`.** The decorator
-    receives the `AssetsDefinition`, derives `check_specs` from the
-    contract automatically, and rebuilds the asset with them merged in.
-    Users write ONE contract; check_specs are always in sync.
+    Everything about the asset — the contract itself AND the fact that
+    it's a Dagster asset — declared in one visible block. No module-level
+    contract variable, no hand-written `AssetCheckSpec` list. When
+    applied AFTER `@dg.asset`, the decorator reads the `AssetsDefinition`,
+    derives check_specs from the contract, and rebuilds the asset with
+    them merged in. `@dg.asset` keeps all its standard kwargs
+    (`group_name`, `owners`, `tags`, `partitions_def`, `code_version`,
+    `metadata`, `kinds`, `automation_condition`, `ins`, ...).
 
     ```python
     from dagster_community_components import data_contract
 
-    CONTRACT = {
-        'version': '1.2.0',
-        'owners': ['data-platform@example.com'],
-        'schema': [
-            {'name': 'order_id', 'type': 'int64', 'nullable': False, 'unique': True},
-            {'name': 'amount',   'type': 'float64', 'nullable': False, 'min': 0},
-        ],
-        'sla_max_row_count_drop_pct': 20,
-    }
-
-    @data_contract(CONTRACT, on_violation='block')
+    @data_contract(
+        contract={
+            'version': '1.2.0',
+            'owners': ['data-platform@example.com'],
+            'consumers': ['analytics-team'],
+            'schema': [
+                {'name': 'order_id', 'type': 'int64',   'nullable': False, 'unique': True},
+                {'name': 'amount',   'type': 'float64', 'nullable': False, 'min': 0},
+                {'name': 'currency', 'type': 'string',  'allowed_values': ['USD', 'EUR', 'GBP']},
+            ],
+            'freshness_max_lag_minutes': 60,
+            'sla_max_row_count_drop_pct': 20,
+        },
+        on_violation='block',
+    )
     @dg.asset(group_name='revenue', owners=['data-team@example.com'])
     def orders(context):
         return build_orders()
     ```
 
-    All the standard `@dg.asset` kwargs (`group_name`, `owners`, `tags`,
-    `partitions_def`, `code_version`, `metadata`, `kinds`, `automation_condition`,
-    `ins`, etc.) are preserved unchanged. Only `check_specs` is added —
-    derived from the contract's schema + freshness + sla fields.
-
-    **Shape B (legacy) — applied BEFORE `@dg.asset`.** The decorator wraps
-    only the compute function. User must declare `check_specs` on
-    `@dg.asset` themselves via `check_specs_for_contract`:
+    **Custom-checks escape hatch — applied BEFORE `@dg.asset`.** Use when
+    you need `AssetCheckSpec`s beyond what the contract implies. Requires
+    the contract as a variable so you can splat contract-derived specs
+    alongside your own:
 
     ```python
     from dagster_community_components import data_contract, check_specs_for_contract
 
-    @dg.asset(check_specs=check_specs_for_contract(CONTRACT, 'orders'))
+    @dg.asset(check_specs=[
+        *check_specs_for_contract(CONTRACT, 'orders'),
+        dg.AssetCheckSpec(name='downstream_reconciliation', asset='orders'),
+    ])
     @data_contract(CONTRACT, on_violation='block')
-    def orders(context):
-        return build_orders()
+    def orders(context): ...
     ```
-
-    Use Shape A unless you need control over check_specs beyond what the
-    contract implies (e.g., additional custom checks).
 
     **Enforcement semantics** (both shapes):
     - `on_violation='block'` (default) — any failing check → `dg.Failure`,

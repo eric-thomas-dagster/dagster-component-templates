@@ -97,64 +97,74 @@ attributes:
 
 ## `@data_contract` decorator
 
-Two shapes — both derive the check specs from the contract, both use the
-same enforcement engine. Pick based on which side of `@dg.asset` you want
-to sit.
-
-### Shape A (recommended) — applied AFTER `@dg.asset`
-
-The decorator wraps the `AssetsDefinition`. It reads the asset key, derives
-`check_specs` from the contract, and rebuilds the asset with them added.
-All the standard `@dg.asset` kwargs (`group_name`, `owners`, `tags`,
-`partitions_def`, `code_version`, `metadata`, `kinds`, `automation_condition`,
-`ins`, etc.) are preserved unchanged. You never declare a single
-`AssetCheckSpec` yourself.
+Everything about the asset — the contract itself AND the fact that it's a
+Dagster asset — declared in one visible block. No module-level variable
+to define, no `check_specs=` list to mirror, no hand-written
+`AssetCheckSpec` literals. `@data_contract` reads the AssetsDefinition,
+derives the check specs from the contract, and rebuilds the asset with
+them merged in.
 
 ```python
 import dagster as dg
 import pandas as pd
 from dagster_community_components import data_contract
 
-CONTRACT = {
-    'version': '1.2.0',
-    'owners': ['data-platform@example.com'],
-    'consumers': ['analytics-team'],
-    'schema': [
-        {'name': 'order_id', 'type': 'int64',   'nullable': False, 'unique': True},
-        {'name': 'amount',   'type': 'float64', 'nullable': False, 'min': 0},
-    ],
-    'freshness_max_lag_minutes': 60,
-    'sla_max_row_count_drop_pct': 20,
-}
-
-@data_contract(CONTRACT, on_violation='block')
+@data_contract(
+    contract={
+        'version': '1.2.0',
+        'owners': ['data-platform@example.com'],
+        'consumers': ['analytics-team'],
+        'schema': [
+            {'name': 'order_id', 'type': 'int64',   'nullable': False, 'unique': True},
+            {'name': 'amount',   'type': 'float64', 'nullable': False, 'min': 0},
+            {'name': 'currency', 'type': 'string',  'allowed_values': ['USD', 'EUR', 'GBP']},
+            {'name': 'email',    'type': 'string',  'regex': '^[^@]+@[^@]+\\.[^@]+$'},
+        ],
+        'freshness_max_lag_minutes': 60,
+        'sla_max_row_count_drop_pct': 20,
+    },
+    on_violation='block',
+)
 @dg.asset(group_name='revenue', owners=['data-team@example.com'])
 def orders(context) -> pd.DataFrame:
     return build_orders()
 ```
 
-Add a column to `CONTRACT['schema']`, delete one, tweak the freshness
-window — the check specs regenerate on the next import. Contract is the
-single source of truth.
+`@dg.asset` keeps all its normal power (`group_name`, `owners`, `tags`,
+`partitions_def`, `code_version`, `metadata`, `kinds`,
+`automation_condition`, `ins`, …). Add a column to the contract, delete
+one, tweak the freshness window — the check specs regenerate on the
+next import. Contract is the single source of truth.
 
-### Shape B (escape hatch) — applied BEFORE `@dg.asset`
+### Custom checks alongside the contract
 
-Reach for this only when you need `AssetCheckSpec`s beyond what the
-contract implies (e.g., custom checks alongside the contract-derived ones).
-You declare `check_specs` on `@dg.asset` yourself; `check_specs_for_contract`
-generates the contract-derived ones for you to include:
+If you need `AssetCheckSpec`s beyond what the contract implies (custom
+downstream reconciliation, an integrity check that doesn't fit the
+schema/sla/freshness shape, etc.), pull the contract out to a variable
+and splat the derived specs alongside your custom ones:
 
 ```python
 from dagster_community_components import data_contract, check_specs_for_contract
 
+CONTRACT = {
+    'version': '1.2.0',
+    'schema': [...],
+    'freshness_max_lag_minutes': 60,
+}
+
 @dg.asset(check_specs=[
     *check_specs_for_contract(CONTRACT, 'orders'),
-    dg.AssetCheckSpec(name='custom_downstream_reconciliation', asset='orders'),
+    dg.AssetCheckSpec(name='downstream_reconciliation', asset='orders'),
 ])
 @data_contract(CONTRACT, on_violation='block')
 def orders(context) -> pd.DataFrame:
-    return build_orders()
+    df = build_orders()
+    yield dg.AssetCheckResult(check_name='downstream_reconciliation', passed=reconcile(df))
+    return df
 ```
+
+Use this shape only when you actually need the extra specs — the inline
+shape above is what most contracts want.
 
 ## Metadata reported per materialization
 

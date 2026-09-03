@@ -956,6 +956,7 @@ _CLASS_PATHS: dict[str, str] = {
     "SyntheticVideoGeneratorComponent": "assets/source/synthetic_video_generator/component.py",
     "TSCovariateForecastComponent": "assets/analytics/ts_covariate_forecast/component.py",
     "TableauAssetsComponent": "integrations/tableau_assets/component.py",
+    "TaskAssetComponent": "assets/infrastructure/task_asset/component.py",
     "TeamsApprovalGateComponent": "assets/ai/teams_approval_gate/component.py",
     "TeamsNotificationJobComponent": "jobs/teams_notification_job/component.py",
     "TectonAssetComponent": "assets/analytics/tecton_asset/component.py",
@@ -1355,6 +1356,12 @@ _HELPERS = {
         "dagster_community_components.assets.infrastructure.partition_lock_asset.component:partition_lock",
     "budget":
         "dagster_community_components.assets.infrastructure.budget_asset.component:budget",
+    "task":
+        "dagster_community_components.assets.infrastructure.task_asset.component:task",
+    "task_asset":
+        "dagster_community_components.assets.infrastructure.task_asset.component:task_asset",
+    "child_step":
+        "dagster_community_components.assets.infrastructure.task_asset.component:child_step",
 }
 
 

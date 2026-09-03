@@ -1,0 +1,44 @@
+{
+  "component_type": "dagster_community_components.TaskAssetComponent",
+  "description": "Layered runtime fan-out for asset compute. Declare N processing layers at plan-compile time; the number of work items at each layer is 100% discovered at runtime. Each layer's fan-out renders as real graph nodes via DynamicOutput. Between layers we auto-scaffold a collect+re-emit bridge so any depth is legal (Dagster rejects two dynamic outputs feeding one op — the bridge sidesteps that). Companion @task decorator + @task_asset decorator ship in the same package for imperative-style shapes.",
+  "category": "decorator",
+  "icon": "Fork",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "asset",
+      "description": "One graph asset. Each declared layer becomes a fan-out graph node (`<asset>.<layer>_process[?]`) — instances discovered at runtime."
+    }
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "default": null},
+    "layers": {
+      "type": "array",
+      "label": "Layers",
+      "required": true,
+      "description": "Ordered list of processing layers. First layer's compute receives (context) and emits initial (name, spec) pairs. Later layers receive (context, spec) per item.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string", "description": "Layer name; used as graph-node prefix."},
+          "compute": {"type": "string", "description": "'mod:fn' callable ref."}
+        },
+        "required": ["name", "compute"]
+      }
+    },
+    "terminal": {
+      "type": "string",
+      "label": "Terminal Reducer",
+      "required": false,
+      "default": null,
+      "description": "Optional 'mod:fn' receiving (context, all_results: list). Returns the asset's final value."
+    },
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+  },
+  "tags": ["task", "fan-out", "dynamic", "runtime-graph", "decorator", "infrastructure"],
+  "name": "Task Asset"
+}

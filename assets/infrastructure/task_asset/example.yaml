@@ -1,0 +1,23 @@
+type: dagster_community_components.TaskAssetComponent
+attributes:
+  asset_name: parse_document
+
+  # Ordered pipeline layers. First layer receives (context), yields (name, spec)
+  # pairs. Each subsequent layer receives (context, spec) per item, returns a
+  # list of (name, spec) pairs to fan out further OR any other value (terminal
+  # for that branch).
+  layers:
+    - name: scan
+      compute: "my_project.parser:scan_doc"          # generator: (context) -> [(name, spec), ...]
+
+    - name: process_block
+      compute: "my_project.parser:process_block"     # (context, spec) -> [(name, spec), ...] OR value
+
+    - name: parse_url
+      compute: "my_project.parser:parse_url"         # (context, spec) -> value
+
+  # Optional terminal reducer — receives (context, all_results: list)
+  terminal: "my_project.parser:summarize"
+
+  group_name: documents
+  kinds: [python, task, dynamic]

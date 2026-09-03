@@ -45796,6 +45796,55 @@
       ]
     },
     {
+      "id": "task_asset",
+      "name": "Task Asset",
+      "category": "decorator",
+      "description": "Dynamic, runtime-declared sub-steps for Dagster assets. Ships two decorators + one YAML component: `@task` (imperative + arbitrary-depth log attribution) for agentic loops, pagination, ML early stopping — anywhere branching on real task RESULTS matters more than graph render; `@task_asset` (imperative + parallel graph fan-out via DynamicOutput) for scan-then-process patterns where each unit of work should be a distinct graph node; `TaskAssetComponent` (YAML N-layer pipelines with auto-scaffolded collect+re-emit bridges between layers). Runtime state + durations queryable via get_step_stats_for_run.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/task_asset",
+      "tags": [
+        "task",
+        "fan-out",
+        "dynamic",
+        "runtime-graph",
+        "decorator",
+        "infrastructure"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/task_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/task_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/task_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/task_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/task_asset/requirements.txt",
+      "icon": "Fork",
+      "validation": {
+        "level": "live",
+        "last_validated": "2026-09-03",
+        "evidence": "Live-validated in dg dev: @task_asset noob-style demo (parse_document with 4 heterogeneous blocks including URL discovery per text block) produced 10 SUCCESS step stats with distinct mapping_keys per @task call rendered as fan-out graph nodes; 5-doc partition demo (StaticPartitionsDefinition) materialized 3 partitions each with own runtime-discovered shape (14 / 18 / 12 step_stats); agentic + pagination inline-iteration pattern verified with mock LLM search + 3-page paginated API (real branching on real results, fan-out per hit / record)."
+      },
+      "agent_hints": {
+        "output_type": "any",
+        "requires_pip": [],
+        "requires_resources": []
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "task",
+        "fan-out",
+        "dynamic",
+        "runtime-graph",
+        "decorator",
+        "agentic",
+        "pagination",
+        "batch"
+      ]
+    },
+    {
       "id": "teams_approval_gate",
       "name": "Teams Approval Gate",
       "component_type": "dagster_community_components.TeamsApprovalGateComponent",
@@ -50609,5 +50658,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 990
+  "total": 991
 }

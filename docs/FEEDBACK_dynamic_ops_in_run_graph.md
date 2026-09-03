@@ -104,6 +104,37 @@ this shape renders as a graph node with meaningful label, proper
 parent→child arrows, real duration + status — live, not just on
 refresh.
 
+### Empirical: verified initial-render works against `dagster@1.13.20`
+
+Cloned `dagster-io/dagster` at the `1.13.20` tag, patched
+`js_modules/ui-core/src/gantt/toGraphQueryItems.tsx` with the
+initial-render iterator fix (~40 LOC diff, see
+[`docs/dagster_frontend_toGraphQueryItems.diff`](dagster_frontend_toGraphQueryItems.diff)),
+ran `yarn install + yarn build`, dropped the built `webapp/` into the
+venv, restarted `dagster dev`.
+
+**Initial render / refresh: WORKS.** Every synthetic step_key renders
+as a graph node with meaningful label + parent→child arrows + status
+colors. The `toGraphQueryItems` change alone is sufficient for the
+"here's what happened" view.
+
+**Live streaming still misses.** Nodes don't stream in as their
+STEP_START events arrive. Events land in the event log with the
+correct `ExecutionStepStartEvent` typename (confirmed via
+`logsForRun` GraphQL query — 22 synthetic step-keyed events for our
+test run) and `RunMetadataProvider.extractMetadataFromLogs` DOES
+process any streamed `stepKey` into `metadata.steps`. But the graph
+UI doesn't repaint with the new nodes mid-run.
+
+The missing piece is downstream of `toGraphQueryItems` — either
+memoization in the Gantt/graph component invalidates on
+`runtimeGraph` identity but not on additions, or the graph commit
+happens before the subscription's first push. Someone with React
+state-model context in this codebase would trace it in ~30 minutes;
+not blocking a first PR (refresh-render already unlocks the entire
+observability story — "one long-running step until you reload" is
+already the massive improvement).
+
 ### Everything else already exists
 
 - **Event emission**: `instance.report_dagster_event(DagsterEvent(STEP_START, step_key=...))` — public API today.

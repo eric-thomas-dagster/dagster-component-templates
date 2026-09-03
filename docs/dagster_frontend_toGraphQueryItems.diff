@@ -1,0 +1,71 @@
+diff --git a/js_modules/ui-core/src/gantt/toGraphQueryItems.tsx b/js_modules/ui-core/src/gantt/toGraphQueryItems.tsx
+index d3b9d1e..f74bf5b 100644
+--- a/js_modules/ui-core/src/gantt/toGraphQueryItems.tsx
++++ b/js_modules/ui-core/src/gantt/toGraphQueryItems.tsx
+@@ -19,6 +19,15 @@ export type RunGraphQueryItem = GraphQueryItem & {
+  * the step key found at runtime.
+  */
+ 
++// Matches the DCC `@task` synthetic-step naming convention:
++//   <parent>.<op_name>[<mapping_key>]
++// The same shape Dagster's own DynamicOutput fanned steps already use.
++// e.g., "parse_document.parse_text[block_0].parse_url[reports]"
++//       parent → "parse_document.parse_text[block_0]"
++//       op     → "parse_url"
++//       mkey   → "reports"
++const SYNTHETIC_TASK_SUFFIX_RE = /\.([A-Za-z_][A-Za-z0-9_-]*)\[([A-Za-z0-9_-]+)\]$/;
++
+ export const toGraphQueryItems = (
+   plan: ExecutionPlanToGraphFragment,
+   runtimeStepMetadata: {[key: string]: IStepMetadata},
+@@ -114,6 +123,50 @@ export const toGraphQueryItems = (
+     }
+   }
+ 
++  // Step 4: Runtime-declared synthetic steps.
++  // The event log carries STEP_START/SUCCESS events for step_keys that
++  // aren't in the compile-time execution plan (agentic loops, doc
++  // parsers, per-URL processors, etc. that emit their own events).
++  // `runtimeStepMetadata` already contains state for these keys — we
++  // just need to create graph nodes for them and wire parent→child
++  // edges from the naming convention.
++  //
++  // Sort shallowest-first (shorter step_keys are always ancestors of
++  // longer prefix-matching ones) so parent nodes exist by the time
++  // children reference them.
++  const orderedRuntimeKeys = [...runtimeStepKeys].sort((a, b) => a.length - b.length);
++  for (const stepKey of orderedRuntimeKeys) {
++    if (nodeTable[stepKey]) {
++      continue; // already added by the compile-time plan iteration
++    }
++    const m = SYNTHETIC_TASK_SUFFIX_RE.exec(stepKey);
++    if (!m) {
++      continue; // step_key doesn't match the synthetic naming convention
++    }
++    const parentKey = stepKey.slice(0, m.index);
++
++    // Create the synthetic node
++    nodeTable[stepKey] = {
++      name: stepKey,
++      inputs: [{dependsOn: []}],
++      outputs: [],
++      metadata: runtimeStepMetadata[stepKey],
++    };
++
++    // Wire the parent edge if the parent exists in the node table
++    // (parent is either a real plan step or another synthetic ancestor)
++    if (nodeTable[parentKey]) {
++      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
++      nodeTable[stepKey]!.inputs[0]!.dependsOn.push({solid: {name: parentKey}});
++      let parentOutput = nodeTable[parentKey]!.outputs[0]!;
++      if (!parentOutput) {
++        parentOutput = {dependedBy: []};
++        nodeTable[parentKey]!.outputs.push(parentOutput);
++      }
++      parentOutput.dependedBy.push({solid: {name: stepKey}});
++    }
++  }
++
+   return Object.values(nodeTable);
+ };
+ 

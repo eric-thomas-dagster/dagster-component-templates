@@ -1,3 +1,33 @@
+diff --git a/js_modules/ui-core/src/gantt/GanttChart.tsx b/js_modules/ui-core/src/gantt/GanttChart.tsx
+index c454692..9dba897 100644
+--- a/js_modules/ui-core/src/gantt/GanttChart.tsx
++++ b/js_modules/ui-core/src/gantt/GanttChart.tsx
+@@ -720,6 +720,16 @@ const GanttLine = React.memo(
+   isEqual,
+ );
+ 
++// Matches the DCC `@task` synthetic-step naming convention:
++//   <parent>.<op_name>[<mapping_key>]
++// Kept in sync with the same regex in toGraphQueryItems.tsx.
++const SYNTHETIC_TASK_TAIL_RE = /\.([A-Za-z_][A-Za-z0-9_-]*\[[A-Za-z0-9_-]+\])$/;
++
++function displayLabelForStepName(name: string): string {
++  const m = SYNTHETIC_TASK_TAIL_RE.exec(name);
++  return m ? m[1]! : name;
++}
++
+ function truncatedBoxLabel(box: GanttChartBox) {
+   if (box.width <= BOX_SHOW_LABEL_WIDTH_CUTOFF) {
+     return undefined;
+@@ -729,7 +739,7 @@ function truncatedBoxLabel(box: GanttChartBox) {
+   const totalPadding = 7 + (box.state === IStepState.RUNNING ? 16 : 0);
+   const maxLength = (box.width - totalPadding) / 6.2;
+ 
+-  return withMiddleTruncation(box.node.name, {maxLength});
++  return withMiddleTruncation(displayLabelForStepName(box.node.name), {maxLength});
+ }
+ 
+ const EMPTY_GRAPH: GraphQueryItem[] = [];
 diff --git a/js_modules/ui-core/src/gantt/toGraphQueryItems.tsx b/js_modules/ui-core/src/gantt/toGraphQueryItems.tsx
 index d3b9d1e..f74bf5b 100644
 --- a/js_modules/ui-core/src/gantt/toGraphQueryItems.tsx

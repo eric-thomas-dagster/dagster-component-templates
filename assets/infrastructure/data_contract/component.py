@@ -273,17 +273,78 @@ def _last_materialization_timestamp(context: Any, asset_key: Any) -> Optional[fl
 # --------------------------------------------------------------------------
 
 
+def _resolve_custom_check(entry: Dict[str, Any]) -> Callable:
+    """Turn a `contract.checks` entry into a callable `fn(df) -> bool|dict`.
+
+    Supports:
+      - `{'python': 'mod.path:fn_name'}` — resolved via importlib
+      - `{'python': <callable>}` — used directly (inline Python)
+    """
+    py = entry.get("python")
+    if callable(py):
+        return py
+    if isinstance(py, str) and ":" in py:
+        import importlib
+        mod_path, fn_name = py.rsplit(":", 1)
+        return getattr(importlib.import_module(mod_path.strip()), fn_name.strip())
+    raise ValueError(
+        f"contract.checks entry {entry.get('name')!r} must have 'python': 'mod:fn' or a callable"
+    )
+
+
+def _run_custom_checks(df, contract: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Run each user-defined `contract.checks` entry against the DataFrame.
+
+    Each entry's callable receives the DataFrame and returns EITHER:
+      - `bool` — True=passed, False=failed (description falls back to entry's)
+      - `dict` — `{passed: bool, description?: str, metadata?: dict}`
+
+    Exceptions from the callable → check FAILS with the exception message
+    as description. Never blocks other checks from running.
+    """
+    results = []
+    for entry in (contract.get("checks") or []):
+        name = entry.get("name") or "custom_check"
+        default_desc = entry.get("description") or f"Custom check {name!r}"
+        try:
+            fn = _resolve_custom_check(entry)
+            out = fn(df)
+            if isinstance(out, bool):
+                results.append({"name": name, "passed": out,
+                                "description": default_desc, "metadata": {}})
+            elif isinstance(out, dict) and "passed" in out:
+                results.append({
+                    "name": name,
+                    "passed": bool(out["passed"]),
+                    "description": out.get("description") or default_desc,
+                    "metadata": out.get("metadata") or {},
+                })
+            else:
+                results.append({
+                    "name": name, "passed": False,
+                    "description": f"custom check {name!r} returned {type(out).__name__}; expected bool or dict",
+                    "metadata": {},
+                })
+        except Exception as e:  # noqa: BLE001
+            results.append({
+                "name": name, "passed": False,
+                "description": f"custom check {name!r} raised {type(e).__name__}: {e}",
+                "metadata": {"exception_class": type(e).__name__},
+            })
+    return results
+
+
 def _run_contract(
     df,
     contract: Dict[str, Any],
     context: Any,
     asset_key: Any,
 ) -> List[Dict[str, Any]]:
-    """Return list of check results (schema + freshness + sla).
+    """Return list of check results (schema + custom + freshness + sla).
 
-    Each entry: `{name, passed, description, metadata}`. First one is
-    always the row-count SLA (if configured); then per-column schema
-    checks; then freshness (if configured).
+    Each entry: `{name, passed, description, metadata}`. Order:
+    schema (one per column), then custom (one per contract.checks entry),
+    then row-count SLA, then freshness.
     """
     results: List[Dict[str, Any]] = []
 
@@ -291,6 +352,9 @@ def _run_contract(
     schema = contract.get("schema") or []
     for col_spec in schema:
         results.append(_validate_column(col_spec, df))
+
+    # Custom checks — user-defined Python callables.
+    results.extend(_run_custom_checks(df, contract))
 
     # Row-count SLA — compare against last materialization.
     sla_drop_pct = contract.get("sla_max_row_count_drop_pct")
@@ -409,7 +473,8 @@ def check_specs_for_contract(
     to `@dg.asset(check_specs=…)` without duplicating what the contract
     already declares.
 
-    Emits one spec per column in `contract['schema']` plus one each for
+    Emits one spec per column in `contract['schema']`, one per entry in
+    `contract['checks']` (user-defined custom checks), plus one each for
     `sla_max_row_count_drop_pct` and `freshness_max_lag_minutes` when set.
 
     ```python
@@ -429,6 +494,14 @@ def check_specs_for_contract(
                 name=f"schema_{n}",
                 asset=dg.AssetKey.from_user_string(asset_name),
                 description=f"Column {n!r} conforms to contract",
+            ))
+    for check_entry in (contract.get("checks") or []):
+        n = check_entry.get("name")
+        if n:
+            specs.append(dg.AssetCheckSpec(
+                name=n,
+                asset=dg.AssetKey.from_user_string(asset_name),
+                description=check_entry.get("description") or f"Custom contract check {n!r}",
             ))
     if contract.get("sla_max_row_count_drop_pct") is not None:
         specs.append(dg.AssetCheckSpec(
@@ -601,8 +674,16 @@ def data_contract(
             'consumers': ['analytics-team'],
             'schema': [
                 {'name': 'order_id', 'type': 'int64',   'nullable': False, 'unique': True},
-                {'name': 'amount',   'type': 'float64', 'nullable': False, 'min': 0},
+                {'name': 'amount',   'type': 'float64', 'nullable': False, 'min': 0, 'max': 1_000_000},
                 {'name': 'currency', 'type': 'string',  'allowed_values': ['USD', 'EUR', 'GBP']},
+                {'name': 'email',    'type': 'string',  'regex': '^[^@]+@[^@]+[.][^@]+$'},
+            ],
+            'checks': [   # custom asset checks — any Python callable
+                {
+                    'name': 'orders_total_matches_line_items',
+                    'description': 'amount equals sum of line items',
+                    'python': 'my_project.checks:validate_order_totals',
+                },
             ],
             'freshness_max_lag_minutes': 60,
             'sla_max_row_count_drop_pct': 20,
@@ -613,6 +694,12 @@ def data_contract(
     def orders(context):
         return build_orders()
     ```
+
+    Each entry in `contract['checks']` becomes its own AssetCheckSpec +
+    runtime AssetCheckResult. The callable receives the DataFrame and
+    returns either a `bool` (True = passed) or a
+    `{'passed': bool, 'description'?: str, 'metadata'?: dict}` dict for
+    richer failure reporting.
 
     **Custom-checks escape hatch — applied BEFORE `@dg.asset`.** Use when
     you need `AssetCheckSpec`s beyond what the contract implies. Requires

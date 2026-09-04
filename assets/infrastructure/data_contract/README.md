@@ -116,9 +116,16 @@ from dagster_community_components import data_contract
         'consumers': ['analytics-team'],
         'schema': [
             {'name': 'order_id', 'type': 'int64',   'nullable': False, 'unique': True},
-            {'name': 'amount',   'type': 'float64', 'nullable': False, 'min': 0},
+            {'name': 'amount',   'type': 'float64', 'nullable': False, 'min': 0, 'max': 1_000_000},
             {'name': 'currency', 'type': 'string',  'allowed_values': ['USD', 'EUR', 'GBP']},
-            {'name': 'email',    'type': 'string',  'regex': '^[^@]+@[^@]+\\.[^@]+$'},
+            {'name': 'email',    'type': 'string',  'regex': '^[^@]+@[^@]+[.][^@]+$'},
+        ],
+        'checks': [   # custom asset checks — any Python callable
+            {
+                'name': 'orders_total_matches_line_items',
+                'description': 'order.amount equals sum of line items',
+                'python': 'my_project.checks:validate_order_totals',
+            },
         ],
         'freshness_max_lag_minutes': 60,
         'sla_max_row_count_drop_pct': 20,
@@ -135,6 +142,41 @@ def orders(context) -> pd.DataFrame:
 `automation_condition`, `ins`, …). Add a column to the contract, delete
 one, tweak the freshness window — the check specs regenerate on the
 next import. Contract is the single source of truth.
+
+### `contract['checks']` — custom asset checks
+
+Any per-column rule (`min`, `max`, `nullable`, `unique`, `allowed_values`,
+`regex`) that doesn't fit your semantics? Drop a Python callable into
+`contract['checks']`. Each entry becomes its own `AssetCheckSpec` +
+runtime `AssetCheckResult`. Same panel, same severity, same metadata story
+— just user code you wrote.
+
+The callable receives the DataFrame and returns either:
+
+- `bool` — `True` = passed, `False` = failed (description falls back to
+  the entry's `description`)
+- `dict` — `{'passed': bool, 'description'?: str, 'metadata'?: dict}` for
+  richer failure reporting
+
+```python
+# my_project/checks.py
+def validate_order_totals(df):
+    mismatched = df[df.amount != df.line_items.map(sum)]
+    if mismatched.empty:
+        return True
+    return {
+        'passed': False,
+        'description': f'{len(mismatched)} orders with amount ≠ sum(line_items)',
+        'metadata': {
+            'mismatched_ids': mismatched.order_id.tolist()[:10],
+            'mismatched_count': len(mismatched),
+        },
+    }
+```
+
+Exceptions from the callable → check fails with the exception message as
+its description. Other checks still run — one bad check doesn't block
+the panel.
 
 ### Custom checks alongside the contract
 

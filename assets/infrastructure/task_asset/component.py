@@ -436,13 +436,26 @@ def task(
             When None, cache is disabled for this task (default).
         cache_ttl_seconds: Optional TTL. Entries older than this are treated
             as cache misses. None = never expire.
-        cache_resource: Name of a `TaskCache` resource on the parent asset's
-            resources dict (e.g., `"task_cache"`). When both `cache_key_fn` and
-            `cache_resource` are set, the decorator checks the cache before
-            executing; on hit, emits STEP_START/SUCCESS with near-zero duration
-            + `[cache_hit]` in the log message; on miss, executes and stores
-            the result. Missing/unresolvable resource → cache disabled for
-            this call (no-op degradation).
+        cache: A `TaskCache` instance passed directly (usually a module-level
+            singleton, e.g., `FilesystemTaskCache(base_dir="/tmp/cache")`).
+        cache_resource: Alternative to `cache=` — name of a `TaskCache`
+            resource. Requires the parent asset to declare
+            `required_resource_keys={<name>}` (Dagster filters undeclared
+            resources from the step context).
+
+    Cache scoping — the ONLY behavior:
+
+        Cache keys are automatically scoped to the run's lineage via
+        `root_run_id`. Dagster preserves `root_run_id` across
+        re-execute-from-failure attempts of a single failed run, so
+        cached results from earlier attempts SURVIVE the retry — the
+        resumability story. Net-new materializations get a fresh
+        `root_run_id`, so cached results from any prior run are
+        invisible — no bleeding of stale cross-run values.
+
+        There is no way to opt out of lineage scoping. If you want
+        cross-run memoization ("parse this URL once ever"), use a real
+        Dagster asset with an IO manager, not a @task cache.
     """
     def _decorator(inner: Callable) -> Callable:
         step_name = name or getattr(inner, "__name__", "task")
@@ -484,17 +497,27 @@ def task(
             resolved_cache = _resolve_cache(context, cache, cache_resource) if cache_key_fn else None
             if resolved_cache is not None:
                 try:
-                    key = cache_key_fn(context, *args[1:], **kwargs) if cache_key_fn else None
+                    user_key = cache_key_fn(context, *args[1:], **kwargs) if cache_key_fn else None
                 except Exception as exc:  # noqa: BLE001
                     context.log.warning(f"[task:{step_name}] cache_key_fn raised {type(exc).__name__}; bypassing cache")
-                    key = None
-                if key is not None:
+                    user_key = None
+                if user_key is not None:
+                    # Always scope cache keys to the run lineage. Dagster's
+                    # re-execute-from-failure preserves root_run_id across
+                    # attempts, so the cache survives failure → re-execute.
+                    # Net-new materializations get a fresh root_run_id → cache
+                    # starts empty. This means the cache does what users
+                    # actually want (resume from failure) without ever hitting
+                    # the "did last week's cached value bleed into today?"
+                    # foot-gun.
+                    root_id = getattr(context.run, "root_run_id", None) or context.run.run_id
+                    key = f"{root_id}:{user_key}"
                     hit = resolved_cache.get(key)
                     if hit is not TaskCache.MISS:
                         # Emit synthetic events so the node still renders.
                         with child_step(context, step_name, mapping_key=mapping_key):
                             try:
-                                context.log.info(f"[task:{step_name}[{mapping_key or 'auto'}]] [cache_hit] key={key[:12]}...")
+                                context.log.info(f"[task:{step_name}[{mapping_key or 'auto'}]] [cache_hit] key={user_key[:32]}...")
                             except Exception:  # noqa: BLE001
                                 pass
                         return hit

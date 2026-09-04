@@ -236,7 +236,168 @@ class ChildStepHandle:
         return time.time() - self._started
 
 
-def task(fn: Optional[Callable] = None, *, name: Optional[str] = None) -> Callable:
+# ==========================================================================
+# Task cache — resumability primitive for runtime-decided sub-work
+# ==========================================================================
+# Prefect-style: cache @task results by a computed key. On re-run, cached
+# hits skip execution → effective resume-from-failure for dynamic workloads.
+# @task events still emit for cache hits (so the graph node still renders),
+# just with near-zero duration + a [cache_hit] tag on the log line.
+
+class TaskCache:
+    """Protocol for a @task result cache. Implement `get` / `put` / `has`.
+
+    Return value from `get` for a miss is the sentinel `TaskCache.MISS`.
+    On hit, return the stored value directly (any Python object).
+    """
+    MISS = object()
+
+    def get(self, key: str) -> Any:  # returns MISS if not present
+        raise NotImplementedError
+    def put(self, key: str, value: Any) -> None:
+        raise NotImplementedError
+    def has(self, key: str) -> bool:
+        return self.get(key) is not TaskCache.MISS
+
+
+class FilesystemTaskCache(TaskCache):
+    """Local disk task cache. Stores each entry as a pickle file under
+    `<base_dir>/<sha256(key)>.pkl`. Optional TTL enforced on `get`."""
+
+    def __init__(self, base_dir: str, ttl_seconds: Optional[float] = None):
+        import os
+        os.makedirs(base_dir, exist_ok=True)
+        self._base = base_dir
+        self._ttl = ttl_seconds
+
+    def _path(self, key: str) -> str:
+        import hashlib, os
+        digest = hashlib.sha256(key.encode("utf-8")).hexdigest()
+        return os.path.join(self._base, f"{digest}.pkl")
+
+    def get(self, key: str) -> Any:
+        import os, pickle
+        p = self._path(key)
+        if not os.path.exists(p):
+            return TaskCache.MISS
+        if self._ttl is not None:
+            age = time.time() - os.path.getmtime(p)
+            if age > self._ttl:
+                return TaskCache.MISS
+        try:
+            with open(p, "rb") as f:
+                return pickle.load(f)
+        except Exception:  # noqa: BLE001
+            return TaskCache.MISS
+
+    def put(self, key: str, value: Any) -> None:
+        import pickle
+        with open(self._path(key), "wb") as f:
+            pickle.dump(value, f)
+
+
+class IOManagerBackedTaskCache(TaskCache):
+    """Adapter: wrap any Dagster IOManager as a task cache backend. Users
+    who already have an S3/GCS/Snowflake IO manager configured for asset
+    outputs can reuse it as the cache store without configuring separate
+    storage.
+
+    Bridging strategy: fabricate minimal `OutputContext`/`InputContext`
+    shims with `run_id="__task_cache__"` and `step_key=<cache_key>`. Most
+    IO managers use these fields only to derive a storage path — they
+    don't validate against actual run storage. Filesystem, s3_pickle,
+    gcs_pickle work out of the box; database-schema IO managers that
+    assume a run_id table row won't.
+    """
+
+    _RUN_ID = "__task_cache__"
+
+    def __init__(self, io_manager, ttl_seconds: Optional[float] = None):
+        # Accept both a concrete IOManager (has handle_output/load_input) and
+        # a ConfigurableIOManagerFactory (must call create_io_manager first).
+        # When Dagster injects a resource into an op, this is already resolved
+        # to the concrete IOManager — but if user constructs this outside a
+        # resource context (tests, notebooks), the factory needs realizing.
+        if hasattr(io_manager, "handle_output"):
+            self._io = io_manager
+        elif hasattr(io_manager, "create_io_manager"):
+            from dagster import build_init_resource_context
+            self._io = io_manager.create_io_manager(build_init_resource_context())
+        else:
+            raise TypeError(
+                f"IOManagerBackedTaskCache: expected an IOManager or "
+                f"ConfigurableIOManagerFactory; got {type(io_manager).__name__}"
+            )
+        self._ttl = ttl_seconds
+        self._puts: Dict[str, float] = {}  # in-memory TTL tracking
+
+    def _fake_output_context(self, key: str):
+        from dagster import build_output_context
+        return build_output_context(
+            step_key=key, name="value", run_id=self._RUN_ID,
+        )
+
+    def _fake_input_context(self, key: str):
+        from dagster import build_input_context
+        upstream = self._fake_output_context(key)
+        return build_input_context(upstream_output=upstream)
+
+    def get(self, key: str) -> Any:
+        if self._ttl is not None:
+            put_at = self._puts.get(key)
+            if put_at is None or (time.time() - put_at) > self._ttl:
+                return TaskCache.MISS
+        try:
+            return self._io.load_input(self._fake_input_context(key))
+        except Exception:  # noqa: BLE001
+            return TaskCache.MISS
+
+    def put(self, key: str, value: Any) -> None:
+        try:
+            self._io.handle_output(self._fake_output_context(key), value)
+            self._puts[key] = time.time()
+        except Exception:  # noqa: BLE001
+            pass  # cache put failures are non-fatal — compute already ran
+
+
+def _resolve_cache(context: Any, cache: Optional["TaskCache"],
+                   cache_resource: Optional[str]) -> Optional["TaskCache"]:
+    """Resolve the TaskCache instance for a @task call.
+
+    - `cache=<TaskCache>` passed directly to @task always wins.
+    - `cache_resource=<name>` looks up the resource on `context.resources.<name>`.
+      NOTE: This requires the parent asset to declare
+      `required_resource_keys={<name>}` — Dagster filters out undeclared
+      resources from the step context.
+    """
+    if cache is not None:
+        return cache
+    if cache_resource is None:
+        return None
+    try:
+        resources = getattr(context, "resources", None)
+        return getattr(resources, cache_resource, None) if resources is not None else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _default_cache_key(fn_name: str, args: tuple, kwargs: dict) -> str:
+    """Fallback cache key when the user doesn't supply cache_key_fn.
+    Hashes the repr of positional args (skipping context) + kwargs."""
+    import hashlib
+    payload = f"{fn_name}|{args!r}|{sorted(kwargs.items())!r}"
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def task(
+    fn: Optional[Callable] = None,
+    *,
+    name: Optional[str] = None,
+    cache_key_fn: Optional[Callable] = None,
+    cache_ttl_seconds: Optional[float] = None,
+    cache: Optional["TaskCache"] = None,
+    cache_resource: Optional[str] = None,
+) -> Callable:
     """Mark a callable as a Dagster sub-task. Behavior depends on where
     it's called from:
 
@@ -270,6 +431,18 @@ def task(fn: Optional[Callable] = None, *, name: Optional[str] = None) -> Callab
     Args:
         fn: The wrapped function. First positional arg must be a Dagster context.
         name: Override the task name; defaults to `fn.__name__`.
+        cache_key_fn: Optional `(context, *args, **kwargs) -> str`. Return a
+            cache key computed from inputs; identical keys → cache hit.
+            When None, cache is disabled for this task (default).
+        cache_ttl_seconds: Optional TTL. Entries older than this are treated
+            as cache misses. None = never expire.
+        cache_resource: Name of a `TaskCache` resource on the parent asset's
+            resources dict (e.g., `"task_cache"`). When both `cache_key_fn` and
+            `cache_resource` are set, the decorator checks the cache before
+            executing; on hit, emits STEP_START/SUCCESS with near-zero duration
+            + `[cache_hit]` in the log message; on miss, executes and stores
+            the result. Missing/unresolvable resource → cache disabled for
+            this call (no-op degradation).
     """
     def _decorator(inner: Callable) -> Callable:
         step_name = name or getattr(inner, "__name__", "task")
@@ -305,9 +478,36 @@ def task(fn: Optional[Callable] = None, *, name: Optional[str] = None) -> Callab
             if context is None:
                 return inner(*args, **kwargs)
             # `task_name` becomes the mapping_key badge; op_name stays fn.__name__
-            mapping_key = None
-            if explicit_name != step_name:
-                mapping_key = explicit_name
+            mapping_key = explicit_name if explicit_name != step_name else None
+
+            # ── CACHE LOOKUP (before running the block) ──
+            resolved_cache = _resolve_cache(context, cache, cache_resource) if cache_key_fn else None
+            if resolved_cache is not None:
+                try:
+                    key = cache_key_fn(context, *args[1:], **kwargs) if cache_key_fn else None
+                except Exception as exc:  # noqa: BLE001
+                    context.log.warning(f"[task:{step_name}] cache_key_fn raised {type(exc).__name__}; bypassing cache")
+                    key = None
+                if key is not None:
+                    hit = resolved_cache.get(key)
+                    if hit is not TaskCache.MISS:
+                        # Emit synthetic events so the node still renders.
+                        with child_step(context, step_name, mapping_key=mapping_key):
+                            try:
+                                context.log.info(f"[task:{step_name}[{mapping_key or 'auto'}]] [cache_hit] key={key[:12]}...")
+                            except Exception:  # noqa: BLE001
+                                pass
+                        return hit
+                    # Miss — execute inside child_step, then cache the result.
+                    with child_step(context, step_name, mapping_key=mapping_key):
+                        result = inner(*args, **kwargs)
+                    try:
+                        resolved_cache.put(key, result)
+                    except Exception as exc:  # noqa: BLE001
+                        context.log.warning(f"[task:{step_name}] cache.put raised {type(exc).__name__}; result not cached")
+                    return result
+
+            # ── NO CACHE — plain execute ──
             with child_step(context, step_name, mapping_key=mapping_key):
                 return inner(*args, **kwargs)
 

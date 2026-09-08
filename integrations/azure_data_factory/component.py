@@ -709,7 +709,12 @@ def _build_adf_defs(
             minimum_interval_seconds=poll_interval_seconds,
         )
         def adf_observation_sensor(context: dg.SensorEvaluationContext):
-            """Observe Azure Data Factory pipeline runs and trigger runs."""
+            """Observe Azure Data Factory pipeline runs and trigger runs.
+
+            Sensor evaluations may only yield SkipReason / RunRequest /
+            DagsterRunReaction / SensorResult. Wrap the collected
+            AssetMaterializations in a `SensorResult(asset_events=[...])`.
+            """
             from azure.mgmt.datafactory.models import RunFilterParameters
 
             adf_client = _get_adf_client(subscription_id, tenant_id, client_id, client_secret)
@@ -731,6 +736,7 @@ def _build_adf_defs(
                 resource_group_name, factory_name, filter_params
             )
 
+            asset_events: List[dg.AssetMaterialization] = []
             for run in pipeline_runs.value:
                 if run.status not in ("Succeeded", "Failed", "Cancelled"):
                     continue
@@ -758,12 +764,12 @@ def _build_adf_defs(
                 if run.status == "Failed" and getattr(run, "message", None):
                     meta["error"] = dg.MetadataValue.text(run.message)
 
-                yield dg.AssetMaterialization(
+                asset_events.append(dg.AssetMaterialization(
                     asset_key=f"adf_pipeline_{run_pipeline_name}",
                     metadata=meta,
-                )
+                ))
 
-            # Log trigger run activity
+            # Log trigger run activity (not asset-shaped, just log)
             trigger_runs = adf_client.trigger_runs.query_by_factory(
                 resource_group_name, factory_name, filter_params
             )
@@ -774,7 +780,10 @@ def _build_adf_defs(
                         f"Time: {run.trigger_run_timestamp}"
                     )
 
-            context.update_cursor(now.isoformat())
+            return dg.SensorResult(
+                asset_events=asset_events,
+                cursor=now.isoformat(),
+            )
 
         sensors.append(adf_observation_sensor)
 

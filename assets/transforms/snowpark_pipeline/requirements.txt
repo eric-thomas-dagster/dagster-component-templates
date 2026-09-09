@@ -1,2 +1,4 @@
 dagster
 snowflake-snowpark-python>=1.10.0
+# Only required if any pipeline step uses `op: ml`.
+snowflake-ml-python>=1.5.0

@@ -105,9 +105,97 @@ def _substitute_partition_key(obj, partition_key):
 
 _VALID_OPS = {"filter", "select", "drop", "rename", "with_columns",
               "group_by", "sort", "limit", "distinct", "drop_nulls",
-              "join", "union", "sql"}
+              "join", "union", "sql", "ml"}
 _SUPPORTED_AGGS = {"sum", "mean", "avg", "min", "max", "count",
                     "count_distinct", "stddev", "variance"}
+
+# In-warehouse ML via snowflake-ml-python. Map user-friendly algorithm
+# names to (module_path, class_name) tuples so users configure with
+# `algorithm: kmeans` rather than a dotted class path.
+_ML_ALGORITHMS = {
+    # Clustering
+    "kmeans":              ("snowflake.ml.modeling.cluster", "KMeans"),
+    "dbscan":              ("snowflake.ml.modeling.cluster", "DBSCAN"),
+    "agglomerative":       ("snowflake.ml.modeling.cluster", "AgglomerativeClustering"),
+    # Classification
+    "logistic_regression": ("snowflake.ml.modeling.linear_model", "LogisticRegression"),
+    "random_forest_classifier": ("snowflake.ml.modeling.ensemble", "RandomForestClassifier"),
+    "xgb_classifier":      ("snowflake.ml.modeling.xgboost", "XGBClassifier"),
+    "lgbm_classifier":     ("snowflake.ml.modeling.lightgbm", "LGBMClassifier"),
+    # Regression
+    "linear_regression":   ("snowflake.ml.modeling.linear_model", "LinearRegression"),
+    "ridge":               ("snowflake.ml.modeling.linear_model", "Ridge"),
+    "lasso":               ("snowflake.ml.modeling.linear_model", "Lasso"),
+    "random_forest_regressor": ("snowflake.ml.modeling.ensemble", "RandomForestRegressor"),
+    "xgb_regressor":       ("snowflake.ml.modeling.xgboost", "XGBRegressor"),
+    "lgbm_regressor":      ("snowflake.ml.modeling.lightgbm", "LGBMRegressor"),
+    # Preprocessing (also fit/transform-shaped)
+    "standard_scaler":     ("snowflake.ml.modeling.preprocessing", "StandardScaler"),
+    "min_max_scaler":      ("snowflake.ml.modeling.preprocessing", "MinMaxScaler"),
+    "one_hot_encoder":     ("snowflake.ml.modeling.preprocessing", "OneHotEncoder"),
+}
+
+
+def _apply_ml_op(session, df, op: Dict[str, Any]):
+    """Apply an in-warehouse ML step using snowflake-ml-python.
+
+    Supports fit / predict / fit_predict / transform / fit_transform modes.
+    All compute happens inside the Snowflake warehouse — the estimator's
+    .fit()/.predict() calls compile to SQL that runs on the warehouse
+    just like Snowpark DataFrame ops.
+    """
+    algorithm = (op.get("algorithm") or "").lower()
+    if algorithm not in _ML_ALGORITHMS:
+        raise ValueError(
+            f"snowpark_pipeline ml op: algorithm={algorithm!r} not supported. "
+            f"Valid: {sorted(_ML_ALGORITHMS)}"
+        )
+    module_path, class_name = _ML_ALGORITHMS[algorithm]
+
+    input_cols = op.get("input_columns")
+    if not input_cols or not isinstance(input_cols, list):
+        raise ValueError("ml op: 'input_columns' (list of column names) is required")
+
+    output_cols = op.get("output_column") or op.get("output_columns") or ["PREDICTION"]
+    if isinstance(output_cols, str):
+        output_cols = [output_cols]
+
+    hyperparameters = op.get("hyperparameters") or {}
+    label_cols = op.get("label_columns")   # required for supervised algorithms
+
+    mode = (op.get("mode") or "fit_predict").lower()
+    valid_modes = {"fit", "predict", "fit_predict", "transform", "fit_transform"}
+    if mode not in valid_modes:
+        raise ValueError(f"ml op: mode={mode!r} invalid. Valid: {sorted(valid_modes)}")
+
+    # Import + instantiate the estimator.
+    import importlib
+    est_mod = importlib.import_module(module_path)
+    Estimator = getattr(est_mod, class_name)
+
+    est_kwargs = dict(hyperparameters)
+    est_kwargs.setdefault("input_cols", input_cols)
+    est_kwargs.setdefault("output_cols", output_cols)
+    if label_cols:
+        est_kwargs.setdefault("label_cols", label_cols)
+    estimator = Estimator(**est_kwargs)
+
+    # Execute the requested mode.
+    if mode == "fit":
+        estimator.fit(df)
+        # fit-only returns df unchanged; useful when a downstream step
+        # will consume the model via a separate reference (rare).
+        return df
+    if mode in ("fit_predict", "predict"):
+        if mode == "fit_predict":
+            estimator.fit(df)
+        return estimator.predict(df)
+    if mode in ("fit_transform", "transform"):
+        if mode == "fit_transform":
+            estimator.fit(df)
+        return estimator.transform(df)
+    # Should be unreachable given the valid_modes check.
+    raise ValueError(f"unhandled mode {mode!r}")
 
 
 def _apply_op(session, df, op: Dict[str, Any], step_outputs: Dict[str, Any]):
@@ -208,6 +296,10 @@ def _apply_op(session, df, op: Dict[str, Any], step_outputs: Dict[str, Any]):
         for sid, other_df in step_outputs.items():
             other_df.create_or_replace_temp_view(sid)
         return session.sql(sql)
+    if kind == "ml":
+        # In-warehouse ML via snowflake-ml-python. See _apply_ml_op +
+        # _ML_ALGORITHMS for the full algorithm table.
+        return _apply_ml_op(session, df, op)
     raise ValueError(f"snowpark_pipeline: unsupported op {kind!r}. Valid: {sorted(_VALID_OPS)}")
 
 

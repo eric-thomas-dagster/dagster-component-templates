@@ -115,11 +115,80 @@ Anything else (e.g. `client_session_keep_alive`) passes through to Snowpark.
 
 ## Supported ops
 
-`filter` / `select` / `drop` / `rename` / `with_columns` (SQL expressions) / `group_by` / `sort` / `limit` / `distinct` / `drop_nulls` / `join`.
+`filter` / `select` / `drop` / `rename` / `with_columns` (SQL expressions) / `group_by` / `sort` / `limit` / `distinct` / `drop_nulls` / `join` / `union` / `sql` / `ml`.
 
 Aggregations: `sum / mean (avg) / min / max / count / count_distinct / stddev / variance`.
 
 `join` reads the right side from a Snowflake table: `{op: join, right_table: RAW.CUSTOMERS, on: [CUSTOMER_ID], how: left}`.
+
+## `ml` op — in-warehouse ML via snowflake-ml-python
+
+Turns any pipeline into a fit/predict/transform step. Compute stays
+inside the Snowflake warehouse (snowflake-ml-python compiles to Snowpark
+DataFrame operations, which run on the warehouse — no data leaves).
+
+```yaml
+steps:
+  - op: ml
+    algorithm: kmeans                   # see full list below
+    input_columns: [LOG_REVENUE, SESSIONS_NORM]
+    output_column: CLUSTER
+    hyperparameters:
+      n_clusters: 5
+      random_state: 42
+    mode: fit_predict                   # fit | predict | fit_predict | transform | fit_transform
+    # label_columns: [TARGET]           # required for supervised algorithms
+```
+
+**Supported algorithms:**
+
+| Family | `algorithm:` values |
+|---|---|
+| Clustering | `kmeans` / `dbscan` / `agglomerative` |
+| Classification | `logistic_regression` / `random_forest_classifier` / `xgb_classifier` / `lgbm_classifier` |
+| Regression | `linear_regression` / `ridge` / `lasso` / `random_forest_regressor` / `xgb_regressor` / `lgbm_regressor` |
+| Preprocessing (fit/transform) | `standard_scaler` / `min_max_scaler` / `one_hot_encoder` |
+
+`hyperparameters:` are passed through to the estimator's constructor —
+same names as the underlying `snowflake.ml.modeling.*` class (which
+mirrors scikit-learn). `input_columns` + `output_column` + optional
+`label_columns` are the standard snowflake-ml estimator kwargs.
+
+Requires `snowflake-ml-python>=1.5.0` in the environment (only when a
+step uses `op: ml` — the base package doesn't force it).
+
+**End-to-end example** — KMeans clustering with feature prep before,
+rollup after:
+
+```yaml
+steps:
+  # Feature prep (regular Snowpark DataFrame ops)
+  - id: features
+    op: drop_nulls
+    subset: [ANNUAL_REVENUE, SESSION_COUNT]
+  - op: with_columns
+    expressions:
+      LOG_REVENUE: "LN(ANNUAL_REVENUE + 1)"
+      SESSIONS_NORM: "SESSION_COUNT / 30"
+  - op: select
+    columns: [CUSTOMER_ID, LOG_REVENUE, SESSIONS_NORM]
+
+  # ML step
+  - op: ml
+    algorithm: kmeans
+    input_columns: [LOG_REVENUE, SESSIONS_NORM]
+    output_column: CLUSTER
+    hyperparameters: {n_clusters: 5, random_state: 42}
+
+  # Rollup on the cluster assignments
+  - op: group_by
+    group_by: [CLUSTER]
+    aggregations:
+      n_customers: {col: CUSTOMER_ID, agg: count}
+      avg_revenue: {col: LOG_REVENUE, agg: mean}
+
+sink: {kind: table, table: ML.CLUSTER_SUMMARY}
+```
 
 ## Sink kinds
 

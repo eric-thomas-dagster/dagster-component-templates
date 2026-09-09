@@ -46,7 +46,8 @@
       "keywords": [
         "report",
         "aggregate"
-      ]
+      ],
+      "icon": "BarChart2"
     },
     {
       "id": "ab_test_analysis",
@@ -137,7 +138,8 @@
       "keywords": [
         "report",
         "aggregate"
-      ]
+      ],
+      "icon": "BarChart2"
     },
     {
       "id": "ab_trend",
@@ -180,7 +182,8 @@
       "keywords": [
         "report",
         "aggregate"
-      ]
+      ],
+      "icon": "BarChart2"
     },
     {
       "id": "abinitio_job_sensor",
@@ -354,7 +357,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "ad_spend_standardizer",
@@ -547,7 +551,8 @@
         "adls gen2",
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "si:microsoftazure"
     },
     {
       "id": "adls_monitor",
@@ -1482,7 +1487,8 @@
         "source_field": "outputs.assets",
         "key_template": "{asset_name_prefix}_{asset_id}"
       },
-      "featured": true
+      "featured": true,
+      "icon": "Sparkles"
     },
     {
       "id": "airbyte_assets",
@@ -1530,7 +1536,8 @@
         "airbyte connector",
         "3rd party",
         "external system"
-      ]
+      ],
+      "icon": "si:airbyte"
     },
     {
       "id": "airbyte_sync_sensor",
@@ -1627,7 +1634,8 @@
         "airbyte connector",
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "si:airbyte"
     },
     {
       "id": "airflow_dag_proxy",
@@ -1679,7 +1687,8 @@
         "pattern": "One Dagster asset per Airflow DAG proxied from the connected Airflow instance. Asset keys mirror the DAG id + task id.",
         "source_field": "airflow_api.dags[].tasks[]",
         "key_template": "{dag_id}.{task_id}"
-      }
+      },
+      "icon": "si:apacheairflow"
     },
     {
       "id": "airflow_trigger_job",
@@ -1728,7 +1737,8 @@
       "keywords": [
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "si:apacheairflow"
     },
     {
       "id": "airlift_dag_assets",
@@ -1777,7 +1787,8 @@
         "pattern": "One Dagster asset per Airflow task-level proxied asset. Asset keys mirror the {dag_id}__{task_id} shape.",
         "source_field": "airflow_api.dags[].tasks[]",
         "key_template": "{dag_id}__{task_id}"
-      }
+      },
+      "icon": "Link"
     },
     {
       "id": "airtable_ingestion",
@@ -1922,7 +1933,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "anomaly_detection",
@@ -2205,7 +2217,8 @@
       "keywords": [
         "report",
         "aggregate"
-      ]
+      ],
+      "icon": "BarChart2"
     },
     {
       "id": "append_fields",
@@ -2401,7 +2414,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "icon": "Radar"
     },
     {
       "id": "argo_workflow_trigger",
@@ -2452,7 +2466,8 @@
       ],
       "keywords": [
         "infra"
-      ]
+      ],
+      "icon": "Server"
     },
     {
       "id": "arima_forecast",
@@ -2539,7 +2554,8 @@
       },
       "keywords": [
         "infra"
-      ]
+      ],
+      "icon": "Server"
     },
     {
       "id": "arrange",
@@ -2768,7 +2784,8 @@
       "keywords": [
         "infra",
         "partitioned"
-      ]
+      ],
+      "icon": "Server"
     },
     {
       "id": "asset_reference",
@@ -2803,7 +2820,8 @@
       },
       "keywords": [
         "infra"
-      ]
+      ],
+      "icon": "Server"
     },
     {
       "id": "athena_io_manager",
@@ -2945,7 +2963,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "audit_columns",
@@ -2988,7 +3007,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "audit_logs_to_chronicle",
@@ -3036,7 +3056,8 @@
       "keywords": [
         "write to",
         "output"
-      ]
+      ],
+      "icon": "ArrowUpFromLine"
     },
     {
       "id": "audit_logs_to_datadog_logs",
@@ -3082,7 +3103,8 @@
       "keywords": [
         "write to",
         "output"
-      ]
+      ],
+      "icon": "si:datadog"
     },
     {
       "id": "audit_logs_to_elastic_security",
@@ -3129,7 +3151,8 @@
       "keywords": [
         "write to",
         "output"
-      ]
+      ],
+      "icon": "si:elastic"
     },
     {
       "id": "audit_logs_to_qradar",
@@ -3175,7 +3198,8 @@
       "keywords": [
         "write to",
         "output"
-      ]
+      ],
+      "icon": "ArrowUpFromLine"
     },
     {
       "id": "audit_logs_to_sentinel",
@@ -3224,7 +3248,8 @@
       "keywords": [
         "write to",
         "output"
-      ]
+      ],
+      "icon": "ArrowUpFromLine"
     },
     {
       "id": "audit_logs_to_splunk",
@@ -3273,7 +3298,8 @@
         "splunk enterprise",
         "write to",
         "output"
-      ]
+      ],
+      "icon": "si:splunk"
     },
     {
       "id": "audit_logs_to_sumo_logic",
@@ -3319,7 +3345,8 @@
       "keywords": [
         "write to",
         "output"
-      ]
+      ],
+      "icon": "ArrowUpFromLine"
     },
     {
       "id": "auth0_logs_ingestion",
@@ -3369,7 +3396,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "icon": "si:auth0"
     },
     {
       "id": "auto_field",
@@ -3519,7 +3547,7 @@
         "cdk",
         "asset"
       ],
-      "icon": "Server",
+      "icon": "si:amazonwebservices",
       "type": "dagster_component_templates.AWSCDKAssetComponent",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/aws_cdk_asset/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/aws_cdk_asset/component.py",
@@ -3601,7 +3629,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "icon": "si:amazonwebservices"
     },
     {
       "id": "aws_cloudwatch_logs_insights_query",
@@ -3622,7 +3651,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/aws_cloudwatch_logs_insights_query/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/aws_cloudwatch_logs_insights_query/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/aws_cloudwatch_logs_insights_query/requirements.txt",
-      "icon": "Search",
+      "icon": "si:amazonwebservices",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/aws_cloudwatch.md",
@@ -3681,7 +3710,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/aws_cloudwatch_metrics_query/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/aws_cloudwatch_metrics_query/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/aws_cloudwatch_metrics_query/requirements.txt",
-      "icon": "LineChart",
+      "icon": "si:amazonwebservices",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/aws_cloudwatch.md",
@@ -3745,7 +3774,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_dms/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_dms/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_dms/requirements.txt",
-      "icon": "Plug",
+      "icon": "si:amazonwebservices",
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
@@ -4065,7 +4094,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "icon": "si:microsoftazure"
     },
     {
       "id": "azure_blob_parquet_io_manager",
@@ -4120,7 +4150,8 @@
         "storage",
         "persistence",
         "io"
-      ]
+      ],
+      "icon": "si:microsoftazure"
     },
     {
       "id": "azure_data_factory",
@@ -4190,7 +4221,7 @@
       ],
       "type": "dagster_component_templates.AzureLogAnalyticsQueryComponent",
       "component_type": "dagster_component_templates.AzureLogAnalyticsQueryComponent",
-      "icon": "Search",
+      "icon": "si:microsoftazure",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_log_analytics_query/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_log_analytics_query/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_log_analytics_query/schema.json",
@@ -4252,7 +4283,7 @@
       ],
       "type": "dagster_component_templates.AzureOpenAIResourceComponent",
       "component_type": "dagster_component_templates.AzureOpenAIResourceComponent",
-      "icon": "Sparkles",
+      "icon": "si:microsoftazure",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/azure_openai_resource/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/azure_openai_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/azure_openai_resource/schema.json",
@@ -4312,7 +4343,7 @@
       ],
       "type": "dagster_component_templates.AzureSearchIndexerComponent",
       "component_type": "dagster_component_templates.AzureSearchIndexerComponent",
-      "icon": "Search",
+      "icon": "si:microsoftazure",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/azure_search_indexer/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/azure_search_indexer/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/azure_search_indexer/schema.json",
@@ -4371,7 +4402,7 @@
       ],
       "type": "dagster_component_templates.AzureSearchQueryComponent",
       "component_type": "dagster_component_templates.AzureSearchQueryComponent",
-      "icon": "Search",
+      "icon": "si:microsoftazure",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_search_query/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_search_query/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_search_query/schema.json",
@@ -4524,7 +4555,7 @@
       ],
       "type": "dagster_component_templates.AzureTableReaderComponent",
       "component_type": "dagster_component_templates.AzureTableReaderComponent",
-      "icon": "Table",
+      "icon": "si:microsoftazure",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_table_reader/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_table_reader/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_table_reader/schema.json",
@@ -4647,7 +4678,8 @@
       },
       "keywords": [
         "infra"
-      ]
+      ],
+      "icon": "Server"
     },
     {
       "id": "bigquery_create_table_from_query_asset",
@@ -4716,7 +4748,8 @@
         "gcp bigquery",
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "si:googlebigquery"
     },
     {
       "id": "bigquery_dry_run_check",
@@ -4769,7 +4802,8 @@
         "gcp bigquery",
         "data quality",
         "assertion"
-      ]
+      ],
+      "icon": "si:googlebigquery"
     },
     {
       "id": "bigquery_export_to_gcs_asset",
@@ -4836,7 +4870,8 @@
         "gcp bucket",
         "write to",
         "output"
-      ]
+      ],
+      "icon": "si:googlebigquery"
     },
     {
       "id": "bigquery_io_manager",
@@ -4962,7 +4997,8 @@
         "gcp bucket",
         "ingest",
         "read from"
-      ]
+      ],
+      "icon": "si:googlebigquery"
     },
     {
       "id": "bigquery_ml_predict_asset",
@@ -5019,7 +5055,8 @@
         "gcp bigquery",
         "llm",
         "genai"
-      ]
+      ],
+      "icon": "si:googlebigquery"
     },
     {
       "id": "bigquery_ml_train_asset",
@@ -5086,7 +5123,8 @@
         "gcp bigquery",
         "llm",
         "genai"
-      ]
+      ],
+      "icon": "si:googlebigquery"
     },
     {
       "id": "bigquery_query_asset",
@@ -5148,7 +5186,8 @@
         "gcp bigquery",
         "read",
         "load"
-      ]
+      ],
+      "icon": "si:googlebigquery"
     },
     {
       "id": "bigquery_resource",
@@ -5254,7 +5293,8 @@
         "gcp bigquery",
         "data quality",
         "assertion"
-      ]
+      ],
+      "icon": "si:googlebigquery"
     },
     {
       "id": "bigquery_table_observation_sensor",
@@ -5362,7 +5402,8 @@
         "gcp bigquery",
         "read",
         "load"
-      ]
+      ],
+      "icon": "si:googlebigquery"
     },
     {
       "id": "bigtable_reader_asset",
@@ -5412,7 +5453,8 @@
       "keywords": [
         "read",
         "load"
-      ]
+      ],
+      "icon": "Database"
     },
     {
       "id": "bigtable_writer_asset",
@@ -5463,7 +5505,8 @@
       "keywords": [
         "write to",
         "output"
-      ]
+      ],
+      "icon": "ArrowUpFromLine"
     },
     {
       "id": "blob_convert",
@@ -5520,7 +5563,7 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/bounding_box_filter/schema.json",
       "component_type": "dagster_component_templates.BoundingBoxFilterComponent",
-      "icon": "BarChart2",
+      "icon": "si:box",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/bounding_box_filter/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/bounding_box_filter/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/bounding_box_filter/example.yaml",
@@ -5648,7 +5691,8 @@
       "keywords": [
         "report",
         "aggregate"
-      ]
+      ],
+      "icon": "BarChart2"
     },
     {
       "id": "cache_invalidation_job",
@@ -5692,7 +5736,8 @@
       "keywords": [
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "Play"
     },
     {
       "id": "cached_asset",
@@ -6054,7 +6099,8 @@
       "keywords": [
         "3rd party",
         "external system"
-      ]
+      ],
+      "icon": "Link"
     },
     {
       "id": "chroma_resource",
@@ -6309,7 +6355,8 @@
         "storage",
         "persistence",
         "io"
-      ]
+      ],
+      "icon": "si:clickhouse"
     },
     {
       "id": "clickhouse_polars_io_manager",
@@ -6364,7 +6411,8 @@
         "storage",
         "persistence",
         "io"
-      ]
+      ],
+      "icon": "si:clickhouse"
     },
     {
       "id": "clickhouse_resource",
@@ -6417,7 +6465,8 @@
         "click house",
         "connection",
         "connect"
-      ]
+      ],
+      "icon": "si:clickhouse"
     },
     {
       "id": "clickhouse_table_observation_sensor",
@@ -6512,7 +6561,8 @@
       "keywords": [
         "llm",
         "genai"
-      ]
+      ],
+      "icon": "Sparkles"
     },
     {
       "id": "cloud_dlp_pii_check",
@@ -6562,7 +6612,8 @@
       "keywords": [
         "data quality",
         "assertion"
-      ]
+      ],
+      "icon": "ShieldCheck"
     },
     {
       "id": "cloud_functions_invoke_asset",
@@ -6619,7 +6670,8 @@
       ],
       "keywords": [
         "infra"
-      ]
+      ],
+      "icon": "Server"
     },
     {
       "id": "cloud_logging_query_asset",
@@ -6669,7 +6721,8 @@
       "keywords": [
         "read",
         "load"
-      ]
+      ],
+      "icon": "Database"
     },
     {
       "id": "cloud_monitoring_metrics_asset",
@@ -6722,7 +6775,8 @@
         "arrival sensor",
         "read",
         "load"
-      ]
+      ],
+      "icon": "Database"
     },
     {
       "id": "cloud_run_job_trigger_asset",
@@ -6778,7 +6832,8 @@
       ],
       "keywords": [
         "infra"
-      ]
+      ],
+      "icon": "Server"
     },
     {
       "id": "cloud_tasks_enqueue_asset",
@@ -6828,7 +6883,8 @@
       "keywords": [
         "write to",
         "output"
-      ]
+      ],
+      "icon": "ArrowUpFromLine"
     },
     {
       "id": "cloud_text_to_speech_asset",
@@ -6869,7 +6925,8 @@
       "keywords": [
         "llm",
         "genai"
-      ]
+      ],
+      "icon": "Sparkles"
     },
     {
       "id": "cloudformation_asset",
@@ -7060,7 +7117,8 @@
       "keywords": [
         "3rd party",
         "external system"
-      ]
+      ],
+      "icon": "Link"
     },
     {
       "id": "cognos_report_data_ingestion",
@@ -7490,7 +7548,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "icon": "si:apacheairflow"
     },
     {
       "id": "contract_extractor",
@@ -7945,7 +8004,8 @@
       "keywords": [
         "write to",
         "output"
-      ]
+      ],
+      "icon": "ArrowUpFromLine"
     },
     {
       "id": "count_records",
@@ -8040,7 +8100,8 @@
       "keywords": [
         "report",
         "aggregate"
-      ]
+      ],
+      "icon": "BarChart2"
     },
     {
       "id": "create_points",
@@ -8091,7 +8152,8 @@
       "keywords": [
         "report",
         "aggregate"
-      ]
+      ],
+      "icon": "BarChart2"
     },
     {
       "id": "create_samples",
@@ -8227,7 +8289,8 @@
         "schedule partitioned assets",
         "cron over partitioned job",
         "partitioned"
-      ]
+      ],
+      "icon": "Server"
     },
     {
       "id": "cross_join",
@@ -8269,7 +8332,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "cross_tab",
@@ -8653,7 +8717,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "icon": "favicon:dagster.io"
     },
     {
       "id": "dagster_materializations_to_prometheus_sensor",
@@ -8708,7 +8773,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "icon": "favicon:dagster.io"
     },
     {
       "id": "dagster_plus_asset_events_ingestion",
@@ -8757,7 +8823,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "icon": "favicon:dagster.io"
     },
     {
       "id": "dagster_plus_audit_log_ingestion",
@@ -8806,7 +8873,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "icon": "favicon:dagster.io"
     },
     {
       "id": "dagster_plus_run_events_ingestion",
@@ -8854,7 +8922,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "icon": "favicon:dagster.io"
     },
     {
       "id": "dagster_plus_to_siem_job",
@@ -8902,7 +8971,8 @@
       "keywords": [
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "favicon:dagster.io"
     },
     {
       "id": "dagster_runs_to_influxdb_sensor",
@@ -8950,7 +9020,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "icon": "si:influxdb"
     },
     {
       "id": "dagster_runs_to_otlp_metrics_sensor",
@@ -9058,7 +9129,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "icon": "favicon:dagster.io"
     },
     {
       "id": "dagster_runs_to_prometheus_sensor",
@@ -9110,7 +9182,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "icon": "favicon:dagster.io"
     },
     {
       "id": "dagster_runs_to_splunk_hec_sensor",
@@ -9157,7 +9230,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "icon": "favicon:dagster.io"
     },
     {
       "id": "dagster_runs_to_statsd_sensor",
@@ -9251,7 +9325,8 @@
       },
       "keywords": [
         "infra"
-      ]
+      ],
+      "icon": "Server"
     },
     {
       "id": "data_cleansing",
@@ -9449,7 +9524,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "data_remediation_asset",
@@ -10375,7 +10451,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "icon": "Plug"
     },
     {
       "id": "dataframe_describe",
@@ -10468,7 +10545,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "dataframe_flatten_nested_columns",
@@ -10511,7 +10589,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "dataframe_from_csv",
@@ -10636,7 +10715,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_prometheus/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_prometheus/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_prometheus/requirements.txt",
-      "icon": "LineChart",
+      "icon": "si:prometheus",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/prometheus_demo.md",
@@ -10987,7 +11066,7 @@
       ],
       "type": "dagster_component_templates.DataframeToAzureTableComponent",
       "component_type": "dagster_component_templates.DataframeToAzureTableComponent",
-      "icon": "Table",
+      "icon": "si:microsoftazure",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_azure_table/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_azure_table/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_azure_table/schema.json",
@@ -11137,7 +11216,8 @@
         "click house",
         "write to",
         "output"
-      ]
+      ],
+      "icon": "si:clickhouse"
     },
     {
       "id": "dataframe_to_csv",
@@ -11263,7 +11343,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_delta_table/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_delta_table/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_delta_table/requirements.txt",
-      "icon": "ArrowUpRight",
+      "icon": "si:databricks",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lakehouse_local.md",
@@ -11353,7 +11433,8 @@
       "keywords": [
         "write to",
         "output"
-      ]
+      ],
+      "icon": "si:apache"
     },
     {
       "id": "dataframe_to_dynatrace_events",
@@ -11482,7 +11563,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_excel/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_excel/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_excel/requirements.txt",
-      "icon": "ArrowDownToLine",
+      "icon": "si:microsoftexcel",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/spacex.md",
@@ -11648,7 +11729,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_iceberg_table/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_iceberg_table/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_iceberg_table/requirements.txt",
-      "icon": "ArrowUpRight",
+      "icon": "si:apache",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lakehouse_local.md",
@@ -11735,7 +11816,8 @@
       "keywords": [
         "write to",
         "output"
-      ]
+      ],
+      "icon": "si:influxdb"
     },
     {
       "id": "dataframe_to_json",
@@ -11861,7 +11943,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_newrelic_logs/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_newrelic_logs/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_newrelic_logs/requirements.txt",
-      "icon": "Upload",
+      "icon": "si:newrelic",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/newrelic_dynatrace.md",
@@ -11963,7 +12045,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_logs/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_logs/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_logs/requirements.txt",
-      "icon": "FileText",
+      "icon": "si:opentelemetry",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/opentelemetry_demo.md",
@@ -12021,7 +12103,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_metrics/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_metrics/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_metrics/requirements.txt",
-      "icon": "LineChart",
+      "icon": "si:opentelemetry",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/opentelemetry_demo.md",
@@ -12079,7 +12161,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_traces/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_traces/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_traces/requirements.txt",
-      "icon": "GitBranch",
+      "icon": "si:opentelemetry",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/opentelemetry_demo.md",
@@ -12183,7 +12265,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_prometheus/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_prometheus/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_prometheus/requirements.txt",
-      "icon": "Upload",
+      "icon": "si:prometheus",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/prometheus_demo.md",
@@ -12291,7 +12373,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_s3/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_s3/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_s3/requirements.txt",
-      "icon": "ArrowDownToLine",
+      "icon": "si:amazonwebservices",
       "validation": {
         "level": "live",
         "last_validated": "2026-05-11"
@@ -12381,7 +12463,8 @@
       "keywords": [
         "write to",
         "output"
-      ]
+      ],
+      "icon": "ArrowUpFromLine"
     },
     {
       "name": "DataFrame to Sentry",
@@ -12395,7 +12478,7 @@
         "alerts",
         "saas"
       ],
-      "icon": "AlertCircle",
+      "icon": "si:sentry",
       "type": "dagster_community_components.DataframeToSentryComponent",
       "component_type": "dagster_community_components.DataframeToSentryComponent",
       "dependencies": {
@@ -12667,7 +12750,8 @@
       "keywords": [
         "write to",
         "output"
-      ]
+      ],
+      "icon": "favicon:starrocks.io"
     },
     {
       "id": "dataframe_to_table",
@@ -12770,7 +12854,8 @@
       "keywords": [
         "write to",
         "output"
-      ]
+      ],
+      "icon": "si:victoriametrics"
     },
     {
       "id": "dataframe_transformer",
@@ -12953,7 +13038,8 @@
       "keywords": [
         "read",
         "load"
-      ]
+      ],
+      "icon": "Database"
     },
     {
       "id": "datetime_parser",
@@ -13053,7 +13139,8 @@
         "database 2",
         "connection",
         "connect"
-      ]
+      ],
+      "icon": "si:ibm"
     },
     {
       "id": "dbt_cloud_job_sensor",
@@ -13220,7 +13307,8 @@
         "task",
         "trigger",
         "materialize batch"
-      ]
+      ],
+      "icon": "si:dbt"
     },
     {
       "id": "dbt_docs_enriched_project",
@@ -13327,7 +13415,8 @@
         "dbt cloud",
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "si:dbt"
     },
     {
       "id": "dbt_state_reuse_patch",
@@ -13378,7 +13467,8 @@
         "dbt cloud",
         "3rd party",
         "external system"
-      ]
+      ],
+      "icon": "si:dbt"
     },
     {
       "id": "decision_tree_model",
@@ -13452,7 +13542,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/delta_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/delta_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/delta_ingestion/requirements.txt",
-      "icon": "Database",
+      "icon": "si:databricks",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lakehouse_local.md",
@@ -13599,7 +13689,8 @@
         "storage",
         "persistence",
         "io"
-      ]
+      ],
+      "icon": "HardDrive"
     },
     {
       "id": "dependency_graph",
@@ -13634,7 +13725,8 @@
       },
       "keywords": [
         "infra"
-      ]
+      ],
+      "icon": "Server"
     },
     {
       "id": "detect_changes",
@@ -13677,7 +13769,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "distance_calculator",
@@ -13820,7 +13913,8 @@
       "keywords": [
         "3rd party",
         "external system"
-      ]
+      ],
+      "icon": "Link"
     },
     {
       "id": "docker_container_asset",
@@ -13867,7 +13961,8 @@
         "oci image",
         "infra"
       ],
-      "featured": true
+      "featured": true,
+      "icon": "si:docker"
     },
     {
       "id": "document_ai_extractor",
@@ -13914,7 +14009,8 @@
       "keywords": [
         "llm",
         "genai"
-      ]
+      ],
+      "icon": "Sparkles"
     },
     {
       "id": "document_chunker",
@@ -14298,7 +14394,8 @@
       "keywords": [
         "read",
         "load"
-      ]
+      ],
+      "icon": "si:apache"
     },
     {
       "id": "doris_resource",
@@ -14349,7 +14446,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "icon": "si:apache"
     },
     {
       "id": "doris_routine_load_sensor",
@@ -14401,7 +14499,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "icon": "si:apache"
     },
     {
       "id": "doris_workspace",
@@ -14453,7 +14552,8 @@
         "workspace-style component",
         "3rd party",
         "external system"
-      ]
+      ],
+      "icon": "si:apache"
     },
     {
       "id": "dremio_ingestion",
@@ -14763,7 +14863,8 @@
         "storage",
         "persistence",
         "io"
-      ]
+      ],
+      "icon": "si:duckdb"
     },
     {
       "id": "duckdb_pyspark_io_manager",
@@ -14820,7 +14921,8 @@
         "storage",
         "persistence",
         "io"
-      ]
+      ],
+      "icon": "si:duckdb"
     },
     {
       "id": "duckdb_query_reader",
@@ -15063,7 +15165,8 @@
       "keywords": [
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "Play"
     },
     {
       "id": "dynamic_rename",
@@ -16025,7 +16128,8 @@
         "trigger",
         "watcher"
       ],
-      "featured": true
+      "featured": true,
+      "icon": "Radar"
     },
     {
       "id": "event_data_standardizer",
@@ -16379,7 +16483,8 @@
         "declaration",
         "mirror asset",
         "mirror"
-      ]
+      ],
+      "icon": "ExternalLink"
     },
     {
       "id": "external_bigquery_table",
@@ -16603,7 +16708,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_delta_table/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_delta_table/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_delta_table/requirements.txt",
-      "icon": "Eye",
+      "icon": "si:databricks",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lakehouse_local.md",
@@ -16680,7 +16785,8 @@
         "declaration",
         "mirror asset",
         "mirror"
-      ]
+      ],
+      "icon": "si:apache"
     },
     {
       "id": "external_eventhubs_asset",
@@ -16846,7 +16952,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_iceberg_table/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_iceberg_table/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_iceberg_table/requirements.txt",
-      "icon": "Eye",
+      "icon": "si:apache",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lakehouse_local.md",
@@ -16951,7 +17057,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_kinesis_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_kinesis_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_kinesis_asset/requirements.txt",
-      "icon": "Link",
+      "icon": "si:amazonwebservices",
       "validation": {
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md",
@@ -17003,7 +17109,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_mqtt_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_mqtt_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_mqtt_asset/requirements.txt",
-      "icon": "Link",
+      "icon": "si:mqtt",
       "validation": {
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md",
@@ -17146,7 +17252,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_pubsub_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_pubsub_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_pubsub_asset/requirements.txt",
-      "icon": "Link",
+      "icon": "si:googlecloud",
       "validation": {
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md",
@@ -17199,7 +17305,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_pulsar_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_pulsar_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_pulsar_asset/requirements.txt",
-      "icon": "Link",
+      "icon": "si:apachepulsar",
       "validation": {
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md",
@@ -17347,7 +17453,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_s3_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_s3_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_s3_asset/requirements.txt",
-      "icon": "Link",
+      "icon": "si:amazonwebservices",
       "validation": {
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md",
@@ -17504,7 +17610,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sharepoint_library/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sharepoint_library/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sharepoint_library/requirements.txt",
-      "icon": "Link",
+      "icon": "si:microsoftsharepoint",
       "validation": {
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md",
@@ -17699,7 +17805,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sqs_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sqs_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sqs_asset/requirements.txt",
-      "icon": "Link",
+      "icon": "si:amazonwebservices",
       "validation": {
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md",
@@ -17774,7 +17880,8 @@
         "declaration",
         "mirror asset",
         "mirror"
-      ]
+      ],
+      "icon": "favicon:starrocks.io"
     },
     {
       "id": "external_temporal_workflow",
@@ -18460,7 +18567,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "field_mapper",
@@ -19019,7 +19127,8 @@
         "google firestore",
         "read",
         "load"
-      ]
+      ],
+      "icon": "si:firebase"
     },
     {
       "id": "firestore_resource",
@@ -19186,7 +19295,8 @@
         "google firestore",
         "write to",
         "output"
-      ]
+      ],
+      "icon": "si:firebase"
     },
     {
       "id": "fivetran_assets",
@@ -19232,7 +19342,8 @@
         "hva",
         "3rd party",
         "external system"
-      ]
+      ],
+      "icon": "favicon:fivetran.com"
     },
     {
       "id": "fivetran_sync_sensor",
@@ -19322,7 +19433,8 @@
         "hva",
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "favicon:fivetran.com"
     },
     {
       "id": "fix_message_parser",
@@ -19361,7 +19473,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "formula",
@@ -19690,7 +19803,8 @@
       "keywords": [
         "report",
         "aggregate"
-      ]
+      ],
+      "icon": "BarChart2"
     },
     {
       "id": "gcp_audit_log_ingestion",
@@ -19741,7 +19855,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "icon": "si:googlecloud"
     },
     {
       "id": "gcp_deployment_manager_asset",
@@ -19786,7 +19901,8 @@
       },
       "keywords": [
         "infra"
-      ]
+      ],
+      "icon": "si:googlecloud"
     },
     {
       "id": "gcs_cleanup_job",
@@ -19838,7 +19954,8 @@
         "gcp bucket",
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "si:googlecloudstorage"
     },
     {
       "id": "gcs_monitor",
@@ -20225,7 +20342,8 @@
         "vertex ai",
         "llm",
         "genai"
-      ]
+      ],
+      "icon": "si:googlegemini"
     },
     {
       "id": "gemini_llm",
@@ -20278,7 +20396,8 @@
         "vertex ai",
         "llm",
         "genai"
-      ]
+      ],
+      "icon": "si:googlegemini"
     },
     {
       "id": "gemini_resource",
@@ -20649,7 +20768,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "icon": "si:github"
     },
     {
       "id": "github_event_sensor",
@@ -20698,7 +20818,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "icon": "si:github"
     },
     {
       "id": "github_ingestion",
@@ -20849,7 +20970,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "icon": "si:gitlab"
     },
     {
       "id": "gong_call_summary_asset",
@@ -21029,7 +21151,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_ads_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_ads_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_ads_ingestion/requirements.txt",
-      "icon": "ArrowUpFromLine",
+      "icon": "si:googlecloud",
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
@@ -21265,7 +21387,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "icon": "si:googlecloud"
     },
     {
       "id": "google_cloud_functions",
@@ -21388,7 +21511,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_dataflow/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_dataflow/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_dataflow/requirements.txt",
-      "icon": "Plug",
+      "icon": "si:googlecloud",
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
@@ -21433,7 +21556,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_datastream/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_datastream/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_datastream/requirements.txt",
-      "icon": "Plug",
+      "icon": "si:googlecloud",
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
@@ -21508,7 +21631,8 @@
       "keywords": [
         "ingest",
         "read from"
-      ]
+      ],
+      "icon": "si:googlecloud"
     },
     {
       "id": "google_drive_ingestion",
@@ -21566,7 +21690,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "icon": "si:googlecloud"
     },
     {
       "id": "google_pubsub",
@@ -21643,7 +21768,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_sheets_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_sheets_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_sheets_ingestion/requirements.txt",
-      "icon": "ArrowUpFromLine",
+      "icon": "si:googlecloud",
       "validation": {
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/google_sheets.md",
@@ -21739,7 +21864,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_vertex_ai/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_vertex_ai/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_vertex_ai/requirements.txt",
-      "icon": "Plug",
+      "icon": "si:googlecloud",
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
@@ -21957,7 +22082,8 @@
       "keywords": [
         "llm",
         "genai"
-      ]
+      ],
+      "icon": "favicon:groq.com"
     },
     {
       "id": "hash",
@@ -22000,7 +22126,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "hashicorp_vault",
@@ -22133,7 +22260,8 @@
       "keywords": [
         "3rd party",
         "external system"
-      ]
+      ],
+      "icon": "Link"
     },
     {
       "id": "hl7_v2_parser",
@@ -22172,7 +22300,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "hooks_asset",
@@ -22264,7 +22393,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "html_parser",
@@ -22375,7 +22505,8 @@
         "mirror asset",
         "3rd party",
         "external system"
-      ]
+      ],
+      "icon": "Link"
     },
     {
       "id": "http_poll_sensor",
@@ -22420,7 +22551,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "icon": "Radar"
     },
     {
       "id": "http_resource",
@@ -22509,7 +22641,8 @@
       "keywords": [
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "Play"
     },
     {
       "id": "hubspot_ingestion",
@@ -23141,7 +23274,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/iceberg_catalog_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/iceberg_catalog_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/iceberg_catalog_resource/requirements.txt",
-      "icon": "Database",
+      "icon": "si:apache",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lakehouse_local.md",
@@ -23196,7 +23329,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/iceberg_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/iceberg_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/iceberg_ingestion/requirements.txt",
-      "icon": "Database",
+      "icon": "si:apache",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lakehouse_local.md",
@@ -23290,7 +23423,8 @@
         "storage",
         "persistence",
         "io"
-      ]
+      ],
+      "icon": "si:apache"
     },
     {
       "id": "iceberg_maintenance_job",
@@ -23340,7 +23474,8 @@
         "iceberg table",
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "si:apache"
     },
     {
       "id": "image_captioner",
@@ -23474,7 +23609,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "image_llm_extractor",
@@ -23705,7 +23841,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "imap_inbox_source",
@@ -23754,7 +23891,8 @@
       "keywords": [
         "read",
         "load"
-      ]
+      ],
+      "icon": "Database"
     },
     {
       "id": "imputation",
@@ -23847,7 +23985,8 @@
       "keywords": [
         "llm",
         "genai"
-      ]
+      ],
+      "icon": "Sparkles"
     },
     {
       "id": "inference_provider_ab_test",
@@ -23900,7 +24039,8 @@
       "keywords": [
         "llm",
         "genai"
-      ]
+      ],
+      "icon": "Sparkles"
     },
     {
       "id": "influxdb_resource",
@@ -23947,7 +24087,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "icon": "si:influxdb"
     },
     {
       "id": "informatica_powercenter_workspace",
@@ -24022,7 +24163,8 @@
         "workspace-style component",
         "3rd party",
         "external system"
-      ]
+      ],
+      "icon": "Link"
     },
     {
       "id": "informatica_workspace",
@@ -24097,7 +24239,8 @@
         "workspace-style component",
         "3rd party",
         "external system"
-      ]
+      ],
+      "icon": "Link"
     },
     {
       "id": "inline_dataframe",
@@ -24259,7 +24402,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/intercom_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/intercom_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/intercom_resource/requirements.txt",
-      "icon": "MessageCircle",
+      "icon": "si:intercom",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/enterprise_saas.md",
@@ -24324,7 +24467,8 @@
       "keywords": [
         "infra",
         "partitioned"
-      ]
+      ],
+      "icon": "Server"
     },
     {
       "id": "invoice_extractor",
@@ -24408,7 +24552,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "iterative_supervisor_agent",
@@ -24848,7 +24993,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "icon": "si:jira"
     },
     {
       "id": "jira_resource",
@@ -25189,7 +25335,8 @@
       },
       "keywords": [
         "infra"
-      ]
+      ],
+      "icon": "si:kubernetes"
     },
     {
       "id": "k_centroids_diagnostics",
@@ -25237,7 +25384,8 @@
       "keywords": [
         "report",
         "aggregate"
-      ]
+      ],
+      "icon": "BarChart2"
     },
     {
       "id": "k_means_clustering",
@@ -25626,7 +25774,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/kinesis_monitor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/kinesis_monitor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/kinesis_monitor/requirements.txt",
-      "icon": "Radar",
+      "icon": "si:amazonwebservices",
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
@@ -25677,7 +25825,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/kinesis_observation_sensor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/kinesis_observation_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/kinesis_observation_sensor/requirements.txt",
-      "icon": "Eye",
+      "icon": "si:amazonwebservices",
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
@@ -25717,7 +25865,7 @@
         "database",
         "asset"
       ],
-      "icon": "ArrowUpFromLine",
+      "icon": "si:amazonwebservices",
       "type": "dagster_component_templates.KinesisToDatabaseAssetComponent",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/kinesis_to_database_asset/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/kinesis_to_database_asset/component.py",
@@ -25984,7 +26132,7 @@
         "asset",
         "agentic"
       ],
-      "icon": "Sparkles",
+      "icon": "si:langchain",
       "type": "dagster_component_templates.LangChainChainAssetComponent",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/langchain_chain_asset/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/langchain_chain_asset/component.py",
@@ -26674,7 +26822,8 @@
         "open metadata",
         "write to",
         "output"
-      ]
+      ],
+      "icon": "favicon:open-metadata.org"
     },
     {
       "id": "lineage_to_purview",
@@ -26695,7 +26844,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/lineage_to_purview/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/lineage_to_purview/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/lineage_to_purview/requirements.txt",
-      "icon": "ArrowRightLeft",
+      "icon": "si:microsoftazure",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lineage_catalogs.md",
@@ -26820,7 +26969,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "icon": "si:linear"
     },
     {
       "id": "linear_regression_model",
@@ -27432,7 +27582,8 @@
         "lite llm",
         "llm",
         "genai"
-      ]
+      ],
+      "icon": "favicon:litellm.ai"
     },
     {
       "id": "llm_chain_executor",
@@ -27769,7 +27920,8 @@
         "storage",
         "persistence",
         "io"
-      ]
+      ],
+      "icon": "HardDrive"
     },
     {
       "id": "local_json_io_manager",
@@ -27815,7 +27967,8 @@
         "storage",
         "persistence",
         "io"
-      ]
+      ],
+      "icon": "HardDrive"
     },
     {
       "id": "local_parquet_io_manager",
@@ -27864,7 +28017,8 @@
         "persistence",
         "io"
       ],
-      "featured": true
+      "featured": true,
+      "icon": "HardDrive"
     },
     {
       "id": "log_prints_asset",
@@ -28004,7 +28158,8 @@
       "keywords": [
         "3rd party",
         "external system"
-      ]
+      ],
+      "icon": "si:looker"
     },
     {
       "id": "lookup",
@@ -28047,7 +28202,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "ltv_prediction",
@@ -28192,7 +28348,8 @@
       "keywords": [
         "report",
         "aggregate"
-      ]
+      ],
+      "icon": "BarChart2"
     },
     {
       "id": "make_group",
@@ -28232,7 +28389,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "map_values",
@@ -28274,7 +28432,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "markdown_stripper",
@@ -28374,7 +28533,8 @@
       "keywords": [
         "report",
         "aggregate"
-      ]
+      ],
+      "icon": "BarChart2"
     },
     {
       "id": "marketing_data_standardizer",
@@ -29023,7 +29183,8 @@
         "source_field": "outputs.assets",
         "key_template": "{asset_name_prefix}_{asset_id}"
       },
-      "featured": true
+      "featured": true,
+      "icon": "BarChart2"
     },
     {
       "id": "mlflow_experiment_sensor",
@@ -29072,7 +29233,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "icon": "si:mlflow"
     },
     {
       "id": "mlflow_model_inference",
@@ -29125,7 +29287,8 @@
         "ml flow",
         "llm",
         "genai"
-      ]
+      ],
+      "icon": "si:mlflow"
     },
     {
       "id": "mlflow_model_promotion",
@@ -29175,7 +29338,8 @@
         "ml flow",
         "3rd party",
         "external system"
-      ]
+      ],
+      "icon": "si:mlflow"
     },
     {
       "id": "mlflow_model_sensor",
@@ -29188,7 +29352,7 @@
         "mlflow",
         "model"
       ],
-      "icon": "Radar",
+      "icon": "si:mlflow",
       "type": "dagster_component_templates.MLflowModelSensor",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mlflow_model_sensor/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mlflow_model_sensor/component.py",
@@ -29278,7 +29442,8 @@
         "assertion",
         "quality gate"
       ],
-      "featured": true
+      "featured": true,
+      "icon": "si:mlflow"
     },
     {
       "id": "mlflow_resource",
@@ -29337,7 +29502,7 @@
       "component_type": "dagster_community_components.MLflowWorkspaceComponent",
       "path": "integrations/mlflow_workspace",
       "category": "ingestion",
-      "icon": "AccountTree",
+      "icon": "si:mlflow",
       "description": "Auto-emit Dagster assets for MLflow experiments (recent runs + metrics + params) and registered models (versions). StateBackedComponent — discovery cached to disk.",
       "tags": [
         "ingestion",
@@ -29551,7 +29716,8 @@
       "keywords": [
         "report",
         "aggregate"
-      ]
+      ],
+      "icon": "BarChart2"
     },
     {
       "id": "model_comparison",
@@ -29651,7 +29817,8 @@
       "keywords": [
         "report",
         "aggregate"
-      ]
+      ],
+      "icon": "BarChart2"
     },
     {
       "id": "moderation_scorer",
@@ -29803,7 +29970,8 @@
         "storage",
         "persistence",
         "io"
-      ]
+      ],
+      "icon": "si:mongodb"
     },
     {
       "id": "mongodb_reader",
@@ -30097,7 +30265,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mqtt_monitor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mqtt_monitor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mqtt_monitor/requirements.txt",
-      "icon": "Radar",
+      "icon": "si:mqtt",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/mqtt.md",
@@ -30145,7 +30313,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/mqtt_observation_sensor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/mqtt_observation_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/mqtt_observation_sensor/requirements.txt",
-      "icon": "Eye",
+      "icon": "si:mqtt",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/mqtt.md",
@@ -30182,7 +30350,7 @@
         "database",
         "asset"
       ],
-      "icon": "ArrowUpFromLine",
+      "icon": "si:mqtt",
       "type": "dagster_component_templates.MQTTToDatabaseAssetComponent",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/mqtt_to_database_asset/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/mqtt_to_database_asset/component.py",
@@ -30284,7 +30452,8 @@
         "storage",
         "persistence",
         "io"
-      ]
+      ],
+      "icon": "si:microsoftsqlserver"
     },
     {
       "id": "mssql_resource",
@@ -30342,7 +30511,8 @@
         "sqlserver",
         "connection",
         "connect"
-      ]
+      ],
+      "icon": "si:microsoftsqlserver"
     },
     {
       "id": "msteams_resource",
@@ -30389,7 +30559,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "icon": "Plug"
     },
     {
       "id": "multi_approver_gate",
@@ -30489,7 +30660,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "multi_field_formula",
@@ -30680,7 +30852,8 @@
       "keywords": [
         "report",
         "aggregate"
-      ]
+      ],
+      "icon": "BarChart2"
     },
     {
       "id": "mysql_io_manager",
@@ -30736,7 +30909,8 @@
         "storage",
         "persistence",
         "io"
-      ]
+      ],
+      "icon": "si:mysql"
     },
     {
       "id": "mysql_resource",
@@ -31209,7 +31383,8 @@
         "graphdb",
         "write to",
         "output"
-      ]
+      ],
+      "icon": "si:neo4j"
     },
     {
       "id": "nested_field_extractor",
@@ -31329,7 +31504,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/newrelic_nrql_query/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/newrelic_nrql_query/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/newrelic_nrql_query/requirements.txt",
-      "icon": "Search",
+      "icon": "si:newrelic",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/newrelic_dynatrace.md",
@@ -31385,7 +31560,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/newrelic_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/newrelic_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/newrelic_resource/requirements.txt",
-      "icon": "Activity",
+      "icon": "si:newrelic",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/newrelic_dynatrace.md",
@@ -31459,7 +31634,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "icon": "si:notion"
     },
     {
       "id": "notion_ingestion",
@@ -31607,7 +31783,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "icon": "ArrowDownToLine"
     },
     {
       "id": "oauth_rest_ingestion",
@@ -31750,7 +31927,8 @@
       "keywords": [
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "Play"
     },
     {
       "id": "ocr_extractor",
@@ -31842,7 +32020,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "ocsf_validator",
@@ -31887,7 +32066,8 @@
       "keywords": [
         "data quality",
         "assertion"
-      ]
+      ],
+      "icon": "ShieldCheck"
     },
     {
       "id": "odata_check",
@@ -32085,7 +32265,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "icon": "si:okta"
     },
     {
       "id": "ollama_inference_asset",
@@ -32099,7 +32280,7 @@
         "inference",
         "asset"
       ],
-      "icon": "Sparkles",
+      "icon": "si:ollama",
       "type": "dagster_component_templates.OllamaInferenceAssetComponent",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/ollama_inference_asset/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/ollama_inference_asset/component.py",
@@ -32437,7 +32618,8 @@
       "keywords": [
         "data quality",
         "assertion"
-      ]
+      ],
+      "icon": "ShieldCheck"
     },
     {
       "id": "openlineage_export_job",
@@ -32483,7 +32665,8 @@
       "keywords": [
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "Play"
     },
     {
       "id": "openrouter_llm",
@@ -32532,7 +32715,8 @@
       "keywords": [
         "llm",
         "genai"
-      ]
+      ],
+      "icon": "Sparkles"
     },
     {
       "id": "optimization",
@@ -32633,7 +32817,8 @@
         "pl/sql",
         "connection",
         "connect"
-      ]
+      ],
+      "icon": "si:oracle"
     },
     {
       "id": "outlier_clipper",
@@ -32776,7 +32961,8 @@
       "keywords": [
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "si:pagerduty"
     },
     {
       "id": "pagerduty_incident_sensor",
@@ -32819,7 +33005,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "icon": "si:pagerduty"
     },
     {
       "id": "pagerduty_resource",
@@ -32912,7 +33099,8 @@
       "keywords": [
         "data quality",
         "assertion"
-      ]
+      ],
+      "icon": "ShieldCheck"
     },
     {
       "id": "pandera_asset_check",
@@ -32961,7 +33149,8 @@
       "keywords": [
         "data quality",
         "assertion"
-      ]
+      ],
+      "icon": "ShieldCheck"
     },
     {
       "id": "papertrail_resource",
@@ -33005,7 +33194,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "icon": "Plug"
     },
     {
       "id": "parametric_data_generator",
@@ -33052,7 +33242,8 @@
       "keywords": [
         "read",
         "load"
-      ]
+      ],
+      "icon": "Database"
     },
     {
       "id": "part_of_speech_tagger",
@@ -33219,7 +33410,8 @@
         "materialize batch",
         "partitioned"
       ],
-      "featured": true
+      "featured": true,
+      "icon": "Play"
     },
     {
       "id": "pca",
@@ -33516,7 +33708,8 @@
       "keywords": [
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "Play"
     },
     {
       "id": "per_partition_backfill_job",
@@ -33557,7 +33750,8 @@
         "job",
         "materialize batch",
         "partitioned"
-      ]
+      ],
+      "icon": "Play"
     },
     {
       "id": "per_row_http_fetcher",
@@ -34204,7 +34398,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "plaid_resource",
@@ -34464,7 +34659,8 @@
         "storage",
         "persistence",
         "io"
-      ]
+      ],
+      "icon": "HardDrive"
     },
     {
       "id": "polars_pipeline",
@@ -34517,7 +34713,8 @@
         "partition rewrite",
         "backfill"
       ],
-      "featured": true
+      "featured": true,
+      "icon": "Shuffle"
     },
     {
       "id": "polars_read_database",
@@ -34566,7 +34763,8 @@
       "keywords": [
         "read",
         "load"
-      ]
+      ],
+      "icon": "Database"
     },
     {
       "id": "polars_scan_parquet",
@@ -34614,7 +34812,8 @@
       "keywords": [
         "read",
         "load"
-      ]
+      ],
+      "icon": "Database"
     },
     {
       "id": "poly_build",
@@ -34770,7 +34969,8 @@
         "postgre",
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "si:postgresql"
     },
     {
       "id": "postgres_io_manager",
@@ -34898,7 +35098,7 @@
         "product-analytics",
         "saas"
       ],
-      "icon": "BarChart",
+      "icon": "si:posthog",
       "type": "dagster_community_components.PostHogEventsIngestionComponent",
       "component_type": "dagster_community_components.PostHogEventsIngestionComponent",
       "dependencies": {
@@ -35227,7 +35427,8 @@
       },
       "keywords": [
         "infra"
-      ]
+      ],
+      "icon": "si:prefect"
     },
     {
       "id": "prefect_flow_run_sensor",
@@ -35271,7 +35472,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "icon": "si:prefect"
     },
     {
       "id": "prefect_resource",
@@ -35314,7 +35516,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "icon": "si:prefect"
     },
     {
       "id": "priority_scorer",
@@ -35595,7 +35798,8 @@
         "promql",
         "connection",
         "connect"
-      ]
+      ],
+      "icon": "si:prometheus"
     },
     {
       "id": "propensity_scoring",
@@ -35700,7 +35904,8 @@
         "genai",
         "quality gate",
         "merge gate"
-      ]
+      ],
+      "icon": "Sparkles"
     },
     {
       "id": "pubsub_monitor",
@@ -35725,7 +35930,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/pubsub_monitor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/pubsub_monitor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/pubsub_monitor/requirements.txt",
-      "icon": "Radar",
+      "icon": "si:googlecloud",
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
@@ -35777,7 +35982,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/pubsub_observation_sensor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/pubsub_observation_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/pubsub_observation_sensor/requirements.txt",
-      "icon": "Eye",
+      "icon": "si:googlecloud",
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
@@ -35862,7 +36067,8 @@
         "cloud pubsub",
         "write to",
         "output"
-      ]
+      ],
+      "icon": "si:googlecloud"
     },
     {
       "id": "pubsub_to_database_asset",
@@ -35876,7 +36082,7 @@
         "database",
         "asset"
       ],
-      "icon": "ArrowUpFromLine",
+      "icon": "si:googlecloud",
       "type": "dagster_component_templates.PubSubToDatabaseAssetComponent",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/pubsub_to_database_asset/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/pubsub_to_database_asset/component.py",
@@ -35946,7 +36152,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/pulsar_monitor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/pulsar_monitor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/pulsar_monitor/requirements.txt",
-      "icon": "Radar",
+      "icon": "si:apachepulsar",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/pulsar.md",
@@ -35993,7 +36199,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/pulsar_observation_sensor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/pulsar_observation_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/pulsar_observation_sensor/requirements.txt",
-      "icon": "Eye",
+      "icon": "si:apachepulsar",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/pulsar.md",
@@ -36029,7 +36235,7 @@
         "database",
         "asset"
       ],
-      "icon": "ArrowUpFromLine",
+      "icon": "si:apachepulsar",
       "type": "dagster_component_templates.PulsarToDatabaseAssetComponent",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/pulsar_to_database_asset/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/pulsar_to_database_asset/component.py",
@@ -36166,7 +36372,7 @@
       "component_type": "dagster_component_templates.PySparkFeedOrchestratorComponent",
       "path": "assets/transforms/pyspark_feed_orchestrator",
       "category": "transformation",
-      "icon": "Folder",
+      "icon": "si:apachespark",
       "description": "Folder-scan sibling of pyspark_pipeline. Point at a folder of feed.json / feed.yaml configs and get one Dagster multi_asset per file, with automatic cross-file lineage — when one feed's sink target matches another feed's source, they wire up in the asset graph. Feed shape is a superset of pyspark_pipeline (adds top-level schedule: cron + owners: + description:, plus control-flow step types condition / checkpoint / for_each).",
       "tags": [
         "transformation",
@@ -36278,7 +36484,8 @@
         "transform",
         "reshape"
       ],
-      "featured": true
+      "featured": true,
+      "icon": "si:apachespark"
     },
     {
       "id": "pyspark_resource",
@@ -36365,7 +36572,8 @@
       "keywords": [
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "Play"
     },
     {
       "id": "qdrant_resource",
@@ -38450,7 +38658,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "rss_feed_sensor",
@@ -38494,7 +38703,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "icon": "Radar"
     },
     {
       "id": "running_total",
@@ -38591,7 +38801,8 @@
         "bucket",
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "si:amazonwebservices"
     },
     {
       "id": "s3_csv_io_manager",
@@ -38644,7 +38855,8 @@
         "storage",
         "persistence",
         "io"
-      ]
+      ],
+      "icon": "si:amazonwebservices"
     },
     {
       "id": "s3_monitor",
@@ -38668,7 +38880,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/s3_monitor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/s3_monitor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/s3_monitor/requirements.txt",
-      "icon": "Radar",
+      "icon": "si:amazonwebservices",
       "validation": {
         "level": "live",
         "last_validated": "2026-05-19",
@@ -38719,7 +38931,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/s3_observation_sensor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/s3_observation_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/s3_observation_sensor/requirements.txt",
-      "icon": "Eye",
+      "icon": "si:amazonwebservices",
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
@@ -38919,7 +39131,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "icon": "si:salesforce"
     },
     {
       "id": "salesforce_ingestion",
@@ -39177,7 +39390,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sap_cpi_observation_sensor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sap_cpi_observation_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sap_cpi_observation_sensor/requirements.txt",
-      "icon": "Eye",
+      "icon": "si:sap",
       "validation": {
         "level": "code",
         "last_validated": "2026-05-13"
@@ -39226,7 +39439,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sap_event_mesh_sensor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sap_event_mesh_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sap_event_mesh_sensor/requirements.txt",
-      "icon": "Activity",
+      "icon": "si:sap",
       "validation": {
         "level": "code",
         "last_validated": "2026-05-13"
@@ -39270,7 +39483,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sap_hana_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sap_hana_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sap_hana_ingestion/requirements.txt",
-      "icon": "Database",
+      "icon": "si:sap",
       "validation": {
         "level": "code",
         "last_validated": "2026-05-13"
@@ -39330,7 +39543,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sap_hana_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sap_hana_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sap_hana_resource/requirements.txt",
-      "icon": "Database",
+      "icon": "si:sap",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/sap_hana.md",
@@ -39387,7 +39600,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sap_rfc_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sap_rfc_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sap_rfc_ingestion/requirements.txt",
-      "icon": "Database",
+      "icon": "si:sap",
       "validation": {
         "level": "code",
         "last_validated": "2026-05-13"
@@ -39444,7 +39657,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sap_rfc_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sap_rfc_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sap_rfc_resource/requirements.txt",
-      "icon": "Server",
+      "icon": "si:sap",
       "validation": {
         "level": "code",
         "last_validated": "2026-05-13"
@@ -39511,7 +39724,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "scd_type_2",
@@ -39555,7 +39769,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "schema_fit",
@@ -39787,7 +40002,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "sensitive_asset",
@@ -39892,7 +40108,7 @@
         "alert",
         "heartbeat"
       ],
-      "icon": "AlertCircle",
+      "icon": "si:sentry",
       "type": "dagster_community_components.SentryAlertJobComponent",
       "component_type": "dagster_community_components.SentryAlertJobComponent",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/sentry_alert_job/README.md",
@@ -39950,7 +40166,7 @@
         "errors",
         "saas"
       ],
-      "icon": "AlertCircle",
+      "icon": "si:sentry",
       "type": "dagster_community_components.SentryIssuesIngestionComponent",
       "component_type": "dagster_community_components.SentryIssuesIngestionComponent",
       "dependencies": {
@@ -40009,7 +40225,7 @@
         "cron-monitoring",
         "heartbeat"
       ],
-      "icon": "Clock",
+      "icon": "si:sentry",
       "type": "dagster_community_components.SentryMonitorCheckinJobComponent",
       "component_type": "dagster_community_components.SentryMonitorCheckinJobComponent",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/sentry_monitor_checkin_job/README.md",
@@ -40724,7 +40940,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sharepoint_monitor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sharepoint_monitor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sharepoint_monitor/requirements.txt",
-      "icon": "Radar",
+      "icon": "si:microsoftsharepoint",
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
@@ -40788,7 +41004,8 @@
       },
       "keywords": [
         "infra"
-      ]
+      ],
+      "icon": "Server"
     },
     {
       "id": "shell_command_job",
@@ -40827,7 +41044,8 @@
       "keywords": [
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "Play"
     },
     {
       "id": "shipping_label_extractor",
@@ -41093,7 +41311,8 @@
       "keywords": [
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "Play"
     },
     {
       "id": "siem_event_normalizer",
@@ -41140,7 +41359,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "sifflet_check",
@@ -41336,7 +41556,8 @@
         "genai",
         "human in the loop",
         "hitl"
-      ]
+      ],
+      "icon": "si:slack"
     },
     {
       "id": "slack_audit_log_ingestion",
@@ -41390,7 +41611,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "icon": "si:slack"
     },
     {
       "id": "slack_ingestion",
@@ -41536,7 +41758,8 @@
         "slack channel",
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "si:slack"
     },
     {
       "id": "slack_resource",
@@ -41639,7 +41862,8 @@
         "pattern": "One Dagster asset per stream defined in `replication.streams`. Asset keys mirror the target table names from the sling YAML.",
         "source_field": "replication.streams[]",
         "key_template": "{sling_target_table}"
-      }
+      },
+      "icon": "Link"
     },
     {
       "id": "smart_retry",
@@ -41745,7 +41969,8 @@
       "keywords": [
         "report",
         "aggregate"
-      ]
+      ],
+      "icon": "BarChart2"
     },
     {
       "id": "smtp_resource",
@@ -41839,7 +42064,8 @@
       "keywords": [
         "write to",
         "output"
-      ]
+      ],
+      "icon": "ArrowUpFromLine"
     },
     {
       "id": "snapshot_asset",
@@ -41945,7 +42171,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "icon": "si:snowflake"
     },
     {
       "id": "snowflake_alert",
@@ -42534,7 +42761,8 @@
         "storage",
         "persistence",
         "io"
-      ]
+      ],
+      "icon": "si:snowflake"
     },
     {
       "id": "snowflake_pyspark_io_manager",
@@ -42592,7 +42820,8 @@
         "storage",
         "persistence",
         "io"
-      ]
+      ],
+      "icon": "si:snowflake"
     },
     {
       "id": "snowflake_resource",
@@ -43291,7 +43520,8 @@
         "model-registry",
         "mlops"
       ],
-      "featured": true
+      "featured": true,
+      "icon": "si:snowflake"
     },
     {
       "id": "soda_check",
@@ -43434,7 +43664,8 @@
       "keywords": [
         "read",
         "load"
-      ]
+      ],
+      "icon": "Database"
     },
     {
       "id": "spark_k8s_operator_asset",
@@ -43442,7 +43673,7 @@
       "component_type": "dagster_community_components.SparkK8sOperatorAssetComponent",
       "path": "assets/infrastructure/spark_k8s_operator_asset",
       "category": "infrastructure",
-      "icon": "PlayArrow",
+      "icon": "si:apachespark",
       "description": "Submit a SparkApplication CRD to the Kubernetes Spark Operator (kubeflow/spark-on-k8s-operator) and materialize on terminal state (COMPLETED / FAILED / SUBMISSION_FAILED). Right for organizations wrapping PySpark ETLs behind a config-driven 'data ingest' framework and submitting them to k8s. Requires kubectl on PATH.",
       "tags": [
         "infrastructure",
@@ -43736,7 +43967,8 @@
       "keywords": [
         "llm",
         "genai"
-      ]
+      ],
+      "icon": "Sparkles"
     },
     {
       "id": "spline_model",
@@ -43785,7 +44017,8 @@
       "keywords": [
         "report",
         "aggregate"
-      ]
+      ],
+      "icon": "BarChart2"
     },
     {
       "id": "sql_command_job",
@@ -43830,7 +44063,8 @@
       "keywords": [
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "Play"
     },
     {
       "id": "sql_generator",
@@ -44091,7 +44325,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sqs_monitor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sqs_monitor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sqs_monitor/requirements.txt",
-      "icon": "Radar",
+      "icon": "si:amazonwebservices",
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
@@ -44143,7 +44377,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/sqs_observation_sensor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/sqs_observation_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/sqs_observation_sensor/requirements.txt",
-      "icon": "Eye",
+      "icon": "si:amazonwebservices",
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
@@ -44198,7 +44432,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sqs_to_database_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sqs_to_database_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sqs_to_database_asset/requirements.txt",
-      "icon": "ArrowUpFromLine",
+      "icon": "si:amazonwebservices",
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
@@ -44352,7 +44586,8 @@
         "workspace-style component",
         "3rd party",
         "external system"
-      ]
+      ],
+      "icon": "Link"
     },
     {
       "id": "starburst_resource",
@@ -44398,7 +44633,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "icon": "Plug"
     },
     {
       "id": "starrocks_resource",
@@ -44448,7 +44684,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "icon": "favicon:starrocks.io"
     },
     {
       "id": "step_functions_asset",
@@ -44542,7 +44779,8 @@
       "keywords": [
         "report",
         "aggregate"
-      ]
+      ],
+      "icon": "BarChart2"
     },
     {
       "id": "streaming_consumer",
@@ -44677,7 +44915,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "icon": "si:stripe"
     },
     {
       "id": "stripe_ingestion",
@@ -45256,7 +45495,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "survival_analysis",
@@ -45359,7 +45599,8 @@
       "keywords": [
         "report",
         "aggregate"
-      ]
+      ],
+      "icon": "BarChart2"
     },
     {
       "id": "synapse_sql_pool_admin_job",
@@ -45381,7 +45622,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/synapse_sql_pool_admin_job/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/synapse_sql_pool_admin_job/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/synapse_sql_pool_admin_job/requirements.txt",
-      "icon": "Power",
+      "icon": "si:microsoftazure",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
@@ -45450,7 +45691,8 @@
       "keywords": [
         "read",
         "load"
-      ]
+      ],
+      "icon": "Database"
     },
     {
       "id": "synthetic_data",
@@ -45588,7 +45830,8 @@
       "keywords": [
         "read",
         "load"
-      ]
+      ],
+      "icon": "Database"
     },
     {
       "id": "synthetic_pdf_generator",
@@ -45627,7 +45870,8 @@
       "keywords": [
         "read",
         "load"
-      ]
+      ],
+      "icon": "Database"
     },
     {
       "id": "synthetic_prompt_generator",
@@ -45683,7 +45927,8 @@
       "keywords": [
         "read",
         "load"
-      ]
+      ],
+      "icon": "Database"
     },
     {
       "id": "synthetic_video_generator",
@@ -45721,7 +45966,8 @@
       "keywords": [
         "read",
         "load"
-      ]
+      ],
+      "icon": "Database"
     },
     {
       "id": "tableau_assets",
@@ -45765,7 +46011,8 @@
       "keywords": [
         "3rd party",
         "external system"
-      ]
+      ],
+      "icon": "si:tableau"
     },
     {
       "id": "talend_cloud_workspace",
@@ -45838,7 +46085,8 @@
         "workspace-style component",
         "3rd party",
         "external system"
-      ]
+      ],
+      "icon": "Link"
     },
     {
       "id": "task_asset",
@@ -45895,7 +46143,7 @@
       "component_type": "dagster_community_components.TeamsApprovalGateComponent",
       "path": "assets/ai/teams_approval_gate",
       "category": "ai",
-      "icon": "GroupAdd",
+      "icon": "si:microsoftteams",
       "description": "Microsoft Teams HITL approval gate. Slack analog for SlackApprovalGate — same asset + sensor shape, same JSON token format, composes with HumanApprovalGateComponent via shared `approval_dir`. Uses MS Graph API (Azure AD app registration with application permissions ChannelMessage.Read.All + ChannelMessage.Send + admin consent). Two approval modes: `reactions` (default; approvers react with a Teams built-in emoji — like/heart/laugh/surprised/sad/angry, limited to 6) OR `reply` (approvers post a thread reply containing a configured keyword like APPROVE/REJECT — more flexible, allows context in the same message). Multi-approver quorum + allowlist + timeout policies (escalate/reject/approve). Sensor polls Teams API every `poll_interval_seconds` and writes the standard JSON approval token on quorum. Works without a public webhook (unlike Adaptive Cards interactive buttons) — deployable to Dagster+ Serverless with no infra changes. `approval_dir` accepts local paths OR cloud URIs (`s3://`, `gs://`, `abfs://`) via fsspec — MS-shop Azure hybrid customers should pair with `abfs://` + `adlfs` for native ADLS token storage.",
       "tags": [
         "ai",
@@ -45992,7 +46240,8 @@
       "keywords": [
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "si:microsoftteams"
     },
     {
       "id": "tecton_asset",
@@ -46238,7 +46487,7 @@
         "terraform",
         "asset"
       ],
-      "icon": "Server",
+      "icon": "si:terraform",
       "type": "dagster_component_templates.TerraformAssetComponent",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/terraform_asset/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/terraform_asset/component.py",
@@ -46283,7 +46532,7 @@
         "cloud",
         "asset"
       ],
-      "icon": "Server",
+      "icon": "si:terraform",
       "type": "dagster_component_templates.TerraformCloudAssetComponent",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/terraform_cloud_asset/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/terraform_cloud_asset/component.py",
@@ -46363,7 +46612,8 @@
       "keywords": [
         "report",
         "aggregate"
-      ]
+      ],
+      "icon": "BarChart2"
     },
     {
       "id": "text_chunker",
@@ -46487,7 +46737,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "text_embedding_asset",
@@ -47059,7 +47310,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "icon": "Plug"
     },
     {
       "id": "tm1_cube_data_ingestion",
@@ -47592,7 +47844,8 @@
       "keywords": [
         "llm",
         "genai"
-      ]
+      ],
+      "icon": "Sparkles"
     },
     {
       "id": "transpose",
@@ -47720,7 +47973,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/trino_query/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/trino_query/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/trino_query/requirements.txt",
-      "icon": "Database",
+      "icon": "si:trino",
       "validation": {
         "level": "code",
         "last_validated": "2026-07-28"
@@ -47889,7 +48142,8 @@
       "keywords": [
         "report",
         "aggregate"
-      ]
+      ],
+      "icon": "BarChart2"
     },
     {
       "id": "ts_filler",
@@ -48170,7 +48424,8 @@
       "keywords": [
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "si:twilio"
     },
     {
       "id": "twitter_ads_ingestion",
@@ -48360,7 +48615,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "vanta_controls_ingestion",
@@ -48814,7 +49070,8 @@
         "embed text",
         "llm",
         "genai"
-      ]
+      ],
+      "icon": "si:googlecloud"
     },
     {
       "id": "victoriametrics_cardinality_sensor",
@@ -48862,7 +49119,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "icon": "si:victoriametrics"
     },
     {
       "id": "victoriametrics_query_asset",
@@ -48914,7 +49172,8 @@
       "keywords": [
         "read",
         "load"
-      ]
+      ],
+      "icon": "si:victoriametrics"
     },
     {
       "id": "victoriametrics_resource",
@@ -48962,7 +49221,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "icon": "si:victoriametrics"
     },
     {
       "id": "victoriametrics_snapshot_job",
@@ -49010,7 +49270,8 @@
       "keywords": [
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "si:victoriametrics"
     },
     {
       "id": "video_audio_extract_asset",
@@ -49049,7 +49310,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "video_frame_extract_asset",
@@ -49088,7 +49350,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "video_metadata_extractor",
@@ -49127,7 +49390,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "vif",
@@ -49176,7 +49440,8 @@
       "keywords": [
         "report",
         "aggregate"
-      ]
+      ],
+      "icon": "BarChart2"
     },
     {
       "id": "vision_api_asset",
@@ -49222,7 +49487,8 @@
       "keywords": [
         "llm",
         "genai"
-      ]
+      ],
+      "icon": "Sparkles"
     },
     {
       "id": "vision_model",
@@ -49488,7 +49754,7 @@
       "component_type": "dagster_community_components.WandbWorkspaceComponent",
       "path": "integrations/wandb_workspace",
       "category": "ingestion",
-      "icon": "AccountTree",
+      "icon": "si:weightsandbiases",
       "description": "Auto-emit one Dagster asset per Weights & Biases project for a given entity. Materializing fetches recent runs via GraphQL and emits a DataFrame with state / summary metrics / config.",
       "tags": [
         "ingestion",
@@ -49596,7 +49862,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "warehouse_filter",
@@ -49645,7 +49912,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "warehouse_formula",
@@ -49694,7 +49962,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "warehouse_join",
@@ -49743,7 +50012,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "warehouse_maintenance_job",
@@ -49788,7 +50058,8 @@
       "keywords": [
         "job",
         "materialize batch"
-      ]
+      ],
+      "icon": "Play"
     },
     {
       "id": "warehouse_multi_field_formula",
@@ -49836,7 +50107,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "warehouse_multi_row_formula",
@@ -49885,7 +50157,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "warehouse_pipeline",
@@ -49943,7 +50216,8 @@
         "source_field": "sinks[].asset_name",
         "key_template": "{sinks[i].asset_name}"
       },
-      "featured": true
+      "featured": true,
+      "icon": "Shuffle"
     },
     {
       "id": "warehouse_schema_assets",
@@ -50041,7 +50315,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "warehouse_top_n_per_group",
@@ -50090,7 +50365,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "warehouse_union",
@@ -50139,7 +50415,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "weaviate_resource",
@@ -50278,7 +50555,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "word_cloud",
@@ -50458,7 +50736,8 @@
       "keywords": [
         "transform",
         "reshape"
-      ]
+      ],
+      "icon": "Shuffle"
     },
     {
       "id": "xml_parser",
@@ -50651,7 +50930,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "icon": "si:zendesk"
     },
     {
       "id": "zero_shot_classifier",

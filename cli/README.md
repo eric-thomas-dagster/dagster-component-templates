@@ -1,63 +1,78 @@
 # Dagster+ config-sync CLIs
 
 Two standalone Python scripts for syncing GitOps-managed configuration
-into a Dagster+ deployment via the GraphQL API. Both mirror the
+into a Dagster+ deployment via the real GraphQL API. Both mirror the
 shape of the built-in `dagster-cloud deployment alert-policies sync`:
 YAML manifest in → idempotent upsert-by-name out.
 
-| Script | Manages |
-|---|---|
-| [`sync_asset_selections.py`](sync_asset_selections.py) | Named asset selections (saved selectors used across the UI + alert policies + Insights) |
-| [`sync_custom_metrics.py`](sync_custom_metrics.py) | Custom Insights metrics (roll-ups of asset metadata by SUM / AVG / MIN / MAX) |
+**Verified against a live Dagster+ deployment (2026-09).** GraphQL
+mutation names + input types match the real Dagster+ schema (not
+inferred).
 
-## Zero non-stdlib deps except PyYAML
+| Script | Manages | Dagster+ concept |
+|---|---|---|
+| [`sync_catalog_views.py`](sync_catalog_views.py) | Named asset selections | Catalog Views |
+| [`sync_custom_metrics.py`](sync_custom_metrics.py) | Custom Insights metrics | Custom Metrics |
 
-Both scripts use only Python 3.8+ stdlib and PyYAML. No SDK install,
-no build step, no venv gymnastics — copy one file, `chmod +x`, run.
+## Zero deps except PyYAML
+
+Both scripts use Python 3.8+ stdlib + PyYAML only. No SDK install, no
+build step. Copy one file, `chmod +x`, run.
 
 ```bash
 pip install pyyaml
-chmod +x sync_asset_selections.py sync_custom_metrics.py
+chmod +x sync_catalog_views.py sync_custom_metrics.py
 ```
 
-## Usage — asset selections
+## Usage — Catalog Views (asset selections)
 
 ```bash
-# Preview what would be upserted
-./sync_asset_selections.py sync selections.yaml \
+# Preview what would be upserted (no API call)
+./sync_catalog_views.py sync catalog_views.yaml \
     --deployment-url https://acme.dagster.cloud/prod \
     --token-env DAGSTER_CLOUD_API_TOKEN \
     --dry-run
 
 # Actually apply
-./sync_asset_selections.py sync selections.yaml \
+./sync_catalog_views.py sync catalog_views.yaml \
     --deployment-url https://acme.dagster.cloud/prod \
     --token-env DAGSTER_CLOUD_API_TOKEN
 
-# Apply + prune: delete anything in the deployment that isn't in the manifest
-./sync_asset_selections.py sync selections.yaml \
+# Apply + prune: delete any view in the deployment not in the manifest
+./sync_catalog_views.py sync catalog_views.yaml \
     --deployment-url https://acme.dagster.cloud/prod \
     --token-env DAGSTER_CLOUD_API_TOKEN \
     --prune
 
 # List current state
-./sync_asset_selections.py list \
+./sync_catalog_views.py list \
     --deployment-url https://acme.dagster.cloud/prod \
     --token-env DAGSTER_CLOUD_API_TOKEN
 ```
 
-Manifest shape ([examples/selections.example.yaml](examples/selections.example.yaml)):
+Manifest shape ([examples/catalog_views.example.yaml](examples/catalog_views.example.yaml)):
 
 ```yaml
-selections:
+catalog_views:
   - name: high_priority_assets
-    description: assets tagged priority=high
-    selection: "tag:priority=high"
+    description: Assets tagged priority=high
+    icon: globe                            # icon names must match Dagster+'s catalog
+    is_private: false
+    query_selection: 'tag:"priority"="high"'
   - name: analytics_downstream
-    selection: "+group:analytics"
+    description: Everything downstream of analytics
+    icon: globe
+    is_private: false
+    query_selection: '+group:"analytics"'
 ```
 
-## Usage — custom Insights metrics
+**Selection sources.** Each view uses `query_selection` (a raw
+asset-selection string using Dagster's syntax). Structured filters
+(`groups`, `kinds`, `tags`, `owners`, `code_locations`, `columns`,
+`column_tags`, `table_names`) are also supported and can be combined
+with `query_selection` — Dagster+ intersects them.
+
+## Usage — Custom Insights metrics
 
 ```bash
 ./sync_custom_metrics.py sync metrics.yaml \
@@ -67,25 +82,36 @@ selections:
 
 ./sync_custom_metrics.py sync metrics.yaml \
     --deployment-url https://acme.dagster.cloud/prod \
+    --token-env DAGSTER_CLOUD_API_TOKEN
+
+./sync_custom_metrics.py sync metrics.yaml \
+    --deployment-url https://acme.dagster.cloud/prod \
     --token-env DAGSTER_CLOUD_API_TOKEN \
     --prune
+
+./sync_custom_metrics.py list \
+    --deployment-url https://acme.dagster.cloud/prod \
+    --token-env DAGSTER_CLOUD_API_TOKEN
 ```
 
 Manifest shape ([examples/metrics.example.yaml](examples/metrics.example.yaml)):
 
 ```yaml
 metrics:
-  - name: rows_ingested
-    description: sum of rows_ingested metadata across ingestion assets
-    metadata_key: rows_ingested
-    aggregation: SUM         # SUM | AVG | MIN | MAX
-    unit: rows
-    asset_selection: "group:ingestion"
+  - metadata_key: rows_ingested              # the natural key — matches asset metadata
+    display_name: Rows Ingested
+    description: Rows ingested per materialization
+    unit_type: INTEGER                        # INTEGER | TIME_MS | TIME_SECONDS | FLOAT | BYTES
+  - metadata_key: cost_usd
+    display_name: Compute Cost (USD)
+    unit_type: FLOAT
 ```
 
-## GitOps flow
+Note: Dagster+ Insights aggregates automatically — you don't specify an
+aggregation or asset-selection per metric here. Those are UI-side
+choices when you build a chart.
 
-Typical CI shape (GitHub Actions or equivalent):
+## GitOps flow
 
 ```yaml
 # .github/workflows/sync-dagster-plus-config.yml
@@ -93,7 +119,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "dagster-plus/selections.yaml"
+      - "dagster-plus/catalog_views.yaml"
       - "dagster-plus/metrics.yaml"
 
 jobs:
@@ -102,13 +128,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: pip install pyyaml
-      - name: Sync selections
-        run: ./cli/sync_asset_selections.py sync dagster-plus/selections.yaml \
+      - name: Sync catalog views
+        run: ./cli/sync_catalog_views.py sync dagster-plus/catalog_views.yaml \
                --deployment-url ${{ secrets.DAGSTER_PLUS_URL }} \
                --token-env DAGSTER_CLOUD_API_TOKEN --prune
         env:
           DAGSTER_CLOUD_API_TOKEN: ${{ secrets.DAGSTER_CLOUD_API_TOKEN }}
-      - name: Sync metrics
+      - name: Sync custom metrics
         run: ./cli/sync_custom_metrics.py sync dagster-plus/metrics.yaml \
                --deployment-url ${{ secrets.DAGSTER_PLUS_URL }} \
                --token-env DAGSTER_CLOUD_API_TOKEN --prune
@@ -121,20 +147,25 @@ Pair with the built-in `dagster-cloud deployment alert-policies sync`
 Together those three cover the config surface most ops teams manage
 out-of-band from their code deployment.
 
+## `--prune` safety note
+
+`--prune` deletes anything in the deployment that isn't in the
+manifest. If your manifest is the SINGLE SOURCE OF TRUTH for these
+config items, prune is what you want. If other people manually create
+Catalog Views or Custom Metrics via the UI, `--prune` will delete them
+— so leave it off (or scope to specific naming prefixes by convention).
+
 ## Getting a Dagster+ API token
 
 1. In Dagster+: **Cloud Settings → Tokens**.
 2. Create a **User** token (personal) or a **Service** token (CI/CD).
-3. Export it under whatever env var name you pass to `--token-env`.
+3. Export under whatever env var name you pass to `--token-env`
+   (default: `DAGSTER_CLOUD_API_TOKEN`).
 
-## Schema caveat
+## Debugging: introspect your deployment's schema
 
-The GraphQL mutation names used in these scripts
-(`saveAssetSelection`, `saveInsightsCustomMetric`, etc.) reflect the
-Dagster+ schema as of the time these scripts were written. If your
-deployment's schema uses different names, adjust the `Q_UPSERT_*`
-constants at the top of each script. To introspect your deployment's
-schema:
+The mutations used here were verified against a live Dagster+
+deployment in 2026-09. If your deployment's schema differs, introspect:
 
 ```bash
 curl -X POST https://acme.dagster.cloud/prod/graphql \
@@ -144,9 +175,12 @@ curl -X POST https://acme.dagster.cloud/prod/graphql \
     | python -m json.tool
 ```
 
+Look for mutations matching `catalogView` or `customMetric`. If names
+differ, edit the `Q_*` constants at the top of each script.
+
 ## Sharing with customers
 
 Both scripts are self-contained — safe to copy directly to a customer
 environment. They import only Python stdlib + PyYAML; no dependency on
-the `dagster_community_components` package or any other internal
-tooling. Rename them or the CLI `prog=` string if desired.
+`dagster_community_components` or any other internal tooling. Rename
+them or the `argparse` `prog=` string if desired.

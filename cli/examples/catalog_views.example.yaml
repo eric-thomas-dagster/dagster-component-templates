@@ -1,0 +1,24 @@
+# catalog_views.example.yaml — feed to sync_catalog_views.py sync <this>
+#
+# Each view specifies a raw `query_selection` string using Dagster's asset
+# selection syntax. Icon names must match Dagster+'s catalog (e.g. `globe`,
+# `star`, `bar_chart`, `folder`, `cloud`, `layers`, etc.); use `globe` as a
+# safe default that always renders.
+catalog_views:
+  - name: cli_test_high_priority
+    description: Assets tagged priority=high — used by the on-call alert policy.
+    icon: globe
+    is_private: false
+    query_selection: 'tag:"priority"="high"'
+
+  - name: cli_test_analytics_downstream
+    description: Everything downstream of the analytics group.
+    icon: globe
+    is_private: false
+    query_selection: '+group:"analytics"'
+
+  - name: cli_test_dbt_only
+    description: All dbt-kind assets.
+    icon: globe
+    is_private: false
+    query_selection: 'kind:"dbt"'

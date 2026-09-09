@@ -1,29 +1,21 @@
 # metrics.example.yaml — feed to sync_custom_metrics.py sync <this>
+#
+# `metadata_key` is the natural key (must be unique in your deployment).
+# `unit_type` is one of: INTEGER | TIME_MS | TIME_SECONDS | FLOAT | BYTES
+# Dagster+ Insights aggregates automatically — you don't set an aggregation
+# or asset-selection here (that's a UI-side choice).
 metrics:
-  - name: rows_ingested
-    description: Sum of rows_ingested metadata across all ingestion assets.
-    metadata_key: rows_ingested
-    aggregation: SUM
-    unit: rows
-    asset_selection: "group:ingestion"
+  - metadata_key: cli_test_rows_ingested
+    display_name: Rows Ingested (CLI test)
+    description: Sum of rows_ingested metadata per materialization.
+    unit_type: INTEGER
 
-  - name: pipeline_cost_usd
-    description: Total pipeline compute cost across all assets.
-    metadata_key: cost_usd
-    aggregation: SUM
-    unit: usd
-    asset_selection: "*"
+  - metadata_key: cli_test_cost_usd
+    display_name: Compute Cost USD (CLI test)
+    description: Compute cost in USD.
+    unit_type: FLOAT
 
-  - name: avg_api_latency_ms
-    description: Average API-fetch latency across ingestion assets.
-    metadata_key: fetch_latency_ms
-    aggregation: AVG
-    unit: milliseconds
-    asset_selection: "group:ingestion"
-
-  - name: max_freshness_lag_minutes
-    description: Worst freshness lag observed across mart-layer assets.
-    metadata_key: freshness_lag_minutes
-    aggregation: MAX
-    unit: minutes
-    asset_selection: "tag:layer=mart"
+  - metadata_key: cli_test_fetch_latency_ms
+    display_name: API Fetch Latency (CLI test)
+    description: Per-materialization API fetch latency.
+    unit_type: TIME_MS

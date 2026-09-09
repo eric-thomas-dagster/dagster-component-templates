@@ -1,0 +1,5 @@
+dagster>=1.7.0
+# Install the connector for your target warehouse:
+#   snowflake-connector-python>=3.6
+#   google-cloud-bigquery>=3.14
+#   psycopg2-binary>=2.9

@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_run_prune_job/schema.json
+type: dagster_component_templates.DagsterRunPruneJobComponent
+attributes:
+  job_name: prune_dagster_run_history
+  schedule: "0 4 * * *"                # daily at 4am
+  default_status: RUNNING
+  max_age_days: 30
+  keep_last_n_per_job: 10               # safety net
+  only_terminal_states: true            # SUCCESS/FAILURE/CANCELED only
+  max_deletes_per_run: 1000             # hard cap per tick
+  dry_run: false
+  tags:
+    team: platform

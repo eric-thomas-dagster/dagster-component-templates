@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_snowflake_job/schema.json
+type: dagster_component_templates.EventLogToSnowflakeJobComponent
+attributes:
+  job_name: dagster_events_to_snowflake
+  schedule: "*/15 * * * *"
+  default_status: RUNNING
+  account: abc12345.us-east-1
+  user: DAGSTER_INGEST
+  password_env: SNOWFLAKE_PASSWORD
+  warehouse: LOAD_WH
+  database: ANALYTICS
+  snowflake_schema: PLATFORM_OBSERVABILITY
+  table: DAGSTER_EVENTS
+  initial_lookback_hours: 24
+  batch_limit: 5000

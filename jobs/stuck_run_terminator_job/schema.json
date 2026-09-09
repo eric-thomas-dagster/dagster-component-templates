@@ -1,0 +1,17 @@
+{
+  "component_type": "dagster_component_templates.StuckRunTerminatorJobComponent",
+  "description": "Op-shaped job that force-cancels Dagster runs stuck in STARTING/STARTED/CANCELING beyond a threshold. Universal operational need — every deployment eventually gets zombie runs after worker crashes.",
+  "category": "jobs",
+  "icon": "Activity",
+  "attributes": {
+    "job_name": {"type": "string", "label": "Job Name", "description": "Dagster job name", "required": true},
+    "schedule": {"type": "string", "label": "Schedule", "description": "Cron schedule. Default every 15min.", "required": false, "default": "*/15 * * * *", "x-dagster-widget": "cron"},
+    "default_status": {"type": "string", "label": "Default Status", "required": false, "default": "stopped", "enum": ["stopped", "running"], "ui:widget": "select"},
+    "tags": {"type": "object", "label": "Job Tags", "required": false, "default": null},
+    "stuck_after_hours": {"type": "number", "label": "Stuck After Hours", "description": "Runs in-flight longer than this are candidates.", "required": false, "default": 6.0},
+    "scan_limit": {"type": "integer", "label": "Scan Limit", "description": "Max in-flight runs to inspect per tick.", "required": false, "default": 500},
+    "terminal_status": {"type": "string", "label": "Terminal Status", "description": "CANCELED (default, cleanest) or FAILURE (to trigger alerting).", "required": false, "default": "CANCELED", "enum": ["CANCELED", "FAILURE"]},
+    "tags_filter": {"type": "object", "label": "Tags Filter", "description": "Only inspect runs matching ALL these tag key/value pairs.", "required": false, "default": null},
+    "dry_run": {"type": "boolean", "label": "Dry Run", "description": "List stuck runs without changing status.", "required": false, "default": false}
+  }
+}

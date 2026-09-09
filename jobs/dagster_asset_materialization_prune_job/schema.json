@@ -1,0 +1,15 @@
+{
+  "component_type": "dagster_component_templates.DagsterAssetMaterializationPruneJobComponent",
+  "description": "Op-shaped job that wipes asset materialization history for configured assets, preserving the last N via synthetic re-emission tagged _re_emitted_by_prune_job=true.",
+  "category": "jobs",
+  "icon": "Trash",
+  "attributes": {
+    "job_name": {"type": "string", "required": true},
+    "schedule": {"type": "string", "required": false, "default": "0 5 * * 0", "x-dagster-widget": "cron"},
+    "default_status": {"type": "string", "required": false, "default": "stopped", "enum": ["stopped", "running"]},
+    "tags": {"type": "object", "required": false, "default": null},
+    "asset_keys": {"type": "array", "label": "Asset Keys", "description": "Asset user-strings to prune. Each history is wiped; last N re-emitted synthetically.", "required": true, "items": {"type": "string"}},
+    "keep_last_n_per_asset": {"type": "integer", "label": "Keep Last N Per Asset", "description": "Re-emitted synthetically after wipe. Set 0 to wipe everything.", "required": false, "default": 100},
+    "dry_run": {"type": "boolean", "required": false, "default": true}
+  }
+}

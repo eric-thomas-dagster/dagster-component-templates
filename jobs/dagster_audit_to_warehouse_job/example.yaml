@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_audit_to_warehouse_job/schema.json
+type: dagster_component_templates.DagsterAuditToWarehouseJobComponent
+attributes:
+  job_name: dagster_audit_log_to_snowflake
+  schedule: "0 * * * *"                 # hourly
+  default_status: RUNNING
+
+  dagster_plus_url: https://acme.dagster.cloud/prod
+  dagster_plus_token_env: DAGSTER_CLOUD_API_TOKEN
+
+  warehouse: snowflake
+
+  snowflake_account: abc12345.us-east-1
+  snowflake_user: DAGSTER_INGEST
+  snowflake_password_env: SNOWFLAKE_PASSWORD
+  snowflake_warehouse: LOAD_WH
+  snowflake_database: SECURITY
+  snowflake_schema: DAGSTER_AUDIT
+
+  table: DAGSTER_AUDIT_LOG
+  initial_lookback_hours: 24
+  batch_limit: 1000

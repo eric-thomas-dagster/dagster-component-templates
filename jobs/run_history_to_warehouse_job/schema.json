@@ -1,0 +1,30 @@
+{
+  "component_type": "dagster_component_templates.RunHistoryToWarehouseJobComponent",
+  "description": "Op-shaped job that MERGEs new/updated Dagster runs into a warehouse table (Snowflake | BigQuery | Postgres). Run-level (one row per run) — complement to event-log exports.",
+  "category": "jobs",
+  "icon": "Upload",
+  "attributes": {
+    "job_name": {"type": "string", "required": true},
+    "schedule": {"type": "string", "required": false, "default": "*/15 * * * *", "x-dagster-widget": "cron"},
+    "default_status": {"type": "string", "required": false, "default": "stopped", "enum": ["stopped", "running"]},
+    "tags": {"type": "object", "required": false, "default": null},
+    "warehouse": {"type": "string", "label": "Warehouse Type", "required": true, "enum": ["snowflake", "bigquery", "postgres"]},
+
+    "snowflake_account": {"type": "string", "required": false, "default": null},
+    "snowflake_user": {"type": "string", "required": false, "default": null},
+    "snowflake_password_env": {"type": "string", "required": false, "default": "SNOWFLAKE_PASSWORD"},
+    "snowflake_warehouse": {"type": "string", "required": false, "default": null},
+    "snowflake_database": {"type": "string", "required": false, "default": null},
+    "snowflake_schema": {"type": "string", "required": false, "default": "PUBLIC"},
+
+    "bq_project": {"type": "string", "required": false, "default": null},
+    "bq_dataset": {"type": "string", "required": false, "default": null},
+
+    "postgres_dsn_env": {"type": "string", "required": false, "default": "POSTGRES_DSN"},
+    "postgres_schema": {"type": "string", "required": false, "default": "public"},
+
+    "table": {"type": "string", "required": false, "default": "dagster_run_history"},
+    "initial_lookback_hours": {"type": "integer", "required": false, "default": 48},
+    "batch_limit": {"type": "integer", "required": false, "default": 1000}
+  }
+}

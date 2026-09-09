@@ -1,0 +1,18 @@
+{
+  "component_type": "dagster_component_templates.EventLogToDatadogJobComponent",
+  "description": "Op-shaped job that ships new Dagster event log entries to Datadog as log entries via the HTTP intake API. Batches up to 1000 events per POST.",
+  "category": "jobs",
+  "icon": "Upload",
+  "attributes": {
+    "job_name": {"type": "string", "required": true},
+    "schedule": {"type": "string", "required": false, "default": "*/5 * * * *", "x-dagster-widget": "cron"},
+    "default_status": {"type": "string", "required": false, "default": "stopped", "enum": ["stopped", "running"]},
+    "tags": {"type": "object", "required": false, "default": null},
+    "api_key_env": {"type": "string", "required": false, "default": "DATADOG_API_KEY"},
+    "intake_url": {"type": "string", "required": false, "default": "https://http-intake.logs.datadoghq.com/api/v2/logs"},
+    "service": {"type": "string", "required": false, "default": "dagster"},
+    "env": {"type": "string", "required": false, "default": "prod"},
+    "initial_lookback_hours": {"type": "integer", "required": false, "default": 6},
+    "batch_limit": {"type": "integer", "required": false, "default": 5000}
+  }
+}

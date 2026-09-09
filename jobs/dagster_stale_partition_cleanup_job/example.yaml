@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_stale_partition_cleanup_job/schema.json
+type: dagster_component_templates.DagsterStalePartitionCleanupJobComponent
+attributes:
+  job_name: detect_stale_partitions
+  schedule: "0 6 * * 0"                # weekly Sunday at 6am
+  default_status: STOPPED
+  asset_keys: []                        # [] = all partitioned assets in this code location
+  wipe_on_detection: false              # report-only by default; enable with care
+  max_stale_before_wipe: 100

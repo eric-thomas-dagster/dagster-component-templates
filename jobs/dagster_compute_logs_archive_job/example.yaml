@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_compute_logs_archive_job/schema.json
+type: dagster_component_templates.DagsterComputeLogsArchiveJobComponent
+attributes:
+  job_name: archive_dagster_compute_logs
+  schedule: "0 6 * * *"                # daily at 6am
+  default_status: STOPPED
+  source_dir: ""                        # empty = $DAGSTER_HOME/storage
+  min_age_days: 7
+  archive_target: s3                    # local | s3 | gcs
+  archive_bucket: acme-dagster-logs-cold
+  archive_prefix: dagster-compute-logs-archive/
+  delete_after_archive: false           # safer default; enable once you trust it
+  max_files_per_run: 1000
+  dry_run: true

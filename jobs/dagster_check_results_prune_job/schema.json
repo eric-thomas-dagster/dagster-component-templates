@@ -1,0 +1,16 @@
+{
+  "component_type": "dagster_component_templates.DagsterCheckResultsPruneJobComponent",
+  "description": "Op-shaped job that deletes old AssetCheckResult events from the event log. Filters by max_age_days and optional per-asset scoping.",
+  "category": "jobs",
+  "icon": "Trash",
+  "attributes": {
+    "job_name": {"type": "string", "required": true},
+    "schedule": {"type": "string", "required": false, "default": "0 5 * * 0", "x-dagster-widget": "cron"},
+    "default_status": {"type": "string", "required": false, "default": "stopped", "enum": ["stopped", "running"]},
+    "tags": {"type": "object", "required": false, "default": null},
+    "asset_keys": {"type": "array", "label": "Asset Keys", "description": "Empty = all assets; list to scope.", "required": false, "default": [], "items": {"type": "string"}},
+    "max_age_days": {"type": "integer", "required": false, "default": 30},
+    "max_deletes_per_run": {"type": "integer", "required": false, "default": 5000},
+    "dry_run": {"type": "boolean", "required": false, "default": true}
+  }
+}

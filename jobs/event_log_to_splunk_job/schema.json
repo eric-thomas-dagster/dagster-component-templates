@@ -1,0 +1,19 @@
+{
+  "component_type": "dagster_component_templates.EventLogToSplunkJobComponent",
+  "description": "Op-shaped job that ships new Dagster event log entries to Splunk via the HTTP Event Collector (HEC). Simpler than dagster_plus_to_siem_job: OSS event log only, single-destination.",
+  "category": "jobs",
+  "icon": "Upload",
+  "attributes": {
+    "job_name": {"type": "string", "required": true},
+    "schedule": {"type": "string", "required": false, "default": "*/5 * * * *", "x-dagster-widget": "cron"},
+    "default_status": {"type": "string", "required": false, "default": "stopped", "enum": ["stopped", "running"]},
+    "tags": {"type": "object", "required": false, "default": null},
+    "hec_url": {"type": "string", "label": "Splunk HEC URL", "required": true, "default": "https://splunk.example.com:8088/services/collector/event"},
+    "hec_token_env": {"type": "string", "required": false, "default": "SPLUNK_HEC_TOKEN"},
+    "sourcetype": {"type": "string", "required": false, "default": "dagster:event"},
+    "index": {"type": "string", "required": false, "default": null},
+    "verify_ssl": {"type": "boolean", "required": false, "default": true},
+    "initial_lookback_hours": {"type": "integer", "required": false, "default": 6},
+    "batch_limit": {"type": "integer", "required": false, "default": 5000}
+  }
+}

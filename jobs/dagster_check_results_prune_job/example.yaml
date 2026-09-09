@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_check_results_prune_job/schema.json
+type: dagster_component_templates.DagsterCheckResultsPruneJobComponent
+attributes:
+  job_name: prune_asset_check_results
+  schedule: "0 5 * * 0"                # weekly Sunday at 5am
+  default_status: STOPPED
+  asset_keys: []                        # [] = all assets; or list specific keys
+  max_age_days: 30
+  max_deletes_per_run: 5000
+  dry_run: true                         # verify first

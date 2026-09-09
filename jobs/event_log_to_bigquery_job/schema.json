@@ -1,0 +1,17 @@
+{
+  "component_type": "dagster_component_templates.EventLogToBigQueryJobComponent",
+  "description": "Op-shaped job that streams new Dagster event log entries into a BigQuery table via insert_rows_json. Cursor-based; only sends new events.",
+  "category": "jobs",
+  "icon": "Upload",
+  "attributes": {
+    "job_name": {"type": "string", "required": true},
+    "schedule": {"type": "string", "required": false, "default": "*/15 * * * *", "x-dagster-widget": "cron"},
+    "default_status": {"type": "string", "required": false, "default": "stopped", "enum": ["stopped", "running"]},
+    "tags": {"type": "object", "required": false, "default": null},
+    "gcp_project": {"type": "string", "label": "GCP Project", "required": true},
+    "dataset": {"type": "string", "label": "BigQuery Dataset", "required": true},
+    "table": {"type": "string", "required": false, "default": "dagster_events"},
+    "initial_lookback_hours": {"type": "integer", "required": false, "default": 24},
+    "batch_limit": {"type": "integer", "required": false, "default": 5000}
+  }
+}

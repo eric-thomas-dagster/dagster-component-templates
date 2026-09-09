@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/stuck_run_terminator_job/schema.json
+type: dagster_component_templates.StuckRunTerminatorJobComponent
+attributes:
+  job_name: terminate_stuck_runs
+  schedule: "*/15 * * * *"     # every 15 minutes
+  default_status: RUNNING
+  stuck_after_hours: 6         # runs in-flight >6h → force-cancel
+  scan_limit: 500
+  terminal_status: CANCELED    # or FAILURE (to trigger your alerting)
+  dry_run: false
+  tags:
+    team: platform

@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_datadog_job/schema.json
+type: dagster_component_templates.EventLogToDatadogJobComponent
+attributes:
+  job_name: dagster_events_to_datadog
+  schedule: "*/5 * * * *"                            # every 5 minutes
+  default_status: RUNNING
+  api_key_env: DATADOG_API_KEY
+  intake_url: https://http-intake.logs.datadoghq.com/api/v2/logs  # EU: .eu
+  service: dagster
+  env: prod
+  initial_lookback_hours: 6
+  batch_limit: 5000

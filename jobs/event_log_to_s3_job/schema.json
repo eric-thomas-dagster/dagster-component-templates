@@ -1,0 +1,17 @@
+{
+  "component_type": "dagster_component_templates.EventLogToS3JobComponent",
+  "description": "Op-shaped job that streams new Dagster event log entries to S3 as gzipped JSONL batches, partitioned by hour. Cursor-based; only sends new events since prior successful run.",
+  "category": "jobs",
+  "icon": "Upload",
+  "attributes": {
+    "job_name": {"type": "string", "required": true},
+    "schedule": {"type": "string", "required": false, "default": "*/15 * * * *", "x-dagster-widget": "cron"},
+    "default_status": {"type": "string", "required": false, "default": "stopped", "enum": ["stopped", "running"]},
+    "tags": {"type": "object", "required": false, "default": null},
+    "bucket": {"type": "string", "label": "S3 Bucket", "required": true},
+    "key_prefix": {"type": "string", "required": false, "default": "dagster-events/"},
+    "aws_region": {"type": "string", "required": false, "default": null},
+    "initial_lookback_hours": {"type": "integer", "required": false, "default": 24},
+    "batch_limit": {"type": "integer", "required": false, "default": 5000}
+  }
+}

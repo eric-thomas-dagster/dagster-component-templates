@@ -1,0 +1,21 @@
+{
+  "component_type": "dagster_component_templates.DagsterComputeLogsArchiveJobComponent",
+  "description": "Op-shaped job that gzips + archives old Dagster compute log files to S3/GCS/local, then optionally deletes them from primary storage. Frees primary storage without losing audit trail.",
+  "category": "jobs",
+  "icon": "Archive",
+  "attributes": {
+    "job_name": {"type": "string", "required": true},
+    "schedule": {"type": "string", "required": false, "default": "0 6 * * *", "x-dagster-widget": "cron"},
+    "default_status": {"type": "string", "required": false, "default": "stopped", "enum": ["stopped", "running"]},
+    "tags": {"type": "object", "required": false, "default": null},
+    "source_dir": {"type": "string", "label": "Source Dir", "description": "Root of compute logs. Empty = $DAGSTER_HOME/storage.", "required": false, "default": ""},
+    "min_age_days": {"type": "integer", "required": false, "default": 7},
+    "archive_target": {"type": "string", "label": "Archive Target", "required": false, "default": "local", "enum": ["local", "s3", "gcs"]},
+    "archive_local_dir": {"type": "string", "required": false, "default": null},
+    "archive_bucket": {"type": "string", "required": false, "default": null},
+    "archive_prefix": {"type": "string", "required": false, "default": "dagster-compute-logs-archive/"},
+    "delete_after_archive": {"type": "boolean", "required": false, "default": false},
+    "max_files_per_run": {"type": "integer", "required": false, "default": 1000},
+    "dry_run": {"type": "boolean", "required": false, "default": true}
+  }
+}

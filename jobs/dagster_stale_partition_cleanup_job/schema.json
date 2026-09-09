@@ -1,0 +1,15 @@
+{
+  "component_type": "dagster_component_templates.DagsterStalePartitionCleanupJobComponent",
+  "description": "Op-shaped job that detects orphaned partition materialization events for assets whose PartitionsDefinition has been re-shaped. Reports by default; opt-in wipe when threshold exceeded.",
+  "category": "jobs",
+  "icon": "Trash",
+  "attributes": {
+    "job_name": {"type": "string", "required": true},
+    "schedule": {"type": "string", "required": false, "default": "0 6 * * 0", "x-dagster-widget": "cron"},
+    "default_status": {"type": "string", "required": false, "default": "stopped", "enum": ["stopped", "running"]},
+    "tags": {"type": "object", "required": false, "default": null},
+    "asset_keys": {"type": "array", "label": "Asset Keys", "description": "Empty = all partitioned assets in the code location.", "required": false, "default": [], "items": {"type": "string"}},
+    "wipe_on_detection": {"type": "boolean", "label": "Wipe on Detection", "description": "If true, wipe the entire asset when stale partitions are detected. Destructive.", "required": false, "default": false},
+    "max_stale_before_wipe": {"type": "integer", "required": false, "default": 100}
+  }
+}

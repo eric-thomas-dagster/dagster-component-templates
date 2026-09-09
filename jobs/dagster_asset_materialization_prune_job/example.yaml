@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_asset_materialization_prune_job/schema.json
+type: dagster_component_templates.DagsterAssetMaterializationPruneJobComponent
+attributes:
+  job_name: prune_high_frequency_asset_history
+  schedule: "0 5 * * 0"                # weekly Sunday at 5am
+  default_status: STOPPED               # keep off until you're sure — this wipes history
+  asset_keys:
+    - analytics/orders
+    - analytics/user_sessions
+  keep_last_n_per_asset: 100            # preserved via synthetic re-emission
+  dry_run: true                         # confirm what would happen first

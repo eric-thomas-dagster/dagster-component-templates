@@ -1,0 +1,22 @@
+{
+  "component_type": "dagster_component_templates.EventLogToSnowflakeJobComponent",
+  "description": "Op-shaped job that streams new Dagster event log entries into a Snowflake table via INSERT batches. Cursor-based; only sends new events.",
+  "category": "jobs",
+  "icon": "Upload",
+  "attributes": {
+    "job_name": {"type": "string", "required": true},
+    "schedule": {"type": "string", "required": false, "default": "*/15 * * * *", "x-dagster-widget": "cron"},
+    "default_status": {"type": "string", "required": false, "default": "stopped", "enum": ["stopped", "running"]},
+    "tags": {"type": "object", "required": false, "default": null},
+    "account": {"type": "string", "label": "Snowflake Account", "description": "e.g. abc12345.us-east-1", "required": true},
+    "user": {"type": "string", "required": true},
+    "password_env": {"type": "string", "required": false, "default": "SNOWFLAKE_PASSWORD"},
+    "warehouse": {"type": "string", "label": "Snowflake Warehouse", "required": true},
+    "database": {"type": "string", "required": true},
+    "snowflake_schema": {"type": "string", "required": false, "default": "PUBLIC"},
+    "table": {"type": "string", "required": false, "default": "DAGSTER_EVENTS"},
+    "role": {"type": "string", "required": false, "default": null},
+    "initial_lookback_hours": {"type": "integer", "required": false, "default": 24},
+    "batch_limit": {"type": "integer", "required": false, "default": 5000}
+  }
+}

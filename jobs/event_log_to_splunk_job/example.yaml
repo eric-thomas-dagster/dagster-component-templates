@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_splunk_job/schema.json
+type: dagster_component_templates.EventLogToSplunkJobComponent
+attributes:
+  job_name: dagster_events_to_splunk
+  schedule: "*/5 * * * *"
+  default_status: RUNNING
+  hec_url: https://splunk.acme.com:8088/services/collector/event
+  hec_token_env: SPLUNK_HEC_TOKEN
+  sourcetype: dagster:event
+  index: main                           # optional
+  verify_ssl: true
+  initial_lookback_hours: 6
+  batch_limit: 5000

@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_bigquery_job/schema.json
+type: dagster_component_templates.EventLogToBigQueryJobComponent
+attributes:
+  job_name: dagster_events_to_bigquery
+  schedule: "*/15 * * * *"
+  default_status: RUNNING
+  gcp_project: acme-analytics
+  dataset: dagster_observability
+  table: dagster_events
+  initial_lookback_hours: 24
+  batch_limit: 5000

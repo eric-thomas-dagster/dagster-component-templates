@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_s3_job/schema.json
+type: dagster_component_templates.EventLogToS3JobComponent
+attributes:
+  job_name: dagster_events_to_s3
+  schedule: "*/15 * * * *"              # every 15 minutes
+  default_status: RUNNING
+  bucket: acme-dagster-events
+  key_prefix: dagster-events/            # date/hour partition appended
+  aws_region: us-east-1
+  initial_lookback_hours: 24
+  batch_limit: 5000
+  tags:
+    team: platform

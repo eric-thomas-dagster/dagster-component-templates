@@ -25,6 +25,7 @@ from dagster import (
     asset,
     sensor,
     SensorEvaluationContext,
+    SensorResult,
     AssetMaterialization,
     Resolvable,
     Model,
@@ -292,12 +293,17 @@ class AWSDMSComponent(Component, Model, Resolvable):
             minimum_interval_seconds=self.poll_interval_seconds,
         )
         def dms_observation_sensor(context: SensorEvaluationContext):
-            """Sensor to observe AWS DMS replication task status."""
+            """Sensor to observe AWS DMS replication task status.
+
+            Returns AssetMaterializations via SensorResult — direct
+            `yield AssetMaterialization` is silently dropped by Dagster.
+            """
             dms_client = self._get_client()
 
             # Get all replication tasks
             tasks = self._list_replication_tasks(dms_client)
 
+            asset_events: List[AssetMaterialization] = []
             for task_info in tasks:
                 task_name = task_info["name"]
                 task_arn = task_info["arn"]
@@ -341,10 +347,12 @@ class AWSDMSComponent(Component, Model, Resolvable):
                             ),
                         })
 
-                    yield AssetMaterialization(
+                    asset_events.append(AssetMaterialization(
                         asset_key=asset_key,
                         metadata=metadata,
-                    )
+                    ))
+
+            return SensorResult(asset_events=asset_events)
 
         return dms_observation_sensor
 

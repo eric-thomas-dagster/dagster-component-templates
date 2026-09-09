@@ -23,6 +23,7 @@ from dagster import (
     asset,
     sensor,
     SensorEvaluationContext,
+    SensorResult,
     AssetMaterialization,
     Resolvable,
     Model,
@@ -507,7 +508,12 @@ class AWSSageMakerComponent(Component, Model, Resolvable):
             minimum_interval_seconds=self.poll_interval_seconds,
         )
         def sagemaker_observation_sensor(context: SensorEvaluationContext):
-            """Sensor to observe AWS SageMaker jobs and pipeline executions."""
+            """Sensor to observe AWS SageMaker jobs and pipeline executions.
+
+            NOTE: Sensor evaluations must return SensorResult /
+            RunRequest / SkipReason. Direct `yield AssetMaterialization`
+            is silently dropped by Dagster.
+            """
             sagemaker = session.client("sagemaker")
 
             # Get cursor (last check time)
@@ -519,6 +525,7 @@ class AWSSageMakerComponent(Component, Model, Resolvable):
 
             now = datetime.utcnow()
 
+            asset_events: List[AssetMaterialization] = []
             # Observe completed training jobs
             if self.import_training_jobs:
                 try:
@@ -534,19 +541,21 @@ class AWSSageMakerComponent(Component, Model, Resolvable):
                             if self._matches_filters(job_name):
                                 asset_key = f"training_job_{job_name}"
 
-                                yield AssetMaterialization(
+                                asset_events.append(AssetMaterialization(
                                     asset_key=asset_key,
                                     metadata={
                                         "job_name": MetadataValue.text(job_name),
                                         "status": MetadataValue.text("Completed"),
                                         "observed_at": MetadataValue.text(now.isoformat()),
                                     },
-                                )
+                                ))
                 except ClientError as e:
                     context.log.warning(f"Failed to list training jobs: {e}")
 
-            # Update cursor
-            context.update_cursor(now.isoformat())
+            return SensorResult(
+                asset_events=asset_events,
+                cursor=now.isoformat(),
+            )
 
         return sagemaker_observation_sensor
 

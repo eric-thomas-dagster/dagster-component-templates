@@ -22,6 +22,7 @@ from dagster import (
     asset,
     sensor,
     SensorEvaluationContext,
+    SensorResult,
     AssetMaterialization,
     Resolvable,
     Model,
@@ -380,8 +381,12 @@ class AWSKinesisComponent(Component, Model, Resolvable):
             minimum_interval_seconds=self.poll_interval_seconds,
         )
         def kinesis_observation_sensor(context: SensorEvaluationContext):
-            """Sensor to observe AWS Kinesis delivery streams and analytics applications."""
+            """Sensor to observe AWS Kinesis delivery streams and analytics applications.
 
+            NOTE: Sensor evaluations must return SensorResult /
+            RunRequest / SkipReason. Direct `yield AssetMaterialization`
+            is silently dropped by Dagster.
+            """
             # Get cursor (last check time)
             cursor = context.cursor
             if cursor:
@@ -391,6 +396,7 @@ class AWSKinesisComponent(Component, Model, Resolvable):
 
             now = datetime.utcnow()
 
+            asset_events: List[AssetMaterialization] = []
             # Observe Firehose streams
             if self.import_firehose_streams:
                 firehose = session.client("firehose")
@@ -408,14 +414,14 @@ class AWSKinesisComponent(Component, Model, Resolvable):
                         if status == "ACTIVE":
                             asset_key = f"firehose_stream_{stream_name}"
 
-                            yield AssetMaterialization(
+                            asset_events.append(AssetMaterialization(
                                 asset_key=asset_key,
                                 metadata={
                                     "stream_name": MetadataValue.text(stream_name),
                                     "status": MetadataValue.text(status),
                                     "observed_at": MetadataValue.text(now.isoformat()),
                                 },
-                            )
+                            ))
                     except ClientError as e:
                         context.log.warning(f"Failed to describe stream {stream_name}: {e}")
 
@@ -437,7 +443,7 @@ class AWSKinesisComponent(Component, Model, Resolvable):
                         if status == "RUNNING":
                             asset_key = f"analytics_app_{app_name}"
 
-                            yield AssetMaterialization(
+                            asset_events.append(AssetMaterialization(
                                 asset_key=asset_key,
                                 metadata={
                                     "application_name": MetadataValue.text(app_name),
@@ -445,12 +451,14 @@ class AWSKinesisComponent(Component, Model, Resolvable):
                                     "runtime": MetadataValue.text(app_detail.get("RuntimeEnvironment", "UNKNOWN")),
                                     "observed_at": MetadataValue.text(now.isoformat()),
                                 },
-                            )
+                            ))
                     except ClientError as e:
                         context.log.warning(f"Failed to describe application {app_name}: {e}")
 
-            # Update cursor
-            context.update_cursor(now.isoformat())
+            return SensorResult(
+                asset_events=asset_events,
+                cursor=now.isoformat(),
+            )
 
         return kinesis_observation_sensor
 

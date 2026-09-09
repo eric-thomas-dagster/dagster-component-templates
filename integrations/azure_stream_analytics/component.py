@@ -23,6 +23,7 @@ from dagster import (
     observable_source_asset,
     sensor,
     SensorEvaluationContext,
+    SensorResult,
     AssetMaterialization,
     Resolvable,
     Model,
@@ -299,12 +300,18 @@ class AzureStreamAnalyticsComponent(Component, Model, Resolvable):
             minimum_interval_seconds=self.poll_interval_seconds,
         )
         def asa_observation_sensor(context: SensorEvaluationContext):
-            """Sensor to observe Azure Stream Analytics job status."""
+            """Sensor to observe Azure Stream Analytics job status.
+
+            NOTE: Sensor evaluations must return SensorResult /
+            RunRequest / SkipReason. Direct `yield AssetMaterialization`
+            is silently dropped by Dagster.
+            """
             asa_client = self._get_client()
 
             # Get all streaming jobs
             jobs = self._list_streaming_jobs(asa_client)
 
+            asset_events: List[AssetMaterialization] = []
             for job_info in jobs:
                 job_name = job_info["name"]
 
@@ -330,10 +337,12 @@ class AzureStreamAnalyticsComponent(Component, Model, Resolvable):
                             str(job.last_output_event_time)
                         )
 
-                    yield AssetMaterialization(
+                    asset_events.append(AssetMaterialization(
                         asset_key=asset_key,
                         metadata=metadata,
-                    )
+                    ))
+
+            return SensorResult(asset_events=asset_events)
 
         return asa_observation_sensor
 

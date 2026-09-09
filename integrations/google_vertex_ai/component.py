@@ -23,6 +23,7 @@ from dagster import (
     asset,
     sensor,
     SensorEvaluationContext,
+    SensorResult,
     AssetMaterialization,
     Resolvable,
     Model,
@@ -418,9 +419,15 @@ class GoogleVertexAIComponent(Component, Model, Resolvable):
             minimum_interval_seconds=self.poll_interval_seconds,
         )
         def vertex_ai_observation_sensor(context: SensorEvaluationContext):
-            """Sensor to observe Google Vertex AI jobs and pipelines."""
+            """Sensor to observe Google Vertex AI jobs and pipelines.
+
+            NOTE: Sensor evaluations must return SensorResult /
+            RunRequest / SkipReason. Direct `yield AssetMaterialization`
+            is silently dropped by Dagster.
+            """
             self._init_vertex_ai()
 
+            asset_events: List[AssetMaterialization] = []
             # Observe completed training jobs
             if self.import_training_jobs:
                 try:
@@ -436,16 +443,18 @@ class GoogleVertexAIComponent(Component, Model, Resolvable):
                             safe_name = re.sub(r'[^a-zA-Z0-9_]', '_', display_name)
                             asset_key = f"training_job_{safe_name}"
 
-                            yield AssetMaterialization(
+                            asset_events.append(AssetMaterialization(
                                 asset_key=asset_key,
                                 metadata={
                                     "display_name": MetadataValue.text(display_name),
                                     "state": MetadataValue.text(job.state.name if job.state else "UNKNOWN"),
                                 },
-                            )
+                            ))
 
                 except exceptions.GoogleAPICallError as e:
                     context.log.warning(f"Failed to list training jobs: {e}")
+
+            return SensorResult(asset_events=asset_events)
 
         return vertex_ai_observation_sensor
 

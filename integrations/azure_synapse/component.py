@@ -26,6 +26,7 @@ from dagster import (
     observable_source_asset,
     sensor,
     SensorEvaluationContext,
+    SensorResult,
     AssetMaterialization,
     Resolvable,
     Model,
@@ -464,7 +465,11 @@ class AzureSynapseComponent(Component, Model, Resolvable):
                 }
             )
 
-            # Emit asset materializations for completed pipeline runs
+            # Emit asset materializations for completed pipeline runs.
+            # NOTE: Sensor evaluations can only return SensorResult /
+            # RunRequest / SkipReason. Direct `yield AssetMaterialization`
+            # is silently dropped — collect and return via SensorResult.
+            asset_events: List[AssetMaterialization] = []
             for run in pipeline_runs.value:
                 if run.status in ["Succeeded", "Failed", "Cancelled"]:
                     # Check if pipeline matches our filters
@@ -489,13 +494,15 @@ class AzureSynapseComponent(Component, Model, Resolvable):
                     if run.status == "Failed" and run.message:
                         metadata["error"] = MetadataValue.text(run.message)
 
-                    yield AssetMaterialization(
+                    asset_events.append(AssetMaterialization(
                         asset_key=asset_key,
                         metadata=metadata,
-                    )
+                    ))
 
-            # Update cursor
-            context.update_cursor(now.isoformat())
+            return SensorResult(
+                asset_events=asset_events,
+                cursor=now.isoformat(),
+            )
 
         return synapse_observation_sensor
 

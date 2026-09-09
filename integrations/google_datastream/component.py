@@ -22,6 +22,7 @@ from dagster import (
     asset,
     sensor,
     SensorEvaluationContext,
+    SensorResult,
     AssetMaterialization,
     Resolvable,
     Model,
@@ -352,14 +353,19 @@ class GoogleDatastreamComponent(Component, Model, Resolvable):
             minimum_interval_seconds=self.poll_interval_seconds,
         )
         def datastream_observation_sensor(context: SensorEvaluationContext):
-            """Sensor to observe Google Cloud Datastream streams."""
+            """Sensor to observe Google Cloud Datastream streams.
 
+            NOTE: Sensor evaluations must return SensorResult /
+            RunRequest / SkipReason. Direct `yield AssetMaterialization`
+            is silently dropped by Dagster.
+            """
             if not self.import_streams:
-                return
+                return SensorResult(asset_events=[])
 
             # Get all streams
             streams = self._list_streams(client)
 
+            asset_events: List[AssetMaterialization] = []
             for stream_info in streams:
                 stream_name = stream_info["name"]
 
@@ -381,13 +387,15 @@ class GoogleDatastreamComponent(Component, Model, Resolvable):
                         if stream.errors:
                             metadata["error_count"] = MetadataValue.int(len(stream.errors))
 
-                        yield AssetMaterialization(
+                        asset_events.append(AssetMaterialization(
                             asset_key=asset_key,
                             metadata=metadata,
-                        )
+                        ))
 
                 except exceptions.GoogleAPICallError as e:
                     context.log.warning(f"Failed to describe stream {stream_name}: {e}")
+
+            return SensorResult(asset_events=asset_events)
 
         return datastream_observation_sensor
 

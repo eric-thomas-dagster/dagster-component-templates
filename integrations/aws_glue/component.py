@@ -515,7 +515,13 @@ def _build_glue_defs(
             _workflow_meta=workflow_metadata,
             _creds=creds,
         ):
+            """NOTE: Sensor evaluations must return SensorResult /
+            RunRequest / SkipReason. Direct `yield AssetMaterialization`
+            is silently dropped by Dagster — collect + return via
+            SensorResult.
+            """
             client = _make_glue_client(**_creds)
+            asset_events: list[dg.AssetMaterialization] = []
 
             for asset_key, meta in _job_meta.items():
                 job_name = meta["job_name"]
@@ -523,7 +529,7 @@ def _build_glue_defs(
                     runs = client.get_job_runs(JobName=job_name, MaxResults=5).get("JobRuns", [])
                     for run in runs:
                         if run.get("JobRunState") == "SUCCEEDED":
-                            yield dg.AssetMaterialization(
+                            asset_events.append(dg.AssetMaterialization(
                                 asset_key=asset_key,
                                 metadata={
                                     "run_id": run.get("Id"),
@@ -534,7 +540,7 @@ def _build_glue_defs(
                                     "source": "glue_observation_sensor",
                                     "entity_type": "glue_job",
                                 },
-                            )
+                            ))
                 except Exception as exc:
                     context.log.error(f"Error checking runs for Glue job '{job_name}': {exc}")
 
@@ -546,7 +552,7 @@ def _build_glue_defs(
                     ).get("CrawlerMetricsList", [])
                     if metrics and metrics[0].get("LastRuntimeSeconds", 0) > 0:
                         m = metrics[0]
-                        yield dg.AssetMaterialization(
+                        asset_events.append(dg.AssetMaterialization(
                             asset_key=asset_key,
                             metadata={
                                 "crawler_name": crawler_name,
@@ -557,7 +563,7 @@ def _build_glue_defs(
                                 "source": "glue_observation_sensor",
                                 "entity_type": "glue_crawler",
                             },
-                        )
+                        ))
                 except Exception as exc:
                     context.log.error(f"Error checking metrics for Glue crawler '{crawler_name}': {exc}")
 
@@ -567,7 +573,7 @@ def _build_glue_defs(
                     runs = client.get_workflow_runs(Name=workflow_name, MaxResults=5).get("Runs", [])
                     for run in runs:
                         if run.get("Status") == "COMPLETED":
-                            yield dg.AssetMaterialization(
+                            asset_events.append(dg.AssetMaterialization(
                                 asset_key=asset_key,
                                 metadata={
                                     "run_id": run.get("WorkflowRunId"),
@@ -577,9 +583,11 @@ def _build_glue_defs(
                                     "source": "glue_observation_sensor",
                                     "entity_type": "glue_workflow",
                                 },
-                            )
+                            ))
                 except Exception as exc:
                     context.log.error(f"Error checking runs for Glue workflow '{workflow_name}': {exc}")
+
+            return dg.SensorResult(asset_events=asset_events)
 
         sensors_list.append(glue_observation_sensor)
 

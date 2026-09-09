@@ -23,6 +23,7 @@ from dagster import (
     asset,
     sensor,
     SensorEvaluationContext,
+    SensorResult,
     AssetMaterialization,
     Resolvable,
     Model,
@@ -305,11 +306,15 @@ class GoogleDataflowComponent(Component, Model, Resolvable):
             minimum_interval_seconds=self.poll_interval_seconds,
         )
         def dataflow_observation_sensor(context: SensorEvaluationContext):
-            """Sensor to observe Google Cloud Dataflow jobs."""
+            """Sensor to observe Google Cloud Dataflow jobs.
 
+            Returns AssetMaterializations via SensorResult — direct
+            `yield AssetMaterialization` is silently dropped by Dagster.
+            """
             # Observe all jobs (batch and streaming)
             jobs = self._list_jobs(client)
 
+            asset_events: List[AssetMaterialization] = []
             for job_info in jobs:
                 job_name = job_info["name"]
                 job_type = job_info["type"]
@@ -324,7 +329,7 @@ class GoogleDataflowComponent(Component, Model, Resolvable):
                     else:
                         asset_key = f"streaming_job_{safe_name}"
 
-                    yield AssetMaterialization(
+                    asset_events.append(AssetMaterialization(
                         asset_key=asset_key,
                         metadata={
                             "job_name": MetadataValue.text(job_name),
@@ -332,7 +337,9 @@ class GoogleDataflowComponent(Component, Model, Resolvable):
                             "job_type": MetadataValue.text(job_type),
                             "state": MetadataValue.text(state),
                         },
-                    )
+                    ))
+
+            return SensorResult(asset_events=asset_events)
 
         return dataflow_observation_sensor
 

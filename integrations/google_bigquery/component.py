@@ -24,6 +24,7 @@ from dagster import (
     observable_source_asset,
     sensor,
     SensorEvaluationContext,
+    SensorResult,
     AssetMaterialization,
     Resolvable,
     Model,
@@ -648,9 +649,15 @@ class GoogleBigQueryComponent(Component, Model, Resolvable):
                 minimum_interval_seconds=self.poll_interval_seconds
             )
             def bigquery_observation_sensor(context: SensorEvaluationContext):
-                """Sensor to observe BigQuery scheduled query runs."""
+                """Sensor to observe BigQuery scheduled query runs.
+
+                NOTE: Sensor evaluations must return SensorResult /
+                RunRequest / SkipReason. Direct `yield AssetMaterialization`
+                is silently dropped by Dagster.
+                """
                 transfer_client = self._create_transfer_client()
 
+                asset_events: List[AssetMaterialization] = []
                 # Check for completed scheduled query runs
                 for asset_key, metadata in scheduled_query_metadata.items():
                     config_name = metadata['config_name']
@@ -671,7 +678,7 @@ class GoogleBigQueryComponent(Component, Model, Resolvable):
                             if run.update_time.seconds < start_time.seconds:
                                 continue
 
-                            yield AssetMaterialization(
+                            asset_events.append(AssetMaterialization(
                                 asset_key=asset_key,
                                 metadata={
                                     "run_name": run.name,
@@ -681,10 +688,12 @@ class GoogleBigQueryComponent(Component, Model, Resolvable):
                                     "source": "bigquery_observation_sensor",
                                     "entity_type": "scheduled_query",
                                 }
-                            )
+                            ))
 
                     except Exception as e:
                         context.log.error(f"Error checking runs for scheduled query {config_name}: {e}")
+
+                return SensorResult(asset_events=asset_events)
 
             sensors_list.append(bigquery_observation_sensor)
 

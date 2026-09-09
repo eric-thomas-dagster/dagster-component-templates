@@ -140,17 +140,32 @@ def _apply_ml_op(session, df, op: Dict[str, Any]):
     """Apply an in-warehouse ML step using snowflake-ml-python.
 
     Supports fit / predict / fit_predict / transform / fit_transform modes.
-    All compute happens inside the Snowflake warehouse — the estimator's
-    .fit()/.predict() calls compile to SQL that runs on the warehouse
-    just like Snowpark DataFrame ops.
+    All compute happens inside the Snowflake warehouse.
+
+    MLOps flow (train once, predict often — via Snowflake Model Registry):
+
+        # Training pipeline (weekly cron)
+        - op: ml
+          mode: fit
+          algorithm: xgb_classifier
+          input_columns: [...]
+          label_columns: [CHURNED]
+          model_name: customer_churn    # required for fit-with-persistence
+          # model_version: auto         # default; timestamp-based
+          # registry_database: ML       # defaults to session.database
+          # registry_schema: MODELS     # defaults to session.schema
+
+        # Inference pipeline (hourly cron)
+        - op: ml
+          mode: predict
+          input_columns: [...]
+          model_name: customer_churn
+          # model_version: latest       # default; or pin "v_20260909_123456"
+
+    `mode: fit` without `model_name` fits but doesn't persist (in-run
+    only — legacy behavior).
     """
     algorithm = (op.get("algorithm") or "").lower()
-    if algorithm not in _ML_ALGORITHMS:
-        raise ValueError(
-            f"snowpark_pipeline ml op: algorithm={algorithm!r} not supported. "
-            f"Valid: {sorted(_ML_ALGORITHMS)}"
-        )
-    module_path, class_name = _ML_ALGORITHMS[algorithm]
 
     input_cols = op.get("input_columns")
     if not input_cols or not isinstance(input_cols, list):
@@ -168,19 +183,41 @@ def _apply_ml_op(session, df, op: Dict[str, Any]):
     if mode not in valid_modes:
         raise ValueError(f"ml op: mode={mode!r} invalid. Valid: {sorted(valid_modes)}")
 
-    # `predict` / `transform` alone would require a persisted model (via
-    # Snowflake Model Registry or a prior step's fitted estimator). Neither
-    # is wired up yet — reject clearly rather than silently returning an
-    # unfit estimator's output. Tracked in TODO.md.
+    # Model Registry config (all optional at op level; required per-mode).
+    model_name = op.get("model_name")
+    model_version = op.get("model_version") or ("auto" if mode == "fit" else "latest")
+    model_comment = op.get("model_comment") or f"Fitted by snowpark_pipeline ml op ({algorithm or 'unknown'})"
+    registry_database = op.get("registry_database")
+    registry_schema = op.get("registry_schema")
+    predict_function = op.get("predict_function")   # e.g. "predict_proba" for classifiers
+
+    # predict / transform REQUIRE a model_name (Registry lookup key).
     if mode in ("predict", "transform"):
-        raise ValueError(
-            f"ml op: mode={mode!r} requires a persisted model, which isn't yet "
-            "supported in snowpark_pipeline. Use mode='fit_predict' (or "
-            "'fit_transform') for one-shot pipelines. Model Registry / "
-            "cross-pipeline model reuse is on the roadmap — see TODO.md."
+        if not model_name:
+            raise ValueError(
+                f"ml op: mode={mode!r} requires `model_name` (the Snowflake Model "
+                "Registry name of a previously-fit model). To fit + predict in one "
+                "pipeline, use mode='fit_predict'."
+            )
+        return _registry_load_and_run(
+            session, df, mode,
+            model_name=model_name,
+            model_version=model_version,
+            input_cols=input_cols,
+            output_cols=output_cols,
+            registry_database=registry_database,
+            registry_schema=registry_schema,
+            predict_function=predict_function,
         )
 
-    # Import + instantiate the estimator.
+    # fit / fit_predict / fit_transform — need to instantiate the estimator.
+    if algorithm not in _ML_ALGORITHMS:
+        raise ValueError(
+            f"snowpark_pipeline ml op: algorithm={algorithm!r} not supported. "
+            f"Valid: {sorted(_ML_ALGORITHMS)}"
+        )
+    module_path, class_name = _ML_ALGORITHMS[algorithm]
+
     import importlib
     est_mod = importlib.import_module(module_path)
     Estimator = getattr(est_mod, class_name)
@@ -192,18 +229,106 @@ def _apply_ml_op(session, df, op: Dict[str, Any]):
         est_kwargs.setdefault("label_cols", label_cols)
     estimator = Estimator(**est_kwargs)
 
-    # Execute the requested mode. `predict` / `transform` alone are
-    # rejected above (require persisted model — TODO).
     if mode == "fit":
         estimator.fit(df)
+        if model_name:
+            _registry_save(
+                session, estimator, df,
+                model_name=model_name,
+                model_version=model_version,
+                model_comment=model_comment,
+                registry_database=registry_database,
+                registry_schema=registry_schema,
+            )
         return df   # fit-only returns df unchanged
+
     if mode == "fit_predict":
         estimator.fit(df)
+        if model_name:
+            _registry_save(
+                session, estimator, df,
+                model_name=model_name,
+                model_version=model_version,
+                model_comment=model_comment,
+                registry_database=registry_database,
+                registry_schema=registry_schema,
+            )
         return estimator.predict(df)
+
     if mode == "fit_transform":
         estimator.fit(df)
+        if model_name:
+            _registry_save(
+                session, estimator, df,
+                model_name=model_name,
+                model_version=model_version,
+                model_comment=model_comment,
+                registry_database=registry_database,
+                registry_schema=registry_schema,
+            )
         return estimator.transform(df)
+
     raise ValueError(f"unhandled mode {mode!r}")   # unreachable
+
+
+def _get_registry(session, database: Optional[str], schema: Optional[str]):
+    """Instantiate the Snowflake Model Registry. Defaults to session's
+    current database/schema when either is unset."""
+    from snowflake.ml.registry import Registry
+    return Registry(
+        session=session,
+        database_name=database,      # None → uses session's current
+        schema_name=schema,
+    )
+
+
+def _resolve_version_name(version_hint: str) -> str:
+    """User-supplied version_name resolver.
+
+    - `auto` / empty → timestamp-based (`v_20260909_123456`)
+    - anything else → user-supplied literal
+    """
+    import time as _t
+    if version_hint in (None, "", "auto"):
+        return _t.strftime("v_%Y%m%d_%H%M%S", _t.gmtime())
+    return version_hint
+
+
+def _registry_save(session, estimator, df, *,
+                   model_name: str, model_version: str, model_comment: str,
+                   registry_database: Optional[str], registry_schema: Optional[str]) -> None:
+    """Log a fitted estimator to the Snowflake Model Registry as a new
+    version. Sample input drawn from the fit-time DataFrame for the
+    registry's signature inference."""
+    registry = _get_registry(session, registry_database, registry_schema)
+    version_name = _resolve_version_name(model_version)
+    sample_input = df.limit(100)   # signature inference
+    registry.log_model(
+        model=estimator,
+        model_name=model_name,
+        version_name=version_name,
+        comment=model_comment,
+        sample_input_data=sample_input,
+    )
+
+
+def _registry_load_and_run(session, df, mode: str, *,
+                           model_name: str, model_version: str,
+                           input_cols: list, output_cols: list,
+                           registry_database: Optional[str], registry_schema: Optional[str],
+                           predict_function: Optional[str]):
+    """Load a versioned model from Snowflake Model Registry + run its
+    predict (or transform / predict_proba) function against `df`."""
+    registry = _get_registry(session, registry_database, registry_schema)
+    model = registry.get_model(model_name)
+
+    if model_version in (None, "", "latest", "default"):
+        version = model.default
+    else:
+        version = model.version(model_version)
+
+    fn_name = predict_function or ("transform" if mode == "transform" else "predict")
+    return version.run(df, function_name=fn_name)
 
 
 def _apply_op(session, df, op: Dict[str, Any], step_outputs: Dict[str, Any]):

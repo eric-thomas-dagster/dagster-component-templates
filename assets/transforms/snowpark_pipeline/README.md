@@ -157,6 +157,66 @@ mirrors scikit-learn). `input_columns` + `output_column` + optional
 Requires `snowflake-ml-python>=1.5.0` in the environment (only when a
 step uses `op: ml` — the base package doesn't force it).
 
+### Snowflake Model Registry — train once, predict often
+
+Every `mode: fit` / `mode: fit_predict` / `mode: fit_transform` op can
+persist the fitted estimator to the **Snowflake Model Registry** by
+setting `model_name`. A separate `mode: predict` / `mode: transform`
+op (typically in a different pipeline, running on a different
+schedule) loads the model by name/version and scores new data — no
+retraining needed.
+
+| Field | Applies to | Default | Purpose |
+|---|---|---|---|
+| `model_name` | any mode | — | Registry key. If set on a fit-mode op, the fitted estimator is persisted. Required on `predict` / `transform`. |
+| `model_version` | any mode | `auto` (fit), `latest` (predict) | On fit: `auto` → timestamp (`v_20260909_123456`). On predict: `latest` → registry default. Also accepts a literal version. |
+| `registry_database` | any mode | session's current | Database that holds the registry. |
+| `registry_schema` | any mode | session's current | Schema that holds the registry. |
+| `model_comment` | fit modes | auto-generated | Free-text note attached to the version. |
+| `predict_function` | predict / transform | inferred | Override the runtime function; e.g. `predict_proba` on a classifier. |
+
+**Training pipeline** (weekly cron):
+
+```yaml
+steps:
+  - id: training_features
+    source: {kind: table, table: FEATURES.CUSTOMER_CHURN}
+    operations:
+      - op: ml
+        algorithm: xgb_classifier
+        input_columns: [TENURE_DAYS, MONTHLY_SPEND, SUPPORT_TICKETS]
+        label_columns: [CHURNED]
+        output_column: PREDICTION
+        hyperparameters: {n_estimators: 200, max_depth: 6}
+        mode: fit
+        model_name: customer_churn        # required to persist
+        model_comment: "Weekly retrain"
+        registry_database: ML             # default: session db
+        registry_schema: MODELS           # default: session schema
+sinks:
+  - {from: training_features, kind: none}  # no output table needed for pure training
+```
+
+**Inference pipeline** (hourly cron, separate `defs.yaml` entry):
+
+```yaml
+steps:
+  - id: scored
+    source: {kind: table, table: STAGE.NEW_CUSTOMERS}
+    operations:
+      - op: ml
+        mode: predict
+        model_name: customer_churn        # loads from Registry
+        # model_version: latest           # default; or "v_20260909_123456" to pin
+        input_columns: [TENURE_DAYS, MONTHLY_SPEND, SUPPORT_TICKETS]
+        # predict_function: predict_proba # optional — for probability outputs
+sinks:
+  - {from: scored, kind: table, table: ML.CHURN_PREDICTIONS, mode: overwrite}
+```
+
+`mode: fit` without `model_name` still fits, but the model exists only
+for the run's remaining steps — legacy in-run behavior.
+
 **End-to-end example** — KMeans clustering with feature prep before,
 rollup after:
 

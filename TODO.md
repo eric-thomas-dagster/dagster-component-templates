@@ -100,13 +100,11 @@ understand the constraint.
 ## snowpark_pipeline: `ml` op follow-ups
 
 The initial `ml` op (kmeans/xgboost/etc. via snowflake-ml-python) shipped
-in commit `b8315af9`. Follow-ups worth doing:
+in commit `b8315af9`. Snowflake Model Registry integration landed in
+snowpark_pipeline v1.2.0 — fit-mode ops persist to the Registry when
+`model_name` is set, predict/transform ops load a versioned model by
+`model_name` + `model_version` (default `latest`). Remaining follow-ups:
 
-- **Model Registry integration** — `mode: predict` / `mode: transform`
-  today reject with a clear error message because there's no
-  persisted-model story yet. Wire up `snowflake.ml.registry.Registry`
-  so pipelines can save a fitted model + reference it by name/version
-  from a separate pipeline for predict-only workloads.
 - **Training metrics as MaterializeMetadata** — after `fit_predict`,
   emit `snowpark/ml/silhouette` (KMeans), `snowpark/ml/r2` (regression),
   `snowpark/ml/accuracy` (classification), etc. Currently no evaluation

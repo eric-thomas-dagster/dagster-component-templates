@@ -14,7 +14,7 @@
     "source":       {"type": "object",
                      "description": "Top-level single-source shape: {kind: table|sql, table|query: ...}"},
     "operations":   {"type": "array", "items": {"type": "object"},
-                     "description": "Flat shape: Snowpark DataFrame ops. Supported: filter, select, drop, rename, with_columns, group_by, sort, limit, distinct, drop_nulls, join, union, sql, ml (in-warehouse ML via snowflake-ml-python — kmeans/dbscan/logistic_regression/xgb_classifier/random_forest_regressor/etc.)."},
+                     "description": "Flat shape: Snowpark DataFrame ops. Supported: filter, select, drop, rename, with_columns, group_by, sort, limit, distinct, drop_nulls, join, union, sql, ml (in-warehouse ML via snowflake-ml-python — kmeans/dbscan/logistic_regression/xgb_classifier/random_forest_regressor/etc.). The `ml` op supports Snowflake Model Registry via `model_name` / `model_version` / `registry_database` / `registry_schema` / `model_comment` / `predict_function` fields — set `model_name` on a fit-mode op to persist the fitted model, then set `mode: predict` (or `transform`) + `model_name` in a separate pipeline to load and score."},
     "sink":         {"type": "object",
                      "description": "Top-level single-sink shape: {kind: table|none, table, mode: overwrite|append}"},
 

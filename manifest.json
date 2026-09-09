@@ -43204,8 +43204,8 @@
       "id": "snowpark_pipeline",
       "name": "SnowparkPipeline",
       "category": "transformation",
-      "description": "Multi-step Snowpark DataFrame chain — full compute pushdown to Snowflake. Includes an `ml` op for in-warehouse ML (KMeans / RandomForest / XGBoost / etc. via snowflake-ml-python) so feature prep, fit, and post-processing all run as one asset.",
-      "version": "1.1.0",
+      "description": "Multi-step Snowpark DataFrame chain — full compute pushdown to Snowflake. Includes an `ml` op for in-warehouse ML (KMeans / RandomForest / XGBoost / etc. via snowflake-ml-python) with Snowflake Model Registry integration for train-once/predict-often MLOps (fit-mode ops persist by `model_name`, predict-mode ops load by name/version).",
+      "version": "1.2.0",
       "author": "Dagster Community",
       "path": "assets/transforms/snowpark_pipeline",
       "tags": [
@@ -43215,7 +43215,9 @@
         "pushdown",
         "pipeline",
         "ml",
-        "in-warehouse-ml"
+        "in-warehouse-ml",
+        "model-registry",
+        "mlops"
       ],
       "dependencies": {
         "pip": [
@@ -43255,7 +43257,9 @@
         "clustering",
         "classification",
         "regression",
-        "snowflake-ml-python"
+        "snowflake-ml-python",
+        "model-registry",
+        "mlops"
       ]
     },
     {

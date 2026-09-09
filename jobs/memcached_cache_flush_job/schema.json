@@ -1,6 +1,6 @@
 {
   "x-dagster-provides": ["job"],
-  "category": "job",
+  "category": "jobs",
   "type": "object",
   "properties": {
     "job_name": {"type": "string", "description": "Dagster job name."},

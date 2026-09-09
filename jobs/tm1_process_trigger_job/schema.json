@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.TM1ProcessTriggerJobComponent",
   "description": "Trigger a TM1 TI process or chore via the TM1 REST API. Wraps a Dagster job around a single ExecuteProcess call, with optional per-parameter overrides for TI processes and wait_for_completion for synchronous chains. Pairs with tm1_resource for auth.",
-  "category": "job",
+  "category": "jobs",
   "icon": "PlayArrow",
   "attributes": {
     "job_name": {

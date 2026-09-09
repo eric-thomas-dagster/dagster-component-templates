@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.QlikReplicateTaskTriggerJobComponent",
   "description": "Trigger a Qlik Replicate task (run/stop/reload) via the Enterprise Manager REST API. Wraps a Dagster job around a single Replicate control-plane call. Pairs with qlik_replicate_resource for auth. For continuous CDC use wait_for_completion=false; for one-shot migrations set true so the job waits for terminal state.",
-  "category": "job",
+  "category": "jobs",
   "icon": "PlayArrow",
   "attributes": {
     "job_name": {

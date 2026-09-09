@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.QlikComposeWorkflowTriggerJobComponent",
   "description": "Trigger a Qlik Compose workflow via the Compose REST API. Wraps a Dagster job around a run/stop action with optional wait_for_completion polling to terminal state (COMPLETED / STOPPED / ERROR / FAILED).",
-  "category": "job",
+  "category": "jobs",
   "icon": "PlayArrow",
   "attributes": {
     "job_name": {

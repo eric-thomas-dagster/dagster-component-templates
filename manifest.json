@@ -7132,7 +7132,7 @@
       "name": "Cognos Report Run Job",
       "component_type": "dagster_community_components.CognosReportRunJobComponent",
       "path": "jobs/cognos_report_run_job",
-      "category": "job",
+      "category": "jobs",
       "icon": "PlayArrow",
       "description": "Trigger a Cognos Analytics report run via REST. Supports multiple output formats (PDF/HTML/CSV/XLSX/XML/JSON) and parameter overrides.",
       "tags": [
@@ -24586,7 +24586,7 @@
       "name": "JDE Orchestration Trigger Job",
       "component_type": "dagster_community_components.JDEOrchestrationTriggerJobComponent",
       "path": "jobs/jde_orchestration_trigger_job",
-      "category": "job",
+      "category": "jobs",
       "icon": "PlayArrow",
       "description": "Trigger a JDE Orchestrator orchestration via REST. Supports sync + async modes with input parameter overrides; async_mode polls the jobId to terminal state (SUCCESS / COMPLETED / FAILED / ERROR / CANCELED).",
       "tags": [
@@ -28750,7 +28750,7 @@
     {
       "id": "memcached_cache_flush_job",
       "name": "Memcached Cache Flush Job",
-      "category": "job",
+      "category": "jobs",
       "description": "Flush the entire Memcached instance (flush_all) or a specific key list as a Dagster job. Optional cron schedule.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -36593,7 +36593,7 @@
       "name": "Qlik Compose Workflow Trigger Job",
       "component_type": "dagster_community_components.QlikComposeWorkflowTriggerJobComponent",
       "path": "jobs/qlik_compose_workflow_trigger_job",
-      "category": "job",
+      "category": "jobs",
       "icon": "PlayArrow",
       "description": "Trigger a Qlik Compose workflow via the Compose REST API. Wraps a Dagster job around a run/stop action with optional wait_for_completion polling to terminal state (COMPLETED / STOPPED / ERROR / FAILED).",
       "tags": [
@@ -36884,7 +36884,7 @@
       "name": "Qlik Replicate Task Trigger Job",
       "component_type": "dagster_community_components.QlikReplicateTaskTriggerJobComponent",
       "path": "jobs/qlik_replicate_task_trigger_job",
-      "category": "job",
+      "category": "jobs",
       "icon": "PlayArrow",
       "description": "Trigger a Qlik Replicate task (run/stop/reload) via the Enterprise Manager REST API. Wraps a Dagster job around a single Replicate control-plane call. For continuous CDC use wait_for_completion=false; for one-shot migrations set true so the job waits for terminal state.",
       "tags": [
@@ -42218,7 +42218,7 @@
     {
       "id": "snowflake_dynamic_table_refresh_asset",
       "name": "Snowflake Dynamic Table Refresh Asset",
-      "category": "data_warehouse",
+      "category": "integration",
       "description": "Materialize by ALTER DYNAMIC TABLE ... REFRESH on a named Snowflake dynamic table.",
       "path": "assets/data-warehouse/snowflake_dynamic_table_refresh_asset",
       "tags": [
@@ -42807,7 +42807,7 @@
     {
       "id": "snowflake_stored_procedure_call_asset",
       "name": "Snowflake Stored Procedure Call Asset",
-      "category": "data_warehouse",
+      "category": "integration",
       "description": "Materialize by CALL on a named Snowflake stored procedure. Single-entity counterpart to snowflake_workspace.",
       "path": "assets/data-warehouse/snowflake_stored_procedure_call_asset",
       "tags": [
@@ -43067,7 +43067,7 @@
     {
       "id": "snowflake_task_execute_asset",
       "name": "Snowflake Task Execute Asset",
-      "category": "data_warehouse",
+      "category": "integration",
       "description": "Materialize by EXECUTE TASK on a named Snowflake task. Single-entity counterpart to snowflake_workspace.",
       "path": "assets/data-warehouse/snowflake_task_execute_asset",
       "tags": [
@@ -47188,7 +47188,7 @@
       "name": "TM1 Process Trigger Job",
       "component_type": "dagster_community_components.TM1ProcessTriggerJobComponent",
       "path": "jobs/tm1_process_trigger_job",
-      "category": "job",
+      "category": "jobs",
       "icon": "PlayArrow",
       "description": "Trigger a TM1 TI process or chore via the TM1 REST API. Wraps a Dagster job around ExecuteProcess with optional parameter overrides. Use for scheduled data loads, mid-DAG process invocation, and one-off admin runs.",
       "tags": [

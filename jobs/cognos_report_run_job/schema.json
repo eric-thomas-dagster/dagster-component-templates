@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.CognosReportRunJobComponent",
   "description": "Trigger a Cognos Analytics report run via REST. Supports parameter overrides and multiple output formats (PDF / HTML / CSV / XLSX / XML / JSON). Optional wait_for_completion polls the job to terminal state.",
-  "category": "job",
+  "category": "jobs",
   "icon": "PlayArrow",
   "attributes": {
     "job_name": {

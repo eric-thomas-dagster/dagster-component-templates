@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.PartitionedAssetLauncherJobComponent",
   "description": "Launch a partitioned materialization from a run-config form. Reads user-provided config (via Dagster's launchpad or an external RunConfig POST), formats a partition key from `partition_key_template`, registers it on a dynamic partitions definition, then materializes the target asset selection with that partition_key. The launcher is the config-shaped entry point; the target is the actual partitioned pipeline.",
-  "category": "job",
+  "category": "jobs",
   "icon": "PlayArrow",
   "x-dagster-io": {
     "outputs": {"type": "job_run", "description": "One launcher run + one inner materialization run per invocation. Target assets are partitioned on the computed partition_key."}

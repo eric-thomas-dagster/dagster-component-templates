@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.JDEOrchestrationTriggerJobComponent",
   "description": "Trigger a JDE Orchestrator orchestration via REST. Supports sync + async modes with input parameter overrides; async_mode polls the jobId to terminal state (SUCCESS / COMPLETED / FAILED / ERROR / CANCELED).",
-  "category": "job",
+  "category": "jobs",
   "icon": "PlayArrow",
   "attributes": {
     "job_name": {

@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.SnowflakeTaskExecuteAssetComponent",
   "description": "Materialize by EXECUTE TASK on a named Snowflake task. Single-entity counterpart to snowflake_workspace's auto-discovered tasks.",
-  "category": "data-warehouse",
+  "category": "integration",
   "icon": "si:snowflake",
   "x-dagster-io": {
     "outputs": {

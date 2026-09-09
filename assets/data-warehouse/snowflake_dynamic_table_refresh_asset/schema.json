@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.SnowflakeDynamicTableRefreshAssetComponent",
   "description": "Materialize by ALTER DYNAMIC TABLE ... REFRESH on a named Snowflake dynamic table. Single-entity counterpart to snowflake_workspace's auto-discovered DTs.",
-  "category": "data-warehouse",
+  "category": "integration",
   "icon": "si:snowflake",
   "x-dagster-io": {
     "outputs": {

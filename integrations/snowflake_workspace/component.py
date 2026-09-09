@@ -1755,6 +1755,44 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                                             context.log.warning(
                                                 f"Could not read pending row count for {stream_name_v}: {exc}."
                                             )
+
+                                    # Cumulative consumption metrics — always meaningful even when
+                                    # the stream is currently drained. Text-match on QUERY_HISTORY
+                                    # is the only way to attribute row counts to a specific stream:
+                                    # Snowflake exposes no STREAM_USAGE_HISTORY view for DML streams
+                                    # (only Snowpipe Streaming), and SYSTEM$LAST_CHANGE_COMMIT_TIME
+                                    # doesn't work on standard streams either.
+                                    #
+                                    # Caveats:
+                                    #   - INFORMATION_SCHEMA.QUERY_HISTORY retains ~7 days (hence
+                                    #     the _7d suffix). For longer windows switch to
+                                    #     SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY (365 days, but needs
+                                    #     the SNOWFLAKE db grant + 45min–3hr latency).
+                                    #   - ILIKE '%<name>%' is a text match. A comment mentioning
+                                    #     the stream name would false-positive; the two NOT ILIKE
+                                    #     filters exclude the observer's own probes + SHOW STREAMS
+                                    #     activity; ROWS_INSERTED > 0 filters SELECT-only probes.
+                                    #   - RESULT_LIMIT => 1000 is important — the default of 100
+                                    #     drops off fast on busy accounts.
+                                    try:
+                                        cursor.execute(f"""
+                                            SELECT COALESCE(SUM(ROWS_INSERTED), 0),
+                                                   MAX(END_TIME)
+                                              FROM TABLE(INFORMATION_SCHEMA.QUERY_HISTORY(RESULT_LIMIT => 1000))
+                                             WHERE QUERY_TEXT ILIKE '%{stream_name_v}%'
+                                               AND QUERY_TEXT NOT ILIKE '%INFORMATION_SCHEMA%'
+                                               AND QUERY_TEXT NOT ILIKE '%SHOW STREAMS%'
+                                               AND EXECUTION_STATUS = 'SUCCESS'
+                                               AND ROWS_INSERTED > 0
+                                        """)
+                                        rows_advanced, last_consumed = cursor.fetchone()
+                                        metadata["snowflake/rows_advanced_7d"] = MetadataValue.int(int(rows_advanced))
+                                        if last_consumed:
+                                            metadata["snowflake/last_consumed_at"] = MetadataValue.timestamp(last_consumed)
+                                    except Exception as exc:
+                                        context.log.warning(
+                                            f"Could not read consumption history for {stream_name_v}: {exc}."
+                                        )
                                 except Exception as exc:
                                     context.log.warning(
                                         f"Could not observe stream {stream_name_v}: {exc}."
@@ -1765,12 +1803,18 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                                 # data_version: change-sensitive signature so
                                 # downstream AutomationCondition.eager() doesn't
                                 # re-fire on every observation tick when the
-                                # stream's state hasn't moved.
+                                # stream's state hasn't moved. Includes the
+                                # cumulative rows_advanced_7d so downstream
+                                # DOES re-fire when new rows actually pass
+                                # through, even if has_data/pending are 0
+                                # (drained-fast streams).
                                 _has = metadata.get("snowflake/has_data")
                                 _pending = metadata.get("snowflake/pending_rows")
+                                _rows_adv = metadata.get("snowflake/rows_advanced_7d")
                                 signature = (
                                     f"{getattr(_has, 'value', _has)}:"
-                                    f"{getattr(_pending, 'value', _pending)}"
+                                    f"{getattr(_pending, 'value', _pending)}:"
+                                    f"{getattr(_rows_adv, 'value', _rows_adv)}"
                                 )
                                 return ObserveResult(
                                     data_version=DataVersion(signature),

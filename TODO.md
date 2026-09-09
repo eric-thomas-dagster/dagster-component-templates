@@ -32,20 +32,47 @@ The web UI's "Trust & feedback" surface reads from `manifest.json`'s
 `validation.level` field — every new walkthrough should bump that for
 its components.
 
-## Op-job category: more "export to X" jobs
+## Op-job category — mostly shipped
 
-`jobs/openlineage_export_job` (just landed) is one example. Other
-candidates that fit the same op-job pattern (run-shaped, not asset-shaped):
+The initial ideas here have landed. Current op-job families in `jobs/`:
 
-- **SIEM audit log export** — emit Dagster run events to Splunk / Datadog /
-  Sumo on a schedule, separate from `dagster_plus_to_siem_job` which is
-  cloud-specific.
+- **Lineage catalog exports** (7): `openlineage`, `openmetadata`, `alation`,
+  `collibra`, `datahub`, `purview`, `data360`, `webhook_lineage`. Each is
+  an op-shaped sibling of the corresponding `lineage_to_*` asset sink.
+- **Event log exports** (5): `event_log_to_{s3,bigquery,snowflake,datadog,splunk}`.
+- **Run / audit warehouse exports** (2): `run_history_to_warehouse_job`,
+  `dagster_audit_to_warehouse_job` (Dagster+ audit log).
+- **Cleanup / operational hygiene** (6): `dagster_run_prune_job`,
+  `dagster_asset_materialization_prune_job`, `dagster_check_results_prune_job`,
+  `dagster_compute_logs_archive_job`, `dagster_stale_partition_cleanup_job`,
+  `stuck_run_terminator_job`.
+
+Remaining candidates (not urgent):
+
 - **Cost telemetry export** — push run-cost metrics (compute time × tier)
   to a billing system.
-- **Compliance export** — periodic snapshot of which assets ran with what
-  data classification, for audit trails.
+- **Compliance snapshot export** — periodic snapshot of which assets ran
+  with what data classification, for audit trails.
 
-These should land in `jobs/` alongside the existing cleanup / trigger jobs.
+## Dagster+ CLI: custom selections + custom metrics (via GraphQL)
+
+We already ship a CLI for publishing **alert policies** to a Dagster+
+deployment. We need matching CLIs for the other two things ops teams
+maintain out-of-band:
+
+- **`publish-custom-selections` CLI** — takes a YAML/JSON manifest of
+  custom asset selections and PUTs them to the deployment via the
+  Dagster+ GraphQL API. Idempotent (upsert by name).
+- **`publish-custom-metrics` CLI** — same shape for custom metrics
+  (Insights). Manifest describes name / definition / units / etc.,
+  posts via GraphQL.
+- **Unified `dcc publish` CLI** — takes a directory or single manifest,
+  detects which of the three (alert policies / selections / metrics)
+  each file is, and dispatches to the right subcommand. One entrypoint
+  for GitOps-shaped "deploy my Dagster+ config" flows.
+
+All three should reuse the existing GraphQL client + auth pattern from
+the alert-policy CLI. Land under `tools/` or a new `cli/` dir.
 
 ## Partition shape rework — Phase 1 item 5 (strict validation)
 

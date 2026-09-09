@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/openmetadata_export_job/schema.json
+type: dagster_component_templates.OpenMetadataExportJobComponent
+attributes:
+  job_name: sync_dagster_lineage_to_openmetadata
+  schedule: "0 3 * * *"                  # nightly at 3am
+  default_status: STOPPED
+  catalog_url: https://openmetadata.acme.com
+  api_token_env: OPENMETADATA_API_TOKEN  # generate under Settings → Bots
+  service_name: dagster                  # OpenMetadata DatabaseService
+  database_name: default                 # OpenMetadata Database under the service
+  verify_ssl: true
+  only_export_on_change: true            # skip when the asset graph is structurally unchanged
+  fail_on_catalog_error: true            # surface real errors rather than silently retrying
+  tags:
+    team: platform

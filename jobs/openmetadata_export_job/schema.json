@@ -1,0 +1,90 @@
+{
+  "component_type": "dagster_component_templates.OpenMetadataExportJobComponent",
+  "description": "Op-shaped job that walks the live Dagster asset graph and pushes lineage + metadata to OpenMetadata's REST API (service → database → schemas → tables → lineage edges). Idempotent PUTs.",
+  "category": "jobs",
+  "icon": "Activity",
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule. None = manual / sensor-triggered.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "cron"
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "One of: STOPPED / RUNNING.",
+      "required": false,
+      "default": "stopped",
+      "enum": [
+        "stopped",
+        "running"
+      ],
+      "ui:widget": "select"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Job Tags",
+      "description": "Dagster job tags as key-value pairs.",
+      "required": false,
+      "default": null
+    },
+    "catalog_url": {
+      "type": "string",
+      "label": "OpenMetadata Catalog URL",
+      "description": "OpenMetadata host (e.g. https://openmetadata.acme.com). /api/v1/... is appended.",
+      "required": false,
+      "default": "https://openmetadata.example.com"
+    },
+    "api_token_env": {
+      "type": "string",
+      "label": "API Token Env Var",
+      "description": "Env var holding the JWT bearer token. Generate one in OpenMetadata under Settings → Bots.",
+      "required": false,
+      "default": "OPENMETADATA_API_TOKEN"
+    },
+    "service_name": {
+      "type": "string",
+      "label": "Service Name",
+      "description": "OpenMetadata DatabaseService name to ensure-exist + parent the asset graph under.",
+      "required": false,
+      "default": "dagster"
+    },
+    "database_name": {
+      "type": "string",
+      "label": "Database Name",
+      "description": "OpenMetadata Database name under the service.",
+      "required": false,
+      "default": "default"
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "label": "Verify SSL",
+      "description": "Verify TLS cert. Set false for self-signed dev OpenMetadata.",
+      "required": false,
+      "default": true
+    },
+    "only_export_on_change": {
+      "type": "boolean",
+      "label": "Only Export on Change",
+      "description": "Hash the structural payload and skip push when unchanged from the previous successful run.",
+      "required": false,
+      "default": true
+    },
+    "fail_on_catalog_error": {
+      "type": "boolean",
+      "label": "Fail on Catalog Error",
+      "description": "If true, fail the run when the catalog is unreachable or PUTs error. Default true.",
+      "required": false,
+      "default": true
+    }
+  }
+}

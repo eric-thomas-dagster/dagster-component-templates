@@ -687,6 +687,7 @@ _CLASS_PATHS: dict[str, str] = {
     "OpenAIResourceComponent": "resources/openai_resource/component.py",
     "OpenAPIAssetComponent": "assets/ingestion/openapi_asset/component.py",
     "OpenLineageExportJobComponent": "jobs/openlineage_export_job/component.py",
+    "OpenMetadataExportJobComponent": "jobs/openmetadata_export_job/component.py",
     "OpenRouterLLMComponent": "assets/ai/openrouter_llm/component.py",
     "OpenlineageEmitterComponent": "asset_checks/openlineage_emitter/component.py",
     "OptimizationComponent": "assets/analytics/optimization/component.py",

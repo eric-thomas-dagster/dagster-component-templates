@@ -9,6 +9,8 @@ lineage_graph_extractor (source asset)
 Lineage → OpenMetadata (sink asset)
 ```
 
+> **Also see [`OpenMetadataExportJobComponent`](../../../jobs/openmetadata_export_job/)** — an op-shaped, schedulable single-job alternative that does the whole extract-and-push in one tick without adding lineage assets to your graph. That shape is usually the better default for "just sync my Dagster asset graph to OpenMetadata nightly." Reach for this asset-chain shape when you want the lineage payload versioned as a first-class Dagster asset or want automation-condition-driven pushes wired into your graph.
+
 ## What it pushes
 
 OpenMetadata's entity hierarchy is `service → database → schema → table` — the sink maps Dagster's asset graph onto it:

@@ -1,11 +1,12 @@
-.PHONY: help test ruff pyright check fix validate-manifest infer-produces regen-readme-fields
+.PHONY: help test ruff pyright check fix validate-manifest infer-produces regen-readme-fields lint-sensors
 
 help:
 	@echo "Available targets:"
 	@echo "  make test              — run pytest (subset that doesn't need optional SDKs)"
 	@echo "  make ruff              — run ruff lint on the shipped package + tools"
 	@echo "  make pyright           — run pyright type check on the shipped package + tools"
-	@echo "  make check             — run ruff + pyright (matches upstream community-integrations 'make check')"
+	@echo "  make check             — run ruff + pyright + lint-sensors (matches upstream community-integrations 'make check')"
+	@echo "  make lint-sensors      — fail if any sensor yields AssetMaterialization directly (silent-drop bug)"
 	@echo "  make fix               — auto-fix ruff issues"
 	@echo "  make validate-manifest — L1 validation: import every component + call build_defs"
 	@echo "  make infer-produces    — regenerate the 'produces' metadata on manifest entries"
@@ -25,7 +26,10 @@ ruff:
 pyright:
 	uvx pyright dagster_community_components tools
 
-check: ruff pyright
+check: ruff pyright lint-sensors
+
+lint-sensors:
+	uv run python tools/lint_sensor_pattern.py
 
 fix:
 	uvx ruff check --fix dagster_community_components tools

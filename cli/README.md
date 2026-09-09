@@ -142,10 +142,22 @@ jobs:
           DAGSTER_CLOUD_API_TOKEN: ${{ secrets.DAGSTER_CLOUD_API_TOKEN }}
 ```
 
-Pair with the built-in `dagster-cloud deployment alert-policies sync`
-(from the `dagster-cloud` package) for the third leg — alert policies.
-Together those three cover the config surface most ops teams manage
-out-of-band from their code deployment.
+Pair with the built-in **`dg api alert-policy sync <file>`** (from the
+`dagster-dg-cli` package, [documented here](https://docs.dagster.io/api/clis/dg-cli/dg-api#dg-api))
+for the third leg — alert policies. Together those three cover the
+config surface most ops teams manage out-of-band from their code
+deployment.
+
+## Why these live in `cli/` and not in `dg api`
+
+As of dg 1.13.20, `dg api` only ships `alert-policy list/sync` — no
+`catalog-view` or `custom-metric` subcommands (verified via source at
+`dagster_dg_cli/cli/api/`). These scripts fill the gap in the same
+shape (`sync <manifest>` + `list`) so ops teams have a uniform GitOps
+flow for all three today. When Dagster+ ships the missing subcommands
+upstream (see [`docs/FEEDBACK_dg_api_catalog_views_metrics.md`](../docs/FEEDBACK_dg_api_catalog_views_metrics.md)),
+these scripts become removable — the YAML manifests will drop in
+unchanged (same field names).
 
 ## `--prune` safety note
 

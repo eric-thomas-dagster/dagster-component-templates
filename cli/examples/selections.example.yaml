@@ -1,0 +1,21 @@
+# selections.example.yaml — feed to sync_asset_selections.py sync <this>
+selections:
+  - name: high_priority_assets
+    description: Assets tagged priority=high — used by the on-call alert policy.
+    selection: "tag:priority=high"
+
+  - name: analytics_downstream
+    description: Everything downstream of the analytics group.
+    selection: "+group:analytics"
+
+  - name: ml_pipeline
+    description: Feature engineering + training + serving assets.
+    selection: "group:ml_features or group:ml_training or group:ml_serving"
+
+  - name: dbt_marts
+    description: dbt models in the mart layer.
+    selection: "kind:dbt and tag:layer=mart"
+
+  - name: recently_failed
+    description: Assets whose most recent materialization failed.
+    selection: "status:failed"

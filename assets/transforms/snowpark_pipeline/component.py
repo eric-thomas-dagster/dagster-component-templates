@@ -168,6 +168,18 @@ def _apply_ml_op(session, df, op: Dict[str, Any]):
     if mode not in valid_modes:
         raise ValueError(f"ml op: mode={mode!r} invalid. Valid: {sorted(valid_modes)}")
 
+    # `predict` / `transform` alone would require a persisted model (via
+    # Snowflake Model Registry or a prior step's fitted estimator). Neither
+    # is wired up yet — reject clearly rather than silently returning an
+    # unfit estimator's output. Tracked in TODO.md.
+    if mode in ("predict", "transform"):
+        raise ValueError(
+            f"ml op: mode={mode!r} requires a persisted model, which isn't yet "
+            "supported in snowpark_pipeline. Use mode='fit_predict' (or "
+            "'fit_transform') for one-shot pipelines. Model Registry / "
+            "cross-pipeline model reuse is on the roadmap — see TODO.md."
+        )
+
     # Import + instantiate the estimator.
     import importlib
     est_mod = importlib.import_module(module_path)
@@ -180,22 +192,18 @@ def _apply_ml_op(session, df, op: Dict[str, Any]):
         est_kwargs.setdefault("label_cols", label_cols)
     estimator = Estimator(**est_kwargs)
 
-    # Execute the requested mode.
+    # Execute the requested mode. `predict` / `transform` alone are
+    # rejected above (require persisted model — TODO).
     if mode == "fit":
         estimator.fit(df)
-        # fit-only returns df unchanged; useful when a downstream step
-        # will consume the model via a separate reference (rare).
-        return df
-    if mode in ("fit_predict", "predict"):
-        if mode == "fit_predict":
-            estimator.fit(df)
+        return df   # fit-only returns df unchanged
+    if mode == "fit_predict":
+        estimator.fit(df)
         return estimator.predict(df)
-    if mode in ("fit_transform", "transform"):
-        if mode == "fit_transform":
-            estimator.fit(df)
+    if mode == "fit_transform":
+        estimator.fit(df)
         return estimator.transform(df)
-    # Should be unreachable given the valid_modes check.
-    raise ValueError(f"unhandled mode {mode!r}")
+    raise ValueError(f"unhandled mode {mode!r}")   # unreachable
 
 
 def _apply_op(session, df, op: Dict[str, Any], step_outputs: Dict[str, Any]):

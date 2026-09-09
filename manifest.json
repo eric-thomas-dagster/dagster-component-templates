@@ -43204,8 +43204,8 @@
       "id": "snowpark_pipeline",
       "name": "SnowparkPipeline",
       "category": "transformation",
-      "description": "Multi-step Snowpark DataFrame chain — full compute pushdown to Snowflake.",
-      "version": "1.0.0",
+      "description": "Multi-step Snowpark DataFrame chain — full compute pushdown to Snowflake. Includes an `ml` op for in-warehouse ML (KMeans / RandomForest / XGBoost / etc. via snowflake-ml-python) so feature prep, fit, and post-processing all run as one asset.",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "assets/transforms/snowpark_pipeline",
       "tags": [
@@ -43213,12 +43213,15 @@
         "snowflake",
         "snowpark",
         "pushdown",
-        "pipeline"
+        "pipeline",
+        "ml",
+        "in-warehouse-ml"
       ],
       "dependencies": {
         "pip": [
           "dagster",
-          "snowflake-snowpark-python"
+          "snowflake-snowpark-python",
+          "snowflake-ml-python"
         ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/snowpark_pipeline/README.md",
@@ -43234,9 +43237,9 @@
       "vendor": "Snowflake",
       "agent_hints": {
         "inputs": "Upstream Snowflake tables.",
-        "outputs": "Snowflake result (materialized as Snowflake asset).",
-        "side_effects": "All work happens in Snowflake compute — pandas is not involved.",
-        "anti_uses": "For non-Snowflake use polars_pipeline or pyspark_pipeline.",
+        "outputs": "Snowflake result (materialized as Snowflake asset). May include ML predictions when a step uses `op: ml`.",
+        "side_effects": "All work happens in Snowflake compute — pandas is not involved. ML steps run inside the warehouse via snowflake-ml-python.",
+        "anti_uses": "For non-Snowflake DataFrame transforms use polars_pipeline or pyspark_pipeline. For deep learning / PyTorch / TensorFlow, use ml_pipeline instead.",
         "requires_resources": [
           "snowflake_resource"
         ]
@@ -43246,7 +43249,13 @@
       ],
       "keywords": [
         "transform",
-        "reshape"
+        "reshape",
+        "ml",
+        "kmeans",
+        "clustering",
+        "classification",
+        "regression",
+        "snowflake-ml-python"
       ]
     },
     {

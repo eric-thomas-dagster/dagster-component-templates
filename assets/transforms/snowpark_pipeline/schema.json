@@ -14,7 +14,7 @@
     "source":       {"type": "object",
                      "description": "Top-level single-source shape: {kind: table|sql, table|query: ...}"},
     "operations":   {"type": "array", "items": {"type": "object"},
-                     "description": "Flat shape: Snowpark DataFrame ops. Supported: filter, select, drop, rename, with_columns, group_by, sort, limit, distinct, drop_nulls, join, union, sql."},
+                     "description": "Flat shape: Snowpark DataFrame ops. Supported: filter, select, drop, rename, with_columns, group_by, sort, limit, distinct, drop_nulls, join, union, sql, ml (in-warehouse ML via snowflake-ml-python — kmeans/dbscan/logistic_regression/xgb_classifier/random_forest_regressor/etc.)."},
     "sink":         {"type": "object",
                      "description": "Top-level single-sink shape: {kind: table|none, table, mode: overwrite|append}"},
 

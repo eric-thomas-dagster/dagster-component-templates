@@ -74,6 +74,51 @@ maintain out-of-band:
 All three should reuse the existing GraphQL client + auth pattern from
 the alert-policy CLI. Land under `tools/` or a new `cli/` dir.
 
+## Pipeline components: opt-in multi-asset / step-visibility mode
+
+Every `*_pipeline` component (snowpark_pipeline, polars_pipeline,
+pyspark_pipeline, warehouse_pipeline, ml_pipeline, agentic_pipeline)
+today produces exactly one Dagster asset per pipeline. Users can't
+see individual step progress in the graph — they see one long-running
+asset materialize.
+
+Add an opt-in flag (`expose_steps: true` or `mode: multi_asset`) that
+turns the pipeline into a `@dg.multi_asset` where each `steps[]` entry
+becomes its own asset in the graph. Not subsettable (we still build one
+compiled instruction per run — Snowpark builds one query plan, polars
+one lazy frame, etc.), but at least users get:
+- Per-step status color in the graph
+- Per-step logs attributed correctly
+- Per-step metadata (row counts, timings)
+- Clear picture of what the pipeline actually does
+
+Default stays `expose_steps: false` (one asset per pipeline) to avoid
+breaking existing users. Non-subsettability + one-shot-execution
+should be called out clearly in the schema description so users
+understand the constraint.
+
+## snowpark_pipeline: `ml` op follow-ups
+
+The initial `ml` op (kmeans/xgboost/etc. via snowflake-ml-python) shipped
+in commit `b8315af9`. Follow-ups worth doing:
+
+- **Model Registry integration** — `mode: predict` / `mode: transform`
+  today reject with a clear error message because there's no
+  persisted-model story yet. Wire up `snowflake.ml.registry.Registry`
+  so pipelines can save a fitted model + reference it by name/version
+  from a separate pipeline for predict-only workloads.
+- **Training metrics as MaterializeMetadata** — after `fit_predict`,
+  emit `snowpark/ml/silhouette` (KMeans), `snowpark/ml/r2` (regression),
+  `snowpark/ml/accuracy` (classification), etc. Currently no evaluation
+  metrics surface on the asset.
+- **Train/test split helper** — add a `split` op (or extend `sample`)
+  so users can fit on train + predict on test in one pipeline
+  without needing a separate op.
+- **Model metadata in the asset** — surface `snowpark/ml/algorithm`,
+  `snowpark/ml/hyperparameters`, `snowpark/ml/input_columns` as
+  MaterializeMetadata on every ml-containing pipeline for
+  discoverability.
+
 ## Partition shape rework — Phase 1 item 5 (strict validation)
 
 Items 1–4 of the partition rework landed. Item 5 — Pydantic

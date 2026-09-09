@@ -1,0 +1,49 @@
+# CollibraExportJobComponent
+
+Op-shaped job that **walks the live Dagster asset graph** on each run
+and pushes lineage to **Collibra Data Intelligence Platform** via the
+`/rest/2.0/import/json-job` endpoint.
+
+Each run produces:
+
+- **1 Collibra Asset per Dagster asset** — under a domain named after the Dagster group (`<group> (<deployment>)` when deployment is set), inside a community named after your organization
+- **1 Data Flow relation per asset-graph edge**
+
+## When to use this vs `lineage_to_collibra`
+
+| Component | Shape | Use case |
+|---|---|---|
+| `lineage_graph_extractor` + `lineage_to_collibra` | **3-asset chain** | Lineage as a first-class Dagster asset. Automation-condition-driven pushes when upstream changes. |
+| `CollibraExportJobComponent` (this) | **single op-job** | Scheduled catalog sync; no asset overhead. Usually the better default for "sync my Dagster asset graph to Collibra nightly." |
+
+## YAML example
+
+```yaml
+type: dagster_component_templates.CollibraExportJobComponent
+attributes:
+  job_name: sync_dagster_lineage_to_collibra
+  schedule: "0 3 * * *"
+  default_status: RUNNING
+  catalog_url: https://acme.collibra.com
+  api_token_env: COLLIBRA_API_TOKEN
+  only_export_on_change: true
+  fail_on_catalog_error: true
+```
+
+## Required env vars
+
+```bash
+COLLIBRA_API_TOKEN=...               # Bearer token
+
+# Optional — controls community + domain naming:
+DAGSTER_ORGANIZATION=Acme
+DAGSTER_DEPLOYMENT=prod
+```
+
+## Behavior
+
+1. Walks the asset graph.
+2. Hashes the payload; skips push when unchanged from prior run.
+3. Transforms to Collibra format (assets + relations).
+4. POSTs to `{catalog_url}/rest/2.0/import/json-job` with the Bearer token.
+5. Tags the run with the payload hash for next-run change detection.

@@ -1,0 +1,16 @@
+{
+  "component_type": "dagster_component_templates.AlationExportJobComponent",
+  "description": "Op-shaped job that walks the live Dagster asset graph and pushes lineage to Alation Data Catalog via the Integration v2 lineage endpoint.",
+  "category": "jobs",
+  "icon": "Activity",
+  "attributes": {
+    "job_name": {"type": "string", "label": "Job Name", "description": "Dagster job name", "required": true},
+    "schedule": {"type": "string", "label": "Schedule", "description": "Cron schedule. None = manual / sensor-triggered.", "required": false, "default": null, "x-dagster-widget": "cron"},
+    "default_status": {"type": "string", "label": "Default Status", "description": "One of: STOPPED / RUNNING.", "required": false, "default": "stopped", "enum": ["stopped", "running"], "ui:widget": "select"},
+    "tags": {"type": "object", "label": "Job Tags", "description": "Dagster job tags as key-value pairs.", "required": false, "default": null},
+    "catalog_url": {"type": "string", "label": "Alation Catalog URL", "description": "Alation base URL (e.g. https://alation.acme.com). /integration/v2/lineage/ is appended.", "required": false, "default": "https://alation.example.com"},
+    "api_token_env": {"type": "string", "label": "API Token Env Var", "description": "Env var holding the Alation API token (sent as TOKEN header).", "required": false, "default": "ALATION_API_TOKEN"},
+    "only_export_on_change": {"type": "boolean", "label": "Only Export on Change", "description": "Hash the structural payload and skip push when unchanged from the previous successful run.", "required": false, "default": true},
+    "fail_on_catalog_error": {"type": "boolean", "label": "Fail on Catalog Error", "description": "If true, fail the run when the catalog is unreachable or PUTs error. Default true.", "required": false, "default": true}
+  }
+}

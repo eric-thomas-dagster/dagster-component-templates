@@ -1,5 +1,7 @@
 # lineage_to_data360
 
+> **Also see [`Data360ExportJobComponent`](../../../jobs/data360_export_job/)** — an op-shaped, schedulable single-job alternative that does the whole extract-and-push in one tick without adding lineage assets to your graph. Usually the better default for "just sync my Dagster asset graph to Data360 nightly." Reach for this asset-chain shape when you want the lineage payload versioned as a first-class Dagster asset or want automation-condition-driven pushes wired into your graph.
+
 ## Purpose
 
 Sink that pushes the upstream `lineage_graph` into **Precisely Data360 Govern** — the data catalog formerly known as Infogix. Mirrors every other `lineage_to_*` component in this registry; the only catalog-specific code is the Dagster→Data360 transform (`Object` + `Lineage` entries) and the OAuth2 client-credentials push.

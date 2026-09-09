@@ -1,0 +1,49 @@
+# DataHubExportJobComponent
+
+Op-shaped job that **walks the live Dagster asset graph** on each run
+and pushes lineage to **DataHub** via the Rest.li `ingestProposal`
+endpoint.
+
+Each run produces:
+
+- **1 `datasetProperties` aspect UPSERT per Dagster asset** — with description, `externalUrl` back to Dagster, and Dagster metadata as customProperties
+- **1 `upstreamLineage` aspect UPSERT per asset that has parents** — with `TRANSFORMED` relationships
+
+## When to use this vs `lineage_to_datahub`
+
+| Component | Shape | Use case |
+|---|---|---|
+| `lineage_graph_extractor` + `lineage_to_datahub` | **3-asset chain** | Lineage as a first-class Dagster asset. Automation-condition-driven pushes when upstream changes. |
+| `DataHubExportJobComponent` (this) | **single op-job** | Scheduled catalog sync; no asset overhead. Usually the better default for "sync my Dagster asset graph to DataHub nightly." |
+
+## YAML example
+
+```yaml
+type: dagster_component_templates.DataHubExportJobComponent
+attributes:
+  job_name: sync_dagster_lineage_to_datahub
+  schedule: "0 3 * * *"
+  default_status: RUNNING
+  catalog_url: https://datahub.acme.com/api/gms
+  api_token_env: DATAHUB_API_TOKEN
+  only_export_on_change: true
+  fail_on_catalog_error: true
+```
+
+## Required env vars
+
+```bash
+DATAHUB_API_TOKEN=...                # Bearer token
+
+# Optional — controls URN env + external URL:
+DAGSTER_DEPLOYMENT=prod              # "prod" / "production" / empty → env=PROD; anything else → env=DEV
+DAGSTER_UI_URL=https://dagster.acme.com
+```
+
+## Behavior
+
+1. Walks the asset graph.
+2. Hashes the payload; skips push when unchanged from prior run.
+3. Transforms to DataHub aspect-proposal format.
+4. POSTs each aspect sequentially to `{catalog_url}/aspects?action=ingestProposal` with `X-RestLi-Protocol-Version: 2.0.0`.
+5. Tags the run with the payload hash for next-run change detection.

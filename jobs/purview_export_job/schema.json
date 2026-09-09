@@ -1,0 +1,16 @@
+{
+  "component_type": "dagster_component_templates.PurviewExportJobComponent",
+  "description": "Op-shaped job that walks the live Dagster asset graph and pushes lineage to Microsoft Purview Data Map (Apache Atlas v2 entity bulk API).",
+  "category": "jobs",
+  "icon": "Activity",
+  "attributes": {
+    "job_name": {"type": "string", "label": "Job Name", "description": "Dagster job name", "required": true},
+    "schedule": {"type": "string", "label": "Schedule", "description": "Cron schedule. None = manual / sensor-triggered.", "required": false, "default": null, "x-dagster-widget": "cron"},
+    "default_status": {"type": "string", "label": "Default Status", "description": "One of: STOPPED / RUNNING.", "required": false, "default": "stopped", "enum": ["stopped", "running"], "ui:widget": "select"},
+    "tags": {"type": "object", "label": "Job Tags", "description": "Dagster job tags as key-value pairs.", "required": false, "default": null},
+    "catalog_url": {"type": "string", "label": "Purview Account URL", "description": "Purview account base URL (e.g. https://acme.purview.azure.com). /datamap/api/atlas/v2/entity/bulk is appended.", "required": false, "default": "https://my-account.purview.azure.com"},
+    "api_token_env": {"type": "string", "label": "API Token Env Var", "description": "Env var with the Purview access token (Azure AD bearer).", "required": false, "default": "PURVIEW_ACCESS_TOKEN"},
+    "only_export_on_change": {"type": "boolean", "label": "Only Export on Change", "description": "Hash the structural payload and skip push when unchanged from the previous successful run.", "required": false, "default": true},
+    "fail_on_catalog_error": {"type": "boolean", "label": "Fail on Catalog Error", "description": "If true, fail the run when the catalog is unreachable or PUTs error. Default true.", "required": false, "default": true}
+  }
+}

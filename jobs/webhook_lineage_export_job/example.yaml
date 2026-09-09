@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/webhook_lineage_export_job/schema.json
+type: dagster_component_templates.WebhookLineageExportJobComponent
+attributes:
+  job_name: push_dagster_lineage_to_webhook
+  schedule: "0 3 * * *"
+  default_status: STOPPED
+  webhook_url: https://n8n.acme.com/webhook/dagster-lineage
+  api_token_env: LINEAGE_WEBHOOK_TOKEN  # omit if the webhook is unauthenticated
+  only_export_on_change: true
+  fail_on_webhook_error: true
+  tags:
+    team: platform

@@ -1,0 +1,19 @@
+{
+  "component_type": "dagster_component_templates.Data360ExportJobComponent",
+  "description": "Op-shaped job that walks the live Dagster asset graph and pushes lineage to Precisely Data360 Govern via the Catalog REST endpoint (OAuth2 client-credentials auth).",
+  "category": "jobs",
+  "icon": "Activity",
+  "attributes": {
+    "job_name": {"type": "string", "label": "Job Name", "description": "Dagster job name", "required": true},
+    "schedule": {"type": "string", "label": "Schedule", "description": "Cron schedule. None = manual / sensor-triggered.", "required": false, "default": null, "x-dagster-widget": "cron"},
+    "default_status": {"type": "string", "label": "Default Status", "description": "One of: STOPPED / RUNNING.", "required": false, "default": "stopped", "enum": ["stopped", "running"], "ui:widget": "select"},
+    "tags": {"type": "object", "label": "Job Tags", "description": "Dagster job tags as key-value pairs.", "required": false, "default": null},
+    "catalog_url": {"type": "string", "label": "Data360 Catalog URL", "description": "Data360 Govern Catalog REST base URL.", "required": false, "default": "https://api.data.precisely.com/data360/catalog"},
+    "token_url": {"type": "string", "label": "OAuth2 Token URL", "description": "OAuth2 token endpoint (override for non-global Data360 tenants).", "required": false, "default": "https://api.data.precisely.com/oauth/token"},
+    "client_id_env": {"type": "string", "label": "Client ID Env Var", "description": "Env var with the Data360 OAuth2 client_id.", "required": false, "default": "PRECISELY_DIS_CLIENT_ID"},
+    "client_secret_env": {"type": "string", "label": "Client Secret Env Var", "description": "Env var with the Data360 OAuth2 client_secret.", "required": false, "default": "PRECISELY_DIS_CLIENT_SECRET"},
+    "request_timeout_seconds": {"type": "integer", "label": "Request Timeout Seconds", "description": "Per-request HTTP timeout.", "required": false, "default": 30},
+    "only_export_on_change": {"type": "boolean", "label": "Only Export on Change", "description": "Hash the structural payload and skip push when unchanged from the previous successful run.", "required": false, "default": true},
+    "fail_on_catalog_error": {"type": "boolean", "label": "Fail on Catalog Error", "description": "If true, fail the run when the catalog is unreachable or PUTs error. Default true.", "required": false, "default": true}
+  }
+}

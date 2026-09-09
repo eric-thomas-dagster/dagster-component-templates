@@ -1,5 +1,7 @@
 # Lineage → Alation
 
+> **Also see [`AlationExportJobComponent`](../../../jobs/alation_export_job/)** — an op-shaped, schedulable single-job alternative that does the whole extract-and-push in one tick without adding lineage assets to your graph. Usually the better default for "just sync my Dagster asset graph to Alation nightly." Reach for this asset-chain shape when you want the lineage payload versioned as a first-class Dagster asset or want automation-condition-driven pushes wired into your graph.
+
 Sink asset that pushes the upstream `lineage_graph` (from
 `lineage_graph_extractor`) to **alation**. Compares the
 incoming payload hash against the last successfully pushed hash and skips

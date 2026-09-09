@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/data360_export_job/schema.json
+type: dagster_component_templates.Data360ExportJobComponent
+attributes:
+  job_name: sync_dagster_lineage_to_data360
+  schedule: "0 3 * * *"
+  default_status: STOPPED
+  catalog_url: https://api.data.precisely.com/data360/catalog
+  token_url: https://api.data.precisely.com/oauth/token
+  client_id_env: PRECISELY_DIS_CLIENT_ID
+  client_secret_env: PRECISELY_DIS_CLIENT_SECRET
+  only_export_on_change: true
+  fail_on_catalog_error: true
+  tags:
+    team: platform

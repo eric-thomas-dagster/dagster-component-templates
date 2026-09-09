@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/collibra_export_job/schema.json
+type: dagster_component_templates.CollibraExportJobComponent
+attributes:
+  job_name: sync_dagster_lineage_to_collibra
+  schedule: "0 3 * * *"
+  default_status: STOPPED
+  catalog_url: https://acme.collibra.com
+  api_token_env: COLLIBRA_API_TOKEN
+  only_export_on_change: true
+  fail_on_catalog_error: true
+  tags:
+    team: platform

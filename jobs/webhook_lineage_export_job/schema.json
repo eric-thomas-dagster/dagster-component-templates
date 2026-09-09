@@ -1,0 +1,16 @@
+{
+  "component_type": "dagster_component_templates.WebhookLineageExportJobComponent",
+  "description": "Op-shaped job that walks the live Dagster asset graph and POSTs the raw payload to any HTTP webhook (Slack, internal endpoint, n8n, Zapier). Optional Bearer auth.",
+  "category": "jobs",
+  "icon": "Activity",
+  "attributes": {
+    "job_name": {"type": "string", "label": "Job Name", "description": "Dagster job name", "required": true},
+    "schedule": {"type": "string", "label": "Schedule", "description": "Cron schedule. None = manual / sensor-triggered.", "required": false, "default": null, "x-dagster-widget": "cron"},
+    "default_status": {"type": "string", "label": "Default Status", "description": "One of: STOPPED / RUNNING.", "required": false, "default": "stopped", "enum": ["stopped", "running"], "ui:widget": "select"},
+    "tags": {"type": "object", "label": "Job Tags", "description": "Dagster job tags as key-value pairs.", "required": false, "default": null},
+    "webhook_url": {"type": "string", "label": "Webhook URL", "description": "Full webhook URL to POST the lineage payload to.", "required": false, "default": "https://example.com/lineage-webhook"},
+    "api_token_env": {"type": "string", "label": "API Token Env Var", "description": "Optional env var with a Bearer token. Omit for unauthenticated webhooks.", "required": false, "default": null},
+    "only_export_on_change": {"type": "boolean", "label": "Only Export on Change", "description": "Hash the structural payload and skip push when unchanged from the previous successful run.", "required": false, "default": true},
+    "fail_on_webhook_error": {"type": "boolean", "label": "Fail on Webhook Error", "description": "If true, fail the run when the webhook is unreachable or returns an error. Default true.", "required": false, "default": true}
+  }
+}

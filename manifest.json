@@ -43150,8 +43150,8 @@
       "id": "snowflake_workspace",
       "name": "Snowflake Workspace",
       "category": "integration",
-      "description": "Import Snowflake tasks / dynamic tables / stored procedures / streams / views / alerts as Dagster assets. Connection is a required `workspace:` block that IS a dagster_snowflake.SnowflakeResource — same shape as dagster-databricks / dagster-fivetran / dagster-powerbi. Password / SSO / keypair / OAuth / SQLAlchemy all supported via the official resource.",
-      "version": "2.0.0",
+      "description": "Import Snowflake tasks / dynamic tables / stored procedures / streams / stages / alerts / OpenFlow / views as Dagster assets. Streams / stages / alerts / flows are external assets (AssetSpec) — the observation sensor probes Snowflake and emits AssetMaterialization when their state advances, so tiles go green consistently with tasks / DTs / snowpipes. Connection is a required `workspace:` block that IS a dagster_snowflake.SnowflakeResource — same shape as dagster-databricks / dagster-fivetran / dagster-powerbi. Password / SSO / keypair / OAuth / SQLAlchemy all supported via the official resource.",
+      "version": "2.1.0",
       "author": "Dagster Community",
       "path": "integrations/snowflake_workspace",
       "tags": [

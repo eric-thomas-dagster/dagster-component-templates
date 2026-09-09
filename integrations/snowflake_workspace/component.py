@@ -334,7 +334,13 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
     import_streams: bool = Field(
         default=False,
-        description="Import streams as observable assets"
+        description=(
+            "Import streams as external assets. The observation sensor "
+            "probes SYSTEM$STREAM_HAS_DATA + INFORMATION_SCHEMA.QUERY_HISTORY "
+            "and emits AssetMaterialization when the CDC state advances "
+            "(rows actually flow through the stream). Tiles go green on new "
+            "consumption; downstream `AutomationCondition.eager()` fires."
+        )
     )
 
     import_snowpipes: bool = Field(
@@ -344,7 +350,11 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
     import_stages: bool = Field(
         default=False,
-        description="Import internal and external stages as observable assets"
+        description=(
+            "Import internal and external stages as external assets. The "
+            "observation sensor runs LIST @stage and emits "
+            "AssetMaterialization when file_count or total_bytes changes."
+        )
     )
 
     import_materialized_views: bool = Field(
@@ -359,12 +369,20 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
     import_alerts: bool = Field(
         default=False,
-        description="Import Snowflake alerts as observable assets (monitor alert status)"
+        description=(
+            "Import Snowflake alerts as external assets. The observation "
+            "sensor runs SHOW ALERTS + ALERT_HISTORY and emits "
+            "AssetMaterialization when a new evaluation is recorded."
+        )
     )
 
     import_openflow_flows: bool = Field(
         default=False,
-        description="Import OpenFlow data integration flows as observable assets (monitor via telemetry)"
+        description=(
+            "Import OpenFlow data integration flows as external assets. "
+            "The observation sensor queries SNOWFLAKE.TELEMETRY.EVENTS "
+            "and emits AssetMaterialization when new metrics land."
+        )
     )
 
     import_tables: bool = Field(
@@ -461,10 +479,14 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
     polling_sensor: bool = Field(
         default=True,
         description=(
-            "If true, create a sensor that polls Snowflake for completed task "
-            "runs and dynamic-table refreshes and emits AssetMaterialization / "
-            "AssetObservation events into Dagster's event log. Matches the "
-            "`polling_sensor` convention on FivetranAccountComponent."
+            "If true, create the observation sensor. It polls Snowflake and "
+            "emits AssetMaterialization for: task runs (TASK_HISTORY), "
+            "Snowpipe loads (COPY_HISTORY), stream CDC advances "
+            "(SYSTEM$STREAM_HAS_DATA + QUERY_HISTORY), stage file movement "
+            "(LIST @stage), alert evaluations (ALERT_HISTORY), and OpenFlow "
+            "telemetry (SNOWFLAKE.TELEMETRY.EVENTS). Dynamic-table refreshes "
+            "get a dedicated sensor. Matches the `polling_sensor` convention "
+            "on FivetranAccountComponent."
         ),
         alias="generate_sensor",  # backward-compat: old YAML still resolves
     )
@@ -987,10 +1009,11 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         """Build Dagster definitions from cached Snowflake workspace state.
 
         Reads the JSON dict written by ``write_state_to_path`` and turns each
-        object list into the appropriate ``@asset`` / ``@observable_source_asset``
-        / ``AssetSpec`` — plus the observation and DT-refresh sensors. Zero
-        Snowflake queries fire at load time; every SHOW / INFORMATION_SCHEMA
-        query lives in ``write_state_to_path``.
+        object list into the appropriate ``@asset`` / ``AssetSpec`` (with the
+        observation sensor emitting the materialization events for external
+        assets) — plus the observation and DT-refresh sensors. Zero Snowflake
+        queries fire at load time; every SHOW / INFORMATION_SCHEMA query
+        lives in ``write_state_to_path``.
         """
         if state_path is None:
             return Definitions()
@@ -999,11 +1022,20 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         assets_list = []
         sensors_list = []
 
-        # Track task and snowpipe metadata for the legacy observation sensor.
+        # Track task and snowpipe metadata for the observation sensor.
         # Dynamic-table refreshes are owned by the dedicated DT-refresh sensor
         # below (wired in unconditionally when import_dynamic_tables=True).
         task_metadata = {}
         snowpipe_metadata = {}
+        # As of the observable-asset → external-asset conversion, the following
+        # entity types also register as AssetSpec (external, no compute) and
+        # rely on the observation sensor to emit AssetMaterialization events
+        # so their tiles go green when the Snowflake-side state advances.
+        # Same pattern as tasks/snowpipes/DTs — consistent across the component.
+        stream_metadata: Dict[str, dict] = {}
+        stage_metadata: Dict[str, dict] = {}
+        alert_metadata: Dict[str, dict] = {}
+        openflow_metadata: Dict[str, dict] = {}
 
         # Collected during the DT import loop and consumed by the dedicated
         # DT-refresh sensor below. Hoisted out of the try-block so the sensor
@@ -1721,110 +1753,25 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                             _stream_kwargs, "stream", stream_name,
                             stream['DATABASE_NAME'], stream['SCHEMA_NAME'],
                         )
-                        def _make_stream_asset(stream_name_v, db_v, schema_v, stream_kwargs_v, self_v):
-                            @observable_source_asset(**stream_kwargs_v)
-                            def _stream_asset(context):
-                                """Observable stream asset — emits has_data + pending_rows metrics."""
-                                conn = self_v._create_connection()
-                                cursor = conn.cursor()
-                                metadata: dict = {
-                                    "stream_name": stream_name_v,
-                                    "database": db_v,
-                                    "schema": schema_v,
-                                }
-                                try:
-                                    cursor.execute(
-                                        f"SELECT SYSTEM$STREAM_HAS_DATA('{db_v}.{schema_v}.{stream_name_v}')"
-                                    )
-                                    has_data_raw = cursor.fetchone()[0]
-                                    # Normalize to 0/1 int (SYSTEM$STREAM_HAS_DATA returns 'true'/'false' string).
-                                    has_data_bool = str(has_data_raw).lower() == "true"
-                                    metadata["snowflake/has_data"] = MetadataValue.int(1 if has_data_bool else 0)
-                                    context.log.info(f"Stream {stream_name_v} has data: {has_data_bool}")
-
-                                    # Plottable pending rows — only query if HAS_DATA to avoid
-                                    # an unnecessary full scan on quiet streams.
-                                    if has_data_bool:
-                                        try:
-                                            cursor.execute(
-                                                f"SELECT COUNT(*) FROM {db_v}.{schema_v}.{stream_name_v}"
-                                            )
-                                            pending = cursor.fetchone()[0] or 0
-                                            metadata["snowflake/pending_rows"] = MetadataValue.int(int(pending))
-                                        except Exception as exc:
-                                            context.log.warning(
-                                                f"Could not read pending row count for {stream_name_v}: {exc}."
-                                            )
-
-                                    # Cumulative consumption metrics — always meaningful even when
-                                    # the stream is currently drained. Text-match on QUERY_HISTORY
-                                    # is the only way to attribute row counts to a specific stream:
-                                    # Snowflake exposes no STREAM_USAGE_HISTORY view for DML streams
-                                    # (only Snowpipe Streaming), and SYSTEM$LAST_CHANGE_COMMIT_TIME
-                                    # doesn't work on standard streams either.
-                                    #
-                                    # Caveats:
-                                    #   - INFORMATION_SCHEMA.QUERY_HISTORY retains ~7 days (hence
-                                    #     the _7d suffix). For longer windows switch to
-                                    #     SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY (365 days, but needs
-                                    #     the SNOWFLAKE db grant + 45min–3hr latency).
-                                    #   - ILIKE '%<name>%' is a text match. A comment mentioning
-                                    #     the stream name would false-positive; the two NOT ILIKE
-                                    #     filters exclude the observer's own probes + SHOW STREAMS
-                                    #     activity; ROWS_INSERTED > 0 filters SELECT-only probes.
-                                    #   - RESULT_LIMIT => 1000 is important — the default of 100
-                                    #     drops off fast on busy accounts.
-                                    try:
-                                        cursor.execute(f"""
-                                            SELECT COALESCE(SUM(ROWS_INSERTED), 0),
-                                                   MAX(END_TIME)
-                                              FROM TABLE(INFORMATION_SCHEMA.QUERY_HISTORY(RESULT_LIMIT => 1000))
-                                             WHERE QUERY_TEXT ILIKE '%{stream_name_v}%'
-                                               AND QUERY_TEXT NOT ILIKE '%INFORMATION_SCHEMA%'
-                                               AND QUERY_TEXT NOT ILIKE '%SHOW STREAMS%'
-                                               AND EXECUTION_STATUS = 'SUCCESS'
-                                               AND ROWS_INSERTED > 0
-                                        """)
-                                        rows_advanced, last_consumed = cursor.fetchone()
-                                        metadata["snowflake/rows_advanced_7d"] = MetadataValue.int(int(rows_advanced))
-                                        if last_consumed:
-                                            metadata["snowflake/last_consumed_at"] = MetadataValue.timestamp(last_consumed)
-                                    except Exception as exc:
-                                        context.log.warning(
-                                            f"Could not read consumption history for {stream_name_v}: {exc}."
-                                        )
-                                except Exception as exc:
-                                    context.log.warning(
-                                        f"Could not observe stream {stream_name_v}: {exc}."
-                                    )
-                                finally:
-                                    cursor.close()
-                                    conn.close()
-                                # data_version: change-sensitive signature so
-                                # downstream AutomationCondition.eager() doesn't
-                                # re-fire on every observation tick when the
-                                # stream's state hasn't moved. Includes the
-                                # cumulative rows_advanced_7d so downstream
-                                # DOES re-fire when new rows actually pass
-                                # through, even if has_data/pending are 0
-                                # (drained-fast streams).
-                                _has = metadata.get("snowflake/has_data")
-                                _pending = metadata.get("snowflake/pending_rows")
-                                _rows_adv = metadata.get("snowflake/rows_advanced_7d")
-                                signature = (
-                                    f"{getattr(_has, 'value', _has)}:"
-                                    f"{getattr(_pending, 'value', _pending)}:"
-                                    f"{getattr(_rows_adv, 'value', _rows_adv)}"
-                                )
-                                return ObserveResult(
-                                    data_version=DataVersion(signature),
-                                    metadata=metadata,
-                                )
-                            return _stream_asset
-
-                        assets_list.append(_make_stream_asset(
-                            stream_name, stream['DATABASE_NAME'], stream['SCHEMA_NAME'], _stream_kwargs, self,
-                        ))
+                        # External asset (AssetSpec). The observation sensor
+                        # below runs SYSTEM$STREAM_HAS_DATA + QUERY_HISTORY
+                        # probes and emits AssetMaterialization when the
+                        # stream's CDC state advances — so the tile goes
+                        # green each time new rows actually pass through.
+                        # Matches the tasks/DTs/snowpipes shape in this same
+                        # component.
+                        _stream_spec_kwargs = {
+                            k: v for k, v in _stream_kwargs.items()
+                            if k in ("group_name", "description", "kinds", "metadata", "tags", "owners", "deps")
+                        }
+                        _stream_spec_kwargs["key"] = AssetKey([_stream_kwargs["name"]])
+                        assets_list.append(AssetSpec(**_stream_spec_kwargs))
+                        # Stash probe context for the observation sensor.
+                        stream_metadata[_stream_kwargs["name"]] = {
+                            "stream_name": stream_name,
+                            "database":    stream['DATABASE_NAME'],
+                            "schema":      stream['SCHEMA_NAME'],
+                        }
 
                 except Exception as e:
                     _logger.error(f"Error importing Snowflake streams: {e}")
@@ -2073,63 +2020,20 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                             stage.get('DATABASE_NAME', self.workspace.database),
                             stage.get('SCHEMA_NAME', self.workspace.schema_),
                         )
-                        def _make_stage_asset(stage_name_v, db_v, schema_v, stage_kwargs_v, self_v):
-                            @observable_source_asset(**stage_kwargs_v)
-                            def _stage_asset(context):
-                                """Observable stage asset — emits file_count + total_bytes metrics."""
-                                conn = self_v._create_connection()
-                                cursor = conn.cursor()
-                                metadata: dict = {
-                                    "stage_name": stage_name_v,
-                                    "database": db_v,
-                                    "schema": schema_v,
-                                }
-                                try:
-                                    cursor.execute(f"LIST @{db_v}.{schema_v}.{stage_name_v}")
-                                    files = cursor.fetchall() or []
-                                    file_count = len(files)
-                                    total_bytes = 0
-                                    for file_row in files:
-                                        if len(file_row) > 2 and file_row[2] is not None:
-                                            try:
-                                                total_bytes += int(file_row[2])
-                                            except (TypeError, ValueError):
-                                                pass
-                                    metadata["snowflake/file_count"] = MetadataValue.int(file_count)
-                                    metadata["snowflake/total_bytes"] = MetadataValue.int(total_bytes)
-                                    context.log.info(
-                                        f"Stage {stage_name_v} has {file_count} files, "
-                                        f"total size: {total_bytes} bytes"
-                                    )
-                                except Exception as exc:
-                                    context.log.warning(
-                                        f"Could not LIST @{stage_name_v}: {exc}."
-                                    )
-                                finally:
-                                    cursor.close()
-                                    conn.close()
-                                # data_version: file_count + total_bytes — only
-                                # changes when stage contents actually move,
-                                # so downstream eager doesn't cascade on
-                                # every observation tick.
-                                _fc = metadata.get("snowflake/file_count")
-                                _tb = metadata.get("snowflake/total_bytes")
-                                signature = (
-                                    f"{getattr(_fc, 'value', _fc)}:"
-                                    f"{getattr(_tb, 'value', _tb)}"
-                                )
-                                return ObserveResult(
-                                    data_version=DataVersion(signature),
-                                    metadata=metadata,
-                                )
-                            return _stage_asset
-
-                        assets_list.append(_make_stage_asset(
-                            stage_name,
-                            stage.get('DATABASE_NAME', self.workspace.database),
-                            stage.get('SCHEMA_NAME', self.workspace.schema_),
-                            _stage_kwargs, self,
-                        ))
+                        # External asset — observation sensor runs LIST @stage
+                        # and emits AssetMaterialization when file_count or
+                        # total_bytes moves.
+                        _stage_spec_kwargs = {
+                            k: v for k, v in _stage_kwargs.items()
+                            if k in ("group_name", "description", "kinds", "metadata", "tags", "owners", "deps")
+                        }
+                        _stage_spec_kwargs["key"] = AssetKey([_stage_kwargs["name"]])
+                        assets_list.append(AssetSpec(**_stage_spec_kwargs))
+                        stage_metadata[_stage_kwargs["name"]] = {
+                            "stage_name": stage_name,
+                            "database":   stage.get('DATABASE_NAME', self.workspace.database),
+                            "schema":     stage.get('SCHEMA_NAME', self.workspace.schema_),
+                        }
 
                 except Exception as e:
                     _logger.error(f"Error importing Snowflake stages: {e}")
@@ -2348,119 +2252,21 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                             _alert_kwargs, "alert", alert_name,
                             alert['DATABASE_NAME'], alert['SCHEMA_NAME'],
                         )
-                        def _make_alert_asset(alert_name_v, db_v, schema_v, alert_kwargs_v, self_v):
-                            @observable_source_asset(**alert_kwargs_v)
-                            def _alert_asset(context: AssetExecutionContext):
-                                """Observable alert asset - monitor alert status.
-
-                                Returns ObserveResult with state / schedule / last-run
-                                metadata. Newer Dagster rejects None returns from
-                                @observable_source_asset bodies.
-                                """
-                                conn = self_v._create_connection()
-                                cursor = conn.cursor()
-                                metadata: Dict[str, Any] = {
-                                    "alert_name": alert_name_v,
-                                    "database": db_v,
-                                    "schema": schema_v,
-                                }
-                                try:
-                                    # SHOW ALERTS first — works for least-privilege roles where
-                                    # INFORMATION_SCHEMA may be invisible. Exposes state +
-                                    # condition + action + schedule.
-                                    try:
-                                        cursor.execute(
-                                            f"SHOW ALERTS LIKE '{alert_name_v}' "
-                                            f"IN SCHEMA {db_v}.{schema_v}"
-                                        )
-                                        info = cursor.fetchone()
-                                        if info:
-                                            columns = [col[0].lower() for col in cursor.description]
-                                            info_dict = dict(zip(columns, info))
-                                            metadata.update({
-                                                "alert_state": info_dict.get("state"),
-                                                "alert_schedule": info_dict.get("schedule"),
-                                                "alert_condition": info_dict.get("condition"),
-                                                "alert_action": info_dict.get("action"),
-                                                "alert_owner": info_dict.get("owner"),
-                                            })
-                                            context.log.info(
-                                                f"Alert {alert_name_v} state={info_dict.get('state')} "
-                                                f"schedule={info_dict.get('schedule')}"
-                                            )
-                                    except Exception as exc:
-                                        context.log.warning(
-                                            f"Could not read alert metadata for {alert_name_v}: {exc}."
-                                        )
-
-                                    # ALERT_HISTORY's documented column set varies
-                                    # across editions/regions — we've seen `query_id`,
-                                    # `duration`, AND `error_message` all rejected with
-                                    # "invalid identifier" SQL compile errors on real
-                                    # customer accounts. SELECT * + runtime field
-                                    # probing dodges the differences entirely:
-                                    # `name`, `state`, `scheduled_time` are the only
-                                    # universally-present fields and the data_version
-                                    # signature below uses just `state` + `scheduled_time`.
-                                    # Everything else (error_message, error_code,
-                                    # query_id, duration, completed_time) is bonus
-                                    # metadata, populated only if the account exposes it.
-                                    try:
-                                        history_query = f"""
-                                        SELECT *
-                                        FROM TABLE(INFORMATION_SCHEMA.ALERT_HISTORY(
-                                            SCHEDULED_TIME_RANGE_START => DATEADD('hour', -24, CURRENT_TIMESTAMP())
-                                        ))
-                                        WHERE name = '{alert_name_v}'
-                                        ORDER BY scheduled_time DESC
-                                        LIMIT 1
-                                        """
-                                        cursor.execute(history_query)
-                                        history = cursor.fetchone()
-                                        if history:
-                                            columns = [col[0].lower() for col in cursor.description]
-                                            history_dict = dict(zip(columns, history))
-                                            metadata["last_run_state"] = history_dict.get("state")
-                                            if history_dict.get("scheduled_time") is not None:
-                                                metadata["last_run_scheduled_time"] = str(history_dict["scheduled_time"])
-                                            for opt in (
-                                                "error_message",
-                                                "error_code",
-                                                "query_id",
-                                                "duration",
-                                                "completed_time",
-                                            ):
-                                                if history_dict.get(opt) is not None:
-                                                    metadata[f"last_run_{opt}"] = history_dict[opt]
-                                            context.log.info(
-                                                f"Alert {alert_name_v} last run state: "
-                                                f"{history_dict.get('state')}"
-                                            )
-                                    except Exception as exc:
-                                        context.log.warning(
-                                            f"Could not read ALERT_HISTORY for {alert_name_v}: {exc}."
-                                        )
-                                    # data_version: last-scheduled-time +
-                                    # last-state signature so downstream eager only
-                                    # re-fires when the alert actually ran a new
-                                    # evaluation. (query_id was the more precise
-                                    # signal but isn't readable on all tiers.)
-                                    signature = (
-                                        f"{metadata.get('last_run_scheduled_time')}:"
-                                        f"{metadata.get('last_run_state')}"
-                                    )
-                                    return ObserveResult(
-                                        data_version=DataVersion(signature),
-                                        metadata=metadata,
-                                    )
-                                finally:
-                                    cursor.close()
-                                    conn.close()
-                            return _alert_asset
-
-                        assets_list.append(_make_alert_asset(
-                            alert_name, alert['DATABASE_NAME'], alert['SCHEMA_NAME'], _alert_kwargs, self,
-                        ))
+                        # External asset — observation sensor runs
+                        # SHOW ALERTS + ALERT_HISTORY probes and emits
+                        # AssetMaterialization when a new alert evaluation
+                        # is recorded.
+                        _alert_spec_kwargs = {
+                            k: v for k, v in _alert_kwargs.items()
+                            if k in ("group_name", "description", "kinds", "metadata", "tags", "owners", "deps")
+                        }
+                        _alert_spec_kwargs["key"] = AssetKey([_alert_kwargs["name"]])
+                        assets_list.append(AssetSpec(**_alert_spec_kwargs))
+                        alert_metadata[_alert_kwargs["name"]] = {
+                            "alert_name": alert_name,
+                            "database":   alert['DATABASE_NAME'],
+                            "schema":     alert['SCHEMA_NAME'],
+                        }
 
                 except Exception as e:
                     _logger.error(f"Error importing Snowflake alerts: {e}")
@@ -2495,69 +2301,20 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                         _flow_kwargs = self._apply_translation(
                             _flow_kwargs, "openflow_flow", flow_name, "", "",
                         )
-                        def _make_openflow_asset(flow_name_v, runtime_id_v, flow_kwargs_v, self_v):
-                            @observable_source_asset(**flow_kwargs_v)
-                            def _openflow_asset(context: AssetExecutionContext):
-                                """Observable OpenFlow flow — monitor via telemetry.
-
-                                Returns ObserveResult with recent-metric count.
-                                Newer Dagster rejects None returns from
-                                @observable_source_asset bodies.
-                                """
-                                conn = self_v._create_connection()
-                                cursor = conn.cursor()
-                                metadata: Dict[str, Any] = {
-                                    "openflow_flow_name": flow_name_v,
-                                    "openflow_runtime_id": runtime_id_v,
-                                }
-                                try:
-                                    metrics_query = f"""
-                                    SELECT
-                                        TIMESTAMP,
-                                        RECORD['metric_name']::STRING AS metric_name,
-                                        RECORD['metric_value']::NUMBER AS metric_value,
-                                        RECORD['component_name']::STRING AS component_name
-                                    FROM SNOWFLAKE.TELEMETRY.EVENTS
-                                    WHERE RECORD_TYPE = 'openflow_metric'
-                                    AND RECORD['process_group_name']::STRING = '{flow_name_v}'
-                                    AND TIMESTAMP >= DATEADD('hour', -1, CURRENT_TIMESTAMP())
-                                    ORDER BY TIMESTAMP DESC
-                                    LIMIT 100
-                                    """
-                                    try:
-                                        cursor.execute(metrics_query)
-                                        metrics = cursor.fetchall()
-                                    except Exception as exc:
-                                        context.log.warning(
-                                            f"Could not query OpenFlow telemetry for {flow_name_v}: {exc}. "
-                                            f"Common cause: role lacks IMPORT SHARE on SNOWFLAKE database "
-                                            f"or telemetry is disabled on this runtime."
-                                        )
-                                        metrics = []
-                                    metadata["snowflake/openflow_recent_metric_count"] = MetadataValue.int(len(metrics))
-                                    # Pull the most-recent metric timestamp
-                                    # for the data_version signature so
-                                    # downstream eager re-fires only when new
-                                    # metrics actually land in TELEMETRY.EVENTS.
-                                    latest_ts = str(metrics[0][0]) if metrics else "none"
-                                    metadata["snowflake/openflow_latest_metric_ts"] = latest_ts
-                                    if metrics:
-                                        context.log.info(f"OpenFlow flow {flow_name_v} (runtime {runtime_id_v}) has {len(metrics)} recent metrics")
-                                    else:
-                                        context.log.info(f"OpenFlow flow {flow_name_v} (runtime {runtime_id_v}) has no recent activity")
-                                    signature = f"{len(metrics)}:{latest_ts}"
-                                    return ObserveResult(
-                                        data_version=DataVersion(signature),
-                                        metadata=metadata,
-                                    )
-                                finally:
-                                    cursor.close()
-                                    conn.close()
-                            return _openflow_asset
-
-                        assets_list.append(_make_openflow_asset(
-                            flow_name, runtime_id, _flow_kwargs, self,
-                        ))
+                        # External asset — observation sensor queries
+                        # SNOWFLAKE.TELEMETRY.EVENTS and emits
+                        # AssetMaterialization when the most-recent metric
+                        # timestamp for this flow moves.
+                        _flow_spec_kwargs = {
+                            k: v for k, v in _flow_kwargs.items()
+                            if k in ("group_name", "description", "kinds", "metadata", "tags", "owners", "deps")
+                        }
+                        _flow_spec_kwargs["key"] = AssetKey([_flow_kwargs["name"]])
+                        assets_list.append(AssetSpec(**_flow_spec_kwargs))
+                        openflow_metadata[_flow_kwargs["name"]] = {
+                            "flow_name":  flow_name,
+                            "runtime_id": runtime_id,
+                        }
 
                 except Exception as e:
                     _logger.error(f"Error importing OpenFlow flows: {e}")
@@ -2894,22 +2651,51 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                     _logger.error(f"Error importing Snowflake tables/views: {e}")
 
         # Create observation sensor if requested
-        if self.polling_sensor and (task_metadata or snowpipe_metadata):
+        if self.polling_sensor and (
+            task_metadata or snowpipe_metadata
+            or stream_metadata or stage_metadata
+            or alert_metadata or openflow_metadata
+        ):
             @sensor(
                 name=f"{self.group_name}_observation_sensor",
                 minimum_interval_seconds=self.poll_interval_seconds
             )
             def snowflake_observation_sensor(context: SensorEvaluationContext):
-                """Sensor to observe Snowflake task runs and Snowpipe loads.
+                """Sensor to observe Snowflake task runs, Snowpipe loads,
+                stream CDC state, stage file movement, alert evaluations,
+                and OpenFlow telemetry activity.
 
                 Dynamic-table refreshes are handled by the dedicated
                 ``<group>_dt_refresh_sensor`` (see DT-refresh sensor block).
+
+                Streams / stages / alerts / flows are external assets
+                (``AssetSpec``) with no compute — this sensor is the sole
+                source of their materialization events, so their tiles go
+                green whenever the underlying Snowflake state advances.
+                Per-entity signature dedup via ``context.cursor`` prevents
+                re-emit on unchanged ticks (matches the DT-refresh sensor
+                pattern).
 
                 Returns a single ``SensorResult(asset_events=[...])`` —
                 Dagster's sensor framework rejects ``yield
                 AssetMaterialization(...)`` (list-member-type check
                 expects SkipReason/RunRequest/DagsterRunReaction).
                 """
+                # Cursor: {"streams": {name: sig}, "stages": {...},
+                #          "alerts": {...}, "flows": {...}}
+                try:
+                    prev_state: Dict[str, dict] = json.loads(context.cursor) if context.cursor else {}
+                except Exception:
+                    prev_state = {}
+                prev_streams = dict(prev_state.get("streams") or {})
+                prev_stages  = dict(prev_state.get("stages")  or {})
+                prev_alerts  = dict(prev_state.get("alerts")  or {})
+                prev_flows   = dict(prev_state.get("flows")   or {})
+                new_streams  = dict(prev_streams)
+                new_stages   = dict(prev_stages)
+                new_alerts   = dict(prev_alerts)
+                new_flows    = dict(prev_flows)
+
                 conn = self._create_connection()
                 cursor = conn.cursor()
                 events: list = []
@@ -3048,14 +2834,257 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                         except Exception as e:
                             _logger.error(f"Error checking loads for Snowpipe {pipe_name}: {e}")
 
+                    # ── Streams (CDC state) ──────────────────────────
+                    # SYSTEM$STREAM_HAS_DATA is point-in-time; QUERY_HISTORY
+                    # rows_advanced_7d is the cumulative signal that new rows
+                    # actually flowed through the stream. Signature dedups
+                    # on (has_data, pending, rows_advanced) so the sensor
+                    # only emits when the CDC state genuinely advances.
+                    for asset_key, sm in stream_metadata.items():
+                        stream_name = sm['stream_name']
+                        db = sm['database']
+                        schema_name = sm['schema']
+                        s_meta: Dict[str, Any] = {
+                            "stream_name": stream_name,
+                            "database":    db,
+                            "schema":      schema_name,
+                            "source":      "snowflake_observation_sensor",
+                            "entity_type": "stream",
+                        }
+                        try:
+                            cursor.execute(
+                                f"SELECT SYSTEM$STREAM_HAS_DATA('{db}.{schema_name}.{stream_name}')"
+                            )
+                            has_data_bool = str(cursor.fetchone()[0]).lower() == "true"
+                            s_meta["snowflake/has_data"] = MetadataValue.int(1 if has_data_bool else 0)
+                            if has_data_bool:
+                                try:
+                                    cursor.execute(
+                                        f"SELECT COUNT(*) FROM {db}.{schema_name}.{stream_name}"
+                                    )
+                                    s_meta["snowflake/pending_rows"] = MetadataValue.int(int(cursor.fetchone()[0] or 0))
+                                except Exception as exc:
+                                    _logger.warning(
+                                        f"Stream {stream_name}: pending_rows probe failed: {exc}"
+                                    )
+                            # Cumulative consumption metrics from QUERY_HISTORY.
+                            # Text-match caveats: INFORMATION_SCHEMA retains
+                            # ~7 days (hence _7d); ILIKE '%<name>%' can
+                            # false-positive on comments; NOT ILIKE filters
+                            # exclude the observer's own probes.
+                            try:
+                                cursor.execute(f"""
+                                    SELECT COALESCE(SUM(ROWS_INSERTED), 0),
+                                           MAX(END_TIME)
+                                      FROM TABLE(INFORMATION_SCHEMA.QUERY_HISTORY(RESULT_LIMIT => 1000))
+                                     WHERE QUERY_TEXT ILIKE '%{stream_name}%'
+                                       AND QUERY_TEXT NOT ILIKE '%INFORMATION_SCHEMA%'
+                                       AND QUERY_TEXT NOT ILIKE '%SHOW STREAMS%'
+                                       AND EXECUTION_STATUS = 'SUCCESS'
+                                       AND ROWS_INSERTED > 0
+                                """)
+                                rows_advanced, last_consumed = cursor.fetchone()
+                                s_meta["snowflake/rows_advanced_7d"] = MetadataValue.int(int(rows_advanced))
+                                if last_consumed:
+                                    s_meta["snowflake/last_consumed_at"] = MetadataValue.timestamp(last_consumed)
+                            except Exception as exc:
+                                _logger.warning(
+                                    f"Stream {stream_name}: consumption history probe failed: {exc}"
+                                )
+                        except Exception as exc:
+                            _logger.warning(f"Stream {stream_name}: could not observe: {exc}")
+                            continue
+
+                        _has = s_meta.get("snowflake/has_data")
+                        _pending = s_meta.get("snowflake/pending_rows")
+                        _rows_adv = s_meta.get("snowflake/rows_advanced_7d")
+                        sig = (
+                            f"{getattr(_has, 'value', _has)}:"
+                            f"{getattr(_pending, 'value', _pending)}:"
+                            f"{getattr(_rows_adv, 'value', _rows_adv)}"
+                        )
+                        if prev_streams.get(asset_key) == sig:
+                            continue   # unchanged — don't re-emit
+                        new_streams[asset_key] = sig
+                        events.append(AssetMaterialization(
+                            asset_key=AssetKey([asset_key]),
+                            metadata=s_meta,
+                            tags={"dagster/data_version": sig},
+                        ))
+
+                    # ── Stages (file count / bytes) ──────────────────
+                    for asset_key, sm in stage_metadata.items():
+                        stage_name = sm['stage_name']
+                        db = sm['database']
+                        schema_name = sm['schema']
+                        st_meta: Dict[str, Any] = {
+                            "stage_name":  stage_name,
+                            "database":    db,
+                            "schema":      schema_name,
+                            "source":      "snowflake_observation_sensor",
+                            "entity_type": "stage",
+                        }
+                        try:
+                            cursor.execute(f"LIST @{db}.{schema_name}.{stage_name}")
+                            files = cursor.fetchall() or []
+                            file_count = len(files)
+                            total_bytes = 0
+                            for file_row in files:
+                                if len(file_row) > 2 and file_row[2] is not None:
+                                    try:
+                                        total_bytes += int(file_row[2])
+                                    except (TypeError, ValueError):
+                                        pass
+                            st_meta["snowflake/file_count"]  = MetadataValue.int(file_count)
+                            st_meta["snowflake/total_bytes"] = MetadataValue.int(total_bytes)
+                        except Exception as exc:
+                            _logger.warning(f"Stage {stage_name}: LIST failed: {exc}")
+                            continue
+
+                        sig = f"{file_count}:{total_bytes}"
+                        if prev_stages.get(asset_key) == sig:
+                            continue
+                        new_stages[asset_key] = sig
+                        events.append(AssetMaterialization(
+                            asset_key=AssetKey([asset_key]),
+                            metadata=st_meta,
+                            tags={"dagster/data_version": sig},
+                        ))
+
+                    # ── Alerts (evaluation history) ──────────────────
+                    for asset_key, am in alert_metadata.items():
+                        alert_name = am['alert_name']
+                        db = am['database']
+                        schema_name = am['schema']
+                        a_meta: Dict[str, Any] = {
+                            "alert_name":  alert_name,
+                            "database":    db,
+                            "schema":      schema_name,
+                            "source":      "snowflake_observation_sensor",
+                            "entity_type": "alert",
+                        }
+                        # SHOW ALERTS — works for least-privilege roles;
+                        # ALERT_HISTORY columns vary across editions.
+                        try:
+                            cursor.execute(
+                                f"SHOW ALERTS LIKE '{alert_name}' "
+                                f"IN SCHEMA {db}.{schema_name}"
+                            )
+                            info = cursor.fetchone()
+                            if info:
+                                columns = [col[0].lower() for col in cursor.description]
+                                info_dict = dict(zip(columns, info))
+                                a_meta.update({
+                                    "alert_state":     info_dict.get("state"),
+                                    "alert_schedule":  info_dict.get("schedule"),
+                                    "alert_condition": info_dict.get("condition"),
+                                    "alert_action":    info_dict.get("action"),
+                                    "alert_owner":     info_dict.get("owner"),
+                                })
+                        except Exception as exc:
+                            _logger.warning(f"Alert {alert_name}: SHOW failed: {exc}")
+
+                        last_state = None
+                        last_scheduled = None
+                        try:
+                            cursor.execute(f"""
+                                SELECT *
+                                  FROM TABLE(INFORMATION_SCHEMA.ALERT_HISTORY(
+                                      SCHEDULED_TIME_RANGE_START => DATEADD('hour', -24, CURRENT_TIMESTAMP())
+                                  ))
+                                 WHERE name = '{alert_name}'
+                                 ORDER BY scheduled_time DESC
+                                 LIMIT 1
+                            """)
+                            history = cursor.fetchone()
+                            if history:
+                                columns = [col[0].lower() for col in cursor.description]
+                                history_dict = dict(zip(columns, history))
+                                last_state = history_dict.get("state")
+                                a_meta["last_run_state"] = last_state
+                                if history_dict.get("scheduled_time") is not None:
+                                    last_scheduled = str(history_dict["scheduled_time"])
+                                    a_meta["last_run_scheduled_time"] = last_scheduled
+                                for opt in ("error_message", "error_code", "query_id",
+                                            "duration", "completed_time"):
+                                    if history_dict.get(opt) is not None:
+                                        a_meta[f"last_run_{opt}"] = history_dict[opt]
+                        except Exception as exc:
+                            _logger.warning(f"Alert {alert_name}: ALERT_HISTORY failed: {exc}")
+
+                        sig = f"{last_scheduled}:{last_state}"
+                        if prev_alerts.get(asset_key) == sig:
+                            continue
+                        new_alerts[asset_key] = sig
+                        events.append(AssetMaterialization(
+                            asset_key=AssetKey([asset_key]),
+                            metadata=a_meta,
+                            tags={"dagster/data_version": sig},
+                        ))
+
+                    # ── OpenFlow flows (telemetry) ───────────────────
+                    for asset_key, fm in openflow_metadata.items():
+                        flow_name = fm['flow_name']
+                        runtime_id = fm.get('runtime_id')
+                        f_meta: Dict[str, Any] = {
+                            "openflow_flow_name":  flow_name,
+                            "openflow_runtime_id": runtime_id,
+                            "source":              "snowflake_observation_sensor",
+                            "entity_type":         "openflow_flow",
+                        }
+                        try:
+                            cursor.execute(f"""
+                                SELECT TIMESTAMP,
+                                       RECORD['metric_name']::STRING  AS metric_name,
+                                       RECORD['metric_value']::NUMBER AS metric_value,
+                                       RECORD['component_name']::STRING AS component_name
+                                  FROM SNOWFLAKE.TELEMETRY.EVENTS
+                                 WHERE RECORD_TYPE = 'openflow_metric'
+                                   AND RECORD['process_group_name']::STRING = '{flow_name}'
+                                   AND TIMESTAMP >= DATEADD('hour', -1, CURRENT_TIMESTAMP())
+                                 ORDER BY TIMESTAMP DESC
+                                 LIMIT 100
+                            """)
+                            metrics = cursor.fetchall()
+                        except Exception as exc:
+                            _logger.warning(
+                                f"OpenFlow {flow_name}: TELEMETRY probe failed: {exc} "
+                                "(role may lack IMPORT SHARE on SNOWFLAKE database "
+                                "or telemetry is disabled on this runtime)"
+                            )
+                            continue
+                        latest_ts = str(metrics[0][0]) if metrics else "none"
+                        f_meta["snowflake/openflow_recent_metric_count"] = MetadataValue.int(len(metrics))
+                        f_meta["snowflake/openflow_latest_metric_ts"] = latest_ts
+                        sig = f"{len(metrics)}:{latest_ts}"
+                        if prev_flows.get(asset_key) == sig:
+                            continue
+                        new_flows[asset_key] = sig
+                        events.append(AssetMaterialization(
+                            asset_key=AssetKey([asset_key]),
+                            metadata=f_meta,
+                            tags={"dagster/data_version": sig},
+                        ))
+
                 finally:
                     cursor.close()
                     conn.close()
 
+                new_cursor = json.dumps({
+                    "streams": new_streams,
+                    "stages":  new_stages,
+                    "alerts":  new_alerts,
+                    "flows":   new_flows,
+                })
                 if events:
-                    return SensorResult(asset_events=events)
-                return SkipReason(
-                    "No new task completions or pipe loads in this tick window."
+                    return SensorResult(asset_events=events, cursor=new_cursor)
+                return SensorResult(
+                    asset_events=[],
+                    cursor=new_cursor,
+                    skip_reason=SkipReason(
+                        "No new task/pipe activity and no advancing "
+                        "stream/stage/alert/flow state in this tick window."
+                    ),
                 )
 
             sensors_list.append(snowflake_observation_sensor)

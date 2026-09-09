@@ -913,6 +913,363 @@ def _do_save_model(model, step: dict, target: str, features: list, context):
     }])
 
 
+# ── Model Registry ops: train-once, predict-often ────────────────────
+#
+# Mirrors snowpark_pipeline's `model_name` / `model_version` shape so
+# users move between pipelines without relearning fields. Registers an
+# already-fit model in the training pipeline (`register_model` op);
+# loads it back into `state` in the inference pipeline (`load_model`
+# op) so downstream `predict` / `predict_proba` / `evaluate` ops use
+# it as if it were freshly trained.
+#
+# Two backends:
+#   backend: mlflow      → MLflow Model Registry (default)
+#                          Requires `tracking_uri:` (or *_env_var).
+#                          Points at a running MLflow tracking server
+#                          — a self-hosted `http://mlflow.host:5000`,
+#                          `databricks`, or a SQL-backed store with an
+#                          explicit artifact root. There is NO
+#                          silent fallback to `file:./mlruns/` (that
+#                          would vanish on any ephemeral-disk runtime
+#                          like Dagster+ Serverless).
+#
+#   backend: snowflake   → Snowflake Model Registry (via snowflake-ml-python).
+#                          Requires a `connection:` dict — same shape
+#                          as snowpark_pipeline's connection (fields
+#                          may end with `_env_var`). Optional
+#                          `registry_database` / `registry_schema`.
+#                          Models are stored in Snowflake — same RBAC,
+#                          audit log, replication as your data.
+
+def _resolve_env_field(d: Dict[str, Any], key: str) -> Optional[str]:
+    """Read a value from d[key] OR from os.environ[d[key + '_env_var']].
+    Returns None if neither is set."""
+    import os as _os
+    if key in d and d[key]:
+        return d[key]
+    env_key = f"{key}_env_var"
+    if env_key in d and d[env_key]:
+        env_var = d[env_key]
+        val = _os.environ.get(env_var)
+        if not val:
+            raise ValueError(
+                f"ml_pipeline: {env_key}={env_var!r} is set but env var {env_var!r} is empty/unset"
+            )
+        return val
+    return None
+
+
+def _resolve_registry_version_hint(hint: Optional[str]) -> str:
+    """`auto` / None → timestamp; anything else pass-through."""
+    import time as _t
+    if hint in (None, "", "auto"):
+        return _t.strftime("v_%Y%m%d_%H%M%S", _t.gmtime())
+    return hint
+
+
+def _snowflake_session(connection: Dict[str, Any]):
+    """Build a Snowpark Session from a connection dict (same shape as
+    snowpark_pipeline). Any field may end with `_env_var` to read from
+    an env var. Kept local so ml_pipeline stays self-contained."""
+    import os as _os
+    from snowflake.snowpark import Session
+    cfg: Dict[str, Any] = {}
+    for k, v in (connection or {}).items():
+        if k.endswith("_env_var"):
+            base = k[:-len("_env_var")]
+            val = _os.environ.get(v)
+            if not val:
+                raise ValueError(
+                    f"ml_pipeline snowflake connection: env var {v!r} "
+                    f"referenced by {k}= is empty/unset"
+                )
+            cfg[base] = val
+        else:
+            cfg[k] = v
+    return Session.builder.configs(cfg).create()
+
+
+# ── MLflow backend ───────────────────────────────────────────────────
+
+def _mlflow_import(op_name: str):
+    try:
+        import mlflow
+        from mlflow.tracking import MlflowClient
+        return mlflow, MlflowClient
+    except ImportError as e:
+        raise RuntimeError(
+            f"ml_pipeline op={op_name!r} backend='mlflow' requires mlflow. "
+            "Install with `pip install mlflow`."
+        ) from e
+
+
+def _mlflow_set_tracking_or_die(step: dict, op_name: str):
+    """Resolve tracking_uri from step config; hard-fail if unset.
+
+    We do NOT fall back to MLflow's default (`file:./mlruns/`) — that's
+    ephemeral in every non-laptop runtime and leads to a silent data
+    loss where the "registered" model isn't there for the next run.
+    """
+    mlflow, _ = _mlflow_import(op_name)
+    uri = _resolve_env_field(step, "tracking_uri")
+    if not uri:
+        raise ValueError(
+            f"ml_pipeline op={op_name!r} (backend='mlflow') requires `tracking_uri:` "
+            "(or `tracking_uri_env_var:`). Point at a running MLflow tracking server "
+            "such as `http://mlflow.internal:5000`, `databricks`, or a SQL-backed store. "
+            "The default `file:./mlruns/` is disabled because it silently loses models "
+            "on any ephemeral-disk runtime (Dagster+ Serverless, k8s pods, ECS tasks)."
+        )
+    mlflow.set_tracking_uri(uri)
+    return mlflow
+
+
+def _mlflow_register(model, step: dict, context):
+    """Register `model` in MLflow Model Registry; return metadata row."""
+    import pandas as pd
+    import time as _time
+    mlflow = _mlflow_set_tracking_or_die(step, "register_model")
+    _, MlflowClient = _mlflow_import("register_model")
+
+    model_name = step["model_name"]
+    active_run = mlflow.active_run()
+    opened_here = False
+    if not active_run:
+        mlflow.start_run(run_name=f"register_{model_name}")
+        opened_here = True
+    run = mlflow.active_run()
+
+    artifact_path = step.get("artifact_path") or "model"
+    # sklearn-flavor works for sklearn / xgboost / lightgbm (all
+    # implement the sklearn Estimator interface). Custom flavors are
+    # a follow-up.
+    mlflow.sklearn.log_model(model, artifact_path=artifact_path)
+    model_uri = f"runs:/{run.info.run_id}/{artifact_path}"
+
+    reg = mlflow.register_model(model_uri=model_uri, name=model_name)
+    version = reg.version
+
+    client = MlflowClient()
+    if step.get("description"):
+        client.update_model_version(name=model_name, version=version, description=step["description"])
+    for k, v in (step.get("tags") or {}).items():
+        client.set_model_version_tag(name=model_name, version=version, key=str(k), value=str(v))
+    stage = step.get("stage")
+    if stage:
+        client.transition_model_version_stage(name=model_name, version=version, stage=stage)
+
+    if opened_here:
+        mlflow.end_run()
+
+    context.log.info(
+        f"register_model (mlflow): {type(model).__name__} → {model_name} v{version} "
+        f"(run={run.info.run_id}, stage={stage or 'None'})"
+    )
+    return pd.DataFrame([{
+        "backend":       "mlflow",
+        "model_name":    model_name,
+        "version":       str(version),
+        "stage":         stage or "",
+        "run_id":        run.info.run_id,
+        "uri":           f"models:/{model_name}/{version}",
+        "registered_at": _time.strftime("%Y-%m-%dT%H:%M:%S"),
+    }])
+
+
+def _mlflow_load(step: dict, context):
+    mlflow = _mlflow_set_tracking_or_die(step, "load_model")
+    model_name = step["model_name"]
+    version_hint = (step.get("model_version") or "latest").lower()
+    if version_hint in ("latest", "default"):
+        uri = f"models:/{model_name}/latest"
+    elif version_hint in ("staging", "production", "archived", "none"):
+        uri = f"models:/{model_name}/{version_hint.capitalize()}"
+    else:
+        uri = f"models:/{model_name}/{version_hint}"
+    model = mlflow.sklearn.load_model(uri)
+    context.log.info(f"load_model (mlflow): {model_name} @ {version_hint} → {type(model).__name__}")
+    return model
+
+
+# ── Snowflake backend ────────────────────────────────────────────────
+
+def _snowflake_get_registry(step: dict, op_name: str):
+    connection = step.get("connection")
+    if not connection or not isinstance(connection, dict):
+        raise ValueError(
+            f"ml_pipeline op={op_name!r} (backend='snowflake') requires `connection:` "
+            "— the Snowflake connection dict (same shape as snowpark_pipeline). "
+            "Fields may end with `_env_var` to read from an env var."
+        )
+    try:
+        from snowflake.ml.registry import Registry
+    except ImportError as e:
+        raise RuntimeError(
+            f"ml_pipeline op={op_name!r} backend='snowflake' requires snowflake-ml-python. "
+            "Install with `pip install snowflake-ml-python`."
+        ) from e
+    session = _snowflake_session(connection)
+    return session, Registry(
+        session=session,
+        database_name=step.get("registry_database"),  # None → session's current
+        schema_name=step.get("registry_schema"),
+    )
+
+
+def _snowflake_register(model, step: dict, context, features: list):
+    import pandas as pd
+    import time as _time
+    session, registry = _snowflake_get_registry(step, "register_model")
+
+    model_name = step["model_name"]
+    version_name = _resolve_registry_version_hint(step.get("model_version"))
+
+    # snowflake-ml-python needs a sample input to infer the schema.
+    # For sklearn-shaped models, a small pandas frame with the feature
+    # columns is enough — build it from state's most-recent frame if
+    # available, else from a dummy row with feature names only.
+    sample_source = step.get("_sample_frame")   # optional injection by dispatcher
+    if sample_source is None:
+        # Best-effort: emit a 1-row frame with float zeros as feature values.
+        sample_source = pd.DataFrame([{f: 0.0 for f in features}])
+
+    kwargs: Dict[str, Any] = {
+        "model":         model,
+        "model_name":    model_name,
+        "version_name":  version_name,
+        "sample_input_data": sample_source,
+    }
+    if step.get("description"):
+        kwargs["comment"] = step["description"]
+    reg_version = registry.log_model(**kwargs)
+
+    tags = step.get("tags") or {}
+    for k, v in tags.items():
+        try:
+            reg_version.set_tag(str(k), str(v))
+        except Exception as e:  # noqa: BLE001
+            context.log.warning(f"snowflake registry set_tag({k!r}) failed: {e}")
+
+    stage = step.get("stage")   # snowflake registry: "default" version pointer
+    if stage and stage.lower() in ("default", "production", "prod"):
+        try:
+            model_ref = registry.get_model(model_name)
+            model_ref.default = reg_version
+        except Exception as e:  # noqa: BLE001
+            context.log.warning(f"snowflake registry set-default failed: {e}")
+
+    context.log.info(
+        f"register_model (snowflake): {type(model).__name__} → {model_name} {version_name} "
+        f"({registry._database_name}.{registry._schema_name})"
+    )
+    return pd.DataFrame([{
+        "backend":       "snowflake",
+        "model_name":    model_name,
+        "version":       version_name,
+        "stage":         stage or "",
+        "run_id":        "",   # snowflake registry has no run-id concept
+        "uri":           f"snowflake://{registry._database_name}.{registry._schema_name}/{model_name}/{version_name}",
+        "registered_at": _time.strftime("%Y-%m-%dT%H:%M:%S"),
+    }])
+
+
+def _snowflake_load(step: dict, context):
+    session, registry = _snowflake_get_registry(step, "load_model")
+    model_name = step["model_name"]
+    model_ref = registry.get_model(model_name)
+    version_hint = (step.get("model_version") or "latest").lower()
+    if version_hint in ("latest", "default"):
+        version = model_ref.default
+    else:
+        version = model_ref.version(step["model_version"])
+    context.log.info(f"load_model (snowflake): {model_name} @ {version_hint}")
+    # Return the version object — it has .run(df, function_name=...)
+    # for scoring. Downstream `predict` would need to know this shape
+    # differs from a plain sklearn model; for now we wrap it in a shim
+    # so the existing `predict`/`evaluate` ops still work.
+    return _SnowflakeModelShim(version)
+
+
+class _SnowflakeModelShim:
+    """Adapts a snowflake-ml Registry ModelVersion to the sklearn-like
+    `.predict(X)` / `.predict_proba(X)` surface the ml_pipeline
+    downstream ops expect."""
+    def __init__(self, version):
+        self._v = version
+    def predict(self, X):
+        return self._v.run(X, function_name="predict")
+    def predict_proba(self, X):
+        return self._v.run(X, function_name="predict_proba")
+    @property
+    def classes_(self):
+        # Not universally available — callers that need this should
+        # read it from the run output metadata instead.
+        raise AttributeError("classes_ not exposed by snowflake ModelVersion shim")
+
+
+# ── Op entry points ──────────────────────────────────────────────────
+
+def _do_register_model(model, step: dict, target: str, features: list, context):
+    """Register a fitted model in a Model Registry (MLflow or Snowflake).
+
+    Config (all under the step):
+      - model:           id of a prior train step (standard `model:` field)
+      - model_name:      required — the Registry name
+      - model_version:   optional — 'auto' → timestamp (default); or a literal
+      - backend:         'mlflow' (default) | 'snowflake'
+      - stage:           optional — MLflow: 'Staging'|'Production'|'Archived';
+                                    Snowflake: 'default' promotes to default version
+      - description:     optional
+      - tags:            optional — dict of str→str
+
+    Backend-specific:
+      MLflow:      tracking_uri OR tracking_uri_env_var (required — no silent local fallback)
+      Snowflake:   connection: {...}  (required — same shape as snowpark_pipeline)
+                   registry_database:  optional
+                   registry_schema:    optional
+
+    Returns a one-row DataFrame with (backend, model_name, version, stage, run_id, uri, registered_at).
+    """
+    if not step.get("model_name"):
+        raise ValueError("register_model op: `model_name` (Registry name) is required")
+    backend = (step.get("backend") or "mlflow").lower()
+    if backend == "mlflow":
+        return _mlflow_register(model, step, context)
+    if backend == "snowflake":
+        return _snowflake_register(model, step, context, features)
+    raise ValueError(
+        f"register_model op: backend={backend!r} not supported. Valid: 'mlflow' | 'snowflake'."
+    )
+
+
+def _do_load_model(step: dict, target: str, features: list, context):
+    """Load a versioned model from a Model Registry.
+
+    Returns the model estimator directly (no DataFrame wrapper) so
+    downstream `predict` / `evaluate` ops can use it via `model: <id>`.
+
+    Config:
+      - model_name:    required
+      - model_version: 'latest' (default) | 'staging' | 'production' | literal
+      - backend:       'mlflow' (default) | 'snowflake'
+
+    Backend-specific:
+      MLflow:      tracking_uri OR tracking_uri_env_var (required)
+      Snowflake:   connection: {...}  (required)
+                   registry_database / registry_schema  (optional)
+    """
+    if not step.get("model_name"):
+        raise ValueError("load_model op: `model_name` is required")
+    backend = (step.get("backend") or "mlflow").lower()
+    if backend == "mlflow":
+        return _mlflow_load(step, context)
+    if backend == "snowflake":
+        return _snowflake_load(step, context)
+    raise ValueError(
+        f"load_model op: backend={backend!r} not supported. Valid: 'mlflow' | 'snowflake'."
+    )
+
+
 def _do_cross_validate(df, step: dict, target: str, features: list, context):
     import pandas as pd
     from sklearn.model_selection import cross_validate
@@ -986,8 +1343,13 @@ _MODEL_APPLY_OPS = {
 }
 # Ops that take a model alone.
 _MODEL_ONLY_OPS = {
-    "importance":    _do_importance,
-    "save_model":    _do_save_model,
+    "importance":     _do_importance,
+    "save_model":     _do_save_model,
+    "register_model": _do_register_model,
+}
+# Ops that produce a model with no inputs (source-shaped for models).
+_MODEL_LOAD_OPS = {
+    "load_model": _do_load_model,
 }
 
 
@@ -1028,12 +1390,29 @@ def _run_step(step: dict, state: Dict[str, Any], target: str, features: list, co
         context.log.info(f"step {step_id!r} ({op}) → DataFrame ({len(df)} rows)")
     elif op in _MODEL_ONLY_OPS:
         model_id = step["model"]
+        # Give register_model access to a sample frame for snowflake-ml
+        # signature inference — pick the most-recent frame in state.
+        # No-op for backend='mlflow' since sklearn flavor doesn't need it.
+        if op == "register_model":
+            try:
+                step = dict(step)  # shallow copy so we don't mutate caller's dict
+                step["_sample_frame"] = state[_last_frame_id(state)]
+            except ValueError:
+                pass  # no frame in state — snowflake path will build a dummy
         df = _MODEL_ONLY_OPS[op](state[model_id], step, target, features, context)
         state[step_id] = df
         context.log.info(f"step {step_id!r} ({op}) → DataFrame ({len(df)} rows)")
+    elif op in _MODEL_LOAD_OPS:
+        # Produces a model with no state input — a source-shaped op
+        # for models. Downstream `predict`/`evaluate` reference it
+        # via `model: <step_id>` exactly like a `train` step.
+        model = _MODEL_LOAD_OPS[op](step, target, features, context)
+        state[step_id] = model
+        context.log.info(f"step {step_id!r} ({op}) → model {type(model).__name__}")
     else:
         raise ValueError(
-            f"unknown op: {op!r}. valid: {sorted(set(_FRAME_OPS) | _MODEL_TRAIN_OPS | set(_MODEL_APPLY_OPS) | set(_MODEL_ONLY_OPS))}"
+            f"unknown op: {op!r}. valid: "
+            f"{sorted(set(_FRAME_OPS) | set(_MODEL_TRAIN_OPS) | set(_MODEL_APPLY_OPS) | set(_MODEL_ONLY_OPS) | set(_MODEL_LOAD_OPS))}"
         )
 
     elapsed = _time.time() - t0

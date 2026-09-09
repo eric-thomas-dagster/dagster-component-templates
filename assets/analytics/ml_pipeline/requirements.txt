@@ -3,9 +3,15 @@ scikit-learn
 requests
 joblib
 # Optional deps enabled by specific ops:
-#   shap                   — required by the `shap_values` op
-#   xgboost                — for sklearn_class: "xgboost.XGBClassifier" / XGBRegressor
-#   lightgbm               — for sklearn_class: "lightgbm.LGBMClassifier" / LGBMRegressor
+#   shap                    — required by the `shap_values` op
+#   xgboost                 — for sklearn_class: "xgboost.XGBClassifier" / XGBRegressor
+#   lightgbm                — for sklearn_class: "lightgbm.LGBMClassifier" / LGBMRegressor
+#   optuna                  — for `bayesian_search`
+#   mlflow                  — for `register_model` / `load_model` with backend='mlflow',
+#                             and for `experiment_tracking.mlflow`
+#   snowflake-ml-python     — for `register_model` / `load_model` with backend='snowflake'
+#   snowflake-snowpark-python — required alongside snowflake-ml-python (session for the registry)
+#   wandb                   — for `experiment_tracking.wandb`
 #   sqlalchemy + a DB driver — required when source.kind = warehouse_query
 #     (psycopg2-binary for postgres, snowflake-sqlalchemy for snowflake,
 #      pymysql / pymssql / google-cloud-bigquery-sqlalchemy for others)

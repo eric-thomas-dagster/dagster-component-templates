@@ -128,15 +128,18 @@ pipelines without relearning the fields.
 
 Per-pipeline target backend:
 
-- **ml_pipeline** (scikit-learn / xgboost / lightgbm) — MLflow Model
-  Registry is the obvious target (`mlflow.sklearn.log_model` +
-  `mlflow.pyfunc.load_model`). Manifest already ships `mlflow` as an
-  optional dep. Alt: a filesystem/S3 pickle store for teams that
-  don't run MLflow.
+- ~~**ml_pipeline** (scikit-learn / xgboost / lightgbm) — MLflow Model
+  Registry~~ — shipped in ml_pipeline v1.2.0. `register_model` /
+  `load_model` ops with `backend: mlflow | snowflake`. MLflow requires
+  `tracking_uri` (or `tracking_uri_env_var`) — hard-fails rather than
+  silently writing to `file:./mlruns/` (which vanishes on ephemeral
+  compute). Snowflake backend uses `snowflake-ml-python`'s Registry
+  with a `connection:` dict matching snowpark_pipeline.
 - **pyspark_pipeline** — MLflow again (`mlflow.spark.log_model`), or
   Databricks Model Registry when the runtime is Databricks.
   `pyspark.ml.PipelineModel.save(...) + .load(...)` for the
-  no-MLflow fallback.
+  no-MLflow fallback. Same op names + `backend:` selector as
+  ml_pipeline (add `databricks-managed-mlflow` as a third backend).
 - **agentic_pipeline** — the analog isn't "model weights" but
   **planner state**: the compiled plan (tool sequence, prompts,
   temperatures). Already partly done via PlannedCatalogAgent's
@@ -165,9 +168,8 @@ Uniform op shape across pipelines:
   registry_uri: <optional; MLflow tracking URI, etc.>
 ```
 
-Ship in this order: **ml_pipeline** first (biggest MLOps ask outside
-Snowflake), then **pyspark_pipeline**, then agentic_pipeline planner
-persistence formalization.
+Ship order (updated): ~~ml_pipeline~~ done. Next: **pyspark_pipeline**,
+then agentic_pipeline planner persistence formalization.
 
 ## Partition shape rework — Phase 1 item 5 (strict validation)
 

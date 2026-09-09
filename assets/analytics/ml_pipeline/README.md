@@ -34,7 +34,7 @@ attributes:
          schema: ml_output, partition_column: prediction_date, if_exists: append}
 ```
 
-## Op menu (28 total)
+## Op menu (30 total)
 
 **Preprocessing** (9): `impute`, `scale`, `one_hot_encode`, `label_encode`, `tile_binning`, `outlier_clip`, `missing_indicator`, `quantile_transformer`, `power_transformer`
 
@@ -47,6 +47,124 @@ attributes:
 **Split + train** (5): `split`, `train`, `grid_search`, `random_search`, `bayesian_search`
 
 **Evaluate + interpret** (7): `predict`, `predict_proba`, `evaluate`, `confusion_matrix`, `importance`, `cross_validate`, `shap_values`
+
+**Persist + Registry** (3): `save_model` (joblib to disk), `register_model` (push a fitted model to MLflow / Snowflake Model Registry), `load_model` (load a versioned model from the Registry into a subsequent pipeline for scoring).
+
+## MLOps: train once, predict often (via a Model Registry)
+
+MLOps = keep training and inference on **separate schedules with a persisted model in between**, plus enough version discipline to roll back a bad model. `register_model` / `load_model` wire two Model Registry backends into the pipeline — no notebooks, no MLflow server code to maintain in your Dagster repo, no model artifacts to shuttle around.
+
+```
+  ┌──────────────────────┐        ┌─────────────────────┐        ┌───────────────────────┐
+  │ Training pipeline    │        │ Model Registry      │        │ Inference pipeline    │
+  │ (weekly cron)        │        │ (MLflow / Snowflake)│        │ (hourly cron)         │
+  │                      │  fit + │                     │ load + │                       │
+  │ features → train →   │──save─▶│ customer_churn      │◀─score─│ load_model → predict  │
+  │   register_model     │        │   v_20260901_...    │        │   model_name: X       │
+  │   model_name: X      │        │   v_20260908_... ◀──default  │   model_version: latest│
+  │                      │        │   v_20260915_...    │        │                       │
+  └──────────────────────┘        └─────────────────────┘        └───────────────────────┘
+     writes new version              versioned + governed             reads default (or pin)
+```
+
+### `backend: mlflow` (default)
+
+Requires a running MLflow tracking server. **`tracking_uri` (or `tracking_uri_env_var`) is required** — there is no silent fallback to `file:./mlruns/` because that directory vanishes on any ephemeral-disk runtime (Dagster+ Serverless, k8s pods, ECS tasks).
+
+**Training pipeline (weekly):**
+
+```yaml
+steps:
+  - id: split,   op: split, test_size: 0.2, stratify_column: churned, random_state: 42
+  - id: trained, op: train, model_type: gradient_boosting, task_type: classification,
+                  params: {n_estimators: 200, max_depth: 6}
+  - id: eval,    op: evaluate, model: trained, input: split
+  # ↓ persist to Registry
+  - id: registered
+    op: register_model
+    model: trained
+    backend: mlflow
+    tracking_uri_env_var: MLFLOW_TRACKING_URI    # http://mlflow.internal:5000, databricks, sqlite:///...
+    model_name: customer_churn
+    # model_version: auto     # default; timestamp-based (v_20260909_123456)
+    stage: Staging            # optional; MLflow stage
+    description: "Weekly retrain — GBM(n=200,d=6)"
+    tags: {trainer: ml_pipeline, dataset_version: v3}
+outputs:
+  assets: [trained, eval, registered]
+```
+
+**Inference pipeline (hourly, separate YAML):**
+
+```yaml
+steps:
+  - id: model
+    op: load_model
+    backend: mlflow
+    tracking_uri_env_var: MLFLOW_TRACKING_URI
+    model_name: customer_churn
+    # model_version: latest   # default; also accepts 'staging' | 'production' | literal 'v_20260909_123456'
+  - id: preds
+    op: predict
+    model: model
+    # `source: <upstream>` — this pipeline's own feature-prep steps land here
+outputs:
+  assets: [preds]
+  csv_sinks: [{from: preds, path: /warehouse/predictions/{partition_key}.csv}]
+```
+
+### `backend: snowflake` — keep everything in the warehouse
+
+Same op shape, different backend. Models live in the Snowflake Model Registry alongside your training data — same RBAC, audit log, replication. Requires a `connection:` dict (same shape as `snowpark_pipeline` — any field may end with `_env_var`).
+
+```yaml
+# Training pipeline (same as above, but registration hop swaps backends)
+- id: registered
+  op: register_model
+  model: trained
+  backend: snowflake
+  connection:
+    account_env_var:  SNOWFLAKE_ACCOUNT
+    user_env_var:     SNOWFLAKE_USER
+    password_env_var: SNOWFLAKE_PASSWORD
+    role: TRANSFORMER
+    warehouse: COMPUTE_WH
+    database: ML
+    schema:   MODELS
+  # registry_database: ML         # optional — override session's current
+  # registry_schema:   MODELS
+  model_name: customer_churn
+  stage: default                  # optional — promote to default version
+  description: "Weekly retrain"
+  tags: {trainer: ml_pipeline}
+```
+
+**Inference:**
+
+```yaml
+- id: model
+  op: load_model
+  backend: snowflake
+  connection: {...same as above...}
+  model_name: customer_churn
+  # model_version: latest         # default; or literal 'v_20260909_123456'
+- id: preds
+  op: predict
+  model: model
+```
+
+The loaded model is wrapped in a shim so downstream `predict` / `predict_proba` ops call it exactly like a freshly-trained sklearn estimator. No pipeline-side changes needed to switch backends.
+
+### Backend picker
+
+| Use MLflow when | Use Snowflake when |
+|---|---|
+| You already run an MLflow tracking server (or Databricks-managed MLflow) | You're a Snowflake shop and want the model registry inside Snowflake (RBAC, audit, replication all inherited) |
+| You want the MLflow UI for browsing runs / models | You want zero extra infra to stand up |
+| You need MLflow-flavored artifacts (pyfunc, ONNX, tensorflow, pytorch flavors) | Your inference runs inside Snowflake compute anyway |
+| Cross-runtime portability (models scored from anywhere) | Compliance requires "models never leave Snowflake" |
+
+Both backends use the same op names, same `model_name` / `model_version` fields, same `stage` / `description` / `tags`. Swap `backend:` to move between them.
 
 ### `bayesian_search` — Optuna TPE sampler
 

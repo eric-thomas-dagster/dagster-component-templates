@@ -117,6 +117,58 @@ snowpark_pipeline v1.2.0 — fit-mode ops persist to the Registry when
   MaterializeMetadata on every ml-containing pipeline for
   discoverability.
 
+## Model-persistence story for the other `*_pipeline` components
+
+The snowpark_pipeline `ml` op now has a full train-once/predict-often
+story via the Snowflake Model Registry (v1.2.0). Each other pipeline
+component should get an equivalent MLOps story wired against the
+native registry for its runtime — same `model_name` / `model_version`
+/ `mode: fit|predict|transform` shape, so users can move between
+pipelines without relearning the fields.
+
+Per-pipeline target backend:
+
+- **ml_pipeline** (scikit-learn / xgboost / lightgbm) — MLflow Model
+  Registry is the obvious target (`mlflow.sklearn.log_model` +
+  `mlflow.pyfunc.load_model`). Manifest already ships `mlflow` as an
+  optional dep. Alt: a filesystem/S3 pickle store for teams that
+  don't run MLflow.
+- **pyspark_pipeline** — MLflow again (`mlflow.spark.log_model`), or
+  Databricks Model Registry when the runtime is Databricks.
+  `pyspark.ml.PipelineModel.save(...) + .load(...)` for the
+  no-MLflow fallback.
+- **agentic_pipeline** — the analog isn't "model weights" but
+  **planner state**: the compiled plan (tool sequence, prompts,
+  temperatures). Already partly done via PlannedCatalogAgent's
+  StateBackedComponent. Formalize as `plan_name` / `plan_version`
+  with a JSON blob store (Snowflake stage, S3, or Dagster state
+  backend).
+- **polars_pipeline** — no ML today. If we ever add an `ml` op there
+  (via `polars-ml` or scikit-learn round-trip through arrow), same
+  shape.
+- **warehouse_pipeline** — dialect-specific. BigQuery ML has its own
+  `CREATE MODEL` + `ML.PREDICT`; Snowflake covered by snowpark; other
+  warehouses (Redshift ML, Postgres via MADlib) are more manual. Punt
+  until there's real demand.
+
+Uniform op shape across pipelines:
+
+```yaml
+- op: ml
+  mode: fit | predict | fit_predict | transform | fit_transform
+  algorithm: <family-specific>
+  input_columns: [...]
+  # persistence
+  model_name: <required to persist/load>
+  model_version: auto | latest | <literal>
+  # backend-specific overrides
+  registry_uri: <optional; MLflow tracking URI, etc.>
+```
+
+Ship in this order: **ml_pipeline** first (biggest MLOps ask outside
+Snowflake), then **pyspark_pipeline**, then agentic_pipeline planner
+persistence formalization.
+
 ## Partition shape rework — Phase 1 item 5 (strict validation)
 
 Items 1–4 of the partition rework landed. Item 5 — Pydantic

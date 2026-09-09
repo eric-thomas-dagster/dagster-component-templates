@@ -157,14 +157,52 @@ mirrors scikit-learn). `input_columns` + `output_column` + optional
 Requires `snowflake-ml-python>=1.5.0` in the environment (only when a
 step uses `op: ml` — the base package doesn't force it).
 
-### Snowflake Model Registry — train once, predict often
+### MLOps: train once, predict often (via Snowflake Model Registry)
 
-Every `mode: fit` / `mode: fit_predict` / `mode: fit_transform` op can
-persist the fitted estimator to the **Snowflake Model Registry** by
-setting `model_name`. A separate `mode: predict` / `mode: transform`
-op (typically in a different pipeline, running on a different
-schedule) loads the model by name/version and scores new data — no
-retraining needed.
+MLOps = keep training and inference on **separate schedules with a
+persisted model in between**, plus enough version discipline to roll
+back a bad model or A/B two versions in parallel. The `ml` op wires
+the Snowflake Model Registry directly into the pipeline so all of
+this stays declarative — no notebooks, no MLflow server to run, no
+model artifacts to shuttle around. The Registry lives in Snowflake
+next to the training data.
+
+```
+  ┌─────────────────────┐        ┌────────────────────────┐        ┌──────────────────────┐
+  │ Training pipeline   │        │ Snowflake              │        │ Inference pipeline   │
+  │ (weekly cron)       │        │ Model Registry         │        │ (hourly cron)        │
+  │                     │  fit + │                        │ load + │                      │
+  │ features → op: ml   │──save─▶│ customer_churn         │◀─score─│ features → op: ml    │
+  │   mode: fit         │        │   v_20260901_120000    │        │   mode: predict      │
+  │   model_name: X     │        │   v_20260908_120000 ◀──default  │   model_name: X      │
+  │                     │        │   v_20260915_120000    │        │                      │
+  └─────────────────────┘        └────────────────────────┘        └──────────────────────┘
+     writes new version              versioned + governed             reads default (or pin)
+```
+
+What you get:
+
+- **Independent schedules.** Retrain weekly; score hourly. Neither
+  pipeline knows about the other — the Registry is the handshake.
+- **Versioning + rollback.** Every fit writes a new
+  `v_<timestamp>` (or your own version). To roll back, pin
+  `model_version: v_20260901_120000` in the inference pipeline
+  until you promote a new default.
+- **Governance.** The Registry lives inside Snowflake — same
+  RBAC, same audit log, same replication story as the training
+  data. No external artifact store to secure.
+- **Lineage.** Both pipelines materialize as Dagster assets — the
+  training run's asset + the inference run's asset both show up
+  in the graph. Add `deps:` on the inference asset pointing at
+  the training asset to make the dependency explicit.
+- **Zero infra.** No MLflow server, no S3 bucket, no serializer
+  choices to make. `snowflake-ml-python` handles pack/unpack.
+
+Every `mode: fit` / `mode: fit_predict` / `mode: fit_transform` op
+persists to the Registry when `model_name` is set. A separate
+`mode: predict` / `mode: transform` op (typically in a different
+pipeline, running on a different schedule) loads the model by
+name/version and scores new data — no retraining needed.
 
 | Field | Applies to | Default | Purpose |
 |---|---|---|---|

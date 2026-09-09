@@ -1481,7 +1481,8 @@
         "pattern": "One Dagster asset per step listed in `outputs.assets`. Asset key = `{asset_name_prefix}_{asset_id}`.",
         "source_field": "outputs.assets",
         "key_template": "{asset_name_prefix}_{asset_id}"
-      }
+      },
+      "featured": true
     },
     {
       "id": "airbyte_assets",
@@ -9201,7 +9202,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "dagstermill_notebook_asset",
@@ -9777,7 +9779,8 @@
         "recurring",
         "recurring replication",
         "ongoing sync"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "database_schema_inventory",
@@ -13863,7 +13866,8 @@
         "container",
         "oci image",
         "infra"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "document_ai_extractor",
@@ -16020,7 +16024,8 @@
       "keywords": [
         "trigger",
         "watcher"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "event_data_standardizer",
@@ -17622,7 +17627,8 @@
         "declaration",
         "mirror asset",
         "mirror"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "external_sql_asset",
@@ -25386,7 +25392,8 @@
         "event listener",
         "observability",
         "watch"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "kafka_resource",
@@ -26568,7 +26575,8 @@
         "linkedin datahub",
         "write to",
         "output"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "lineage_to_file",
@@ -27014,7 +27022,8 @@
         "llm",
         "genai",
         "tool use agent"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "litellm_audio_transcription",
@@ -27517,7 +27526,8 @@
         "llm",
         "genai",
         "quality gate"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "llm_judge",
@@ -27853,7 +27863,8 @@
         "storage",
         "persistence",
         "io"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "log_prints_asset",
@@ -28637,7 +28648,8 @@
         "mcp tool",
         "read",
         "load"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "mcp_tool_picker",
@@ -29010,7 +29022,8 @@
         "pattern": "One Dagster asset per step listed in `outputs.assets`. Asset key = `{asset_name_prefix}_{asset_id}`.",
         "source_field": "outputs.assets",
         "key_template": "{asset_name_prefix}_{asset_id}"
-      }
+      },
+      "featured": true
     },
     {
       "id": "mlflow_experiment_sensor",
@@ -29264,7 +29277,8 @@
         "data quality",
         "assertion",
         "quality gate"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "mlflow_resource",
@@ -29383,7 +29397,8 @@
         "pattern": "One Dagster asset per registered MLflow experiment / run / registered-model target enumerated from the MLflow tracking server.",
         "source_field": "mlflow_api.experiments[]+.registered_models[]",
         "key_template": "{mlflow_entity.name}"
-      }
+      },
+      "featured": true
     },
     {
       "id": "modal_asset",
@@ -33203,7 +33218,8 @@
         "job",
         "materialize batch",
         "partitioned"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "pca",
@@ -34500,7 +34516,8 @@
         "idempotent write",
         "partition rewrite",
         "backfill"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "polars_read_database",
@@ -36260,7 +36277,8 @@
         "pyspark",
         "transform",
         "reshape"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "pyspark_resource",
@@ -37279,7 +37297,8 @@
         "rag pipeline",
         "llm",
         "genai"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "random_forest_model",
@@ -42031,7 +42050,8 @@
         "llm",
         "genai",
         "tool use agent"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "snowflake_cortex_asset",
@@ -42623,7 +42643,8 @@
         "snowsql",
         "connection",
         "connect"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "snowflake_snowpipe",
@@ -43206,7 +43227,8 @@
         "pattern": "One Dagster asset per Snowflake object (tables, views, stages, streams, tasks, alerts, openflows) discovered under the specified database + schemas.",
         "source_field": "snowflake_information_schema.[tables|views|...]",
         "key_template": "{schema}.{object_name}"
-      }
+      },
+      "featured": true
     },
     {
       "id": "snowpark_pipeline",
@@ -43268,7 +43290,8 @@
         "snowflake-ml-python",
         "model-registry",
         "mlops"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "soda_check",
@@ -45524,7 +45547,8 @@
       "keywords": [
         "llm",
         "genai"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "synthetic_image_generator",
@@ -49918,7 +49942,8 @@
         "pattern": "One Dagster asset per entry in `sinks[]`. Asset key = each sink's `asset_name`.",
         "source_field": "sinks[].asset_name",
         "key_template": "{sinks[i].asset_name}"
-      }
+      },
+      "featured": true
     },
     {
       "id": "warehouse_schema_assets",

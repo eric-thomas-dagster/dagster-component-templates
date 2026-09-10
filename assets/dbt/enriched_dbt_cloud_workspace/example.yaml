@@ -1,0 +1,36 @@
+type: dagster_community_components.EnrichedDbtCloudWorkspaceComponent
+attributes:
+  workspace:
+    account_id: "{{ env.DBT_CLOUD_ACCOUNT_ID }}"
+    project_id: "{{ env.DBT_CLOUD_PROJECT_ID }}"
+    environment_id: "{{ env.DBT_CLOUD_ENVIRONMENT_ID }}"
+    token: "{{ env.DBT_CLOUD_TOKEN }}"
+
+  # ── Cloud: mid-run monitor ────────────────────────────────────
+  monitor_runs: true           # yield per-model Output events during execution
+  fail_fast: false             # continue on first failure (all failures captured)
+  poll_interval: 5.0           # seconds between debug-log polls
+
+  # ── Cloud: which jobs to mirror ───────────────────────────────
+  job_selection_include: "type:deploy type:merge"   # only deploy + merge jobs
+  job_selection_exclude: "*_experimental"           # skip experimental jobs
+
+  # ── Docs metadata (same shape as EnrichedDbtProjectComponent) ─
+  dbt_docs_url: "https://cloud.getdbt.com/accounts/12345/develop/12345/docs"
+
+  # ── Metadata surfacing ──
+  include_exposures: true
+  include_metrics: true
+  include_semantic_models: true
+  include_contracts: true
+  include_source_freshness: true
+
+  # ── Real behavior — emit + policy attachment ──
+  emit_exposures_as_assets: true
+  derive_freshness_policies: true
+  emit_contract_checks: true
+
+  # ── dbt mesh ──
+  external_packages:
+    - shared_core
+  exclude: "package:shared_core"

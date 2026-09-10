@@ -1,0 +1,120 @@
+{
+  "component_type": "dagster_component_templates.EnrichedDbtCloudWorkspaceComponent",
+  "description": "Enriched drop-in for DbtCloudComponent — mid-run per-model monitor, dbt-style job-selection DSL, plus the same manifest-based enrichments as EnrichedDbtProjectComponent (freshness policies, exposures as AssetSpecs, contract asset checks, mesh via external_packages). All opt-in; defaults preserve base DbtCloudComponent behavior.",
+  "category": "dbt",
+  "icon": "si:dbt",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "dbt Cloud assets"
+    }
+  },
+  "attributes": {
+    "workspace": {
+      "type": "object",
+      "label": "Workspace",
+      "description": "DbtCloudWorkspace resource (account_id, project_id, environment_id, token).",
+      "required": true
+    },
+    "select": {"type": "string", "label": "Select", "required": false},
+    "exclude": {"type": "string", "label": "Exclude", "required": false},
+    "translation": {"type": "object", "label": "Translation", "required": false},
+
+    "monitor_runs": {
+      "type": "boolean",
+      "label": "Monitor Runs",
+      "description": "Enable mid-run per-model monitoring. Parses dbt Cloud debug logs during execution to yield per-model Output events as each model completes — instead of waiting for the entire job to finish.",
+      "required": false,
+      "default": false
+    },
+    "fail_fast": {
+      "type": "boolean",
+      "label": "Fail Fast",
+      "description": "Only applies when monitor_runs is True. When True, the dbt Cloud run is cancelled on the first model failure and the Dagster run fails immediately.",
+      "required": false,
+      "default": false
+    },
+    "poll_interval": {
+      "type": "number",
+      "label": "Poll Interval Seconds",
+      "description": "Seconds between debug log polls when monitor_runs is enabled. Default 5.",
+      "required": false,
+      "default": 5.0
+    },
+    "job_selection_include": {
+      "type": "string",
+      "label": "Job Selection Include",
+      "description": "dbt-style selection DSL. Jobs matching any selector are mirrored. Selectors: 'type:deploy', '*_prod', 'id:12345', or bare glob (name-glob shorthand). Space-separated union. Empty/None = mirror everything.",
+      "required": false
+    },
+    "job_selection_exclude": {
+      "type": "string",
+      "label": "Job Selection Exclude",
+      "description": "Jobs matching this selection are dropped AFTER include. Same selector syntax.",
+      "required": false
+    },
+
+    "dbt_docs_url": {
+      "type": "string",
+      "label": "dbt Docs URL",
+      "description": "Base URL of your hosted dbt docs site (or dbt Cloud Explorer URL). Each asset gets a clickable {url}/#!/{resource_type}/{unique_id} link.",
+      "required": false
+    },
+    "include_exposures": {"type": "boolean", "required": false, "default": false, "label": "Include Exposures (metadata)"},
+    "include_metrics": {"type": "boolean", "required": false, "default": false, "label": "Include Metrics"},
+    "include_semantic_models": {"type": "boolean", "required": false, "default": false, "label": "Include Semantic Models"},
+    "include_contracts": {"type": "boolean", "required": false, "default": false, "label": "Include Contracts (metadata)"},
+    "include_meta": {"type": "boolean", "required": false, "default": false, "label": "Include Full Meta"},
+    "include_source_freshness": {"type": "boolean", "required": false, "default": false, "label": "Include Source Freshness (metadata)"},
+    "include_doc_blocks": {"type": "boolean", "required": false, "default": false, "label": "Include Doc Blocks"},
+    "manifest_path": {
+      "type": "string",
+      "label": "Manifest Path Override",
+      "description": "Override the manifest.json path. By default, the component fetches the manifest via workspace.get_manifest() or similar workspace attributes.",
+      "required": false
+    },
+    "asset_overrides": {"type": "object", "label": "Asset Overrides", "required": false},
+    "emit_exposures_as_assets": {
+      "type": "boolean",
+      "label": "Emit Exposures as AssetSpecs",
+      "description": "Emit each dbt exposure as an observable AssetSpec with real deps on upstream models. Kind derived from exposure.type (dashboard/notebook/analysis/ml/application).",
+      "required": false,
+      "default": false
+    },
+    "derive_freshness_policies": {
+      "type": "boolean",
+      "label": "Derive Freshness Policies",
+      "description": "Attach real FreshnessPolicy to sources (from sources.freshness) and dbt 1.9+ models (from config.freshness.build_after). Honors meta.dagster.freshness_policy override.",
+      "required": false,
+      "default": false
+    },
+    "emit_contract_checks": {
+      "type": "boolean",
+      "label": "Emit Contract Asset Checks",
+      "description": "For models with config.contract.enforced=true, emit per-column AssetCheckSpecs for each declared constraint.",
+      "required": false,
+      "default": false
+    },
+    "external_packages": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "External Packages (dbt mesh)",
+      "description": "dbt package names to emit as observable stub AssetSpecs. Pair with exclude: 'package:X'.",
+      "required": false
+    }
+  },
+  "tags": [
+    "dbt",
+    "dbt-cloud",
+    "enriched",
+    "cloud",
+    "mid-run-monitor",
+    "job-selection",
+    "exposures",
+    "freshness",
+    "mesh",
+    "contract",
+    "asset-checks"
+  ],
+  "name": "Enriched dbt Cloud Workspace"
+}

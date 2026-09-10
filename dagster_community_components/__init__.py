@@ -279,6 +279,7 @@ _CLASS_PATHS: dict[str, str] = {
     "DbtCloudResourceComponent": "resources/dbt_cloud_resource/component.py",
     "DbtDocsEnrichedProjectComponent": "assets/dbt/enriched_dbt_project/component.py",
     "EnrichedDbtProjectComponent": "assets/dbt/enriched_dbt_project/component.py",
+    "EnrichedDbtCloudWorkspaceComponent": "assets/dbt/enriched_dbt_cloud_workspace/component.py",
     "DbtRunJobComponent": "jobs/dbt_run_job/component.py",
     "DbtStateReusePatchComponent": "integrations/dbt_state_reuse_patch/component.py",
     "DecisionTreeModelComponent": "assets/analytics/decision_tree_model/component.py",

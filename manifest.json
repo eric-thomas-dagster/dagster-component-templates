@@ -13376,6 +13376,76 @@
       }
     },
     {
+      "id": "enriched_dbt_cloud_workspace",
+      "name": "Enriched dbt Cloud Workspace",
+      "category": "dbt",
+      "description": "Enriched drop-in for DbtCloudComponent \u2014 mid-run per-model monitor, dbt-style job-selection DSL, plus the same manifest-based enrichments as EnrichedDbtProjectComponent (freshness policies, exposures as AssetSpecs, contract asset checks, mesh via external_packages). All opt-in; defaults preserve base DbtCloudComponent behavior.",
+      "path": "assets/dbt/enriched_dbt_cloud_workspace",
+      "tags": [
+        "dbt",
+        "dbt-cloud",
+        "enriched",
+        "cloud",
+        "mid-run-monitor",
+        "job-selection",
+        "exposures",
+        "freshness",
+        "mesh",
+        "contract",
+        "asset-checks"
+      ],
+      "icon": "si:dbt",
+      "type": "dagster_component_templates.EnrichedDbtCloudWorkspaceComponent",
+      "component_type": "dagster_component_templates.EnrichedDbtCloudWorkspaceComponent",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-dbt",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dbt/enriched_dbt_cloud_workspace/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dbt/enriched_dbt_cloud_workspace/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dbt/enriched_dbt_cloud_workspace/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dbt/enriched_dbt_cloud_workspace/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dbt/enriched_dbt_cloud_workspace/requirements.txt",
+      "produces": [
+        "asset",
+        "asset_check",
+        "multi_asset"
+      ],
+      "consumes": [
+        "resource:dbt_cloud"
+      ],
+      "keywords": [
+        "dbt cloud",
+        "mid-run monitoring",
+        "job selection",
+        "asset checks",
+        "freshness"
+      ],
+      "agent_hints": {
+        "output_type": "AssetsDefinition",
+        "outputs": "One Dagster AssetsDefinition wrapping the dbt Cloud run. When monitor_runs=True, yields per-model Output events as models complete during the run (streaming), plus AssetSpecs for exposures + external-package stubs and AssetCheckSpecs for enforced contracts if those flags are set.",
+        "requires_pip": [
+          "dagster",
+          "dagster-dbt",
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-09-10"
+      },
+      "emitted_assets": {
+        "pattern": "One AssetsDefinition per mirrored dbt Cloud job (filtered by job_selection_include/exclude). Assets inside cover every dbt node from the Cloud project's manifest.",
+        "source_field": "dbt_cloud.jobs[]",
+        "key_template": "{dbt_fqn}"
+      }
+    },
+    {
       "id": "dbt_run_job",
       "name": "DbtRunJobComponent",
       "category": "jobs",
@@ -51000,5 +51070,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 991
+  "total": 992
 }

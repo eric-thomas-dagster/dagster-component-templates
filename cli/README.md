@@ -9,10 +9,56 @@ YAML manifest in → idempotent upsert-by-name out.
 mutation names + input types match the real Dagster+ schema (not
 inferred).
 
-| Script | Manages | Dagster+ concept |
+| Script | Manages / pulls | Dagster+ concept |
 |---|---|---|
-| [`sync_catalog_views.py`](sync_catalog_views.py) | Named asset selections | Catalog Views |
-| [`sync_custom_metrics.py`](sync_custom_metrics.py) | Custom Insights metrics | Custom Metrics |
+| [`sync_catalog_views.py`](sync_catalog_views.py) | Push named asset selections | Catalog Views |
+| [`sync_custom_metrics.py`](sync_custom_metrics.py) | Push custom Insights metrics | Custom Metrics |
+| [`pull_credit_usage.py`](pull_credit_usage.py) | Pull credit usage rollup | Insights (usage) |
+
+## Pull — credit usage across deployments × code locations × assets × days
+
+The Dagster+ UI shows credit usage under Insights but doesn't expose a
+cross-deployment / per-code-location / per-asset download. This CLI hits
+the same GraphQL endpoints the UI does and merges the results into one
+table.
+
+```bash
+# Last 30 days, per deployment × code location × asset — CSV
+./pull_credit_usage.py \
+    --org ericthomas-dagster \
+    --token-env DAGSTER_CLOUD_API_TOKEN \
+    --deployments prod,staging \
+    credits --start 2026-08-10 --end 2026-09-10 \
+    --group-by asset --output-csv credits.csv
+
+# Daily breakdown per deployment — one row per (deployment, day)
+./pull_credit_usage.py --org ericthomas-dagster \
+    --token-env DAGSTER_CLOUD_API_TOKEN \
+    credits --start 2026-08-10 --end 2026-09-10 \
+    --group-by deployment,day --output-csv credits_daily.csv
+
+# Group-by axes are composable — e.g. deployment × code_location × day
+./pull_credit_usage.py --org ericthomas-dagster \
+    --token-env DAGSTER_CLOUD_API_TOKEN \
+    credits --start 2026-08-10 --end 2026-09-10 \
+    --group-by deployment,code_location,day
+
+# Verify the Insights schema shape against YOUR org's Dagster+ version
+./pull_credit_usage.py --org ericthomas-dagster \
+    --token-env DAGSTER_CLOUD_API_TOKEN \
+    --deployments prod introspect
+```
+
+Group-by axes: `deployment`, `code_location`, `asset`, `day` — pick any
+combination, comma-separated. Every axis you name becomes a column in
+the output; the remaining `credits` + `compute_seconds` columns are
+rolled-up sums.
+
+If a query returns no data, run `introspect` — Dagster+ Insights'
+GraphQL surface evolves across releases, so the exact field names may
+have shifted since 2026-09. The introspect output shows the current
+field names + arg types so you can edit `Q_ASSET_CREDITS` /
+`Q_INSIGHTS_METRICS_FALLBACK` to match.
 
 ## Zero deps except PyYAML
 

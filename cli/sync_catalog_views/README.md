@@ -1,32 +1,34 @@
 # `sync_catalog_views.py`
 
-GitOps sync of **Catalog Views** (a.k.a. named asset selections) to a
-Dagster+ deployment via the real GraphQL API.
+GitOps sync of **Catalog Views** (named asset selections) to a Dagster+
+deployment. Takes a YAML manifest, upserts each view by name via the
+Dagster+ GraphQL API (`createOrUpdateCatalogView`). Idempotent — matches
+by name and updates in place; creates new views when unmatched.
 
-Mirrors the shape of `dagster-cloud deployment alert-policies sync`: takes
-a YAML manifest, upserts each view by name. Idempotent — re-running with
-the same manifest is a no-op. Uses the real Dagster+ mutation
-`createOrUpdateCatalogView`.
+The Dagster+ UI lets you create and edit views manually, but there's no
+built-in way to track them in git or promote a set of views across
+deployments. This CLI closes that gap.
 
 - **Script:** [`../sync_catalog_views.py`](../sync_catalog_views.py)
 - **Requires:** Python 3.8+, PyYAML, a Dagster+ user API token
-- **Verified end-to-end** against a live Dagster+ deployment on 2026-09
 
-## Install + run
+## Install
 
 ```bash
 pip install pyyaml
 curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/cli/sync_catalog_views.py \
     -o sync_catalog_views.py
 chmod +x sync_catalog_views.py
+
+export DAGSTER_CLOUD_API_TOKEN=user:xxxxxxxx
 ```
 
-## Usage
+## Two subcommands
+
+### `sync` — apply a manifest to a deployment
 
 ```bash
-export DAGSTER_CLOUD_API_TOKEN=user:xxxxxxxx
-
-# Preview what would be upserted (no API call to the deployment)
+# Preview (no API writes)
 ./sync_catalog_views.py sync catalog_views.yaml \
     --deployment-url https://acme.dagster.cloud/prod \
     --dry-run
@@ -35,15 +37,37 @@ export DAGSTER_CLOUD_API_TOKEN=user:xxxxxxxx
 ./sync_catalog_views.py sync catalog_views.yaml \
     --deployment-url https://acme.dagster.cloud/prod
 
-# List current catalog views in the deployment
-./sync_catalog_views.py list \
-    --deployment-url https://acme.dagster.cloud/prod
-
-# Apply + remove views not in the manifest
+# Apply + delete views not in the manifest
 ./sync_catalog_views.py sync catalog_views.yaml \
     --deployment-url https://acme.dagster.cloud/prod \
     --prune
 ```
+
+### `list` — show current catalog views in the deployment
+
+```bash
+./sync_catalog_views.py list \
+    --deployment-url https://acme.dagster.cloud/prod
+```
+
+## Options
+
+### `sync` subcommand
+
+| Flag | Required | Default | Description |
+|---|---|---|---|
+| `manifest` | yes | — | Path to the YAML manifest (positional). |
+| `--deployment-url` | yes | — | Full deployment URL, e.g. `https://acme.dagster.cloud/prod` |
+| `--token-env` | | `DAGSTER_CLOUD_API_TOKEN` | Env var name holding the user API token |
+| `--dry-run` | | off | Print what would be upserted/deleted without touching the deployment |
+| `--prune` | | off | Delete deployment-side views that aren't in the manifest |
+
+### `list` subcommand
+
+| Flag | Required | Default | Description |
+|---|---|---|---|
+| `--deployment-url` | yes | — | Full deployment URL |
+| `--token-env` | | `DAGSTER_CLOUD_API_TOKEN` | Env var name holding the user API token |
 
 ## Manifest shape (YAML)
 
@@ -66,22 +90,11 @@ catalog_views:
     table_names: []
 ```
 
-Two known constraints on the API side that the script defends against:
-
-1. **`tableNames` must be `[]` not `null`** — Dagster+ 500s on `null` even
-   though the schema says nullable. The script always sends `[]` when
-   unset.
-2. **`icon` must be a real Dagster+ icon** — unknown icons return an
-   opaque 500. Safe default: `globe` (matches existing customer views).
-   The script defaults to `globe` when unset.
-
 ## `--prune` — remove views not in the manifest
 
-Default behavior: the script only **upserts**. Views that exist in the
-deployment but are absent from the manifest are left alone.
-
-Pass `--prune` to also **delete** any deployment-side view that isn't in
-the manifest. Combine with `--dry-run` first to preview the deletions:
+Default behavior is upsert-only. `--prune` also **deletes** any
+deployment-side view that isn't in the manifest. Always combine with
+`--dry-run` first to preview:
 
 ```bash
 ./sync_catalog_views.py sync catalog_views.yaml \
@@ -94,29 +107,11 @@ Dagster+ web UI that isn't tracked in your manifest). If your team
 manages catalog views partially by UI, don't run `--prune` — the CLI
 should be an additive tool for the GitOps subset.
 
-## Debugging: introspect your deployment's schema
+## Common failure modes
 
-The mutations here were verified against a live Dagster+ deployment. If
-your Dagster+ version has a schema drift, introspect:
-
-```bash
-curl -X POST https://acme.dagster.cloud/prod/graphql \
-    -H "Dagster-Cloud-Api-Token: $DAGSTER_CLOUD_API_TOKEN" \
-    -H "Content-Type: application/json" \
-    -d '{"query":"{ __schema { mutationType { fields { name } } } }"}' \
-    | python -m json.tool
-```
-
-Look for mutations matching `catalogView`. If names differ, edit the
-`Q_*` constants at the top of the script.
-
-## Sharing with customers
-
-Self-contained, stdlib + PyYAML only. Safe to copy directly to a
-customer environment. Rename or change the `argparse` `prog=` string if
-you want it to identify differently in `--help`.
-
-## See also
-
-- **[../README.md](../README.md)** — overview of all three CLIs in this repo.
-- **[../sync_custom_metrics/](../sync_custom_metrics/)** — sibling CLI for custom Insights metrics.
+| Symptom | Cause | Fix |
+|---|---|---|
+| `HTTP 401` | Bad token or wrong deployment URL | Verify `DAGSTER_CLOUD_API_TOKEN` and `--deployment-url` |
+| `HTTP 500` on sync with `tableNames: null` | Dagster+ rejects `null` for this field | Use `[]` in the manifest (the script sends `[]` by default when unset) |
+| `HTTP 500` on sync with a custom `icon:` | Unknown icon name | Use a valid Dagster+ icon; the script defaults to `globe` when unset |
+| `--prune` deleted a view you wanted to keep | UI-created view not in manifest | Add it to the manifest first, or drop `--prune` |

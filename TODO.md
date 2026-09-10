@@ -3,6 +3,118 @@
 Open work tracked across the registry. Closed items get deleted, not crossed
 out — git log is the history.
 
+## LLM-facing discovery — Claude Skill vs. hosted MCP server vs. keep improving the AI docs
+
+Today we ship the CLI's `AI-tool config templates` (CLAUDE.md /
+`.cursorrules` / `.aider.conf.yml`) that customers copy into their
+projects. That gives a coding LLM the vocabulary + `dagster-component
+search/add/schema/info` commands + a task→component cheatsheet. It
+works but has three limits:
+
+1. **Cold cache — the LLM starts from zero on every session** unless
+   the user installs the templates + the LLM actually reads them.
+2. **Search is CLI-mediated** — the LLM has to shell out for every
+   `search` / `schema` call, and the JSON responses aren't optimized
+   for token budget.
+3. **The 990-component surface is too big for even the whole manifest
+   to fit in-context** — we already ranked-search internally (see
+   `search_qa` regression tests), but that ranker lives inside the
+   CLI, not exposed to the LLM as a tool.
+
+Three delivery vectors to evaluate — not mutually exclusive:
+
+### A. Claude Skill (`dagster-community-components`)
+
+Ships as a subdirectory of skills in Claude Code / Claude.ai. Analogous
+to the existing `dagster-expert` + `dagster-integrations` skills we
+already use. Would provide:
+
+- **A curated task-router** (like `dagster-expert`'s router table) that
+  maps "I need X" → `dagster-component add <id>` recommendations.
+- **Reference docs on-demand** — one skill file per category (ai,
+  transformation, integration, etc.) so the LLM only pays token cost
+  for the areas relevant to the current task.
+- **Cheat-sheet** for common composition patterns (workspace + pipeline
+  + Model Registry, ingestion → transform → sink, agent+MCP+HITL).
+- **Runs inside the coding IDE** — no network round-trip.
+
+Downside: users have to *install* the skill (or Claude has to bundle
+it). Discovery gap: how does a customer even know to reach for it?
+
+### B. Hosted MCP server on Vercel (`mcp.dcc.dagster.cloud`)
+
+Model Context Protocol server that any LLM (Claude, ChatGPT with MCP,
+Cursor with MCP) can attach as a tool source. Tools would include:
+
+- `search_components(query, category?, vendor?, validation_level?)`
+  → returns top-K component IDs + one-line descriptions + install
+  command. Reuses the ranker from `search_qa`.
+- `get_component_schema(id)` → returns the schema.json contents. Lets
+  the LLM write a valid `defs.yaml` on first try.
+- `get_walkthrough(slug)` → returns the .md contents from
+  examples/. Lets the LLM crib the composition shape.
+- `suggest_composition(intent_free_text)` → LLM-driven ("we want to
+  ingest from Salesforce, transform, land in Snowflake, plus a
+  freshness alert") → returns the 4-5 components + a wiring diagram.
+  Would use our own LLM (Anthropic API) under the hood; user's client
+  LLM does the YAML authoring against those recommendations.
+
+Upside: **discoverable via `Manage MCP servers → add
+mcp.dcc.dagster.cloud`** — a real deploy story on Vercel that anyone
+can point their agent at. Zero-install for the user. Same tools work
+from Claude Code, Cursor, ChatGPT (as MCP support rolls out),
+Continue.dev, etc.
+
+Downside: infra to run (Vercel Functions + probably a small Redis for
+the ranker cache); needs API-key management if we do
+`suggest_composition` via our own LLM.
+
+### C. Double-down on the AI-tool config templates
+
+Keep shipping CLAUDE.md / cursor / aider configs, but:
+
+- Make them *deep-linkable* from every component detail page in the
+  Vercel UI ("Copy this component's schema to your Claude/Cursor
+  clipboard").
+- Push the ranked-search results directly into the templates as a
+  "recent additions" section so the LLM has fresh context every
+  time the templates are re-fetched.
+- Wire in an `mcp:dagster-plus` tool config example so Claude gets
+  live catalog access alongside the templates.
+
+Upside: cheapest, no new infra.
+Downside: still cold-cache; still requires the user to install +
+configure something in their editor.
+
+### Recommendation
+
+**Ship A + B in parallel.** They serve different audiences:
+- **Skill (A)** — the Claude Code power user with a project already
+  scaffolded. Skill instructs "reach for `dagster-component search`
+  first, here's what the categories mean, here are the canonical
+  composition patterns."
+- **MCP server (B)** — the coder with any MCP-aware agent (Cursor,
+  ChatGPT, Continue) who wants live catalog lookups without any
+  local install. Also: internal Dagster engineers exploring what
+  the community registry has.
+
+**A is smaller** — one directory of markdown files + a routing table.
+Can prototype today.
+**B is bigger** — Vercel deploy + endpoint design + tool schemas +
+observability + rate limits + potentially our own LLM budget. But
+higher discoverability ceiling.
+
+Both leverage the same underlying assets (manifest.json + schema.json
+per component + examples/*.md). Neither replaces C (templates stay
+useful for cold-start / offline flows).
+
+Order of ops if we do both:
+1. **A first** — sketch the skill (1-2 days), dogfood against ~5
+   common prompts ("build me a snowflake+dbt+dagster+ mlflow
+   pipeline", "watch an S3 bucket for new files → RAG index").
+2. **B second** — reuse the skill's category prose + ranker as
+   the MCP server's tool implementations.
+
 ## More example walkthroughs needed
 
 The manifest tracks `validation: { level: code|infra|live, ... }` per

@@ -6,10 +6,28 @@ attributes:
   id_column: product_id
   text_column: description
   target_table: product_embeddings
+
+  # ── Inline-embedding path (default) — LiteLLM picks the provider ────
+  # Any LiteLLM-supported model works:
+  #   text-embedding-3-small           (OpenAI, default)
+  #   voyage/voyage-3                  (Voyage AI — SOTA MTEB)
+  #   cohere/embed-english-v3.0        (Cohere)
+  #   ollama/nomic-embed-text          (LOCAL Ollama — 768-dim, no API key)
+  #   huggingface/tei/BAAI/bge-large-en-v1.5   (HuggingFace TEI)
   embedding_model: text-embedding-3-small
-  openai_api_key_env_var: OPENAI_API_KEY
-  dimensions: 1536
+  api_key_env_var: OPENAI_API_KEY   # backcompat alias: openai_api_key_env_var
+  # api_base_env_var: OLLAMA_HOST   # e.g. http://localhost:11434 for Ollama
+  dimensions: 1536                   # must match the model's output size
   batch_size: 100
+
+  # ── Precomputed-embedding path (alternative) ────────────────────────
+  # Set this and the inline embedder is skipped entirely — vectors are
+  # taken straight from the upstream DataFrame column. Composes with
+  # any upstream embedding component (litellm_embedding_batch,
+  # voyage_embedding_batch, text_embedding_asset, …) or hand-rolled
+  # vectors.
+  # precomputed_embedding_column: embedding
+
   if_exists: upsert
   group_name: vector_store
   deps:

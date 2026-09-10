@@ -1,5 +1,8 @@
 dagster
-openai
 pgvector
 sqlalchemy
 psycopg2-binary
+# Optional deps (opt-in by mode):
+#   litellm — inline-embedding path (any provider: OpenAI / Voyage / Cohere /
+#             Ollama / HuggingFace TEI / …). Not needed when using
+#             precomputed_embedding_column.

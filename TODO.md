@@ -3,39 +3,6 @@
 Open work tracked across the registry. Closed items get deleted, not crossed
 out — git log is the history.
 
-## pgvector_asset — refactor to LiteLLM (unlock every embedding provider)
-
-Currently `pgvector_asset` is locked to OpenAI (`openai_api_key_env_var: str`
-required, hardcoded `openai.embeddings.create` call). Every other embedding
-component in the registry (`litellm_embedding_batch`, `voyage_embedding_batch`,
-`text_embedding_asset`, `vertex_ai_text_embeddings_asset`) supports either
-LiteLLM or a native SDK — pgvector_asset should match.
-
-Two options, either works:
-
-- **A. Swap in LiteLLM under the hood.** Change `openai.embeddings.create`
-  → `litellm.embedding(model=self.embedding_model, ...)`. Rename
-  `openai_api_key_env_var` → `api_key_env_var` (keep the old name as a
-  pydantic alias for backcompat). Users get every provider LiteLLM
-  supports by changing the `embedding_model` string:
-  `text-embedding-3-small` (default), `voyage/voyage-3`,
-  `cohere/embed-english-v3.0`, `ollama/nomic-embed-text` (LOCAL),
-  `huggingface/tei/...`, etc. Deps: drop `openai`, add `litellm`.
-
-- **B. Add a "precomputed" escape hatch.** New field
-  `precomputed_embedding_column: Optional[str]` — when set, skip
-  the embedder entirely and upsert the DataFrame's existing
-  vectors. Compose with any of the existing embedding components
-  upstream (`litellm_embedding_batch`, `voyage_embedding_batch`, ...)
-  or hand-rolled vectors. Make `openai_api_key_env_var` Optional.
-
-Recommend **B first** (smaller change, unlocks composition immediately),
-then **A** as a follow-up to keep the "one-shot embedding" ergonomics
-without the OpenAI lock-in. Once either lands, ship a live walkthrough
-composing pgvector_asset (write) with pgvector_reader (read) — probably
-against Docker Postgres+pgvector + a small local Ollama container for
-fully hermetic end-to-end RAG.
-
 ## More example walkthroughs needed
 
 The manifest tracks `validation: { level: code|infra|live, ... }` per

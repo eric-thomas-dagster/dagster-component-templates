@@ -152,6 +152,14 @@ class LitellmEmbeddingBatchComponent(Component, Model, Resolvable):
     dimensions: Optional[int] = Field(default=None, description="Embedding dimensions (for models that support it)")
     fallback_models: Optional[List[str]] = Field(default=None, description="Models to try if primary fails")
     api_key_env_var: Optional[str] = Field(default=None, description="Env var name for API key")
+    api_base_env_var: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional env var containing the API base URL — required for self-hosted "
+            "providers like Ollama (e.g. http://localhost:11434) or Azure OpenAI. "
+            "Forwarded to LiteLLM as api_base."
+        ),
+    )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
         default=None,
@@ -281,6 +289,7 @@ class LitellmEmbeddingBatchComponent(Component, Model, Resolvable):
         dimensions = self.dimensions
         fallback_models = self.fallback_models
         api_key_env_var = self.api_key_env_var
+        api_base_env_var = self.api_base_env_var
         group_name = self.group_name
 
         partitions_def = _build_partitions_def(
@@ -413,6 +422,8 @@ group_name=group_name,
                 kwargs["fallbacks"] = fallback_models
             if api_key_env_var:
                 kwargs["api_key"] = os.environ[api_key_env_var]
+            if api_base_env_var:
+                kwargs["api_base"] = os.environ[api_base_env_var]
 
             texts = df[text_column].astype(str).tolist()
             all_embeddings = []

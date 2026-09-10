@@ -67,31 +67,48 @@
       ],
       "ui:widget": "select"
     },
+    "precomputed_embedding_column": {
+      "type": "string",
+      "label": "Precomputed Embedding Column",
+      "description": "Column in the upstream DataFrame that already contains embedding vectors (list[float] per row). When set, skips the embedder entirely — compose with any upstream embedding component (litellm_embedding_batch, voyage_embedding_batch, etc.).",
+      "required": false
+    },
     "embedding_model": {
       "type": "string",
       "label": "Embedding Model",
-      "description": "OpenAI embedding model name.",
+      "description": "LiteLLM model string for the inline-embedding path (used when precomputed_embedding_column is unset). Any LiteLLM-supported model: text-embedding-3-small (OpenAI), voyage/voyage-3, cohere/embed-english-v3.0, ollama/nomic-embed-text (LOCAL), huggingface/tei/…",
       "required": false,
       "default": "text-embedding-3-small"
     },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var containing the API key for the chosen embedding provider (OPENAI_API_KEY / VOYAGE_API_KEY / COHERE_API_KEY / etc.). Not required for local Ollama or when using precomputed_embedding_column. Alias openai_api_key_env_var also accepted.",
+      "required": false
+    },
     "openai_api_key_env_var": {
       "type": "string",
-      "label": "Openai Api Key Env Var",
-      "description": "Env var containing the OpenAI API key.",
-      "required": false,
-      "default": "OPENAI_API_KEY"
+      "label": "OpenAI API Key Env Var (deprecated alias)",
+      "description": "Deprecated alias for api_key_env_var — kept for backwards compatibility with pre-1.2.0 configs.",
+      "required": false
+    },
+    "api_base_env_var": {
+      "type": "string",
+      "label": "API Base URL Env Var",
+      "description": "Optional env var containing the API base URL — required for self-hosted providers like Ollama (e.g. http://localhost:11434) or Azure OpenAI. Forwarded to LiteLLM as api_base.",
+      "required": false
     },
     "dimensions": {
       "type": "integer",
       "label": "Dimensions",
-      "description": "Dimensions",
+      "description": "Vector dimensionality. Must match the chosen model's output size (1536 for text-embedding-3-small, 3072 for text-embedding-3-large, 1024 for voyage-3, 768 for nomic-embed-text, etc.). Also becomes the pgvector column type — vector(<dimensions>).",
       "required": false,
       "default": 1536
     },
     "batch_size": {
       "type": "integer",
       "label": "Batch Size",
-      "description": "Number of texts sent to the OpenAI API per request.",
+      "description": "Number of texts per embedding API request (inline path only).",
       "required": false,
       "default": 100
     },

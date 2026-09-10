@@ -33900,18 +33900,20 @@
       "id": "pgvector_asset",
       "name": "pgvector Asset",
       "category": "analytics",
-      "description": "Generate text embeddings via OpenAI and upsert them into a PostgreSQL table",
-      "version": "1.0.0",
+      "description": "Generate text embeddings via LiteLLM (any provider — OpenAI / Voyage / Cohere / Ollama for local / HuggingFace TEI / …) and upsert them into a Postgres+pgvector table, OR skip the embedder entirely and upsert pre-computed vectors from a column in the upstream DataFrame (`precomputed_embedding_column`). Composes with any upstream embedding component (litellm_embedding_batch, voyage_embedding_batch, text_embedding_asset).",
+      "version": "1.2.0",
       "author": "Dagster Community",
       "path": "assets/analytics/pgvector_asset",
       "tags": [
         "analytics",
         "pgvector",
-        "asset"
+        "asset",
+        "rag",
+        "vector-search",
+        "litellm"
       ],
       "dependencies": {
         "pip": [
-          "openai",
           "pgvector",
           "sqlalchemy",
           "psycopg2-binary"
@@ -33924,8 +33926,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pgvector_asset/requirements.txt",
       "icon": "si:postgresql",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "last_validated": "2026-09-10",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/pgvector_asset.md"
       },
       "agent_hints": {
         "inputs": "DataFrame with vector + metadata columns.",

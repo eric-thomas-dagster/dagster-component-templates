@@ -79,6 +79,14 @@
       "default": null,
       "ui:widget": "env_var"
     },
+    "api_base_env_var": {
+      "type": "string",
+      "label": "API Base URL Env Var",
+      "description": "Optional env var containing the API base URL — required for self-hosted providers like Ollama (e.g. http://localhost:11434) or Azure OpenAI. Forwarded to LiteLLM as api_base.",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    },
     "group_name": {
       "type": "string",
       "label": "Group Name",

@@ -167,25 +167,69 @@ class PgvectorAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
 
-    # --- Embedding model ------------------------------------------------------
+    # --- Embedding source -----------------------------------------------------
+    # Two mutually-exclusive paths:
+    #   (a) precomputed_embedding_column set → skip the embedder entirely and
+    #       upsert the DataFrame's existing vector column. Composes with ANY
+    #       upstream embedding component (litellm_embedding_batch,
+    #       voyage_embedding_batch, text_embedding_asset, or hand-rolled vectors).
+    #   (b) precomputed_embedding_column NOT set → call LiteLLM to embed the
+    #       text_column at runtime. `embedding_model` picks any LiteLLM-supported
+    #       provider (text-embedding-3-small, voyage/voyage-3,
+    #       cohere/embed-english-v3.0, ollama/nomic-embed-text for LOCAL, etc.).
+    precomputed_embedding_column: Optional[Union[str, int]] = Field(
+        default=None,
+        description=(
+            "Column in the upstream DataFrame that already contains embedding "
+            "vectors (list[float] per row). When set, the component skips the "
+            "embedder entirely and just upserts the pre-computed vectors — "
+            "compose with any upstream embedding component "
+            "(litellm_embedding_batch, voyage_embedding_batch, etc.). "
+            "Leave unset to embed inline via LiteLLM."
+        ),
+    )
     embedding_model: str = Field(
         default="text-embedding-3-small",
-        description="OpenAI embedding model name.",
+        description=(
+            "LiteLLM model string for the inline-embedding path (only used "
+            "when `precomputed_embedding_column` is unset). Any LiteLLM-"
+            "supported model works: `text-embedding-3-small` (OpenAI, default), "
+            "`voyage/voyage-3`, `cohere/embed-english-v3.0`, "
+            "`ollama/nomic-embed-text` (LOCAL), `huggingface/tei/...`, etc."
+        ),
     )
-    openai_api_key_env_var: str = Field(
-        default="OPENAI_API_KEY",
-        description="Env var containing the OpenAI API key.",
+    api_key_env_var: Optional[str] = Field(
+        default=None,
+        alias="openai_api_key_env_var",   # backcompat with the pre-1.2.0 field name
+        description=(
+            "Env var containing the API key for the chosen embedding provider "
+            "(OpenAI: OPENAI_API_KEY, Voyage: VOYAGE_API_KEY, Cohere: "
+            "COHERE_API_KEY, etc.). Not required for local Ollama or when "
+            "using `precomputed_embedding_column`. Historical alias "
+            "`openai_api_key_env_var` still resolves for backwards compatibility."
+        ),
+    )
+    api_base_env_var: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional env var containing the API base URL — required for "
+            "self-hosted providers like Ollama "
+            "(e.g. `http://localhost:11434`) or Azure OpenAI. Forwarded to "
+            "LiteLLM as `api_base`."
+        ),
     )
     dimensions: int = Field(
         default=1536,
         description=(
             "Vector dimensionality. Must match the chosen model's output size "
-            "(1 536 for text-embedding-3-small, 3 072 for text-embedding-3-large)."
+            "(1 536 for text-embedding-3-small, 3 072 for text-embedding-3-large, "
+            "1 024 for voyage-3, 768 for nomic-embed-text, etc.). Also becomes "
+            "the pgvector column type — `vector(<dimensions>)`."
         ),
     )
     batch_size: int = Field(
         default=100,
-        description="Number of texts sent to the OpenAI API per request.",
+        description="Number of texts per embedding API request (inline path only).",
     )
 
     # --- Asset metadata -------------------------------------------------------
@@ -387,7 +431,6 @@ class PgvectorAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             context: dg.AssetExecutionContext,
             upstream,
         ) -> dg.MaterializeResult:
-            import openai  # type: ignore[import]
             import pandas as pd  # type: ignore[import]
             from sqlalchemy import create_engine, text  # type: ignore[import]
 
@@ -398,12 +441,6 @@ class PgvectorAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             if not db_url:
                 raise ValueError(
                     f"Environment variable '{component.database_url_env_var}' "
-                    "is not set or is empty."
-                )
-            openai_api_key = os.environ.get(component.openai_api_key_env_var)
-            if not openai_api_key:
-                raise ValueError(
-                    f"Environment variable '{component.openai_api_key_env_var}' "
                     "is not set or is empty."
                 )
 
@@ -419,36 +456,84 @@ class PgvectorAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     metadata={
                         "num_rows": 0,
                         "dimensions": component.dimensions,
-                        "model": component.embedding_model,
+                        "model": (
+                            "precomputed"
+                            if component.precomputed_embedding_column
+                            else component.embedding_model
+                        ),
                     }
                 )
 
             ids = df[component.id_column].tolist()
             texts = df[component.text_column].fillna("").tolist()
 
-            openai_client = openai.OpenAI(api_key=openai_api_key)
             engine = create_engine(db_url)
 
             # ------------------------------------------------------------------
-            # Generate embeddings in batches
+            # Resolve embeddings — precomputed column OR LiteLLM call.
             # ------------------------------------------------------------------
-            context.log.info(
-                f"[pgvector] Generating embeddings with model "
-                f"'{component.embedding_model}' in batches of {component.batch_size} ..."
-            )
-            all_embeddings: list[list[float]] = []
-            for i in range(0, len(texts), component.batch_size):
-                batch_texts = texts[i : i + component.batch_size]
-                response = openai_client.embeddings.create(
-                    input=batch_texts,
-                    model=component.embedding_model,
-                )
-                batch_embeddings = [item.embedding for item in response.data]
-                all_embeddings.extend(batch_embeddings)
+            if component.precomputed_embedding_column:
+                emb_col = component.precomputed_embedding_column
+                if emb_col not in df.columns:
+                    raise ValueError(
+                        f"precomputed_embedding_column={emb_col!r} not found in "
+                        f"upstream DataFrame. Available: {list(df.columns)}"
+                    )
                 context.log.info(
-                    f"[pgvector] Embedded {min(i + component.batch_size, len(texts)):,}"
-                    f"/{len(texts):,} rows ..."
+                    f"[pgvector] Using precomputed embeddings from column '{emb_col}' "
+                    f"(skipping embedder call — {len(df):,} rows)."
                 )
+                # Values may arrive as list[float], numpy arrays, or JSON strings.
+                # Coerce to plain list[float] rows.
+                raw = df[emb_col].tolist()
+                all_embeddings: list[list[float]] = []
+                for v in raw:
+                    if isinstance(v, str):
+                        # Some upstreams (voyage_embedding_batch with certain
+                        # dialects) serialize as JSON strings; parse.
+                        import json as _json
+                        v = _json.loads(v)
+                    all_embeddings.append([float(x) for x in v])
+                # Sanity check on dimensions.
+                if all_embeddings and len(all_embeddings[0]) != component.dimensions:
+                    raise ValueError(
+                        f"Precomputed vector dimension {len(all_embeddings[0])} "
+                        f"does not match component.dimensions={component.dimensions}. "
+                        f"Set `dimensions:` to match your upstream embedder's output."
+                    )
+            else:
+                try:
+                    import litellm  # type: ignore[import]
+                except ImportError as e:
+                    raise ImportError(
+                        "pgvector_asset needs `litellm` for the inline-embedding path. "
+                        "Install with `pip install litellm`, or set "
+                        "`precomputed_embedding_column` to skip the embedder."
+                    ) from e
+
+                api_key = os.environ.get(component.api_key_env_var) if component.api_key_env_var else None
+                api_base = os.environ.get(component.api_base_env_var) if component.api_base_env_var else None
+                context.log.info(
+                    f"[pgvector] Embedding {len(texts):,} texts via LiteLLM "
+                    f"(model='{component.embedding_model}'"
+                    f"{', api_base=' + api_base if api_base else ''}) "
+                    f"in batches of {component.batch_size} ..."
+                )
+                all_embeddings = []
+                litellm_kwargs: dict = {"model": component.embedding_model}
+                if api_key:  litellm_kwargs["api_key"]  = api_key
+                if api_base: litellm_kwargs["api_base"] = api_base
+                for i in range(0, len(texts), component.batch_size):
+                    batch_texts = texts[i : i + component.batch_size]
+                    response = litellm.embedding(input=batch_texts, **litellm_kwargs)
+                    # LiteLLM normalizes provider responses to OpenAI's shape:
+                    # response.data → [{"embedding": [...], "index": N, ...}, ...]
+                    batch_embeddings = [item["embedding"] for item in response.data]
+                    all_embeddings.extend(batch_embeddings)
+                    context.log.info(
+                        f"[pgvector] Embedded {min(i + component.batch_size, len(texts)):,}"
+                        f"/{len(texts):,} rows ..."
+                    )
 
             # ------------------------------------------------------------------
             # Ensure pgvector extension and target table exist
@@ -488,11 +573,16 @@ class PgvectorAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
                 for row_id, row_text, embedding in zip(ids, texts, all_embeddings):
                     embedding_str = "[" + ",".join(str(v) for v in embedding) + "]"
+                    # Use CAST(...) rather than `:embedding::vector` because
+                    # sqlalchemy's text() parameter parser reads `::` as a
+                    # continuation of the parameter name — the resulting SQL
+                    # has no bound `embedding` parameter and Postgres raises
+                    # "syntax error at or near ':'".
                     conn.execute(
                         text(
                             f"""
                             INSERT INTO "{target}" (id, text, embedding, embedded_at)
-                            VALUES (:id, :text, :embedding::vector, :embedded_at)
+                            VALUES (:id, :text, CAST(:embedding AS vector), :embedded_at)
                             ON CONFLICT (id) DO UPDATE
                                 SET text = EXCLUDED.text,
                                     embedding = EXCLUDED.embedding,
@@ -514,7 +604,11 @@ class PgvectorAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 metadata={
                     "num_rows": len(all_embeddings),
                     "dimensions": dim,
-                    "model": component.embedding_model,
+                    "model": (
+                        "precomputed"
+                        if component.precomputed_embedding_column
+                        else component.embedding_model
+                    ),
                     "target_table": target,
                     "if_exists": component.if_exists,
                 }

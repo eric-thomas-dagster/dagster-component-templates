@@ -14,6 +14,7 @@ inferred).
 | [`sync_catalog_views.py`](sync_catalog_views/sync_catalog_views.py) | Push named asset selections | Catalog Views |
 | [`sync_custom_metrics.py`](sync_custom_metrics/sync_custom_metrics.py) | Push custom Insights metrics | Custom Metrics |
 | [`pull_credit_usage.py`](pull_credit_usage/pull_credit_usage.py) | Pull credit usage rollup | Insights (usage) |
+| [`pull_audit_logs.py`](pull_audit_logs/pull_audit_logs.py) | Pull audit log entries | Cloud Settings → Audit Log |
 
 ## Pull — credit usage across deployments × code locations × assets × days
 

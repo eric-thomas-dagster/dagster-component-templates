@@ -44162,7 +44162,7 @@
       "id": "sql_observation_sensor",
       "name": "SQL Observation Sensor",
       "category": "observation",
-      "description": "Periodically connect to SQL and record an AssetObservation on the target external asset — surfaces health metrics in the Dagster UI without triggering a pipeline run.",
+      "description": "Periodically connect to a SQL database via SQLAlchemy (Postgres / MySQL / SQL Server / Snowflake / BigQuery / Redshift / DuckDB / any dialect), run SELECT COUNT(*) + optional MAX(watermark_column), and emit AssetMaterialization (or AssetObservation) on the target external asset with a data_version tag derived from the watermark. Downstream AutomationCondition.eager() fires when the data_version advances.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "observations/sql_observation_sensor",
@@ -44183,15 +44183,16 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/sql_observation_sensor/requirements.txt",
       "icon": "Eye",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "last_validated": "2026-09-10",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/sql_observation_sensor.md"
       },
       "produces": [
         "sensor"
       ],
       "agent_hints": {
-        "output_type": "AssetObservation",
-        "outputs": "Periodically connect to SQL and record an AssetObservation on the target external asset — surfaces health metrics in the Dagster UI without triggering a pipeline run.",
+        "output_type": "AssetMaterialization",
+        "outputs": "Emits AssetMaterialization (default) or AssetObservation on the target external asset with metadata {row_count, table_name, latest_watermark} and a dagster/data_version tag derived from the watermark column (or row_count fallback).",
         "requires_pip": [
           "sqlalchemy>=2.0.0"
         ]

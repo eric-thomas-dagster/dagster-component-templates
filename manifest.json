@@ -44138,8 +44138,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sql_monitor/requirements.txt",
       "icon": "Radar",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "last_validated": "2026-09-10",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/sql_monitor.md"
       },
       "produces": [
         "sensor"
@@ -44225,8 +44226,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sql_to_database_asset/requirements.txt",
       "component_type": "dagster_component_templates.SQLToDatabaseAssetComponent",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "last_validated": "2026-09-10",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/sql_to_database_asset.md"
       },
       "agent_hints": {
         "inputs": "None (root ingestion) — copies rows from a source DB to a target DB.",

@@ -110,6 +110,7 @@ def _post_graphql(endpoint: str, token: str, query: str,
     between successful calls to avoid overwhelming the Insights backend
     on large fan-outs."""
     import time as _time
+    import socket as _socket
     body = json.dumps({"query": query, "variables": variables or {}}).encode("utf-8")
     req = urllib.request.Request(
         endpoint, data=body, method="POST",
@@ -133,6 +134,23 @@ def _post_graphql(endpoint: str, token: str, query: str,
             if e.code == 500 and "Internal Server Error" in body_text and "Trace ID" in body_text:
                 raise RuntimeError(last_err) from e   # skip retries
             if e.code >= 500 and attempt < max_retries:
+                _time.sleep(1 * (3 ** attempt))
+                continue
+            raise RuntimeError(last_err) from e
+        except (ConnectionResetError, ConnectionAbortedError, TimeoutError, _socket.timeout) as e:
+            # Socket-level transient errors — server closes the
+            # connection mid-response or the read times out on heavy
+            # queries. Retry with the same exponential backoff.
+            last_err = f"{type(e).__name__} @ {endpoint}: {e}"
+            if attempt < max_retries:
+                _time.sleep(1 * (3 ** attempt))
+                continue
+            raise RuntimeError(last_err) from e
+        except urllib.error.URLError as e:
+            # DNS / TLS / connection-refused layer errors (URLError but
+            # not HTTPError). Usually transient at scale.
+            last_err = f"URLError @ {endpoint}: {e.reason}"
+            if attempt < max_retries:
                 _time.sleep(1 * (3 ** attempt))
                 continue
             raise RuntimeError(last_err) from e

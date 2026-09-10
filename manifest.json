@@ -15556,8 +15556,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/elasticsearch_asset/requirements.txt",
       "icon": "si:elasticsearch",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "last_validated": "2026-09-10",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/elasticsearch_asset.md"
       },
       "produces": [
         "asset"

@@ -1,0 +1,187 @@
+{
+  "component_type": "dagster_component_templates.EnrichedDbtProjectComponent",
+  "description": "Enriched drop-in for DbtProjectComponent — real freshness policies (models + sources), exposure/mesh AssetSpecs, contract asset checks, per-model partitions/automation from dbt meta, and rich docs metadata. All opt-in; defaults preserve base DbtProjectComponent behavior.",
+  "category": "dbt",
+  "icon": "si:dbt",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "dbt assets"
+    }
+  },
+  "attributes": {
+    "project": {
+      "type": "string",
+      "label": "Project",
+      "description": "Path to the dbt project directory (containing dbt_project.yml).",
+      "required": true
+    },
+    "cli_args": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "CLI Args",
+      "description": "dbt CLI args (e.g. ['build']). Defaults to ['build'].",
+      "required": false
+    },
+    "select": {
+      "type": "string",
+      "label": "Select",
+      "description": "dbt selection string, e.g. 'tag:daily'.",
+      "required": false
+    },
+    "exclude": {
+      "type": "string",
+      "label": "Exclude",
+      "description": "dbt exclusion string, e.g. 'package:upstream_shared'.",
+      "required": false
+    },
+    "translation": {
+      "type": "object",
+      "label": "Translation",
+      "description": "Optional per-node translation config (owners, groups, tags, kinds, etc).",
+      "required": false
+    },
+    "dbt_docs_url": {
+      "type": "string",
+      "label": "dbt Docs URL",
+      "description": "Base URL of your hosted dbt docs site. Each asset gets a clickable {dbt_docs_url}/#!/{resource_type}/{unique_id} link.",
+      "required": false
+    },
+    "include_exposures": {
+      "type": "boolean",
+      "label": "Include Exposures (metadata)",
+      "description": "Attach downstream-exposure list as JSON metadata on each model asset. See emit_exposures_as_assets for the AssetSpec form.",
+      "required": false,
+      "default": false
+    },
+    "include_metrics": {
+      "type": "boolean",
+      "label": "Include Metrics",
+      "description": "Attach dbt metric definitions as JSON metadata on each referenced model.",
+      "required": false,
+      "default": false
+    },
+    "include_semantic_models": {
+      "type": "boolean",
+      "label": "Include Semantic Models",
+      "description": "Attach dbt semantic-model definitions as JSON metadata on each referenced model.",
+      "required": false,
+      "default": false
+    },
+    "include_contracts": {
+      "type": "boolean",
+      "label": "Include Contracts (metadata)",
+      "description": "Attach contract-enforced flag + column constraints as metadata. See emit_contract_checks for AssetCheckSpec form.",
+      "required": false,
+      "default": false
+    },
+    "include_meta": {
+      "type": "boolean",
+      "label": "Include Full Meta",
+      "description": "Attach the full node.meta dict (minus the dagster subkey) as JSON metadata.",
+      "required": false,
+      "default": false
+    },
+    "include_source_freshness": {
+      "type": "boolean",
+      "label": "Include Source Freshness (metadata)",
+      "description": "Attach source freshness thresholds + loaded_at_field + loader as metadata. See derive_freshness_policies for real FreshnessPolicy attachment.",
+      "required": false,
+      "default": false
+    },
+    "include_doc_blocks": {
+      "type": "boolean",
+      "label": "Include Doc Blocks",
+      "description": "Resolve {{ doc() }} references and embed the block contents as metadata.",
+      "required": false,
+      "default": false
+    },
+    "manifest_path": {
+      "type": "string",
+      "label": "Manifest Path Override",
+      "description": "Override the path to manifest.json. Defaults to {project}/target/manifest.json.",
+      "required": false
+    },
+    "asset_overrides": {
+      "type": "object",
+      "label": "Asset Overrides",
+      "description": "Per-asset overrides keyed by the emitted asset key. Today supports {depends_on: [upstream_key, ...]} to inject deps.",
+      "required": false
+    },
+    "emit_exposures_as_assets": {
+      "type": "boolean",
+      "label": "Emit Exposures as AssetSpecs",
+      "description": "Emit each dbt exposure as an observable AssetSpec with real deps on its upstream models. Adds downstream lineage — 'if this model breaks, which dashboards are affected?'",
+      "required": false,
+      "default": false
+    },
+    "derive_freshness_policies": {
+      "type": "boolean",
+      "label": "Derive Freshness Policies",
+      "description": "Auto-attach a real FreshnessPolicy to sources (from sources.freshness) and models with dbt 1.9+ config.freshness.build_after. Also honors meta.dagster.freshness_policy (time_window or cron shape).",
+      "required": false,
+      "default": false
+    },
+    "emit_contract_checks": {
+      "type": "boolean",
+      "label": "Emit Contract Asset Checks",
+      "description": "For models with config.contract.enforced=true, emit per-column AssetCheckSpecs so contract violations show as failing checks. Complements include_contracts (metadata only).",
+      "required": false,
+      "default": false
+    },
+    "external_packages": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "External Packages (dbt mesh)",
+      "description": "dbt package names to emit as observable stub AssetSpecs. Pair with exclude: 'package:X' so this project's dbt run skips them. Downstream lineage still renders even though the upstream is owned by another Dagster code location.",
+      "required": false
+    },
+    "dbt_cloud_workspace": {
+      "type": "object",
+      "label": "dbt Cloud Workspace (NOT YET WIRED)",
+      "description": "Switches to Cloud mode. Currently raises NotImplementedError — the mid-run monitor + selection DSL from dbt-cloud-mesh-demo are being ported in a follow-up commit. For now use the base DbtCloudComponent directly.",
+      "required": false
+    },
+    "job_filter": {
+      "type": "string",
+      "label": "Job Filter (Cloud)",
+      "description": "dbt-style selection DSL for filtering which Cloud jobs to mirror. Cloud mode only.",
+      "required": false
+    },
+    "monitor_runs": {
+      "type": "boolean",
+      "label": "Monitor Runs (Cloud)",
+      "description": "Enable mid-run per-model monitoring — parses dbt Cloud debug logs during execution to emit per-model events as they happen. Cloud mode only.",
+      "required": false,
+      "default": false
+    },
+    "fail_fast": {
+      "type": "boolean",
+      "label": "Fail Fast (Cloud)",
+      "description": "When monitor_runs is true, cancel the dbt Cloud run on first model failure and fail the Dagster run immediately.",
+      "required": false,
+      "default": false
+    },
+    "poll_interval": {
+      "type": "number",
+      "label": "Poll Interval Seconds (Cloud)",
+      "description": "Seconds between debug-log polls when monitor_runs is enabled. Default 5.",
+      "required": false,
+      "default": 5.0
+    }
+  },
+  "tags": [
+    "dbt",
+    "dbt-core",
+    "dbt-cloud",
+    "enriched",
+    "exposures",
+    "freshness",
+    "mesh",
+    "contract",
+    "asset-checks",
+    "docs",
+    "project"
+  ],
+  "name": "Enriched dbt Project"
+}

@@ -1,0 +1,33 @@
+type: dagster_community_components.EnrichedDbtProjectComponent
+attributes:
+  project: "{{ project_root }}/dbt_project"
+  cli_args:
+    - build
+
+  # ── Docs metadata ──────────────────────────────────────────────
+  dbt_docs_url: "https://dbt-docs.internal.mycompany.com"
+
+  # ── Metadata surfacing (attach as JSON metadata, no behavior change) ──
+  include_exposures: true
+  include_metrics: true
+  include_semantic_models: true
+  include_contracts: true
+  include_meta: true
+  include_source_freshness: true
+  include_doc_blocks: true
+
+  # ── Real behavior — emit + policy attachment ──────────────────
+  emit_exposures_as_assets: true       # exposures become observable AssetSpecs
+  derive_freshness_policies: true      # real FreshnessPolicy on sources + build_after models
+  emit_contract_checks: true           # per-column AssetCheckSpec for enforced contracts
+
+  # ── dbt mesh: models imported from another dbt project ────────
+  external_packages:
+    - shared_core                       # emit stub specs for models in this package
+  exclude: "package:shared_core"        # AND exclude them from THIS project's dbt run
+
+  # ── Per-asset override deps (rare — for out-of-band Dagster deps) ─
+  asset_overrides:
+    fct_daily_pnl:
+      depends_on:
+        - fx_rates                      # external asset key (not managed by dbt)

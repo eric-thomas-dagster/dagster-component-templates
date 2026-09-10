@@ -2,92 +2,70 @@
 """pull_credit_usage.py — pull Dagster+ credit usage sliced across
 deployment × code location × asset × day, and dump to CSV / JSON.
 
-The Dagster+ web UI shows credit usage under Insights, but it doesn't
-expose a cross-deployment / per-code-location / per-asset breakdown as
-a single downloadable report. This script hits the same GraphQL
-endpoints the UI does and merges the results into one table.
+The Dagster+ web UI shows credit usage under Insights, but doesn't
+expose a cross-deployment / per-code-location / per-asset download as
+one report. This script hits the same GraphQL endpoints the UI does
+and merges the results into one table.
 
-Two levels of endpoint:
-    Org-scoped:         https://<org>.dagster.cloud/graphql
-    Deployment-scoped:  https://<org>.dagster.cloud/<deployment>/graphql
+Queries verified against real Dagster+ schema (2026-09):
 
-The org endpoint enumerates deployments; the per-deployment endpoint
-fetches insights metrics for that deployment's assets. The script
-walks both and joins.
+    fullDeployments                    — enumerate org's deployments
+    reportingMetricsByDeployment       — org-level: one row per deployment
+                                          (uses org endpoint /prod/graphql or
+                                          any deployment endpoint)
+    reportingMetricsByAsset            — deployment-level: one row per asset
+                                          (must be per-deployment endpoint)
+    metricTypesForDeployment           — list the metric names available
+                                          (`__dagster_dagster_credits`,
+                                          `__dagster_execution_time_ms`, …)
+
+The `granularity: DAILY` selector returns:
+    timestamps: [epoch, epoch, …]   ← day boundaries
+    metrics:
+      - entity: <DagsterCloudDeployment | ReportingAsset>
+        aggregateValue: <total-over-window>
+        values: [<day1>, <day2>, …]  ← one number per timestamp
+
+So daily bucketing comes free — no manual window-splitting needed.
 
 Usage:
-    # ── One-liner: last 30 days, rolled up per deployment × code location × asset,
-    #    written to CSV (with headers).
-    ./pull_credit_usage.py \\
-        --org ericthomas-dagster \\
-        --token-env DAGSTER_CLOUD_API_TOKEN \\
+    export DAGSTER_CLOUD_API_TOKEN=user:xxxxxx
+
+    # Rollup per deployment (last 30 days, all deployments):
+    ./pull_credit_usage.py --org ericthomas-dagster \\
+        credits --start 2026-08-10 --end 2026-09-10 --group-by deployment
+
+    # Daily breakdown per deployment × day (14-day trend chart):
+    ./pull_credit_usage.py --org ericthomas-dagster \\
+        credits --start 2026-08-27 --end 2026-09-10 \\
+        --group-by deployment,day --output-csv daily.csv
+
+    # Per-asset with code-location dimension (per-deployment fan-out):
+    ./pull_credit_usage.py --org ericthomas-dagster \\
         --deployments prod,staging \\
-        --start 2026-08-10 --end 2026-09-10 \\
-        --group-by asset \\
-        --output-csv credits.csv
+        credits --start 2026-08-10 --end 2026-09-10 \\
+        --group-by deployment,code_location,asset --output-csv assets.csv
 
-    # ── Daily breakdown per deployment (rollup — one row per deployment × day):
+    # Everything at once — deployment × code_location × asset × day:
     ./pull_credit_usage.py --org ericthomas-dagster \\
-        --token-env DAGSTER_CLOUD_API_TOKEN \\
-        --start 2026-08-10 --end 2026-09-10 \\
-        --group-by deployment,day \\
-        --output-csv credits_daily.csv
+        credits --start 2026-08-27 --end 2026-09-10 \\
+        --group-by deployment,code_location,asset,day \\
+        --output-csv all.csv
 
-    # ── Introspect the Insights schema on YOUR org (schema evolves —
-    #    run this once if the queries below need tweaking against a
-    #    newer or older Dagster+ version).
-    ./pull_credit_usage.py --org ericthomas-dagster \\
-        --token-env DAGSTER_CLOUD_API_TOKEN \\
-        --deployments prod introspect
-
-    # ── Dry-run: show the queries + endpoints without executing.
-    ./pull_credit_usage.py --org ericthomas-dagster \\
-        --deployments prod --token-env DAGSTER_CLOUD_API_TOKEN \\
-        --start 2026-08-10 --end 2026-09-10 \\
-        --group-by asset --dry-run
+    # See what metric types your Dagster+ has (`__dagster_dagster_credits`,
+    # `__dagster_execution_time_ms`, plus custom-Insights metrics):
+    ./pull_credit_usage.py --org ericthomas-dagster metric-types
 
 Group-by axes (composable, comma-separated):
     deployment       — one row per deployment
     code_location    — one row per (deployment, code_location)
     asset            — one row per (deployment, code_location, asset_key)
-    day              — one row per (…, day) — appended to any of the above
+    day              — appended to any of the above (uses granularity: DAILY)
 
-Output columns (present when the axis is in --group-by):
-    deployment, code_location, asset_key, day, dagster_credits, compute_seconds
+Output columns:
+    <axes...>, credits, compute_seconds
 
-Requires: Python 3.8+. No external deps.
-
-────────────────────────────────────────────────────────────────────────
-NOTE ON SCHEMA VERSIONING
-
-Dagster+ Insights' GraphQL surface is an internal / semi-public API
-that evolves across releases. The queries below reflect the shape as
-of 2026-09. Run `<script> ... introspect` (or
-`--introspect` on the top-level) if any query returns "field ... does
-not exist on type ..." — the field probably got renamed / moved, and
-the introspect output will show you the new shape.
-
-Known query candidates (with expected field paths):
-
-    # Enumerate deployments (org endpoint)
-    query { fullDeployments { deploymentName deploymentType } }
-
-    # Per-deployment: aggregate credits over a time window, bucketed
-    # by asset key. This is the "assetsMetrics" family under Insights.
-    query {
-      assetsMetrics(
-        startEpochSeconds: 1725000000, endEpochSeconds: 1727500000,
-      ) {
-        assetKey { path }
-        codeLocationName
-        metrics { metricName metricValue }   # metricName includes __dagster_dagster_credits__
-      }
-    }
-
-    # Alt: some deployments expose usage under `insightsMetrics` or
-    # `dagsterCloudUsage` — introspect if the above returns empty.
-
-────────────────────────────────────────────────────────────────────────
+Requires: Python 3.8+ / stdlib only. No external deps.
 """
 from __future__ import annotations
 
@@ -99,20 +77,16 @@ import os
 import sys
 import urllib.error
 import urllib.request
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 
-# ── HTTP / GraphQL helpers ──────────────────────────────────────────────
-def _post_graphql(endpoint: str, token: str, query: str, variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+# ── HTTP / GraphQL ──────────────────────────────────────────────────────
+def _post_graphql(endpoint: str, token: str, query: str,
+                  variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     body = json.dumps({"query": query, "variables": variables or {}}).encode("utf-8")
     req = urllib.request.Request(
-        endpoint,
-        data=body,
-        method="POST",
-        headers={
-            "Content-Type": "application/json",
-            "Dagster-Cloud-Api-Token": token,
-        },
+        endpoint, data=body, method="POST",
+        headers={"Content-Type": "application/json", "Dagster-Cloud-Api-Token": token},
     )
     try:
         with urllib.request.urlopen(req, timeout=60) as resp:
@@ -121,303 +95,372 @@ def _post_graphql(endpoint: str, token: str, query: str, variables: Optional[Dic
         body_text = e.read().decode("utf-8", errors="replace")[:800]
         raise RuntimeError(f"HTTP {e.code} @ {endpoint}: {body_text}") from e
     if payload.get("errors"):
-        # Some Dagster+ queries return errors alongside partial data — surface both.
-        errs_str = json.dumps(payload["errors"])[:1500]
-        # Empty `data` = hard error; non-empty = warn but continue.
+        errs = json.dumps(payload["errors"])[:1500]
         if not payload.get("data"):
-            raise RuntimeError(f"GraphQL error @ {endpoint}: {errs_str}")
-        print(f"WARNING: GraphQL partial-error @ {endpoint}: {errs_str}", file=sys.stderr)
+            raise RuntimeError(f"GraphQL error @ {endpoint}: {errs}")
+        print(f"WARN: partial GraphQL error @ {endpoint}: {errs}", file=sys.stderr)
     return payload.get("data") or {}
 
 
 def _org_endpoint(org: str) -> str:
-    return f"https://{org}.dagster.cloud/graphql"
+    """The 'org endpoint' — actually redirects to /prod/graphql. Use it
+    for queries that are org-scoped (deployment enumeration + cross-
+    deployment metrics)."""
+    return f"https://{org}.dagster.cloud/prod/graphql"
 
 
 def _deployment_endpoint(org: str, deployment: str) -> str:
     return f"https://{org}.dagster.cloud/{deployment}/graphql"
 
 
-# ── Queries ─────────────────────────────────────────────────────────────
-#
-# These are the shape as of 2026-09. If a field breaks, introspect the
-# schema on YOUR org via `--introspect`.
-
+# ── Queries (verified against Dagster+ 2026-09) ────────────────────────
 Q_LIST_DEPLOYMENTS = """
   query ListDeployments {
     fullDeployments {
       deploymentName
-      deploymentType
       deploymentId
+      deploymentType
+      deploymentStatus
+      isBranchDeployment
     }
   }
 """
 
-# Primary asset-level credits query. Times are epoch seconds.
-Q_ASSET_CREDITS = """
-  query AssetCredits($start: Float!, $end: Float!) {
-    assetsMetrics(startEpochSeconds: $start, endEpochSeconds: $end) {
-      assetKey { path }
-      codeLocationName
-      metrics {
-        metricName
-        metricValue
-      }
-    }
-  }
-"""
-
-# Fallback if the primary shape returns nothing — some Dagster+ versions
-# expose credits under a different top-level query. Introspect + edit
-# as needed for your version.
-Q_INSIGHTS_METRICS_FALLBACK = """
-  query InsightsMetrics($start: Float!, $end: Float!) {
-    insightsMetrics(startEpochSeconds: $start, endEpochSeconds: $end) {
-      key
-      values { asset { key { path } } codeLocationName numericValue }
-    }
-  }
-"""
-
-# Introspection — expose the types we care about.
-Q_INTROSPECT_TYPES = """
-  query IntrospectInsightsTypes {
-    __schema {
-      queryType {
-        fields {
-          name
-          description
-          args { name type { name kind ofType { name kind } } }
-          type { name kind ofType { name kind } }
+Q_METRIC_TYPES = """
+  query MetricTypes {
+    metricTypesForDeployment {
+      ... on MetricTypeList {
+        metricTypes {
+          metricName displayName unitType category priority visible
         }
       }
+      ... on PythonError { message }
+      ... on UnauthorizedError { message }
+    }
+  }
+"""
+
+# Per-deployment rollup — org-scoped. Runs at /prod/graphql (or any
+# deployment endpoint; the query itself is org-scoped internally).
+Q_BY_DEPLOYMENT = """
+  query ByDeployment($after: Float!, $before: Float!,
+                     $ids: [Int!]!, $metric: String!,
+                     $granularity: ReportingMetricsGranularity!) {
+    reportingMetricsByDeployment(
+      metricsFilter: { deploymentIds: $ids }
+      metricsSelector: {
+        metricName: $metric
+        granularity: $granularity
+        aggregationFunction: SUM
+        sortTarget: AGGREGATION_VALUE
+        sortDirection: DESCENDING
+        after: $after
+        before: $before
+      }
+    ) {
+      __typename
+      ... on ReportingMetrics {
+        timestamps
+        metrics {
+          entity {
+            ... on DagsterCloudDeployment { deploymentName deploymentId }
+          }
+          aggregateValue
+          values
+        }
+      }
+      ... on ReportingInputError { message }
+      ... on PythonError { message }
+      ... on UnauthorizedError { message }
+    }
+  }
+"""
+
+# Per-asset (also carries code_location + repository_name). Must be
+# run against each deployment's endpoint (assets are deployment-scoped).
+Q_BY_ASSET = """
+  query ByAsset($after: Float!, $before: Float!,
+                $metric: String!,
+                $granularity: ReportingMetricsGranularity!) {
+    reportingMetricsByAsset(
+      metricsFilter: {}
+      metricsSelector: {
+        metricName: $metric
+        granularity: $granularity
+        aggregationFunction: SUM
+        sortTarget: AGGREGATION_VALUE
+        sortDirection: DESCENDING
+        after: $after
+        before: $before
+      }
+    ) {
+      __typename
+      ... on ReportingMetrics {
+        timestamps
+        metrics {
+          entity {
+            ... on ReportingAsset {
+              assetKey { path }
+              codeLocationName
+              repositoryName
+              assetGroup
+            }
+          }
+          aggregateValue
+          values
+        }
+      }
+      ... on ReportingInputError { message }
+      ... on PythonError { message }
+      ... on UnauthorizedError { message }
     }
   }
 """
 
 
-# ── Credit-usage extraction ─────────────────────────────────────────────
-#
-# The metrics list on each asset row typically includes multiple
-# named metrics (dagster credits, compute seconds, per-metadata-key
-# custom Insights metrics …). We pick out the credit + compute
-# metrics; everything else is ignored.
-#
-# The exact metric name for credits varies by Dagster+ version:
-#    __dagster_dagster_credits__
-#    dagster_credits
-#    dagster/credits
-# Same for compute seconds. Match by substring to be resilient.
-
-CREDIT_METRIC_HINTS = ("credit", "credits")
-COMPUTE_METRIC_HINTS = ("compute_second", "compute-second", "compute seconds")
+# The two metric names we surface. Verified via metricTypesForDeployment
+# on ericthomas-dagster/prod (2026-09-10) — these are stable Dagster+
+# built-ins, not per-org custom metrics.
+CREDIT_METRIC = "__dagster_dagster_credits"
+COMPUTE_METRIC = "__dagster_execution_time_ms"
 
 
-def _pick_metric(metrics: Sequence[Dict[str, Any]], hints: Sequence[str]) -> Optional[float]:
-    for m in metrics or []:
-        name = (m.get("metricName") or "").lower()
-        if any(h in name for h in hints):
-            v = m.get("metricValue")
-            try:
-                return float(v) if v is not None else None
-            except (TypeError, ValueError):
-                return None
-    return None
-
-
-def _fetch_asset_metrics(
-    org: str, deployment: str, token: str,
-    start_epoch: float, end_epoch: float,
-) -> List[Dict[str, Any]]:
-    """Return list of {asset_key, code_location, credits, compute_seconds} for
-    the deployment over the window."""
-    endpoint = _deployment_endpoint(org, deployment)
-    try:
-        data = _post_graphql(endpoint, token, Q_ASSET_CREDITS,
-                             {"start": start_epoch, "end": end_epoch})
-        rows = data.get("assetsMetrics") or []
-    except RuntimeError as e:
-        # Primary query failed. Try fallback shape.
-        print(f"    [{deployment}] primary assetsMetrics query failed ({e}); trying fallback ...", file=sys.stderr)
-        try:
-            data = _post_graphql(endpoint, token, Q_INSIGHTS_METRICS_FALLBACK,
-                                 {"start": start_epoch, "end": end_epoch})
-            # Fallback shape flattening — attempt best-effort. If your
-            # deployment uses yet another shape, run --introspect to see it.
-            fallback: List[Dict[str, Any]] = []
-            for m in data.get("insightsMetrics") or []:
-                key = (m.get("key") or "").lower()
-                if not any(h in key for h in CREDIT_METRIC_HINTS + COMPUTE_METRIC_HINTS):
-                    continue
-                for v in m.get("values") or []:
-                    ak = v.get("asset", {}).get("key", {}).get("path") or []
-                    fallback.append({
-                        "asset_key": "/".join(ak),
-                        "code_location": v.get("codeLocationName") or "",
-                        "_metric_name": key,
-                        "_metric_value": v.get("numericValue"),
-                    })
-            return fallback
-        except RuntimeError as e2:
-            print(f"    [{deployment}] fallback also failed: {e2}", file=sys.stderr)
-            return []
-
-    out: List[Dict[str, Any]] = []
-    for row in rows:
-        ak = "/".join((row.get("assetKey") or {}).get("path") or [])
-        cl = row.get("codeLocationName") or ""
-        credits = _pick_metric(row.get("metrics") or [], CREDIT_METRIC_HINTS)
-        cpu     = _pick_metric(row.get("metrics") or [], COMPUTE_METRIC_HINTS)
-        out.append({
-            "asset_key":       ak,
-            "code_location":   cl,
-            "credits":         credits or 0.0,
-            "compute_seconds": cpu or 0.0,
-        })
-    return out
-
-
-def _list_deployments(org: str, token: str) -> List[str]:
+# ── Deployment enumeration ──────────────────────────────────────────────
+def _list_deployments(org: str, token: str,
+                      include_branches: bool = False) -> List[Dict[str, Any]]:
     data = _post_graphql(_org_endpoint(org), token, Q_LIST_DEPLOYMENTS)
     deps = data.get("fullDeployments") or []
-    return [d["deploymentName"] for d in deps if d.get("deploymentName")]
+    return [d for d in deps if include_branches or not d.get("isBranchDeployment")]
+
+
+# ── Per-deployment metric fetch ─────────────────────────────────────────
+def _fetch_by_deployment(
+    org: str, token: str, deployment_ids: List[int], metric: str,
+    after: float, before: float, granularity: str,
+) -> Dict[str, Any]:
+    """Returns {timestamps: [...], metrics: [{deployment_name, aggregate,
+    values_by_ts: {ts: val}}]}."""
+    data = _post_graphql(
+        _org_endpoint(org), token, Q_BY_DEPLOYMENT,
+        {"after": after, "before": before, "ids": deployment_ids,
+         "metric": metric, "granularity": granularity},
+    )
+    node = data.get("reportingMetricsByDeployment") or {}
+    if node.get("__typename") != "ReportingMetrics":
+        msg = node.get("message") or json.dumps(node)[:300]
+        raise RuntimeError(f"reportingMetricsByDeployment: {msg}")
+    ts = node.get("timestamps") or []
+    out: List[Dict[str, Any]] = []
+    for e in node.get("metrics") or []:
+        ent = e.get("entity") or {}
+        dname = ent.get("deploymentName")
+        if not dname: continue
+        vals = e.get("values") or []
+        out.append({
+            "deployment": dname,
+            "aggregate": float(e.get("aggregateValue") or 0.0),
+            "values_by_ts": dict(zip((float(t) for t in ts), (float(v or 0.0) for v in vals))),
+        })
+    return {"timestamps": [float(t) for t in ts], "metrics": out}
+
+
+# ── Per-asset fetch (per deployment endpoint) ───────────────────────────
+def _fetch_by_asset(
+    org: str, deployment: str, token: str, metric: str,
+    after: float, before: float, granularity: str,
+) -> Dict[str, Any]:
+    """Returns {timestamps: [...], assets: [{asset_key, code_location,
+    aggregate, values_by_ts}]}."""
+    data = _post_graphql(
+        _deployment_endpoint(org, deployment), token, Q_BY_ASSET,
+        {"after": after, "before": before, "metric": metric, "granularity": granularity},
+    )
+    node = data.get("reportingMetricsByAsset") or {}
+    if node.get("__typename") != "ReportingMetrics":
+        msg = node.get("message") or json.dumps(node)[:300]
+        raise RuntimeError(f"reportingMetricsByAsset [{deployment}]: {msg}")
+    ts = node.get("timestamps") or []
+    out: List[Dict[str, Any]] = []
+    for e in node.get("metrics") or []:
+        ent = e.get("entity") or {}
+        ak = "/".join((ent.get("assetKey") or {}).get("path") or [])
+        cl = ent.get("codeLocationName") or ""
+        vals = e.get("values") or []
+        out.append({
+            "asset_key": ak,
+            "code_location": cl,
+            "repository": ent.get("repositoryName") or "",
+            "aggregate": float(e.get("aggregateValue") or 0.0),
+            "values_by_ts": dict(zip((float(t) for t in ts), (float(v or 0.0) for v in vals))),
+        })
+    return {"timestamps": [float(t) for t in ts], "assets": out}
 
 
 # ── Aggregation ─────────────────────────────────────────────────────────
-def _aggregate(rows: List[Dict[str, Any]], group_by: Sequence[str]) -> List[Dict[str, Any]]:
-    """Roll rows up by the requested axes. Every row must carry the axis
-    fields the caller asked to group by."""
-    valid_axes = {"deployment", "code_location", "asset_key", "day"}
-    axes = [a if a != "asset" else "asset_key" for a in group_by]
-    for a in axes:
-        if a not in valid_axes:
-            raise ValueError(f"unknown group-by axis {a!r}. Valid: {sorted(valid_axes | {'asset'})}")
-    buckets: Dict[tuple, Dict[str, float]] = {}
+def _rows_from_deployment_result(
+    metric_result: Dict[str, Any],
+    axes: List[str],
+) -> List[Dict[str, Any]]:
+    """Flatten reportingMetricsByDeployment into row dicts. Only useful
+    when neither `code_location` nor `asset` is in the axes."""
+    rows: List[Dict[str, Any]] = []
+    daily = "day" in axes
+    for m in metric_result["metrics"]:
+        base = {"deployment": m["deployment"]}
+        if not daily:
+            rows.append({**base, "value": m["aggregate"]})
+        else:
+            for ts, val in m["values_by_ts"].items():
+                d = _dt.datetime.fromtimestamp(ts, tz=_dt.timezone.utc).strftime("%Y-%m-%d")
+                rows.append({**base, "day": d, "value": val})
+    return rows
+
+
+def _rows_from_asset_result(
+    deployment: str, asset_result: Dict[str, Any], axes: List[str],
+) -> List[Dict[str, Any]]:
+    rows: List[Dict[str, Any]] = []
+    daily = "day" in axes
+    for a in asset_result["assets"]:
+        base = {
+            "deployment": deployment,
+            "code_location": a["code_location"],
+            "asset_key": a["asset_key"],
+        }
+        if not daily:
+            rows.append({**base, "value": a["aggregate"]})
+        else:
+            for ts, val in a["values_by_ts"].items():
+                d = _dt.datetime.fromtimestamp(ts, tz=_dt.timezone.utc).strftime("%Y-%m-%d")
+                rows.append({**base, "day": d, "value": val})
+    return rows
+
+
+def _rollup(rows: List[Dict[str, Any]], axes: List[str]) -> Dict[tuple, float]:
+    buckets: Dict[tuple, float] = {}
     for r in rows:
         key = tuple(r.get(a, "") for a in axes)
-        agg = buckets.setdefault(key, {"credits": 0.0, "compute_seconds": 0.0})
-        agg["credits"]         += float(r.get("credits") or 0.0)
-        agg["compute_seconds"] += float(r.get("compute_seconds") or 0.0)
-    out: List[Dict[str, Any]] = []
-    for key, agg in buckets.items():
-        row: Dict[str, Any] = dict(zip(axes, key))
-        row.update(agg)
-        out.append(row)
-    # Deterministic ordering — descending credits then ascending key.
-    out.sort(key=lambda r: (-r.get("credits", 0.0), *(str(r.get(a, "")) for a in axes)))
-    return out
+        buckets[key] = buckets.get(key, 0.0) + float(r.get("value") or 0.0)
+    return buckets
 
 
-def _day_bucket_epoch_range(start_epoch: float, end_epoch: float) -> Iterable[Tuple[str, float, float]]:
-    """Yield (YYYY-MM-DD, window_start_epoch, window_end_epoch) day buckets
-    fully covering [start_epoch, end_epoch]. Used for --group-by day."""
-    start_dt = _dt.datetime.fromtimestamp(start_epoch, tz=_dt.timezone.utc)
-    end_dt   = _dt.datetime.fromtimestamp(end_epoch,   tz=_dt.timezone.utc)
-    cur = _dt.datetime(start_dt.year, start_dt.month, start_dt.day, tzinfo=_dt.timezone.utc)
-    while cur.timestamp() < end_dt.timestamp():
-        nxt = cur + _dt.timedelta(days=1)
-        yield (cur.strftime("%Y-%m-%d"), cur.timestamp(), min(nxt.timestamp(), end_dt.timestamp()))
-        cur = nxt
-
-
-# ── Subcommands ─────────────────────────────────────────────────────────
+# ── Commands ────────────────────────────────────────────────────────────
 def cmd_credits(args: argparse.Namespace) -> int:
     token = os.environ.get(args.token_env)
     if not token:
         sys.exit(f"ERROR: env var {args.token_env!r} is empty or unset")
 
     start_epoch, end_epoch = _parse_date_range(args.start, args.end)
-    group_by = [a.strip() for a in args.group_by.split(",") if a.strip()]
+    axes = [a.strip() if a.strip() != "asset" else "asset_key"
+            for a in args.group_by.split(",") if a.strip()]
+    valid = {"deployment", "code_location", "asset_key", "day"}
+    for a in axes:
+        if a not in valid:
+            sys.exit(f"ERROR: unknown --group-by axis {a!r}. Valid: {sorted(valid | {'asset'})}")
 
-    deployments = args.deployments.split(",") if args.deployments else _list_deployments(args.org, token)
-    print(f"Deployments: {', '.join(deployments)}", file=sys.stderr)
+    # Enumerate deployments (unless caller pinned a list)
+    if args.deployments:
+        wanted = set(args.deployments.split(","))
+        all_deps = _list_deployments(args.org, token, include_branches=args.include_branch_deployments)
+        deployments = [d for d in all_deps if d["deploymentName"] in wanted]
+        missing = wanted - {d["deploymentName"] for d in deployments}
+        if missing:
+            print(f"WARN: --deployments {sorted(missing)} not found in org", file=sys.stderr)
+    else:
+        deployments = _list_deployments(args.org, token, include_branches=args.include_branch_deployments)
+    print(f"Deployments: {', '.join(d['deploymentName'] for d in deployments)}", file=sys.stderr)
 
+    granularity = "DAILY" if "day" in axes else "MONTHLY"
     if args.dry_run:
-        print(f"[DRY RUN] Would fetch credits from:", file=sys.stderr)
-        for d in deployments:
-            print(f"  {_deployment_endpoint(args.org, d)}", file=sys.stderr)
-        print(f"  window: {args.start} → {args.end} ({start_epoch:.0f} → {end_epoch:.0f})",
-              file=sys.stderr)
-        print(f"  group_by: {group_by}", file=sys.stderr)
-        print(f"[DRY RUN] Query shape:\n{Q_ASSET_CREDITS}", file=sys.stderr)
+        print(f"[DRY RUN] window={args.start}..{args.end}   granularity={granularity}   axes={axes}", file=sys.stderr)
         return 0
 
-    # Fetch. If day is in group_by we split the window into daily
-    # sub-queries so each row carries a day. Otherwise one query per
-    # deployment covering the whole window.
-    all_rows: List[Dict[str, Any]] = []
-    daily = "day" in group_by
-    windows: List[Tuple[Optional[str], float, float]]
-    if daily:
-        windows = [(d, s, e) for d, s, e in _day_bucket_epoch_range(start_epoch, end_epoch)]
+    # Two data paths:
+    #   1. axes ⊆ {deployment, day}  → single reportingMetricsByDeployment call (all deployments).
+    #   2. axes touches {code_location, asset_key} → per-deployment reportingMetricsByAsset fan-out.
+    needs_per_asset = ("code_location" in axes) or ("asset_key" in axes)
+
+    credit_rows: List[Dict[str, Any]] = []
+    compute_rows: List[Dict[str, Any]] = []
+
+    if not needs_per_asset:
+        ids = [d["deploymentId"] for d in deployments]
+        credits = _fetch_by_deployment(args.org, token, ids, CREDIT_METRIC, start_epoch, end_epoch, granularity)
+        compute = _fetch_by_deployment(args.org, token, ids, COMPUTE_METRIC, start_epoch, end_epoch, granularity)
+        credit_rows  = _rows_from_deployment_result(credits, axes)
+        compute_rows = _rows_from_deployment_result(compute, axes)
     else:
-        windows = [(None, start_epoch, end_epoch)]
+        for d in deployments:
+            dname = d["deploymentName"]
+            print(f"  [{dname}] per-asset fetch ...", file=sys.stderr)
+            credits = _fetch_by_asset(args.org, dname, token, CREDIT_METRIC, start_epoch, end_epoch, granularity)
+            compute = _fetch_by_asset(args.org, dname, token, COMPUTE_METRIC, start_epoch, end_epoch, granularity)
+            credit_rows  += _rows_from_asset_result(dname, credits, axes)
+            compute_rows += _rows_from_asset_result(dname, compute, axes)
 
-    for d in deployments:
-        for (day_str, w_start, w_end) in windows:
-            print(f"  [{d}] window {day_str or f'{args.start}..{args.end}'} ...", file=sys.stderr)
-            rows = _fetch_asset_metrics(args.org, d, token, w_start, w_end)
-            for r in rows:
-                r["deployment"] = d
-                if day_str:
-                    r["day"] = day_str
-                all_rows.append(r)
+    credit_buckets  = _rollup(credit_rows,  axes)
+    compute_buckets = _rollup(compute_rows, axes)
+    all_keys = sorted(set(credit_buckets) | set(compute_buckets),
+                      key=lambda k: (-credit_buckets.get(k, 0.0), *k))
 
-    rolled = _aggregate(all_rows, group_by)
-    print(f"Wrote {len(rolled)} row(s).", file=sys.stderr)
-
-    # Emit
-    axes_present = [a if a != "asset" else "asset_key" for a in group_by]
-    columns = axes_present + ["credits", "compute_seconds"]
+    columns = axes + ["credits", "compute_seconds"]
+    out_rows: List[Dict[str, Any]] = []
+    for key in all_keys:
+        row: Dict[str, Any] = dict(zip(axes, key))
+        row["credits"] = round(credit_buckets.get(key, 0.0), 3)
+        row["compute_seconds"] = round(compute_buckets.get(key, 0.0) / 1000.0, 3)  # ms → s
+        out_rows.append(row)
 
     if args.output_json:
         with open(args.output_json, "w") as f:
-            json.dump(rolled, f, indent=2, default=str)
-        print(f"→ wrote {args.output_json}", file=sys.stderr)
+            json.dump(out_rows, f, indent=2, default=str)
+        print(f"→ wrote {args.output_json} ({len(out_rows)} rows)", file=sys.stderr)
     if args.output_csv:
         with open(args.output_csv, "w", newline="") as f:
             w = csv.DictWriter(f, fieldnames=columns)
             w.writeheader()
-            for r in rolled:
-                w.writerow({c: r.get(c, "") for c in columns})
-        print(f"→ wrote {args.output_csv}", file=sys.stderr)
+            w.writerows(out_rows)
+        print(f"→ wrote {args.output_csv} ({len(out_rows)} rows)", file=sys.stderr)
     if not (args.output_json or args.output_csv):
-        # Stdout table for interactive use
         w = csv.DictWriter(sys.stdout, fieldnames=columns)
         w.writeheader()
-        for r in rolled:
-            w.writerow({c: r.get(c, "") for c in columns})
+        w.writerows(out_rows)
+
+    if not out_rows:
+        print(
+            f"\nNo data rows. Common causes:\n"
+            f"  - Deployments have no asset runs in [{args.start} .. {args.end}].\n"
+            f"  - Custom metrics on rare deployments can lag ~15 min behind ingestion.\n"
+            f"  - Try `metric-types` to confirm __dagster_dagster_credits is visible on your org.",
+            file=sys.stderr,
+        )
     return 0
 
 
-def cmd_introspect(args: argparse.Namespace) -> int:
-    """Print the top-level query field names + their args for the
-    deployment endpoint — helps identify the actual insights fields
-    available on YOUR org's Dagster+ version."""
+def cmd_metric_types(args: argparse.Namespace) -> int:
+    """List every metric name the current deployment exposes — helpful
+    for custom Insights metrics, and to verify `__dagster_dagster_credits`
+    exists on your version."""
     token = os.environ.get(args.token_env)
     if not token:
         sys.exit(f"ERROR: env var {args.token_env!r} is empty or unset")
+    data = _post_graphql(_org_endpoint(args.org), token, Q_METRIC_TYPES)
+    node = (data or {}).get("metricTypesForDeployment") or {}
+    if "metricTypes" not in node:
+        sys.exit(f"ERROR: {json.dumps(node)[:400]}")
+    for m in node["metricTypes"]:
+        vis = "" if m.get("visible") else "  (hidden)"
+        print(f"  {m['metricName']:50s}  {m.get('displayName',''):40s}  unit={m.get('unitType') or '?':8s}{vis}")
+    return 0
 
-    for deployment in (args.deployments.split(",") if args.deployments else _list_deployments(args.org, token)):
-        endpoint = _deployment_endpoint(args.org, deployment)
-        print(f"\n=== {deployment} @ {endpoint} ===", file=sys.stderr)
-        try:
-            data = _post_graphql(endpoint, token, Q_INTROSPECT_TYPES)
-        except RuntimeError as e:
-            print(f"  introspect failed: {e}", file=sys.stderr)
-            continue
-        fields = ((data.get("__schema") or {}).get("queryType") or {}).get("fields") or []
-        # Filter to insights-related fields.
-        hints = ("insight", "credit", "usage", "metric", "asset")
-        interesting = [f for f in fields
-                       if any(h in (f.get("name") or "").lower() for h in hints)]
-        for f in sorted(interesting, key=lambda f: f["name"]):
-            args_str = ", ".join(
-                f"{a['name']}: {(a.get('type') or {}).get('name') or (a.get('type') or {}).get('ofType', {}).get('name') or '?'}"
-                for a in (f.get("args") or [])
-            )
-            ret = (f.get("type") or {}).get("name") or (f.get("type") or {}).get("ofType", {}).get("name") or "?"
-            print(f"  {f['name']}({args_str}) -> {ret}")
+
+def cmd_deployments(args: argparse.Namespace) -> int:
+    token = os.environ.get(args.token_env)
+    if not token:
+        sys.exit(f"ERROR: env var {args.token_env!r} is empty or unset")
+    for d in _list_deployments(args.org, token, include_branches=args.include_branch_deployments):
+        tag = "  (BRANCH)" if d.get("isBranchDeployment") else ""
+        print(f"  {d['deploymentName']:20s}  id={d['deploymentId']}  {d.get('deploymentType')}  status={d.get('deploymentStatus')}{tag}")
     return 0
 
 
@@ -432,7 +475,6 @@ def _parse_date_range(start: str, end: str) -> Tuple[float, float]:
     return _to_epoch(start), _to_epoch(end, end_of_day=True)
 
 
-# ── CLI entry ───────────────────────────────────────────────────────────
 def main() -> int:
     p = argparse.ArgumentParser(
         prog="pull_credit_usage",
@@ -442,11 +484,12 @@ def main() -> int:
     p.add_argument("--token-env", default="DAGSTER_CLOUD_API_TOKEN",
                    help="Env var name holding the Dagster+ user API token.")
     p.add_argument("--deployments", default=None,
-                   help="Comma-separated deployment names. Default: all deployments in the org.")
+                   help="Comma-separated deployment names. Default: all in the org.")
+    p.add_argument("--include-branch-deployments", action="store_true",
+                   help="Include branch deployments (default: only full deployments).")
 
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    # `credits` subcommand
     c = sub.add_parser("credits", help="Pull credit usage into CSV / JSON.")
     c.add_argument("--start", required=True, help="Start date (YYYY-MM-DD, inclusive).")
     c.add_argument("--end",   required=True, help="End date   (YYYY-MM-DD, inclusive).")
@@ -454,15 +497,16 @@ def main() -> int:
                    help=("Aggregation axes, comma-separated. Any of: "
                          "deployment, code_location, asset, day. Default: "
                          "deployment,code_location,asset."))
-    c.add_argument("--output-csv",  default=None, help="Write CSV to this path.")
-    c.add_argument("--output-json", default=None, help="Write JSON to this path.")
-    c.add_argument("--dry-run", action="store_true", help="Print the query + endpoints, don't execute.")
+    c.add_argument("--output-csv", default=None)
+    c.add_argument("--output-json", default=None)
+    c.add_argument("--dry-run", action="store_true")
     c.set_defaults(func=cmd_credits)
 
-    # `introspect` subcommand
-    i = sub.add_parser("introspect",
-                       help="Print the deployment-endpoint query fields (insights-related) so you can verify the query shape against your org's Dagster+ version.")
-    i.set_defaults(func=cmd_introspect)
+    mt = sub.add_parser("metric-types", help="List metric types available on your Dagster+.")
+    mt.set_defaults(func=cmd_metric_types)
+
+    d = sub.add_parser("deployments", help="List deployments in the org.")
+    d.set_defaults(func=cmd_deployments)
 
     args = p.parse_args()
     return args.func(args) or 0

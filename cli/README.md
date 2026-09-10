@@ -18,47 +18,52 @@ inferred).
 ## Pull — credit usage across deployments × code locations × assets × days
 
 The Dagster+ UI shows credit usage under Insights but doesn't expose a
-cross-deployment / per-code-location / per-asset download. This CLI hits
-the same GraphQL endpoints the UI does and merges the results into one
-table.
+cross-deployment / per-code-location / per-asset download. This CLI
+hits the same real GraphQL endpoints the UI does
+(`reportingMetricsByDeployment`, `reportingMetricsByAsset`) and merges
+into one table. **Query shape verified against a live Dagster+
+deployment (2026-09-10).**
+
+Three subcommands:
 
 ```bash
-# Last 30 days, per deployment × code location × asset — CSV
-./pull_credit_usage.py \
-    --org ericthomas-dagster \
-    --token-env DAGSTER_CLOUD_API_TOKEN \
-    --deployments prod,staging \
-    credits --start 2026-08-10 --end 2026-09-10 \
-    --group-by asset --output-csv credits.csv
+export DAGSTER_CLOUD_API_TOKEN=user:xxxxxxxx
 
-# Daily breakdown per deployment — one row per (deployment, day)
-./pull_credit_usage.py --org ericthomas-dagster \
-    --token-env DAGSTER_CLOUD_API_TOKEN \
-    credits --start 2026-08-10 --end 2026-09-10 \
-    --group-by deployment,day --output-csv credits_daily.csv
+# 1. List deployments in the org (also verifies your token works):
+./pull_credit_usage.py --org ericthomas-dagster deployments
 
-# Group-by axes are composable — e.g. deployment × code_location × day
-./pull_credit_usage.py --org ericthomas-dagster \
-    --token-env DAGSTER_CLOUD_API_TOKEN \
-    credits --start 2026-08-10 --end 2026-09-10 \
-    --group-by deployment,code_location,day
+# 2. List metric types visible to your Dagster+ (both built-ins and
+#    custom Insights metrics you've synced via sync_custom_metrics.py).
+#    Confirms __dagster_dagster_credits + __dagster_execution_time_ms
+#    exist on your version.
+./pull_credit_usage.py --org ericthomas-dagster metric-types
 
-# Verify the Insights schema shape against YOUR org's Dagster+ version
+# 3. Pull the actual usage report:
 ./pull_credit_usage.py --org ericthomas-dagster \
-    --token-env DAGSTER_CLOUD_API_TOKEN \
-    --deployments prod introspect
+    credits --start 2026-08-10 --end 2026-09-10 \
+    --group-by deployment,code_location,asset --output-csv usage.csv
 ```
 
 Group-by axes: `deployment`, `code_location`, `asset`, `day` — pick any
 combination, comma-separated. Every axis you name becomes a column in
-the output; the remaining `credits` + `compute_seconds` columns are
-rolled-up sums.
+the output; `credits` + `compute_seconds` columns are rolled-up sums.
 
-If a query returns no data, run `introspect` — Dagster+ Insights'
-GraphQL surface evolves across releases, so the exact field names may
-have shifted since 2026-09. The introspect output shows the current
-field names + arg types so you can edit `Q_ASSET_CREDITS` /
-`Q_INSIGHTS_METRICS_FALLBACK` to match.
+The script picks the right GraphQL path based on the axes you request:
+
+| Axes | Path | Endpoints hit |
+|---|---|---|
+| `deployment` or `deployment,day` | `reportingMetricsByDeployment` | 1 org endpoint |
+| includes `code_location` or `asset` | `reportingMetricsByAsset` | 1 per deployment |
+
+Day bucketing uses `granularity: DAILY` under the hood — no manual
+window-splitting. The Dagster+ API returns
+`timestamps: [epoch, epoch, …]` + `values: [n, n, …]` per entity, and
+the script explodes those into one row per (…, day).
+
+If `credits` returns no rows, the script prints a hint listing the
+usual causes (no runs in window, custom-metric ingestion lag,
+metric name not visible). Run `metric-types` to sanity-check the
+metric names on your specific Dagster+ version.
 
 ## Zero deps except PyYAML
 

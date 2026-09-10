@@ -126,6 +126,18 @@ Q_LIST_DEPLOYMENTS = """
   }
 """
 
+Q_ASSET_LOCATIONS = """
+  query AssetLocations {
+    assetNodes {
+      assetKey { path }
+      repository {
+        name
+        location { name }
+      }
+    }
+  }
+"""
+
 Q_METRIC_TYPES = """
   query MetricTypes {
     metricTypesForDeployment {
@@ -140,50 +152,37 @@ Q_METRIC_TYPES = """
   }
 """
 
-# Per-deployment rollup — org-scoped. Runs at /prod/graphql (or any
-# deployment endpoint; the query itself is org-scoped internally).
-Q_BY_DEPLOYMENT = """
-  query ByDeployment($after: Float!, $before: Float!,
-                     $ids: [Int!]!, $metric: String!,
-                     $granularity: ReportingMetricsGranularity!) {
-    reportingMetricsByDeployment(
-      metricsFilter: { deploymentIds: $ids }
-      metricsSelector: {
-        metricName: $metric
-        granularity: $granularity
-        aggregationFunction: SUM
-        sortTarget: AGGREGATION_VALUE
-        sortDirection: DESCENDING
-        after: $after
-        before: $before
-      }
-    ) {
-      __typename
-      ... on ReportingMetrics {
-        timestamps
-        metrics {
-          entity {
-            ... on DagsterCloudDeployment { deploymentName deploymentId }
-          }
-          aggregateValue
-          values
-        }
-      }
-      ... on ReportingInputError { message }
-      ... on PythonError { message }
-      ... on UnauthorizedError { message }
-    }
-  }
-"""
-
+# Per-asset — the single query we run for every axis combination.
+# We fan out one call per deployment (assets are deployment-scoped),
+# then aggregate client-side.
+#
+# `metricsStoreType` MATTERS: Dagster+ backends the reporting metrics
+# by either POSTGRES or VICTORIA_METRICS. As of 2026-09, real Dagster+
+# tenants (including SaaS) route credits + compute to VICTORIA_METRICS
+# — omitting the store type OR passing POSTGRES returns empty results.
+# Overridable via --store.
+#
+# NOTE: `reportingMetricsByDeployment` also exists but returns
+# `ReportingInputError: Branch deployment metrics are not yet supported
+# in VictoriaMetrics` on live VM tenants, so we don't use it — the
+# per-deployment rollup is computed by summing per-asset rows client-
+# side. Both `codeLocationName` and `repositoryName` on the
+# reportingMetricsByAsset response are ALSO empty on VM (VM isn't
+# indexed by code_location), so when the user asks for the
+# `code_location` axis we hit `assetNodes` separately for the
+# {asset_key: code_location} mapping and join.
+#
 # Per-asset (also carries code_location + repository_name). Must be
 # run against each deployment's endpoint (assets are deployment-scoped).
+# Same metricsStoreType story — VICTORIA_METRICS is the live data path.
 Q_BY_ASSET = """
   query ByAsset($after: Float!, $before: Float!,
                 $metric: String!,
-                $granularity: ReportingMetricsGranularity!) {
+                $granularity: ReportingMetricsGranularity!,
+                $store: MetricsStoreType!) {
     reportingMetricsByAsset(
       metricsFilter: {}
+      metricsStoreType: $store
       metricsSelector: {
         metricName: $metric
         granularity: $granularity
@@ -233,47 +232,35 @@ def _list_deployments(org: str, token: str,
     return [d for d in deps if include_branches or not d.get("isBranchDeployment")]
 
 
-# ── Per-deployment metric fetch ─────────────────────────────────────────
-def _fetch_by_deployment(
-    org: str, token: str, deployment_ids: List[int], metric: str,
-    after: float, before: float, granularity: str,
-) -> Dict[str, Any]:
-    """Returns {timestamps: [...], metrics: [{deployment_name, aggregate,
-    values_by_ts: {ts: val}}]}."""
-    data = _post_graphql(
-        _org_endpoint(org), token, Q_BY_DEPLOYMENT,
-        {"after": after, "before": before, "ids": deployment_ids,
-         "metric": metric, "granularity": granularity},
-    )
-    node = data.get("reportingMetricsByDeployment") or {}
-    if node.get("__typename") != "ReportingMetrics":
-        msg = node.get("message") or json.dumps(node)[:300]
-        raise RuntimeError(f"reportingMetricsByDeployment: {msg}")
-    ts = node.get("timestamps") or []
-    out: List[Dict[str, Any]] = []
-    for e in node.get("metrics") or []:
-        ent = e.get("entity") or {}
-        dname = ent.get("deploymentName")
-        if not dname: continue
-        vals = e.get("values") or []
-        out.append({
-            "deployment": dname,
-            "aggregate": float(e.get("aggregateValue") or 0.0),
-            "values_by_ts": dict(zip((float(t) for t in ts), (float(v or 0.0) for v in vals))),
-        })
-    return {"timestamps": [float(t) for t in ts], "metrics": out}
+# ── Asset → code_location mapping (per deployment endpoint) ────────────
+#
+# VictoriaMetrics-backed reportingMetricsByAsset returns EMPTY strings
+# for codeLocationName / repositoryName / assetGroup — the store isn't
+# indexed by those dimensions. To get the code_location for each asset
+# we hit `assetNodes` on the same endpoint and build a client-side map.
+def _fetch_asset_to_location(org: str, deployment: str, token: str) -> Dict[str, str]:
+    """Returns {asset_key_slash_joined: code_location_name}."""
+    data = _post_graphql(_deployment_endpoint(org, deployment), token, Q_ASSET_LOCATIONS)
+    out: Dict[str, str] = {}
+    for n in (data.get("assetNodes") or []):
+        ak = "/".join((n.get("assetKey") or {}).get("path") or [])
+        loc = ((n.get("repository") or {}).get("location") or {}).get("name") or ""
+        if ak:
+            out[ak] = loc
+    return out
 
 
 # ── Per-asset fetch (per deployment endpoint) ───────────────────────────
 def _fetch_by_asset(
     org: str, deployment: str, token: str, metric: str,
-    after: float, before: float, granularity: str,
+    after: float, before: float, granularity: str, store: str,
 ) -> Dict[str, Any]:
     """Returns {timestamps: [...], assets: [{asset_key, code_location,
     aggregate, values_by_ts}]}."""
     data = _post_graphql(
         _deployment_endpoint(org, deployment), token, Q_BY_ASSET,
-        {"after": after, "before": before, "metric": metric, "granularity": granularity},
+        {"after": after, "before": before, "metric": metric,
+         "granularity": granularity, "store": store},
     )
     node = data.get("reportingMetricsByAsset") or {}
     if node.get("__typename") != "ReportingMetrics":
@@ -297,25 +284,6 @@ def _fetch_by_asset(
 
 
 # ── Aggregation ─────────────────────────────────────────────────────────
-def _rows_from_deployment_result(
-    metric_result: Dict[str, Any],
-    axes: List[str],
-) -> List[Dict[str, Any]]:
-    """Flatten reportingMetricsByDeployment into row dicts. Only useful
-    when neither `code_location` nor `asset` is in the axes."""
-    rows: List[Dict[str, Any]] = []
-    daily = "day" in axes
-    for m in metric_result["metrics"]:
-        base = {"deployment": m["deployment"]}
-        if not daily:
-            rows.append({**base, "value": m["aggregate"]})
-        else:
-            for ts, val in m["values_by_ts"].items():
-                d = _dt.datetime.fromtimestamp(ts, tz=_dt.timezone.utc).strftime("%Y-%m-%d")
-                rows.append({**base, "day": d, "value": val})
-    return rows
-
-
 def _rows_from_asset_result(
     deployment: str, asset_result: Dict[str, Any], axes: List[str],
 ) -> List[Dict[str, Any]]:
@@ -375,28 +343,38 @@ def cmd_credits(args: argparse.Namespace) -> int:
         print(f"[DRY RUN] window={args.start}..{args.end}   granularity={granularity}   axes={axes}", file=sys.stderr)
         return 0
 
-    # Two data paths:
-    #   1. axes ⊆ {deployment, day}  → single reportingMetricsByDeployment call (all deployments).
-    #   2. axes touches {code_location, asset_key} → per-deployment reportingMetricsByAsset fan-out.
-    needs_per_asset = ("code_location" in axes) or ("asset_key" in axes)
-
+    # Route: everything goes through per-asset queries, then aggregates
+    # client-side. Rationale:
+    #   - VictoriaMetrics-backed `reportingMetricsByDeployment` returns
+    #     `ReportingInputError: Branch deployment metrics are not yet
+    #     supported in VictoriaMetrics` — the query is effectively
+    #     broken on live SaaS tenants as of 2026-09.
+    #   - `reportingMetricsByAsset` returns EMPTY strings for
+    #     codeLocationName / repositoryName / assetGroup on VM. We fetch
+    #     the {asset_key: code_location} mapping separately via
+    #     `assetNodes` on the same deployment endpoint and join.
     credit_rows: List[Dict[str, Any]] = []
     compute_rows: List[Dict[str, Any]] = []
+    need_locations = "code_location" in axes
 
-    if not needs_per_asset:
-        ids = [d["deploymentId"] for d in deployments]
-        credits = _fetch_by_deployment(args.org, token, ids, CREDIT_METRIC, start_epoch, end_epoch, granularity)
-        compute = _fetch_by_deployment(args.org, token, ids, COMPUTE_METRIC, start_epoch, end_epoch, granularity)
-        credit_rows  = _rows_from_deployment_result(credits, axes)
-        compute_rows = _rows_from_deployment_result(compute, axes)
-    else:
-        for d in deployments:
-            dname = d["deploymentName"]
-            print(f"  [{dname}] per-asset fetch ...", file=sys.stderr)
-            credits = _fetch_by_asset(args.org, dname, token, CREDIT_METRIC, start_epoch, end_epoch, granularity)
-            compute = _fetch_by_asset(args.org, dname, token, COMPUTE_METRIC, start_epoch, end_epoch, granularity)
-            credit_rows  += _rows_from_asset_result(dname, credits, axes)
-            compute_rows += _rows_from_asset_result(dname, compute, axes)
+    for d in deployments:
+        dname = d["deploymentName"]
+        print(f"  [{dname}] per-asset fetch ...", file=sys.stderr)
+        loc_map: Dict[str, str] = {}
+        if need_locations:
+            try:
+                loc_map = _fetch_asset_to_location(args.org, dname, token)
+            except RuntimeError as e:
+                print(f"    [{dname}] WARN: code_location fetch failed: {e}", file=sys.stderr)
+        credits = _fetch_by_asset(args.org, dname, token, CREDIT_METRIC, start_epoch, end_epoch, granularity, args.store)
+        compute = _fetch_by_asset(args.org, dname, token, COMPUTE_METRIC, start_epoch, end_epoch, granularity, args.store)
+        # Enrich the reporting-metrics assets with the code_location map
+        # (the reporting query returns empty '' for codeLocationName on VM).
+        if need_locations:
+            for a in credits["assets"] + compute["assets"]:
+                a["code_location"] = loc_map.get(a["asset_key"], a.get("code_location") or "")
+        credit_rows  += _rows_from_asset_result(dname, credits, axes)
+        compute_rows += _rows_from_asset_result(dname, compute, axes)
 
     credit_buckets  = _rollup(credit_rows,  axes)
     compute_buckets = _rollup(compute_rows, axes)
@@ -500,6 +478,12 @@ def main() -> int:
     c.add_argument("--output-csv", default=None)
     c.add_argument("--output-json", default=None)
     c.add_argument("--dry-run", action="store_true")
+    c.add_argument("--store", default="VICTORIA_METRICS",
+                   choices=("VICTORIA_METRICS", "POSTGRES"),
+                   help=("Dagster+ metrics store to query. VICTORIA_METRICS "
+                         "(default) is where live SaaS tenants route credits + "
+                         "compute; POSTGRES is a legacy path that returns "
+                         "empty on most current tenants."))
     c.set_defaults(func=cmd_credits)
 
     mt = sub.add_parser("metric-types", help="List metric types available on your Dagster+.")

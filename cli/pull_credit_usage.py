@@ -66,6 +66,29 @@ Output columns:
     <axes...>, credits, compute_seconds
 
 Requires: Python 3.8+ / stdlib only. No external deps.
+
+Notes on Dagster+ Insights internals (verified 2026-09-10):
+
+  - The Insights API caps a single query window at **120 days**.
+    Longer ranges are auto-split into 120-day chunks.
+  - There are TWO metric stores: **VICTORIA_METRICS** (recent data
+    with per-asset granularity, retention ≈ 6 months) and
+    **POSTGRES** (long-tail history, back to org origination).
+    Default `--store BOTH` queries both and unions.
+  - `reportingMetricsByAsset.metricsFilter.codeLocations` is
+    supported by POSTGRES but returns HTTP 500 on VM — the script
+    never uses that filter. Code-location is joined client-side
+    via `assetNodes`.
+  - `reportingMetricsByDeployment` returns
+    `ReportingInputError: Branch deployment metrics are not yet
+    supported in VictoriaMetrics` on VM regardless of whether the
+    IDs are branches. Script uses per-asset queries and rolls up
+    deployment totals client-side instead.
+  - Default `metricsFilter.limit` is 10 — always pass an explicit
+    high value.
+  - VM 500s with `PythonError: Internal Server Error (Trace ID:
+    …)` are the "no data in this window" signal; the script skips
+    them without retrying so POSTGRES can pick up the slack.
 """
 from __future__ import annotations
 
@@ -82,24 +105,54 @@ from typing import Any, Dict, List, Optional, Tuple
 
 # ── HTTP / GraphQL ──────────────────────────────────────────────────────
 def _post_graphql(endpoint: str, token: str, query: str,
-                  variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+                  variables: Optional[Dict[str, Any]] = None,
+                  max_retries: int = 3) -> Dict[str, Any]:
+    """POST with automatic retry on 5xx / transient GraphQL PythonError.
+    Backs off exponentially: 1s, 3s, 9s. Rate-limits by sleeping 100ms
+    between successful calls to avoid overwhelming the Insights backend
+    on large fan-outs."""
+    import time as _time
     body = json.dumps({"query": query, "variables": variables or {}}).encode("utf-8")
     req = urllib.request.Request(
         endpoint, data=body, method="POST",
         headers={"Content-Type": "application/json", "Dagster-Cloud-Api-Token": token},
     )
-    try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            payload = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        body_text = e.read().decode("utf-8", errors="replace")[:800]
-        raise RuntimeError(f"HTTP {e.code} @ {endpoint}: {body_text}") from e
-    if payload.get("errors"):
-        errs = json.dumps(payload["errors"])[:1500]
-        if not payload.get("data"):
-            raise RuntimeError(f"GraphQL error @ {endpoint}: {errs}")
-        print(f"WARN: partial GraphQL error @ {endpoint}: {errs}", file=sys.stderr)
-    return payload.get("data") or {}
+    last_err: Optional[str] = None
+    for attempt in range(max_retries + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                payload = json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            body_text = e.read().decode("utf-8", errors="replace")[:800]
+            last_err = f"HTTP {e.code} @ {endpoint}: {body_text}"
+            # Dagster+ Insights returns HTTP 500 with `PythonError:
+            # Internal Server Error` when a query window has no data
+            # in VictoriaMetrics (common for older date ranges past
+            # VM's ~6-month retention). That's NOT a transient error —
+            # retrying won't help. Distinguish from real 500s (gateway
+            # timeouts, etc.) which usually don't have the trace-id
+            # marker.
+            if e.code == 500 and "Internal Server Error" in body_text and "Trace ID" in body_text:
+                raise RuntimeError(last_err) from e   # skip retries
+            if e.code >= 500 and attempt < max_retries:
+                _time.sleep(1 * (3 ** attempt))
+                continue
+            raise RuntimeError(last_err) from e
+        # PythonError with 200 status — retry once for actual transient
+        # errors; the VM-empty-window case comes back as HTTP 500 (handled
+        # above), so anything in this branch is worth retrying.
+        errs = payload.get("errors")
+        if errs and attempt < max_retries:
+            last_err = json.dumps(errs)[:400]
+            _time.sleep(1 * (3 ** attempt))
+            continue
+        if errs and not payload.get("data"):
+            raise RuntimeError(f"GraphQL error @ {endpoint}: {json.dumps(errs)[:1500]}")
+        if errs:
+            print(f"WARN: partial GraphQL error @ {endpoint}: {json.dumps(errs)[:1500]}", file=sys.stderr)
+        _time.sleep(0.05)   # gentle rate limit
+        return payload.get("data") or {}
+    raise RuntimeError(f"exhausted retries @ {endpoint}: {last_err}")
 
 
 def _org_endpoint(org: str) -> str:
@@ -153,6 +206,9 @@ Q_METRIC_TYPES = """
 """
 
 # Per-asset — the single query we run for every axis combination.
+# `limit` defaults to 10 server-side, which silently truncates any org
+# with more than 10 credits-consuming assets in the window — always
+# pass an explicit high limit.
 # We fan out one call per deployment (assets are deployment-scoped),
 # then aggregate client-side.
 #
@@ -179,9 +235,10 @@ Q_BY_ASSET = """
   query ByAsset($after: Float!, $before: Float!,
                 $metric: String!,
                 $granularity: ReportingMetricsGranularity!,
-                $store: MetricsStoreType!) {
+                $store: MetricsStoreType!,
+                $limit: Int!) {
     reportingMetricsByAsset(
-      metricsFilter: {}
+      metricsFilter: { limit: $limit }
       metricsStoreType: $store
       metricsSelector: {
         metricName: $metric
@@ -254,13 +311,14 @@ def _fetch_asset_to_location(org: str, deployment: str, token: str) -> Dict[str,
 def _fetch_by_asset(
     org: str, deployment: str, token: str, metric: str,
     after: float, before: float, granularity: str, store: str,
+    limit: int = 5000,
 ) -> Dict[str, Any]:
     """Returns {timestamps: [...], assets: [{asset_key, code_location,
     aggregate, values_by_ts}]}."""
     data = _post_graphql(
         _deployment_endpoint(org, deployment), token, Q_BY_ASSET,
         {"after": after, "before": before, "metric": metric,
-         "granularity": granularity, "store": store},
+         "granularity": granularity, "store": store, "limit": limit},
     )
     node = data.get("reportingMetricsByAsset") or {}
     if node.get("__typename") != "ReportingMetrics":
@@ -357,24 +415,83 @@ def cmd_credits(args: argparse.Namespace) -> int:
     compute_rows: List[Dict[str, Any]] = []
     need_locations = "code_location" in axes
 
+    # Which underlying stores to query. VM caps at ~6 months retention;
+    # POSTGRES holds long-tail history. When the user picks `BOTH`
+    # (default), we hit both and union the rows — the two stores hold
+    # DIFFERENT data (POSTGRES is often historical / decommissioned
+    # code locations, VM is current), so summing across is correct
+    # rather than double-counting.
+    stores = ("VICTORIA_METRICS", "POSTGRES") if args.store == "BOTH" else (args.store,)
+
+    # Dagster+ caps a single reportingMetrics query at 120 days.
+    # Auto-chunk anything longer.
+    MAX_WINDOW_SEC = 120 * 86400
+    time_chunks: List[Tuple[float, float]] = []
+    _t = start_epoch
+    while _t < end_epoch:
+        chunk_end = min(_t + MAX_WINDOW_SEC, end_epoch)
+        time_chunks.append((_t, chunk_end))
+        _t = chunk_end
+    if len(time_chunks) > 1:
+        print(
+            f"Window > 120d; splitting into {len(time_chunks)} chunk(s) "
+            f"(Dagster+ reporting queries cap at 120 days each).",
+            file=sys.stderr,
+        )
+
+    def _run_fetches(dep_name: str, store_name: str, loc_map: Dict[str, str]) -> None:
+        """Fans out one metric fetch per time chunk. Appends to the
+        enclosing credit_rows / compute_rows.
+
+        NOTE: no per-code-location pagination — the VictoriaMetrics
+        backend returns HTTP 500 whenever the `codeLocations` filter
+        is set. Only POSTGRES supports it, and POSTGRES's aggregate
+        already fits comfortably under `--limit` at typical org
+        sizes. To handle >5000 assets in a single (deployment × chunk),
+        split the date range with `--start/--end` and re-run.
+        """
+        for (t_start, t_end) in time_chunks:
+            chunk_desc = f"{_dt.datetime.fromtimestamp(t_start, tz=_dt.timezone.utc).date()}..{_dt.datetime.fromtimestamp(t_end, tz=_dt.timezone.utc).date()}"
+            try:
+                credits = _fetch_by_asset(args.org, dep_name, token, CREDIT_METRIC, t_start, t_end, granularity, store_name, args.limit)
+                compute = _fetch_by_asset(args.org, dep_name, token, COMPUTE_METRIC, t_start, t_end, granularity, store_name, args.limit)
+            except RuntimeError as e:
+                # Common: VM 500s when window has no data past retention (~6mo).
+                # Skip quietly and let POSTGRES pick up the slack.
+                print(f"    [{dep_name}] store={store_name} {chunk_desc} skipped ({e[:120] if isinstance(e, str) else str(e)[:120]})", file=sys.stderr)
+                continue
+            n_credit = len(credits["assets"])
+            n_compute = len(compute["assets"])
+            if n_credit >= args.limit or n_compute >= args.limit:
+                print(
+                    f"    [{dep_name}] WARN: store={store_name} {chunk_desc} "
+                    f"hit --limit={args.limit} (credits={n_credit}, compute={n_compute}). "
+                    f"Results may be truncated. Raise --limit or split the date range.",
+                    file=sys.stderr,
+                )
+            if need_locations:
+                for a in credits["assets"] + compute["assets"]:
+                    if not a.get("code_location"):
+                        a["code_location"] = loc_map.get(a["asset_key"], "")
+            credit_rows.extend(_rows_from_asset_result(dep_name, credits, axes))
+            compute_rows.extend(_rows_from_asset_result(dep_name, compute, axes))
+
     for d in deployments:
         dname = d["deploymentName"]
-        print(f"  [{dname}] per-asset fetch ...", file=sys.stderr)
+        # Fetch assetNodes once per deployment — reused for both the
+        # code_location join AND the pagination batch list.
         loc_map: Dict[str, str] = {}
-        if need_locations:
-            try:
-                loc_map = _fetch_asset_to_location(args.org, dname, token)
-            except RuntimeError as e:
-                print(f"    [{dname}] WARN: code_location fetch failed: {e}", file=sys.stderr)
-        credits = _fetch_by_asset(args.org, dname, token, CREDIT_METRIC, start_epoch, end_epoch, granularity, args.store)
-        compute = _fetch_by_asset(args.org, dname, token, COMPUTE_METRIC, start_epoch, end_epoch, granularity, args.store)
-        # Enrich the reporting-metrics assets with the code_location map
-        # (the reporting query returns empty '' for codeLocationName on VM).
-        if need_locations:
-            for a in credits["assets"] + compute["assets"]:
-                a["code_location"] = loc_map.get(a["asset_key"], a.get("code_location") or "")
-        credit_rows  += _rows_from_asset_result(dname, credits, axes)
-        compute_rows += _rows_from_asset_result(dname, compute, axes)
+        try:
+            loc_map = _fetch_asset_to_location(args.org, dname, token)
+        except RuntimeError as e:
+            print(f"    [{dname}] WARN: code_location fetch failed: {e}", file=sys.stderr)
+
+        distinct_locs = sorted({v for v in loc_map.values() if v})
+        print(f"  [{dname}] {len(distinct_locs)} code location(s): {distinct_locs}", file=sys.stderr)
+
+        for st in stores:
+            print(f"  [{dname}] fetch store={st} ...", file=sys.stderr)
+            _run_fetches(dname, st, loc_map)
 
     credit_buckets  = _rollup(credit_rows,  axes)
     compute_buckets = _rollup(compute_rows, axes)
@@ -478,12 +595,24 @@ def main() -> int:
     c.add_argument("--output-csv", default=None)
     c.add_argument("--output-json", default=None)
     c.add_argument("--dry-run", action="store_true")
-    c.add_argument("--store", default="VICTORIA_METRICS",
-                   choices=("VICTORIA_METRICS", "POSTGRES"),
+    c.add_argument("--store", default="BOTH",
+                   choices=("VICTORIA_METRICS", "POSTGRES", "BOTH"),
                    help=("Dagster+ metrics store to query. VICTORIA_METRICS "
-                         "(default) is where live SaaS tenants route credits + "
-                         "compute; POSTGRES is a legacy path that returns "
-                         "empty on most current tenants."))
+                         "holds ~6 months of recent data with per-asset "
+                         "granularity but empty codeLocationName; POSTGRES "
+                         "holds long-tail history (back to org origination) "
+                         "with populated codeLocationName but a smaller "
+                         "distinct-asset set. BOTH (default) queries both "
+                         "and unions — required for date ranges spanning "
+                         "the ~6-month VM boundary."))
+    c.add_argument("--limit", type=int, default=5000,
+                   help=("Max assets returned per (deployment × store × "
+                         "time chunk). Server default is 10 — always pass "
+                         "an explicit high value. For orgs with > 5000 "
+                         "credits-consuming assets in a single window, "
+                         "either raise --limit further or split the "
+                         "date range with narrower --start/--end and "
+                         "re-run."))
     c.set_defaults(func=cmd_credits)
 
     mt = sub.add_parser("metric-types", help="List metric types available on your Dagster+.")

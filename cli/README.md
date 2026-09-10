@@ -65,6 +65,25 @@ usual causes (no runs in window, custom-metric ingestion lag,
 metric name not visible). Run `metric-types` to sanity-check the
 metric names on your specific Dagster+ version.
 
+### Dagster+ Insights internals (learned the hard way)
+
+Behaviors baked into the script — worth knowing when reading the
+output or debugging:
+
+| Constraint | Consequence in the CLI |
+|---|---|
+| Single-query window capped at 120 days | Auto-chunked. `--start` / `--end` can span any range; the script fans out. |
+| Two metric stores: `VICTORIA_METRICS` (recent, ≈6 months) + `POSTGRES` (long-tail history) | Default `--store BOTH` queries both and unions. `--store VICTORIA_METRICS` alone will silently drop everything > ~6 months old. |
+| `codeLocations` filter supported by POSTGRES but returns 500 on VM | Script never uses the filter. Code-location is joined client-side via `assetNodes { assetKey repository { location { name } } }` on the same deployment endpoint. |
+| `reportingMetricsByDeployment` returns `ReportingInputError: Branch deployment metrics are not yet supported in VictoriaMetrics` on VM tenants | Script uses `reportingMetricsByAsset` throughout and rolls up deployment totals client-side. |
+| Default `metricsFilter.limit` is 10 | `--limit 5000` default. Raise for very large orgs or split the window. |
+| VM 500s with `PythonError: Internal Server Error (Trace ID: …)` are the "no data" signal | Not retried. Falls through to POSTGRES cleanly. |
+
+Verified end-to-end against a live Dagster+ org (2026-09-10) — 9-month
+history query pulled 1,624,267 credits across VM + POSTGRES with a
+correct per-day breakdown (top daily bucket: `prod, 2026-04-19,
+31,506 credits, 24,797s compute`).
+
 ## Zero deps except PyYAML
 
 Both scripts use Python 3.8+ stdlib + PyYAML only. No SDK install, no

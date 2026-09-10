@@ -21,7 +21,7 @@ chmod +x pull_credit_usage.py
 export DAGSTER_CLOUD_API_TOKEN=user:xxxxxxxx
 ```
 
-## Three subcommands
+## Four subcommands
 
 ### `deployments` — list deployments in the org
 
@@ -35,14 +35,19 @@ Also serves as a token sanity-check.
 
 ### `metric-types` — list metric names visible to your Dagster+
 
-Built-in metrics (`Dagster credits`, `Compute duration`, …) plus any custom
-Insights metrics you've synced via `sync_custom_metrics.py`.
+Built-in metrics (`__dagster_dagster_credits`, `__dagster_execution_time_ms`,
+`__dagster_step_duration_ms`, `__dagster_asset_check_*`, …) plus any custom
+Insights metrics you've synced via `sync_custom_metrics.py`. Use this to
+pick metric names for the `metrics` subcommand.
 
 ```bash
 ./pull_credit_usage.py --org acme metric-types
 ```
 
-### `credits` — the actual usage rollup
+### `credits` — the ergonomic usage rollup
+
+Pulls `__dagster_dagster_credits` + `__dagster_execution_time_ms` and emits
+`credits` + `compute_seconds` columns (ms → s conversion applied for compute).
 
 ```bash
 ./pull_credit_usage.py --org acme \
@@ -50,6 +55,32 @@ Insights metrics you've synced via `sync_custom_metrics.py`.
     --group-by deployment,code_location,asset,day \
     --output-csv usage.csv
 ```
+
+### `metrics` — pull any metric(s)
+
+Generic form: takes one or more metric names, produces one column per metric
+with the raw aggregate value (no unit conversion). Same axes, same store
+handling, same time-chunking as `credits`.
+
+```bash
+# One custom metric:
+./pull_credit_usage.py --org acme \
+    metrics --start 2026-01-01 --end 2026-09-30 \
+    --metrics rows_ingested \
+    --group-by deployment,asset,day \
+    --output-csv rows.csv
+
+# Multiple metrics, one column each:
+./pull_credit_usage.py --org acme \
+    metrics --start 2026-01-01 --end 2026-09-30 \
+    --metrics __dagster_dagster_credits,__dagster_step_duration_ms,cost_usd \
+    --group-by deployment,day \
+    --output-csv custom.csv
+```
+
+Column names strip the `__dagster_` prefix on built-ins:
+`__dagster_step_duration_ms` → `step_duration_ms`. Custom metric names
+pass through unchanged.
 
 ## Options
 
@@ -62,7 +93,7 @@ Insights metrics you've synced via `sync_custom_metrics.py`.
 | `--deployments` | | (all) | Comma-separated deployment names to include, e.g. `prod,staging`. Default: every deployment in the org. |
 | `--include-branch-deployments` | | off | Include branch deployments (default: only full deployments) |
 
-### `credits` subcommand
+### `credits` + `metrics` subcommands (shared flags)
 
 | Flag | Required | Default | Description |
 |---|---|---|---|
@@ -75,6 +106,12 @@ Insights metrics you've synced via `sync_custom_metrics.py`.
 | `--store` | | `BOTH` | Which Insights backend to query: `BOTH` (default), `VICTORIA_METRICS`, or `POSTGRES` |
 | `--limit` | | `5000` | Max assets returned per (deployment × store × time chunk). Raise for very large orgs. |
 
+### `metrics` subcommand — additional flag
+
+| Flag | Required | Default | Description |
+|---|---|---|---|
+| `--metrics` | yes | — | Comma-separated metric names. Use `metric-types` to see what's available on your Dagster+. Built-in names start with `__dagster_`; custom Insights metrics use their `metadata_key`. |
+
 ## Group-by axes
 
 | Axis | Meaning |
@@ -84,7 +121,8 @@ Insights metrics you've synced via `sync_custom_metrics.py`.
 | `asset` | One row per (deployment, code_location, asset_key) |
 | `day` | Appended to any of the above — one row per (…, day) |
 
-`credits` + `compute_seconds` are the aggregated numeric columns.
+For `credits` the numeric columns are always `credits` + `compute_seconds`.
+For `metrics` the numeric columns are one per `--metrics` name.
 
 ## Output
 

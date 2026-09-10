@@ -1,69 +1,67 @@
 #!/usr/bin/env python3
-"""pull_credit_usage.py — pull Dagster+ credit usage sliced across
+"""pull_credit_usage.py — pull Dagster+ Insights metrics sliced across
 deployment × code location × asset × day, and dump to CSV / JSON.
 
-The Dagster+ web UI shows credit usage under Insights, but doesn't
-expose a cross-deployment / per-code-location / per-asset download as
-one report. This script hits the same GraphQL endpoints the UI does
-and merges the results into one table.
+Two subcommands cover the metric-pull surface:
 
-Queries verified against real Dagster+ schema (2026-09):
+    credits       Pre-configured pull of __dagster_dagster_credits +
+                  __dagster_execution_time_ms with credits +
+                  compute_seconds columns (ms → s conversion baked in).
+                  Ergonomic default for the common "how much am I
+                  spending" question.
+
+    metrics       Generic pull of any metric name(s) exposed by your
+                  Dagster+ (both built-ins and custom Insights metrics
+                  synced via sync_custom_metrics.py). One column per
+                  metric, raw aggregate value (no unit conversion).
+
+Both hit the same GraphQL endpoints the Dagster+ UI does:
 
     fullDeployments                    — enumerate org's deployments
-    reportingMetricsByDeployment       — org-level: one row per deployment
-                                          (uses org endpoint /prod/graphql or
-                                          any deployment endpoint)
     reportingMetricsByAsset            — deployment-level: one row per asset
-                                          (must be per-deployment endpoint)
-    metricTypesForDeployment           — list the metric names available
-                                          (`__dagster_dagster_credits`,
-                                          `__dagster_execution_time_ms`, …)
+    metricTypesForDeployment           — list metric names available
 
 The `granularity: DAILY` selector returns:
-    timestamps: [epoch, epoch, …]   ← day boundaries
+    timestamps: [epoch, epoch, …]
     metrics:
-      - entity: <DagsterCloudDeployment | ReportingAsset>
+      - entity: <ReportingAsset>
         aggregateValue: <total-over-window>
-        values: [<day1>, <day2>, …]  ← one number per timestamp
+        values: [<day1>, <day2>, …]
 
 So daily bucketing comes free — no manual window-splitting needed.
 
 Usage:
     export DAGSTER_CLOUD_API_TOKEN=user:xxxxxx
 
-    # Rollup per deployment (last 30 days, all deployments):
-    ./pull_credit_usage.py --org ericthomas-dagster \\
-        credits --start 2026-08-10 --end 2026-09-10 --group-by deployment
+    # See what metric types your Dagster+ has (built-ins + custom Insights):
+    ./pull_credit_usage.py --org ericthomas-dagster metric-types
 
-    # Daily breakdown per deployment × day (14-day trend chart):
-    ./pull_credit_usage.py --org ericthomas-dagster \\
-        credits --start 2026-08-27 --end 2026-09-10 \\
-        --group-by deployment,day --output-csv daily.csv
-
-    # Per-asset with code-location dimension (per-deployment fan-out):
-    ./pull_credit_usage.py --org ericthomas-dagster \\
-        --deployments prod,staging \\
-        credits --start 2026-08-10 --end 2026-09-10 \\
-        --group-by deployment,code_location,asset --output-csv assets.csv
-
-    # Everything at once — deployment × code_location × asset × day:
+    # Ergonomic default — credits + compute_seconds:
     ./pull_credit_usage.py --org ericthomas-dagster \\
         credits --start 2026-08-27 --end 2026-09-10 \\
         --group-by deployment,code_location,asset,day \\
         --output-csv all.csv
 
-    # See what metric types your Dagster+ has (`__dagster_dagster_credits`,
-    # `__dagster_execution_time_ms`, plus custom-Insights metrics):
-    ./pull_credit_usage.py --org ericthomas-dagster metric-types
+    # Generic — pull one or more arbitrary metrics:
+    ./pull_credit_usage.py --org ericthomas-dagster \\
+        metrics --start 2026-08-27 --end 2026-09-10 \\
+        --metrics __dagster_step_duration_ms,rows_ingested \\
+        --group-by deployment,asset,day \\
+        --output-csv custom.csv
 
 Group-by axes (composable, comma-separated):
     deployment       — one row per deployment
     code_location    — one row per (deployment, code_location)
     asset            — one row per (deployment, code_location, asset_key)
-    day              — appended to any of the above (uses granularity: DAILY)
+    day              — appended to any of the above (granularity: DAILY)
 
 Output columns:
-    <axes...>, credits, compute_seconds
+    <axes...>, <metric_name(s)...>
+
+For `credits` the metric columns are `credits` + `compute_seconds`. For
+`metrics` the columns are the metric names with the `__dagster_` prefix
+stripped (so `__dagster_step_duration_ms` → `step_duration_ms` and a
+custom metric `rows_ingested` stays `rows_ingested`).
 
 Requires: Python 3.8+ / stdlib only. No external deps.
 
@@ -209,28 +207,6 @@ Q_METRIC_TYPES = """
 # `limit` defaults to 10 server-side, which silently truncates any org
 # with more than 10 credits-consuming assets in the window — always
 # pass an explicit high limit.
-# We fan out one call per deployment (assets are deployment-scoped),
-# then aggregate client-side.
-#
-# `metricsStoreType` MATTERS: Dagster+ backends the reporting metrics
-# by either POSTGRES or VICTORIA_METRICS. As of 2026-09, real Dagster+
-# tenants (including SaaS) route credits + compute to VICTORIA_METRICS
-# — omitting the store type OR passing POSTGRES returns empty results.
-# Overridable via --store.
-#
-# NOTE: `reportingMetricsByDeployment` also exists but returns
-# `ReportingInputError: Branch deployment metrics are not yet supported
-# in VictoriaMetrics` on live VM tenants, so we don't use it — the
-# per-deployment rollup is computed by summing per-asset rows client-
-# side. Both `codeLocationName` and `repositoryName` on the
-# reportingMetricsByAsset response are ALSO empty on VM (VM isn't
-# indexed by code_location), so when the user asks for the
-# `code_location` axis we hit `assetNodes` separately for the
-# {asset_key: code_location} mapping and join.
-#
-# Per-asset (also carries code_location + repository_name). Must be
-# run against each deployment's endpoint (assets are deployment-scoped).
-# Same metricsStoreType story — VICTORIA_METRICS is the live data path.
 Q_BY_ASSET = """
   query ByAsset($after: Float!, $before: Float!,
                 $metric: String!,
@@ -274,9 +250,9 @@ Q_BY_ASSET = """
 """
 
 
-# The two metric names we surface. Verified via metricTypesForDeployment
-# on ericthomas-dagster/prod (2026-09-10) — these are stable Dagster+
-# built-ins, not per-org custom metrics.
+# The two metric names the `credits` subcommand pulls. Verified via
+# metricTypesForDeployment on ericthomas-dagster/prod (2026-09-10) —
+# stable Dagster+ built-ins, not per-org custom metrics.
 CREDIT_METRIC = "__dagster_dagster_credits"
 COMPUTE_METRIC = "__dagster_execution_time_ms"
 
@@ -370,8 +346,14 @@ def _rollup(rows: List[Dict[str, Any]], axes: List[str]) -> Dict[tuple, float]:
     return buckets
 
 
-# ── Commands ────────────────────────────────────────────────────────────
-def cmd_credits(args: argparse.Namespace) -> int:
+# ── Shared setup for `credits` + `metrics` ──────────────────────────────
+def _shared_setup(args: argparse.Namespace) -> Tuple[
+    str, List[Dict[str, Any]], List[str], str, Tuple[str, ...], List[Tuple[float, float]],
+]:
+    """Common preamble for the two pull subcommands: resolve token,
+    parse axes + date range, enumerate deployments, compute granularity,
+    stores, and 120-day time chunks. Returns
+    (token, deployments, axes, granularity, stores, time_chunks)."""
     token = os.environ.get(args.token_env)
     if not token:
         sys.exit(f"ERROR: env var {args.token_env!r} is empty or unset")
@@ -384,7 +366,6 @@ def cmd_credits(args: argparse.Namespace) -> int:
         if a not in valid:
             sys.exit(f"ERROR: unknown --group-by axis {a!r}. Valid: {sorted(valid | {'asset'})}")
 
-    # Enumerate deployments (unless caller pinned a list)
     if args.deployments:
         wanted = set(args.deployments.split(","))
         all_deps = _list_deployments(args.org, token, include_branches=args.include_branch_deployments)
@@ -397,30 +378,12 @@ def cmd_credits(args: argparse.Namespace) -> int:
     print(f"Deployments: {', '.join(d['deploymentName'] for d in deployments)}", file=sys.stderr)
 
     granularity = "DAILY" if "day" in axes else "MONTHLY"
-    if args.dry_run:
-        print(f"[DRY RUN] window={args.start}..{args.end}   granularity={granularity}   axes={axes}", file=sys.stderr)
-        return 0
-
-    # Route: everything goes through per-asset queries, then aggregates
-    # client-side. Rationale:
-    #   - VictoriaMetrics-backed `reportingMetricsByDeployment` returns
-    #     `ReportingInputError: Branch deployment metrics are not yet
-    #     supported in VictoriaMetrics` — the query is effectively
-    #     broken on live SaaS tenants as of 2026-09.
-    #   - `reportingMetricsByAsset` returns EMPTY strings for
-    #     codeLocationName / repositoryName / assetGroup on VM. We fetch
-    #     the {asset_key: code_location} mapping separately via
-    #     `assetNodes` on the same deployment endpoint and join.
-    credit_rows: List[Dict[str, Any]] = []
-    compute_rows: List[Dict[str, Any]] = []
-    need_locations = "code_location" in axes
 
     # Which underlying stores to query. VM caps at ~6 months retention;
-    # POSTGRES holds long-tail history. When the user picks `BOTH`
-    # (default), we hit both and union the rows — the two stores hold
-    # DIFFERENT data (POSTGRES is often historical / decommissioned
-    # code locations, VM is current), so summing across is correct
-    # rather than double-counting.
+    # POSTGRES holds long-tail history. `BOTH` (default) queries both
+    # and unions — the two stores hold DIFFERENT data (POSTGRES is
+    # often historical / decommissioned code locations, VM is current)
+    # so summing across is correct rather than double-counting.
     stores = ("VICTORIA_METRICS", "POSTGRES") if args.store == "BOTH" else (args.store,)
 
     # Dagster+ caps a single reportingMetrics query at 120 days.
@@ -438,74 +401,79 @@ def cmd_credits(args: argparse.Namespace) -> int:
             f"(Dagster+ reporting queries cap at 120 days each).",
             file=sys.stderr,
         )
+    return token, deployments, axes, granularity, stores, time_chunks
 
-    def _run_fetches(dep_name: str, store_name: str, loc_map: Dict[str, str]) -> None:
-        """Fans out one metric fetch per time chunk. Appends to the
-        enclosing credit_rows / compute_rows.
 
-        NOTE: no per-code-location pagination — the VictoriaMetrics
-        backend returns HTTP 500 whenever the `codeLocations` filter
-        is set. Only POSTGRES supports it, and POSTGRES's aggregate
-        already fits comfortably under `--limit` at typical org
-        sizes. To handle >5000 assets in a single (deployment × chunk),
-        split the date range with `--start/--end` and re-run.
-        """
-        for (t_start, t_end) in time_chunks:
-            chunk_desc = f"{_dt.datetime.fromtimestamp(t_start, tz=_dt.timezone.utc).date()}..{_dt.datetime.fromtimestamp(t_end, tz=_dt.timezone.utc).date()}"
-            try:
-                credits = _fetch_by_asset(args.org, dep_name, token, CREDIT_METRIC, t_start, t_end, granularity, store_name, args.limit)
-                compute = _fetch_by_asset(args.org, dep_name, token, COMPUTE_METRIC, t_start, t_end, granularity, store_name, args.limit)
-            except RuntimeError as e:
-                # Common: VM 500s when window has no data past retention (~6mo).
-                # Skip quietly and let POSTGRES pick up the slack.
-                print(f"    [{dep_name}] store={store_name} {chunk_desc} skipped ({e[:120] if isinstance(e, str) else str(e)[:120]})", file=sys.stderr)
-                continue
-            n_credit = len(credits["assets"])
-            n_compute = len(compute["assets"])
-            if n_credit >= args.limit or n_compute >= args.limit:
-                print(
-                    f"    [{dep_name}] WARN: store={store_name} {chunk_desc} "
-                    f"hit --limit={args.limit} (credits={n_credit}, compute={n_compute}). "
-                    f"Results may be truncated. Raise --limit or split the date range.",
-                    file=sys.stderr,
-                )
-            if need_locations:
-                for a in credits["assets"] + compute["assets"]:
-                    if not a.get("code_location"):
-                        a["code_location"] = loc_map.get(a["asset_key"], "")
-            credit_rows.extend(_rows_from_asset_result(dep_name, credits, axes))
-            compute_rows.extend(_rows_from_asset_result(dep_name, compute, axes))
+# ── Per-metric fan-out (per deployment × store × chunk) ─────────────────
+#
+# Route: everything goes through per-asset queries, then aggregates
+# client-side. Rationale:
+#   - VictoriaMetrics-backed `reportingMetricsByDeployment` returns
+#     `ReportingInputError: Branch deployment metrics are not yet
+#     supported in VictoriaMetrics` — effectively broken on live SaaS
+#     tenants as of 2026-09.
+#   - `reportingMetricsByAsset` returns EMPTY codeLocationName /
+#     repositoryName / assetGroup on VM. Fetch {asset_key: code_location}
+#     separately via `assetNodes` on the same deployment endpoint and
+#     join client-side.
+def _pull_metrics(
+    deployments: List[Dict[str, Any]],
+    metrics: List[str],
+    org: str, token: str,
+    granularity: str, stores: Tuple[str, ...],
+    time_chunks: List[Tuple[float, float]],
+    axes: List[str], limit: int,
+) -> Dict[str, Dict[tuple, float]]:
+    """Fan out per (deployment × store × time_chunk × metric) fetches.
+    Returns {metric_name: {axis_key_tuple: rolled_up_value}}."""
+    need_locations = "code_location" in axes
+    rows_by_metric: Dict[str, List[Dict[str, Any]]] = {m: [] for m in metrics}
 
     for d in deployments:
         dname = d["deploymentName"]
-        # Fetch assetNodes once per deployment — reused for both the
-        # code_location join AND the pagination batch list.
         loc_map: Dict[str, str] = {}
         try:
-            loc_map = _fetch_asset_to_location(args.org, dname, token)
+            loc_map = _fetch_asset_to_location(org, dname, token)
         except RuntimeError as e:
             print(f"    [{dname}] WARN: code_location fetch failed: {e}", file=sys.stderr)
-
         distinct_locs = sorted({v for v in loc_map.values() if v})
         print(f"  [{dname}] {len(distinct_locs)} code location(s): {distinct_locs}", file=sys.stderr)
 
         for st in stores:
             print(f"  [{dname}] fetch store={st} ...", file=sys.stderr)
-            _run_fetches(dname, st, loc_map)
+            for (t_start, t_end) in time_chunks:
+                chunk_desc = (
+                    f"{_dt.datetime.fromtimestamp(t_start, tz=_dt.timezone.utc).date()}.."
+                    f"{_dt.datetime.fromtimestamp(t_end, tz=_dt.timezone.utc).date()}"
+                )
+                for metric in metrics:
+                    try:
+                        result = _fetch_by_asset(org, dname, token, metric, t_start, t_end, granularity, st, limit)
+                    except RuntimeError as e:
+                        # Common: VM 500s when window has no data past
+                        # retention (~6mo). Skip quietly; POSTGRES picks
+                        # up the slack.
+                        print(f"    [{dname}] store={st} metric={metric} {chunk_desc} skipped ({str(e)[:120]})", file=sys.stderr)
+                        continue
+                    n = len(result["assets"])
+                    if n >= limit:
+                        print(
+                            f"    [{dname}] WARN: store={st} metric={metric} {chunk_desc} "
+                            f"hit --limit={limit} ({n} assets). Results may be truncated. "
+                            f"Raise --limit or split the date range.",
+                            file=sys.stderr,
+                        )
+                    if need_locations:
+                        for a in result["assets"]:
+                            if not a.get("code_location"):
+                                a["code_location"] = loc_map.get(a["asset_key"], "")
+                    rows_by_metric[metric].extend(_rows_from_asset_result(dname, result, axes))
 
-    credit_buckets  = _rollup(credit_rows,  axes)
-    compute_buckets = _rollup(compute_rows, axes)
-    all_keys = sorted(set(credit_buckets) | set(compute_buckets),
-                      key=lambda k: (-credit_buckets.get(k, 0.0), *k))
+    return {m: _rollup(rows_by_metric[m], axes) for m in metrics}
 
-    columns = axes + ["credits", "compute_seconds"]
-    out_rows: List[Dict[str, Any]] = []
-    for key in all_keys:
-        row: Dict[str, Any] = dict(zip(axes, key))
-        row["credits"] = round(credit_buckets.get(key, 0.0), 3)
-        row["compute_seconds"] = round(compute_buckets.get(key, 0.0) / 1000.0, 3)  # ms → s
-        out_rows.append(row)
 
+# ── Output ──────────────────────────────────────────────────────────────
+def _emit(columns: List[str], out_rows: List[Dict[str, Any]], args: argparse.Namespace) -> None:
     if args.output_json:
         with open(args.output_json, "w") as f:
             json.dump(out_rows, f, indent=2, default=str)
@@ -521,12 +489,99 @@ def cmd_credits(args: argparse.Namespace) -> int:
         w.writeheader()
         w.writerows(out_rows)
 
+
+def _metric_column(metric_name: str) -> str:
+    """Column name derived from metric name: strip `__dagster_` prefix
+    on built-ins so output stays tidy. Custom metric names pass through
+    unchanged."""
+    return metric_name[len("__dagster_"):] if metric_name.startswith("__dagster_") else metric_name
+
+
+# ── Commands ────────────────────────────────────────────────────────────
+def cmd_credits(args: argparse.Namespace) -> int:
+    """Ergonomic default: pulls credits + compute_seconds and applies
+    ms → s conversion for compute. For any other metric use `metrics`."""
+    token, deployments, axes, granularity, stores, time_chunks = _shared_setup(args)
+    if args.dry_run:
+        print(f"[DRY RUN] window={args.start}..{args.end}   granularity={granularity}   axes={axes}   metrics=[credits, compute]", file=sys.stderr)
+        return 0
+
+    buckets_by_metric = _pull_metrics(
+        deployments, [CREDIT_METRIC, COMPUTE_METRIC],
+        args.org, token, granularity, stores, time_chunks, axes, args.limit,
+    )
+    credit_buckets = buckets_by_metric[CREDIT_METRIC]
+    compute_buckets = buckets_by_metric[COMPUTE_METRIC]
+    all_keys = sorted(set(credit_buckets) | set(compute_buckets),
+                      key=lambda k: (-credit_buckets.get(k, 0.0), *k))
+
+    columns = axes + ["credits", "compute_seconds"]
+    out_rows: List[Dict[str, Any]] = []
+    for key in all_keys:
+        row: Dict[str, Any] = dict(zip(axes, key))
+        row["credits"] = round(credit_buckets.get(key, 0.0), 3)
+        row["compute_seconds"] = round(compute_buckets.get(key, 0.0) / 1000.0, 3)  # ms → s
+        out_rows.append(row)
+
+    _emit(columns, out_rows, args)
+
     if not out_rows:
         print(
             f"\nNo data rows. Common causes:\n"
             f"  - Deployments have no asset runs in [{args.start} .. {args.end}].\n"
             f"  - Custom metrics on rare deployments can lag ~15 min behind ingestion.\n"
             f"  - Try `metric-types` to confirm __dagster_dagster_credits is visible on your org.",
+            file=sys.stderr,
+        )
+    return 0
+
+
+def cmd_metrics(args: argparse.Namespace) -> int:
+    """Generic metric pull: one --metrics=a,b,c produces one column per
+    metric with raw aggregate values. No unit conversion — use `credits`
+    if you want ms → s applied automatically for compute."""
+    metrics = [m.strip() for m in args.metrics.split(",") if m.strip()]
+    if not metrics:
+        sys.exit("ERROR: --metrics is required (comma-separated list of metric names).")
+
+    token, deployments, axes, granularity, stores, time_chunks = _shared_setup(args)
+    if args.dry_run:
+        print(f"[DRY RUN] window={args.start}..{args.end}   granularity={granularity}   axes={axes}   metrics={metrics}", file=sys.stderr)
+        return 0
+
+    buckets_by_metric = _pull_metrics(
+        deployments, metrics,
+        args.org, token, granularity, stores, time_chunks, axes, args.limit,
+    )
+
+    metric_cols = [_metric_column(m) for m in metrics]
+    if len(set(metric_cols)) != len(metric_cols):
+        sys.exit(f"ERROR: two metrics resolve to the same column name after stripping `__dagster_`: {metric_cols}. Rename one of them.")
+
+    # Sort by the first metric's value descending — same convention as
+    # `credits` sorts by credits descending.
+    primary = metrics[0]
+    all_keys = sorted(
+        set().union(*(buckets_by_metric[m] for m in metrics)),
+        key=lambda k: (-buckets_by_metric[primary].get(k, 0.0), *k),
+    )
+
+    columns = axes + metric_cols
+    out_rows: List[Dict[str, Any]] = []
+    for key in all_keys:
+        row: Dict[str, Any] = dict(zip(axes, key))
+        for m, col in zip(metrics, metric_cols):
+            row[col] = round(buckets_by_metric[m].get(key, 0.0), 3)
+        out_rows.append(row)
+
+    _emit(columns, out_rows, args)
+
+    if not out_rows:
+        print(
+            f"\nNo data rows. Common causes:\n"
+            f"  - Deployments have no asset runs in [{args.start} .. {args.end}].\n"
+            f"  - One or more metric names not exposed on this Dagster+ version.\n"
+            f"  - Try `metric-types` to confirm the metric names visible on your org.",
             file=sys.stderr,
         )
     return 0
@@ -570,10 +625,43 @@ def _parse_date_range(start: str, end: str) -> Tuple[float, float]:
     return _to_epoch(start), _to_epoch(end, end_of_day=True)
 
 
+def _add_pull_common_flags(sub: argparse._SubParsersAction, name: str, help_text: str) -> argparse.ArgumentParser:
+    """Register the flag set shared by `credits` and `metrics`."""
+    p = sub.add_parser(name, help=help_text)
+    p.add_argument("--start", required=True, help="Start date (YYYY-MM-DD, inclusive).")
+    p.add_argument("--end",   required=True, help="End date   (YYYY-MM-DD, inclusive).")
+    p.add_argument("--group-by", default="deployment,code_location,asset",
+                   help=("Aggregation axes, comma-separated. Any of: "
+                         "deployment, code_location, asset, day. Default: "
+                         "deployment,code_location,asset."))
+    p.add_argument("--output-csv", default=None)
+    p.add_argument("--output-json", default=None)
+    p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--store", default="BOTH",
+                   choices=("VICTORIA_METRICS", "POSTGRES", "BOTH"),
+                   help=("Dagster+ metrics store to query. VICTORIA_METRICS "
+                         "holds ~6 months of recent data with per-asset "
+                         "granularity but empty codeLocationName; POSTGRES "
+                         "holds long-tail history (back to org origination) "
+                         "with populated codeLocationName but a smaller "
+                         "distinct-asset set. BOTH (default) queries both "
+                         "and unions — required for date ranges spanning "
+                         "the ~6-month VM boundary."))
+    p.add_argument("--limit", type=int, default=5000,
+                   help=("Max assets returned per (deployment × store × "
+                         "time chunk). Server default is 10 — always pass "
+                         "an explicit high value. For orgs with > 5000 "
+                         "credits-consuming assets in a single window, "
+                         "either raise --limit further or split the "
+                         "date range with narrower --start/--end and "
+                         "re-run."))
+    return p
+
+
 def main() -> int:
     p = argparse.ArgumentParser(
         prog="pull_credit_usage",
-        description="Pull Dagster+ credit usage across deployment × code location × asset × day.",
+        description="Pull Dagster+ Insights metrics across deployment × code location × asset × day.",
     )
     p.add_argument("--org", required=True, help="Dagster+ org name (e.g. ericthomas-dagster).")
     p.add_argument("--token-env", default="DAGSTER_CLOUD_API_TOKEN",
@@ -585,35 +673,20 @@ def main() -> int:
 
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    c = sub.add_parser("credits", help="Pull credit usage into CSV / JSON.")
-    c.add_argument("--start", required=True, help="Start date (YYYY-MM-DD, inclusive).")
-    c.add_argument("--end",   required=True, help="End date   (YYYY-MM-DD, inclusive).")
-    c.add_argument("--group-by", default="deployment,code_location,asset",
-                   help=("Aggregation axes, comma-separated. Any of: "
-                         "deployment, code_location, asset, day. Default: "
-                         "deployment,code_location,asset."))
-    c.add_argument("--output-csv", default=None)
-    c.add_argument("--output-json", default=None)
-    c.add_argument("--dry-run", action="store_true")
-    c.add_argument("--store", default="BOTH",
-                   choices=("VICTORIA_METRICS", "POSTGRES", "BOTH"),
-                   help=("Dagster+ metrics store to query. VICTORIA_METRICS "
-                         "holds ~6 months of recent data with per-asset "
-                         "granularity but empty codeLocationName; POSTGRES "
-                         "holds long-tail history (back to org origination) "
-                         "with populated codeLocationName but a smaller "
-                         "distinct-asset set. BOTH (default) queries both "
-                         "and unions — required for date ranges spanning "
-                         "the ~6-month VM boundary."))
-    c.add_argument("--limit", type=int, default=5000,
-                   help=("Max assets returned per (deployment × store × "
-                         "time chunk). Server default is 10 — always pass "
-                         "an explicit high value. For orgs with > 5000 "
-                         "credits-consuming assets in a single window, "
-                         "either raise --limit further or split the "
-                         "date range with narrower --start/--end and "
-                         "re-run."))
+    c = _add_pull_common_flags(sub, "credits",
+        "Pull credits + compute_seconds (ergonomic default).")
     c.set_defaults(func=cmd_credits)
+
+    m = _add_pull_common_flags(sub, "metrics",
+        "Pull one or more arbitrary Insights metrics.")
+    m.add_argument("--metrics", required=True,
+                   help=("Comma-separated metric names. Built-in names start "
+                         "with `__dagster_` (e.g. `__dagster_dagster_credits`, "
+                         "`__dagster_execution_time_ms`, `__dagster_step_duration_ms`). "
+                         "Custom Insights metrics use their `metadata_key`. "
+                         "Run `metric-types` to see everything visible on your "
+                         "Dagster+."))
+    m.set_defaults(func=cmd_metrics)
 
     mt = sub.add_parser("metric-types", help="List metric types available on your Dagster+.")
     mt.set_defaults(func=cmd_metric_types)

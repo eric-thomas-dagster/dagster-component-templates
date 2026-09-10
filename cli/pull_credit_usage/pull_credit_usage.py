@@ -443,9 +443,15 @@ def _pull_metrics(
     axes: List[str], limit: int,
 ) -> Dict[str, Dict[tuple, float]]:
     """Fan out per (deployment × store × time_chunk × metric) fetches.
-    Returns {metric_name: {axis_key_tuple: rolled_up_value}}."""
+    Returns {metric_name: {axis_key_tuple: rolled_up_value}}.
+
+    Rolls up in-place per fetch (rather than accumulating raw rows and
+    reducing at the end) so peak memory stays bounded by the size of
+    the distinct-axis-combinations set, not the raw asset × day × metric
+    count. Matters for large orgs — a 9-deployment × 9-month × asset ×
+    day pull was OOM-killing on 32 GB Macs before this change."""
     need_locations = "code_location" in axes
-    rows_by_metric: Dict[str, List[Dict[str, Any]]] = {m: [] for m in metrics}
+    buckets_by_metric: Dict[str, Dict[tuple, float]] = {m: {} for m in metrics}
 
     for d in deployments:
         dname = d["deploymentName"]
@@ -485,9 +491,17 @@ def _pull_metrics(
                         for a in result["assets"]:
                             if not a.get("code_location"):
                                 a["code_location"] = loc_map.get(a["asset_key"], "")
-                    rows_by_metric[metric].extend(_rows_from_asset_result(dname, result, axes))
+                    # Roll up this fetch and merge into the running total.
+                    # We build rows for this fetch only, sum them, and
+                    # drop the raw rows — bounded memory footprint.
+                    chunk_rows = _rows_from_asset_result(dname, result, axes)
+                    chunk_buckets = _rollup(chunk_rows, axes)
+                    running = buckets_by_metric[metric]
+                    for k, v in chunk_buckets.items():
+                        running[k] = running.get(k, 0.0) + v
+                    del chunk_rows, chunk_buckets, result
 
-    return {m: _rollup(rows_by_metric[m], axes) for m in metrics}
+    return buckets_by_metric
 
 
 # ── Output ──────────────────────────────────────────────────────────────

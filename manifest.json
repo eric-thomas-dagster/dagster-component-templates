@@ -14373,9 +14373,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/doris_query_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/doris_query_asset/requirements.txt",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-28",
-        "evidence": "build_defs + Pydantic instantiation pass; awaiting customer pilot for live"
+        "level": "live",
+        "last_validated": "2026-09-10",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/doris_starrocks.md"
       },
       "agent_hints": {
         "inputs": "None (root source) — runs SQL against Apache Doris.",
@@ -14425,9 +14425,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/doris_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/doris_resource/requirements.txt",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-28",
-        "evidence": "build_defs + Pydantic instantiation pass; awaiting customer pilot for live"
+        "level": "live",
+        "last_validated": "2026-09-10",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/doris_starrocks.md"
       },
       "produces": [
         "resource"
@@ -14477,9 +14477,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/doris_routine_load_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/doris_routine_load_sensor/requirements.txt",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-28",
-        "evidence": "build_defs + Pydantic instantiation pass; awaiting customer pilot for live"
+        "level": "live",
+        "last_validated": "2026-09-10",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/doris_starrocks.md"
       },
       "produces": [
         "sensor"
@@ -14531,8 +14531,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/doris_workspace/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/doris_workspace/requirements.txt",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-28"
+        "level": "live",
+        "last_validated": "2026-09-10",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/doris_starrocks.md"
       },
       "produces": [
         "multi_asset"
@@ -44666,9 +44667,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/starrocks_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/starrocks_resource/requirements.txt",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-28",
-        "evidence": "build_defs + Pydantic instantiation pass; awaiting customer pilot for live"
+        "level": "live",
+        "last_validated": "2026-09-10",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/doris_starrocks.md"
       },
       "produces": [
         "resource"

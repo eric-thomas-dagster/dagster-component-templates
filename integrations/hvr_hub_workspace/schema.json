@@ -33,8 +33,10 @@
                                          "description": "Give up waiting after this many seconds (asset materialization fails)."},
 
     "polling_sensor":                   {"type": "boolean", "label": "Polling Sensor", "default": false,
-                                         "description": "Emit a sensor `{hub_name}_hvr_observer` polling `GET /jobs?fetch=latency` and emitting AssetObservation events with integrate-lag metadata per asset."},
+                                         "description": "Emit a sensor `{hub_name}_hvr_observer` polling `GET /jobs?fetch=latency` and emitting AssetMaterialization events (or AssetObservation — see emit_materialization) with integrate-lag metadata per asset. Per-job cursor dedup — only emits when lag or state actually changes."},
     "observation_interval_seconds":     {"type": "integer", "label": "Observation Interval Seconds", "default": 300},
+    "emit_materialization":             {"type": "boolean", "label": "Emit Materialization", "default": true,
+                                         "description": "When true (default), the polling sensor emits AssetMaterialization events — HVR asset tiles go GREEN in the Dagster UI when integrate lag or state advances, matching how snowflake_workspace, tasks, snowpipes, and dynamic tables surface external state. When false, emits AssetObservation instead (dashed / gray tile, 'observed' semantics). Both event types carry the same `dagster/data_version` tag."},
     "freshness_lag_threshold_seconds":  {"type": "integer", "label": "Freshness Lag Threshold Seconds",
                                          "description": "If set, emit an asset check `integrate_lag_within_sla` per asset — passes when the most recent `integrate_lag_seconds` observation ≤ threshold."},
 

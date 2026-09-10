@@ -12,7 +12,11 @@ Full Fivetran-shape workspace component:
   (materialize triggers `POST /channels/{c}/refresh` + polls, Fivetran-style).
 
 Emits one Dagster asset per (channel × target-location × table). Optional
-observation sensor polls integrate-lag per job and emits ObservationEvents.
+observation sensor polls integrate-lag per job and emits
+`AssetMaterialization` events (or `AssetObservation` when
+`emit_materialization: false`) with per-job cursor dedup — asset tiles
+go GREEN in the UI when integrate lag or state actually advances,
+same UX as tasks / snowpipes / DTs in `snowflake_workspace`.
 
 Aligns with the same conventions as SnowflakeWorkspaceComponent /
 MLflowWorkspaceComponent / QlikReplicateWorkspaceComponent / FivetranAccountComponent.
@@ -334,15 +338,33 @@ class HvrHubWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         default=False,
         description=(
             "If true, adds a polling sensor `{hub_name}_hvr_observer` that polls "
-            "`GET /jobs?fetch=latency` and emits AssetObservation events with "
+            "`GET /jobs?fetch=latency` and emits AssetMaterialization events "
+            "(or AssetObservation — see `emit_materialization`) with "
             "`integrate_lag_seconds`, `state`, `job_name`, `observed_at` metadata "
-            "per asset. Matches the `polling_sensor` convention on "
-            "FivetranAccountComponent / QlikReplicateWorkspaceComponent."
+            "per asset. Per-job signature dedup via `context.cursor` — only emits "
+            "when lag/state actually change, so downstream `AutomationCondition.eager()` "
+            "only fires on real progress. Matches the `polling_sensor` convention "
+            "on FivetranAccountComponent / SnowflakeWorkspaceComponent."
         ),
     )
     observation_interval_seconds: int = Field(
         default=300,
         description="Polling sensor cadence.",
+    )
+    emit_materialization: bool = Field(
+        default=True,
+        description=(
+            "When True (default), the polling sensor emits AssetMaterialization "
+            "events — HVR asset tiles go GREEN in the Dagster UI when integrate "
+            "lag or state advances, matching how snowflake_workspace, tasks, "
+            "snowpipes, and dynamic tables surface external state. Downstream "
+            "`AutomationCondition.eager()` fires naturally on new events. "
+            "When False, emits AssetObservation instead — tiles stay in their "
+            "'external' (dashed / gray) visual state; useful for teams that want "
+            "the semantic 'we observed state, we did not materialize'. Both event "
+            "types carry the same `dagster/data_version` tag, so the freshness "
+            "asset check reads either transparently."
+        ),
     )
     freshness_lag_threshold_seconds: Optional[int] = Field(
         default=None,
@@ -524,9 +546,17 @@ class HvrHubWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         def _lag_check(context: dg.AssetCheckExecutionContext):
             for k in keys:
                 lag: Optional[float] = None
+                # Read the latest event's metadata regardless of type
+                # (AssetMaterialization when emit_materialization=True, else
+                # AssetObservation) — the sensor writes integrate_lag_seconds
+                # into metadata either way.
                 latest = context.instance.get_latest_data_version_record(k)
-                if latest and latest.asset_observation is not None:
-                    md = latest.asset_observation.metadata or {}
+                event = None
+                if latest is not None:
+                    event = getattr(latest, "asset_materialization", None) or \
+                            getattr(latest, "asset_observation", None)
+                if event is not None:
+                    md = event.metadata or {}
                     v = md.get("integrate_lag_seconds")
                     if v is not None:
                         lag = float(getattr(v, "value", v))
@@ -548,6 +578,7 @@ class HvrHubWorkspaceComponent(StateBackedComponent, Model, Resolvable):
     def _build_observation_sensor(self, rows: List[Dict[str, Any]]):
         sensor_name = f"{self.workspace.hub_name}_hvr_observer"
         interval = self.observation_interval_seconds
+        emit_mat = self.emit_materialization
         _self = self
 
         job_to_keys: Dict[str, List[AssetKey]] = {}
@@ -560,37 +591,79 @@ class HvrHubWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         @dg.sensor(
             name=sensor_name,
             minimum_interval_seconds=interval,
-            description=f"Polls HVR Hub {hub_name!r} for integrate-lag per job every {interval}s.",
+            description=(
+                f"Polls HVR Hub {hub_name!r} for integrate-lag per job every "
+                f"{interval}s. Per-job signature dedup — only emits when lag or "
+                f"state actually changes."
+            ),
         )
         def _observer(context: dg.SensorEvaluationContext):
+            """Observation sensor for HVR Hub integrate-lag + state.
+
+            Emits AssetMaterialization (default) or AssetObservation via
+            `SensorResult(asset_events=[...])` — matches the canonical DCC
+            workspace-sensor pattern (snowflake_workspace, mlflow_workspace,
+            qlik_replicate_workspace). Per-job cursor dedup via a
+            `{job_name: signature}` JSON dict in `context.cursor` prevents
+            re-emitting unchanged observations across ticks.
+            """
+            # Cursor shape: {job_name: "<lag>:<state>"}
+            try:
+                prev: Dict[str, str] = json.loads(context.cursor) if context.cursor else {}
+            except Exception:
+                prev = {}
+            new_cursor: Dict[str, str] = dict(prev)
+
             try:
                 client = _self.workspace.client()
                 jobs = client.list_jobs_with_latency()
             except Exception as e:  # noqa: BLE001
                 context.log.warning(f"[hvr_observer] poll failed: {e}")
-                return dg.SkipReason(f"HVR poll failed: {e}")
+                return dg.SensorResult(
+                    asset_events=[],
+                    cursor=json.dumps(prev),
+                    skip_reason=dg.SkipReason(f"HVR poll failed: {e}"),
+                )
 
-            n_obs = 0
+            event_cls = dg.AssetMaterialization if emit_mat else dg.AssetObservation
+            events: list = []
             observed_at = time.time()
             for job in jobs:
                 job_name = job.get("name") or job.get("job") or ""
                 lag = job.get("latency")
                 state = job.get("state") or job.get("status")
+                # Stable per-job signature — advances iff HVR-side state moves.
+                # Downstream AutomationCondition.eager() fires only when this
+                # tag advances, so we don't cascade on quiet ticks.
+                sig = f"{lag}:{state}"
+                if prev.get(job_name) == sig:
+                    continue   # unchanged — skip emission
+                new_cursor[job_name] = sig
                 keys = job_to_keys.get(job_name, [])
                 for key in keys:
-                    context.instance.report_runless_asset_event(
-                        dg.AssetObservation(
-                            asset_key=key,
-                            metadata={
-                                "integrate_lag_seconds": float(lag) if lag is not None else -1.0,
-                                "state": str(state) if state is not None else "unknown",
-                                "job_name": job_name,
-                                "observed_at": observed_at,
-                            },
-                        )
-                    )
-                    n_obs += 1
-            return dg.SkipReason(f"emitted {n_obs} observation(s)" if n_obs else "no matching jobs")
+                    events.append(event_cls(
+                        asset_key=key,
+                        metadata={
+                            "integrate_lag_seconds": float(lag) if lag is not None else -1.0,
+                            "state": str(state) if state is not None else "unknown",
+                            "job_name": job_name,
+                            "observed_at": observed_at,
+                            "source": "hvr_hub_observer",
+                        },
+                        tags={"dagster/data_version": sig},
+                    ))
+
+            new_cursor_str = json.dumps(new_cursor)
+            if events:
+                return dg.SensorResult(asset_events=events, cursor=new_cursor_str)
+            return dg.SensorResult(
+                asset_events=[],
+                cursor=new_cursor_str,
+                skip_reason=dg.SkipReason(
+                    "No matching jobs" if not jobs else
+                    "No HVR jobs advanced their integrate lag or state since the last tick."
+                ),
+            )
 
         return _observer
 

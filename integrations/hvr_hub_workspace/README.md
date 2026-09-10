@@ -7,7 +7,7 @@ Full Fivetran-shape workspace component:
 - **`workspace:` block** — canonical `HvrHubResource` connection (mirrors `dagster-fivetran` / `dagster-databricks`)
 - **`channel_selector:`** — include/exclude filter (mirrors `FivetranWorkspace.connector_selector`)
 - **`translation:` callable** — per-asset customization hook
-- **`polling_sensor` opt-in** — emits AssetObservations with integrate-lag metadata
+- **`polling_sensor` opt-in** — emits AssetMaterialization (or AssetObservation via `emit_materialization: false`) with integrate-lag metadata + per-job cursor dedup. Asset tiles go GREEN on state advance, matching the snowflake_workspace UX.
 - **`StateBackedComponent`** — discovery cached to disk; code-location reloads are instant. Refresh via `dg utils refresh-defs-state`.
 - **`action:` field** — `noop` (default; HVR CDC is continuous) OR `refresh` (materialize triggers `POST /channels/{c}/refresh` + polls, Fivetran-style).
 - **Optional asset check** — `integrate_lag_within_sla` per asset for freshness enforcement.
@@ -53,9 +53,14 @@ hvr/prod_hub/sales_cdc/snowflake_dw/customers        (external asset)
 ```
 
 Add `polling_sensor: true` → a `prod_hub_hvr_observer` sensor is emitted
-polling `GET /jobs?fetch=latency` every 5 min and writing observations
-with `integrate_lag_seconds` / `state` / `last_integrated_at` into each
-asset's history.
+polling `GET /jobs?fetch=latency` every 5 min. When integrate-lag or
+state actually change since the previous tick (per-job cursor dedup),
+the sensor emits `AssetMaterialization` events on each affected asset
+with `integrate_lag_seconds` / `state` / `job_name` / `observed_at`
+metadata + a `dagster/data_version` tag. Asset tiles go GREEN in the
+UI on each new state; downstream `AutomationCondition.eager()` fires
+on the data-version change. For "observed, not materialized" semantics
+(dashed / gray tile), set `emit_materialization: false`.
 
 Add `freshness_lag_threshold_seconds: 900` → an `integrate_lag_within_sla`
 asset check per asset that fails when the most recent observed lag > 15 min.
@@ -108,8 +113,9 @@ See `example.yaml`.
 | `channel_selector` | `ChannelSelector` | — | Optional inclusion/exclusion filter for channel names. |
 | `asset_key_prefix` | `List[str]` | — | Asset key prefix parts. Default: `['hvr', <hub_name>]`. Every emitted asset gets `[<prefix>..., <channel>, <target_loc>, <table>]`. |
 | `action` | `str` | `"noop"` | What each asset does when materialized: `noop` (default — HVR CDC is continuous; there's nothing to trigger) or `refresh` (POST `/channels/{c}/refresh` + poll until integrate catches up). |
-| `polling_sensor` | `bool` | `false` | If true, adds a polling sensor `{hub_name}_hvr_observer` that polls `GET /jobs?fetch=latency` and emits AssetObservation events with `integrate_lag_seconds`, `state`, `job_name`, `observed_at` metadata per asset. Matches… _(full docs in schema.json + component README)_ |
+| `polling_sensor` | `bool` | `false` | If true, adds a polling sensor `{hub_name}_hvr_observer` that polls `GET /jobs?fetch=latency` and emits AssetMaterialization events (or AssetObservation via `emit_materialization: false`) with `integrate_lag_seconds`, `state`, `job_name`, `observed_at` metadata per asset. Per-job cursor dedup — only emits when lag or state actually changes. |
 | `observation_interval_seconds` | `int` | `300` | Polling sensor cadence. |
+| `emit_materialization` | `bool` | `true` | When true (default), the polling sensor emits `AssetMaterialization` — HVR tiles go GREEN on integrate-lag / state advance. When false, emits `AssetObservation` for "observed, not materialized" semantics (dashed / gray tile). Both carry a `dagster/data_version` tag. |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for Dagster Cloud. |
 
 [//]: # (FIELDS:END)

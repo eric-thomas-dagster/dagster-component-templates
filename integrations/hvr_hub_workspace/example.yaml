@@ -32,10 +32,14 @@ attributes:
   poll_interval_seconds: 30
   timeout_seconds: 3600
 
-  # Opt-in polling sensor. Emits AssetObservation per (channel × target × table)
-  # every observation_interval_seconds with integrate-lag metadata.
+  # Opt-in polling sensor. Emits AssetMaterialization per (channel × target ×
+  # table) every observation_interval_seconds when integrate-lag or state
+  # actually change (per-job cursor dedup — quiet ticks skip emission).
+  # Asset tiles go GREEN in the Dagster UI when HVR-side state advances,
+  # matching how snowflake_workspace / tasks / snowpipes / DTs render.
   polling_sensor: true
   observation_interval_seconds: 300
+  emit_materialization: true      # false → emit AssetObservation (gray tile, "observed" semantics)
 
   # Opt-in per-asset check: fails when the last observed integrate lag exceeds
   # the SLA threshold. Wire into an asset-checks-first schedule / alert /

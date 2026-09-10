@@ -23207,7 +23207,7 @@
       "path": "integrations/hvr_hub_workspace",
       "category": "integration",
       "icon": "Database",
-      "description": "HVR Hub 6.x workspace — auto-discovers every channel + replicated table on a standalone HVR Hub server and emits one Dagster external asset per (channel × target-location × table). Fivetran-shape: one YAML wires the whole Hub. Optional observation sensor polls integrate-lag per job (GET /jobs?fetch=latency) and emits ObservationEvents with `integrate_lag_seconds`, `state`, `last_integrated_at` metadata. Optional per-asset check `integrate_lag_within_sla` for freshness SLA enforcement. v1 is read-only (discovery + observation); companion `hvr_channel_refresh` for the periodic bulk-refresh pattern is on the roadmap. Complements — does NOT overlap — the official dagster-fivetran package, which only reaches Fivetran-platform-managed HVR connectors (Fivetran Enterprise tier). This component is for customers running standalone HVR Hub on their own hardware.",
+      "description": "HVR Hub 6.x workspace — auto-discovers every channel + replicated table on a standalone HVR Hub server and emits one Dagster external asset per (channel × target-location × table). Fivetran-shape: one YAML wires the whole Hub. Optional observation sensor polls integrate-lag per job (GET /jobs?fetch=latency) and emits AssetMaterialization events (or AssetObservation via `emit_materialization: false`) with `integrate_lag_seconds`, `state`, `job_name`, `observed_at` metadata plus a `dagster/data_version` tag — per-job cursor dedup means the sensor only emits when lag or state actually change, and asset tiles go GREEN in the UI on real progress (matching how snowflake_workspace / tasks / snowpipes / DTs surface external state). Optional per-asset check `integrate_lag_within_sla` for freshness SLA enforcement. `action: refresh` triggers `POST /channels/{c}/refresh` + polls to completion (Fivetran-style bulk-refresh). Complements — does NOT overlap — the official dagster-fivetran package, which only reaches Fivetran-platform-managed HVR connectors (Fivetran Enterprise tier). This component is for customers running standalone HVR Hub on their own hardware.",
       "tags": [
         "integration",
         "hvr",
@@ -23228,11 +23228,11 @@
         ]
       },
       "validation": {
-        "level": "code",
+        "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/hvr_hub_workspace.md",
-        "last_validated": "2026-08-19"
+        "last_validated": "2026-09-10"
       },
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "agent_hints": {
         "outputs": [

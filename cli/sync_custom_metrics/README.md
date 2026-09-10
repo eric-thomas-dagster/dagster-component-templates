@@ -12,14 +12,14 @@ per-asset opt-in required. This CLI is the one-time (or GitOps-managed)
 step that promotes a numeric metadata key into a first-class Insights
 chart.
 
-- **Script:** [`../sync_custom_metrics.py`](../sync_custom_metrics.py)
+- **Script:** [`./sync_custom_metrics.py`](./sync_custom_metrics.py)
 - **Requires:** Python 3.8+, PyYAML, a Dagster+ user API token
 
 ## Install
 
 ```bash
 pip install pyyaml
-curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/cli/sync_custom_metrics.py \
+curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/cli/sync_custom_metrics/sync_custom_metrics.py \
     -o sync_custom_metrics.py
 chmod +x sync_custom_metrics.py
 

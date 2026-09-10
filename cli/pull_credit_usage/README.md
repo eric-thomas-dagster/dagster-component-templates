@@ -8,13 +8,13 @@ cross-deployment / per-code-location / per-asset download as one report.
 This CLI hits the same GraphQL endpoints the UI does and merges the results
 into one flat table.
 
-- **Script:** [`../pull_credit_usage.py`](../pull_credit_usage.py)
+- **Script:** [`./pull_credit_usage.py`](./pull_credit_usage.py)
 - **Requires:** Python 3.8+ (stdlib only — no external deps) + a Dagster+ user API token
 
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/cli/pull_credit_usage.py \
+curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/cli/pull_credit_usage/pull_credit_usage.py \
     -o pull_credit_usage.py
 chmod +x pull_credit_usage.py
 

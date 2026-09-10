@@ -9,14 +9,14 @@ The Dagster+ UI lets you create and edit views manually, but there's no
 built-in way to track them in git or promote a set of views across
 deployments. This CLI closes that gap.
 
-- **Script:** [`../sync_catalog_views.py`](../sync_catalog_views.py)
+- **Script:** [`./sync_catalog_views.py`](./sync_catalog_views.py)
 - **Requires:** Python 3.8+, PyYAML, a Dagster+ user API token
 
 ## Install
 
 ```bash
 pip install pyyaml
-curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/cli/sync_catalog_views.py \
+curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/cli/sync_catalog_views/sync_catalog_views.py \
     -o sync_catalog_views.py
 chmod +x sync_catalog_views.py
 

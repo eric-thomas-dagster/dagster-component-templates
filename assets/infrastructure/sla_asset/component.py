@@ -217,13 +217,41 @@ def sla(
 
 
 class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
-    """YAML shape of the SLA. Defines a new asset with wall-clock SLA
-    enforcement wrapping the compute.
+    """YAML shape of the SLA. Two authoring modes:
+
+    1. **Define a new asset from scratch** (original shape): supply
+       `asset_name` + `compute: {kind: python, python: 'mod:fn'}`. The
+       component builds a single asset that runs the referenced Python
+       compute inside the SLA timer.
+
+    2. **Wrap an existing DCC component** (composability): supply
+       `wraps: {type: <component_class>, attributes: {...}}`. The inner
+       component's assets get materialized as they would normally, but
+       each compute is wrapped with the SLA timer + breach observation.
+       Preserves inner asset partitions, deps, resources, kinds, tags,
+       group, description. Mirrors the Python `@sla @dg.asset` decorator
+       stack idiom in YAML.
+
+    `wraps` and `compute` are mutually exclusive.
     """
 
-    asset_name: str = Field(description="Dagster asset name.")
+    asset_name: Optional[str] = Field(
+        default=None,
+        description="Dagster asset name. Required when NOT using `wraps:` (inherited from inner component in wraps mode).",
+    )
     upstream_asset_key: Optional[str] = Field(default=None)
-    compute: Dict[str, Any] = Field(description="`{kind: python, python: 'mod:fn'}`. Any return type.")
+    compute: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="`{kind: python, python: 'mod:fn'}`. Any return type. Mutually exclusive with `wraps`.",
+    )
+    wraps: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Wrap another DCC component's assets with SLA timing instead of defining new compute. "
+            "Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`. "
+            "Mutually exclusive with `compute`."
+        ),
+    )
 
     expected_duration_seconds: float = Field(
         description="Wall-clock SLA threshold. Compute time > this = breach."
@@ -261,6 +289,17 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         return ComponentFormConfig(label="SLA Asset", editable=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        # Route: wraps-an-inner-component  vs  builds-own-asset
+        if self.wraps is not None:
+            if self.compute is not None:
+                raise ValueError("SlaAssetComponent: supply exactly ONE of `wraps` or `compute`, not both.")
+            return self._build_wrapped(context)
+
+        if self.compute is None:
+            raise ValueError("SlaAssetComponent: supply either `compute` (build a new asset) or `wraps` (wrap an existing component).")
+        if not self.asset_name:
+            raise ValueError("SlaAssetComponent: `asset_name` required when using `compute:` (inferred from inner in `wraps:` mode).")
+
         _self = self
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
@@ -353,3 +392,186 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             return dg.MaterializeResult(metadata=metadata)
 
         return dg.Definitions(assets=[_sla_asset])
+
+    # ----------------------------------------------------------------------
+    # `wraps:` composability path
+    # ----------------------------------------------------------------------
+
+    def _build_wrapped(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        """Instantiate the inner component; rebuild each of its assets
+        with SLA timing wrapped around the original compute.
+        """
+        inner = _resolve_inner_component(self.wraps or {})
+        inner_defs = inner.build_defs(context)
+
+        wrapped_assets = []
+        skipped_multi: List[str] = []
+        for asset_def in list(inner_defs.assets or []):
+            if len(asset_def.keys) != 1:
+                # Multi-asset AssetsDefinition not supported in v1 — carry through unwrapped.
+                skipped_multi.append(str(asset_def.keys))
+                wrapped_assets.append(asset_def)
+                continue
+            wrapped_assets.append(self._wrap_single_asset(asset_def))
+
+        return dg.Definitions(
+            assets=wrapped_assets,
+            resources=inner_defs.resources,
+            sensors=inner_defs.sensors,
+            schedules=inner_defs.schedules,
+            asset_checks=inner_defs.asset_checks,
+            jobs=inner_defs.jobs,
+            loggers=inner_defs.loggers,
+        )
+
+    def _wrap_single_asset(self, asset_def: "dg.AssetsDefinition") -> "dg.AssetsDefinition":
+        """Rebuild one single-key AssetsDefinition with wrapped compute.
+        Preserves partitions/deps/kinds/tags/group/description/metadata.
+        """
+        key = next(iter(asset_def.keys))
+        specs_by_key = getattr(asset_def, "specs_by_key", {}) or {}
+        spec = specs_by_key.get(key)
+
+        # Extract original callable — DecoratedOpFunction wraps it.
+        inner_op = asset_def.op
+        inner_compute = getattr(inner_op.compute_fn, "decorated_fn", None) or inner_op.compute_fn
+
+        # SLA config for the closure
+        expected_s = float(self.expected_duration_seconds)
+        on_breach = self.on_breach
+        escalate_n = self.escalate_after_n_breaches
+        escalate_window = float(self.escalate_window_seconds)
+        state_key = self.sla_key or key.to_user_string()
+
+        if on_breach not in ("warn", "fail"):
+            raise ValueError(f"on_breach must be warn|fail; got {on_breach!r}")
+
+        # Merge kinds — inner's + our SLA marker
+        inner_kinds = set()
+        if spec is not None:
+            inner_kinds = set(getattr(spec, "kinds", None) or [])
+        merged_kinds = inner_kinds | set(self.kinds or []) | {"sla", "observability"}
+
+        # Merge tags similarly
+        inner_tags = {}
+        if spec is not None:
+            inner_tags = dict(getattr(spec, "tags", None) or {})
+        merged_tags = {**inner_tags, **(self.tags or {})}
+
+        merged_owners = list((spec.owners if spec else []) or []) + (self.owners or [])
+        inner_description = (spec.description if spec else None) or f"SLA-wrapped {key.to_user_string()}"
+        merged_description = f"{inner_description}  [SLA: <= {expected_s}s, on_breach={on_breach}]"
+
+        # Preserve upstream input handling by rebuilding via @dg.asset with `deps=`
+        inner_deps = list(spec.deps) if (spec and getattr(spec, "deps", None)) else []
+
+        # NOTE: we don't attempt to preserve `ins=` (typed asset inputs with dagster_type)
+        # in v1 — falls back to `deps=` (ordering-only) for the wrapped asset.
+
+        @dg.asset(
+            key=key,
+            partitions_def=asset_def.partitions_def,
+            deps=inner_deps,
+            group_name=(spec.group_name if spec else None),
+            kinds=merged_kinds,
+            tags=merged_tags,
+            owners=merged_owners,
+            description=merged_description,
+            metadata=(dict(spec.metadata) if (spec and spec.metadata) else {}),
+            code_version=(spec.code_version if spec else None),
+        )
+        def _sla_wrapped(context: dg.AssetExecutionContext, **kwargs):
+            t0 = time.time()
+            result = inner_compute(context, **kwargs)
+            elapsed = time.time() - t0
+
+            breach = elapsed > expected_s
+            escalated = False
+            extra_meta = {
+                "sla_actual_seconds": dg.MetadataValue.float(round(elapsed, 3)),
+                "sla_expected_seconds": dg.MetadataValue.float(round(expected_s, 3)),
+                "sla_breach": dg.MetadataValue.bool(breach),
+            }
+
+            if breach:
+                if escalate_n and getattr(context, "instance", None) is not None:
+                    prior = _count_recent_breaches(context, state_key, escalate_window)
+                    if prior + 1 >= escalate_n:
+                        escalated = True
+                _emit_breach_observation(context, state_key, elapsed, expected_s, escalated)
+                overrun_pct = (elapsed - expected_s) / expected_s * 100.0
+                extra_meta["sla_overrun_pct"] = dg.MetadataValue.float(round(overrun_pct, 1))
+                extra_meta["sla_escalated"] = dg.MetadataValue.bool(escalated)
+                context.log.warning(
+                    f"[sla] BREACH (wrap): {state_key} took {elapsed:.1f}s "
+                    f"(expected <= {expected_s}s, overrun {overrun_pct:.1f}%)"
+                    f"{' [ESCALATED]' if escalated else ''}"
+                )
+                if on_breach == "fail":
+                    raise dg.Failure(
+                        description=f"SLA breach: {state_key} took {elapsed:.1f}s > expected {expected_s}s",
+                        metadata=extra_meta,
+                    )
+            else:
+                context.log.info(
+                    f"[sla] {state_key} completed in {elapsed:.1f}s (within {expected_s}s SLA)"
+                )
+
+            # If the inner returned a MaterializeResult, merge SLA metadata into it.
+            if isinstance(result, dg.MaterializeResult):
+                merged = dict(result.metadata or {})
+                merged.update(extra_meta)
+                return dg.MaterializeResult(
+                    asset_key=result.asset_key,
+                    metadata=merged,
+                    check_results=result.check_results,
+                    data_version=result.data_version,
+                    tags=result.tags,
+                )
+            # Otherwise wrap in a MaterializeResult so we can attach metadata.
+            # (Dagster still surfaces `result` — MaterializeResult without value is fine
+            # since the inner asset's IO manager already handled the return.)
+            if result is None:
+                return dg.MaterializeResult(metadata=extra_meta)
+            # For non-None returns, emit observation-style metadata via log_event
+            # rather than losing the return value.
+            try:
+                context.log_event(dg.AssetMaterialization(
+                    asset_key=key, metadata=extra_meta,
+                ))
+            except Exception:  # noqa: BLE001
+                pass
+            return result
+
+        return _sla_wrapped
+
+
+def _resolve_inner_component(wraps: Dict[str, Any]):
+    """Resolve `{type: 'mod.path.ClassName' OR 'dagster_community_components.ClassName',
+    attributes: {...}}` into an instantiated component.
+    """
+    type_str = wraps.get("type")
+    attrs = wraps.get("attributes") or {}
+    if not type_str or not isinstance(type_str, str):
+        raise ValueError("SlaAssetComponent.wraps requires `type: <fully-qualified-class-name>`.")
+
+    # Accept both `mod.path.ClassName` and `mod.path:ClassName`
+    if ":" in type_str:
+        mod_path, cls_name = type_str.rsplit(":", 1)
+    else:
+        mod_path, cls_name = type_str.rsplit(".", 1)
+
+    try:
+        mod = importlib.import_module(mod_path)
+    except ImportError as e:
+        raise ValueError(f"SlaAssetComponent.wraps: cannot import module {mod_path!r}: {e}") from e
+    cls = getattr(mod, cls_name, None)
+    if cls is None:
+        raise ValueError(f"SlaAssetComponent.wraps: {cls_name!r} not found in {mod_path!r}.")
+
+    try:
+        return cls(**attrs)
+    except Exception as e:  # noqa: BLE001
+        raise ValueError(
+            f"SlaAssetComponent.wraps: constructing {type_str} failed: {type(e).__name__}: {e}"
+        ) from e

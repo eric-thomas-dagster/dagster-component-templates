@@ -95,6 +95,16 @@ Delete = full manual reset. Combine with a scheduled cleanup for retention.
 - **`@lifecycle`** — audit the cached result before publishing to prod.
 - **`@smart_retry`** — retry transient failures during compute (only on cache miss).
 
+## CLI demos using this template
+
+| Demo | Setup script | What it shows |
+|---|---|---|
+| [`cached_asset.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/cached_asset.md) | [`setup_cached_asset_demo.sh`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/setup_cached_asset_demo.sh) | 100% offline. Three back-to-back runs of one `@cached` `@dg.asset`: RUN 1 MISS (writes parquet, ~3s) → RUN 2 HIT (loads parquet, near-zero) → RUN 3 MISS after `code_version` bump (new key, ~3s). Ends with an event-log query that reads cache metadata for a hit/miss dashboard. |
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_cached_asset_demo.sh | bash
+```
+
 ## What's not in v1 (roadmap)
 
 - **Multi-format inputs** — right now the cache stores `pandas.DataFrame`. Add object / pickle / arrow support.

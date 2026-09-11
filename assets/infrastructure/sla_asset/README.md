@@ -45,6 +45,65 @@ attributes:
   escalate_window_seconds: 3600    # 1 hour
 ```
 
+## Composability — `wraps:` an existing component
+
+The Python `@sla` decorator stacks naturally on any `@dg.asset`. The YAML equivalent lets you wrap an **existing DCC component** without touching its config — the outer `SlaAssetComponent` uses `wraps:` in place of its own `compute:`:
+
+```yaml
+# The outer SLA times the inner component's compute; the inner is unchanged.
+type: dagster_community_components.SlaAssetComponent
+attributes:
+  expected_duration_seconds: 60
+  on_breach: warn
+  sla_key: report_sla
+  wraps:
+    type: dagster_community_components.CachedAssetComponent
+    attributes:
+      asset_name: sales_report
+      cache_dir: s3://my-cache/reports/
+      code_version: v1
+      compute:
+        kind: python
+        python: "my_project.reports:build_sales_report"
+```
+
+Materialization semantics: **one asset** is registered (`sales_report`) — no duplication. Each run runs the inner's compute (cache miss → real work, cache hit → parquet load) inside the outer's SLA timer. If wall-clock > `expected_duration_seconds`, the outer emits `sla_breach=report_sla` observation + breach metadata on the materialization.
+
+Stacks arbitrarily deep — one wrap layer per YAML level:
+
+```yaml
+type: dagster_community_components.SlaAssetComponent          # outer SLA
+attributes:
+  expected_duration_seconds: 60
+  wraps:
+    type: dagster_community_components.SlaAssetComponent      # inner SLA
+    attributes:
+      expected_duration_seconds: 30
+      wraps:
+        type: dagster_community_components.CachedAssetComponent
+        attributes:
+          asset_name: report
+          ...
+```
+
+Direct Python analog:
+
+```python
+@dg.asset
+@sla(expected_duration_seconds=60)   # outer
+@sla(expected_duration_seconds=30)   # inner
+@cached(cache_dir=..., code_version="v1")
+def report(context):
+    return build()
+```
+
+### Caveats (prototype)
+
+- **Single-key inner assets only.** If the wrapped component produces a `@multi_asset` (multiple keys), the wrap is skipped for that AssetsDefinition and it passes through unchanged. Multi-asset support is a follow-up.
+- **`code_version` in nested YAML must be a non-numeric string.** YAML's default loader coerces quoted numeric strings inside `Dict[str, Any]` fields (`code_version: "1.0"` → float 1.0). Use `v1`, `1.0.0`, or any non-numeric string until Dagster's loader treats nested dict values type-strictly.
+- **Typed `ins:` (upstream inputs with dagster_type) fall back to `deps:` (ordering-only).** Rebuild uses the AssetSpec's dep list; typed input configuration on the inner asset isn't preserved through the wrap.
+- **Metadata collision on stacked wraps.** Both layers write `sla_actual_seconds`, `sla_expected_seconds`, `sla_breach` — outer overwrites inner in the materialization. Use `sla_key` on each layer to disambiguate in observations.
+
 ## `@sla` decorator
 
 ```python

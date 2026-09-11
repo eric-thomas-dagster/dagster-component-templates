@@ -569,20 +569,31 @@ class SmartRetryComponent(dg.Component, dg.Model, dg.Resolvable):
         ```
     """
 
-    asset_name: str = Field(
-        description="Dagster asset name."
+    asset_name: Optional[str] = Field(
+        default=None,
+        description="Dagster asset name. Required when NOT using `wraps:` (inherited from inner in wraps mode).",
     )
     upstream_asset_key: Optional[str] = Field(
         default=None,
         description="Optional upstream asset the compute callable receives as second arg.",
     )
 
-    compute: Dict[str, Any] = Field(
+    compute: Optional[Dict[str, Any]] = Field(
+        default=None,
         description=(
             "How to run the actual work. Shape: `{kind: python|shell|http, ...kind-specific fields}`. "
             "python: `python: 'mod.path:func'`. "
             "shell: `cmd: '...'` or `cmd: [list]` + optional `timeout_seconds`. "
-            "http: `method, url, headers, body, params, timeout_seconds`."
+            "http: `method, url, headers, body, params, timeout_seconds`. "
+            "Mutually exclusive with `wraps`."
+        ),
+    )
+    wraps: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Wrap another DCC component's assets with smart_retry logic instead of "
+            "defining new compute. Shape: `{type: 'dagster_community_components.<Component>', "
+            "attributes: {...}}`. Mutually exclusive with `compute`."
         ),
     )
 
@@ -664,6 +675,17 @@ class SmartRetryComponent(dg.Component, dg.Model, dg.Resolvable):
         return ComponentFormConfig(label="Smart Retry", editable=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        # Route: wraps-an-inner-component  vs  builds-own-asset
+        if self.wraps is not None:
+            if self.compute is not None:
+                raise ValueError("SmartRetryComponent: supply exactly ONE of `wraps` or `compute`, not both.")
+            return self._build_wrapped(context)
+
+        if self.compute is None:
+            raise ValueError("SmartRetryComponent: supply either `compute` (build new asset) or `wraps` (wrap existing component).")
+        if not self.asset_name:
+            raise ValueError("SmartRetryComponent: `asset_name` required when using `compute:` (inferred from inner in `wraps:` mode).")
+
         _self = self
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
@@ -1138,3 +1160,115 @@ def _build_partitions_def(
             raise ValueError("dynamic requires dynamic_partition_name")
         return DynamicPartitionsDefinition(name=dynamic_partition_name)
     raise ValueError(f"unknown partition_type: {partition_type!r}")
+
+
+# =============================================================================
+# `wraps:` composability — patched onto SmartRetryComponent
+# =============================================================================
+# Kept at module scope (rather than inline in the class body) so the `smart_retry`
+# decorator defined later in this file is available at method-call time.
+
+
+def _smart_retry_build_wrapped(self, context: "dg.ComponentLoadContext") -> "dg.Definitions":
+    inner = _smart_retry_resolve_inner(self.wraps or {})
+    inner_defs = inner.build_defs(context)
+    wrapped_assets = []
+    for asset_def in list(inner_defs.assets or []):
+        if len(asset_def.keys) != 1:
+            wrapped_assets.append(asset_def)
+            continue
+        wrapped_assets.append(_smart_retry_wrap_single(self, asset_def))
+    return dg.Definitions(
+        assets=wrapped_assets,
+        resources=inner_defs.resources,
+        sensors=inner_defs.sensors,
+        schedules=inner_defs.schedules,
+        asset_checks=inner_defs.asset_checks,
+        jobs=inner_defs.jobs,
+        loggers=inner_defs.loggers,
+    )
+
+
+def _smart_retry_wrap_single(self, asset_def: "dg.AssetsDefinition") -> "dg.AssetsDefinition":
+    key = next(iter(asset_def.keys))
+    specs_by_key = getattr(asset_def, "specs_by_key", {}) or {}
+    spec = specs_by_key.get(key)
+    inner_op = asset_def.op
+    inner_compute = getattr(inner_op.compute_fn, "decorated_fn", None) or inner_op.compute_fn
+
+    rules = list(self.retry_rules or [])
+    policy = dict(self.retry_policy or {})
+    max_attempts = int(policy.get("max_attempts") or 3)
+    backoff_type = str(policy.get("backoff") or "exponential")
+    initial_delay = float(policy.get("initial_delay_seconds") or 1.0)
+    max_delay = float(policy.get("max_delay_seconds") or 60.0)
+    jitter_on = bool(policy.get("jitter", True))
+
+    # Apply the @smart_retry decorator programmatically to the inner compute.
+    retry_key = key.to_user_string() + "__wrap"
+    wrapped_compute = smart_retry(
+        rules=rules,
+        max_attempts=max_attempts,
+        backoff=backoff_type,
+        initial_delay_seconds=initial_delay,
+        max_delay_seconds=max_delay,
+        jitter=jitter_on,
+        llm_fallback=self.llm_fallback,
+        rate_limit=self.rate_limit,
+        circuit_breaker=self.circuit_breaker,
+        key=retry_key,
+    )(inner_compute)
+
+    inner_kinds = set(getattr(spec, "kinds", None) or []) if spec else set()
+    merged_kinds = inner_kinds | set(self.kinds or []) | {"retry", "smart-retry"}
+    inner_tags = dict(getattr(spec, "tags", None) or {}) if spec else {}
+    merged_tags = {**inner_tags, **(self.tags or {})}
+    merged_owners = list((spec.owners if spec else []) or []) + (self.owners or [])
+    inner_description = (spec.description if spec else None) or f"Retry-wrapped {key.to_user_string()}"
+    merged_description = f"{inner_description}  [smart_retry: max_attempts={max_attempts}, backoff={backoff_type}]"
+    inner_deps = list(spec.deps) if (spec and getattr(spec, "deps", None)) else []
+
+    @dg.asset(
+        key=key,
+        partitions_def=asset_def.partitions_def,
+        deps=inner_deps,
+        group_name=(spec.group_name if spec else None),
+        kinds=merged_kinds,
+        tags=merged_tags,
+        owners=merged_owners,
+        description=merged_description,
+        metadata=(dict(spec.metadata) if (spec and spec.metadata) else {}),
+        code_version=(spec.code_version if spec else None),
+    )
+    def _smart_retry_wrapped(context: dg.AssetExecutionContext, **kwargs):
+        return wrapped_compute(context, **kwargs)
+
+    return _smart_retry_wrapped
+
+
+def _smart_retry_resolve_inner(wraps: Dict[str, Any]):
+    type_str = wraps.get("type")
+    attrs = wraps.get("attributes") or {}
+    if not type_str or not isinstance(type_str, str):
+        raise ValueError("SmartRetryComponent.wraps requires `type: <fully-qualified-class-name>`.")
+    if ":" in type_str:
+        mod_path, cls_name = type_str.rsplit(":", 1)
+    else:
+        mod_path, cls_name = type_str.rsplit(".", 1)
+    try:
+        mod = importlib.import_module(mod_path)
+    except ImportError as e:
+        raise ValueError(f"SmartRetryComponent.wraps: cannot import {mod_path!r}: {e}") from e
+    cls = getattr(mod, cls_name, None)
+    if cls is None:
+        raise ValueError(f"SmartRetryComponent.wraps: {cls_name!r} not found in {mod_path!r}.")
+    try:
+        return cls(**attrs)
+    except Exception as e:  # noqa: BLE001
+        raise ValueError(
+            f"SmartRetryComponent.wraps: constructing {type_str} failed: {type(e).__name__}: {e}"
+        ) from e
+
+
+# Attach the wraps method to the class (patched after `smart_retry` decorator is defined above)
+SmartRetryComponent._build_wrapped = _smart_retry_build_wrapped  # type: ignore[attr-defined]

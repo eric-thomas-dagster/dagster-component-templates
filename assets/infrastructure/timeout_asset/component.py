@@ -150,13 +150,28 @@ def timeout(
 
 
 class TimeoutAssetComponent(dg.Component, dg.Model, dg.Resolvable):
-    """YAML shape of the timeout. Defines a new asset with a hard-kill timeout
-    wrapping the compute.
+    """YAML shape of `@timeout`. Two authoring modes:
+
+    1. **Define a new timeout-wrapped asset**: `asset_name` + `compute: {...}`
+    2. **Wrap an existing DCC component**: `wraps: {type, attributes}`.
+       Outer timeout hard-kills the inner component's compute at the threshold.
+
+    `wraps:` and `compute:`/`asset_name` are mutually exclusive.
     """
 
-    asset_name: str = Field(description="Dagster asset name.")
+    asset_name: Optional[str] = Field(default=None, description="Required when NOT using `wraps:`.")
     upstream_asset_key: Optional[str] = Field(default=None)
-    compute: Dict[str, Any] = Field(description="`{kind: python, python: 'mod:fn'}`.")
+    compute: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="`{kind: python, python: 'mod:fn'}`. Mutually exclusive with `wraps`.",
+    )
+    wraps: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Wrap another DCC component's assets with a hard-kill timeout. "
+            "Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`."
+        ),
+    )
     timeout_seconds: float = Field(description="Kill compute if it exceeds this wall-clock time.")
     on_timeout: str = Field(
         default="fail",
@@ -179,6 +194,17 @@ class TimeoutAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         return ComponentFormConfig(label="Timeout Asset", editable=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        # Route: wraps-an-inner-component  vs  builds-own-asset
+        if self.wraps is not None:
+            if self.compute is not None:
+                raise ValueError("TimeoutAssetComponent: supply exactly ONE of `wraps` or `compute`, not both.")
+            return self._build_wrapped(context)
+
+        if self.compute is None:
+            raise ValueError("TimeoutAssetComponent: supply either `compute` (build new asset) or `wraps` (wrap existing component).")
+        if not self.asset_name:
+            raise ValueError("TimeoutAssetComponent: `asset_name` required when using `compute:` (inferred from inner in `wraps:` mode).")
+
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
         compute = dict(self.compute)
@@ -261,3 +287,130 @@ class TimeoutAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
         return dg.Definitions(assets=[_timeout_asset])
+
+    # ----------------------------------------------------------------------
+    # `wraps:` composability
+    # ----------------------------------------------------------------------
+
+    def _build_wrapped(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        inner = _resolve_inner_component(self.wraps or {})
+        inner_defs = inner.build_defs(context)
+        wrapped_assets = []
+        for asset_def in list(inner_defs.assets or []):
+            if len(asset_def.keys) != 1:
+                wrapped_assets.append(asset_def)
+                continue
+            wrapped_assets.append(self._wrap_single_asset(asset_def))
+        return dg.Definitions(
+            assets=wrapped_assets,
+            resources=inner_defs.resources,
+            sensors=inner_defs.sensors,
+            schedules=inner_defs.schedules,
+            asset_checks=inner_defs.asset_checks,
+            jobs=inner_defs.jobs,
+            loggers=inner_defs.loggers,
+        )
+
+    def _wrap_single_asset(self, asset_def: "dg.AssetsDefinition") -> "dg.AssetsDefinition":
+        key = next(iter(asset_def.keys))
+        specs_by_key = getattr(asset_def, "specs_by_key", {}) or {}
+        spec = specs_by_key.get(key)
+        inner_op = asset_def.op
+        inner_compute = getattr(inner_op.compute_fn, "decorated_fn", None) or inner_op.compute_fn
+
+        timeout_s = float(self.timeout_seconds)
+        on_to = self.on_timeout
+        state_key = self.timeout_key or key.to_user_string()
+
+        if on_to not in ("fail", "warn"):
+            raise ValueError(f"on_timeout must be fail|warn; got {on_to!r}")
+        if timeout_s <= 0:
+            raise ValueError(f"timeout_seconds must be > 0; got {timeout_s}")
+
+        inner_kinds = set(getattr(spec, "kinds", None) or []) if spec else set()
+        merged_kinds = inner_kinds | set(self.kinds or []) | {"timeout"}
+        inner_tags = dict(getattr(spec, "tags", None) or {}) if spec else {}
+        merged_tags = {**inner_tags, **(self.tags or {})}
+        merged_owners = list((spec.owners if spec else []) or []) + (self.owners or [])
+        inner_description = (spec.description if spec else None) or f"Timeout-wrapped {key.to_user_string()}"
+        merged_description = f"{inner_description}  [timeout: {timeout_s}s, on_timeout={on_to}]"
+        inner_deps = list(spec.deps) if (spec and getattr(spec, "deps", None)) else []
+
+        @dg.asset(
+            key=key,
+            partitions_def=asset_def.partitions_def,
+            deps=inner_deps,
+            group_name=(spec.group_name if spec else None),
+            kinds=merged_kinds,
+            tags=merged_tags,
+            owners=merged_owners,
+            description=merged_description,
+            metadata=(dict(spec.metadata) if (spec and spec.metadata) else {}),
+            code_version=(spec.code_version if spec else None),
+        )
+        def _timeout_wrapped(context: dg.AssetExecutionContext, **kwargs):
+            def _call():
+                return inner_compute(context, **kwargs)
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(_call)
+                try:
+                    result = future.result(timeout=timeout_s)
+                except concurrent.futures.TimeoutError:
+                    future.cancel()
+                    _emit_timeout_observation(context, state_key, timeout_s)
+                    context.log.error(
+                        f"[timeout wrap] {state_key} exceeded {timeout_s}s — inner compute cancelled"
+                    )
+                    if on_to == "fail":
+                        raise dg.Failure(
+                            description=f"@timeout (wrap) exceeded: {state_key} > {timeout_s}s",
+                            metadata={
+                                "timeout_key": dg.MetadataValue.text(state_key),
+                                "timeout_seconds": dg.MetadataValue.float(timeout_s),
+                            },
+                        ) from None
+                    return None
+
+            # Merge timeout metadata into inner's MaterializeResult if present
+            timeout_meta = {
+                "timeout_seconds": dg.MetadataValue.float(timeout_s),
+                "timeout_hit": dg.MetadataValue.bool(False),
+            }
+            if isinstance(result, dg.MaterializeResult):
+                merged = dict(result.metadata or {})
+                merged.update(timeout_meta)
+                return dg.MaterializeResult(
+                    asset_key=result.asset_key,
+                    metadata=merged,
+                    check_results=result.check_results,
+                    data_version=result.data_version,
+                    tags=result.tags,
+                )
+            return result
+
+        return _timeout_wrapped
+
+
+def _resolve_inner_component(wraps: Dict[str, Any]):
+    type_str = wraps.get("type")
+    attrs = wraps.get("attributes") or {}
+    if not type_str or not isinstance(type_str, str):
+        raise ValueError("TimeoutAssetComponent.wraps requires `type: <fully-qualified-class-name>`.")
+    if ":" in type_str:
+        mod_path, cls_name = type_str.rsplit(":", 1)
+    else:
+        mod_path, cls_name = type_str.rsplit(".", 1)
+    try:
+        mod = importlib.import_module(mod_path)
+    except ImportError as e:
+        raise ValueError(f"TimeoutAssetComponent.wraps: cannot import {mod_path!r}: {e}") from e
+    cls = getattr(mod, cls_name, None)
+    if cls is None:
+        raise ValueError(f"TimeoutAssetComponent.wraps: {cls_name!r} not found in {mod_path!r}.")
+    try:
+        return cls(**attrs)
+    except Exception as e:  # noqa: BLE001
+        raise ValueError(
+            f"TimeoutAssetComponent.wraps: constructing {type_str} failed: {type(e).__name__}: {e}"
+        ) from e

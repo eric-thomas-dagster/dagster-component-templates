@@ -88,6 +88,9 @@ job_selection_exclude: "type:ci"                         # everything except CI
 | `auto_trigger_on_freshness_failure` | With `derive_freshness_policies`: also attach `AutomationCondition.freshness_failed()` so Dagster triggers the rebuild when the derived policy fails. |
 | `derive_lag_tolerance_automation` | For models with `config.state.lag_tolerance`: attach `.newly_updated().since(cron_tick_passed(cron))` where the cron is snapped from lag_tolerance. |
 | `code_version_strategy` | `disabled` / `hash` / `sqlglot`. `sqlglot` parses `compiled_code`, strips comments + normalizes whitespace, then hashes — whitespace/comment edits don't bump. Pairs with `AutomationCondition.code_version_changed()`. |
+| `state_manifest_path` | Path to a dbt state `manifest.json` (or a directory containing one). Enables the checksum-comparison enrichments below. |
+| `include_state_explain` | Requires `state_manifest_path`. Attaches `dbt_state/state` + `dbt_state/explanation` metadata per model — build-time equivalent of the state-reuse case of `dbt state explain`. |
+| `derive_state_tags` | Requires `state_manifest_path`. Adds a `dbt/state` tag with `new` / `unchanged` / `modified` so `tag:dbt/state=modified` selections work. |
 | `asset_overrides` | Per-asset overrides keyed by asset key. Today supports `{depends_on: [...]}` to inject Dagster asset dependencies. |
 
 ## Full example

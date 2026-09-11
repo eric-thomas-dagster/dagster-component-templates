@@ -48,6 +48,9 @@ identically to the base `DbtProjectComponent`.
 | `auto_trigger_on_freshness_failure` | With `derive_freshness_policies`: also attach `AutomationCondition.freshness_failed()` so Dagster triggers the rebuild when the derived policy fails. |
 | `derive_lag_tolerance_automation` | For models with `config.state.lag_tolerance` (and no user-supplied `automation_condition`): attach `.newly_updated().since(cron_tick_passed(cron))` where the cron is snapped from lag_tolerance (`30m → */30 * * * *`, `4h → 0 */4 * * *`, `1d → 0 0 * * *`). Dagster drives the trigger; dbt still enforces the exact gate on its own build step. |
 | `code_version_strategy` | `disabled` (default) / `hash` / `sqlglot`. `hash` uses dbt's manifest `checksum.checksum` (bumps on any file edit including whitespace). `sqlglot` parses `compiled_code`, strips comments + normalizes whitespace, then hashes — semantic-only versioning that pairs with `AutomationCondition.code_version_changed()`. Falls back to `hash` if `sqlglot` isn't installed. |
+| `state_manifest_path` | Path to a dbt state `manifest.json` (or a directory containing one). Enables the checksum-comparison enrichments below. |
+| `include_state_explain` | Requires `state_manifest_path`. Attaches `dbt_state/state` (`new` / `unchanged` / `modified`) and `dbt_state/explanation` (human-readable reason) metadata per model. Build-time equivalent of the state-reuse case of `dbt state explain`. |
+| `derive_state_tags` | Requires `state_manifest_path`. Adds a `dbt/state` tag with the same value so `tag:dbt/state=modified` selections work. |
 | `asset_overrides` | Per-asset overrides keyed by asset key. Today supports `{depends_on: [...]}` to inject Dagster asset dependencies (e.g. external assets not managed by dbt). |
 
 ### Per-model config (read from dbt YAML `meta.dagster.*`)

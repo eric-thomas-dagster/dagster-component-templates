@@ -1409,6 +1409,12 @@ _HELPERS = {
         "dagster_community_components.assets.infrastructure.task_asset.component:task_asset",
     "child_step":
         "dagster_community_components.assets.infrastructure.task_asset.component:child_step",
+    "TaskCache":
+        "dagster_community_components.assets.infrastructure.task_asset.component:TaskCache",
+    "FilesystemTaskCache":
+        "dagster_community_components.assets.infrastructure.task_asset.component:FilesystemTaskCache",
+    "IOManagerBackedTaskCache":
+        "dagster_community_components.assets.infrastructure.task_asset.component:IOManagerBackedTaskCache",
 }
 
 

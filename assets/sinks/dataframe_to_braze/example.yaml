@@ -1,0 +1,36 @@
+# Warehouse → Braze customer-attribute sync (activation campaigns)
+type: dagster_community_components.DataframeToBrazeComponent
+attributes:
+  asset_name: braze_customer_segment_export
+  upstream_asset_key: fct_quotes_daily        # dbt fact table upstream
+
+  # Braze auth (region-specific — check Braze dashboard for the right URL)
+  api_key_env_var: BRAZE_API_KEY
+  rest_endpoint: https://rest.iad-01.braze.com
+
+  # Users/track (default) — sync user attributes for activation
+  endpoint: users_track
+  user_id_column: external_id                 # your customer id
+  attribute_columns:                          # sent as top-level attributes
+    - email
+    - first_name
+    - last_name
+    - last_quote_at
+  custom_attribute_columns:                   # sent as custom_attributes
+    - quote_count_30d
+    - segment
+    - churn_risk_score
+
+  batch_size: 75                               # Braze /users/track max
+  dry_run: false                               # true to validate without sending
+
+  group_name: activation
+  kinds: [braze, reverse_etl]
+  freshness_cron: "0 8 * * *"                 # daily 08:00 UTC
+
+  retry_policy_max_retries: 3
+  retry_policy_delay_seconds: 5
+  retry_policy_backoff: exponential
+
+  partition_type: daily
+  partition_start: "2026-01-01"

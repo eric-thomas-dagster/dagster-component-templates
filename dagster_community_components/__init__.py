@@ -237,6 +237,7 @@ _CLASS_PATHS: dict[str, str] = {
     "DataframeToAvroComponent": "assets/sinks/dataframe_to_avro/component.py",
     "DataframeToAzureTableComponent": "assets/sinks/dataframe_to_azure_table/component.py",
     "DataframeToBigqueryComponent": "assets/sinks/dataframe_to_bigquery/component.py",
+    "DataframeToBrazeComponent": "assets/sinks/dataframe_to_braze/component.py",
     "DataframeToClickHouseComponent": "assets/sinks/dataframe_to_clickhouse/component.py",
     "DataframeToCsvComponent": "assets/sinks/dataframe_to_csv/component.py",
     "DataframeToDatabricksComponent": "assets/sinks/dataframe_to_databricks/component.py",

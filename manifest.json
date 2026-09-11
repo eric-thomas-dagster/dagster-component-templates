@@ -11166,6 +11166,73 @@
       ]
     },
     {
+      "id": "dataframe_to_braze",
+      "name": "DataFrame to Braze",
+      "category": "sink",
+      "description": "Reverse-ETL sink \u2014 batch-POST DataFrame rows to Braze via the REST API for customer activation flows. Supports /users/track (user attribute sync) and /catalogs/{name}/items (catalog upsert).",
+      "path": "assets/sinks/dataframe_to_braze",
+      "tags": [
+        "sink",
+        "braze",
+        "reverse-etl",
+        "customer-engagement",
+        "marketing-activation",
+        "user-track",
+        "catalogs",
+        "rest-api"
+      ],
+      "icon": "si:braze",
+      "type": "dagster_component_templates.DataframeToBrazeComponent",
+      "component_type": "dagster_component_templates.DataframeToBrazeComponent",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_braze/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_braze/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_braze/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_braze/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_braze/requirements.txt",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "asset:dataframe"
+      ],
+      "keywords": [
+        "braze",
+        "user attributes",
+        "customer segments",
+        "reverse etl",
+        "marketing activation",
+        "re-engagement",
+        "customer engagement platform"
+      ],
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "MaterializeResult",
+        "outputs": "One reverse-ETL asset that POSTs upstream DataFrame rows to Braze in batches. Endpoint: users_track (attributes/custom_attributes on Braze user profiles) or catalogs (custom catalog item upsert).",
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ],
+        "side_effects": "POST to Braze REST API. Requires BRAZE_API_KEY env var + region-specific rest_endpoint."
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-09-11"
+      },
+      "emitted_assets": {
+        "pattern": "One Dagster asset per component instance \u2014 POSTs each partition's rows to Braze.",
+        "source_field": "asset_name",
+        "key_template": "{asset_name}"
+      }
+    },
+    {
       "id": "dataframe_to_clickhouse",
       "name": "DataFrame to ClickHouse",
       "category": "sink",
@@ -51070,5 +51137,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 992
+  "total": 993
 }

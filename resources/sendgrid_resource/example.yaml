@@ -1,0 +1,5 @@
+type: dagster_community_components.SendGridResourceComponent
+attributes:
+  resource_key: sendgrid
+  api_key_env_var: SENDGRID_API_KEY   # SendGrid API key (starts with "SG.")
+  base_url: https://api.sendgrid.com  # https://api.eu.sendgrid.com for EU regional subusers

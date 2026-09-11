@@ -1,0 +1,6 @@
+type: dagster_community_components.CustomerIoResourceComponent
+attributes:
+  resource_key: customer_io
+  site_id_env_var: CUSTOMER_IO_SITE_ID       # Track API site id (Workspace Settings → API Credentials)
+  api_key_env_var: CUSTOMER_IO_API_KEY       # Track API key
+  base_url: https://track.customer.io        # https://track-eu.customer.io for EU workspaces

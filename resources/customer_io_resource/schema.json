@@ -1,0 +1,15 @@
+{
+  "component_type": "dagster_component_templates.CustomerIoResourceComponent",
+  "description": "Register a CustomerIoResource under a resource key. Holds Customer.io Track API auth (HTTP Basic: site_id + api_key) and exposes batch_ops (up to 100 identify/event/delete/... per call) for downstream Customer.io sinks.",
+  "category": "resource",
+  "icon": "si:customerio",
+  "attributes": {
+    "resource_key": {"type": "string", "required": false, "default": "customer_io"},
+    "site_id_env_var": {"type": "string", "required": false, "default": "CUSTOMER_IO_SITE_ID"},
+    "api_key_env_var": {"type": "string", "required": false, "default": "CUSTOMER_IO_API_KEY"},
+    "base_url": {"type": "string", "required": false, "default": "https://track.customer.io", "description": "https://track-eu.customer.io for EU workspaces."},
+    "request_timeout_seconds": {"type": "integer", "required": false, "default": 30}
+  },
+  "tags": ["resource", "customer-io", "reverse-etl", "customer-engagement", "email", "sms", "push", "in-app"],
+  "name": "Customer.io Resource"
+}

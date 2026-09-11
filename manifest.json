@@ -8768,6 +8768,60 @@
       ]
     },
     {
+      "id": "customer_io_resource",
+      "name": "Customer.io Resource",
+      "category": "resource",
+      "description": "Register a CustomerIoResource under a resource key for use by downstream Customer.io components. Holds Customer.io Track API auth (HTTP Basic: site_id + api_key) and exposes typed batch operations (`batch_ops`, up to 100 identify/event/delete/... per call) for downstream Customer.io sinks.",
+      "path": "resources/customer_io_resource",
+      "tags": [
+        "resource",
+        "customer-io",
+        "reverse-etl",
+        "customer-engagement",
+        "email",
+        "sms",
+        "push",
+        "in-app"
+      ],
+      "icon": "si:customerio",
+      "type": "dagster_component_templates.CustomerIoResourceComponent",
+      "component_type": "dagster_component_templates.CustomerIoResourceComponent",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/customer_io_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/customer_io_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/customer_io_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/customer_io_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/customer_io_resource/requirements.txt",
+      "produces": [
+        "resource"
+      ],
+      "keywords": [
+        "customer.io",
+        "customer io",
+        "track api",
+        "http basic",
+        "eu workspace",
+        "activation"
+      ],
+      "agent_hints": {
+        "output_type": "Resource",
+        "outputs": "One Customer.io Track API resource registered under resource_key (default 'customer_io').",
+        "requires_pip": [
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-09-10"
+      }
+    },
+    {
       "id": "dagster_failures_to_otlp_sensor",
       "name": "Dagster Failures \u2192 OTLP Sensor",
       "category": "sensor",
@@ -11500,6 +11554,74 @@
       ]
     },
     {
+      "id": "dataframe_to_customer_io",
+      "name": "DataFrame to Customer.io",
+      "category": "sink",
+      "description": "Reverse-ETL sink — batch-POST DataFrame rows to Customer.io via /api/v2/batch (up to 100 ops/batch). Two modes: `identify` (upsert profile attributes) or `event` (bulk-track events). Two source shapes (upstream_asset_key OR inline source: kind sql/csv/inline).",
+      "path": "assets/sinks/dataframe_to_customer_io",
+      "tags": [
+        "sink",
+        "customer-io",
+        "reverse-etl",
+        "customer-engagement",
+        "email",
+        "sms",
+        "push",
+        "in-app"
+      ],
+      "icon": "si:customerio",
+      "type": "dagster_component_templates.DataframeToCustomerIoComponent",
+      "component_type": "dagster_component_templates.DataframeToCustomerIoComponent",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_customer_io/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_customer_io/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_customer_io/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_customer_io/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_customer_io/requirements.txt",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:customer_io",
+        "asset:dataframe"
+      ],
+      "keywords": [
+        "customer.io",
+        "customer io",
+        "identify",
+        "profile sync",
+        "event tracking",
+        "reverse etl",
+        "customer engagement platform"
+      ],
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "MaterializeResult",
+        "outputs": "One reverse-ETL asset that POSTs rows to Customer.io as identify or event ops. Source is either an upstream DataFrame asset OR an inline sql/csv/inline block.",
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ],
+        "side_effects": "POST to Customer.io /api/v2/batch. Requires CUSTOMER_IO_SITE_ID + CUSTOMER_IO_API_KEY env vars. EU workspaces use base_url `https://track-eu.customer.io`."
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-09-10"
+      },
+      "emitted_assets": {
+        "pattern": "One Dagster asset per component instance — POSTs each partition's rows to Customer.io.",
+        "source_field": "asset_name",
+        "key_template": "{asset_name}"
+      }
+    },
+    {
       "id": "dataframe_to_databricks",
       "name": "DataFrame to Databricks",
       "category": "sink",
@@ -12900,6 +13022,71 @@
         "output"
       ],
       "icon": "ArrowUpFromLine"
+    },
+    {
+      "id": "dataframe_to_sendgrid",
+      "name": "DataFrame to SendGrid",
+      "category": "sink",
+      "description": "Reverse-ETL sink — batch-PUT DataFrame rows to SendGrid Marketing as contact upserts via the async bulk-import endpoint (PUT /v3/marketing/contacts, up to 30000 contacts/request). Two source shapes (upstream_asset_key OR inline source: kind sql/csv/inline). Reserved fields (email, first_name, last_name, city, ...) land top-level; custom fields nest under `custom_fields` keyed by SendGrid field ID.",
+      "path": "assets/sinks/dataframe_to_sendgrid",
+      "tags": [
+        "sink",
+        "sendgrid",
+        "reverse-etl",
+        "email",
+        "marketing",
+        "contact-sync"
+      ],
+      "icon": "si:sendgrid",
+      "type": "dagster_component_templates.DataframeToSendGridComponent",
+      "component_type": "dagster_component_templates.DataframeToSendGridComponent",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_sendgrid/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_sendgrid/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_sendgrid/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_sendgrid/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_sendgrid/requirements.txt",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:sendgrid",
+        "asset:dataframe"
+      ],
+      "keywords": [
+        "sendgrid",
+        "marketing contacts",
+        "contact upsert",
+        "email marketing",
+        "reverse etl",
+        "activation"
+      ],
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "MaterializeResult",
+        "outputs": "One reverse-ETL asset that PUTs rows to SendGrid Marketing as async contact-import jobs. Source is either an upstream DataFrame asset OR an inline sql/csv/inline block.",
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ],
+        "side_effects": "PUT to SendGrid /v3/marketing/contacts (async import). Requires SENDGRID_API_KEY env var. Custom fields require SendGrid field IDs (GET /v3/marketing/field_definitions)."
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-09-10"
+      },
+      "emitted_assets": {
+        "pattern": "One Dagster asset per component instance — PUTs each partition's rows to SendGrid as contact-import jobs.",
+        "source_field": "asset_name",
+        "key_template": "{asset_name}"
+      }
     },
     {
       "name": "DataFrame to Sentry",
@@ -40679,6 +40866,57 @@
         "reshape"
       ],
       "icon": "Shuffle"
+    },
+    {
+      "id": "sendgrid_resource",
+      "name": "SendGrid Resource",
+      "category": "resource",
+      "description": "Register a SendGridResource under a resource key for use by downstream SendGrid components. Holds SendGrid Marketing auth (Bearer <api_key>) and exposes typed batch operations (`upsert_contacts_bulk`, async import job up to 30000 contacts/request) for downstream SendGrid sinks.",
+      "path": "resources/sendgrid_resource",
+      "tags": [
+        "resource",
+        "sendgrid",
+        "email",
+        "marketing",
+        "reverse-etl",
+        "contact-sync"
+      ],
+      "icon": "si:sendgrid",
+      "type": "dagster_component_templates.SendGridResourceComponent",
+      "component_type": "dagster_component_templates.SendGridResourceComponent",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sendgrid_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sendgrid_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sendgrid_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sendgrid_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sendgrid_resource/requirements.txt",
+      "produces": [
+        "resource"
+      ],
+      "keywords": [
+        "sendgrid",
+        "marketing api",
+        "bearer token",
+        "eu regional subuser",
+        "email"
+      ],
+      "agent_hints": {
+        "output_type": "Resource",
+        "outputs": "One SendGrid Marketing REST API resource registered under resource_key (default 'sendgrid').",
+        "requires_pip": [
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-09-10"
+      }
     },
     {
       "id": "sensitive_asset",

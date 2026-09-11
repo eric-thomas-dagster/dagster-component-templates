@@ -1,0 +1,14 @@
+{
+  "component_type": "dagster_component_templates.SendGridResourceComponent",
+  "description": "Register a SendGridResource under a resource key. Holds SendGrid Marketing auth (Bearer <api_key>) and exposes upsert_contacts_bulk (async import job, up to 30,000 contacts/request) for downstream SendGrid sinks.",
+  "category": "resource",
+  "icon": "si:sendgrid",
+  "attributes": {
+    "resource_key": {"type": "string", "required": false, "default": "sendgrid"},
+    "api_key_env_var": {"type": "string", "required": false, "default": "SENDGRID_API_KEY"},
+    "base_url": {"type": "string", "required": false, "default": "https://api.sendgrid.com", "description": "https://api.eu.sendgrid.com for EU regional subusers."},
+    "request_timeout_seconds": {"type": "integer", "required": false, "default": 60}
+  },
+  "tags": ["resource", "sendgrid", "email", "marketing", "reverse-etl", "contact-sync"],
+  "name": "SendGrid Resource"
+}

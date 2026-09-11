@@ -1,0 +1,30 @@
+# SendGrid Resource
+
+Registers a `SendGridResource` under a resource key. Holds SendGrid
+Marketing API auth (Bearer token) and exposes typed batch operations
+(`upsert_contacts_bulk`) for downstream SendGrid sinks.
+
+Pairs with **`DataframeToSendGridComponent`**.
+
+## Configuration
+
+| Field | Required | Default | What |
+|---|---|---|---|
+| `resource_key` | | `sendgrid` | Dagster resource key |
+| `api_key_env_var` | | `SENDGRID_API_KEY` | Env var holding the SendGrid API key (starts with `SG.`) |
+| `base_url` | | `https://api.sendgrid.com` | Base URL. Use `https://api.eu.sendgrid.com` for EU regional subusers |
+| `request_timeout_seconds` | | `60` | Per-request timeout (contact imports can be slow) |
+
+## Example
+
+```yaml
+type: dagster_community_components.SendGridResourceComponent
+attributes:
+  resource_key: sendgrid
+  api_key_env_var: SENDGRID_API_KEY
+```
+
+## API surface
+
+- `upsert_contacts_bulk(contacts, list_ids=None, batch_size=30000, dry_run=False, logger=None)` — PUT `/v3/marketing/contacts`. Async import job; SendGrid returns `job_id` for polling `GET /v3/marketing/contacts/imports/{id}`.
+- `post(path, json_body)` — raw escape hatch for other SendGrid Marketing surfaces.

@@ -1,0 +1,25 @@
+type: dagster_community_components.DataframeToSendGridComponent
+attributes:
+  asset_name: sendgrid_daily_contact_sync
+  upstream_asset_key: dim_customers_current
+  resource_key: sendgrid
+  email_column: email
+
+  fields_map:
+    first: first_name                # reserved → top level
+    last: last_name
+    city: city
+    country: country
+    ltv: lifetime_value_usd          # custom → nested under custom_fields
+    segment: segment
+
+  custom_field_ids:
+    lifetime_value_usd: e1_N          # SendGrid custom field IDs
+    segment: e2_T                     # look up via GET /v3/marketing/field_definitions
+
+  list_ids:                           # optional — add contacts to these lists
+    - "abc-123-list-id"
+
+  freshness_cron: "0 8 * * *"
+  partition_type: daily
+  partition_start: "2026-01-01"

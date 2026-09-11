@@ -1,0 +1,32 @@
+# IDENTIFY mode — upsert customer profiles (attribute sync)
+type: dagster_community_components.DataframeToCustomerIoComponent
+attributes:
+  asset_name: customer_io_daily_profile_sync
+  upstream_asset_key: dim_customers_current
+  resource_key: customer_io
+  mode: identify
+  id_column: customer_id                # preferred Customer.io identifier
+  email_column: email                   # fallback identifier
+  fields_map:
+    first: first_name                    # → attributes.first_name
+    last: last_name
+    ltv: lifetime_value_usd
+    segment: segment
+  freshness_cron: "0 8 * * *"
+
+# ---
+# EVENT mode — bulk-track events
+# type: dagster_community_components.DataframeToCustomerIoComponent
+# attributes:
+#   asset_name: customer_io_purchase_events
+#   upstream_asset_key: fct_purchases_daily
+#   resource_key: customer_io
+#   mode: event
+#   id_column: customer_id
+#   event_name_column: event_type
+#   event_timestamp_column: event_ts       # → unix seconds
+#   fields_map:
+#     revenue: revenue
+#     product_id: product_id
+#   partition_type: daily
+#   partition_start: "2026-01-01"

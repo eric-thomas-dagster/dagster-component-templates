@@ -1,0 +1,35 @@
+# Customer.io Resource
+
+Registers a `CustomerIoResource` under a resource key. Holds
+Customer.io Track API auth (HTTP Basic with Site ID + API key) and
+exposes typed batch operations (`batch_ops`) for downstream
+Customer.io sinks.
+
+Pairs with **`DataframeToCustomerIoComponent`**.
+
+## Configuration
+
+| Field | Required | Default | What |
+|---|---|---|---|
+| `resource_key` | | `customer_io` | Dagster resource key |
+| `site_id_env_var` | | `CUSTOMER_IO_SITE_ID` | Env var holding your Customer.io Track API Site ID |
+| `api_key_env_var` | | `CUSTOMER_IO_API_KEY` | Env var holding your Customer.io Track API key |
+| `base_url` | | `https://track.customer.io` | Base URL. Use `https://track-eu.customer.io` for EU workspaces |
+| `request_timeout_seconds` | | `30` | Per-request timeout |
+
+## Example
+
+```yaml
+type: dagster_community_components.CustomerIoResourceComponent
+attributes:
+  resource_key: customer_io
+  site_id_env_var: CUSTOMER_IO_SITE_ID
+  api_key_env_var: CUSTOMER_IO_API_KEY
+```
+
+## API surface
+
+The resource exposes:
+
+- `batch_ops(operations, batch_size=100, dry_run=False, logger=None)` — POSTs to `/api/v2/batch`. Each op has `type` (`identify` / `event` / `delete` / `suppress` / `unsuppress`) + `identifiers` (`id` OR `email` OR `cio_id`) + op-specific fields.
+- `post(path, json_body)` — raw escape hatch for the other Track API surfaces.

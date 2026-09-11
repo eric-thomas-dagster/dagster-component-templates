@@ -2,12 +2,15 @@
 
 Enforce **data contracts** at materialization. A data contract is the formal agreement between a producer and its consumers: schema, freshness, SLAs, ownership, versioning. This component makes contracts CODE — every materialization validates the produced DataFrame against the contract, emits proper Dagster events, and either blocks publish on violation OR materializes with failing checks so downstream blocks via `AutomationCondition`.
 
-Two shapes, one engine:
+Producer + consumer + import shapes:
 
 | Shape | Use when |
 |---|---|
 | **`DataContractComponent`** (YAML) | Define a new asset with a contract |
 | **`@data_contract` decorator** (Python) | Wrap an EXISTING `@dg.asset` in Python |
+| **`RequiresContractComponent`** (YAML) | Consumer-side — assert an upstream contract before compute |
+| **`@requires_contract` decorator** (Python) | Consumer-side Python decorator |
+| **`contract_from_json_schema()`** (helper) | Import a JSON Schema file as a DCC contract |
 
 ## What gets enforced — the contract IS the asset's checks
 
@@ -235,13 +238,122 @@ Plus one `AssetObservation` tagged with `contract_version`, `contract_owners`, `
 
 The contract's `version` becomes the asset's `code_version` — Dagster automatically detects when it changes and marks downstream assets as "code version changed" (visible in the UI). Combined with `AutomationCondition.code_version_changed()`, you get FREE re-materialization of downstream on contract bumps.
 
-## What's not in v1 (roadmap)
+## `@requires_contract` — consumer-side
 
-- **`@requires_contract` decorator** — consumer-side. Pin a semver requirement on an upstream contract; block downstream if the upstream contract version doesn't match.
-- **Breaking-change detection** — compare current contract to prior via event log; emit a `contract_breaking_change` observation on breaking type changes / dropped columns.
+The producer emits an `AssetObservation` describing the contract on every materialization. The consumer asserts a semver requirement on that observation BEFORE its compute runs. If the upstream contract is missing, older than `min_version`, or missing a required column, `@requires_contract` raises `dg.Failure` before the downstream step spends any compute — the failure surfaces in the run/asset view.
+
+```python
+import dagster as dg
+from dagster_community_components import requires_contract
+
+@dg.asset(deps=["orders"])
+@requires_contract(
+    upstream="orders",
+    min_version="1.2.0",                        # semver requirement
+    require_columns=["order_id", "user_id", "amount"],
+)
+def daily_revenue(context, orders):
+    ...
+```
+
+YAML form — `RequiresContractComponent`:
+
+```yaml
+type: dagster_community_components.RequiresContractComponent
+attributes:
+  asset_name: daily_revenue
+  upstream: orders
+  min_version: "1.2.0"
+  require_columns: [order_id, user_id, amount]
+  compute:
+    kind: python
+    python: "my_project.revenue:compute_daily"
+```
+
+Or wrap an existing DCC component's asset with a contract gate (same
+composability pattern as `throttle_asset.wraps`):
+
+```yaml
+type: dagster_community_components.RequiresContractComponent
+attributes:
+  upstream: orders
+  min_version: "1.2.0"
+  require_columns: [order_id, user_id, amount]
+  wraps:
+    type: dagster_community_components.DataframeTransformerComponent
+    attributes:
+      asset_name: daily_revenue
+      # ... inner component's normal config ...
+```
+
+On success, emits `AssetObservation(requires_contract_satisfied=true, upstream=…, upstream_contract_version=…, version_ok=…)` on the DOWNSTREAM asset — searchable via the event log alongside the producer's `data_contract` observations.
+
+## Breaking-change detection
+
+Set `detect_breaking_changes: true` on `@data_contract` or `DataContractComponent` and every materialization also diffs the current contract against the PRIOR contract observation for the same asset (via the event log). Breaking flags:
+
+- **Dropped column** — column present in prior, missing in current.
+- **Narrowed type** — column type narrowed (float→int, string→int, etc.).
+- **Nullability narrowed** — nullable True → False.
+
+Any breaking flag emits an ADDITIONAL `AssetObservation` tagged `contract_breaking_change=true` with a `breaking_changes: [...]` JSON list and a rendered markdown summary. Set `on_breaking_change="fail"` to promote breaking flags to a hard `dg.Failure`.
+
+```python
+@data_contract(
+    contract={
+        'version': '2.0.0',                           # bumped from 1.2.0
+        'schema': [
+            {'name': 'order_id', 'type': 'int64', 'nullable': False},
+            # `email` column dropped — will trigger breaking flag.
+        ],
+    },
+    detect_breaking_changes=True,
+    on_breaking_change='warn',       # or 'fail' to block on breaking change
+)
+@dg.asset
+def orders(context): ...
+```
+
+Resulting observation:
+
+```
+tags:
+  contract_breaking_change: true
+  contract_prior_version:  1.2.0
+  contract_current_version: 2.0.0
+metadata:
+  breaking_changes:
+    - {kind: dropped_column, column: email, detail: "column 'email' removed"}
+  breaking_change_count: 1
+  summary: |
+    # Contract breaking change: `1.2.0` → `2.0.0`
+    ...
+```
+
+## Loading contracts from JSON Schema
+
+Teams that already publish schemas as JSON Schema (event bus, OpenAPI, contract-registry, etc.) can load them directly:
+
+```python
+from dagster_community_components import contract_from_json_schema, data_contract
+
+CONTRACT = contract_from_json_schema(
+    "orders.schema.json",
+    version="1.0.0",
+    owners=["data-platform@example.com"],
+)
+
+@data_contract(contract=CONTRACT)
+@dg.asset
+def orders(context): ...
+```
+
+Supported top-level shape: `{"type": "object", "properties": {...}, "required": [...]}`. Per-property `type` maps to Dagster/pandas dtypes (`string`→`string`, `integer`→`int`, `number`→`float`, `boolean`→`bool`, `array`→`list`, `object`→`dict`). Union types like `["string", "null"]` pick the non-null member and force `nullable=True`. `pattern` → contract `regex`, `enum` → `allowed_values`, `minimum`/`maximum` → `min`/`max`.
+
+## Roadmap
+
 - **Cross-asset foreign keys** — `foreign_key: users.user_id` — validate referential integrity across assets.
 - **dbt / Great Expectations delegation** — treat those suites as one contract check.
-- **JSON Schema import** — read a JSON Schema file and generate contract rules.
 
 [//]: # (FIELDS:START - auto-generated by tools/regen_readme_fields.py)
 
@@ -271,5 +383,7 @@ The contract's `version` becomes the asset's `code_version` — Dagster automati
 |---|---|---|---|
 | `upstream_asset_key` | `str` | — | Optional upstream asset passed to compute. |
 | `on_violation` | `str` | `"block"` | 'block' (default) raises dg.Failure on any check fail — asset does not materialize. 'warn' materializes anyway; downstream can block via AutomationCondition.eager() on the failing check. |
+| `detect_breaking_changes` | `bool` | `false` | Compare current contract to the prior emission via event log. Emits `contract_breaking_change` observation on dropped columns / narrowed types / nullable→non-nullable transitions. |
+| `on_breaking_change` | `str` | `"warn"` | When `detect_breaking_changes: true`, controls what happens on a breaking flag: 'warn' (default — just emit observation) or 'fail' (also raise dg.Failure and block materialization). |
 
 [//]: # (FIELDS:END)

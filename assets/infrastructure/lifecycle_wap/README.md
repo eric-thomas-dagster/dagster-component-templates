@@ -58,6 +58,28 @@ write:
 
 Publish = `fast_forward('main', staging_branch)`. Requires `pip install 'pyiceberg[pyarrow]'`.
 
+### `kind: delta` — via deltalake
+
+Same staging → audit → publish story as Iceberg, but on Delta Lake. Pick whichever backend matches your existing lakehouse.
+
+```yaml
+write:
+  kind: delta
+  delta_uri: "s3://lakehouse/analytics/orders"     # production Delta table URI
+  staging_uri: null                                # auto-derived: <delta_uri>/_staging/<asset>/<run_id>/
+  storage_options:                                 # optional; forwarded to deltalake I/O
+    AWS_REGION: us-east-1
+```
+
+Mechanics:
+
+- **Stage** — `write_deltalake(<staging_uri>, df, mode='overwrite')` writes a full Delta table at the staging path.
+- **Audit** — same check kinds as every other backend; the staging DataFrame is validated in memory before promotion.
+- **Publish** — reads the staging Delta table and rewrites to `delta_uri` in a single Delta commit (`mode='overwrite'`). Uniform behavior across local FS + object stores (no reliance on filesystem `rename` semantics). Staging directory is cleaned up on publish success.
+- **On audit fail** — `on_fail: quarantine` copies the staging table to `<delta_uri>/_quarantine/<ts>/` (or `quarantine_uri` override) and removes staging; `on_fail: discard` deletes staging; `on_fail: tag_and_keep` leaves the staging Delta table in place with the metadata `wap_publish_outcome=kept`.
+
+Requires `pip install deltalake`. If missing, the component raises `dg.Failure` with the install hint.
+
 ## Audit check kinds
 
 | Kind | Shape | What it checks |
@@ -69,8 +91,32 @@ Publish = `fast_forward('main', staging_branch)`. Requires `pip install 'pyicebe
 | `col_range_min` | `{kind, col, min, name?}` | `df[col].min() >= min` |
 | `col_range_max` | `{kind, col, max, name?}` | `df[col].max() <= max` |
 | `python` | `{kind, python: 'mod:fn', name}` | User function receives `df`, returns `{passed, description, metadata}` OR bool |
+| `great_expectations` | `{kind, suite, data_context_root?, name?}` | Runs a named GE expectation suite against the staging DataFrame; aggregates per-expectation results into one WAP outcome |
 
 Each check emits an `AssetCheckResult`. Failed checks get `severity=ERROR`; passed checks get `WARN`-only (informational, not shown as errors).
+
+## Great Expectations delegation
+
+Reuse an existing Great Expectations suite as one WAP audit check:
+
+```yaml
+audit:
+  - kind: great_expectations
+    suite: orders_daily_suite                    # required — the GE suite name
+    data_context_root: /path/to/great_expectations   # optional; else `ge.get_context()` auto-detects
+    name: ge_orders_daily                        # optional; UI display name for the AssetCheckResult
+```
+
+Mechanics:
+
+- Loads the GE `DataContext` via `great_expectations.get_context(context_root_dir=...)` (or the default auto-detect if `data_context_root` is omitted).
+- Builds an in-memory pandas datasource + asset + batch from the staging DataFrame using the GE fluent API (`sources.add_or_update_pandas(...).add_dataframe_asset(...).build_batch_request(dataframe=df)`).
+- Runs `get_validator(...).validate()` against the named suite.
+- Aggregates per-expectation results into one WAP audit outcome: `passed = all expectations passed`. Metadata includes `expectations_total`, `expectations_passed`, `expectations_failed`, and a capped `failing` list with each failing expectation's type + kwargs.
+
+Requires `pip install great_expectations` (>= 0.18 for the fluent API). Older GE releases with the legacy V2/V3 API are not supported — install a modern release. If GE is missing, the component raises `dg.Failure` with the install hint.
+
+Pair with the built-in check kinds (`row_count_min`, `col_unique`, …) freely — every audit-list entry becomes one `AssetCheckResult` regardless of kind, so a suite delegates into one row in the check panel while inline checks each get their own.
 
 ## `@lifecycle` decorator — wrap an existing @dg.asset
 
@@ -180,9 +226,7 @@ Plus one `AssetCheckResult` per audit check with pass/fail + description + metad
 
 ## What's not in v1 (roadmap)
 
-- **Delta Lake backend** — via `delta-rs` or Spark. Same shape as Iceberg (staging branch → publish).
 - **BigQuery native (non-sqlalchemy)** — for orgs using BQ without sqlalchemy-bigquery.
-- **Great Expectations delegation** — `{kind: great_expectations, suite: '...'}` runs a GE suite as one check.
 - **dbt test delegation** — `{kind: dbt_test, select: 'tag:critical'}` runs dbt tests as WAP audits.
 - **Cross-partition audit windows** — audit "last 7 days including this partition" instead of only the current DataFrame.
 
@@ -197,7 +241,7 @@ Plus one `AssetCheckResult` per audit check with pass/fail + description + metad
 | `asset_name` | `str` | Dagster asset name emitted by this component. |
 | `compute` | `Dict[str, Any]` | Compute config. Shape: `{kind: python, python: 'mod:fn'}`. Function returns a pandas DataFrame; the component handles write/audit/publish. |
 | `write` | `Dict[str, Any]` | Write backend. Shape (filesystem): `{kind: filesystem, prod_path, staging_path?, format?: parquet\|csv\|json}`. Shape (sql): `{kind: sql, resource_key\|database_url_env_var, prod_table, staging_table?, schema?}`. Shape (… _(full docs in schema.json + component README)_ |
-| `audit` | `List[Dict[str, Any]]` | Ordered audit checks. Each: `{kind: row_count_min\|row_count_max\|col_null_ratio_max\|col_unique\|col_range_min\|col_range_max\|python, name?, ...kind-specific fields}`. Every check becomes an AssetCheckSpec. |
+| `audit` | `List[Dict[str, Any]]` | Ordered audit checks. Each: `{kind: row_count_min\|row_count_max\|col_null_ratio_max\|col_unique\|col_range_min\|col_range_max\|python\|great_expectations, name?, ...kind-specific fields}`. For `great_expectations`: `{ki… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -216,7 +260,7 @@ Plus one `AssetCheckResult` per audit check with pass/fail + description + metad
 | `upstream_asset_key` | `str` | — | Optional upstream asset passed as second arg to compute.python. |
 | `on_pass` | `str` | `"publish"` | Publish policy on ALL checks pass: `publish` (default) or `discard`. |
 | `on_fail` | `str` | `"quarantine"` | Publish policy on ANY check fail: `quarantine` (default), `discard`, `tag_and_keep`. |
-| `quarantine` | `Dict[str, Any]` | — | Quarantine target. Filesystem: `{quarantine_path}`. SQL: `{quarantine_table}`. Iceberg: `{quarantine_tag}`. Omit to auto-derive. |
+| `quarantine` | `Dict[str, Any]` | — | Quarantine target. Filesystem: `{quarantine_path}`. SQL: `{quarantine_table}`. Iceberg: `{quarantine_tag}`. Delta: `{quarantine_uri}`. Omit to auto-derive. |
 | `raise_on_fail` | `bool` | `true` | If true (default), raise `dg.Failure` when any audit check fails. Set false to always materialize the asset + rely on AssetCheckResult signals downstream via AutomationCondition. |
 
 [//]: # (FIELDS:END)

@@ -73,10 +73,54 @@ dg.materialize([costly_report], tags={"dry_run": "true"})
 - **`@lifecycle`** — dry-run mode skips publish; audit still runs.
 - **`@profile`** — profile a candidate output before committing.
 
+## Optional hooks
+
+### Cost estimate
+
+Attach a cost model to see what the run **would** cost without paying. `cost_fn` is a `'mod:fn'` reference to `(context, elapsed_s, result) -> usd`.
+
+```yaml
+type: dagster_community_components.DryRunAssetComponent
+attributes:
+  asset_name: llm_summary
+  compute:
+    kind: python
+    python: "my_project.summaries:generate"
+  cost_fn: "my_project.pricing:llm_cost"
+```
+
+Python:
+
+```python
+def llm_cost(context, elapsed_s, result) -> float:
+    return result.get("tokens", 0) * 0.000002  # $2 / 1M tokens
+
+@dg.asset
+@dry_run(enabled=True, cost_fn="my_project.pricing:llm_cost")
+def llm_summary(context):
+    return call_openai(...)
+```
+
+The dry-run observation emits `estimated_cost_usd` alongside `elapsed_seconds`.
+
+### Diff vs. current committed value
+
+Compare the discarded output against the last committed materialization. Emits `dry_run_diff` metadata: `row_count_delta`, `column_delta` (added/removed), `sample_value_diffs` on the first N cols.
+
+```yaml
+type: dagster_community_components.DryRunAssetComponent
+attributes:
+  asset_name: order_totals
+  compute:
+    kind: python
+    python: "my_project.reports:order_totals"
+  diff_vs_current: true
+```
+
+Silent no-op if no prior materialization exists. In `wraps:` mode with either `cost_fn` or `diff_vs_current` set, the inner compute WILL run (both hooks need a candidate value); without them, the inner is short-circuited (stronger dry-run).
+
 ## What's not in v1 (roadmap)
 
-- **Cost-estimate hook** — inject a cost model so dry runs surface `estimated_cost_usd`.
-- **Diff vs. current** — automatically diff the discarded output against the current committed asset.
 - **Per-partition dry-run** — mask specific partitions from a dry run while committing others.
 
 ## CLI demos using this template
@@ -112,5 +156,7 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 | `compute` | `Dict[str, Any]` | — | `{kind: python, python: 'mod:fn'}`. Mutually exclusive with `wraps`. |
 | `wraps` | `Dict[str, Any]` | — | Wrap another DCC component's assets with dry-run short-circuit behavior instead of defining new compute. Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`. Mutually exclusive with `compute`. |
 | `enabled` | `bool` | — | Explicit dry-run override. When null (default), reads run tag `dry_run` in ('true','1','yes'), else env `DAGSTER_DRY_RUN`. |
+| `cost_fn` | `str` | — | Optional 'mod:fn' reference to a callable `(context, elapsed_s, result) -> usd`. When set, the dry-run observation surfaces `estimated_cost_usd` — see what the run would cost without paying. |
+| `diff_vs_current` | `bool` | `false` | When True and dry-run is enabled, compare the discarded output against the latest committed asset value. Emits `dry_run_diff` observation metadata (row_count_delta, column_delta, sample_value_diffs). Silent no-op if no p… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)

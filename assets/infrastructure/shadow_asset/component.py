@@ -54,7 +54,9 @@ sensors can classify.
 
 import functools
 import importlib
+import os
 import time
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import dagster as dg
@@ -74,8 +76,83 @@ def _load_callable(ref: str) -> Callable:
     return fn
 
 
-def _diff(primary: Any, shadow: Any) -> Dict[str, Any]:
-    """Return diff summary — always a dict; `match` key is the verdict."""
+def _apply_fuzzy_prep(df, fuzzy_match: Optional[Dict[str, Any]]):
+    """Drop ignore_columns + optionally sort rows for order-invariant compare.
+
+    Returns the mutated DataFrame (or the original if no prep needed).
+    """
+    if not fuzzy_match:
+        return df
+    ignore_cols = fuzzy_match.get("ignore_columns") or []
+    if ignore_cols:
+        drop = [c for c in ignore_cols if c in df.columns]
+        if drop:
+            df = df.drop(columns=drop)
+    if fuzzy_match.get("ignore_row_order"):
+        sort_cols = list(df.columns)
+        if sort_cols:
+            try:
+                df = df.sort_values(sort_cols, kind="stable").reset_index(drop=True)
+            except Exception:  # noqa: BLE001
+                # unsortable (e.g. mixed types) — fall back to as-is order
+                pass
+    return df
+
+
+def _dataframes_equal_with_tolerance(
+    df_p, df_s, fuzzy_match: Optional[Dict[str, Any]],
+) -> bool:
+    """Element-wise DataFrame equality with float tolerance from fuzzy_match."""
+    import pandas as pd
+    tol = float((fuzzy_match or {}).get("float_tolerance", 0.0) or 0.0)
+    if tol <= 0:
+        return df_p.equals(df_s)
+    if df_p.shape != df_s.shape or list(df_p.columns) != list(df_s.columns):
+        return False
+    for col in df_p.columns:
+        c_p = df_p[col]
+        c_s = df_s[col]
+        if pd.api.types.is_float_dtype(c_p) and pd.api.types.is_float_dtype(c_s):
+            close = ((c_p - c_s).abs() <= tol)
+            # NaN handling: both NaN counts as equal.
+            both_nan = c_p.isna() & c_s.isna()
+            if not bool((close | both_nan).all()):
+                return False
+        else:
+            if not c_p.equals(c_s):
+                return False
+    return True
+
+
+def _row_diff_mask(df_p, df_s, fuzzy_match: Optional[Dict[str, Any]]):
+    """Return a boolean Series marking rows where primary != shadow, honoring float tolerance."""
+    import pandas as pd
+    tol = float((fuzzy_match or {}).get("float_tolerance", 0.0) or 0.0)
+    if tol <= 0:
+        return (df_p != df_s).any(axis=1)
+    # Build per-cell equal mask with tolerance-aware float comparison.
+    eq_frames = []
+    for col in df_p.columns:
+        c_p = df_p[col]
+        c_s = df_s[col]
+        if pd.api.types.is_float_dtype(c_p) and pd.api.types.is_float_dtype(c_s):
+            close = ((c_p - c_s).abs() <= tol) | (c_p.isna() & c_s.isna())
+            eq_frames.append(~close)
+        else:
+            eq_frames.append(c_p != c_s)
+    concat = pd.concat(eq_frames, axis=1)
+    return concat.any(axis=1)
+
+
+def _diff(
+    primary: Any, shadow: Any, fuzzy_match: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Return diff summary — always a dict; `match` key is the verdict.
+
+    `fuzzy_match` (optional dict): `{float_tolerance: 1e-6,
+    ignore_columns: [...], ignore_row_order: bool}`. Applies only when
+    comparing pandas DataFrames.
+    """
     out: Dict[str, Any] = {"match": False}
     try:
         if primary is None and shadow is None:
@@ -87,23 +164,34 @@ def _diff(primary: Any, shadow: Any) -> Dict[str, Any]:
             import pandas as pd
             if isinstance(primary, pd.DataFrame) and isinstance(shadow, pd.DataFrame):
                 out["mode"] = "dataframe"
-                out["primary_shape"] = list(primary.shape)
-                out["shadow_shape"] = list(shadow.shape)
-                cols_p = set(primary.columns)
-                cols_s = set(shadow.columns)
+                p_prep = _apply_fuzzy_prep(primary, fuzzy_match)
+                s_prep = _apply_fuzzy_prep(shadow, fuzzy_match)
+                out["primary_shape"] = list(p_prep.shape)
+                out["shadow_shape"] = list(s_prep.shape)
+                cols_p = set(p_prep.columns)
+                cols_s = set(s_prep.columns)
                 out["shadow_extra_cols"] = sorted(cols_s - cols_p)
                 out["shadow_missing_cols"] = sorted(cols_p - cols_s)
-                if primary.shape != shadow.shape or cols_p != cols_s:
+                if p_prep.shape != s_prep.shape or cols_p != cols_s:
                     out["match"] = False
                     return out
                 common = sorted(cols_p)
-                sample_p = primary[common].head(500).reset_index(drop=True)
-                sample_s = shadow[common].head(500).reset_index(drop=True)
-                out["match"] = sample_p.equals(sample_s)
+                sample_p = p_prep[common].head(500).reset_index(drop=True)
+                sample_s = s_prep[common].head(500).reset_index(drop=True)
+                out["match"] = _dataframes_equal_with_tolerance(
+                    sample_p, sample_s, fuzzy_match,
+                )
                 if not out["match"]:
-                    # count row-level disagreements up to 500
-                    diff_mask = (sample_p != sample_s).any(axis=1)
+                    diff_mask = _row_diff_mask(sample_p, sample_s, fuzzy_match)
                     out["shadow_diff_rows"] = int(diff_mask.sum())
+                if fuzzy_match:
+                    out["fuzzy_match_applied"] = True
+                    if fuzzy_match.get("float_tolerance"):
+                        out["float_tolerance"] = float(fuzzy_match["float_tolerance"])
+                    if fuzzy_match.get("ignore_columns"):
+                        out["ignore_columns"] = list(fuzzy_match["ignore_columns"])
+                    if fuzzy_match.get("ignore_row_order"):
+                        out["ignore_row_order"] = True
                 return out
         except ImportError:
             pass
@@ -132,9 +220,92 @@ def _diff(primary: Any, shadow: Any) -> Dict[str, Any]:
         return out
 
 
+def _export_diff_rows(
+    context: Any,
+    primary: Any,
+    shadow: Any,
+    diff_export_uri: str,
+    fuzzy_match: Optional[Dict[str, Any]] = None,
+) -> Optional[str]:
+    """Write mismatched rows to `<diff_export_uri>/<asset>/<ts>__<run_id>.parquet`.
+
+    Returns the written path on success, else None. Only DataFrame diffs
+    export rows; other types are a no-op. Never raises — best-effort.
+    """
+    try:
+        import pandas as pd
+        if not isinstance(primary, pd.DataFrame) or not isinstance(shadow, pd.DataFrame):
+            return None
+        p_prep = _apply_fuzzy_prep(primary, fuzzy_match)
+        s_prep = _apply_fuzzy_prep(shadow, fuzzy_match)
+        if p_prep.shape != s_prep.shape or list(p_prep.columns) != list(s_prep.columns):
+            # Shape/schema mismatch — export both slices, tag with source.
+            tagged_p = p_prep.assign(_shadow_source="primary").head(500)
+            tagged_s = s_prep.assign(_shadow_source="shadow").head(500)
+            diff_df = pd.concat([tagged_p, tagged_s], ignore_index=True)
+        else:
+            diff_mask = _row_diff_mask(
+                p_prep.reset_index(drop=True), s_prep.reset_index(drop=True),
+                fuzzy_match,
+            )
+            if not bool(diff_mask.any()):
+                return None
+            diff_p = p_prep.reset_index(drop=True)[diff_mask].assign(_shadow_source="primary")
+            diff_s = s_prep.reset_index(drop=True)[diff_mask].assign(_shadow_source="shadow")
+            diff_df = pd.concat([diff_p, diff_s], ignore_index=True)
+
+        asset_key = getattr(context, "asset_key", None)
+        asset_slug = asset_key.to_user_string() if asset_key else "shadow_asset"
+        asset_slug = asset_slug.replace("/", "__")
+        try:
+            run_id = getattr(context.run, "run_id", "unknown")
+        except Exception:  # noqa: BLE001
+            run_id = "unknown"
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        rel = f"{asset_slug}/{ts}__{run_id}.parquet"
+        base = diff_export_uri.rstrip("/")
+        full_path = f"{base}/{rel}"
+
+        # Local filesystem path — mkdir + parquet write.
+        if "://" not in full_path:
+            os.makedirs(os.path.dirname(full_path), exist_ok=True)
+            diff_df.to_parquet(full_path, index=False)
+            return full_path
+
+        # Remote URI — try fsspec; if unavailable, log and give up.
+        try:
+            import fsspec
+            fs, path = fsspec.core.url_to_fs(full_path)
+            parent = path.rsplit("/", 1)[0] if "/" in path else ""
+            if parent:
+                try:
+                    fs.makedirs(parent, exist_ok=True)
+                except Exception:  # noqa: BLE001
+                    pass
+            with fs.open(path, "wb") as f:
+                diff_df.to_parquet(f, index=False)
+            return full_path
+        except ImportError:
+            try:
+                context.log.warning(
+                    f"@shadow: diff_export_uri={diff_export_uri!r} requires fsspec "
+                    "for remote URIs; skipping export (`pip install fsspec`)."
+                )
+            except Exception:  # noqa: BLE001
+                pass
+            return None
+    except Exception as e:  # noqa: BLE001
+        try:
+            context.log.warning(f"@shadow: diff export failed: {type(e).__name__}: {e}")
+        except Exception:  # noqa: BLE001
+            pass
+        return None
+
+
 def _emit_shadow_observation(
     context: Any, diff: Dict[str, Any], shadow_elapsed_s: float,
     shadow_error: Optional[BaseException] = None,
+    diff_export_path: Optional[str] = None,
 ) -> None:
     try:
         from dagster import AssetObservation
@@ -154,6 +325,14 @@ def _emit_shadow_observation(
         for list_key in ("shadow_extra_cols", "shadow_missing_cols"):
             if list_key in diff and isinstance(diff[list_key], list):
                 metadata[list_key] = dg.MetadataValue.json(diff[list_key])
+        if diff.get("fuzzy_match_applied"):
+            metadata["fuzzy_match_applied"] = dg.MetadataValue.bool(True)
+            if "float_tolerance" in diff:
+                metadata["float_tolerance"] = dg.MetadataValue.float(
+                    float(diff["float_tolerance"])
+                )
+        if diff_export_path:
+            metadata["shadow_diff_export_path"] = dg.MetadataValue.path(diff_export_path)
         if shadow_error is not None:
             metadata["shadow_error"] = dg.MetadataValue.text(f"{type(shadow_error).__name__}: {shadow_error}")
 
@@ -177,11 +356,21 @@ def _run_shadow(
     kwargs: Dict[str, Any],
     primary_result: Any,
     enforce_match: bool,
+    fuzzy_match: Optional[Dict[str, Any]] = None,
+    diff_export_uri: Optional[str] = None,
 ) -> None:
     """Run the shadow implementation, diff against primary, emit observation.
 
     Exceptions inside `shadow_fn` are trapped (recorded as observation with
     `shadow_error` tag) — the primary result is what production sees.
+
+    Args:
+        fuzzy_match: Optional dict `{float_tolerance, ignore_columns,
+            ignore_row_order}`. Applies to DataFrame diffs.
+        diff_export_uri: Optional fsspec URI base. On mismatch, mismatched
+            rows are written to
+            `<uri>/<asset>/<UTC_ts>__<run_id>.parquet` and the path is
+            emitted as observation metadata `shadow_diff_export_path`.
     """
     t0 = time.time()
     shadow_error = None
@@ -195,9 +384,20 @@ def _run_shadow(
     if shadow_error is not None:
         diff = {"match": False, "mode": "error", "diff_error": repr(shadow_error)}
     else:
-        diff = _diff(primary_result, shadow_result)
+        diff = _diff(primary_result, shadow_result, fuzzy_match=fuzzy_match)
 
-    _emit_shadow_observation(context, diff, elapsed, shadow_error)
+    diff_export_path: Optional[str] = None
+    if (
+        diff_export_uri
+        and not diff.get("match")
+        and shadow_error is None
+        and shadow_result is not None
+    ):
+        diff_export_path = _export_diff_rows(
+            context, primary_result, shadow_result, diff_export_uri, fuzzy_match,
+        )
+
+    _emit_shadow_observation(context, diff, elapsed, shadow_error, diff_export_path)
 
     if not diff.get("match"):
         try:
@@ -207,6 +407,8 @@ def _run_shadow(
                 f"extra_cols={diff.get('shadow_extra_cols')}, "
                 f"missing_cols={diff.get('shadow_missing_cols')})"
             )
+            if diff_export_path:
+                context.log.warning(f"@shadow: diff rows exported to {diff_export_path}")
         except Exception:  # noqa: BLE001
             pass
         if enforce_match:
@@ -223,6 +425,8 @@ def shadow(
     shadow_fn: Callable,
     *,
     enforce_match: bool = False,
+    fuzzy_match: Optional[Dict[str, Any]] = None,
+    diff_export_uri: Optional[str] = None,
 ) -> Callable:
     """Dual-run the wrapped compute + a shadow implementation, diff outputs.
 
@@ -244,6 +448,16 @@ def shadow(
             compute. Any exception raised by shadow_fn is trapped.
         enforce_match: If True, mismatch raises `dg.Failure`. Off by
             default so shadow is safe to run in prod.
+        fuzzy_match: Optional dict — DataFrame-diff config.
+            `{float_tolerance: 1e-6, ignore_columns: [...],
+            ignore_row_order: bool}`. Float cells within tolerance count
+            as equal; ignored columns are dropped before compare;
+            row-order-invariant sorts both by all columns first.
+        diff_export_uri: Optional fsspec URI base (local path or
+            `s3://`, `gs://`, `abfs://`). On mismatch, mismatched rows
+            are written to
+            `<uri>/<asset>/<UTC_ts>__<run_id>.parquet` and the path is
+            emitted as observation metadata `shadow_diff_export_path`.
     """
     if not callable(shadow_fn):
         raise TypeError(f"@shadow requires a callable; got {type(shadow_fn).__name__}")
@@ -260,7 +474,10 @@ def shadow(
                 raise RuntimeError("@shadow requires a Dagster context.")
 
             primary_result = fn(*args, **kwargs)
-            _run_shadow(context, shadow_fn, args, kwargs, primary_result, enforce_match)
+            _run_shadow(
+                context, shadow_fn, args, kwargs, primary_result, enforce_match,
+                fuzzy_match=fuzzy_match, diff_export_uri=diff_export_uri,
+            )
             return primary_result
 
         return _wrapped
@@ -313,6 +530,23 @@ class ShadowAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=False,
         description="When True, mismatch between primary and shadow raises dg.Failure. Default off = observe only.",
     )
+    fuzzy_match: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Fuzzy comparison config for DataFrame diffs. "
+            "`{float_tolerance: 1e-6, ignore_columns: [col_a, col_b], ignore_row_order: true}`. "
+            "Float cells within tolerance count as equal; ignored columns are dropped before "
+            "compare; row-order-invariant sorts both by all columns first. Ignored on non-DataFrame outputs."
+        ),
+    )
+    diff_export_uri: Optional[str] = Field(
+        default=None,
+        description=(
+            "When mismatch is detected, write mismatched rows to this fsspec URI (local path "
+            "or `s3://`, `gs://`, `abfs://`). Path shape: `<uri>/<asset>/<UTC_ts>__<run_id>.parquet`. "
+            "Emitted as observation metadata `shadow_diff_export_path`. DataFrame outputs only."
+        ),
+    )
 
     group_name: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)
@@ -346,6 +580,8 @@ class ShadowAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         primary = dict(self.compute)
         shadow_cfg = dict(self.shadow_compute)
         enforce = bool(self.enforce_match)
+        fuzzy_cfg = dict(self.fuzzy_match) if self.fuzzy_match else None
+        diff_export = self.diff_export_uri
 
         kinds_set = set(self.kinds or []) | {"python", "shadow"}
         tag_map = dict(self.tags or {})
@@ -386,7 +622,10 @@ class ShadowAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 call_args, call_kwargs = (context, kwargs.get("upstream")), {}
 
             primary_result = primary_fn(*call_args, **call_kwargs)
-            _run_shadow(context, shadow_fn_, call_args, call_kwargs, primary_result, enforce)
+            _run_shadow(
+                context, shadow_fn_, call_args, call_kwargs, primary_result, enforce,
+                fuzzy_match=fuzzy_cfg, diff_export_uri=diff_export,
+            )
 
             return primary_result
 
@@ -450,6 +689,8 @@ class ShadowAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         primary_compute = getattr(inner_op.compute_fn, "decorated_fn", None) or inner_op.compute_fn
 
         enforce = bool(self.enforce_match)
+        fuzzy_cfg = dict(self.fuzzy_match) if self.fuzzy_match else None
+        diff_export = self.diff_export_uri
 
         inner_kinds = set(getattr(spec, "kinds", None) or []) if spec else set()
         merged_kinds = inner_kinds | set(self.kinds or []) | {"shadow"}
@@ -474,7 +715,10 @@ class ShadowAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         )
         def _shadow_wrapped(context: dg.AssetExecutionContext, **kwargs):
             primary_result = primary_compute(context, **kwargs)
-            _run_shadow(context, shadow_compute, (context,), dict(kwargs), primary_result, enforce)
+            _run_shadow(
+                context, shadow_compute, (context,), dict(kwargs), primary_result, enforce,
+                fuzzy_match=fuzzy_cfg, diff_export_uri=diff_export,
+            )
             return primary_result
 
         return _shadow_wrapped

@@ -203,5 +203,6 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 | `histogram_bins` | `int` | — | If set, emit per-numeric-column histogram with this many bins. |
 | `quantiles` | `List[float]` | `lambda: [0.25, 0.5, 0.75, 0.95, 0.99]()` | Quantile fractions to compute per numeric column. Empty list disables. |
 | `correlation_matrix` | `bool` | `false` | If True, compute Pearson correlation between numeric columns and emit as metadata. Expensive on wide tables — off by default. |
+| `histogram_render` | `str` | `"ascii"` | How histograms render in the Metadata panel. 'ascii' (default, zero deps) = Unicode-bar table + sparkline; 'png' (requires matplotlib) = embedded PNG data-URI; 'both' = sparkline preview + PNG. Falls back to 'ascii' if m… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)

@@ -1,24 +1,32 @@
 """PartitionLockAssetComponent + `@partition_lock` — cross-run partition-scoped mutex.
 
 Prevent two concurrent runs from materializing the same `partition_key` of
-the same asset. The lock is a Dagster `AssetObservation` — no Redis, no
-side database. A conflicting run either waits (blocking sleep-poll),
-skips (returns None + observation), or fails.
+the same asset. Two backends:
+
+- **`event_log`** (default, soft mutex) — lock lives in Dagster
+  `AssetObservation` events. No Redis, no side database. Probabilistic:
+  two runs starting within ~200 ms could both observe an unlocked
+  state and acquire.
+- **`postgres`** (hard mutex) — uses `pg_try_advisory_lock` on a
+  Postgres session keyed on `hash(asset_key + partition_key)`. Truly
+  atomic acquire; auto-releases on session end (crash-safe).
 
 ## Why this belongs in Dagster
 
-- **Lock state lives in the event log** — restart-safe, worker-safe.
+- **Lock state lives in the event log** (event_log backend) — restart-safe, worker-safe.
 - **Auto-expires** via a stale-window check. No manual cleanup jobs.
 - **Companion sensor pattern** — a monitor can find stuck locks
   (`partition_lock_acquired` observations older than TTL with no
   corresponding `partition_lock_released`).
 
-Race condition disclosure: this is a probabilistic mutex, not a
+## Race condition disclosure (event_log backend only)
+
+The default `event_log` backend is a **probabilistic mutex**, not a
 distributed atomic. Two runs starting within ~200 ms of each other
 could both observe an unlocked state and acquire. Acceptable for
 "prevent 5-minute concurrent backfill duplicates" — NOT for money
-transfers. For strong mutual exclusion, use a warehouse table lock or
-Postgres advisory lock inside the compute.
+transfers. For strong mutual exclusion, set `backend: postgres` and
+supply `postgres_url_env_var` (requires `psycopg` or `psycopg2`).
 
 ## Two shapes
 
@@ -49,8 +57,10 @@ Postgres advisory lock inside the compute.
 """
 
 import functools
+import hashlib
 import importlib
 import math
+import os
 import time
 from typing import Any, Callable, Dict, List, Optional
 
@@ -61,6 +71,125 @@ from pydantic import Field
 _ACQUIRED_TAG = "partition_lock_acquired"
 _RELEASED_TAG = "partition_lock_released"
 _SKIPPED_TAG = "partition_lock_skipped"
+
+
+# --------------------------------------------------------------------------
+# Postgres advisory lock backend
+# --------------------------------------------------------------------------
+
+
+def _pg_lock_key(asset_key: dg.AssetKey, partition_key: str) -> int:
+    """Derive a signed int64 key for pg_try_advisory_lock from asset + partition.
+
+    Postgres advisory locks accept a single int64 or two int32s. We use the
+    first 8 bytes of a SHA-256, interpreted as signed big-endian.
+    """
+    text = f"{asset_key.to_user_string()}:{partition_key}".encode()
+    raw = hashlib.sha256(text).digest()[:8]
+    return int.from_bytes(raw, byteorder="big", signed=True)
+
+
+def _import_psycopg():
+    """Return (module, api_version) tuple where api_version is 2 or 3.
+
+    Prefers psycopg (v3) if both are installed. Raises dg.Failure with
+    install hint if neither is present.
+    """
+    try:
+        import psycopg  # type: ignore
+        return psycopg, 3
+    except ImportError:
+        pass
+    try:
+        import psycopg2  # type: ignore
+        return psycopg2, 2
+    except ImportError:
+        pass
+    raise dg.Failure(
+        description=(
+            "@partition_lock backend=postgres requires psycopg or psycopg2. "
+            "Install one: `pip install \"psycopg[binary]\"` OR `pip install psycopg2-binary`."
+        )
+    )
+
+
+class _PgAdvisoryLock:
+    """Context-manager-style holder for a Postgres advisory lock.
+
+    Usage:
+        h = _PgAdvisoryLock(url, key); acquired = h.try_acquire()
+        try:
+            ... compute ...
+        finally:
+            h.release()
+    """
+
+    def __init__(self, url: str, key: int):
+        self.url = url
+        self.key = int(key)
+        self._psycopg, self._api = _import_psycopg()
+        self._conn = None
+        self._acquired = False
+
+    def try_acquire(self) -> bool:
+        self._conn = self._psycopg.connect(self.url)
+        # Some psycopg2 configurations default to a transaction; advisory
+        # locks are session-scoped so autocommit is safest.
+        try:
+            self._conn.autocommit = True
+        except Exception:  # noqa: BLE001
+            pass
+        cur = self._conn.cursor()
+        try:
+            cur.execute("SELECT pg_try_advisory_lock(%s)", (self.key,))
+            row = cur.fetchone()
+            self._acquired = bool(row and row[0])
+            return self._acquired
+        finally:
+            cur.close()
+
+    def release(self) -> None:
+        try:
+            if self._conn is not None and self._acquired:
+                try:
+                    cur = self._conn.cursor()
+                    try:
+                        cur.execute("SELECT pg_advisory_unlock(%s)", (self.key,))
+                        try:
+                            cur.fetchone()
+                        except Exception:  # noqa: BLE001
+                            pass
+                    finally:
+                        cur.close()
+                except Exception:  # noqa: BLE001
+                    pass
+        finally:
+            self._acquired = False
+            if self._conn is not None:
+                try:
+                    self._conn.close()
+                except Exception:  # noqa: BLE001
+                    pass
+                self._conn = None
+
+
+def _get_pg_url(postgres_url_env_var: Optional[str]) -> str:
+    if not postgres_url_env_var:
+        raise dg.Failure(
+            description=(
+                "@partition_lock backend=postgres requires `postgres_url_env_var` "
+                "pointing at an env var holding a Postgres URL."
+            )
+        )
+    url = os.environ.get(postgres_url_env_var)
+    if not url:
+        raise dg.Failure(
+            description=(
+                f"@partition_lock backend=postgres: env var "
+                f"{postgres_url_env_var!r} is unset or empty."
+            )
+        )
+    return url
 
 
 def _lock_observation_records(context: Any, asset_key: dg.AssetKey, limit: int = 200) -> List[Any]:
@@ -271,6 +400,127 @@ def _get_partition_key(context: Any, override: Optional[str]) -> str:
     return "__unpartitioned__"
 
 
+def _acquire_dispatch(
+    context: Any,
+    asset_key: dg.AssetKey,
+    pk: str,
+    *,
+    backend: str,
+    ttl_seconds: float,
+    on_conflict: str,
+    max_wait_seconds: float,
+    poll_seconds: float,
+    postgres_url_env_var: Optional[str],
+):
+    """Return `(release_callable, backend_metadata_dict)` on successful acquire.
+
+    Raises `_LockConflictSkip` on skip-policy conflict, or `dg.Failure`
+    on fail/timeout. For the event_log backend, the release callback
+    emits the released observation. For the postgres backend, it
+    releases the advisory lock + closes the connection.
+    """
+    backend = (backend or "event_log").lower()
+    if backend == "event_log":
+        _acquire_lock(
+            context, asset_key, pk, ttl_seconds, on_conflict, max_wait_seconds, poll_seconds,
+        )
+
+        def _release():
+            _release_lock(context, pk)
+
+        return _release, {"backend": "event_log"}
+
+    if backend == "postgres":
+        url = _get_pg_url(postgres_url_env_var)
+        lock_key = _pg_lock_key(asset_key, pk)
+        holder = _PgAdvisoryLock(url, lock_key)
+        acquired = False
+        try:
+            acquired = holder.try_acquire()
+        except Exception as e:  # noqa: BLE001
+            holder.release()
+            raise dg.Failure(
+                description=(
+                    f"@partition_lock backend=postgres: connect/acquire raised "
+                    f"{type(e).__name__}: {e}"
+                )
+            ) from e
+
+        if not acquired:
+            # Conflict: another session holds the lock.
+            holder.release()
+            if on_conflict == "skip":
+                _emit_observation(
+                    context,
+                    tags={_SKIPPED_TAG: pk},
+                    metadata={
+                        "partition_key": dg.MetadataValue.text(pk),
+                        "backend": dg.MetadataValue.text("postgres"),
+                        "pg_advisory_lock_key": dg.MetadataValue.int(int(lock_key)),
+                    },
+                )
+                try:
+                    context.log.info(
+                        f"@partition_lock[pg]: SKIP partition_key={pk!r} — advisory lock held elsewhere"
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+                raise _LockConflictSkip()
+            if on_conflict == "fail":
+                raise dg.Failure(
+                    description=(
+                        f"@partition_lock[pg]: advisory lock held for "
+                        f"partition_key={pk!r} (key={lock_key})"
+                    )
+                )
+            # wait: use Dagster retry-request semantics like event_log backend.
+            max_polls = max(1, math.ceil(max_wait_seconds / max(poll_seconds, 0.001)))
+            retry_number = int(getattr(context, "retry_number", 0) or 0)
+            if retry_number >= max_polls:
+                raise dg.Failure(
+                    description=(
+                        f"@partition_lock[pg]: wait timeout for "
+                        f"partition_key={pk!r} after {max_polls} polls"
+                    )
+                )
+            raise dg.RetryRequested(
+                max_retries=max_polls,
+                seconds_to_wait=float(poll_seconds),
+            )
+
+        # Acquired.
+        _emit_observation(
+            context,
+            tags={_ACQUIRED_TAG: pk},
+            metadata={
+                "partition_key": dg.MetadataValue.text(pk),
+                "backend": dg.MetadataValue.text("postgres"),
+                "pg_advisory_lock_key": dg.MetadataValue.int(int(lock_key)),
+            },
+        )
+        try:
+            context.log.info(
+                f"@partition_lock[pg]: acquired advisory lock for partition_key={pk!r} (key={lock_key})"
+            )
+        except Exception:  # noqa: BLE001
+            pass
+
+        def _release():
+            try:
+                holder.release()
+            finally:
+                _release_lock(context, pk)
+
+        return _release, {
+            "backend": "postgres",
+            "pg_advisory_lock_key": lock_key,
+        }
+
+    raise ValueError(
+        f"@partition_lock: unknown backend {backend!r} — must be 'event_log' or 'postgres'"
+    )
+
+
 def partition_lock(
     *,
     ttl_seconds: float = 3600.0,
@@ -278,8 +528,10 @@ def partition_lock(
     max_wait_seconds: float = 300.0,
     poll_seconds: float = 5.0,
     partition_key: Optional[str] = None,
+    backend: str = "event_log",
+    postgres_url_env_var: Optional[str] = None,
 ) -> Callable:
-    """Cross-run partition-scoped mutex via Dagster event log.
+    """Cross-run partition-scoped mutex via Dagster event log OR Postgres advisory lock.
 
     ```python
     @dg.asset(partitions_def=daily_partitions)
@@ -289,18 +541,27 @@ def partition_lock(
     ```
 
     Args:
-        ttl_seconds: Lock auto-expires after N seconds (protects against
-            stuck holders). Default 1 hour.
-        on_conflict: `wait` (default) sleep-polls; `skip` returns None;
-            `fail` raises dg.Failure.
+        ttl_seconds: Lock auto-expires after N seconds (event_log
+            backend only; protects against stuck holders). Default 1 hour.
+        on_conflict: `wait` (default) requests a Dagster retry; `skip`
+            returns None; `fail` raises dg.Failure.
         max_wait_seconds: Max wait for `on_conflict=wait` before failing.
         poll_seconds: Poll interval for `on_conflict=wait`.
         partition_key: Override for the partition key (defaults to
             `context.partition_key`, or `__unpartitioned__` for
             non-partitioned assets).
+        backend: `event_log` (default, soft mutex via AssetObservation
+            events — probabilistic acquire) OR `postgres` (hard mutex
+            via pg_try_advisory_lock, requires `psycopg` or `psycopg2`).
+        postgres_url_env_var: Name of the env var holding a Postgres URL.
+            Required when `backend=postgres`. Lock key = signed int64
+            derived from `sha256(asset_key + partition_key)`. Lock
+            auto-releases on session end.
     """
     if on_conflict not in ("wait", "skip", "fail"):
         raise ValueError(f"on_conflict must be 'wait', 'skip', or 'fail'; got {on_conflict!r}")
+    if backend not in ("event_log", "postgres"):
+        raise ValueError(f"backend must be 'event_log' or 'postgres'; got {backend!r}")
 
     def _decorator(fn: Callable) -> Callable:
         @functools.wraps(fn)
@@ -317,14 +578,22 @@ def partition_lock(
             asset_key = getattr(context, "asset_key", None) or dg.AssetKey(["partition_lock_asset"])
 
             try:
-                _acquire_lock(context, asset_key, pk, ttl_seconds, on_conflict, max_wait_seconds, poll_seconds)
+                release, _meta = _acquire_dispatch(
+                    context, asset_key, pk,
+                    backend=backend,
+                    ttl_seconds=ttl_seconds,
+                    on_conflict=on_conflict,
+                    max_wait_seconds=max_wait_seconds,
+                    poll_seconds=poll_seconds,
+                    postgres_url_env_var=postgres_url_env_var,
+                )
             except _LockConflictSkip:
                 return None
 
             try:
                 return fn(*args, **kwargs)
             finally:
-                _release_lock(context, pk)
+                release()
 
         return _wrapped
     return _decorator
@@ -386,6 +655,22 @@ class PartitionLockAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Override partition key. Defaults to context.partition_key.",
     )
+    backend: str = Field(
+        default="event_log",
+        description=(
+            "Lock backend: `event_log` (default, soft mutex via AssetObservation events — "
+            "races on simultaneous acquire) OR `postgres` (hard mutex via `pg_try_advisory_lock`, "
+            "requires a Postgres URL env var + `psycopg` or `psycopg2` installed)."
+        ),
+    )
+    postgres_url_env_var: Optional[str] = Field(
+        default=None,
+        description=(
+            "Env var name holding a Postgres URL. Required when `backend=postgres`. Uses "
+            "`pg_try_advisory_lock` / `pg_advisory_unlock` keyed on a signed int64 derived from "
+            "sha256(asset_key + partition_key). Lock auto-released on session end."
+        ),
+    )
 
     group_name: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)
@@ -418,9 +703,13 @@ class PartitionLockAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         max_wait = float(self.max_wait_seconds)
         poll = float(self.poll_seconds)
         pk_override = self.partition_key
+        backend = self.backend
+        postgres_url_env_var = self.postgres_url_env_var
 
         if conflict not in ("wait", "skip", "fail"):
             raise ValueError(f"on_conflict must be 'wait', 'skip', or 'fail'; got {conflict!r}")
+        if backend not in ("event_log", "postgres"):
+            raise ValueError(f"backend must be 'event_log' or 'postgres'; got {backend!r}")
 
         kinds_set = set(self.kinds or []) | {"python", "lock"}
         tag_map = dict(self.tags or {})
@@ -445,12 +734,21 @@ class PartitionLockAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             pk = _get_partition_key(context, pk_override)
 
             try:
-                _acquire_lock(context, asset_key, pk, ttl, conflict, max_wait, poll)
+                release, backend_meta = _acquire_dispatch(
+                    context, asset_key, pk,
+                    backend=backend,
+                    ttl_seconds=ttl,
+                    on_conflict=conflict,
+                    max_wait_seconds=max_wait,
+                    poll_seconds=poll,
+                    postgres_url_env_var=postgres_url_env_var,
+                )
             except _LockConflictSkip:
                 return dg.MaterializeResult(
                     metadata={
                         "partition_lock_skipped": dg.MetadataValue.bool(True),
                         "partition_key": dg.MetadataValue.text(pk),
+                        "backend": dg.MetadataValue.text(backend),
                     }
                 )
 
@@ -477,14 +775,18 @@ class PartitionLockAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 else:
                     _ = fn(context, kwargs.get("upstream"))
 
-                return dg.MaterializeResult(
-                    metadata={
-                        "partition_lock_skipped": dg.MetadataValue.bool(False),
-                        "partition_key": dg.MetadataValue.text(pk),
-                    }
-                )
+                md = {
+                    "partition_lock_skipped": dg.MetadataValue.bool(False),
+                    "partition_key": dg.MetadataValue.text(pk),
+                    "backend": dg.MetadataValue.text(backend_meta.get("backend", backend)),
+                }
+                if backend_meta.get("pg_advisory_lock_key") is not None:
+                    md["pg_advisory_lock_key"] = dg.MetadataValue.int(
+                        int(backend_meta["pg_advisory_lock_key"])
+                    )
+                return dg.MaterializeResult(metadata=md)
             finally:
-                _release_lock(context, pk)
+                release()
 
         return dg.Definitions(assets=[_asset])
 
@@ -534,9 +836,13 @@ class PartitionLockAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         max_wait = float(self.max_wait_seconds)
         poll = float(self.poll_seconds)
         pk_override = self.partition_key
+        backend = self.backend
+        postgres_url_env_var = self.postgres_url_env_var
 
         if conflict not in ("wait", "skip", "fail"):
             raise ValueError(f"on_conflict must be 'wait', 'skip', or 'fail'; got {conflict!r}")
+        if backend not in ("event_log", "postgres"):
+            raise ValueError(f"backend must be 'event_log' or 'postgres'; got {backend!r}")
 
         inner_kinds = set(getattr(spec, "kinds", None) or []) if spec else set()
         merged_kinds = inner_kinds | set(self.kinds or []) | {"lock"}
@@ -567,13 +873,22 @@ class PartitionLockAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             pk = _get_partition_key(context, pk_override)
 
             try:
-                _acquire_lock(context, asset_key, pk, ttl, conflict, max_wait, poll)
+                release, backend_meta = _acquire_dispatch(
+                    context, asset_key, pk,
+                    backend=backend,
+                    ttl_seconds=ttl,
+                    on_conflict=conflict,
+                    max_wait_seconds=max_wait,
+                    poll_seconds=poll,
+                    postgres_url_env_var=postgres_url_env_var,
+                )
             except _LockConflictSkip:
                 # on_conflict=skip: short-circuit without invoking inner compute.
                 return dg.MaterializeResult(
                     metadata={
                         "partition_lock_skipped": dg.MetadataValue.bool(True),
                         "partition_key": dg.MetadataValue.text(pk),
+                        "backend": dg.MetadataValue.text(backend),
                     }
                 )
 
@@ -584,7 +899,12 @@ class PartitionLockAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 passthrough_meta = {
                     "partition_lock_skipped": dg.MetadataValue.bool(False),
                     "partition_key": dg.MetadataValue.text(pk),
+                    "backend": dg.MetadataValue.text(backend_meta.get("backend", backend)),
                 }
+                if backend_meta.get("pg_advisory_lock_key") is not None:
+                    passthrough_meta["pg_advisory_lock_key"] = dg.MetadataValue.int(
+                        int(backend_meta["pg_advisory_lock_key"])
+                    )
                 if isinstance(result, dg.MaterializeResult):
                     merged = dict(result.metadata or {})
                     merged.update(passthrough_meta)
@@ -597,7 +917,7 @@ class PartitionLockAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     )
                 return result
             finally:
-                _release_lock(context, pk)
+                release()
 
         return _partition_lock_wrapped
 

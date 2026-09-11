@@ -833,6 +833,7 @@ _CLASS_PATHS: dict[str, str] = {
     "RedshiftResourceComponent": "resources/redshift_resource/component.py",
     "RegexParser": "assets/transforms/regex_parser/component.py",
     "RejectionFeedbackLoopComponent": "assets/ai/rejection_feedback_loop/component.py",
+    "RequiresContractComponent": "assets/infrastructure/data_contract/component.py",
     "RerankerComponent": "assets/ai/reranker/component.py",
     "RestApiFetcherComponent": "assets/ingestion/rest_api_fetcher/component.py",
     "ResumeExtractorComponent": "assets/ai/resume_extractor/component.py",
@@ -1377,6 +1378,10 @@ _HELPERS = {
         "dagster_community_components.assets.infrastructure.data_contract.component:data_contract",
     "check_specs_for_contract":
         "dagster_community_components.assets.infrastructure.data_contract.component:check_specs_for_contract",
+    "requires_contract":
+        "dagster_community_components.assets.infrastructure.data_contract.component:requires_contract",
+    "contract_from_json_schema":
+        "dagster_community_components.assets.infrastructure.data_contract.component:contract_from_json_schema",
     "cached":
         "dagster_community_components.assets.infrastructure.cached_asset.component:cached",
     "profile":

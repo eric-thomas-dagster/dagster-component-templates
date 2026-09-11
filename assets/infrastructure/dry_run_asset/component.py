@@ -36,6 +36,16 @@ Priority order (highest wins):
 - **Disabled** — pass-through: compute runs, return value flows through
   the IO manager, materialization proceeds normally.
 
+## Optional hooks
+
+- **`cost_fn`** — `(context, elapsed_s, result) -> usd`. If set, the
+  dry-run observation emits `estimated_cost_usd` so you can see "if I
+  actually ran this, it would cost $X" without paying.
+- **`diff_vs_current`** — when True + dry-run enabled, compare the
+  discarded output against the latest committed asset value read from
+  the Dagster IO manager. Emits `dry_run_diff` metadata (row count
+  delta, column delta, first-N-cols value differences).
+
 ## Composes with
 
 - `@sla` — SLA still fires on the compute; useful for validating
@@ -83,7 +93,11 @@ def _is_enabled(context: Any, explicit: Optional[bool]) -> bool:
 
 
 def _emit_dry_run_observation(
-    context: Any, elapsed_s: float, would_size: Optional[int] = None,
+    context: Any,
+    elapsed_s: float,
+    would_size: Optional[int] = None,
+    estimated_cost_usd: Optional[float] = None,
+    diff_summary: Optional[Dict[str, Any]] = None,
 ) -> None:
     try:
         from dagster import AssetObservation
@@ -94,6 +108,12 @@ def _emit_dry_run_observation(
         }
         if would_size is not None:
             metadata["would_produce_bytes"] = dg.MetadataValue.int(int(would_size))
+        if estimated_cost_usd is not None:
+            metadata["estimated_cost_usd"] = dg.MetadataValue.float(
+                float(round(estimated_cost_usd, 6))
+            )
+        if diff_summary is not None:
+            metadata["dry_run_diff"] = dg.MetadataValue.json(diff_summary)
         if hasattr(context, "log_event"):
             context.log_event(AssetObservation(
                 asset_key=asset_key,
@@ -105,6 +125,132 @@ def _emit_dry_run_observation(
             context.log.warning(f"@dry_run: could not emit observation: {e}")
         except Exception:  # noqa: BLE001
             pass
+
+
+def _resolve_cost_fn(cost_fn: Any) -> Optional[Callable]:
+    """Resolve `'mod:fn'` string OR a callable to a callable. Returns None if
+    `cost_fn` is None."""
+    if cost_fn is None:
+        return None
+    if callable(cost_fn):
+        return cost_fn
+    if isinstance(cost_fn, str) and ":" in cost_fn:
+        mod_path, fn_name = cost_fn.rsplit(":", 1)
+        fn = getattr(importlib.import_module(mod_path.strip()), fn_name.strip(), None)
+        if callable(fn):
+            return fn
+    raise TypeError(f"@dry_run cost_fn must be callable or 'mod:fn' string; got {cost_fn!r}")
+
+
+def _apply_cost_fn(
+    context: Any, cost_fn: Optional[Callable], elapsed_s: float, result: Any,
+) -> Optional[float]:
+    if cost_fn is None:
+        return None
+    try:
+        return float(cost_fn(context, elapsed_s, result))
+    except Exception as e:  # noqa: BLE001
+        try:
+            context.log.warning(f"@dry_run cost_fn raised — skipping estimated_cost_usd: {e}")
+        except Exception:  # noqa: BLE001
+            pass
+        return None
+
+
+def _fetch_current_committed_value(context: Any) -> Any:
+    """Best-effort load of the latest committed value for `context.asset_key`
+    via the Dagster IO manager on `context.instance`.
+
+    Returns the loaded value, or None if unavailable (no prior materialization,
+    IO manager missing, load raised, etc.). Never raises.
+    """
+    try:
+        asset_key = getattr(context, "asset_key", None)
+        instance = getattr(context, "instance", None)
+        if asset_key is None or instance is None:
+            return None
+        from dagster import DagsterEventType, EventRecordsFilter
+        records = instance.get_event_records(
+            event_records_filter=EventRecordsFilter(
+                event_type=DagsterEventType.ASSET_MATERIALIZATION,
+                asset_key=asset_key,
+            ),
+            limit=1,
+            ascending=False,
+        )
+        if not records:
+            return None
+        # Try IO-manager based load (works when the resource is configured on
+        # the surrounding definitions).
+        try:
+            from dagster import load_asset_value
+            return load_asset_value(asset_key)
+        except Exception:  # noqa: BLE001
+            pass
+        # Fallback: some IO managers expose load_input via context.resources.
+        return None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _compute_diff_vs_current(
+    context: Any, candidate: Any,
+) -> Optional[Dict[str, Any]]:
+    """Diff the discarded candidate value against the currently committed
+    materialization. Returns a small summary dict or None if not applicable
+    (no prior value, mismatched types, error).
+    """
+    current = _fetch_current_committed_value(context)
+    if current is None:
+        return None
+
+    summary: Dict[str, Any] = {"mode": "unknown"}
+    try:
+        # Prefer pandas.DataFrame if both are DataFrames.
+        try:
+            import pandas as pd
+            if isinstance(current, pd.DataFrame) and isinstance(candidate, pd.DataFrame):
+                summary["mode"] = "dataframe"
+                summary["row_count_current"] = int(len(current))
+                summary["row_count_candidate"] = int(len(candidate))
+                summary["row_count_delta"] = int(len(candidate) - len(current))
+                cols_c = list(current.columns)
+                cols_n = list(candidate.columns)
+                summary["column_delta"] = {
+                    "added": sorted(set(cols_n) - set(cols_c)),
+                    "removed": sorted(set(cols_c) - set(cols_n)),
+                }
+                # Sample first-N-cols value differences (bounded).
+                common = [c for c in cols_c if c in cols_n][:5]
+                if common and len(current) > 0 and len(candidate) > 0:
+                    sample_c = current[common].head(50).reset_index(drop=True)
+                    sample_n = candidate[common].head(50).reset_index(drop=True)
+                    if sample_c.shape == sample_n.shape:
+                        diff_mask = (sample_c != sample_n)
+                        summary["sample_value_diffs"] = int(diff_mask.values.sum())
+                    else:
+                        summary["sample_value_diffs"] = -1  # different row counts, not comparable
+                return summary
+        except ImportError:
+            pass
+
+        if isinstance(current, (list, tuple)) and isinstance(candidate, (list, tuple)):
+            summary["mode"] = "sequence"
+            summary["current_len"] = len(current)
+            summary["candidate_len"] = len(candidate)
+            summary["equal"] = list(current) == list(candidate)
+            return summary
+        if isinstance(current, dict) and isinstance(candidate, dict):
+            summary["mode"] = "dict"
+            summary["current_keys"] = sorted(str(k) for k in current.keys())
+            summary["candidate_keys"] = sorted(str(k) for k in candidate.keys())
+            summary["equal"] = current == candidate
+            return summary
+        summary["mode"] = "eq"
+        summary["equal"] = bool(current == candidate)
+        return summary
+    except Exception as e:  # noqa: BLE001
+        return {"mode": "error", "diff_error": repr(e)}
 
 
 def _describe_result_bytes(v: Any) -> Optional[int]:
@@ -125,7 +271,12 @@ def _describe_result_bytes(v: Any) -> Optional[int]:
     return None
 
 
-def dry_run(*, enabled: Optional[bool] = None) -> Callable:
+def dry_run(
+    *,
+    enabled: Optional[bool] = None,
+    cost_fn: Optional[Any] = None,
+    diff_vs_current: bool = False,
+) -> Callable:
     """Run the wrapped compute but discard the output on dry-run mode.
 
     ```python
@@ -142,7 +293,17 @@ def dry_run(*, enabled: Optional[bool] = None) -> Callable:
     Args:
         enabled: Explicit override. If None, reads run tag `dry_run` then
             env `DAGSTER_DRY_RUN`.
+        cost_fn: Optional callable OR `'mod:fn'` string with signature
+            `(context, elapsed_s, result) -> usd`. When provided, the
+            dry-run observation surfaces `estimated_cost_usd`.
+        diff_vs_current: When True + dry-run enabled, compare the
+            discarded output against the current committed asset value.
+            Emits `dry_run_diff` metadata (row count delta, column
+            delta, first-N-cols value differences). Silent no-op when
+            no prior materialization exists.
     """
+    resolved_cost_fn = _resolve_cost_fn(cost_fn) if cost_fn is not None else None
+
     def _decorator(fn: Callable) -> Callable:
         @functools.wraps(fn)
         def _wrapped(*args, **kwargs):
@@ -167,7 +328,12 @@ def dry_run(*, enabled: Optional[bool] = None) -> Callable:
             elapsed = time.time() - t0
 
             would_size = _describe_result_bytes(value)
-            _emit_dry_run_observation(context, elapsed, would_size)
+            cost_usd = _apply_cost_fn(context, resolved_cost_fn, elapsed, value)
+            diff_summary = _compute_diff_vs_current(context, value) if diff_vs_current else None
+            _emit_dry_run_observation(
+                context, elapsed, would_size,
+                estimated_cost_usd=cost_usd, diff_summary=diff_summary,
+            )
 
             metadata: Dict[str, Any] = {
                 "dry_run": dg.MetadataValue.bool(True),
@@ -175,6 +341,12 @@ def dry_run(*, enabled: Optional[bool] = None) -> Callable:
             }
             if would_size is not None:
                 metadata["would_produce_bytes"] = dg.MetadataValue.int(int(would_size))
+            if cost_usd is not None:
+                metadata["estimated_cost_usd"] = dg.MetadataValue.float(
+                    float(round(cost_usd, 6))
+                )
+            if diff_summary is not None:
+                metadata["dry_run_diff"] = dg.MetadataValue.json(diff_summary)
             return dg.MaterializeResult(metadata=metadata)
 
         return _wrapped
@@ -222,6 +394,23 @@ class DryRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Explicit dry-run override. When null (default), reads run tag "
                     "`dry_run` in ('true','1','yes'), else env `DAGSTER_DRY_RUN`.",
     )
+    cost_fn: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional 'mod:fn' reference to a callable "
+            "`(context, elapsed_s, result) -> usd`. When set, the dry-run observation "
+            "surfaces `estimated_cost_usd` — see what the run would cost without paying."
+        ),
+    )
+    diff_vs_current: bool = Field(
+        default=False,
+        description=(
+            "When True and dry-run is enabled, compare the discarded output against the "
+            "latest committed asset value. Emits `dry_run_diff` observation metadata "
+            "(row_count_delta, column_delta, sample_value_diffs). Silent no-op if no "
+            "prior materialization exists."
+        ),
+    )
 
     group_name: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)
@@ -250,6 +439,8 @@ class DryRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         upstream_asset_key = self.upstream_asset_key
         compute = dict(self.compute)
         enabled_arg = self.enabled
+        resolved_cost_fn = _resolve_cost_fn(self.cost_fn) if self.cost_fn else None
+        diff_vs_current_flag = bool(self.diff_vs_current)
 
         kinds_set = set(self.kinds or []) | {"python", "dry_run"}
         tag_map = dict(self.tags or {})
@@ -298,13 +489,26 @@ class DryRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
             if enabled_now:
                 would_size = _describe_result_bytes(value)
-                _emit_dry_run_observation(context, elapsed, would_size)
+                cost_usd = _apply_cost_fn(context, resolved_cost_fn, elapsed, value)
+                diff_summary = (
+                    _compute_diff_vs_current(context, value) if diff_vs_current_flag else None
+                )
+                _emit_dry_run_observation(
+                    context, elapsed, would_size,
+                    estimated_cost_usd=cost_usd, diff_summary=diff_summary,
+                )
                 metadata: Dict[str, Any] = {
                     "dry_run": dg.MetadataValue.bool(True),
                     "elapsed_seconds": dg.MetadataValue.float(float(round(elapsed, 3))),
                 }
                 if would_size is not None:
                     metadata["would_produce_bytes"] = dg.MetadataValue.int(int(would_size))
+                if cost_usd is not None:
+                    metadata["estimated_cost_usd"] = dg.MetadataValue.float(
+                        float(round(cost_usd, 6))
+                    )
+                if diff_summary is not None:
+                    metadata["dry_run_diff"] = dg.MetadataValue.json(diff_summary)
                 return dg.MaterializeResult(metadata=metadata)
 
             return dg.MaterializeResult(
@@ -359,6 +563,8 @@ class DryRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         inner_compute = getattr(inner_op.compute_fn, "decorated_fn", None) or inner_op.compute_fn
 
         enabled_arg = self.enabled
+        resolved_cost_fn = _resolve_cost_fn(self.cost_fn) if self.cost_fn else None
+        diff_vs_current_flag = bool(self.diff_vs_current)
 
         inner_kinds = set(getattr(spec, "kinds", None) or []) if spec else set()
         merged_kinds = inner_kinds | set(self.kinds or []) | {"dry_run"}
@@ -384,6 +590,45 @@ class DryRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         def _dry_run_wrapped(context: dg.AssetExecutionContext, **kwargs):
             enabled_now = _is_enabled(context, enabled_arg)
             if enabled_now:
+                # If cost_fn or diff_vs_current is configured, we need the
+                # actual candidate value — run inner compute + discard.
+                # Otherwise preserve the stronger "inner never invoked" semantic.
+                if resolved_cost_fn is not None or diff_vs_current_flag:
+                    try:
+                        context.log.info(
+                            "[dry_run wrap] mode ENABLED — inner compute WILL RUN "
+                            "(cost_fn/diff_vs_current requested); output discarded"
+                        )
+                    except Exception:  # noqa: BLE001
+                        pass
+                    t0 = time.time()
+                    value = inner_compute(context, **kwargs)
+                    elapsed = time.time() - t0
+                    would_size = _describe_result_bytes(value)
+                    cost_usd = _apply_cost_fn(context, resolved_cost_fn, elapsed, value)
+                    diff_summary = (
+                        _compute_diff_vs_current(context, value) if diff_vs_current_flag else None
+                    )
+                    _emit_dry_run_observation(
+                        context, elapsed, would_size,
+                        estimated_cost_usd=cost_usd, diff_summary=diff_summary,
+                    )
+                    md: Dict[str, Any] = {
+                        "dry_run": dg.MetadataValue.bool(True),
+                        "dry_run_wrapped_asset": dg.MetadataValue.text(key.to_user_string()),
+                        "inner_compute_invoked": dg.MetadataValue.bool(True),
+                        "elapsed_seconds": dg.MetadataValue.float(float(round(elapsed, 3))),
+                    }
+                    if would_size is not None:
+                        md["would_produce_bytes"] = dg.MetadataValue.int(int(would_size))
+                    if cost_usd is not None:
+                        md["estimated_cost_usd"] = dg.MetadataValue.float(
+                            float(round(cost_usd, 6))
+                        )
+                    if diff_summary is not None:
+                        md["dry_run_diff"] = dg.MetadataValue.json(diff_summary)
+                    return dg.MaterializeResult(metadata=md)
+
                 # Short-circuit: DO NOT call inner_compute. Emit synthetic
                 # MaterializeResult tagged dry_run=true.
                 try:

@@ -20,13 +20,13 @@ Cross-run partition-scoped mutex via the Dagster event log. Prevent two concurre
 
 ## Race condition disclosure
 
-This is a **probabilistic mutex**, not a distributed atomic. Two runs starting within ~200 ms could both observe an unlocked state and acquire. Acceptable for:
+The default `event_log` backend is a **probabilistic mutex**, not a distributed atomic. Two runs starting within ~200 ms could both observe an unlocked state and acquire. Acceptable for:
 
 - Backfill dedupe (accidental concurrent partition triggers)
 - Long-running exports that shouldn't overlap
 - Warehouse writes that are idempotent within a partition
 
-**Not adequate for**: money transfers, unique-key mint operations. Use a warehouse table lock or Postgres advisory lock inside the compute for those.
+**Not adequate for**: money transfers, unique-key mint operations. Use `backend: postgres` (see below) for hard mutual exclusion.
 
 ## Full YAML example
 
@@ -87,11 +87,49 @@ def stuck_lock_monitor(context):
     ...
 ```
 
+## Strong mutex — Postgres advisory lock backend
+
+For workloads that can't tolerate the ~200ms race window of the default `event_log` backend (money movements, unique-key mint, exactly-once semantics), swap the backend to `postgres`. Uses `pg_try_advisory_lock` on a Postgres session keyed on `sha256(asset_key + partition_key)`; truly atomic acquire, auto-released on session end (crash-safe).
+
+```yaml
+type: dagster_community_components.PartitionLockAssetComponent
+attributes:
+  asset_name: daily_report
+  compute:
+    kind: python
+    python: "my_project.reports:build_daily_partition"
+
+  backend: postgres
+  postgres_url_env_var: PARTITION_LOCK_PG_URL   # e.g. postgresql://user:pw@host:5432/dbname
+  on_conflict: skip                             # or wait | fail
+```
+
+Python:
+
+```python
+@dg.asset(partitions_def=daily_partitions)
+@partition_lock(
+    backend="postgres",
+    postgres_url_env_var="PARTITION_LOCK_PG_URL",
+    on_conflict="skip",
+)
+def daily_report(context):
+    return build_report(context.partition_key)
+```
+
+Install one of:
+
+```bash
+pip install "psycopg[binary]"       # psycopg 3 (preferred)
+pip install psycopg2-binary         # psycopg 2 (compatible)
+```
+
+`ttl_seconds` is ignored under `backend=postgres` — the Postgres session itself defines lock lifetime. Kill the run, kill the connection, kill the lock. Emitted observation metadata includes `backend: postgres` and `pg_advisory_lock_key: <int64>` for auditability.
+
 ## What's not in v1 (roadmap)
 
-- **Strong mutex** — optional Postgres advisory lock integration for atomic acquire.
 - **Explicit release on skip** — currently skip doesn't release (there was nothing to release); consider emitting a released event anyway for symmetry.
-- **Per-partition TTLs** — different TTL for hourly vs. daily partitions of the same asset.
+- **Per-partition TTLs** — different TTL for hourly vs. daily partitions of the same asset (event_log backend only).
 
 ## CLI demos using this template
 
@@ -140,5 +178,7 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 | `ttl_seconds` | `float` | `3600.0` | Lock TTL. If the most recent acquired event is older than this, lock is stale + treated as free. |
 | `on_conflict` | `str` | `"wait"` | `wait` sleep-polls; `skip` returns None + emits skipped observation; `fail` raises dg.Failure. |
 | `max_wait_seconds` | `float` | `300.0` | Max wait before failing when on_conflict=wait. |
+| `backend` | `str` | `"event_log"` | Lock backend: `event_log` (default, soft mutex via AssetObservation events — races on simultaneous acquire) OR `postgres` (hard mutex via `pg_try_advisory_lock`, requires a Postgres URL env var + `psycopg` or `psycopg2` installed). |
+| `postgres_url_env_var` | `str` | — | Env var name holding a Postgres URL. Required when `backend=postgres`. Uses `pg_try_advisory_lock` / `pg_advisory_unlock` keyed on a signed int64 derived from sha256(asset_key + partition_key). Lock auto-released on session end. |
 
 [//]: # (FIELDS:END)

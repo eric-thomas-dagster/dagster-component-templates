@@ -9,6 +9,31 @@ contract, emits one `AssetCheckResult` per rule, and either blocks
 publish on violation OR materializes with failing checks that block
 downstream via `AutomationCondition`.
 
+## Consumer side — `@requires_contract`
+
+The producer side (`@data_contract` / `DataContractComponent`) emits an
+`AssetObservation` describing the contract on every materialization. The
+consumer side (`@requires_contract` / `RequiresContractComponent`) reads
+that observation from the event log, verifies a semver `min_version`
+(and optional `require_columns`), and either passes through or raises
+`dg.Failure` before the downstream compute runs.
+
+## Breaking-change detection
+
+`@data_contract(..., detect_breaking_changes=True)` looks up the PRIOR
+contract observation for the same asset and diffs schemas. Dropped
+columns, narrowed types (float→int), and nullable→non-nullable
+transitions all emit an additional `contract_breaking_change=true`
+observation with a markdown summary. Set `on_breaking_change="fail"` to
+promote breaking diffs to a hard `dg.Failure`.
+
+## JSON Schema import
+
+`contract_from_json_schema(path_or_dict)` reads a JSON Schema file and
+returns a DCC contract dict ready to pass to `@data_contract(contract=…)`
+or as `contract:` in YAML — so teams that already publish schemas as
+JSON Schema (OpenAPI, event bus, etc.) don't have to hand-mirror them.
+
 ## Why Dagster is the right home for this
 
 Every enforcement primitive is a Dagster-native event:
@@ -73,9 +98,11 @@ the SLA check. Prevents silently-empty updates from reaching prod.
 
 import functools
 import importlib
+import json
 import re
 import time
-from typing import Any, Callable, Dict, List, Optional
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import dagster as dg
 from pydantic import Field
@@ -269,6 +296,184 @@ def _last_materialization_timestamp(context: Any, asset_key: Any) -> Optional[fl
 
 
 # --------------------------------------------------------------------------
+# Semver parsing (no external dep) + contract-observation history lookup
+# --------------------------------------------------------------------------
+
+
+def _parse_semver(v: str) -> Tuple[int, int, int]:
+    """Parse `1.2.3` (or `v1.2.3`, or `1.2`) → `(1, 2, 3)`.
+
+    Missing components default to 0. Non-numeric components raise ValueError.
+    Ignores pre-release / build suffixes after `-` or `+`.
+    """
+    if v is None:
+        raise ValueError("empty semver")
+    s = str(v).strip()
+    if s.startswith("v") or s.startswith("V"):
+        s = s[1:]
+    # Strip pre-release / build metadata.
+    for sep in ("-", "+"):
+        if sep in s:
+            s = s.split(sep, 1)[0]
+    parts = s.split(".")
+    if len(parts) == 0 or len(parts) > 3:
+        raise ValueError(f"invalid semver {v!r}")
+    ints: List[int] = []
+    for p in parts:
+        if not p.isdigit():
+            raise ValueError(f"invalid semver component {p!r} in {v!r}")
+        ints.append(int(p))
+    while len(ints) < 3:
+        ints.append(0)
+    return (ints[0], ints[1], ints[2])
+
+
+def _semver_lt(a: str, b: str) -> bool:
+    """Return True if semver `a` < semver `b`."""
+    return _parse_semver(a) < _parse_semver(b)
+
+
+def _latest_contract_observation(
+    context: Any,
+    asset_key: Any,
+    before_now: bool = False,
+) -> Optional[Dict[str, Any]]:
+    """Look up the most recent `contract_snapshot`-carrying AssetObservation.
+
+    Returns the deserialized contract dict (as stored in the observation's
+    `contract_snapshot` metadata), plus its version — or None if no such
+    observation exists.
+
+    `before_now=True` — skip observations emitted in the current run
+    (useful for breaking-change diffs where we've already emitted the
+    current contract earlier in the same run).
+    """
+    try:
+        from dagster import EventRecordsFilter, DagsterEventType
+        instance = getattr(context, "instance", None)
+        if instance is None:
+            return None
+        current_run_id = getattr(context, "run_id", None)
+        records = instance.get_event_records(
+            event_records_filter=EventRecordsFilter(
+                event_type=DagsterEventType.ASSET_OBSERVATION,
+                asset_key=asset_key,
+            ),
+            limit=25, ascending=False,
+        )
+        for r in records:
+            obs = None
+            de = getattr(r, "dagster_event", None)
+            if de is not None:
+                esd = getattr(de, "event_specific_data", None)
+                obs = getattr(esd, "asset_observation", None) if esd is not None else None
+            if obs is None:
+                obs = getattr(r, "asset_observation", None)
+            if obs is None:
+                continue
+            if before_now and current_run_id is not None:
+                # Skip observations from the current run.
+                run_id = getattr(r, "run_id", None) or getattr(de, "run_id", None) if de else None
+                if run_id == current_run_id:
+                    continue
+            md = obs.metadata or {}
+            snap = md.get("contract_snapshot")
+            if snap is None:
+                # Fallback: derive from tags if we only have the version tag.
+                tags = obs.tags or {}
+                ver = tags.get(_CONTRACT_VERSION_TAG)
+                if ver:
+                    return {"version": ver, "schema": []}
+                continue
+            # MetadataValue.json → .value; raw dict passes through
+            raw = getattr(snap, "value", snap)
+            if isinstance(raw, str):
+                try:
+                    raw = json.loads(raw)
+                except Exception:  # noqa: BLE001
+                    continue
+            if isinstance(raw, dict):
+                return raw
+    except Exception:  # noqa: BLE001
+        return None
+    return None
+
+
+def _diff_contracts(
+    prior: Dict[str, Any], current: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    """Return a list of breaking-change flags going `prior` → `current`.
+
+    Flag kinds:
+      - dropped_column       — present in prior, missing in current
+      - narrowed_type        — column's type narrowed (e.g. float→int)
+      - nullability_narrowed — nullable True → False
+    """
+    _NARROWING = {
+        # prior_type → set of types that are STRICTLY NARROWER
+        "float":         {"int", "bool"},
+        "float64":       {"int", "int64", "int32", "int16", "int8", "bool"},
+        "float32":       {"int", "int64", "int32", "int16", "int8", "bool"},
+        "number":        {"int", "int64", "integer", "bool"},
+        "int":           {"bool"},
+        "int64":         {"int32", "int16", "int8", "bool"},
+        "int32":         {"int16", "int8", "bool"},
+        "integer":       {"bool"},
+        "string":        {"int", "int64", "float", "float64", "bool"},
+        "object":        {"int", "int64", "float", "float64", "bool", "string"},
+    }
+    flags: List[Dict[str, Any]] = []
+    prior_cols = {c.get("name"): c for c in (prior.get("schema") or []) if c.get("name")}
+    curr_cols = {c.get("name"): c for c in (current.get("schema") or []) if c.get("name")}
+
+    for name, prior_col in prior_cols.items():
+        if name not in curr_cols:
+            flags.append({
+                "kind": "dropped_column", "column": name,
+                "detail": f"column {name!r} removed",
+            })
+            continue
+        curr_col = curr_cols[name]
+        prior_type = str(prior_col.get("type") or "").strip()
+        curr_type = str(curr_col.get("type") or "").strip()
+        if prior_type and curr_type and prior_type != curr_type:
+            narrower = _NARROWING.get(prior_type, set())
+            if curr_type in narrower:
+                flags.append({
+                    "kind": "narrowed_type", "column": name,
+                    "prior": prior_type, "current": curr_type,
+                    "detail": f"column {name!r}: {prior_type} → {curr_type} (narrowed)",
+                })
+        prior_null = prior_col.get("nullable", True)
+        curr_null = curr_col.get("nullable", True)
+        if prior_null and not curr_null:
+            flags.append({
+                "kind": "nullability_narrowed", "column": name,
+                "detail": f"column {name!r}: nullable True → False (narrowed)",
+            })
+    return flags
+
+
+def _render_breaking_summary(
+    prior_version: str, current_version: str, flags: List[Dict[str, Any]],
+) -> str:
+    """Return a markdown summary of the diff."""
+    lines = [
+        f"# Contract breaking change: `{prior_version}` → `{current_version}`",
+        "",
+        f"**{len(flags)} breaking change(s) detected:**",
+        "",
+        "| Kind | Column | Detail |",
+        "|---|---|---|",
+    ]
+    for f in flags:
+        lines.append(
+            f"| `{f.get('kind','')}` | `{f.get('column','')}` | {f.get('detail','')} |"
+        )
+    return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------
 # Run the whole contract (schema + freshness + sla)
 # --------------------------------------------------------------------------
 
@@ -439,18 +644,205 @@ def _mdv(v: Any):
 
 def _emit_contract_observation(context: Any, asset_key: Any, contract: Dict[str, Any]):
     """Emit an AssetObservation tagged with contract version + owners +
-    consumers so downstream + agents can look up who owns this asset."""
+    consumers, and metadata with the full contract snapshot so downstream
+    (`@requires_contract`) and breaking-change diffs can inspect the whole
+    schema.
+    """
     try:
         from dagster import AssetObservation
         tags = {
             _CONTRACT_VERSION_TAG: str(contract.get("version") or ""),
             "contract_owners": ",".join(contract.get("owners") or []),
             "contract_consumers": ",".join(contract.get("consumers") or []),
+            "data_contract": "true",
+        }
+        metadata = {
+            "contract_snapshot": dg.MetadataValue.json(contract),
+            _CONTRACT_VERSION_TAG: dg.MetadataValue.text(str(contract.get("version") or "")),
         }
         if hasattr(context, "log_event"):
-            context.log_event(AssetObservation(asset_key=asset_key, tags=tags))
+            context.log_event(
+                AssetObservation(asset_key=asset_key, tags=tags, metadata=metadata)
+            )
     except Exception:  # noqa: BLE001
         pass
+
+
+def _detect_and_emit_breaking_changes(
+    context: Any,
+    asset_key: Any,
+    contract: Dict[str, Any],
+    on_breaking_change: str,
+) -> List[Dict[str, Any]]:
+    """Look up the prior contract observation for `asset_key`, diff against
+    `contract`, and emit an `AssetObservation` tagged
+    `contract_breaking_change=true` if breaking flags fire.
+
+    Returns the list of flags (empty if none / no prior contract).
+
+    If `on_breaking_change == "fail"`, ALSO raises `dg.Failure` with the
+    breaking flags in metadata.
+    """
+    prior = _latest_contract_observation(context, asset_key, before_now=True)
+    if not prior:
+        return []
+    flags = _diff_contracts(prior, contract)
+    if not flags:
+        return []
+    prior_version = str(prior.get("version") or "")
+    current_version = str(contract.get("version") or "")
+    summary_md = _render_breaking_summary(prior_version, current_version, flags)
+
+    try:
+        from dagster import AssetObservation
+        if hasattr(context, "log_event"):
+            context.log_event(AssetObservation(
+                asset_key=asset_key,
+                tags={
+                    "contract_breaking_change": "true",
+                    "contract_prior_version": prior_version,
+                    "contract_current_version": current_version,
+                },
+                metadata={
+                    "breaking_changes": dg.MetadataValue.json(flags),
+                    "prior_version": dg.MetadataValue.text(prior_version),
+                    "current_version": dg.MetadataValue.text(current_version),
+                    "breaking_change_count": dg.MetadataValue.int(len(flags)),
+                    "summary": dg.MetadataValue.md(summary_md),
+                },
+            ))
+    except Exception:  # noqa: BLE001
+        pass
+
+    if on_breaking_change == "fail":
+        raise dg.Failure(
+            description=(
+                f"data_contract breaking change {prior_version} → {current_version}: "
+                + "; ".join(f["detail"] for f in flags)
+            ),
+            metadata={
+                "breaking_changes": dg.MetadataValue.json(flags),
+                "prior_version": dg.MetadataValue.text(prior_version),
+                "current_version": dg.MetadataValue.text(current_version),
+                "summary": dg.MetadataValue.md(summary_md),
+            },
+        )
+    return flags
+
+
+# --------------------------------------------------------------------------
+# JSON Schema → DCC contract dict
+# --------------------------------------------------------------------------
+
+_JSON_SCHEMA_TYPE_MAP = {
+    "string": "string",
+    "integer": "int",
+    "number": "float",
+    "boolean": "bool",
+    "array": "list",
+    "object": "dict",
+    "null": "string",
+}
+
+
+def contract_from_json_schema(
+    schema: Union[str, Path, Dict[str, Any]],
+    *,
+    version: Optional[str] = None,
+    owners: Optional[List[str]] = None,
+    consumers: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    """Read a JSON Schema (file path OR dict) and return a DCC contract dict.
+
+    Only top-level `type: object` schemas with a `properties` map are
+    supported (the standard record/row shape). Walks `properties`, mapping
+    JSON Schema types (`string`/`integer`/`number`/`boolean`/`array`/`object`)
+    to pandas-friendly dtype names (`string`/`int`/`float`/`bool`/`list`/`dict`).
+
+    Per-property behavior:
+      - `type` → contract `type` (see map above); union types (`["string","null"]`)
+        pick the non-null member and force `nullable=True`.
+      - `required` (top-level list) → contract `nullable=False` for listed
+        fields; every other field defaults `nullable=True`.
+      - `pattern` (string field) → contract `regex`.
+      - `enum` → contract `allowed_values`.
+      - `minimum` / `maximum` → contract `min` / `max`.
+
+    ```python
+    from dagster_community_components import contract_from_json_schema, data_contract
+
+    CONTRACT = contract_from_json_schema("orders.schema.json", version="1.0.0")
+
+    @data_contract(contract=CONTRACT)
+    @dg.asset
+    def orders(context): ...
+    ```
+    """
+    if isinstance(schema, (str, Path)):
+        p = Path(schema)
+        raw = json.loads(p.read_text())
+    elif isinstance(schema, dict):
+        raw = schema
+    else:
+        raise TypeError(
+            f"contract_from_json_schema: expected str/Path/dict; got {type(schema).__name__}"
+        )
+
+    if raw.get("type") not in (None, "object"):
+        raise ValueError(
+            f"contract_from_json_schema: only top-level `type: object` schemas "
+            f"are supported; got type={raw.get('type')!r}"
+        )
+    props = raw.get("properties") or {}
+    if not isinstance(props, dict):
+        raise ValueError(
+            "contract_from_json_schema: schema `properties` must be a mapping"
+        )
+    required = set(raw.get("required") or [])
+
+    columns: List[Dict[str, Any]] = []
+    for col_name, spec in props.items():
+        if not isinstance(spec, dict):
+            continue
+        js_type = spec.get("type")
+
+        # Handle union types like ["string", "null"] → non-null member + nullable.
+        forced_nullable = False
+        if isinstance(js_type, list):
+            non_null = [t for t in js_type if t != "null"]
+            if "null" in js_type:
+                forced_nullable = True
+            js_type = non_null[0] if non_null else "string"
+
+        dtype = _JSON_SCHEMA_TYPE_MAP.get(js_type or "", "string")
+
+        # nullable — default True unless in `required`, and forced True by union-with-null.
+        nullable = forced_nullable or (col_name not in required)
+
+        col: Dict[str, Any] = {
+            "name": col_name,
+            "type": dtype,
+            "nullable": nullable,
+        }
+        if "pattern" in spec:
+            col["regex"] = spec["pattern"]
+        if "enum" in spec and isinstance(spec["enum"], list):
+            col["allowed_values"] = list(spec["enum"])
+        if "minimum" in spec:
+            col["min"] = spec["minimum"]
+        if "maximum" in spec:
+            col["max"] = spec["maximum"]
+        columns.append(col)
+
+    contract: Dict[str, Any] = {
+        "version": version or raw.get("$id") or raw.get("title") or "1.0.0",
+        "schema": columns,
+    }
+    if owners:
+        contract["owners"] = list(owners)
+    if consumers:
+        contract["consumers"] = list(consumers)
+    return contract
 
 
 # --------------------------------------------------------------------------
@@ -523,7 +915,13 @@ def check_specs_for_contract(
 # --------------------------------------------------------------------------
 
 
-def _make_contract_compute(fn: Callable, contract: Dict[str, Any], on_violation: str) -> Callable:
+def _make_contract_compute(
+    fn: Callable,
+    contract: Dict[str, Any],
+    on_violation: str,
+    detect_breaking_changes: bool = False,
+    on_breaking_change: str = "warn",
+) -> Callable:
     """Wrap `fn` so calling it: (1) invokes the compute, (2) runs contract
     checks against the returned DataFrame, (3) yields one AssetCheckResult
     per rule + one Output with typed metadata + one AssetObservation, and
@@ -553,6 +951,13 @@ def _make_contract_compute(fn: Callable, contract: Dict[str, Any], on_violation:
             )
 
         asset_key = getattr(context, "asset_key", None)
+
+        # Breaking-change detection uses the PRIOR observation, so run
+        # BEFORE we emit the current contract observation.
+        if detect_breaking_changes:
+            _detect_and_emit_breaking_changes(
+                context, asset_key, contract, on_breaking_change,
+            )
 
         results = _run_contract(df, contract, context, asset_key)
         all_passed = all(r["passed"] for r in results)
@@ -591,7 +996,11 @@ def _make_contract_compute(fn: Callable, contract: Dict[str, Any], on_violation:
 
 
 def _wrap_assets_definition(
-    assets_def, contract: Dict[str, Any], on_violation: str,
+    assets_def,
+    contract: Dict[str, Any],
+    on_violation: str,
+    detect_breaking_changes: bool = False,
+    on_breaking_change: str = "warn",
 ):
     """Rebuild a single-asset `@dg.asset` output with:
       - check_specs derived from the contract (no hand-mirroring)
@@ -630,7 +1039,11 @@ def _wrap_assets_definition(
     }
 
     check_specs = check_specs_for_contract(contract, asset_name)
-    wrapped_compute = _make_contract_compute(raw_fn, contract, on_violation)
+    wrapped_compute = _make_contract_compute(
+        raw_fn, contract, on_violation,
+        detect_breaking_changes=detect_breaking_changes,
+        on_breaking_change=on_breaking_change,
+    )
 
     return dg.asset(
         key=asset_key,
@@ -652,6 +1065,8 @@ def data_contract(
     contract: Dict[str, Any],
     *,
     on_violation: str = "block",
+    detect_breaking_changes: bool = False,
+    on_breaking_change: str = "warn",
 ) -> Callable:
     """Enforce a data contract on a Dagster asset compute.
 
@@ -728,14 +1143,26 @@ def data_contract(
     """
     if on_violation not in ("block", "warn"):
         raise ValueError(f"on_violation must be 'block' or 'warn'; got {on_violation!r}")
+    if on_breaking_change not in ("warn", "fail"):
+        raise ValueError(
+            f"on_breaking_change must be 'warn' or 'fail'; got {on_breaking_change!r}"
+        )
 
     def _decorator(target):
         # Shape A: applied AFTER @dg.asset — target is an AssetsDefinition.
         if isinstance(target, dg.AssetsDefinition):
-            return _wrap_assets_definition(target, contract, on_violation)
+            return _wrap_assets_definition(
+                target, contract, on_violation,
+                detect_breaking_changes=detect_breaking_changes,
+                on_breaking_change=on_breaking_change,
+            )
         # Shape B: applied BEFORE @dg.asset — target is a raw function.
         if callable(target):
-            return _make_contract_compute(target, contract, on_violation)
+            return _make_contract_compute(
+                target, contract, on_violation,
+                detect_breaking_changes=detect_breaking_changes,
+                on_breaking_change=on_breaking_change,
+            )
         raise TypeError(
             f"@data_contract must decorate a function or AssetsDefinition; got {type(target).__name__}"
         )
@@ -779,6 +1206,22 @@ class DataContractComponent(dg.Component, dg.Model, dg.Resolvable):
             "via AutomationCondition.eager() on the failing check."
         ),
     )
+    detect_breaking_changes: bool = Field(
+        default=False,
+        description=(
+            "Compare current contract to the prior emission via event log. "
+            "Emits `contract_breaking_change` observation on dropped columns / "
+            "narrowed types / nullable→non-nullable transitions."
+        ),
+    )
+    on_breaking_change: str = Field(
+        default="warn",
+        description=(
+            "When `detect_breaking_changes: true`, controls what happens on a "
+            "breaking flag: 'warn' (default — just emit observation) or 'fail' "
+            "(also raise dg.Failure and block materialization)."
+        ),
+    )
 
     # Catalog / governance
     group_name: Optional[str] = Field(default=None)
@@ -802,9 +1245,15 @@ class DataContractComponent(dg.Component, dg.Model, dg.Resolvable):
         compute = dict(self.compute)
         contract = dict(self.contract)
         on_violation = self.on_violation
+        detect_breaking_changes = bool(self.detect_breaking_changes)
+        on_breaking_change = self.on_breaking_change
 
         if on_violation not in ("block", "warn"):
             raise ValueError(f"on_violation must be block|warn; got {on_violation!r}")
+        if on_breaking_change not in ("warn", "fail"):
+            raise ValueError(
+                f"on_breaking_change must be warn|fail; got {on_breaking_change!r}"
+            )
 
         kinds_set = set(self.kinds or []) | {"python", "contract", "governance"}
         tag_map = dict(self.tags or {})
@@ -864,6 +1313,14 @@ class DataContractComponent(dg.Component, dg.Model, dg.Resolvable):
                 raise TypeError(f"compute must return a DataFrame; got {type(df).__name__}")
 
             asset_key = getattr(context, "asset_key", None)
+
+            # Breaking-change detection uses the PRIOR observation, so run
+            # BEFORE we emit the current contract observation.
+            if detect_breaking_changes:
+                _detect_and_emit_breaking_changes(
+                    context, asset_key, contract, on_breaking_change,
+                )
+
             results = _run_contract(df, contract, context, asset_key)
             all_passed = all(r["passed"] for r in results)
 
@@ -899,3 +1356,428 @@ class DataContractComponent(dg.Component, dg.Model, dg.Resolvable):
             yield dg.Output(df, metadata=metadata)
 
         return dg.Definitions(assets=[_contract_asset])
+
+
+# --------------------------------------------------------------------------
+# @requires_contract — consumer-side enforcement
+# --------------------------------------------------------------------------
+
+
+def _enforce_contract_requirement(
+    context: Any,
+    upstream: str,
+    min_version: Optional[str],
+    require_columns: Optional[List[str]],
+) -> Dict[str, Any]:
+    """Look up the most recent `data_contract` observation for `upstream` and
+    verify it meets the requirement. Raises `dg.Failure` on any mismatch;
+    otherwise logs a `requires_contract_satisfied` observation and returns
+    the resolved contract snapshot.
+    """
+    upstream_key = dg.AssetKey.from_user_string(upstream)
+    contract = _latest_contract_observation(context, upstream_key)
+    if contract is None:
+        raise dg.Failure(
+            description=(
+                f"no data_contract on upstream asset {upstream!r} — cannot enforce "
+                "requirement. Ensure the upstream asset is wrapped with @data_contract "
+                "or a DataContractComponent and has been materialized at least once."
+            ),
+            metadata={
+                "upstream": dg.MetadataValue.text(upstream),
+                "required_min_version": dg.MetadataValue.text(str(min_version or "")),
+            },
+        )
+
+    contract_version = str(contract.get("version") or "")
+    version_ok = True
+    if min_version:
+        try:
+            version_ok = not _semver_lt(contract_version, min_version)
+        except ValueError as e:
+            raise dg.Failure(
+                description=(
+                    f"requires_contract: could not parse contract version {contract_version!r} "
+                    f"against required {min_version!r}: {e}"
+                ),
+                metadata={
+                    "upstream": dg.MetadataValue.text(upstream),
+                    "upstream_contract_version": dg.MetadataValue.text(contract_version),
+                    "required_min_version": dg.MetadataValue.text(min_version),
+                },
+            ) from e
+        if not version_ok:
+            raise dg.Failure(
+                description=(
+                    f"upstream contract version {contract_version} < required {min_version}"
+                ),
+                metadata={
+                    "upstream": dg.MetadataValue.text(upstream),
+                    "upstream_contract_version": dg.MetadataValue.text(contract_version),
+                    "required_min_version": dg.MetadataValue.text(min_version),
+                },
+            )
+
+    missing_cols: List[str] = []
+    if require_columns:
+        schema = contract.get("schema") or []
+        present = {c.get("name") for c in schema if c.get("name")}
+        missing_cols = [c for c in require_columns if c not in present]
+        if missing_cols:
+            raise dg.Failure(
+                description=(
+                    f"upstream contract missing required column(s): "
+                    f"{', '.join(missing_cols)}"
+                ),
+                metadata={
+                    "upstream": dg.MetadataValue.text(upstream),
+                    "upstream_contract_version": dg.MetadataValue.text(contract_version),
+                    "required_columns": dg.MetadataValue.json(list(require_columns)),
+                    "missing_columns": dg.MetadataValue.json(missing_cols),
+                    "present_columns": dg.MetadataValue.json(sorted(list(present))),
+                },
+            )
+
+    # Emit success observation on the DOWNSTREAM asset (the consumer).
+    try:
+        from dagster import AssetObservation
+        asset_key = getattr(context, "asset_key", None)
+        if hasattr(context, "log_event") and asset_key is not None:
+            context.log_event(AssetObservation(
+                asset_key=asset_key,
+                tags={
+                    "requires_contract_satisfied": "true",
+                    "upstream": upstream,
+                    "upstream_contract_version": contract_version,
+                    "required_min_version": str(min_version or ""),
+                    "version_ok": "true" if version_ok else "false",
+                },
+                metadata={
+                    "upstream": dg.MetadataValue.text(upstream),
+                    "upstream_contract_version": dg.MetadataValue.text(contract_version),
+                    "required_min_version": dg.MetadataValue.text(str(min_version or "")),
+                    "required_columns": dg.MetadataValue.json(list(require_columns or [])),
+                    "version_ok": dg.MetadataValue.bool(version_ok),
+                },
+            ))
+    except Exception:  # noqa: BLE001
+        pass
+
+    return contract
+
+
+def requires_contract(
+    upstream: str,
+    *,
+    min_version: Optional[str] = None,
+    require_columns: Optional[List[str]] = None,
+) -> Callable:
+    """Consumer-side counterpart to `@data_contract`.
+
+    Before the wrapped compute runs, look up the most recent
+    `data_contract` observation for `upstream` and verify:
+
+    - A contract observation exists on `upstream` (else Failure).
+    - `min_version` (semver `X.Y.Z`) — upstream contract version must
+      be `>= min_version` (else Failure).
+    - `require_columns` — every listed column must be declared in the
+      upstream contract's schema (else Failure).
+
+    On success, emits `AssetObservation(requires_contract_satisfied=true)`
+    on the downstream (consumer) asset — searchable in the event log.
+
+    ```python
+    from dagster_community_components import requires_contract
+
+    @dg.asset(deps=["orders"])
+    @requires_contract(
+        upstream="orders",
+        min_version="1.2.0",
+        require_columns=["order_id", "user_id", "amount"],
+    )
+    def daily_revenue(context, orders):
+        ...
+    ```
+    """
+    def _decorator(fn: Callable) -> Callable:
+        @functools.wraps(fn)
+        def _wrapped(*args, **kwargs):
+            context = None
+            if args and hasattr(args[0], "log"):
+                context = args[0]
+            elif "context" in kwargs and hasattr(kwargs["context"], "log"):
+                context = kwargs["context"]
+            if context is None:
+                raise RuntimeError(
+                    "@requires_contract requires a Dagster context — decorator "
+                    "must wrap a Dagster asset/op compute function."
+                )
+            _enforce_contract_requirement(context, upstream, min_version, require_columns)
+            return fn(*args, **kwargs)
+
+        return _wrapped
+
+    return _decorator
+
+
+class RequiresContractComponent(dg.Component, dg.Model, dg.Resolvable):
+    """YAML shape of `@requires_contract` — consumer-side contract enforcement.
+
+    Two authoring modes:
+
+    1. **Wrap an existing DCC component** via `wraps: {type, attributes}`.
+       The inner component's asset(s) each get their compute gated by the
+       upstream-contract check.
+
+    2. **Define a new asset from scratch** via `asset_name` + `compute`.
+       Behaves the same, but launches a fresh asset that runs the referenced
+       Python callable AFTER the contract check.
+
+    Either mode raises `dg.Failure` before compute if:
+      - No `data_contract` observation exists on `upstream`
+      - `min_version` (semver) is higher than the upstream contract's version
+      - `require_columns` names any column not in the upstream contract's schema
+
+    On success, emits an `AssetObservation(requires_contract_satisfied=true)`
+    on the downstream asset.
+    """
+
+    asset_name: Optional[str] = Field(
+        default=None,
+        description="Dagster asset name. Required when NOT using `wraps:` (inherited in wraps mode).",
+    )
+    compute: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="`{kind: python, python: 'mod:fn'}`. Mutually exclusive with `wraps`.",
+    )
+    wraps: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Wrap another DCC component's asset(s) with a contract requirement instead of "
+            "defining new compute. Shape: `{type: 'dagster_community_components.<Component>', "
+            "attributes: {...}}`. Mutually exclusive with `compute`."
+        ),
+    )
+
+    upstream: str = Field(
+        description="Upstream asset key whose data_contract to enforce.",
+    )
+    min_version: Optional[str] = Field(
+        default=None,
+        description="Semver X.Y.Z — upstream contract must be >= this. Omit to only require presence.",
+    )
+    require_columns: Optional[List[str]] = Field(
+        default=None,
+        description="Optional list of column names that MUST be declared in the upstream contract's schema.",
+    )
+
+    # Governance
+    group_name: Optional[str] = Field(default=None)
+    description: Optional[str] = Field(default=None)
+    owners: Optional[List[str]] = Field(default=None)
+    tags: Optional[Dict[str, str]] = Field(default=None)
+    kinds: Optional[List[str]] = Field(
+        default=None,
+        description="Asset kinds. Default: ['python', 'contract', 'consumer'].",
+    )
+
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label="Requires Contract", editable=True)
+
+    def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        if self.wraps is not None and self.compute is not None:
+            raise ValueError(
+                "RequiresContractComponent: supply exactly ONE of `wraps` or `compute`."
+            )
+        if self.wraps is not None:
+            return self._build_wrapped(context)
+        if self.compute is None:
+            raise ValueError(
+                "RequiresContractComponent: supply either `compute` or `wraps`."
+            )
+        return self._build_new_asset(context)
+
+    def _build_new_asset(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        if not self.asset_name:
+            raise ValueError(
+                "RequiresContractComponent: `asset_name` required when using `compute:`."
+            )
+        asset_name = self.asset_name
+        compute = dict(self.compute or {})
+        upstream = self.upstream
+        min_version = self.min_version
+        require_columns = list(self.require_columns or []) or None
+
+        kinds_set = set(self.kinds or []) | {"python", "contract", "consumer"}
+        tag_map = dict(self.tags or {})
+        for k in kinds_set:
+            tag_map[f"dagster/kind/{k}"] = ""
+
+        upstream_key = dg.AssetKey.from_user_string(upstream)
+
+        @dg.asset(
+            key=dg.AssetKey.from_user_string(asset_name),
+            description=(
+                self.description
+                or f"Consumer asset {asset_name} — requires contract on {upstream!r}"
+                + (f" (>= v{min_version})" if min_version else "")
+            ),
+            group_name=self.group_name,
+            owners=self.owners or [],
+            tags=tag_map,
+            kinds=kinds_set,
+            deps=[upstream_key],
+        )
+        def _consumer_asset(context: dg.AssetExecutionContext):
+            _enforce_contract_requirement(
+                context, upstream, min_version, require_columns,
+            )
+
+            kind = (compute.get("kind") or "python").lower()
+            if kind != "python":
+                raise ValueError(
+                    f"RequiresContractComponent v1 supports compute.kind=python only; "
+                    f"got {kind!r}"
+                )
+            ref = compute.get("python")
+            if not ref or ":" not in ref:
+                raise ValueError("compute.python must be 'module.path:function_name'")
+            mod_path, fn_name = ref.rsplit(":", 1)
+            fn = getattr(importlib.import_module(mod_path.strip()), fn_name.strip(), None)
+            if not callable(fn):
+                raise ValueError(f"compute.python {ref!r} not callable")
+
+            import inspect
+            sig = inspect.signature(fn)
+            n_positional = sum(1 for p in sig.parameters.values()
+                               if p.kind in (p.POSITIONAL_OR_KEYWORD, p.POSITIONAL_ONLY))
+            if n_positional == 0:
+                out = fn()
+            else:
+                out = fn(context)
+
+            return dg.MaterializeResult(
+                metadata={
+                    "requires_contract_upstream": dg.MetadataValue.text(upstream),
+                    "required_min_version": dg.MetadataValue.text(str(min_version or "")),
+                    "required_columns": dg.MetadataValue.json(list(require_columns or [])),
+                    "consumer_output_type": dg.MetadataValue.text(type(out).__name__),
+                }
+            )
+
+        return dg.Definitions(assets=[_consumer_asset])
+
+    def _build_wrapped(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        inner = _resolve_inner_component_for_requires(self.wraps or {})
+        inner_defs = inner.build_defs(context)
+
+        upstream = self.upstream
+        min_version = self.min_version
+        require_columns = list(self.require_columns or []) or None
+
+        wrapped_assets = []
+        for asset_def in list(inner_defs.assets or []):
+            if len(asset_def.keys) != 1:
+                wrapped_assets.append(asset_def)
+                continue
+            wrapped_assets.append(
+                self._wrap_single_asset(asset_def, upstream, min_version, require_columns)
+            )
+
+        return dg.Definitions(
+            assets=wrapped_assets,
+            resources=inner_defs.resources,
+            sensors=inner_defs.sensors,
+            schedules=inner_defs.schedules,
+            asset_checks=inner_defs.asset_checks,
+            jobs=inner_defs.jobs,
+            loggers=inner_defs.loggers,
+        )
+
+    def _wrap_single_asset(
+        self,
+        asset_def: "dg.AssetsDefinition",
+        upstream: str,
+        min_version: Optional[str],
+        require_columns: Optional[List[str]],
+    ) -> "dg.AssetsDefinition":
+        key = next(iter(asset_def.keys))
+        specs_by_key = getattr(asset_def, "specs_by_key", {}) or {}
+        spec = specs_by_key.get(key)
+
+        inner_op = asset_def.op
+        inner_compute = getattr(inner_op.compute_fn, "decorated_fn", None) or inner_op.compute_fn
+
+        inner_kinds = set(getattr(spec, "kinds", None) or []) if spec else set()
+        merged_kinds = inner_kinds | set(self.kinds or []) | {"contract", "consumer"}
+        inner_tags = dict(getattr(spec, "tags", None) or {}) if spec else {}
+        merged_tags = {**inner_tags, **(self.tags or {})}
+        merged_owners = list((spec.owners if spec else []) or []) + (self.owners or [])
+        inner_description = (spec.description if spec else None) or f"Consumer {key.to_user_string()}"
+        merged_description = (
+            f"{inner_description}  [requires_contract: {upstream}"
+            + (f" >= v{min_version}" if min_version else "")
+            + "]"
+        )
+        inner_deps = list(spec.deps) if (spec and getattr(spec, "deps", None)) else []
+        upstream_key = dg.AssetKey.from_user_string(upstream)
+        if not any(getattr(d, "asset_key", None) == upstream_key for d in inner_deps):
+            inner_deps.append(dg.AssetDep(upstream_key))
+
+        @dg.asset(
+            key=key,
+            partitions_def=asset_def.partitions_def,
+            deps=inner_deps,
+            group_name=(spec.group_name if spec else None),
+            kinds=merged_kinds,
+            tags=merged_tags,
+            owners=merged_owners,
+            description=merged_description,
+            metadata=(dict(spec.metadata) if (spec and spec.metadata) else {}),
+            code_version=(spec.code_version if spec else None),
+        )
+        def _requires_wrapped(context: dg.AssetExecutionContext, **kwargs):
+            _enforce_contract_requirement(
+                context, upstream, min_version, require_columns,
+            )
+            return inner_compute(context, **kwargs)
+
+        return _requires_wrapped
+
+
+def _resolve_inner_component_for_requires(wraps: Dict[str, Any]):
+    """Resolve `{type: 'mod.path.ClassName' OR 'mod.path:ClassName', attributes: {...}}` → component instance.
+
+    Local to this module — the throttle_asset copy stays independent per DCC's
+    'no shared code between components' rule.
+    """
+    type_str = wraps.get("type")
+    attrs = wraps.get("attributes") or {}
+    if not type_str or not isinstance(type_str, str):
+        raise ValueError(
+            "RequiresContractComponent.wraps requires `type: <fully-qualified-class-name>`."
+        )
+    if ":" in type_str:
+        mod_path, cls_name = type_str.rsplit(":", 1)
+    else:
+        mod_path, cls_name = type_str.rsplit(".", 1)
+    try:
+        mod = importlib.import_module(mod_path)
+    except ImportError as e:
+        raise ValueError(
+            f"RequiresContractComponent.wraps: cannot import module {mod_path!r}: {e}"
+        ) from e
+    cls = getattr(mod, cls_name, None)
+    if cls is None:
+        raise ValueError(
+            f"RequiresContractComponent.wraps: {cls_name!r} not found in {mod_path!r}."
+        )
+    try:
+        return cls(**attrs)
+    except Exception as e:  # noqa: BLE001
+        raise ValueError(
+            f"RequiresContractComponent.wraps: constructing {type_str} failed: "
+            f"{type(e).__name__}: {e}"
+        ) from e

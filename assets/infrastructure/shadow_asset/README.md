@@ -91,11 +91,61 @@ def shadow_alert(context):
 - **`@profile`** — profile both primary and shadow; diff the profiles for coarse drift.
 - **`@smart_retry`** — retry the shadow independently of the primary.
 
+## Fuzzy match — tolerate float rounding + row order + noisy columns
+
+Compare DataFrames with float tolerance, drop noisy columns before comparing, or ignore row order.
+
+```yaml
+type: dagster_community_components.ShadowAssetComponent
+attributes:
+  asset_name: order_totals
+  compute:
+    kind: python
+    python: "my_project.reports:old_order_totals"
+  shadow_compute:
+    kind: python
+    python: "my_project.reports:new_order_totals"
+
+  fuzzy_match:
+    float_tolerance: 1.0e-6           # 0.100001 ~ 0.1 counts as match
+    ignore_columns: [updated_at, row_hash]
+    ignore_row_order: true            # sort both by all columns before compare
+```
+
+Python:
+
+```python
+@dg.asset
+@shadow(
+    new_order_totals,
+    fuzzy_match={"float_tolerance": 1e-6, "ignore_columns": ["updated_at"]},
+)
+def order_totals(context, upstream):
+    return old_order_totals(context, upstream)
+```
+
+When applied, the observation emits `fuzzy_match_applied=true` and `float_tolerance=<value>` for auditability.
+
+## Diff row export — parquet snapshot of mismatched rows
+
+On mismatch, write the disagreeing rows to a `<uri>/<asset>/<UTC_ts>__<run_id>.parquet` file for triage. The path is emitted as observation metadata `shadow_diff_export_path`.
+
+```yaml
+type: dagster_community_components.ShadowAssetComponent
+attributes:
+  asset_name: order_totals
+  compute: { kind: python, python: "my_project.reports:old_order_totals" }
+  shadow_compute: { kind: python, python: "my_project.reports:new_order_totals" }
+
+  diff_export_uri: "s3://data-lake-triage/shadow_diffs"
+  # or: "file:///tmp/shadow_diffs" or "/tmp/shadow_diffs" for local
+```
+
+Both slices (`primary` + `shadow`) are exported side-by-side with a `_shadow_source` marker column so a downstream notebook / dbt model can join back. Remote URIs (`s3://`, `gs://`, `abfs://`) require `fsspec` (plus the matching implementation package).
+
 ## What's not in v1 (roadmap)
 
-- **Parallel execution** — shadow currently runs after primary. Worker-pool parallelism is on deck.
-- **Fuzzy match** — tolerance for float rounding differences.
-- **Full row diff export** — write mismatched rows to a side asset for triage.
+- **Parallel execution** — shadow currently runs after primary. Dagster's op compute is single-threaded per step, so worker-pool parallelism requires a re-shape (spawn a subprocess + join, or split into a multi-asset with a bridge asset). Deferred pending a real user need.
 
 ## CLI demos using this template
 
@@ -132,5 +182,7 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 | `wraps` | `Dict[str, Any]` | — | Wrap a DCC component's assets with shadow instrumentation. Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`. The outer shadow adds side-by-side execution of the `shadow_wraps:` component; pr… _(full docs in schema.json + component README)_ |
 | `shadow_wraps` | `Dict[str, Any]` | — | Shadow component to run alongside `wraps:` — its result is diffed against the primary but NOT materialized. Required when using `wraps:`. |
 | `enforce_match` | `bool` | `false` | When True, mismatch between primary and shadow raises dg.Failure. Default off = observe only. |
+| `fuzzy_match` | `Dict[str, Any]` | — | Fuzzy comparison config for DataFrame diffs. `{float_tolerance: 1e-6, ignore_columns: [col_a, col_b], ignore_row_order: true}`. Float cells within tolerance count as equal; ignored columns are dropped before compare; row… _(full docs in schema.json + component README)_ |
+| `diff_export_uri` | `str` | — | When mismatch is detected, write mismatched rows to this fsspec URI (local path or `s3://`, `gs://`, `abfs://`). Path shape: `<uri>/<asset>/<UTC_ts>__<run_id>.parquet`. Emitted as observation metadata `shadow_diff_export… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)

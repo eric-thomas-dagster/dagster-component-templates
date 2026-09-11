@@ -42,6 +42,11 @@ asset defined in place. Use for assets that live in Python code, not YAML.
   (`wap_staging_<timestamp>`) → audit → fast_forward on publish. Requires
   `pyiceberg` installed; skipped with clear error if missing.
 
+- **`kind: delta`** — via `deltalake`. Writes to a staging table location
+  (`<delta_uri>/_staging/<asset>/<run_id>/`) → audit → atomic swap
+  (delete prod path + rename staging) on publish. Requires `deltalake`
+  installed; raises with clear install hint if missing.
+
 ## Audit checks in v1
 
 - `row_count_min` — `{kind: row_count_min, min: 1000}`
@@ -53,6 +58,11 @@ asset defined in place. Use for assets that live in Python code, not YAML.
 - `python` — `{kind: python, python: 'mod.audits:my_check', name: 'my_check'}`
   User function receives the DataFrame and returns `{'passed': bool,
   'description': str, 'metadata': dict}`.
+- `great_expectations` — `{kind: great_expectations, suite: 'my_suite',
+  data_context_root?: '/path/to/ge'}`. Loads a GE DataContext + named
+  expectation suite, runs it against the staging DataFrame, aggregates
+  results into one WAP audit outcome. Requires `great_expectations`
+  installed; supports GE fluent API (0.18+).
 
 ## Publish policies
 
@@ -194,6 +204,8 @@ def _run_audit_check(check: Dict[str, Any], df) -> Dict[str, Any]:
                 "metadata": {"col": col, "actual_max": str(actual_max),
                              "threshold_max": str(threshold)},
             }
+        if kind == "great_expectations":
+            return _run_ge_check(check, df, name)
         if kind == "python":
             ref = check.get("python")
             if not ref or ":" not in ref:
@@ -232,6 +244,106 @@ def _run_audit_check(check: Dict[str, Any], df) -> Dict[str, Any]:
                 "metadata": {"error_class": type(exc).__name__}}
 
 
+def _run_ge_check(check: Dict[str, Any], df, name: str) -> Dict[str, Any]:
+    """Delegate one WAP audit to a Great Expectations suite.
+
+    Config shape:
+        {kind: great_expectations,
+         suite: my_expectation_suite,          # required
+         data_context_root?: /path/to/great_expectations,
+         name?: audit_name}                    # UI display name
+
+    Aggregates the suite's per-expectation results into a single WAP
+    outcome (pass = all expectations passed). Metadata includes the
+    per-expectation summary + list of failing expectations. Uses the
+    GE fluent API (0.18+); older GE APIs are not supported.
+    """
+    suite_name = check.get("suite")
+    if not suite_name:
+        return {"passed": False, "name": name,
+                "description": "FAIL: great_expectations check missing `suite:`",
+                "metadata": {}}
+    try:
+        import great_expectations as ge
+    except ImportError:
+        raise dg.Failure(
+            description=(
+                "lifecycle_wap: `kind: great_expectations` requires "
+                "`pip install great_expectations` (>= 0.18 for fluent API)."
+            ),
+        )
+    data_context_root = check.get("data_context_root")
+    try:
+        if data_context_root:
+            gx_context = ge.get_context(context_root_dir=data_context_root)
+        else:
+            gx_context = ge.get_context()
+    except Exception as exc:  # noqa: BLE001
+        return {"passed": False, "name": name,
+                "description": f"FAIL: could not load GE DataContext: {exc}",
+                "metadata": {"data_context_root": str(data_context_root or "<auto>")}}
+    # GE 0.18+ fluent API: build an in-memory pandas datasource + batch, run
+    # the named suite as a validator, aggregate results. Names are unique per
+    # WAP run to avoid colliding with any pre-existing definitions.
+    ds_name = f"_wap_ds_{name}"
+    asset_id = f"_wap_asset_{name}"
+    try:
+        try:
+            datasource = gx_context.sources.add_or_update_pandas(ds_name)
+        except AttributeError:
+            # Very old GE — no fluent API surface.
+            return {"passed": False, "name": name,
+                    "description": (
+                        "FAIL: installed great_expectations lacks fluent API "
+                        "(sources.add_or_update_pandas). Install GE >= 0.18."
+                    ),
+                    "metadata": {}}
+        data_asset = datasource.add_dataframe_asset(name=asset_id)
+        batch_request = data_asset.build_batch_request(dataframe=df)
+        validator = gx_context.get_validator(
+            batch_request=batch_request,
+            expectation_suite_name=suite_name,
+        )
+        result = validator.validate()
+    except Exception as exc:  # noqa: BLE001
+        return {"passed": False, "name": name,
+                "description": f"FAIL: GE suite {suite_name!r} raised {type(exc).__name__}: {exc}",
+                "metadata": {"suite": suite_name, "error_class": type(exc).__name__}}
+
+    # Aggregate.
+    stats = getattr(result, "statistics", {}) or {}
+    per_results = getattr(result, "results", []) or []
+    n_total = int(stats.get("evaluated_expectations", len(per_results)))
+    n_success = int(stats.get("successful_expectations", sum(1 for r in per_results if getattr(r, "success", False))))
+    n_failed = n_total - n_success
+    passed = bool(getattr(result, "success", n_failed == 0))
+    failing = []
+    for r in per_results:
+        if not getattr(r, "success", False):
+            cfg = getattr(r, "expectation_config", None)
+            failing.append({
+                "expectation": getattr(cfg, "expectation_type", "?") if cfg else "?",
+                "kwargs": dict(getattr(cfg, "kwargs", {}) or {}) if cfg else {},
+            })
+    desc = (
+        f"GE suite {suite_name!r}: {n_success}/{n_total} expectations passed"
+        if passed
+        else f"FAIL: GE suite {suite_name!r}: {n_failed}/{n_total} expectations FAILED"
+    )
+    return {
+        "passed": passed,
+        "name": name,
+        "description": desc,
+        "metadata": {
+            "suite": suite_name,
+            "expectations_total": n_total,
+            "expectations_passed": n_success,
+            "expectations_failed": n_failed,
+            "failing": failing[:20],  # cap payload
+        },
+    }
+
+
 def _run_all_audits(checks: List[Dict[str, Any]], df) -> List[Dict[str, Any]]:
     return [_run_audit_check(c, df) for c in checks]
 
@@ -250,6 +362,8 @@ def _write_staging(df, write_cfg: Dict[str, Any], context) -> Dict[str, Any]:
         return _sql_write_staging(df, write_cfg, context)
     if kind == "iceberg":
         return _iceberg_write_staging(df, write_cfg, context)
+    if kind == "delta":
+        return _delta_write_staging(df, write_cfg, context)
     raise ValueError(f"lifecycle_wap: write kind={kind!r} not supported")
 
 
@@ -271,6 +385,8 @@ def _publish_or_cleanup(
         return _sql_publish(staging_handle, write_cfg, policy, quarantine_cfg, context)
     if kind == "iceberg":
         return _iceberg_publish(staging_handle, write_cfg, policy, quarantine_cfg, context)
+    if kind == "delta":
+        return _delta_publish(staging_handle, write_cfg, policy, quarantine_cfg, context)
     raise ValueError(f"lifecycle_wap: publish kind={kind!r} not supported")
 
 
@@ -516,6 +632,115 @@ def _iceberg_publish(handle, cfg, policy: str, quarantine_cfg, context) -> Dict[
     raise ValueError(f"lifecycle_wap: policy={policy!r} not supported")
 
 
+# ── Delta Lake backend ────────────────────────────────────────────────
+
+def _delta_write_staging(df, cfg: Dict[str, Any], context) -> Dict[str, Any]:
+    """Write DataFrame to a staging Delta table location.
+
+    Staging URI: `<delta_uri>/_staging/<asset>/<run_id>/`. On publish,
+    the staging directory is atomically swapped in for the prod
+    `delta_uri` via delete-prod + rename-staging.
+    """
+    try:
+        from deltalake import write_deltalake
+    except ImportError as e:
+        raise dg.Failure(
+            description=(
+                "lifecycle_wap: `backend=delta` requires `pip install deltalake`. "
+                "Install with `pip install deltalake` (or `uv add deltalake`)."
+            ),
+        ) from e
+    prod_uri = cfg.get("delta_uri") or cfg.get("prod_uri")
+    if not prod_uri:
+        raise ValueError("lifecycle_wap: delta backend requires `delta_uri` (production table URI)")
+    # Derive staging path — keep it as a sibling of the prod table so cross-fs
+    # renames are cheap on local + object-store lakehouses.
+    asset_slug = (cfg.get("asset") or "asset").replace("/", "_")
+    run_id = getattr(getattr(context, "run", None), "run_id", None) or getattr(
+        context, "run_id", None
+    ) or str(int(time.time()))
+    staging_uri = cfg.get("staging_uri") or f"{prod_uri.rstrip('/')}/_staging/{asset_slug}/{run_id}"
+    storage_options = cfg.get("storage_options") or None
+    mode = cfg.get("staging_mode") or "overwrite"
+    write_deltalake(
+        staging_uri,
+        df,
+        mode=mode,
+        storage_options=storage_options,
+    )
+    context.log.info(f"[lifecycle_wap] wrote delta staging at {staging_uri}")
+    return {
+        "staging_uri": staging_uri,
+        "prod_uri": prod_uri,
+        "storage_options": storage_options,
+    }
+
+
+def _delta_publish(handle, cfg, policy: str, quarantine_cfg, context) -> Dict[str, Any]:
+    try:
+        from deltalake import DeltaTable, write_deltalake
+    except ImportError as e:
+        raise dg.Failure(
+            description=(
+                "lifecycle_wap: `backend=delta` requires `pip install deltalake`."
+            ),
+        ) from e
+    staging_uri = handle["staging_uri"]
+    prod_uri = handle["prod_uri"]
+    storage_options = handle.get("storage_options")
+
+    if policy == "publish":
+        # Read staging table + rewrite to prod (atomic Delta commit at prod URI).
+        # This works uniformly on local FS + object stores where filesystem
+        # rename semantics can't be assumed.
+        dt = DeltaTable(staging_uri, storage_options=storage_options)
+        df = dt.to_pandas()
+        write_deltalake(prod_uri, df, mode="overwrite", storage_options=storage_options)
+        # Optional cleanup of staging dir after promotion.
+        _delta_rm_tree(staging_uri, storage_options, context)
+        context.log.info(f"[lifecycle_wap] PUBLISHED delta {staging_uri} → {prod_uri}")
+        return {"outcome": "published", "prod_uri": prod_uri}
+
+    if policy == "quarantine":
+        q_uri = (quarantine_cfg or {}).get("quarantine_uri") or (
+            f"{prod_uri.rstrip('/')}/_quarantine/{int(time.time())}"
+        )
+        dt = DeltaTable(staging_uri, storage_options=storage_options)
+        df = dt.to_pandas()
+        write_deltalake(q_uri, df, mode="overwrite", storage_options=storage_options)
+        _delta_rm_tree(staging_uri, storage_options, context)
+        context.log.warning(f"[lifecycle_wap] QUARANTINED delta {staging_uri} → {q_uri}")
+        return {"outcome": "quarantined", "quarantine_uri": q_uri}
+
+    if policy == "discard":
+        _delta_rm_tree(staging_uri, storage_options, context)
+        context.log.info(f"[lifecycle_wap] DISCARDED delta staging at {staging_uri}")
+        return {"outcome": "discarded"}
+
+    if policy == "tag_and_keep":
+        context.log.info(f"[lifecycle_wap] kept delta staging at {staging_uri} (tag_and_keep)")
+        return {"outcome": "kept", "staging_uri": staging_uri}
+
+    raise ValueError(f"lifecycle_wap: policy={policy!r} not supported")
+
+
+def _delta_rm_tree(uri: str, storage_options, context) -> None:
+    """Best-effort cleanup of a Delta staging directory."""
+    try:
+        if "://" in uri:
+            import fsspec
+            fs, root = fsspec.core.url_to_fs(uri, **(storage_options or {}))
+            if fs.exists(root):
+                fs.rm(root, recursive=True)
+        else:
+            import shutil
+            p = Path(uri)
+            if p.exists():
+                shutil.rmtree(p, ignore_errors=True)
+    except Exception as e:  # noqa: BLE001
+        context.log.warning(f"[lifecycle_wap] delta staging cleanup failed at {uri}: {e}")
+
+
 # --------------------------------------------------------------------------
 # @lifecycle decorator — wraps any @dg.asset compute
 # --------------------------------------------------------------------------
@@ -663,14 +888,19 @@ class LifecycleWapComponent(dg.Component, dg.Model, dg.Resolvable):
             "Write backend. Shape (filesystem): `{kind: filesystem, prod_path, "
             "staging_path?, format?: parquet|csv|json}`. Shape (sql): `{kind: sql, "
             "resource_key|database_url_env_var, prod_table, staging_table?, schema?}`. "
-            "Shape (iceberg): `{kind: iceberg, catalog, table, staging_branch?}`."
+            "Shape (iceberg): `{kind: iceberg, catalog, table, staging_branch?}`. "
+            "Shape (delta): `{kind: delta, delta_uri, staging_uri?, storage_options?}`."
         ),
     )
     audit: List[Dict[str, Any]] = Field(
         description=(
             "Ordered audit checks. Each: `{kind: row_count_min|row_count_max|"
-            "col_null_ratio_max|col_unique|col_range_min|col_range_max|python, "
-            "name?, ...kind-specific fields}`. Every check becomes an AssetCheckSpec."
+            "col_null_ratio_max|col_unique|col_range_min|col_range_max|python|"
+            "great_expectations, name?, ...kind-specific fields}`. "
+            "For `great_expectations`: `{kind: great_expectations, suite: my_suite, "
+            "data_context_root?: /path/to/gx}` — runs the named GE suite (fluent "
+            "API, 0.18+) against the staging DataFrame and aggregates results into "
+            "a single WAP audit outcome. Every check becomes an AssetCheckSpec."
         ),
     )
     on_pass: str = Field(
@@ -685,7 +915,8 @@ class LifecycleWapComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description=(
             "Quarantine target. Filesystem: `{quarantine_path}`. SQL: "
-            "`{quarantine_table}`. Iceberg: `{quarantine_tag}`. Omit to auto-derive."
+            "`{quarantine_table}`. Iceberg: `{quarantine_tag}`. Delta: "
+            "`{quarantine_uri}`. Omit to auto-derive."
         ),
     )
     raise_on_fail: bool = Field(

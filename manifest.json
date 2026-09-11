@@ -1937,6 +1937,56 @@
       "icon": "Shuffle"
     },
     {
+      "id": "amplitude_resource",
+      "name": "Amplitude Resource",
+      "category": "resource",
+      "description": "Register an AmplitudeResource under a resource key for use by downstream Amplitude components. Holds Amplitude auth (API key in JSON body per HTTP V2 API) and exposes typed batch operations (`track_events_bulk`) for downstream Amplitude sinks.",
+      "path": "resources/amplitude_resource",
+      "tags": [
+        "resource",
+        "amplitude",
+        "product-analytics",
+        "event-tracking",
+        "user-properties"
+      ],
+      "icon": "si:amplitude",
+      "type": "dagster_component_templates.AmplitudeResourceComponent",
+      "component_type": "dagster_component_templates.AmplitudeResourceComponent",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/amplitude_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/amplitude_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/amplitude_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/amplitude_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/amplitude_resource/requirements.txt",
+      "produces": [
+        "resource"
+      ],
+      "keywords": [
+        "amplitude",
+        "product analytics",
+        "http v2 api",
+        "eu project",
+        "activation"
+      ],
+      "agent_hints": {
+        "output_type": "Resource",
+        "outputs": "One Amplitude REST API resource registered under resource_key (default 'amplitude').",
+        "requires_pip": [
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-09-10"
+      }
+    },
+    {
       "id": "anomaly_detection",
       "name": "Anomaly Detection",
       "category": "analytics",
@@ -11053,6 +11103,71 @@
       ]
     },
     {
+      "id": "dataframe_to_amplitude",
+      "name": "DataFrame to Amplitude",
+      "category": "sink",
+      "description": "Reverse-ETL sink — POST DataFrame rows as Amplitude events via HTTP V2 API (POST /2/httpapi, up to 1000/batch). Sets event_type + user_id/device_id + event_properties + user_properties per row. Two source shapes (upstream_asset_key OR inline source: kind sql/csv/inline). Auth via AmplitudeResource (recommended) or inline api_key_env_var.",
+      "path": "assets/sinks/dataframe_to_amplitude",
+      "tags": [
+        "sink",
+        "amplitude",
+        "reverse-etl",
+        "product-analytics",
+        "event-tracking",
+        "user-properties"
+      ],
+      "icon": "si:amplitude",
+      "type": "dagster_component_templates.DataframeToAmplitudeComponent",
+      "component_type": "dagster_component_templates.DataframeToAmplitudeComponent",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_amplitude/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_amplitude/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_amplitude/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_amplitude/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_amplitude/requirements.txt",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:amplitude",
+        "asset:dataframe"
+      ],
+      "keywords": [
+        "amplitude",
+        "event ingest",
+        "user attributes",
+        "product analytics",
+        "reverse etl",
+        "activation"
+      ],
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "MaterializeResult",
+        "outputs": "One reverse-ETL asset that POSTs rows to Amplitude via the HTTP V2 API. Source is either an upstream DataFrame asset OR an inline sql/csv/inline block. Auth via AmplitudeResource or inline env var.",
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ],
+        "side_effects": "POST to Amplitude /2/httpapi. Requires AMPLITUDE_API_KEY env var. Use base_url `https://api.eu.amplitude.com` for EU projects."
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-09-10"
+      },
+      "emitted_assets": {
+        "pattern": "One Dagster asset per component instance — POSTs each partition's rows to Amplitude.",
+        "source_field": "asset_name",
+        "key_template": "{asset_name}"
+      }
+    },
+    {
       "id": "dataframe_to_avro",
       "name": "DataFrame to Avro",
       "category": "sink",
@@ -12177,6 +12292,71 @@
         "write to",
         "output"
       ]
+    },
+    {
+      "id": "dataframe_to_mixpanel",
+      "name": "DataFrame to Mixpanel",
+      "category": "sink",
+      "description": "Reverse-ETL sink — batch-POST DataFrame rows to Mixpanel via bulk endpoints. Two modes: `events` (POST /import, service-account auth, up to 2000/batch) or `profiles` (POST /engage#profile-set, project-token auth, up to 50/batch). Two source shapes (upstream_asset_key OR inline source: kind sql/csv/inline).",
+      "path": "assets/sinks/dataframe_to_mixpanel",
+      "tags": [
+        "sink",
+        "mixpanel",
+        "reverse-etl",
+        "product-analytics",
+        "event-tracking",
+        "user-profiles"
+      ],
+      "icon": "si:mixpanel",
+      "type": "dagster_component_templates.DataframeToMixpanelComponent",
+      "component_type": "dagster_component_templates.DataframeToMixpanelComponent",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_mixpanel/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_mixpanel/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_mixpanel/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_mixpanel/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_mixpanel/requirements.txt",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:mixpanel",
+        "asset:dataframe"
+      ],
+      "keywords": [
+        "mixpanel",
+        "event ingest",
+        "profile ops",
+        "product analytics",
+        "reverse etl",
+        "activation"
+      ],
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "MaterializeResult",
+        "outputs": "One reverse-ETL asset that POSTs rows to Mixpanel via /import (events) or /engage (profiles). Source is either an upstream DataFrame asset OR an inline sql/csv/inline block. Auth via MixpanelResource.",
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ],
+        "side_effects": "POST to Mixpanel /import or /engage. Requires MIXPANEL_PROJECT_TOKEN + service-account creds for events mode. EU projects use base_url `https://api-eu.mixpanel.com`."
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-09-10"
+      },
+      "emitted_assets": {
+        "pattern": "One Dagster asset per component instance — POSTs each partition's rows to Mixpanel.",
+        "source_field": "asset_name",
+        "key_template": "{asset_name}"
+      }
     },
     {
       "id": "dataframe_to_newrelic_logs",
@@ -29540,6 +29720,57 @@
         "connection",
         "connect"
       ]
+    },
+    {
+      "id": "mixpanel_resource",
+      "name": "Mixpanel Resource",
+      "category": "resource",
+      "description": "Register a MixpanelResource under a resource key for use by downstream Mixpanel components. Holds Mixpanel auth (service-account for /import; project token for /engage) and exposes typed batch operations (`import_events_bulk` up to 2000/call, `set_profiles_bulk` up to 50/call) for downstream Mixpanel sinks.",
+      "path": "resources/mixpanel_resource",
+      "tags": [
+        "resource",
+        "mixpanel",
+        "product-analytics",
+        "event-tracking",
+        "user-profiles"
+      ],
+      "icon": "si:mixpanel",
+      "type": "dagster_component_templates.MixpanelResourceComponent",
+      "component_type": "dagster_component_templates.MixpanelResourceComponent",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mixpanel_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mixpanel_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mixpanel_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mixpanel_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mixpanel_resource/requirements.txt",
+      "produces": [
+        "resource"
+      ],
+      "keywords": [
+        "mixpanel",
+        "product analytics",
+        "service account",
+        "project token",
+        "eu residency",
+        "activation"
+      ],
+      "agent_hints": {
+        "output_type": "Resource",
+        "outputs": "One Mixpanel REST API resource registered under resource_key (default 'mixpanel'). Requires project_id + service-account creds for events, project token for profiles.",
+        "requires_pip": [
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-09-10"
+      }
     },
     {
       "id": "ml_pipeline",

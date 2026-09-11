@@ -1,0 +1,5 @@
+type: dagster_community_components.AmplitudeResourceComponent
+attributes:
+  resource_key: amplitude
+  api_key_env_var: AMPLITUDE_API_KEY
+  base_url: https://api2.amplitude.com   # https://api.eu.amplitude.com for EU projects

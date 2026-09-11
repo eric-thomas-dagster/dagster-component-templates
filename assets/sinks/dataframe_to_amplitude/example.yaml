@@ -1,0 +1,23 @@
+type: dagster_community_components.DataframeToAmplitudeComponent
+attributes:
+  asset_name: amplitude_daily_event_export
+  upstream_asset_key: fct_activity_daily
+  resource_key: amplitude
+
+  event_type_column: event_name
+  user_id_column: user_id
+  device_id_column: device_id           # used when user_id is null
+  time_column: event_ts                  # coerced to unix ms
+  insert_id_column: event_id             # dedup key (Amplitude drops repeats for 7d)
+
+  event_properties_map:
+    plan: plan
+    revenue: revenue_usd
+    referrer: referrer
+  user_properties_map:
+    email: email
+    segment: segment
+
+  partition_type: daily
+  partition_start: "2026-01-01"
+  freshness_cron: "0 * * * *"

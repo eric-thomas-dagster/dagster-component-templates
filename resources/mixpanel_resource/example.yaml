@@ -1,0 +1,8 @@
+type: dagster_community_components.MixpanelResourceComponent
+attributes:
+  resource_key: mixpanel
+  project_id: "123456"                                     # required for /import
+  project_token_env_var: MIXPANEL_PROJECT_TOKEN            # used for /engage profile ops
+  service_account_username_env_var: MIXPANEL_SERVICE_ACCOUNT_USERNAME
+  service_account_secret_env_var: MIXPANEL_SERVICE_ACCOUNT_SECRET
+  base_url: https://api.mixpanel.com                       # https://api-eu.mixpanel.com for EU residency

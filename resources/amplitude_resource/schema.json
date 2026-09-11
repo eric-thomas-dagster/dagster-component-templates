@@ -1,0 +1,14 @@
+{
+  "component_type": "dagster_component_templates.AmplitudeResourceComponent",
+  "description": "Register an AmplitudeResource under a resource key. Holds auth (API key in body) + exposes track_events_bulk (HTTP V2 API, up to 1000/call) for downstream Amplitude sinks.",
+  "category": "resource",
+  "icon": "si:amplitude",
+  "attributes": {
+    "resource_key": {"type": "string", "required": false, "default": "amplitude"},
+    "api_key_env_var": {"type": "string", "required": false, "default": "AMPLITUDE_API_KEY"},
+    "base_url": {"type": "string", "required": false, "default": "https://api2.amplitude.com", "description": "https://api.eu.amplitude.com for EU projects."},
+    "request_timeout_seconds": {"type": "integer", "required": false, "default": 30}
+  },
+  "tags": ["resource", "amplitude", "product-analytics", "event-tracking", "user-properties"],
+  "name": "Amplitude Resource"
+}

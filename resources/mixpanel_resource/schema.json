@@ -1,0 +1,17 @@
+{
+  "component_type": "dagster_component_templates.MixpanelResourceComponent",
+  "description": "Register a MixpanelResource under a resource key. Holds Mixpanel auth (service account for /import; project token for /engage) and exposes import_events_bulk (up to 2000/call) + set_profiles_bulk (up to 50/call) for downstream Mixpanel sinks.",
+  "category": "resource",
+  "icon": "si:mixpanel",
+  "attributes": {
+    "resource_key": {"type": "string", "required": false, "default": "mixpanel"},
+    "project_id": {"type": "string", "required": true, "description": "Mixpanel project ID (required for /import)."},
+    "project_token_env_var": {"type": "string", "required": false, "default": "MIXPANEL_PROJECT_TOKEN"},
+    "service_account_username_env_var": {"type": "string", "required": false, "default": "MIXPANEL_SERVICE_ACCOUNT_USERNAME"},
+    "service_account_secret_env_var": {"type": "string", "required": false, "default": "MIXPANEL_SERVICE_ACCOUNT_SECRET"},
+    "base_url": {"type": "string", "required": false, "default": "https://api.mixpanel.com", "description": "https://api-eu.mixpanel.com for EU residency."},
+    "request_timeout_seconds": {"type": "integer", "required": false, "default": 30}
+  },
+  "tags": ["resource", "mixpanel", "product-analytics", "event-tracking", "user-profiles"],
+  "name": "Mixpanel Resource"
+}

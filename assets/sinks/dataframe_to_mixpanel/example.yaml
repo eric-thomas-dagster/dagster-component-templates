@@ -1,0 +1,37 @@
+# EVENTS mode — bulk import events via /import (service-account auth)
+type: dagster_community_components.DataframeToMixpanelComponent
+attributes:
+  asset_name: mixpanel_daily_event_import
+  upstream_asset_key: fct_activity_daily
+  resource_key: mixpanel
+
+  mode: events
+  event_column: event_name
+  distinct_id_column: user_id
+  time_column: event_ts                  # coerced to unix seconds
+  insert_id_column: event_id             # dedup key (Mixpanel drops repeats)
+
+  properties_map:
+    plan: plan
+    revenue: revenue_usd
+    referrer: referrer
+
+  partition_type: daily
+  partition_start: "2026-01-01"
+
+# ---
+# PROFILES mode — bulk profile-set via /engage
+# type: dagster_community_components.DataframeToMixpanelComponent
+# attributes:
+#   asset_name: mixpanel_daily_profile_sync
+#   upstream_asset_key: dim_customers_current
+#   resource_key: mixpanel
+#   mode: profiles
+#   distinct_id_column: user_id
+#   properties_map:
+#     first: $first_name
+#     last: $last_name
+#     email: $email
+#     ltv: lifetime_value_usd            # custom prop
+#     segment: segment
+#   freshness_cron: "0 8 * * *"

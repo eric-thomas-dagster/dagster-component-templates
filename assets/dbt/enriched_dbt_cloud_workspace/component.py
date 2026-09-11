@@ -60,7 +60,7 @@ import json
 from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, Dict, List, Literal, Mapping, Optional
 
 import dagster as dg
 from pydantic import Field
@@ -229,6 +229,79 @@ def _resolve_override_deps(
     return [dg.AssetKey(d.split("/")) if "/" in d else dg.AssetKey(d) for d in ov.depends_on]
 
 
+# ─── Vendored mirror-jobs helpers ─────────────────────────────────────
+# Ported from `et/dbt-cloud-mirror-jobs` PR branch. Delete when it merges +
+# releases; then import `_build_dbt_cloud_job_asset_specs` +
+# `_build_mirrored_dbt_cloud_job` from dagster_dbt.cloud_v2.component.
+
+_DAGSTER_ADHOC_PREFIX = "DAGSTER_ADHOC_JOB__"
+_DBT_CLOUD_JOB_ID_METADATA_KEY = "dbt_cloud/job_id"
+_DBT_CLOUD_JOB_NAME_METADATA_KEY = "dbt_cloud/job_name"
+
+
+def _sanitize_job_name(name: str) -> str:
+    """dbt Cloud job names → Dagster op-safe identifiers (alnum + underscore)."""
+    import re
+    out = re.sub(r"[^A-Za-z0-9_]+", "_", (name or "").strip())
+    if not out or not (out[0].isalpha() or out[0] == "_"):
+        out = f"job_{out}" if out else "job"
+    return out
+
+
+def _list_dbt_cloud_jobs_via_client(workspace: Any) -> list[dict]:
+    """Best-effort list of dbt Cloud jobs.
+
+    Uses ``workspace.client.list_jobs()`` if available, else falls back to a
+    raw REST call via ``requests``. Returns each job as a plain dict with the
+    fields the mirror-jobs builders care about (id, name, job_type).
+    """
+    client = getattr(workspace, "client", None) or workspace
+    # Preferred: public method on the workspace/client
+    for attr in ("list_jobs", "get_jobs", "jobs"):
+        fn = getattr(client, attr, None)
+        if fn is None:
+            continue
+        try:
+            result = fn() if callable(fn) else fn
+            # Normalize to list-of-dicts
+            if isinstance(result, list):
+                return [j if isinstance(j, dict) else j.__dict__ for j in result]
+            if hasattr(result, "jobs"):
+                return [j if isinstance(j, dict) else j.__dict__ for j in result.jobs]
+        except Exception:
+            continue
+    # Fallback: direct REST call
+    import requests as req
+    account_id = (
+        getattr(client, "account_id", None)
+        or getattr(workspace, "account_id", None)
+    )
+    api_url = getattr(client, "api_v2_url", None) or getattr(client, "api_url", None)
+    token = getattr(client, "token", None) or getattr(client, "api_token", None)
+    if not (account_id and api_url and token):
+        return []
+    try:
+        resp = req.get(
+            f"{api_url}/accounts/{account_id}/jobs/",
+            headers={"Authorization": f"Token {token}"},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return resp.json().get("data") or []
+    except Exception:
+        return []
+
+
+def _iter_mirrorable_cloud_jobs(jobs: list[dict]):
+    """Yield (id, name, job_type) tuples for user-defined Cloud jobs, filtering
+    out Dagster's internal DAGSTER_ADHOC_JOB__* pool."""
+    for j in jobs:
+        name = (j.get("name") or "")
+        if name.startswith(_DAGSTER_ADHOC_PREFIX):
+            continue
+        yield j.get("id"), name, j.get("job_type")
+
+
 try:
     from dagster_dbt import DbtCloudComponent as _DbtCloudComponent
 
@@ -256,6 +329,29 @@ try:
         poll_interval: float = 5.0
         """Seconds between debug log polls when monitor_runs is enabled.
         Lower values catch failures faster but make more API calls."""
+
+        mirror_jobs: Literal["off", "asset", "job", "both"] = "off"
+        """How to surface each dbt Cloud job in Dagster (ports
+        ``et/dbt-cloud-mirror-jobs`` PR):
+
+        - ``off`` — Do not mirror (backward-compatible default)
+        - ``asset`` — Emit an observable AssetSpec per Cloud job (kind
+          ``dbt_cloud_job``). Downstream AutomationConditions can react
+          when the job runs. Materializations flow through the polling
+          sensor.
+        - ``job`` — Emit a Dagster @job per Cloud job that triggers +
+          waits for the Cloud run. Users can schedule, launch from the
+          UI, or wire ``@run_status_sensor`` downstream.
+        - ``both`` — Emit both an AssetSpec AND a launchable @job.
+        """
+
+        job_trigger_defaults: Optional[Dict[str, Any]] = None
+        """Trigger overrides sent by every mirrored @job (applies with
+        ``mirror_jobs`` = ``job`` or ``both``). Any unset field is not sent
+        to dbt Cloud — the Cloud job's configured value is used. Common
+        fields: ``cause`` (str), ``steps_override`` (list[str]), ``git_sha``
+        (str), ``git_branch`` (str), ``schema_override`` (str),
+        ``threads_override`` (int)."""
 
         job_selection_include: Optional[str] = None
         """Selection string; jobs matching any selector are mirrored. Default
@@ -568,6 +664,109 @@ try:
                         )
             return checks
 
+        def _build_mirror_jobs_addendum(self) -> dg.Definitions:
+            """Return a Definitions with AssetSpec + @job for every user-defined
+            Cloud job, per ``mirror_jobs`` mode. Filtered by
+            ``job_selection_include/exclude`` if set."""
+            if self.mirror_jobs == "off":
+                return dg.Definitions()
+
+            raw_jobs = _list_dbt_cloud_jobs_via_client(self.workspace)
+            if not raw_jobs:
+                return dg.Definitions()
+
+            # Filter via selection DSL (needs .name / .id / .job_type attrs)
+            class _JobShim:
+                def __init__(self, j):
+                    self.id = j.get("id")
+                    self.name = j.get("name")
+                    self.job_type = j.get("job_type")
+            shims = [_JobShim(j) for j in raw_jobs
+                     if not (j.get("name") or "").startswith(_DAGSTER_ADHOC_PREFIX)]
+            if self.job_selection_include or self.job_selection_exclude:
+                shims = apply_selection(
+                    shims, self.job_selection_include, self.job_selection_exclude
+                )
+
+            emit_asset = self.mirror_jobs in ("asset", "both")
+            emit_job = self.mirror_jobs in ("job", "both")
+
+            job_specs: List[dg.AssetSpec] = []
+            mirrored_jobs: List[Any] = []
+            workspace = self.workspace
+            trigger_defaults = self.job_trigger_defaults or {}
+
+            for shim in shims:
+                cloud_job_id = shim.id
+                cloud_job_name = shim.name or f"job_{cloud_job_id}"
+                key = dg.AssetKey(_sanitize_job_name(cloud_job_name))
+
+                if emit_asset:
+                    job_specs.append(
+                        dg.AssetSpec(
+                            key=key,
+                            kinds={"dbt_cloud_job"},
+                            description=f"dbt Cloud job {cloud_job_id}: {cloud_job_name!r}",
+                            metadata={
+                                _DBT_CLOUD_JOB_ID_METADATA_KEY: cloud_job_id,
+                                _DBT_CLOUD_JOB_NAME_METADATA_KEY: cloud_job_name,
+                            },
+                        )
+                    )
+
+                if emit_job:
+                    op_name = _sanitize_job_name(cloud_job_name)
+
+                    @dg.op(name=f"trigger_dbt_cloud_{op_name}")
+                    def _trigger_op(
+                        context: dg.OpExecutionContext,
+                        _workspace=workspace,
+                        _cloud_job_id=cloud_job_id,
+                        _cloud_job_name=cloud_job_name,
+                        _trigger_defaults=trigger_defaults,
+                    ):
+                        client = getattr(_workspace, "client", None) or _workspace
+                        # Trigger + poll — API varies slightly by dagster-dbt
+                        # version; try the most common shapes.
+                        for trigger_attr in ("trigger_job_run", "trigger_job", "run_job"):
+                            fn = getattr(client, trigger_attr, None)
+                            if not callable(fn):
+                                continue
+                            try:
+                                run = fn(job_id=_cloud_job_id, **_trigger_defaults)
+                            except TypeError:
+                                try:
+                                    run = fn(_cloud_job_id, **_trigger_defaults)
+                                except Exception as e:
+                                    context.log.warning(f"{trigger_attr} failed: {e}")
+                                    continue
+                            run_id = getattr(run, "id", None) or (run or {}).get("id")
+                            context.log.info(
+                                f"Triggered dbt Cloud job {_cloud_job_id} → run {run_id}"
+                            )
+                            if run_id:
+                                for poll_attr in ("poll_run", "wait_for_run", "poll_job_run"):
+                                    poll_fn = getattr(client, poll_attr, None)
+                                    if callable(poll_fn):
+                                        poll_fn(run_id)
+                                        break
+                            return
+                        raise dg.Failure(
+                            f"dbt Cloud workspace client has no known trigger method — "
+                            f"tried trigger_job_run / trigger_job / run_job"
+                        )
+
+                    @dg.job(name=op_name)
+                    def _mirrored_job(_op=_trigger_op):
+                        _op()
+
+                    mirrored_jobs.append(_mirrored_job)
+
+            return dg.Definitions(
+                assets=job_specs if job_specs else None,
+                jobs=mirrored_jobs if mirrored_jobs else None,
+            )
+
         def _wrap_with_monitor(self, defs: dg.Definitions) -> dg.Definitions:
             """Replace each AssetsDefinition with a monitored version that
             streams per-model Output events during execution."""
@@ -731,6 +930,18 @@ try:
                             f"monitor_runs wrap failed, using unmonitored defs: {e}"
                         )
 
+            # Mirror Cloud jobs as AssetSpecs / Dagster @jobs / both.
+            # Filtered by job_selection_include/exclude inside the builder.
+            if self.mirror_jobs != "off":
+                try:
+                    mirror_addendum = self._build_mirror_jobs_addendum()
+                    defs = dg.Definitions.merge(defs, mirror_addendum)
+                except Exception as e:
+                    if hasattr(context, "log"):
+                        context.log.warning(  # type: ignore[attr-defined]
+                            f"mirror_jobs failed, skipping: {e}"
+                        )
+
             defs = self._filter_mirrored_jobs(defs)
             return defs
 
@@ -752,6 +963,8 @@ except ImportError:
         monitor_runs: bool = Field(default=False)
         fail_fast: bool = Field(default=False)
         poll_interval: float = Field(default=5.0)
+        mirror_jobs: Literal["off", "asset", "job", "both"] = Field(default="off")
+        job_trigger_defaults: Optional[Dict[str, Any]] = Field(default=None)
         job_selection_include: Optional[str] = Field(default=None)
         job_selection_exclude: Optional[str] = Field(default=None)
 

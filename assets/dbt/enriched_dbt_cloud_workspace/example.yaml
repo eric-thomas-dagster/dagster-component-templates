@@ -11,7 +11,14 @@ attributes:
   fail_fast: false             # continue on first failure (all failures captured)
   poll_interval: 5.0           # seconds between debug-log polls
 
-  # ── Cloud: which jobs to mirror ───────────────────────────────
+  # ── Cloud: mirror Cloud jobs as Dagster jobs/assets ─────────────
+  mirror_jobs: both                # AssetSpec + Dagster @job for each Cloud job
+  job_trigger_defaults:            # sent with every mirrored @job's trigger call
+    cause: "Triggered by Dagster"
+    # steps_override: ["dbt build --select tag:daily"]
+    # git_branch: "main"
+
+  # ── Cloud: filter which Cloud jobs get mirrored ─────────────────
   job_selection_include: "type:deploy type:merge"   # only deploy + merge jobs
   job_selection_exclude: "*_experimental"           # skip experimental jobs
 

@@ -41,6 +41,20 @@
       "required": false,
       "default": 5.0
     },
+    "mirror_jobs": {
+      "type": "string",
+      "enum": ["off", "asset", "job", "both"],
+      "label": "Mirror Jobs Mode",
+      "description": "How to surface each dbt Cloud job in Dagster. `off` (default) = don't mirror. `asset` = emit an observable AssetSpec per Cloud job (kind: dbt_cloud_job) so AutomationConditions can react when the job runs. `job` = emit a Dagster @job that triggers + waits for the Cloud run. `both` = emit both.",
+      "required": false,
+      "default": "off"
+    },
+    "job_trigger_defaults": {
+      "type": "object",
+      "label": "Job Trigger Defaults",
+      "description": "Trigger overrides sent by every mirrored @job (applies when mirror_jobs is 'job' or 'both'). Common fields: cause, steps_override, git_sha, git_branch, schema_override, threads_override. Any unset field falls back to the Cloud job's configured value.",
+      "required": false
+    },
     "job_selection_include": {
       "type": "string",
       "label": "Job Selection Include",

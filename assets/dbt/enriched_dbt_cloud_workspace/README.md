@@ -11,6 +11,8 @@ and the same manifest-based enrichments as
 | Feature | Base | Enriched |
 |---|---|---|
 | Mid-run per-model events (parse debug logs during execution) | no | **yes** — `monitor_runs: true` |
+| Mirror each Cloud job as an AssetSpec / Dagster @job / both | no | **yes** — `mirror_jobs: asset \| job \| both` |
+| Per-run trigger overrides for mirrored @jobs | no | **yes** — `job_trigger_defaults` |
 | Filter which Cloud jobs get mirrored (dbt-style selection DSL) | no | **yes** — `job_selection_include/exclude` |
 | Freshness policies from `sources.freshness` + dbt 1.9+ `build_after` | no | **yes** — `derive_freshness_policies` |
 | Emit exposures as observable AssetSpecs (with deps) | no | **yes** — `emit_exposures_as_assets` |
@@ -28,6 +30,8 @@ and the same manifest-based enrichments as
 | `monitor_runs` | | `false` | Parse dbt Cloud debug logs during execution to yield per-model Output events as models complete |
 | `fail_fast` | | `false` | With `monitor_runs=true`: cancel the dbt Cloud run on first failure |
 | `poll_interval` | | `5.0` | Seconds between debug-log polls |
+| `mirror_jobs` | | `off` | `off` / `asset` / `job` / `both` — surface Cloud jobs in Dagster |
+| `job_trigger_defaults` | | | Dict of trigger overrides sent by every mirrored @job (`cause`, `steps_override`, `git_sha`, `git_branch`, `schema_override`, `threads_override`) |
 | `job_selection_include` | | | Selection string — jobs matching are mirrored. Selectors: `type:deploy`, `*_prod`, `id:12345`, or bare glob. Space-separated union. Empty = all. |
 | `job_selection_exclude` | | | Jobs matching are dropped AFTER include |
 
@@ -67,6 +71,24 @@ Selector forms:
 - `id:<int>` — exact `job.id` match
 - `<glob>` — bare token = shorthand for `name:<glob>`
 - `*` (or empty) — matches every job
+
+## Mirror Cloud jobs (`mirror_jobs`)
+
+Ports `et/dbt-cloud-mirror-jobs`. Every user-defined dbt Cloud job (Dagster's
+internal `DAGSTER_ADHOC_JOB__*` pool is filtered out) can be surfaced in three
+shapes, filtered by the same `job_selection_include/exclude` DSL:
+
+| Mode | What Dagster emits | Use case |
+|---|---|---|
+| `off` (default) | nothing | Only the dbt-model assets from the base component |
+| `asset` | one observable `AssetSpec` per Cloud job (kind: `dbt_cloud_job`) | Downstream `AutomationCondition`s react when the Cloud job runs. Materialization events flow through the polling sensor. |
+| `job` | one Dagster `@job` per Cloud job that triggers + waits for the Cloud run | Schedule via `ScheduleDefinition`, launch from the Dagster UI, wire `@run_status_sensor` downstream. |
+| `both` | both an AssetSpec AND a launchable @job | Full lineage + trigger surface. |
+
+`job_trigger_defaults` provides per-call overrides sent to dbt Cloud with every
+mirrored @job's trigger (`cause`, `steps_override`, `git_sha`, `git_branch`,
+`schema_override`, `threads_override`). Any unset field falls back to the Cloud
+job's configured value.
 
 ## Mid-run monitor
 

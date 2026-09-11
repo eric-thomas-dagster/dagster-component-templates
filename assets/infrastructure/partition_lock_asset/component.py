@@ -111,17 +111,47 @@ def _lock_state(records: List[Any], partition_key: str, ttl_seconds: float) -> O
 
 
 def _emit_observation(context: Any, tags: Dict[str, str], metadata: Optional[Dict[str, Any]] = None) -> None:
+    """Emit AssetObservation. Sanitizes tag values (Dagster requires
+    `[A-Za-z0-9_.-]{,63}`) — composite partition keys with `/` and long
+    hash-like values are moved from tags to metadata automatically.
+    Errors surface via log.warning instead of silent swallow.
+    """
+    from dagster import AssetObservation, MetadataValue
     try:
-        from dagster import AssetObservation
-        asset_key = getattr(context, "asset_key", None) or dg.AssetKey(["partition_lock_asset"])
-        if hasattr(context, "log_event"):
-            context.log_event(AssetObservation(
-                asset_key=asset_key,
-                tags=tags,
-                metadata=metadata or {},
-            ))
+        asset_key = context.asset_key
     except Exception:  # noqa: BLE001
-        pass
+        asset_key = dg.AssetKey(["partition_lock_asset"])
+
+    safe_tags: Dict[str, str] = {}
+    demoted_meta: Dict[str, Any] = {}
+    for k, v in (tags or {}).items():
+        sv = str(v)
+        # Dagster tag values: [A-Za-z0-9_.-]{,63}
+        if len(sv) > 63 or any(ch not in _TAG_SAFE for ch in sv):
+            demoted_meta[k] = MetadataValue.text(sv)
+            safe_tags[k] = "unsafe_in_metadata"  # short marker so filtering still works
+        else:
+            safe_tags[k] = sv
+
+    merged_meta = dict(metadata or {})
+    merged_meta.update(demoted_meta)
+
+    if not hasattr(context, "log_event"):
+        return
+    try:
+        context.log_event(AssetObservation(
+            asset_key=asset_key,
+            tags=safe_tags,
+            metadata=merged_meta,
+        ))
+    except Exception as e:  # noqa: BLE001
+        try:
+            context.log.warning(f"@partition_lock: could not emit observation: {type(e).__name__}: {e}")
+        except Exception:  # noqa: BLE001
+            pass
+
+
+_TAG_SAFE = frozenset("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-")
 
 
 def _acquire_lock(

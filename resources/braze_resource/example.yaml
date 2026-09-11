@@ -1,0 +1,6 @@
+type: dagster_community_components.BrazeResourceComponent
+attributes:
+  resource_key: braze
+  api_key_env_var: BRAZE_API_KEY
+  rest_endpoint: https://rest.iad-01.braze.com   # region-specific — check Braze dashboard
+  request_timeout_seconds: 30

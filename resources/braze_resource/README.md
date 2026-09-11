@@ -1,0 +1,68 @@
+# Braze Resource
+
+Registers a `BrazeResource` under a resource key. Holds the
+region-specific REST endpoint URL + the env var name for the REST API
+key, plus a shared `.post(path, json_body)` helper for downstream
+Braze sinks.
+
+Pairs with:
+
+- **`DataframeToBrazeComponent`** — reverse-ETL sink that references
+  `resource_key: braze` to share auth.
+- Any custom Braze component you write in the same project — reference
+  the same resource key to reuse auth.
+
+## Configuration
+
+| Field | Required | Default | What |
+|---|---|---|---|
+| `resource_key` | | `braze` | Dagster resource key |
+| `api_key_env_var` | | `BRAZE_API_KEY` | Env var holding the Braze REST API key |
+| `rest_endpoint` | yes | — | Region-specific Braze REST URL |
+| `request_timeout_seconds` | | `30` | Per-request HTTP timeout |
+
+## Region-specific endpoints
+
+Braze runs several tenants; the correct REST URL depends on your Braze
+workspace region. Look it up in the Braze dashboard under Settings →
+REST API Keys. Common values:
+
+- `https://rest.iad-01.braze.com` — US-01
+- `https://rest.iad-02.braze.com` — US-02
+- `https://rest.iad-03.braze.com` — US-03
+- `https://rest.iad-05.braze.com` — US-05
+- `https://rest.iad-06.braze.com` — US-06
+- `https://rest.iad-07.braze.com` — US-07
+- `https://rest.iad-08.braze.com` — US-08
+- `https://rest.fra-01.braze.com` — EU-01
+- `https://rest.fra-02.braze.com` — EU-02
+
+## API key scopes
+
+Create keys in the Braze dashboard scoped to only the capabilities you
+need — the resource is agnostic to scope; downstream sinks fail cleanly
+if the key doesn't have the needed permission:
+
+- `users.track` — for `dataframe_to_braze` with `endpoint: users_track`
+- `catalogs.<name>.update_items` — for `endpoint: catalogs`
+
+## Example
+
+```yaml
+type: dagster_community_components.BrazeResourceComponent
+attributes:
+  resource_key: braze
+  api_key_env_var: BRAZE_API_KEY
+  rest_endpoint: https://rest.iad-01.braze.com
+```
+
+Then in a downstream sink:
+
+```yaml
+type: dagster_community_components.DataframeToBrazeComponent
+attributes:
+  asset_name: braze_customer_sync
+  upstream_asset_key: dbt_users
+  resource_key: braze           # references the resource above
+  # ...
+```

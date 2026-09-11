@@ -1,0 +1,14 @@
+{
+  "component_type": "dagster_component_templates.BrazeResourceComponent",
+  "description": "Register a BrazeResource under a resource key for use by downstream Braze components (dataframe_to_braze, custom sinks). Holds the region-specific REST endpoint URL + the env var name for the REST API key.",
+  "category": "resource",
+  "icon": "si:braze",
+  "attributes": {
+    "resource_key": {"type": "string", "required": false, "default": "braze", "label": "Resource Key"},
+    "api_key_env_var": {"type": "string", "required": false, "default": "BRAZE_API_KEY", "label": "API Key Env Var"},
+    "rest_endpoint": {"type": "string", "required": true, "label": "REST Endpoint", "description": "Region-specific Braze REST URL (https://rest.iad-01.braze.com, https://rest.iad-02.braze.com, https://rest.fra-01.braze.com, ...)."},
+    "request_timeout_seconds": {"type": "integer", "required": false, "default": 30, "label": "Request Timeout Seconds"}
+  },
+  "tags": ["resource", "braze", "reverse-etl", "customer-engagement", "marketing-activation", "rest-api"],
+  "name": "Braze Resource"
+}

@@ -5598,6 +5598,57 @@
       ]
     },
     {
+      "id": "braze_resource",
+      "name": "Braze Resource",
+      "category": "resource",
+      "description": "Register a BrazeResource under a resource key for use by downstream Braze components. Holds the region-specific REST endpoint URL + the env var name for the REST API key, plus a shared post(path, json_body) helper.",
+      "path": "resources/braze_resource",
+      "tags": [
+        "resource",
+        "braze",
+        "reverse-etl",
+        "customer-engagement",
+        "marketing-activation",
+        "rest-api"
+      ],
+      "icon": "si:braze",
+      "type": "dagster_component_templates.BrazeResourceComponent",
+      "component_type": "dagster_component_templates.BrazeResourceComponent",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/braze_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/braze_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/braze_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/braze_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/braze_resource/requirements.txt",
+      "produces": [
+        "resource"
+      ],
+      "keywords": [
+        "braze",
+        "customer engagement",
+        "rest api key",
+        "region-specific endpoint",
+        "activation"
+      ],
+      "agent_hints": {
+        "output_type": "Resource",
+        "outputs": "One Braze REST API resource registered under resource_key (default 'braze').",
+        "requires_pip": [
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-09-11"
+      }
+    },
+    {
       "id": "budget_asset",
       "name": "Budget Asset",
       "category": "decorator",
@@ -11169,7 +11220,7 @@
       "id": "dataframe_to_braze",
       "name": "DataFrame to Braze",
       "category": "sink",
-      "description": "Reverse-ETL sink \u2014 batch-POST DataFrame rows to Braze via the REST API for customer activation flows. Supports /users/track (user attribute sync) and /catalogs/{name}/items (catalog upsert).",
+      "description": "Reverse-ETL sink \u2014 batch-POST rows to Braze via the REST API. Supports two source shapes (upstream_asset_key OR inline source: kind sql/csv/inline) and two endpoints (users_track / catalogs). Auth via a shared BrazeResource (recommended) or inline api_key + endpoint.",
       "path": "assets/sinks/dataframe_to_braze",
       "tags": [
         "sink",
@@ -11201,6 +11252,7 @@
         "asset"
       ],
       "consumes": [
+        "resource:braze",
         "asset:dataframe"
       ],
       "keywords": [
@@ -11215,7 +11267,7 @@
       "agent_hints": {
         "input_type": "pd.DataFrame",
         "output_type": "MaterializeResult",
-        "outputs": "One reverse-ETL asset that POSTs upstream DataFrame rows to Braze in batches. Endpoint: users_track (attributes/custom_attributes on Braze user profiles) or catalogs (custom catalog item upsert).",
+        "outputs": "One reverse-ETL asset that POSTs rows to Braze. Source is either an upstream DataFrame asset OR an inline sql/csv/inline block. Auth via BrazeResource or inline env vars.",
         "requires_pip": [
           "pandas",
           "requests"
@@ -51137,5 +51189,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 993
+  "total": 994
 }

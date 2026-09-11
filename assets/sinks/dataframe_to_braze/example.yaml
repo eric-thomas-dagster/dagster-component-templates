@@ -2,21 +2,38 @@
 type: dagster_community_components.DataframeToBrazeComponent
 attributes:
   asset_name: braze_customer_segment_export
+
+  # ── Source (pick one) ────────────────────────────────────────
   upstream_asset_key: fct_quotes_daily        # dbt fact table upstream
+  # OR — inline source, e.g. read directly from the warehouse:
+  # source:
+  #   kind: sql
+  #   resource_key: warehouse                 # references a SQL resource
+  #   query: |
+  #     SELECT external_id, email, first_name, segment
+  #     FROM fct_quotes_daily WHERE dt = CURRENT_DATE
 
-  # Braze auth (region-specific — check Braze dashboard for the right URL)
-  api_key_env_var: BRAZE_API_KEY
-  rest_endpoint: https://rest.iad-01.braze.com
+  # ── Auth (recommended: reference a BrazeResource) ───────────
+  resource_key: braze                          # BrazeResourceComponent
+  # OR — inline fallback if you don't want a separate resource:
+  # api_key_env_var: BRAZE_API_KEY
+  # rest_endpoint: https://rest.iad-01.braze.com
 
-  # Users/track (default) — sync user attributes for activation
-  endpoint: users_track
-  user_id_column: external_id                 # your customer id
-  attribute_columns:                          # sent as top-level attributes
-    - email
-    - first_name
-    - last_name
-    - last_quote_at
-  custom_attribute_columns:                   # sent as custom_attributes
+  # ── Endpoint + mapping ───────────────────────────────────────
+  endpoint: users_track                        # or 'catalogs'
+  user_id_column: external_id                  # your customer id
+
+  # Preferred: explicit source_col -> braze_field mapping (lets you rename)
+  fields_map:
+    external_id: external_id                   # not renamed, but declared
+    email_addr: email                          # rename db column -> braze field
+    first: first_name
+    last: last_name
+    last_quote_at: last_quote_at
+    quote_count_30d: quote_count_30d           # will move to custom_attributes below
+    segment: segment
+    churn_risk_score: churn_risk_score
+  custom_attribute_columns:                    # nested under 'custom_attributes'
     - quote_count_30d
     - segment
     - churn_risk_score
@@ -24,13 +41,12 @@ attributes:
   batch_size: 75                               # Braze /users/track max
   dry_run: false                               # true to validate without sending
 
+  # ── Standard asset config ────────────────────────────────────
   group_name: activation
   kinds: [braze, reverse_etl]
-  freshness_cron: "0 8 * * *"                 # daily 08:00 UTC
-
+  freshness_cron: "0 8 * * *"
   retry_policy_max_retries: 3
   retry_policy_delay_seconds: 5
   retry_policy_backoff: exponential
-
   partition_type: daily
   partition_start: "2026-01-01"

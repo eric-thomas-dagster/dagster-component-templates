@@ -129,6 +129,7 @@ _CLASS_PATHS: dict[str, str] = {
     "BigtableReaderAssetComponent": "assets/source/bigtable_reader_asset/component.py",
     "BigtableWriterAssetComponent": "assets/sinks/bigtable_writer_asset/component.py",
     "BoundingBoxFilterComponent": "assets/analytics/bounding_box_filter/component.py",
+    "BrazeResourceComponent": "resources/braze_resource/component.py",
     "BudgetAssetComponent": "assets/infrastructure/budget_asset/component.py",
     "BufferComponent": "assets/analytics/buffer/component.py",
     "CRMDataStandardizerComponent": "assets/analytics/crm_data_standardizer/component.py",

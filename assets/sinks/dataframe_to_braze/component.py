@@ -1,38 +1,30 @@
 """DataFrame to Braze.
 
-Reverse-ETL sink — batch-POST rows to Braze's REST API for customer
-activation flows (segment exports, custom-attribute sync, re-engagement
-lists, catalog upserts).
+Reverse-ETL sink — takes a DataFrame (or inline source), shapes each row
+into a Braze user attribute update or catalog item, and delegates to a
+``BrazeResource`` for the actual wire POST. All batching, response
+parsing, and error accounting live on the resource.
 
-Two source shapes (supply exactly one):
+Source shapes (pick one):
 
 - ``upstream_asset_key`` — read a DataFrame from another Dagster asset.
-- ``source:`` — inline config, one of:
-    - ``{kind: sql, resource_key | database_url_env_var, query}`` — SQL query
-    - ``{kind: csv, path, read_csv_kwargs}`` — CSV file
-    - ``{kind: inline, rows: [...]}`` — literal rows
+- ``source: {kind: sql | csv | inline, ...}`` — inline source config.
 
-Two Braze endpoints (pick via ``endpoint``):
+Endpoints:
 
-- ``users_track`` (default) — batched user attribute updates via
-  ``/users/track``. Braze batches up to 75 users per call.
-- ``catalogs`` — custom catalog item upsert via
-  ``/catalogs/{name}/items``. Batches up to 50 items per call.
+- ``users_track`` (default) — user attribute + custom_attribute updates.
+- ``catalogs`` — custom catalog item upsert (requires ``catalog_name``).
 
-Auth: reference a ``BrazeResource`` via ``resource_key`` (recommended —
-lets multiple sinks share auth) OR supply inline ``api_key_env_var`` +
-``rest_endpoint`` on the sink itself (fallback for one-off use).
+Auth:
 
-Docs:
-    - /users/track:  https://www.braze.com/docs/api/endpoints/user_data/post_user_track
-    - /catalogs:     https://www.braze.com/docs/api/endpoints/catalogs
+- ``resource_key`` (recommended) — reference a ``BrazeResourceComponent``.
+- Inline ``api_key_env_var`` + ``rest_endpoint`` — sink instantiates an
+  ad-hoc ``BrazeResource`` under the hood. Same wire behavior.
 """
-
 import os
 from typing import Any, Dict, List, Literal, Optional
 
 import pandas as pd
-import requests
 from dagster import (
     AssetExecutionContext,
     AssetIn,
@@ -40,7 +32,6 @@ from dagster import (
     Component,
     ComponentLoadContext,
     Definitions,
-    Failure,
     MaterializeResult,
     MetadataValue,
     Model,
@@ -74,14 +65,13 @@ class DataframeToBrazeComponent(Component, Model, Resolvable):
         ),
     )
 
-    # ── Auth (prefer resource_key; inline fallback) ────────────────
+    # ── Auth (prefer resource_key; inline fallback) ───────────────
     resource_key: Optional[str] = Field(
         default=None,
         description=(
             "Resource key registered by BrazeResourceComponent — the "
-            "recommended way to configure Braze auth so multiple sinks "
-            "share one config. Mutually exclusive with the inline "
-            "`api_key_env_var` + `rest_endpoint` fields."
+            "recommended way to configure Braze auth. Mutually exclusive "
+            "with the inline `api_key_env_var` + `rest_endpoint` fields."
         ),
     )
     api_key_env_var: Optional[str] = Field(
@@ -94,13 +84,12 @@ class DataframeToBrazeComponent(Component, Model, Resolvable):
     rest_endpoint: Optional[str] = Field(
         default=None,
         description=(
-            "Inline fallback: region-specific Braze REST endpoint URL "
-            "(e.g. https://rest.iad-01.braze.com). Only used when "
-            "`resource_key` is unset."
+            "Inline fallback: region-specific Braze REST endpoint URL. "
+            "Only used when `resource_key` is unset."
         ),
     )
 
-    # ── Endpoint + column mapping ──────────────────────────────────
+    # ── Endpoint + column mapping ─────────────────────────────────
     endpoint: Literal["users_track", "catalogs"] = Field(
         default="users_track",
         description="Which Braze endpoint to POST to.",
@@ -115,26 +104,33 @@ class DataframeToBrazeComponent(Component, Model, Resolvable):
         description=(
             "Explicit source_col -> braze_field_name mapping. When set, "
             "columns are renamed on the way to Braze (e.g. "
-            "{db_email: email, first: first_name}). Preferred over "
-            "`attribute_columns` when you need renaming. For "
-            "endpoint='catalogs', the item_id_column value can also be "
-            "a source column that gets renamed to Braze's 'id' field."
+            "{db_email: email}). Preferred over `attribute_columns`."
         ),
     )
-    user_id_column: str = Field(
+    user_id_column: Optional[str] = Field(
         default="external_id",
         description=(
-            "For endpoint='users_track': column holding the user's "
-            "external_id. Falls back to 'braze_id' if 'external_id' "
-            "isn't in the DataFrame."
+            "For endpoint='users_track': column holding the user's primary "
+            "identifier. Set to `None` for secondary-identifier-only mode "
+            "(rows identified by `email` or `phone` alone via fields_map)."
+        ),
+    )
+    id_type: Literal["external_id", "braze_id", "user_alias"] = Field(
+        default="external_id",
+        description=(
+            "Which Braze primary identifier the user_id_column value maps "
+            "to: `external_id` (your customer id — most common), `braze_id` "
+            "(Braze's opaque id), or `user_alias` (namespaced — value should "
+            "be a `{alias_name, alias_label}` dict)."
         ),
     )
     attribute_columns: Optional[List[str]] = Field(
         default=None,
         description=(
-            "For endpoint='users_track' (used when fields_map isn't set): "
-            "columns to send as top-level user attributes. Default: all "
-            "columns except user_id_column and custom_attribute_columns."
+            "For endpoint='users_track' (legacy pass-through mode when "
+            "fields_map isn't set): which columns become top-level user "
+            "attributes. Default: all columns except user_id_column and "
+            "custom_attribute_columns."
         ),
     )
     custom_attribute_columns: Optional[List[str]] = Field(
@@ -155,20 +151,18 @@ class DataframeToBrazeComponent(Component, Model, Resolvable):
     batch_size: Optional[int] = Field(
         default=None,
         description=(
-            "Rows per HTTP request. Default = 75 for users_track "
-            "(Braze's max) or 50 for catalogs."
+            "Rows per HTTP request. Default = 75 for users_track / 50 "
+            "for catalogs (Braze's maxima). Lower values reduce rate-"
+            "limit pressure."
         ),
     )
     request_timeout_seconds: int = Field(
         default=30,
-        description="Per-request HTTP timeout (only when NOT using a resource).",
+        description="Per-request HTTP timeout (only used with inline auth path).",
     )
     dry_run: bool = Field(
         default=False,
-        description=(
-            "Build payloads + log without POSTing. Useful for validating "
-            "field mappings without hitting Braze."
-        ),
+        description="Build payloads + log without POSTing.",
     )
 
     group_name: Optional[str] = Field(default=None)
@@ -191,30 +185,25 @@ class DataframeToBrazeComponent(Component, Model, Resolvable):
     dynamic_partition_name: Optional[str] = Field(default=None)
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
-        # Validate exactly one of upstream_asset_key OR source: is set.
         if bool(self.upstream_asset_key) == bool(self.source):
             raise ValueError(
                 "DataframeToBrazeComponent: supply exactly ONE of "
-                "`upstream_asset_key` OR `source:` (got both or neither)."
+                "`upstream_asset_key` OR `source:`."
             )
-
         if self.endpoint == "catalogs" and not self.catalog_name:
             raise ValueError("endpoint='catalogs' requires catalog_name.")
 
-        # Auth validation.
         use_resource = bool(self.resource_key)
         if not use_resource and not (self.api_key_env_var and self.rest_endpoint):
             raise ValueError(
-                "DataframeToBrazeComponent: supply `resource_key` "
-                "(referring to a BrazeResourceComponent) OR both "
-                "`api_key_env_var` + `rest_endpoint` (inline fallback)."
+                "DataframeToBrazeComponent: supply `resource_key` OR both "
+                "`api_key_env_var` + `rest_endpoint`."
             )
 
         partitions_def = _build_partitions_def(
             self.partition_type, self.partition_start,
             self.partition_values, self.dynamic_partition_name,
         )
-
         retry_policy = None
         if self.retry_policy_max_retries is not None:
             retry_policy = RetryPolicy(
@@ -224,7 +213,6 @@ class DataframeToBrazeComponent(Component, Model, Resolvable):
             )
 
         cfg = self
-        # Which resource keys the asset needs to declare.
         required_resource_keys: set = set()
         if use_resource:
             required_resource_keys.add(cfg.resource_key)  # type: ignore[arg-type]
@@ -233,67 +221,55 @@ class DataframeToBrazeComponent(Component, Model, Resolvable):
             if sql_rk:
                 required_resource_keys.add(sql_rk)
 
-        # ── Body: shared between upstream_asset and source path ──
-        def _post_batches(context, df: pd.DataFrame) -> MaterializeResult:
+        # ── Body — data shaping + one resource-method call ──
+        def _run(context, df: pd.DataFrame) -> MaterializeResult:
             if not isinstance(df, pd.DataFrame):
                 raise TypeError(f"upstream must be a DataFrame, got {type(df).__name__}")
 
-            base_url, headers, timeout = _resolve_endpoint_and_headers(cfg, context)
-            if cfg.endpoint == "users_track":
-                url = f"{base_url}/users/track"
-                default_batch = 75
-            else:
-                url = f"{base_url}/catalogs/{cfg.catalog_name}/items"
-                default_batch = 50
-            batch_size = cfg.batch_size or default_batch
-
+            total = len(df)
+            braze = _get_braze_resource(cfg, context)
             records = df.to_dict(orient="records")
-            total = len(records)
-            sent = failed = batches = 0
 
-            for start in range(0, total, batch_size):
-                chunk = records[start : start + batch_size]
-                if cfg.endpoint == "users_track":
-                    payload = _build_users_track_payload(chunk, cfg)
-                else:
-                    payload = _build_catalog_items_payload(chunk, cfg)
+            if cfg.endpoint == "users_track":
+                users = _build_users_list(records, cfg)
+                summary = braze.track_users(
+                    users,
+                    batch_size=cfg.batch_size or 75,
+                    dry_run=cfg.dry_run,
+                    logger=context.log,
+                )
+            else:
+                items = _build_items_list(records, cfg)
+                summary = braze.upsert_catalog_items(
+                    cfg.catalog_name,
+                    items,
+                    batch_size=cfg.batch_size or 50,
+                    dry_run=cfg.dry_run,
+                    logger=context.log,
+                )
 
-                if cfg.dry_run:
-                    context.log.info(
-                        f"[dry_run] Would POST {len(chunk)} rows to {url}"
-                    )
-                    sent += len(chunk)
-                    batches += 1
-                    continue
-
-                resp = requests.post(url, json=payload, headers=headers, timeout=timeout)
-                batches += 1
-                if 200 <= resp.status_code < 300:
-                    sent += len(chunk)
-                else:
-                    failed += len(chunk)
-                    body = (resp.text or "")[:400]
-                    context.log.warning(
-                        f"Braze POST failed: HTTP {resp.status_code} body={body}"
-                    )
-
+            soft = summary["soft_errors"]
+            soft_note = f" (soft errors: {soft})" if soft else ""
+            dry_note = " — dry_run" if cfg.dry_run else ""
             context.log.info(
-                f"Braze export ({cfg.endpoint}): {sent}/{total} rows in {batches} batches"
-                f"{' — dry_run' if cfg.dry_run else ''}"
+                f"Braze export ({cfg.endpoint}): "
+                f"{summary['sent']}/{total} rows in {summary['batches']} batches"
+                f"{soft_note}{dry_note}"
             )
             return MaterializeResult(
                 metadata={
                     "rows_total": MetadataValue.int(total),
-                    "rows_sent": MetadataValue.int(sent),
-                    "rows_failed": MetadataValue.int(failed),
-                    "batches": MetadataValue.int(batches),
+                    "rows_sent": MetadataValue.int(summary["sent"]),
+                    "rows_failed": MetadataValue.int(summary["failed"]),
+                    "soft_errors": MetadataValue.int(summary["soft_errors"]),
+                    "batches": MetadataValue.int(summary["batches"]),
                     "endpoint": MetadataValue.text(cfg.endpoint),
-                    "batch_size": MetadataValue.int(batch_size),
+                    "batch_size": MetadataValue.int(cfg.batch_size or (75 if cfg.endpoint == "users_track" else 50)),
                     "dry_run": MetadataValue.bool(cfg.dry_run),
                 }
             )
 
-        # ── Two paths depending on source shape ─────────────────
+        # ── Two asset shapes based on source ──
         if cfg.upstream_asset_key:
             upstream_key = AssetKey(cfg.upstream_asset_key.split("/"))
 
@@ -313,11 +289,10 @@ class DataframeToBrazeComponent(Component, Model, Resolvable):
             def braze_export_upstream(
                 context: AssetExecutionContext, upstream: pd.DataFrame
             ) -> MaterializeResult:
-                return _post_batches(context, upstream)
+                return _run(context, upstream)
 
             return Definitions(assets=[braze_export_upstream])
 
-        # source: kind path
         @asset(
             name=cfg.asset_name,
             group_name=cfg.group_name,
@@ -332,12 +307,29 @@ class DataframeToBrazeComponent(Component, Model, Resolvable):
         )
         def braze_export_inline(context: AssetExecutionContext) -> MaterializeResult:
             df = _resolve_source_df(cfg, context)
-            return _post_batches(context, df)
+            return _run(context, df)
 
         return Definitions(assets=[braze_export_inline])
 
 
 # ─── Helpers ──────────────────────────────────────────────────────
+
+
+def _get_braze_resource(
+    cfg: DataframeToBrazeComponent, context: AssetExecutionContext
+) -> Any:
+    """Return a BrazeResource — either from context.resources[<key>] or
+    an ad-hoc instance built from inline auth fields."""
+    if cfg.resource_key:
+        return getattr(context.resources, cfg.resource_key)
+    # Ad-hoc — import locally to keep the sink module light when the
+    # resource component isn't installed alongside.
+    from dagster_community_components import BrazeResource
+    return BrazeResource(
+        api_key_env_var=cfg.api_key_env_var,
+        rest_endpoint=cfg.rest_endpoint,
+        request_timeout_seconds=cfg.request_timeout_seconds,
+    )
 
 
 def _build_partitions_def(
@@ -376,38 +368,10 @@ def _build_partitions_def(
     raise ValueError(f"Unknown partition_type: {_pt!r}")
 
 
-def _resolve_endpoint_and_headers(
-    cfg: DataframeToBrazeComponent, context: AssetExecutionContext
-) -> tuple:
-    """Return (base_url, headers, timeout) using resource_key OR inline auth."""
-    if cfg.resource_key:
-        resource = getattr(context.resources, cfg.resource_key)
-        # BrazeResource internal helpers — public API stable
-        return (
-            resource._base_url(),
-            resource._headers(),
-            resource.request_timeout_seconds,
-        )
-    # Inline fallback
-    token = os.environ.get(cfg.api_key_env_var) if cfg.api_key_env_var else None
-    if not token and not cfg.dry_run:
-        raise Failure(
-            f"env var {cfg.api_key_env_var!r} is empty or unset — set your Braze REST API key."
-        )
-    return (
-        (cfg.rest_endpoint or "").rstrip("/"),
-        {
-            "Authorization": f"Bearer {token or 'DRY_RUN'}",
-            "Content-Type": "application/json",
-        },
-        cfg.request_timeout_seconds,
-    )
-
-
 def _resolve_source_df(
     cfg: DataframeToBrazeComponent, exec_ctx: AssetExecutionContext
 ) -> pd.DataFrame:
-    """Materialize the inline source: config into a DataFrame."""
+    """Materialize the inline `source:` config into a DataFrame."""
     src = cfg.source or {}
     kind = (src.get("kind") or "").lower()
     if kind == "sql":
@@ -445,53 +409,82 @@ def _resolve_source_df(
     raise ValueError(f"source kind={kind!r} not supported (sql / csv / inline)")
 
 
-def _pick_user_id(row: Dict[str, Any], cfg: DataframeToBrazeComponent) -> Optional[str]:
-    val = row.get(cfg.user_id_column)
-    if val is None or (isinstance(val, float) and pd.isna(val)):
-        other = "braze_id" if cfg.user_id_column != "braze_id" else "external_id"
-        val = row.get(other)
-    if val is None or (isinstance(val, float) and pd.isna(val)):
+def _coerce_value_for_braze(v: Any) -> Any:
+    """Braze requires ISO 8601 with timezone for datetimes. Coerce
+    pandas Timestamps + naive datetimes to ISO strings (assuming UTC)."""
+    from datetime import date, datetime, timezone
+    if v is None:
         return None
-    return str(val)
+    if isinstance(v, float) and pd.isna(v):
+        return None
+    if isinstance(v, pd.Timestamp):
+        if v.tzinfo is None:
+            v = v.tz_localize("UTC")
+        return v.isoformat()
+    if isinstance(v, datetime):
+        if v.tzinfo is None:
+            v = v.replace(tzinfo=timezone.utc)
+        return v.isoformat()
+    if isinstance(v, date):
+        return v.isoformat()
+    return v
 
 
 def _apply_fields_map(row: Dict[str, Any], fields_map: Dict[str, str]) -> Dict[str, Any]:
     """Rename row keys per fields_map (source_col -> braze_field). Drops
-    columns not in the map."""
+    columns not in the map. Coerces datetimes."""
     out: Dict[str, Any] = {}
     for src_col, dst_field in fields_map.items():
-        if src_col in row and row[src_col] is not None and not (
-            isinstance(row[src_col], float) and pd.isna(row[src_col])
-        ):
-            out[dst_field] = row[src_col]
+        if src_col not in row:
+            continue
+        val = _coerce_value_for_braze(row[src_col])
+        if val is None:
+            continue
+        out[dst_field] = val
     return out
 
 
-def _build_users_track_payload(
-    chunk: List[Dict[str, Any]], cfg: DataframeToBrazeComponent
-) -> Dict[str, Any]:
-    id_key = "external_id" if cfg.user_id_column != "braze_id" else "braze_id"
+def _pick_user_id(row: Dict[str, Any], cfg: DataframeToBrazeComponent) -> Optional[Any]:
+    if not cfg.user_id_column:
+        return None
+    val = row.get(cfg.user_id_column)
+    if val is None or (isinstance(val, float) and pd.isna(val)):
+        return None
+    if cfg.id_type == "user_alias":
+        return val if isinstance(val, dict) else None
+    return str(val)
+
+
+def _build_users_list(
+    records: List[Dict[str, Any]], cfg: DataframeToBrazeComponent
+) -> List[Dict[str, Any]]:
+    """Shape records into the `attributes` array for /users/track.
+
+    Identifier rules:
+      - `id_type` picks which primary key the user_id_column value maps to
+        (`external_id` | `braze_id` | `user_alias`).
+      - Rows without a primary can still be sent if their mapped fields
+        include `email` or `phone` (Braze's secondary identifiers).
+      - Rows with NEITHER primary NOR any secondary identifier are dropped.
+    """
+    id_key = cfg.id_type
     custom_set = set(cfg.custom_attribute_columns or [])
 
     all_cols: set = set()
-    for r in chunk:
+    for r in records:
         all_cols.update(r.keys())
 
+    users: List[Dict[str, Any]] = []
+
     if cfg.fields_map:
-        # fields_map path — user gives explicit source->dest mapping.
-        # The user_id_column is applied separately (renamed to external_id).
-        users = []
-        for row in chunk:
+        for row in records:
             uid = _pick_user_id(row, cfg)
-            if not uid:
-                continue
-            entry: Dict[str, Any] = {id_key: uid}
+            entry: Dict[str, Any] = {}
+            if uid is not None:
+                entry[id_key] = uid
             mapped = _apply_fields_map(row, cfg.fields_map)
-            # Custom attributes (still by SOURCE column name — apply mapping first)
             if custom_set:
                 custom: Dict[str, Any] = {}
-                # For each custom col name (source), if it was mapped, use the mapped name;
-                # else use the raw name.
                 for src_col in custom_set:
                     dst = cfg.fields_map.get(src_col, src_col)
                     if dst in mapped:
@@ -499,53 +492,70 @@ def _build_users_track_payload(
                 if custom:
                     entry["custom_attributes"] = custom
             entry.update(mapped)
+            if not (id_key in entry or "email" in entry or "phone" in entry):
+                continue
             users.append(entry)
-        return {"attributes": users}
+        return users
 
-    # Legacy path: attribute_columns + custom_attribute_columns lists
+    # Legacy pass-through
     if cfg.attribute_columns is not None:
         attr_cols = list(cfg.attribute_columns)
     else:
-        attr_cols = [c for c in all_cols if c != cfg.user_id_column and c not in custom_set]
-
-    users = []
-    for row in chunk:
+        attr_cols = [
+            c for c in all_cols
+            if c != cfg.user_id_column and c not in custom_set
+        ]
+    for row in records:
         uid = _pick_user_id(row, cfg)
-        if not uid:
-            continue
-        entry = {id_key: uid}
+        entry = {}
+        if uid is not None:
+            entry[id_key] = uid
         for c in attr_cols:
-            if c in row and row[c] is not None and not (isinstance(row[c], float) and pd.isna(row[c])):
-                entry[c] = row[c]
+            val = _coerce_value_for_braze(row.get(c))
+            if val is None:
+                continue
+            entry[c] = val
         if custom_set:
             custom = {}
             for c in custom_set:
-                if c in row and row[c] is not None and not (isinstance(row[c], float) and pd.isna(row[c])):
-                    custom[c] = row[c]
+                val = _coerce_value_for_braze(row.get(c))
+                if val is None:
+                    continue
+                custom[c] = val
             if custom:
                 entry["custom_attributes"] = custom
+        if not (id_key in entry or "email" in entry or "phone" in entry):
+            continue
         users.append(entry)
-    return {"attributes": users}
+    return users
 
 
-def _build_catalog_items_payload(
-    chunk: List[Dict[str, Any]], cfg: DataframeToBrazeComponent
-) -> Dict[str, Any]:
-    items = []
-    for row in chunk:
+def _build_items_list(
+    records: List[Dict[str, Any]], cfg: DataframeToBrazeComponent
+) -> List[Dict[str, Any]]:
+    """Shape records into the `items` array for /catalogs/{name}/items.
+
+    Item id is taken from ``cfg.item_id_column`` and copied into each
+    item as ``id`` (Braze's required field name). The resource
+    additionally validates the id charset and drops invalid ids.
+    """
+    items: List[Dict[str, Any]] = []
+    for row in records:
         if cfg.fields_map:
             item = _apply_fields_map(row, cfg.fields_map)
-            # If item_id_column was renamed, its value is now under Braze's
-            # target name; find it and re-key as 'id'.
             id_dst = cfg.fields_map.get(cfg.item_id_column, cfg.item_id_column)
             raw_id = item.pop(id_dst, None) or row.get(cfg.item_id_column)
         else:
             raw_id = row.get(cfg.item_id_column)
-            item = {c: v for c, v in row.items()
-                    if c != cfg.item_id_column and v is not None
-                    and not (isinstance(v, float) and pd.isna(v))}
+            item = {}
+            for c, v in row.items():
+                if c == cfg.item_id_column:
+                    continue
+                coerced = _coerce_value_for_braze(v)
+                if coerced is not None:
+                    item[c] = coerced
         if raw_id is None or (isinstance(raw_id, float) and pd.isna(raw_id)):
             continue
         item["id"] = str(raw_id)
         items.append(item)
-    return {"items": items}
+    return items

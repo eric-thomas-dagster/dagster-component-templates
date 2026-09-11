@@ -173,22 +173,38 @@ def _save_cache(df, cache_path: str, fmt: str):
 
 
 def _emit_cache_event(context: Any, key: str, hit: bool, path: str):
-    """Emit AssetObservation with cache_hit/cache_miss tag."""
+    """Emit AssetObservation with cache hit/miss info.
+
+    - Tags: only alnum-safe short values (`cached_asset_status`). Dagster
+      enforces `[A-Za-z0-9_.-]{,63}` on tag values, so full paths + long
+      hashes have to go in metadata (see below).
+    - Metadata: `cache_key` (long hash), `cache_path` (has slashes) — both
+      go into typed MetadataValue where slashes / length are unrestricted.
+    - `context.asset_key`: wrapped in try/except because it's a raising
+      property on multi-asset contexts (`getattr(..., None)` doesn't catch).
+    """
+    from dagster import AssetKey, AssetObservation, MetadataValue
     try:
-        from dagster import AssetObservation
-        asset_key = getattr(context, "asset_key", None)
-        if asset_key is None:
-            from dagster import AssetKey
-            asset_key = AssetKey(["cached_asset"])
-        tags = {
-            "cached_asset_status": "hit" if hit else "miss",
-            "cache_key": key,
-            "cache_path": path,
-        }
-        if hasattr(context, "log_event"):
-            context.log_event(AssetObservation(asset_key=asset_key, tags=tags))
+        asset_key = context.asset_key
     except Exception:  # noqa: BLE001
-        pass
+        asset_key = AssetKey(["cached_asset"])
+    if not hasattr(context, "log_event"):
+        return
+    try:
+        context.log_event(AssetObservation(
+            asset_key=asset_key,
+            tags={"cached_asset_status": "hit" if hit else "miss"},
+            metadata={
+                "cache_key": MetadataValue.text(key),
+                "cache_path": MetadataValue.path(path),
+            },
+        ))
+    except Exception as e:  # noqa: BLE001
+        # Surface failures — silent swallowing hid a real bug for months.
+        try:
+            context.log.warning(f"[cached] failed to emit AssetObservation: {type(e).__name__}: {e}")
+        except Exception:  # noqa: BLE001
+            pass
 
 
 # --------------------------------------------------------------------------
@@ -239,6 +255,10 @@ def cached(
     def _decorator(fn: Callable) -> Callable:
         @functools.wraps(fn)
         def _wrapped(*args, **kwargs):
+            # Generator shape (yield dg.Output) so we can side-channel
+            # AssetObservation events via `context.log_event(...)` in the
+            # step's context. Direct `return dg.Output(...)` collides with
+            # the wrapped asset's `-> pd.DataFrame` type annotation.
             import pandas as pd
             context = None
             if args and hasattr(args[0], "log"):

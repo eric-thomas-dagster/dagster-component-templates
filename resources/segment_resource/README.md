@@ -1,0 +1,30 @@
+# Segment Resource
+
+Registers a `SegmentResource` under a resource key. Holds Segment HTTP
+API auth (write key via HTTP Basic) and exposes typed batch operations
+(`batch_ops`) for downstream Segment sinks.
+
+Pairs with **`DataframeToSegmentComponent`**.
+
+## Configuration
+
+| Field | Required | Default | What |
+|---|---|---|---|
+| `resource_key` | | `segment` | Dagster resource key |
+| `write_key_env_var` | | `SEGMENT_WRITE_KEY` | Env var holding your Segment Source write key |
+| `base_url` | | `https://api.segment.io` | Base URL. Use `https://events.eu1.segmentapis.com` for EU regional workspaces |
+| `request_timeout_seconds` | | `30` | Per-request timeout |
+
+## Example
+
+```yaml
+type: dagster_community_components.SegmentResourceComponent
+attributes:
+  resource_key: segment
+  write_key_env_var: SEGMENT_WRITE_KEY
+```
+
+## API surface
+
+- `batch_ops(operations, batch_size=100, dry_run=False, logger=None)` — POST `/v1/batch`. Ops are packed by count AND payload bytes (~480KB headroom under Segment's 500KB limit).
+- `post(path, json_body)` — raw escape hatch for other HTTP API surfaces.

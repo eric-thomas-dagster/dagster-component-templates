@@ -13024,6 +13024,72 @@
       "icon": "ArrowUpFromLine"
     },
     {
+      "id": "dataframe_to_segment",
+      "name": "DataFrame to Segment",
+      "category": "sink",
+      "description": "Reverse-ETL sink — batch-POST DataFrame rows to Segment via POST /v1/batch. Two modes: `identify` (traits sync) or `track` (event stream). Two source shapes (upstream_asset_key OR inline source: kind sql/csv/inline). Ops are auto-packed to Segment's 500KB per-batch limit.",
+      "path": "assets/sinks/dataframe_to_segment",
+      "tags": [
+        "sink",
+        "segment",
+        "cdp",
+        "reverse-etl",
+        "event-tracking",
+        "customer-data-platform"
+      ],
+      "icon": "si:segment",
+      "type": "dagster_component_templates.DataframeToSegmentComponent",
+      "component_type": "dagster_component_templates.DataframeToSegmentComponent",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_segment/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_segment/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_segment/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_segment/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_segment/requirements.txt",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:segment",
+        "asset:dataframe"
+      ],
+      "keywords": [
+        "segment",
+        "cdp",
+        "customer data platform",
+        "identify",
+        "track",
+        "reverse etl",
+        "event stream"
+      ],
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "MaterializeResult",
+        "outputs": "One reverse-ETL asset that POSTs rows to Segment via /v1/batch. Source is either an upstream DataFrame asset OR an inline sql/csv/inline block.",
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ],
+        "side_effects": "POST to Segment /v1/batch. Requires SEGMENT_WRITE_KEY env var. EU regional workspaces use base_url `https://events.eu1.segmentapis.com`."
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-09-11"
+      },
+      "emitted_assets": {
+        "pattern": "One Dagster asset per component instance — POSTs each partition's rows to Segment.",
+        "source_field": "asset_name",
+        "key_template": "{asset_name}"
+      }
+    },
+    {
       "id": "dataframe_to_sendgrid",
       "name": "DataFrame to SendGrid",
       "category": "sink",
@@ -40866,6 +40932,58 @@
         "reshape"
       ],
       "icon": "Shuffle"
+    },
+    {
+      "id": "segment_resource",
+      "name": "Segment Resource",
+      "category": "resource",
+      "description": "Register a SegmentResource under a resource key for use by downstream Segment components. Holds Segment HTTP API auth (write_key via HTTP Basic) and exposes typed batch operations (`batch_ops` — POST /v1/batch, ops packed under Segment's 500KB per-batch payload limit).",
+      "path": "resources/segment_resource",
+      "tags": [
+        "resource",
+        "segment",
+        "cdp",
+        "event-tracking",
+        "reverse-etl",
+        "customer-data-platform"
+      ],
+      "icon": "si:segment",
+      "type": "dagster_component_templates.SegmentResourceComponent",
+      "component_type": "dagster_component_templates.SegmentResourceComponent",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/segment_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/segment_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/segment_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/segment_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/segment_resource/requirements.txt",
+      "produces": [
+        "resource"
+      ],
+      "keywords": [
+        "segment",
+        "cdp",
+        "http api",
+        "write key",
+        "eu regional",
+        "activation"
+      ],
+      "agent_hints": {
+        "output_type": "Resource",
+        "outputs": "One Segment HTTP API resource registered under resource_key (default 'segment').",
+        "requires_pip": [
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-09-11"
+      }
     },
     {
       "id": "sendgrid_resource",

@@ -1,0 +1,5 @@
+type: dagster_community_components.SegmentResourceComponent
+attributes:
+  resource_key: segment
+  write_key_env_var: SEGMENT_WRITE_KEY   # your Segment Source write key
+  base_url: https://api.segment.io       # https://events.eu1.segmentapis.com for EU

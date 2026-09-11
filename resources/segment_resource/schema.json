@@ -1,0 +1,14 @@
+{
+  "component_type": "dagster_component_templates.SegmentResourceComponent",
+  "description": "Register a SegmentResource under a resource key. Holds Segment HTTP API auth (HTTP Basic write_key) and exposes batch_ops (POST /v1/batch — identify/track/page/screen/group/alias, payload auto-packed to Segment's 500KB limit) for downstream Segment sinks.",
+  "category": "resource",
+  "icon": "si:segment",
+  "attributes": {
+    "resource_key": {"type": "string", "required": false, "default": "segment"},
+    "write_key_env_var": {"type": "string", "required": false, "default": "SEGMENT_WRITE_KEY"},
+    "base_url": {"type": "string", "required": false, "default": "https://api.segment.io", "description": "https://events.eu1.segmentapis.com for EU regional workspaces."},
+    "request_timeout_seconds": {"type": "integer", "required": false, "default": 30}
+  },
+  "tags": ["resource", "segment", "cdp", "event-tracking", "reverse-etl", "customer-data-platform"],
+  "name": "Segment Resource"
+}

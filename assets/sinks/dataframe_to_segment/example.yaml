@@ -1,0 +1,33 @@
+# IDENTIFY mode — set/update user traits
+type: dagster_community_components.DataframeToSegmentComponent
+attributes:
+  asset_name: segment_daily_identify_sync
+  upstream_asset_key: dim_customers_current
+  resource_key: segment
+  mode: identify
+  user_id_column: customer_id
+  traits_map:
+    email: email
+    first: firstName
+    last: lastName
+    ltv: lifetimeValueUsd
+    plan: plan
+  freshness_cron: "0 8 * * *"
+
+# ---
+# TRACK mode — record events
+# type: dagster_community_components.DataframeToSegmentComponent
+# attributes:
+#   asset_name: segment_daily_track
+#   upstream_asset_key: fct_activity_daily
+#   resource_key: segment
+#   mode: track
+#   user_id_column: user_id
+#   event_column: event_name
+#   timestamp_column: event_ts       # coerced to ISO 8601
+#   properties_map:
+#     plan: plan
+#     revenue: revenue
+#     referrer: referrer
+#   partition_type: daily
+#   partition_start: "2026-01-01"

@@ -200,6 +200,14 @@ Every layer's `compute` is a `mod:fn` reference. Signatures:
 - **Middle layers** — `(context, task_spec) -> list of (task_name, task_spec)` to fan out to the next layer, OR return a plain value (terminal for this branch).
 - **Terminal** (optional `terminal:` field) — `(context, results: list) -> asset_value`. Runs once after the final layer collects.
 
+## CLI demos using this template
+
+- **[`task_asset` walkthrough](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/task_asset.md)** — all four shapes side-by-side in one project, 100% offline. Scaffolds `@task` alone (9 nested synthetic events), `@task_asset` (9 real graph fan-out nodes), `TaskAssetComponent` YAML (scan → 6 mapped `parse_url_process` nodes → terminal reducer), and `@task` + `FilesystemTaskCache` (cache pickle files under `.task_cache/`). Setup script:
+
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_task_asset_demo.sh | bash
+  ```
+
 ## What's NOT supported
 
 **Sequential graph nodes where N is runtime-unknown AND each depends on prior's REAL output** — every workaround has an honest cost (RetryRequested conflates with retry semantics; fabricated events are log-only; pre-declared slots pollute the graph with SKIPPED nodes). Tracked in [docs/FEEDBACK_dynamic_ops_in_run_graph.md](../../../docs/FEEDBACK_dynamic_ops_in_run_graph.md) as a Dagster core ask.

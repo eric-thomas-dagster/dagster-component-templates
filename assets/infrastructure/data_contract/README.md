@@ -350,6 +350,18 @@ def orders(context): ...
 
 Supported top-level shape: `{"type": "object", "properties": {...}, "required": [...]}`. Per-property `type` maps to Dagster/pandas dtypes (`string`→`string`, `integer`→`int`, `number`→`float`, `boolean`→`bool`, `array`→`list`, `object`→`dict`). Union types like `["string", "null"]` pick the non-null member and force `nullable=True`. `pattern` → contract `regex`, `enum` → `allowed_values`, `minimum`/`maximum` → `min`/`max`.
 
+## CLI demos using this template
+
+| Walkthrough | What it exercises |
+|---|---|
+| [`data_contract.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/data_contract.md) — end-to-end demo | (1) `@data_contract` producer emits contract observation, (2) `@requires_contract` consumer PASSES on `min_version=1.0.0`, (3) `strict_consumer` FAILS with `dg.Failure` on `min_version=3.0.0` mismatch, (4) rewriting the producer to v2.0.0 (drops `status`, narrows `amount`) triggers `detect_breaking_changes=True` — extra `contract_breaking_change=true` observation with markdown diff, (5) YAML shape via `DataContractComponent` + `RequiresContractComponent`, bonus (6) `contract_from_json_schema()` mapping JSON Schema → DCC contract dict. Fully offline. Setup script + walkthrough live in the CLI repo. |
+
+Run it:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_data_contract_demo.sh | bash
+```
+
 ## Roadmap
 
 - **Cross-asset foreign keys** — `foreign_key: users.user_id` — validate referential integrity across assets.

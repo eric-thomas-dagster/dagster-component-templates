@@ -642,18 +642,35 @@ def _mdv(v: Any):
     return dg.MetadataValue.text(str(v))
 
 
+def _sanitize_tag_value(v: str) -> str:
+    """Coerce a value to Dagster's strict tag-value allowlist ([A-Za-z0-9_.-],
+    <=63 chars). Anything outside that set (e.g. '@' in emails, ':' in
+    'team:<name>', ',' in joined lists) is replaced with '_'. Never raises.
+    """
+    s = re.sub(r"[^A-Za-z0-9_.\-]", "_", str(v))
+    return s[:63]
+
+
 def _emit_contract_observation(context: Any, asset_key: Any, contract: Dict[str, Any]):
     """Emit an AssetObservation tagged with contract version + owners +
     consumers, and metadata with the full contract snapshot so downstream
     (`@requires_contract`) and breaking-change diffs can inspect the whole
     schema.
+
+    Tag VALUES are sanitized to Dagster's strict allowlist ([A-Za-z0-9_.-],
+    <=63 chars) so contract owners can carry emails / 'team:X' prefixes
+    without breaking the AssetObservation emission — the raw contract
+    (with unmodified strings) is still available via the `contract_snapshot`
+    metadata blob.
     """
     try:
         from dagster import AssetObservation
+        owners = contract.get("owners") or []
+        consumers = contract.get("consumers") or []
         tags = {
-            _CONTRACT_VERSION_TAG: str(contract.get("version") or ""),
-            "contract_owners": ",".join(contract.get("owners") or []),
-            "contract_consumers": ",".join(contract.get("consumers") or []),
+            _CONTRACT_VERSION_TAG: _sanitize_tag_value(contract.get("version") or ""),
+            "contract_owners": _sanitize_tag_value(",".join(str(o) for o in owners)),
+            "contract_consumers": _sanitize_tag_value(",".join(str(c) for c in consumers)),
             "data_contract": "true",
         }
         metadata = {

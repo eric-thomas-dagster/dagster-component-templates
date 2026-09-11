@@ -224,6 +224,14 @@ Plus one `AssetCheckResult` per audit check with pass/fail + description + metad
   ```
 - `filesystem_monitor` sensor — trigger a downstream review when data lands in the quarantine directory.
 
+## CLI demos using this template
+
+- **[`lifecycle_wap.md`](https://dagster-component-ui.vercel.app/examples/lifecycle_wap)** — end-to-end walkthrough of BOTH shapes (Python `@lifecycle` decorator + YAML `LifecycleWapComponent`) with a happy path (audits pass → publish) AND a bad-data path (audit fails → quarantine, prod untouched) against a local parquet backend. 100% offline; runs in ~2 minutes.
+
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_lifecycle_wap_demo.sh | bash
+  ```
+
 ## What's not in v1 (roadmap)
 
 - **BigQuery native (non-sqlalchemy)** — for orgs using BQ without sqlalchemy-bigquery.

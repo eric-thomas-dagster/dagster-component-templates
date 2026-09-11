@@ -98,6 +98,11 @@ _EXPOSURE_TYPE_KEY = "dagster_dbt/exposure_type"
 _EXPOSURE_URL_KEY = "dagster_dbt/exposure_url"
 _EXPOSURE_MATURITY_KEY = "dagster_dbt/exposure_maturity"
 _EXTERNAL_PACKAGE_KEY = "dagster_dbt/external_package"
+_SEMANTIC_MEASURES_KEY = "dagster_dbt/measures"
+_SEMANTIC_DIMENSIONS_KEY = "dagster_dbt/dimensions"
+_SEMANTIC_ENTITIES_KEY = "dagster_dbt/entities"
+_METRIC_TYPE_KEY = "dagster_dbt/metric_type"
+_METRIC_LABEL_KEY = "dagster_dbt/metric_label"
 
 # dbt exposure types → Dagster kind for UI icon distinction.
 _DBT_EXPOSURE_TYPE_TO_KIND: Mapping[str, str] = {
@@ -186,6 +191,46 @@ def _freshness_policy_from_meta_dagster(
     return None
 
 
+def _parse_duration_string(s: Any) -> Optional[timedelta]:
+    """Parse a dbt-style duration string like ``"4h"`` / ``"45m"`` / ``"7d"`` /
+    ``"30s"`` / ``"1w"`` into a ``timedelta``. Also accepts numeric seconds.
+
+    Used for ``config.state.lag_tolerance`` (dbt State, ~2.0+). Returns None
+    on unparseable input — silent skip is right since dbt allows Jinja-templated
+    values that we can't evaluate at manifest-parse time.
+    """
+    if s is None:
+        return None
+    if isinstance(s, (int, float)):
+        return timedelta(seconds=float(s))
+    if not isinstance(s, str):
+        return None
+    s = s.strip().lower()
+    if not s:
+        return None
+    unit_map = {"s": "seconds", "m": "minutes", "h": "hours", "d": "days", "w": "weeks"}
+    unit = s[-1]
+    if unit not in unit_map:
+        # Try bare number = seconds
+        try:
+            return timedelta(seconds=float(s))
+        except ValueError:
+            return None
+    try:
+        value = float(s[:-1])
+    except ValueError:
+        return None
+    return timedelta(**{unit_map[unit]: value})
+
+
+def _lag_tolerance_of(dbt_resource_props: Mapping[str, Any]) -> Optional[timedelta]:
+    """Extract dbt State ``config.state.lag_tolerance`` as a ``timedelta`` (real
+    dbt feature — see https://docs.getdbt.com/reference/resource-configs/lag-tolerance).
+    Returns None when unset."""
+    lag = ((dbt_resource_props.get("config") or {}).get("state") or {}).get("lag_tolerance")
+    return _parse_duration_string(lag)
+
+
 def _derive_freshness_policy(
     dbt_resource_props: Mapping[str, Any],
 ) -> Optional[dg.FreshnessPolicy]:
@@ -193,6 +238,9 @@ def _derive_freshness_policy(
       1. ``meta.dagster.freshness_policy`` (any resource type) — user override wins
       2. ``sources.freshness.{warn_after, error_after}`` (sources only)
       3. ``models[*].config.freshness.build_after`` (models only, dbt 1.9+)
+      4. Widened by ``config.state.lag_tolerance`` (models, dbt State ~2.0+) —
+         if the derived fail_window is shorter than lag_tolerance, use the
+         larger of the two (dbt won't rebuild inside lag_tolerance regardless).
     """
     meta_dagster = (dbt_resource_props.get("meta") or {}).get("dagster") or {}
     meta_policy = _freshness_policy_from_meta_dagster(meta_dagster.get("freshness_policy"))
@@ -200,6 +248,7 @@ def _derive_freshness_policy(
         return meta_policy
 
     resource_type = dbt_resource_props.get("resource_type")
+    lag_tolerance = _lag_tolerance_of(dbt_resource_props) if resource_type == "model" else None
 
     # sources.freshness
     if resource_type == "source":
@@ -207,21 +256,23 @@ def _derive_freshness_policy(
         error_after = _dbt_freshness_spec_to_timedelta(freshness_config.get("error_after"))
         warn_after = _dbt_freshness_spec_to_timedelta(freshness_config.get("warn_after"))
         if error_after is None:
-            # Dagster's TimeWindowFreshnessPolicy requires a fail_window; warn-only
-            # is not usable — surface nothing.
             return None
-        # Guard: warn must be strictly < fail; drop warn if the source is misconfigured.
         if warn_after is not None and warn_after >= error_after:
             warn_after = None
         return dg.FreshnessPolicy.time_window(fail_window=error_after, warn_window=warn_after)
 
-    # dbt 1.9+ model config.freshness.build_after
+    # dbt 1.9+ model config.freshness.build_after — widened by lag_tolerance
     if resource_type == "model":
         freshness_config = (dbt_resource_props.get("config") or {}).get("freshness") or {}
         build_after = _dbt_freshness_spec_to_timedelta(freshness_config.get("build_after"))
-        if build_after is None:
+        # If only lag_tolerance is set (no build_after), use lag_tolerance as
+        # the fail_window — it's still a valid SLA lower bound.
+        effective = build_after or lag_tolerance
+        if effective is None:
             return None
-        return dg.FreshnessPolicy.time_window(fail_window=build_after)
+        if build_after is not None and lag_tolerance is not None and lag_tolerance > build_after:
+            effective = lag_tolerance
+        return dg.FreshnessPolicy.time_window(fail_window=effective)
 
     return None
 
@@ -473,6 +524,32 @@ try:
         Complements `include_contracts` (which only surfaces the config as
         metadata)."""
 
+        emit_semantic_layer_as_assets: bool = False
+        """Emit dbt semantic_models + metrics as observable AssetSpecs (kinds
+        `semantic_model` / `metric` for UI icon distinction). semantic_models
+        depend on their upstream models; metrics depend on the semantic models
+        they aggregate. Ports `et/dbt-semantic-layer-assets` PR branch."""
+
+        enable_materialization_kinds: bool = False
+        """Add each model's dbt `materialized` value (`table` / `view` /
+        `incremental` / `materialized_view` / `ephemeral` / `seed` /
+        `snapshot`) as a Dagster kind so the UI renders distinct icons.
+        Additive — existing kinds untouched. Ports part of
+        `et/dbt-polish-kinds-explorer-desc` PR branch."""
+
+        auto_trigger_on_freshness_failure: bool = False
+        """When combined with `derive_freshness_policies`, also attach
+        `AutomationCondition.freshness_failed()` to every asset that gets a
+        derived FreshnessPolicy. Dagster will then trigger the rebuild when
+        the policy's fail_window elapses.
+
+        Applies to models with `config.freshness.build_after` (dbt 1.9+) and
+        sources with `sources.freshness.error_after`. Skipped for assets that
+        already carry an `automation_condition` from `meta.dagster.*` (user
+        override wins). `lag_tolerance` alone does NOT trigger the automation
+        — dbt handles the settling gate; the automation only fires on true
+        staleness."""
+
         external_packages: Optional[List[str]] = None
         """dbt mesh: package names to emit as observable stub AssetSpecs. Pair
         with `exclude: 'package:X'` on the base component so this project's dbt
@@ -663,11 +740,34 @@ try:
             if per_model_automation is not None:
                 enriched = enriched.replace_attributes(automation_condition=per_model_automation)
 
+            # Materialization kind (table / view / incremental / seed / snapshot / ...)
+            if self.enable_materialization_kinds:
+                mat = (node.get("config") or {}).get("materialized")
+                if mat and isinstance(mat, str):
+                    try:
+                        existing_kinds = set(enriched.kinds or ())
+                        existing_kinds.add(mat)
+                        enriched = enriched.merge_attributes(kinds=existing_kinds)
+                    except Exception:
+                        pass
+
             # Freshness policy — REAL, not just metadata
             if self.derive_freshness_policies:
                 policy = _derive_freshness_policy(node)
                 if policy is not None:
                     enriched = enriched.replace_attributes(freshness_policy=policy)
+                    # Optionally auto-trigger rebuild on freshness failure.
+                    # User-supplied automation_condition (from meta.dagster.*)
+                    # wins — only attach the derived one when nothing's set.
+                    if self.auto_trigger_on_freshness_failure and (
+                        per_model_automation is None and enriched.automation_condition is None
+                    ):
+                        try:
+                            enriched = enriched.replace_attributes(
+                                automation_condition=dg.AutomationCondition.freshness_failed()
+                            )
+                        except Exception:
+                            pass
 
             return enriched
 
@@ -726,6 +826,80 @@ try:
                         owners=owners,
                         tags=tags,
                         kinds=kinds,
+                    )
+                )
+            return specs
+
+        def _build_semantic_layer_specs(
+            self, manifest: dict, base_specs_by_unique_id: Dict[str, dg.AssetKey]
+        ) -> List[dg.AssetSpec]:
+            """Emit AssetSpec per dbt semantic_model + metric, kinds
+            ``semantic_model`` / ``metric``. semantic_models depend on their
+            upstream model; metrics depend on the semantic models they aggregate.
+            Ports ``et/dbt-semantic-layer-assets`` PR."""
+            specs: List[dg.AssetSpec] = []
+
+            # semantic_models — one AssetSpec each, dep on upstream model
+            for sm_uid, sm in (manifest.get("semantic_models") or {}).items():
+                deps: List[dg.AssetDep] = []
+                seen: set[dg.AssetKey] = set()
+                for up_uid in (sm.get("depends_on") or {}).get("nodes", []) or []:
+                    k = base_specs_by_unique_id.get(up_uid)
+                    if k is None or k in seen:
+                        continue
+                    seen.add(k)
+                    deps.append(dg.AssetDep(asset=k))
+                name = sm.get("name") or sm_uid.split(".")[-1]
+                specs.append(
+                    dg.AssetSpec(
+                        key=dg.AssetKey(name),
+                        deps=deps,
+                        description=sm.get("description"),
+                        kinds={"semantic_model"},
+                        metadata={
+                            _UNIQUE_ID_KEY: sm_uid,
+                            _SEMANTIC_MEASURES_KEY: dg.MetadataValue.json(
+                                [m.get("name") for m in sm.get("measures", [])]
+                            ),
+                            _SEMANTIC_DIMENSIONS_KEY: dg.MetadataValue.json(
+                                [d.get("name") for d in sm.get("dimensions", [])]
+                            ),
+                            _SEMANTIC_ENTITIES_KEY: dg.MetadataValue.json(
+                                [e.get("name") for e in sm.get("entities", [])]
+                            ),
+                        },
+                    )
+                )
+
+            # Build lookup for {semantic_model unique_id → AssetKey} so metrics
+            # can dep on them by key.
+            sm_key_by_uid: Dict[str, dg.AssetKey] = {}
+            for sm_uid, sm in (manifest.get("semantic_models") or {}).items():
+                name = sm.get("name") or sm_uid.split(".")[-1]
+                sm_key_by_uid[sm_uid] = dg.AssetKey(name)
+
+            # metrics — deps on semantic_models they reference
+            for m_uid, m in (manifest.get("metrics") or {}).items():
+                deps = []
+                seen = set()
+                for up_uid in (m.get("depends_on") or {}).get("nodes", []) or []:
+                    k = sm_key_by_uid.get(up_uid) or base_specs_by_unique_id.get(up_uid)
+                    if k is None or k in seen:
+                        continue
+                    seen.add(k)
+                    deps.append(dg.AssetDep(asset=k))
+                name = m.get("name") or m_uid.split(".")[-1]
+                specs.append(
+                    dg.AssetSpec(
+                        key=dg.AssetKey(name),
+                        deps=deps,
+                        description=m.get("description"),
+                        kinds={"metric"},
+                        metadata={
+                            _UNIQUE_ID_KEY: m_uid,
+                            _METRIC_TYPE_KEY: str(m.get("type") or ""),
+                            _METRIC_LABEL_KEY: str(m.get("label") or ""),
+                        },
                     )
                 )
             return specs
@@ -859,6 +1033,13 @@ try:
             if self.external_packages:
                 try:
                     extra_specs.extend(self._build_external_package_specs(manifest))
+                except Exception:
+                    pass
+            if self.emit_semantic_layer_as_assets:
+                try:
+                    extra_specs.extend(
+                        self._build_semantic_layer_specs(manifest, base_specs_by_unique_id)
+                    )
                 except Exception:
                     pass
 

@@ -1,50 +1,62 @@
 # Enriched dbt Project Component
 
-A drop-in enrichment of `dagster_dbt.DbtProjectComponent`. Every opt-in field
-defaults to off — install and set no flags, behavior is identical to the base
-component. Turn on flags to layer in metadata, real freshness policies,
-exposure lineage, contract checks, and dbt mesh support.
+Drop-in replacement for `dagster_dbt.DbtProjectComponent` that reads the
+dbt manifest and layers a set of opt-in enrichments on top: real
+`FreshnessPolicy` derivation, exposures / semantic layer / mesh stubs as
+observable `AssetSpec`s, contract asset checks, per-model config via
+`meta.dagster.*`, and rich metadata surfacing.
 
-**Renamed from `DbtDocsEnrichedProjectComponent`** — the old class name is
-kept as a backward-compat alias so existing YAML doesn't break. The rename
-reflects that this component now does far more than surface docs metadata.
+Every field is opt-in. Set none of them and the component behaves
+identically to the base `DbtProjectComponent`.
 
-## Two modes (planned)
+## Configuration surface
 
-- **dbt Core** (via `project:`) — wired today. All Phase 1 enrichments live.
-- **dbt Cloud** (via `dbt_cloud_workspace:`) — scaffolded but raises
-  `NotImplementedError`. Phase 2 wires it in via composition with
-  `DbtCloudComponent` and ports the mid-run monitor + selection DSL from
-  [`dbt-cloud-mesh-demo`](https://github.com/eric-thomas-dagster/dbt-cloud-mesh-demo).
+### dbt project
 
-## Enrichments (Phase 1 — shipped)
+| Field | Default | What |
+|---|---|---|
+| `project` | *required* | Path to dbt project (containing `dbt_project.yml`) |
+| `cli_args` | `["build"]` | dbt CLI args |
+| `select` | | dbt selection string |
+| `exclude` | | dbt exclusion string |
+| `translation` | | Per-node translation config |
+| `manifest_path` | `{project}/target/manifest.json` | Override manifest path |
 
-### Metadata-only surfacing
+### Metadata surfacing (attach as JSON metadata on each asset)
 
-| Flag | What it adds |
+| Field | What |
 |---|---|
-| `dbt_docs_url` | Clickable link to hosted dbt docs per node — `{url}/#!/{resource_type}/{unique_id}` |
-| `include_exposures` | Downstream exposures list per model, as JSON metadata |
-| `include_metrics` | Metric definitions per referenced model, as JSON metadata |
-| `include_semantic_models` | Semantic model definitions per referenced model, as JSON |
-| `include_contracts` | `contract_enforced` + column constraints, as metadata |
-| `include_meta` | Full `node.meta` dict (minus the `dagster` subkey), as JSON |
-| `include_source_freshness` | Source freshness thresholds + `loaded_at_field` + loader, as metadata |
-| `include_doc_blocks` | Resolves `{{ doc() }}` references, embeds contents as metadata |
+| `dbt_docs_url` | Base URL of your hosted dbt docs. Each asset gets a clickable `{url}/#!/{resource_type}/{unique_id}` link |
+| `include_exposures` | Attach exposures list |
+| `include_metrics` | Attach metric definitions |
+| `include_semantic_models` | Attach semantic model definitions |
+| `include_contracts` | Attach contract config (enforced flag + column constraints) |
+| `include_meta` | Attach full `node.meta` dict (minus the `dagster` subkey) |
+| `include_source_freshness` | Attach source freshness thresholds + loader |
+| `include_doc_blocks` | Resolve `{{ doc() }}` refs and embed contents |
 
-### Real behavior
+### Real behavior (change what Dagster emits or how it evaluates assets)
 
-| Flag | What it does |
+| Field | What |
 |---|---|
-| `emit_exposures_as_assets` | Emits each dbt exposure as an observable `AssetSpec` with real `AssetDep`s on its upstream models. Adds downstream lineage — "if this model breaks, which dashboards are affected?" Kind is derived from `exposure.type` (`dashboard` / `notebook` / `analysis` / `ml` / `application`) so the UI renders a distinct icon. |
-| `derive_freshness_policies` | Attaches a real `FreshnessPolicy` to sources (from `sources.freshness.{warn_after, error_after}`) and to dbt 1.9+ models (from `config.freshness.build_after`). Also honors explicit `meta.dagster.freshness_policy` config in either `time_window` or `cron` shape — user config wins over derivation. |
-| `emit_contract_checks` | For every model with `config.contract.enforced: true`, emits one `AssetCheckSpec` per column constraint (`not_null`, `unique`, `primary_key`, `foreign_key`, `check`). Contract violations surface as failing checks. |
-| `external_packages` | dbt mesh: emit observable stub `AssetSpec`s for models whose `package_name` matches. Pair with `exclude: 'package:X'` on the base component so this project's dbt run doesn't try to rebuild them. Downstream lineage still renders even though the upstream is owned by a different Dagster code location. |
+| `emit_exposures_as_assets` | Emit dbt exposures as observable `AssetSpec`s with real deps on upstream models. Kind is `dashboard` / `notebook` / `analysis` / `ml` / `application` per `exposure.type` for distinct UI icons. |
+| `emit_semantic_layer_as_assets` | Emit dbt `semantic_models` + `metrics` as observable `AssetSpec`s (kinds `semantic_model` / `metric`). semantic_models dep on their upstream model; metrics dep on the semantic models they aggregate. |
+| `emit_contract_checks` | For every model with `config.contract.enforced: true`, emit one `AssetCheckSpec` per column constraint (`not_null`, `unique`, `primary_key`, `foreign_key`, `check`). |
+| `external_packages` | dbt mesh: emit observable stub `AssetSpec`s for models whose `package_name` matches. Pair with `exclude: 'package:X'` so this project's dbt run doesn't try to rebuild them — downstream lineage still renders because the upstream Dagster code location merges in. |
+| `enable_materialization_kinds` | Add each model's `config.materialized` value (`table` / `view` / `incremental` / `materialized_view` / `ephemeral` / `seed` / `snapshot`) as a Dagster kind for distinct UI icons. |
+| `derive_freshness_policies` | Attach a real `FreshnessPolicy` to sources (from `sources.freshness.warn_after/error_after`) and to models (from dbt 1.9+ `config.freshness.build_after` and/or dbt State `config.state.lag_tolerance`; `fail_window = max(build_after, lag_tolerance)`). Honors explicit `meta.dagster.freshness_policy` overrides. |
+| `auto_trigger_on_freshness_failure` | With `derive_freshness_policies`: also attach `AutomationCondition.freshness_failed()` so Dagster triggers the rebuild when the derived policy fails. |
+| `derive_lag_tolerance_automation` | For models with `config.state.lag_tolerance` (and no user-supplied `automation_condition`): attach `.newly_updated().since(cron_tick_passed(cron))` where the cron is snapped from lag_tolerance (`30m → */30 * * * *`, `4h → 0 */4 * * *`, `1d → 0 0 * * *`). Dagster drives the trigger; dbt still enforces the exact gate on its own build step. |
+| `code_version_strategy` | `disabled` (default) / `hash` / `sqlglot`. `hash` uses dbt's manifest `checksum.checksum` (bumps on any file edit including whitespace). `sqlglot` parses `compiled_code`, strips comments + normalizes whitespace, then hashes — semantic-only versioning that pairs with `AutomationCondition.code_version_changed()`. Falls back to `hash` if `sqlglot` isn't installed. |
+| `asset_overrides` | Per-asset overrides keyed by asset key. Today supports `{depends_on: [...]}` to inject Dagster asset dependencies (e.g. external assets not managed by dbt). |
 
 ### Per-model config (read from dbt YAML `meta.dagster.*`)
 
+Keep partition + automation + freshness config alongside the dbt project
+instead of in Dagster YAML:
+
 ```yaml
-# In your dbt schema.yml — no Dagster YAML change needed
+# In your dbt schema.yml
 - name: fct_fuel_margin_daily
   config:
     meta:
@@ -60,81 +72,56 @@ reflects that this component now does far more than surface docs metadata.
           warn_window_seconds: 1800
 ```
 
-Partition types supported: `daily`, `hourly`, `weekly`, `monthly`, `static`, `dynamic`.
-Automation presets: `eager`, `on_missing`, `any_downstream_conditions`,
-`on_deploy_if_code_changed`, or a raw `cron: "0 9 * * *"`.
-Freshness shapes: `time_window` (fail_window_seconds, warn_window_seconds?) or
-`cron` (deadline_cron, lower_bound_delta_seconds, timezone?).
+- **Partitions:** `daily`, `hourly`, `weekly`, `monthly`, `static`, `dynamic`
+- **Automation presets:** `eager`, `on_missing`, `any_downstream_conditions`, `on_deploy_if_code_changed`, or raw `cron: "0 9 * * *"`
+- **Freshness shapes:** `time_window` (`fail_window_seconds`, `warn_window_seconds?`) or `cron` (`deadline_cron`, `lower_bound_delta_seconds`, `timezone?`)
 
-## Fields
+User-supplied `meta.dagster.automation_condition` always wins over any
+`auto_trigger_on_freshness_failure` / `derive_lag_tolerance_automation`
+derivation.
 
-| Name | Required | Default | Description |
-|---|---|---|---|
-| `project` | yes | — | Path to dbt project (containing `dbt_project.yml`) |
-| `cli_args` | | `["build"]` | dbt CLI args |
-| `select` | | | dbt selection string |
-| `exclude` | | | dbt exclusion string |
-| `translation` | | | Per-node translation config |
-| `dbt_docs_url` | | | Base URL of hosted dbt docs |
-| `include_exposures` | | `false` | Metadata: attach exposures list |
-| `include_metrics` | | `false` | Metadata: attach metrics |
-| `include_semantic_models` | | `false` | Metadata: attach semantic models |
-| `include_contracts` | | `false` | Metadata: attach contract config |
-| `include_meta` | | `false` | Metadata: attach full `node.meta` |
-| `include_source_freshness` | | `false` | Metadata: attach source freshness |
-| `include_doc_blocks` | | `false` | Metadata: resolve + embed doc blocks |
-| `manifest_path` | | `{project}/target/manifest.json` | Override manifest path |
-| `asset_overrides` | | | Per-asset deps injection |
-| `emit_exposures_as_assets` | | `false` | Real: emit exposures as AssetSpecs |
-| `derive_freshness_policies` | | `false` | Real: attach FreshnessPolicy to sources + build_after models |
-| `emit_contract_checks` | | `false` | Real: per-column AssetCheckSpec for enforced contracts |
-| `external_packages` | | | Real: dbt mesh — emit stubs for imported package models |
-| `dbt_cloud_workspace` | | | **Not yet wired** — Phase 2 |
-| `job_filter` | | | Cloud mode — Phase 2 |
-| `monitor_runs` | | `false` | Cloud mode mid-run monitor — Phase 2 |
-| `fail_fast` | | `false` | Cloud mode — cancel on first failure — Phase 2 |
-| `poll_interval` | | `5.0` | Cloud mode poll seconds — Phase 2 |
+## Full example
 
-## Roadmap
+```yaml
+type: dagster_community_components.EnrichedDbtProjectComponent
+attributes:
+  project: "{{ project_root }}/dbt_project"
+  cli_args: [build]
 
-**Phase 2 — dbt Cloud mode**
+  dbt_docs_url: "https://dbt-docs.internal.mycompany.com"
 
-- Compose with `DbtCloudComponent` when `dbt_cloud_workspace` is set
-- Port `DbtCloudRunMonitor` from `dbt-cloud-mesh-demo` — parses debug logs
-  mid-run to yield per-model Output events as each model completes
-- Selection DSL for filtering which Cloud jobs to mirror
-- Mesh-aware exclusion (Cloud sensors filter external_packages events)
+  # Metadata surfacing
+  include_exposures: true
+  include_contracts: true
+  include_source_freshness: true
 
-**Phase 3+ — additional enrichments**
+  # Real emission + policy attachment
+  emit_exposures_as_assets: true
+  emit_semantic_layer_as_assets: true
+  emit_contract_checks: true
+  enable_materialization_kinds: true
 
-- `emit_semantic_layer_as_assets` — semantic_models + metrics as AssetSpecs
-- `code_version_strategy: hash | sqlglot | disabled` — sqlglot canonicalizes
-  SQL before hashing, so whitespace / comment changes don't bump the version
-- Materialization kinds (`table` / `view` / `incremental` chips in the UI)
-- Explorer URL + opt-out SQL-in-description polish
-- Slim-CI helpers (`defer_config`, `state_manifest_path` + dbt/state tags)
-- Skip-reason metadata (surface `node.status == 'skipped'` reason on materialization)
-- `dbt state explain` output as per-model metadata
-- Configurable `lag_tolerance` on freshness policy derivation
+  # Freshness + automation
+  derive_freshness_policies: true
+  auto_trigger_on_freshness_failure: true      # freshness fails → Dagster rebuilds
+  derive_lag_tolerance_automation: false        # (mutually exclusive with above)
 
-## Related components
+  # Code version — sqlglot canonicalizes SQL so whitespace/comment edits
+  # don't bump the version. Pairs with AutomationCondition.code_version_changed().
+  code_version_strategy: sqlglot
 
-- **`DbtStateReusePatch`** — monkey-patches dagster-dbt to treat `no-op`
-  (state-reuse) and `partial success` (microbatch) statuses as materialization
-  events. Bridge component until [dagster#34010](https://github.com/dagster-io/dagster/pull/34010) merges + releases.
-- **`DbtCloudJobSensor`**, **`DbtRunJobComponent`**, **`DbtCloudTriggerJobComponent`**
-  — event-driven and job-shaped triggers for dbt runs.
+  # dbt mesh: models imported from another dbt project
+  external_packages: [shared_core]
+  exclude: "package:shared_core"
 
-## Provenance
+  # External asset dep injection
+  asset_overrides:
+    fct_daily_pnl:
+      depends_on: [fx_rates]
+```
 
-Portable enrichment functions are vendored from PR branches by the maintainer.
-When the upstream PRs merge and release, the vendored sections in
-`component.py` can be deleted and replaced with imports from
-`dagster_dbt.asset_utils` / `dagster_dbt.asset_specs`. Source branches:
+## Related
 
-- `et/dbt-exposures-as-assets`
-- `et/dbt-source-freshness-policies`
-- `et/dbt-model-freshness-automation-condition`
-- `et/dbt-contract-asset-checks`
-- `et/dbt-contract-metadata-json`
-- `et/dbt-mesh-external-packages`
+- **[`EnrichedDbtCloudWorkspaceComponent`](../enriched_dbt_cloud_workspace/README.md)** — same enrichment vocabulary for dbt Cloud
+- **`DbtStateReusePatch`** — bridge component that monkey-patches dagster-dbt to treat `no-op` (state-reuse) and `partial success` (microbatch) as materialization events
+- **`DbtCloudJobSensor`**, **`DbtRunJobComponent`**, **`DbtCloudTriggerJobComponent`** — job-shaped triggers for dbt runs

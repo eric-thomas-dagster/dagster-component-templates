@@ -78,7 +78,7 @@ import json
 from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Sequence
+from typing import Any, Dict, List, Literal, Mapping, Optional, Sequence
 
 import dagster as dg
 from pydantic import Field
@@ -229,6 +229,200 @@ def _lag_tolerance_of(dbt_resource_props: Mapping[str, Any]) -> Optional[timedel
     Returns None when unset."""
     lag = ((dbt_resource_props.get("config") or {}).get("state") or {}).get("lag_tolerance")
     return _parse_duration_string(lag)
+
+
+# Cron granularities we snap arbitrary lag_tolerance durations to. Cron
+# doesn't express "every 45 minutes" cleanly; the nearest divisor is
+# 30 or 60. We pick the largest supported divisor <= the requested delay
+# so the automation waits AT LEAST as long as lag_tolerance asked for.
+_CRON_DIVISORS_MIN: list[tuple[int, str]] = [
+    (1, "* * * * *"),
+    (2, "*/2 * * * *"),
+    (5, "*/5 * * * *"),
+    (10, "*/10 * * * *"),
+    (15, "*/15 * * * *"),
+    (20, "*/20 * * * *"),
+    (30, "*/30 * * * *"),
+]
+_CRON_DIVISORS_HOUR: list[tuple[int, str]] = [
+    (1, "0 * * * *"),
+    (2, "0 */2 * * *"),
+    (3, "0 */3 * * *"),
+    (4, "0 */4 * * *"),
+    (6, "0 */6 * * *"),
+    (8, "0 */8 * * *"),
+    (12, "0 */12 * * *"),
+]
+
+
+def _lag_tolerance_to_cron(lag: timedelta) -> Optional[str]:
+    """Snap a lag_tolerance duration to the largest cron divisor <= the delay.
+
+    Rounding down (rather than up) means the automation may fire slightly
+    sooner than lag_tolerance asked for — which is fine because dbt itself
+    still enforces the lag_tolerance skip on build. The automation just
+    tells Dagster when to ATTEMPT a rebuild; dbt is the source of truth for
+    whether it actually runs.
+    """
+    total_seconds = lag.total_seconds()
+    if total_seconds < 60:
+        return "* * * * *"  # 1-minute minimum
+    if total_seconds < 3600:
+        minutes = int(total_seconds // 60)
+        best = _CRON_DIVISORS_MIN[0]
+        for div, cron in _CRON_DIVISORS_MIN:
+            if div <= minutes:
+                best = (div, cron)
+        return best[1]
+    if total_seconds < 86400:
+        hours = int(total_seconds // 3600)
+        best = _CRON_DIVISORS_HOUR[0]
+        for div, cron in _CRON_DIVISORS_HOUR:
+            if div <= hours:
+                best = (div, cron)
+        return best[1]
+    # 1+ days
+    days = int(total_seconds // 86400)
+    if days == 1:
+        return "0 0 * * *"  # daily at midnight UTC
+    if days < 7:
+        return f"0 0 */{days} * *"
+    return "0 0 * * 0"  # weekly on Sunday at midnight
+
+
+# ─── Vendored code-version derivation ─────────────────────────────────
+# Ported from `et/dbt-code-version-automation` PR + new sqlglot mode for
+# whitespace/comment-insensitive versioning. When the PR merges, delete
+# the `hash` branch and import from dagster_dbt.
+
+
+def _dbt_dialect_from_adapter(adapter_type: Optional[str]) -> Optional[str]:
+    """Map a dbt adapter type (`snowflake`, `postgres`, `bigquery`, `redshift`,
+    `duckdb`, `databricks`, …) to a sqlglot dialect name. sqlglot's dialect
+    names are close but not always identical — this table covers the common
+    warehouses. Returns None for unknown adapters; sqlglot falls back to
+    generic parsing when dialect is unset."""
+    if not adapter_type:
+        return None
+    _MAP = {
+        "snowflake": "snowflake",
+        "postgres": "postgres",
+        "redshift": "redshift",
+        "bigquery": "bigquery",
+        "duckdb": "duckdb",
+        "databricks": "databricks",
+        "spark": "spark",
+        "sparksql": "spark",
+        "mysql": "mysql",
+        "trino": "trino",
+        "presto": "presto",
+        "clickhouse": "clickhouse",
+        "athena": "athena",
+        "sqlite": "sqlite",
+        "oracle": "oracle",
+    }
+    return _MAP.get(adapter_type.lower())
+
+
+def _derive_code_version(
+    dbt_resource_props: Mapping[str, Any],
+    strategy: str,
+    adapter_type: Optional[str] = None,
+) -> Optional[str]:
+    """Derive a Dagster code_version for a dbt node.
+
+    - ``"disabled"`` — returns None (default, backward compatible).
+    - ``"hash"``     — use dbt's own manifest ``checksum.checksum`` (SHA1 of
+                       the source model file). Fast, no extra deps. Bumps
+                       code version on any file edit including whitespace/
+                       comment-only changes.
+    - ``"sqlglot"``  — parse the compiled_code with sqlglot, canonicalize
+                       (strip comments + normalize whitespace + reformat),
+                       then SHA256 the canonical form. Whitespace + comment
+                       changes DO NOT bump the code version — only semantic
+                       SQL changes do. Requires ``sqlglot`` (optional).
+                       Falls back to ``"hash"`` if the parse fails.
+
+    Only applies to models (checksums / compiled_code are model-only in dbt).
+    """
+    if strategy == "disabled":
+        return None
+    if dbt_resource_props.get("resource_type") != "model":
+        return None
+
+    if strategy == "hash":
+        checksum = (dbt_resource_props.get("checksum") or {}).get("checksum")
+        return str(checksum) if checksum else None
+
+    if strategy == "sqlglot":
+        compiled = (
+            dbt_resource_props.get("compiled_code")
+            or dbt_resource_props.get("compiled_sql")
+            or dbt_resource_props.get("raw_code")
+            or dbt_resource_props.get("raw_sql")
+        )
+        if not compiled:
+            # No compiled SQL — fall back to raw checksum
+            checksum = (dbt_resource_props.get("checksum") or {}).get("checksum")
+            return str(checksum) if checksum else None
+        try:
+            import hashlib
+            import sqlglot  # optional dep
+            dialect = _dbt_dialect_from_adapter(adapter_type)
+            tree = sqlglot.parse_one(compiled, read=dialect) if dialect else sqlglot.parse_one(compiled)
+            # comments=False strips block/line comments; pretty=False + sql()
+            # gives a stable canonical form insensitive to whitespace.
+            canonical = tree.sql(pretty=False, comments=False, dialect=dialect)
+            return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
+        except ImportError:
+            # sqlglot not installed — degrade to hash strategy
+            checksum = (dbt_resource_props.get("checksum") or {}).get("checksum")
+            return str(checksum) if checksum else None
+        except Exception:
+            # Parse failure (unusual SQL, dialect mismatch, …) — degrade to hash
+            checksum = (dbt_resource_props.get("checksum") or {}).get("checksum")
+            return str(checksum) if checksum else None
+
+    return None
+
+
+def _lag_tolerance_automation_condition(lag: timedelta) -> Optional[Any]:
+    """Compose an AutomationCondition that fires ~lag_tolerance after any
+    upstream dep is newly-updated. Uses the standard Dagster pattern:
+
+        any_deps_match(
+            newly_updated().since(cron_tick_passed(cron))
+            & ~executed_with_root_target()
+        ).newly_true()
+        & ~in_progress()
+        & in_latest_time_window()
+
+    Where ``cron`` maps from lag_tolerance via ``_lag_tolerance_to_cron``.
+    Users get "wait ~lag_tolerance after upstream changed, then rebuild"
+    behavior with Dagster driving the trigger and dbt enforcing the
+    exact gate on its own build step.
+    """
+    cron = _lag_tolerance_to_cron(lag)
+    if cron is None:
+        return None
+    try:
+        return (
+            dg.AutomationCondition.any_deps_match(
+                dg.AutomationCondition.newly_updated().since(
+                    dg.AutomationCondition.cron_tick_passed(cron)
+                )
+                & ~dg.AutomationCondition.executed_with_root_target()
+            ).newly_true()
+            & ~dg.AutomationCondition.in_progress()
+            & dg.AutomationCondition.in_latest_time_window()
+        )
+    except Exception:
+        # Some dagster versions may not expose all these primitives; degrade
+        # to a simpler shape so we don't break the whole enrichment.
+        try:
+            return dg.AutomationCondition.eager() & ~dg.AutomationCondition.in_progress()
+        except Exception:
+            return None
 
 
 def _derive_freshness_policy(
@@ -546,9 +740,40 @@ try:
         Applies to models with `config.freshness.build_after` (dbt 1.9+) and
         sources with `sources.freshness.error_after`. Skipped for assets that
         already carry an `automation_condition` from `meta.dagster.*` (user
-        override wins). `lag_tolerance` alone does NOT trigger the automation
-        — dbt handles the settling gate; the automation only fires on true
-        staleness."""
+        override wins)."""
+
+        code_version_strategy: Literal["disabled", "hash", "sqlglot"] = "disabled"
+        """How to derive Dagster ``code_version`` per model asset:
+
+        - ``disabled`` (default) — no code_version derived; base behavior.
+        - ``hash``     — use dbt's manifest ``checksum.checksum`` directly.
+          Fast, zero extra deps. Bumps on ANY file edit (whitespace, comment).
+        - ``sqlglot``  — parse the compiled_code with sqlglot, canonicalize
+          (strip comments + normalize whitespace), then SHA256 the canonical
+          form. Whitespace / comment-only edits do NOT bump code_version;
+          only semantic SQL changes do. Optional dep (falls back to ``hash``
+          if sqlglot isn't installed or parsing fails). Pairs well with
+          ``AutomationCondition.code_version_changed()``."""
+
+        derive_lag_tolerance_automation: bool = False
+        """For models with `config.state.lag_tolerance` set: attach an
+        AutomationCondition that fires ~lag_tolerance after any upstream is
+        newly-updated. Pattern:
+
+            any_deps_match(
+              newly_updated().since(cron_tick_passed("*/30 * * * *"))
+              & ~executed_with_root_target()
+            ).newly_true()
+            & ~in_progress()
+            & in_latest_time_window()
+
+        where the cron granularity is snapped from lag_tolerance (30m →
+        `*/30 * * * *`, 4h → `0 */4 * * *`, etc). Dagster drives the trigger;
+        dbt still enforces the exact lag_tolerance gate on build.
+
+        User-supplied `automation_condition` from `meta.dagster.*` wins.
+        `auto_trigger_on_freshness_failure` wins over this when both would
+        apply — freshness-failed is the more direct SLO tie-in."""
 
         external_packages: Optional[List[str]] = None
         """dbt mesh: package names to emit as observable stub AssetSpecs. Pair
@@ -765,6 +990,40 @@ try:
                         try:
                             enriched = enriched.replace_attributes(
                                 automation_condition=dg.AutomationCondition.freshness_failed()
+                            )
+                        except Exception:
+                            pass
+
+            # code_version derivation (hash | sqlglot). Applied after
+            # freshness so the derived version rides alongside the policy.
+            if self.code_version_strategy != "disabled":
+                # Adapter type is dbt-project-wide; pull from manifest metadata
+                # if available (usually stored at manifest["metadata"]["adapter_type"]).
+                adapter_type = (manifest.get("metadata") or {}).get("adapter_type")
+                code_version = _derive_code_version(
+                    node, self.code_version_strategy, adapter_type=adapter_type
+                )
+                if code_version:
+                    try:
+                        enriched = enriched.replace_attributes(code_version=code_version)
+                    except Exception:
+                        pass
+
+            # lag_tolerance → AutomationCondition (settling-time debounce).
+            # Applied AFTER auto_trigger_on_freshness_failure so the latter
+            # wins when both would apply.
+            if (
+                self.derive_lag_tolerance_automation
+                and per_model_automation is None
+                and enriched.automation_condition is None
+            ):
+                lag = _lag_tolerance_of(node)
+                if lag is not None:
+                    cond = _lag_tolerance_automation_condition(lag)
+                    if cond is not None:
+                        try:
+                            enriched = enriched.replace_attributes(
+                                automation_condition=cond
                             )
                         except Exception:
                             pass

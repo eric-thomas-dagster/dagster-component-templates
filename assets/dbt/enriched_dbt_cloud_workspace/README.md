@@ -1,143 +1,141 @@
 # Enriched dbt Cloud Workspace Component
 
-A drop-in enrichment of `dagster_dbt.DbtCloudComponent`. Every opt-in field
-defaults to off — set no flags and behavior is identical to the base
-component. Turn on flags to layer in mid-run monitoring, job selection,
+Drop-in replacement for `dagster_dbt.DbtCloudComponent` that adds a
+mid-run per-model monitor, dbt-style job-selection DSL, `mirror_jobs`
+modes for surfacing Cloud jobs as Dagster assets or `@job`s (or both),
 and the same manifest-based enrichments as
-[`EnrichedDbtProjectComponent`](../enriched_dbt_project/README.md).
+[`EnrichedDbtProjectComponent`](../enriched_dbt_project/README.md) —
+`FreshnessPolicy` derivation, exposures / semantic layer / mesh stubs,
+contract asset checks, rich metadata.
 
-## What's in this vs the base `DbtCloudComponent`
+Every field is opt-in. Set none of them and the component behaves
+identically to the base `DbtCloudComponent`.
 
-| Feature | Base | Enriched |
+## Configuration surface
+
+### dbt Cloud workspace
+
+| Field | Default | What |
 |---|---|---|
-| Mid-run per-model events (parse debug logs during execution) | no | **yes** — `monitor_runs: true` |
-| Mirror each Cloud job as an AssetSpec / Dagster @job / both | no | **yes** — `mirror_jobs: asset \| job \| both` |
-| Per-run trigger overrides for mirrored @jobs | no | **yes** — `job_trigger_defaults` |
-| Filter which Cloud jobs get mirrored (dbt-style selection DSL) | no | **yes** — `job_selection_include/exclude` |
-| Freshness policies from `sources.freshness` + dbt 1.9+ `build_after` | no | **yes** — `derive_freshness_policies` |
-| Emit exposures as observable AssetSpecs (with deps) | no | **yes** — `emit_exposures_as_assets` |
-| Per-column AssetCheckSpec for enforced contracts | no | **yes** — `emit_contract_checks` |
-| dbt mesh: emit stubs for `external_packages` | no | **yes** — `external_packages` |
-| Metadata surfacing (`dbt_docs_url` + `include_*` flags) | no | **yes** |
+| `workspace` | *required* | `DbtCloudWorkspace` (`account_id`, `project_id`, `environment_id`, `token`) |
+| `select` | | dbt selection string |
+| `exclude` | | dbt exclusion string |
+| `translation` | | Per-node translation config |
+| `manifest_path` | (fetched via workspace) | Override the manifest.json path used for enrichment |
 
-## Fields
+### Mid-run per-model monitor
 
-### Cloud-specific
-
-| Name | Required | Default | Description |
-|---|---|---|---|
-| `workspace` | yes | — | `DbtCloudWorkspace` (`account_id`, `project_id`, `environment_id`, `token`) |
-| `monitor_runs` | | `false` | Parse dbt Cloud debug logs during execution to yield per-model Output events as models complete |
-| `fail_fast` | | `false` | With `monitor_runs=true`: cancel the dbt Cloud run on first failure |
-| `poll_interval` | | `5.0` | Seconds between debug-log polls |
-| `mirror_jobs` | | `off` | `off` / `asset` / `job` / `both` — surface Cloud jobs in Dagster |
-| `job_trigger_defaults` | | | Dict of trigger overrides sent by every mirrored @job (`cause`, `steps_override`, `git_sha`, `git_branch`, `schema_override`, `threads_override`) |
-| `job_selection_include` | | | Selection string — jobs matching are mirrored. Selectors: `type:deploy`, `*_prod`, `id:12345`, or bare glob. Space-separated union. Empty = all. |
-| `job_selection_exclude` | | | Jobs matching are dropped AFTER include |
-
-### Enrichment (same as `EnrichedDbtProjectComponent`)
-
-| Name | Default | Description |
+| Field | Default | What |
 |---|---|---|
-| `dbt_docs_url` | | Base URL of hosted dbt docs / Cloud Explorer |
-| `include_exposures` | `false` | Attach exposures list as metadata |
-| `include_metrics` | `false` | Attach metrics as metadata |
-| `include_semantic_models` | `false` | Attach semantic models as metadata |
-| `include_contracts` | `false` | Attach contract config as metadata |
-| `include_meta` | `false` | Attach full `node.meta` dict as metadata |
-| `include_source_freshness` | `false` | Attach source freshness thresholds as metadata |
-| `include_doc_blocks` | `false` | Resolve `{{ doc() }}` refs, embed contents |
-| `emit_exposures_as_assets` | `false` | Real: emit exposures as observable AssetSpecs |
-| `derive_freshness_policies` | `false` | Real: FreshnessPolicy on sources + build_after models |
-| `emit_contract_checks` | `false` | Real: per-column AssetCheckSpec for enforced contracts |
-| `external_packages` | | Real: dbt mesh stubs for imported package models |
-| `asset_overrides` | | Per-asset override deps |
+| `monitor_runs` | `false` | Parse dbt Cloud debug logs during execution and yield per-model `Output` events as each model completes — instead of waiting for the entire job to finish. Enables mid-run alerting via Dagster+. |
+| `fail_fast` | `false` | With `monitor_runs=true`: cancel the dbt Cloud run on the first model failure and fail the Dagster run immediately. |
+| `poll_interval` | `5.0` | Seconds between debug-log polls. Lower catches failures faster but makes more API calls. |
 
-## Selection DSL examples
+When the Dagster run is cancelled mid-execution, the monitor also
+cancels the dbt Cloud run so it doesn't keep consuming compute.
+
+### Mirror Cloud jobs
+
+| Field | Default | What |
+|---|---|---|
+| `mirror_jobs` | `off` | `off` / `asset` / `job` / `both`. See table below. |
+| `job_trigger_defaults` | | Trigger overrides sent by every mirrored `@job` (applies with `mirror_jobs` = `job` or `both`). Fields: `cause`, `steps_override`, `git_sha`, `git_branch`, `schema_override`, `threads_override`. Any unset field falls back to the Cloud job's configured value. |
+| `job_selection_include` | | Selection string; jobs matching are mirrored. Selectors: `type:deploy`, `*_prod`, `id:12345`, or bare glob (name-glob shorthand). Space-separated union. Empty = mirror all. |
+| `job_selection_exclude` | | Jobs matching are dropped AFTER include. |
+
+| `mirror_jobs` mode | What Dagster emits per Cloud job |
+|---|---|
+| `off` | Nothing (backward-compatible default) |
+| `asset` | One observable `AssetSpec` (kind: `dbt_cloud_job`). Downstream AutomationConditions react when the job runs. Materialization events flow through the polling sensor. |
+| `job` | One Dagster `@job` that triggers + waits for the Cloud run. Schedulable, launchable from the UI, wireable to `@run_status_sensor` downstream. |
+| `both` | Both AssetSpec + launchable `@job` |
+
+Dagster's internal `DAGSTER_ADHOC_JOB__*` pool is filtered out
+automatically.
+
+**Selection DSL examples:**
 
 ```yaml
 job_selection_include: "type:deploy"                    # only deploy jobs
 job_selection_include: "*_prod"                          # any job named *_prod
 job_selection_include: "type:deploy type:merge"          # deploy OR merge (union)
 job_selection_exclude: "type:ci"                         # everything except CI
-job_selection_include: "*"
-job_selection_exclude: "*_experimental"                  # everything except experimental
 ```
 
-Selector forms:
+### Metadata surfacing (attach as JSON metadata on each asset)
 
-- `type:<value>` — matches `job.job_type` exactly (`ci`, `deploy`, `merge`, `scheduled`, `other`)
-- `name:<glob>` — fnmatch glob against `job.name`
-- `id:<int>` — exact `job.id` match
-- `<glob>` — bare token = shorthand for `name:<glob>`
-- `*` (or empty) — matches every job
+| Field | What |
+|---|---|
+| `dbt_docs_url` | Base URL of your hosted dbt docs or dbt Cloud Explorer URL. Each asset gets a clickable `{url}/#!/{resource_type}/{unique_id}` link |
+| `include_exposures` | Attach exposures list |
+| `include_metrics` | Attach metric definitions |
+| `include_semantic_models` | Attach semantic model definitions |
+| `include_contracts` | Attach contract config (enforced flag + column constraints) |
+| `include_meta` | Attach full `node.meta` dict (minus the `dagster` subkey) |
+| `include_source_freshness` | Attach source freshness thresholds + loader |
+| `include_doc_blocks` | Resolve `{{ doc() }}` refs and embed contents |
 
-## Mirror Cloud jobs (`mirror_jobs`)
+### Real behavior (change what Dagster emits or how it evaluates assets)
 
-Ports `et/dbt-cloud-mirror-jobs`. Every user-defined dbt Cloud job (Dagster's
-internal `DAGSTER_ADHOC_JOB__*` pool is filtered out) can be surfaced in three
-shapes, filtered by the same `job_selection_include/exclude` DSL:
+| Field | What |
+|---|---|
+| `emit_exposures_as_assets` | Emit dbt exposures as observable `AssetSpec`s with real deps on upstream models. Kind is `dashboard` / `notebook` / `analysis` / `ml` / `application`. |
+| `emit_semantic_layer_as_assets` | Emit dbt `semantic_models` + `metrics` as observable `AssetSpec`s (kinds `semantic_model` / `metric`). |
+| `emit_contract_checks` | For every model with `config.contract.enforced: true`, emit one `AssetCheckSpec` per column constraint. |
+| `external_packages` | dbt mesh: emit observable stub `AssetSpec`s for models whose `package_name` matches. Pair with `exclude: 'package:X'`. |
+| `enable_materialization_kinds` | Add each model's `config.materialized` value (`table` / `view` / `incremental` / `materialized_view` / `ephemeral` / `seed` / `snapshot`) as a Dagster kind. |
+| `derive_freshness_policies` | Attach a real `FreshnessPolicy` to sources (from `sources.freshness.warn_after/error_after`) and to models (from dbt 1.9+ `config.freshness.build_after` and/or dbt State `config.state.lag_tolerance`). Honors explicit `meta.dagster.freshness_policy` overrides. |
+| `auto_trigger_on_freshness_failure` | With `derive_freshness_policies`: also attach `AutomationCondition.freshness_failed()` so Dagster triggers the rebuild when the derived policy fails. |
+| `derive_lag_tolerance_automation` | For models with `config.state.lag_tolerance`: attach `.newly_updated().since(cron_tick_passed(cron))` where the cron is snapped from lag_tolerance. |
+| `code_version_strategy` | `disabled` / `hash` / `sqlglot`. `sqlglot` parses `compiled_code`, strips comments + normalizes whitespace, then hashes — whitespace/comment edits don't bump. Pairs with `AutomationCondition.code_version_changed()`. |
+| `asset_overrides` | Per-asset overrides keyed by asset key. Today supports `{depends_on: [...]}` to inject Dagster asset dependencies. |
 
-| Mode | What Dagster emits | Use case |
-|---|---|---|
-| `off` (default) | nothing | Only the dbt-model assets from the base component |
-| `asset` | one observable `AssetSpec` per Cloud job (kind: `dbt_cloud_job`) | Downstream `AutomationCondition`s react when the Cloud job runs. Materialization events flow through the polling sensor. |
-| `job` | one Dagster `@job` per Cloud job that triggers + waits for the Cloud run | Schedule via `ScheduleDefinition`, launch from the Dagster UI, wire `@run_status_sensor` downstream. |
-| `both` | both an AssetSpec AND a launchable @job | Full lineage + trigger surface. |
+## Full example
 
-`job_trigger_defaults` provides per-call overrides sent to dbt Cloud with every
-mirrored @job's trigger (`cause`, `steps_override`, `git_sha`, `git_branch`,
-`schema_override`, `threads_override`). Any unset field falls back to the Cloud
-job's configured value.
+```yaml
+type: dagster_community_components.EnrichedDbtCloudWorkspaceComponent
+attributes:
+  workspace:
+    account_id: "{{ env.DBT_CLOUD_ACCOUNT_ID }}"
+    project_id: "{{ env.DBT_CLOUD_PROJECT_ID }}"
+    environment_id: "{{ env.DBT_CLOUD_ENVIRONMENT_ID }}"
+    token: "{{ env.DBT_CLOUD_TOKEN }}"
 
-## Mid-run monitor
+  # Mid-run monitor
+  monitor_runs: true
+  fail_fast: false
+  poll_interval: 5.0
 
-When `monitor_runs: true`, the component wraps each mirrored AssetsDefinition with
-a `DbtCloudRunMonitor` that:
+  # Mirror Cloud jobs
+  mirror_jobs: both
+  job_trigger_defaults:
+    cause: "Triggered by Dagster"
+  job_selection_include: "type:deploy type:merge"
+  job_selection_exclude: "*_experimental"
 
-1. Triggers the dbt Cloud run via `workspace.cli(["build"], context=context)`
-2. Polls the run's debug logs every `poll_interval` seconds
-3. Parses per-model results (`N of M OK created ... SCHEMA.model_name`)
-4. Yields Dagster `Output` events **as each model completes** — Dagster
-   processes them (triggers alerts, updates the UI) then resumes the generator
-5. On completion, yields remaining events from `run_results.json` for
-   anything not already streamed (tests, missed models)
+  # Metadata surfacing
+  dbt_docs_url: "https://cloud.getdbt.com/accounts/12345/develop/12345/docs"
+  include_exposures: true
+  include_contracts: true
 
-With `fail_fast: true`, the dbt Cloud run is cancelled on the first
-failure and the Dagster run fails immediately. With `fail_fast: false`
-(default), failures are logged in real time but the run continues so
-all failures are captured in a single run.
+  # Real emission + policy attachment
+  emit_exposures_as_assets: true
+  emit_semantic_layer_as_assets: true
+  emit_contract_checks: true
+  enable_materialization_kinds: true
 
-If the Dagster run itself is cancelled mid-execution, the monitor also
-cancels the dbt Cloud run so it doesn't keep consuming compute.
+  # Freshness + automation
+  derive_freshness_policies: true
+  auto_trigger_on_freshness_failure: true
+  code_version_strategy: sqlglot
 
-## Roadmap
+  # dbt mesh
+  external_packages: [shared_core]
+  exclude: "package:shared_core"
+```
 
-**Phase 3+ (queued):**
+## Related
 
-- Semantic layer as observable AssetSpecs (`emit_semantic_layer_as_assets`)
-- Polling sensor emits `AssetCheckEvaluation` events for dbt test results
-  (ports `et/dbt-cloud-sensor-check-evaluations` PR)
-- Mesh-aware polling sensor filters external_packages events
-  (ports `et/dbt-cloud-sensor-mesh-aware` PR)
-- `code_version_strategy: hash | sqlglot | disabled`
-- Skip-reason metadata surfaced on materialization
-- `dbt state explain` output as per-model metadata
-- Configurable `lag_tolerance` on freshness derivation
-
-## Provenance
-
-Vendored from user PR branches — swap to upstream imports when merged:
-
-- `_run_monitor.py` ← `et/dbt-cloud-monitor-runs` (via
-  [`dbt-cloud-mesh-demo`](https://github.com/eric-thomas-dagster/dbt-cloud-mesh-demo)
-  which mirrors the same shape)
-- `_job_selection.py` ← `et/dbt-cloud-mirror-jobs-selection`
-- Enrichment helpers (freshness / contract / exposure / external-package)
-  ← `et/dbt-source-freshness-policies` + `et/dbt-model-freshness-automation-condition`
-  + `et/dbt-contract-asset-checks` + `et/dbt-exposures-as-assets` + `et/dbt-mesh-external-packages`
-
-## Companion
-
-- **[`EnrichedDbtProjectComponent`](../enriched_dbt_project/README.md)** — same
-  enrichment vocabulary for dbt Core (`project:` instead of `workspace:`).
+- **[`EnrichedDbtProjectComponent`](../enriched_dbt_project/README.md)** — same enrichment vocabulary for dbt Core
+- **`DbtStateReusePatch`** — bridge patch for no-op / partial-success statuses
+- **`DbtCloudJobSensor`**, **`DbtCloudTriggerJobComponent`** — event-driven and job-shaped triggers

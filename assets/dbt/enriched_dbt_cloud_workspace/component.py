@@ -184,6 +184,123 @@ def _lag_tolerance_of(dbt_resource_props: Mapping[str, Any]) -> Optional[timedel
     return _parse_duration_string(lag)
 
 
+_CRON_DIVISORS_MIN: list = [
+    (1, "* * * * *"), (2, "*/2 * * * *"), (5, "*/5 * * * *"),
+    (10, "*/10 * * * *"), (15, "*/15 * * * *"), (20, "*/20 * * * *"),
+    (30, "*/30 * * * *"),
+]
+_CRON_DIVISORS_HOUR: list = [
+    (1, "0 * * * *"), (2, "0 */2 * * *"), (3, "0 */3 * * *"),
+    (4, "0 */4 * * *"), (6, "0 */6 * * *"), (8, "0 */8 * * *"),
+    (12, "0 */12 * * *"),
+]
+
+
+def _lag_tolerance_to_cron(lag: timedelta) -> Optional[str]:
+    """Snap lag_tolerance to the largest cron divisor <= the delay."""
+    total_seconds = lag.total_seconds()
+    if total_seconds < 60:
+        return "* * * * *"
+    if total_seconds < 3600:
+        minutes = int(total_seconds // 60)
+        best = _CRON_DIVISORS_MIN[0]
+        for div, cron in _CRON_DIVISORS_MIN:
+            if div <= minutes:
+                best = (div, cron)
+        return best[1]
+    if total_seconds < 86400:
+        hours = int(total_seconds // 3600)
+        best = _CRON_DIVISORS_HOUR[0]
+        for div, cron in _CRON_DIVISORS_HOUR:
+            if div <= hours:
+                best = (div, cron)
+        return best[1]
+    days = int(total_seconds // 86400)
+    if days == 1:
+        return "0 0 * * *"
+    if days < 7:
+        return f"0 0 */{days} * *"
+    return "0 0 * * 0"
+
+
+def _dbt_dialect_from_adapter(adapter_type: Optional[str]) -> Optional[str]:
+    if not adapter_type:
+        return None
+    _MAP = {
+        "snowflake": "snowflake", "postgres": "postgres", "redshift": "redshift",
+        "bigquery": "bigquery", "duckdb": "duckdb", "databricks": "databricks",
+        "spark": "spark", "sparksql": "spark", "mysql": "mysql",
+        "trino": "trino", "presto": "presto", "clickhouse": "clickhouse",
+        "athena": "athena", "sqlite": "sqlite", "oracle": "oracle",
+    }
+    return _MAP.get(adapter_type.lower())
+
+
+def _derive_code_version(
+    dbt_resource_props: Mapping[str, Any],
+    strategy: str,
+    adapter_type: Optional[str] = None,
+) -> Optional[str]:
+    """Derive Dagster code_version for a dbt model. See Core enriched
+    component for full docs. ``disabled`` / ``hash`` / ``sqlglot`` — sqlglot
+    canonicalizes SQL before hashing so whitespace/comment changes don't bump."""
+    if strategy == "disabled":
+        return None
+    if dbt_resource_props.get("resource_type") != "model":
+        return None
+    if strategy == "hash":
+        checksum = (dbt_resource_props.get("checksum") or {}).get("checksum")
+        return str(checksum) if checksum else None
+    if strategy == "sqlglot":
+        compiled = (
+            dbt_resource_props.get("compiled_code")
+            or dbt_resource_props.get("compiled_sql")
+            or dbt_resource_props.get("raw_code")
+            or dbt_resource_props.get("raw_sql")
+        )
+        if not compiled:
+            checksum = (dbt_resource_props.get("checksum") or {}).get("checksum")
+            return str(checksum) if checksum else None
+        try:
+            import hashlib
+            import sqlglot
+            dialect = _dbt_dialect_from_adapter(adapter_type)
+            tree = sqlglot.parse_one(compiled, read=dialect) if dialect else sqlglot.parse_one(compiled)
+            canonical = tree.sql(pretty=False, comments=False, dialect=dialect)
+            return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
+        except ImportError:
+            checksum = (dbt_resource_props.get("checksum") or {}).get("checksum")
+            return str(checksum) if checksum else None
+        except Exception:
+            checksum = (dbt_resource_props.get("checksum") or {}).get("checksum")
+            return str(checksum) if checksum else None
+    return None
+
+
+def _lag_tolerance_automation_condition(lag: timedelta) -> Optional[Any]:
+    """Compose AutomationCondition that fires ~lag_tolerance after upstream
+    is newly-updated (same pattern as Core enriched component)."""
+    cron = _lag_tolerance_to_cron(lag)
+    if cron is None:
+        return None
+    try:
+        return (
+            dg.AutomationCondition.any_deps_match(
+                dg.AutomationCondition.newly_updated().since(
+                    dg.AutomationCondition.cron_tick_passed(cron)
+                )
+                & ~dg.AutomationCondition.executed_with_root_target()
+            ).newly_true()
+            & ~dg.AutomationCondition.in_progress()
+            & dg.AutomationCondition.in_latest_time_window()
+        )
+    except Exception:
+        try:
+            return dg.AutomationCondition.eager() & ~dg.AutomationCondition.in_progress()
+        except Exception:
+            return None
+
+
 def _derive_freshness_policy(
     dbt_resource_props: Mapping[str, Any],
 ) -> Optional[dg.FreshnessPolicy]:
@@ -430,8 +547,24 @@ try:
         auto_trigger_on_freshness_failure: bool = False
         """With `derive_freshness_policies`: also attach
         `AutomationCondition.freshness_failed()` so Dagster triggers the
-        rebuild when the derived FreshnessPolicy fails. lag_tolerance
-        alone does NOT trigger — dbt handles the settling gate."""
+        rebuild when the derived FreshnessPolicy fails."""
+
+        derive_lag_tolerance_automation: bool = False
+        """For models with `config.state.lag_tolerance`: attach an
+        AutomationCondition that fires ~lag_tolerance after upstream is
+        newly-updated. Uses .newly_updated().since(cron_tick_passed(cron))
+        pattern; cron is snapped from lag_tolerance (30m → */30 * * * *,
+        4h → 0 */4 * * *, etc). Skipped if a user-supplied automation is
+        set. auto_trigger_on_freshness_failure wins when both apply."""
+
+        code_version_strategy: Literal["disabled", "hash", "sqlglot"] = "disabled"
+        """How to derive Dagster ``code_version`` per model:
+        - ``disabled`` (default) — no code_version.
+        - ``hash`` — use dbt's manifest checksum (bumps on any file edit).
+        - ``sqlglot`` — parse compiled_code with sqlglot, canonicalize
+          (strip comments + normalize whitespace), SHA256 the result.
+          Whitespace/comment edits do NOT bump; only semantic SQL changes
+          do. Optional dep, falls back to ``hash`` if sqlglot is missing."""
 
         # ─────────────────────────────────────────────────────────────
         # Internal helpers
@@ -610,6 +743,28 @@ try:
                             enriched = enriched.replace_attributes(
                                 automation_condition=dg.AutomationCondition.freshness_failed()
                             )
+                        except Exception:
+                            pass
+
+            # code_version derivation (hash | sqlglot)
+            if self.code_version_strategy != "disabled":
+                adapter_type = (manifest.get("metadata") or {}).get("adapter_type")
+                code_version = _derive_code_version(
+                    node, self.code_version_strategy, adapter_type=adapter_type
+                )
+                if code_version:
+                    try:
+                        enriched = enriched.replace_attributes(code_version=code_version)
+                    except Exception:
+                        pass
+
+            if self.derive_lag_tolerance_automation and enriched.automation_condition is None:
+                lag = _lag_tolerance_of(node)
+                if lag is not None:
+                    cond = _lag_tolerance_automation_condition(lag)
+                    if cond is not None:
+                        try:
+                            enriched = enriched.replace_attributes(automation_condition=cond)
                         except Exception:
                             pass
 
@@ -1129,6 +1284,8 @@ except ImportError:
         emit_semantic_layer_as_assets: bool = Field(default=False)
         enable_materialization_kinds: bool = Field(default=False)
         auto_trigger_on_freshness_failure: bool = Field(default=False)
+        derive_lag_tolerance_automation: bool = Field(default=False)
+        code_version_strategy: Literal["disabled", "hash", "sqlglot"] = Field(default="disabled")
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             raise ImportError(

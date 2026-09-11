@@ -122,7 +122,9 @@ def _emit_dry_run_observation(
             ))
     except Exception as e:  # noqa: BLE001
         try:
-            context.log.warning(f"@dry_run: could not emit observation: {e}")
+            context.log.warning(
+                f"@dry_run: could not emit observation: {type(e).__name__}: {e}"
+            )
         except Exception:  # noqa: BLE001
             pass
 

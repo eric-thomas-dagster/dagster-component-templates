@@ -67,6 +67,11 @@ from pydantic import Field
 _COST_TAG = "budget_cost_asset"
 _PARTITION_TAG = "budget_partition_key"
 
+# Dagster tag-value grammar: [A-Za-z0-9_.-]{,63}. User asset keys carry
+# `/` for nested keys; composite partition keys carry `|`. Both fail the
+# tag validator, so we sanitize + demote raw values into metadata.
+_TAG_SAFE = frozenset("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-")
+
 
 # --------------------------------------------------------------------------
 # Per-partition scoping helper
@@ -156,17 +161,41 @@ def _cumulative_cost_usd(
 
 
 def _emit_observation(context: Any, tags: Dict[str, str], metadata: Dict[str, Any]) -> None:
+    """Emit AssetObservation. Sanitizes tag values (Dagster requires
+    `[A-Za-z0-9_.-]{,63}`) — asset key strings with `/` and composite
+    partition keys with `|` are moved from tags to metadata automatically.
+    Errors surface via log.warning instead of silent swallow (which
+    previously hid tag-validation failures for months).
+    """
+    from dagster import AssetObservation, MetadataValue
+    asset_key = getattr(context, "asset_key", None) or dg.AssetKey(["budget_asset"])
+
+    safe_tags: Dict[str, str] = {}
+    demoted_meta: Dict[str, Any] = {}
+    for k, v in (tags or {}).items():
+        sv = str(v)
+        if len(sv) > 63 or any(ch not in _TAG_SAFE for ch in sv):
+            demoted_meta[k] = MetadataValue.text(sv)
+            safe_tags[k] = "unsafe_in_metadata"  # short marker so filtering still works
+        else:
+            safe_tags[k] = sv
+
+    merged_meta = dict(metadata or {})
+    merged_meta.update(demoted_meta)
+
+    if not hasattr(context, "log_event"):
+        return
     try:
-        from dagster import AssetObservation
-        asset_key = getattr(context, "asset_key", None) or dg.AssetKey(["budget_asset"])
-        if hasattr(context, "log_event"):
-            context.log_event(AssetObservation(
-                asset_key=asset_key,
-                tags=tags,
-                metadata=metadata,
-            ))
-    except Exception:  # noqa: BLE001
-        pass
+        context.log_event(AssetObservation(
+            asset_key=asset_key,
+            tags=safe_tags,
+            metadata=merged_meta,
+        ))
+    except Exception as e:  # noqa: BLE001
+        try:
+            context.log.warning(f"@budget: could not emit observation: {type(e).__name__}: {e}")
+        except Exception:  # noqa: BLE001
+            pass
 
 
 def _asset_key_str(context: Any) -> str:
@@ -747,8 +776,13 @@ class BudgetAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             # Non-MaterializeResult: passthrough + emit materialization event carrying budget meta
             try:
                 context.log_event(dg.AssetMaterialization(asset_key=key, metadata=budget_meta))
-            except Exception:  # noqa: BLE001
-                pass
+            except Exception as e:  # noqa: BLE001
+                try:
+                    context.log.warning(
+                        f"@budget: could not emit materialization event: {type(e).__name__}: {e}"
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
             return result
 
         return _budget_wrapped

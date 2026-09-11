@@ -280,6 +280,14 @@ def _prune(uri_dir: str, retention_days: Optional[int]) -> int:
 def _emit_snapshot_observation(
     context: Any, path: str, size_bytes: int, fmt: str, pruned: int,
 ) -> None:
+    """Emit AssetObservation for a snapshot write.
+
+    Tag values here are always short + alnum-safe (`written` sentinel +
+    format from a fixed enum), so no sanitization is needed. The path
+    (has `/`) and byte-count already live in metadata where slashes are
+    unrestricted. Emission failures surface via log.warning instead of
+    silent swallow.
+    """
     try:
         from dagster import AssetObservation
         asset_key = getattr(context, "asset_key", None) or dg.AssetKey(["snapshot_asset"])
@@ -297,9 +305,11 @@ def _emit_snapshot_observation(
                     "snapshot_pruned_count": dg.MetadataValue.int(int(pruned)),
                 },
             ))
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
         try:
-            context.log.warning("@snapshot: could not emit observation")
+            context.log.warning(
+                f"@snapshot: could not emit observation: {type(e).__name__}: {e}"
+            )
         except Exception:  # noqa: BLE001
             pass
 

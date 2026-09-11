@@ -324,8 +324,13 @@ def _emit_scrub_observation(context: Any, count: int) -> None:
                     "sensitive_redacted_count": dg.MetadataValue.int(int(count)),
                 },
             ))
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as e:  # noqa: BLE001
+        try:
+            context.log.warning(
+                f"@sensitive: could not emit observation: {type(e).__name__}: {e}"
+            )
+        except Exception:  # noqa: BLE001
+            pass
 
 
 class _SensitiveContextProxy:

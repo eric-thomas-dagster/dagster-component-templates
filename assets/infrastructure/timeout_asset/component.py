@@ -94,10 +94,32 @@ def _lookup_per_partition(
     raise ValueError(f"unknown matcher: {matcher!r}")
 
 
+# Dagster enforces `[A-Za-z0-9_.-]{,63}` on tag values. `timeout_key`
+# is user-controlled (can hold emails, paths, composite partition keys)
+# so tag values sourced from it MUST be sanitized before emission.
+_TAG_SAFE = frozenset("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-")
+
+
+def _sanitize_tag_value(v: str) -> str:
+    """Coerce `v` into a Dagster-tag-safe string: replace disallowed chars
+    with `_` and truncate to 63 chars. Preserve the raw value in metadata
+    at the call site so nothing is lost.
+    """
+    s = str(v)
+    sanitized = "".join(ch if ch in _TAG_SAFE else "_" for ch in s)
+    return sanitized[:63]
+
+
 def _emit_timeout_observation(context: Any, key: str, timeout_s: float):
-    """Emit AssetObservation for cross-run timeout tracking."""
+    """Emit AssetObservation for cross-run timeout tracking.
+
+    Sanitizes the user-supplied ``key`` for the tag value (Dagster
+    rejects values outside ``[A-Za-z0-9_.-]{,63}``) while preserving the
+    raw key in metadata. Emission failures surface via ``log.warning``
+    instead of being silently swallowed.
+    """
     try:
-        from dagster import AssetObservation
+        from dagster import AssetObservation, MetadataValue
         asset_key = getattr(context, "asset_key", None)
         if asset_key is None:
             from dagster import AssetKey
@@ -106,15 +128,21 @@ def _emit_timeout_observation(context: Any, key: str, timeout_s: float):
             context.log_event(AssetObservation(
                 asset_key=asset_key,
                 tags={
-                    "timeout_hit": key,
-                    "timeout_seconds": str(timeout_s),
+                    "timeout_hit": _sanitize_tag_value(key),
+                    "timeout_seconds": _sanitize_tag_value(str(timeout_s)),
                 },
                 metadata={
+                    "timeout_key": MetadataValue.text(str(key)),
                     "timeout_seconds": dg.MetadataValue.float(timeout_s),
                 },
             ))
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as e:  # noqa: BLE001
+        try:
+            context.log.warning(
+                f"@timeout: could not emit timeout observation: {type(e).__name__}: {e}"
+            )
+        except Exception:  # noqa: BLE001
+            pass
 
 
 def _emit_timeout_actual_observation(
@@ -122,9 +150,14 @@ def _emit_timeout_actual_observation(
 ) -> None:
     """Emit AssetObservation on SUCCESS (no timeout) so the historical
     baseline has actual durations to derive from.
+
+    Sanitizes the user-supplied ``key`` for the tag value (Dagster
+    rejects values outside ``[A-Za-z0-9_.-]{,63}``) while preserving the
+    raw key in metadata. Emission failures surface via ``log.warning``
+    instead of being silently swallowed.
     """
     try:
-        from dagster import AssetObservation
+        from dagster import AssetObservation, MetadataValue
         asset_key = getattr(context, "asset_key", None)
         if asset_key is None:
             from dagster import AssetKey
@@ -133,17 +166,23 @@ def _emit_timeout_actual_observation(
             context.log_event(AssetObservation(
                 asset_key=asset_key,
                 tags={
-                    "timeout_key": key,
-                    "timeout_actual_seconds": str(round(actual_s, 3)),
-                    "timeout_seconds": str(round(timeout_s, 3)),
+                    "timeout_key": _sanitize_tag_value(key),
+                    "timeout_actual_seconds": _sanitize_tag_value(str(round(actual_s, 3))),
+                    "timeout_seconds": _sanitize_tag_value(str(round(timeout_s, 3))),
                 },
                 metadata={
+                    "timeout_key": MetadataValue.text(str(key)),
                     "timeout_actual_seconds": dg.MetadataValue.float(round(actual_s, 3)),
                     "timeout_seconds": dg.MetadataValue.float(round(timeout_s, 3)),
                 },
             ))
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as e:  # noqa: BLE001
+        try:
+            context.log.warning(
+                f"@timeout: could not emit actuals observation: {type(e).__name__}: {e}"
+            )
+        except Exception:  # noqa: BLE001
+            pass
 
 
 # --------------------------------------------------------------------------

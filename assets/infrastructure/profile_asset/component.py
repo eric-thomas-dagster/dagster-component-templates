@@ -403,8 +403,13 @@ def _emit_profile_observations(
                     "profile_report": dg.MetadataValue.md(rendered_md),
                 },
             ))
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as e:  # noqa: BLE001
+        try:
+            context.log.warning(
+                f"@profile: could not emit observation: {type(e).__name__}: {e}"
+            )
+        except Exception:  # noqa: BLE001
+            pass
     return md
 
 

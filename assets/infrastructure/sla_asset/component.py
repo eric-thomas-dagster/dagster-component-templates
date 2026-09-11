@@ -90,28 +90,50 @@ def _lookup_per_partition(
 
 _BREACH_TAG = "sla_breach"
 
+# Dagster enforces `[A-Za-z0-9_.-]{,63}` on tag values. `sla_key` is
+# user-controlled (can hold emails, paths, composite partition keys) so
+# tag values sourced from it MUST be sanitized before emission.
+_TAG_SAFE = frozenset("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-")
+
+
+def _sanitize_tag_value(v: str) -> str:
+    """Coerce `v` into a Dagster-tag-safe string: replace disallowed chars
+    with `_` and truncate to 63 chars. Preserve the raw value in metadata
+    at the call site so nothing is lost.
+    """
+    s = str(v)
+    sanitized = "".join(ch if ch in _TAG_SAFE else "_" for ch in s)
+    return sanitized[:63]
+
 
 def _emit_breach_observation(
     context: Any, key: str, actual_s: float, expected_s: float, escalated: bool,
 ):
-    """Emit AssetObservation with breach metadata + tag."""
+    """Emit AssetObservation with breach metadata + tag.
+
+    Sanitizes the user-supplied ``key`` for the tag value (Dagster rejects
+    values outside ``[A-Za-z0-9_.-]{,63}``) while preserving the raw key
+    in metadata. Emission failures surface via ``log.warning`` instead of
+    being silently swallowed.
+    """
     try:
-        from dagster import AssetObservation
+        from dagster import AssetObservation, MetadataValue
         asset_key = getattr(context, "asset_key", None)
         if asset_key is None:
             from dagster import AssetKey
             asset_key = AssetKey(["sla_asset"])
         tags = {
-            _BREACH_TAG: key,
-            "sla_actual_seconds": str(round(actual_s, 3)),
-            "sla_expected_seconds": str(round(expected_s, 3)),
-            "sla_escalated": str(escalated).lower(),
+            _BREACH_TAG: _sanitize_tag_value(key),
+            "sla_actual_seconds": _sanitize_tag_value(str(round(actual_s, 3))),
+            "sla_expected_seconds": _sanitize_tag_value(str(round(expected_s, 3))),
+            "sla_escalated": _sanitize_tag_value(str(escalated).lower()),
         }
         if hasattr(context, "log_event"):
             context.log_event(AssetObservation(
                 asset_key=asset_key,
                 tags=tags,
                 metadata={
+                    "sla_key": MetadataValue.text(str(key)),
                     "sla_actual_seconds": dg.MetadataValue.float(round(actual_s, 3)),
                     "sla_expected_seconds": dg.MetadataValue.float(round(expected_s, 3)),
                     "sla_overrun_seconds": dg.MetadataValue.float(round(actual_s - expected_s, 3)),
@@ -119,8 +141,13 @@ def _emit_breach_observation(
                     "sla_escalated": dg.MetadataValue.bool(escalated),
                 },
             ))
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as e:  # noqa: BLE001
+        try:
+            context.log.warning(
+                f"@sla: could not emit breach observation: {type(e).__name__}: {e}"
+            )
+        except Exception:  # noqa: BLE001
+            pass
 
 
 def _count_recent_breaches(context: Any, key: str, window_seconds: float) -> int:
@@ -257,9 +284,14 @@ def _emit_sla_actual_observation(
 ) -> None:
     """Emit AssetObservation for every run (breach OR non-breach) so the
     `sla_actual_seconds` history is populated for baseline derivation.
+
+    Sanitizes the user-supplied ``key`` for the tag value (Dagster
+    rejects values outside ``[A-Za-z0-9_.-]{,63}``) while preserving the
+    raw key in metadata. Emission failures surface via ``log.warning``
+    instead of being silently swallowed.
     """
     try:
-        from dagster import AssetObservation
+        from dagster import AssetObservation, MetadataValue
         asset_key = getattr(context, "asset_key", None)
         if asset_key is None:
             from dagster import AssetKey
@@ -268,17 +300,23 @@ def _emit_sla_actual_observation(
             context.log_event(AssetObservation(
                 asset_key=asset_key,
                 tags={
-                    "sla_key": key,
-                    "sla_actual_seconds": str(round(actual_s, 3)),
-                    "sla_expected_seconds": str(round(expected_s, 3)),
+                    "sla_key": _sanitize_tag_value(key),
+                    "sla_actual_seconds": _sanitize_tag_value(str(round(actual_s, 3))),
+                    "sla_expected_seconds": _sanitize_tag_value(str(round(expected_s, 3))),
                 },
                 metadata={
+                    "sla_key": MetadataValue.text(str(key)),
                     "sla_actual_seconds": dg.MetadataValue.float(round(actual_s, 3)),
                     "sla_expected_seconds": dg.MetadataValue.float(round(expected_s, 3)),
                 },
             ))
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as e:  # noqa: BLE001
+        try:
+            context.log.warning(
+                f"@sla: could not emit actuals observation: {type(e).__name__}: {e}"
+            )
+        except Exception:  # noqa: BLE001
+            pass
 
 
 # --------------------------------------------------------------------------
@@ -808,8 +846,13 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 context.log_event(dg.AssetMaterialization(
                     asset_key=key, metadata=extra_meta,
                 ))
-            except Exception:  # noqa: BLE001
-                pass
+            except Exception as e:  # noqa: BLE001
+                try:
+                    context.log.warning(
+                        f"@sla: could not emit materialization event: {type(e).__name__}: {e}"
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
             return result
 
         return _sla_wrapped

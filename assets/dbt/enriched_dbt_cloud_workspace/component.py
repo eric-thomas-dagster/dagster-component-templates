@@ -585,6 +585,9 @@ try:
         asset_overrides: Optional[Dict[str, AssetOverride]] = None
 
         emit_exposures_as_assets: bool = False
+        emit_source_assets: bool = False
+        """Emit each dbt source as an observable external AssetSpec (kinds
+        `dbt`, `source`). Sources become first-class Dagster assets."""
         derive_freshness_policies: bool = False
         emit_contract_checks: bool = False
         external_packages: Optional[List[str]] = None
@@ -980,6 +983,32 @@ try:
                 )
             return specs
 
+        def _build_source_specs(self, manifest: dict) -> List[dg.AssetSpec]:
+            """Emit observable AssetSpec per dbt source."""
+            specs: List[dg.AssetSpec] = []
+            seen: set[dg.AssetKey] = set()
+            for src_uid, src in (manifest.get("sources") or {}).items():
+                schema = src.get("schema") or src.get("source_name") or ""
+                name = src.get("identifier") or src.get("name") or ""
+                if not name:
+                    continue
+                key_parts = [schema, name] if schema else [name]
+                key = dg.AssetKey([str(p) for p in key_parts if p])
+                if key in seen:
+                    continue
+                seen.add(key)
+                policy = _derive_freshness_policy({**src, "unique_id": src_uid}) if self.derive_freshness_policies else None
+                specs.append(
+                    dg.AssetSpec(
+                        key=key,
+                        description=src.get("description"),
+                        kinds={"dbt", "source"},
+                        metadata={_UNIQUE_ID_KEY: src_uid},
+                        freshness_policy=policy,
+                    )
+                )
+            return specs
+
         def _build_external_package_specs(self, manifest: dict) -> List[dg.AssetSpec]:
             if not self.external_packages:
                 return []
@@ -1281,6 +1310,11 @@ try:
                         )
                     except Exception:
                         pass
+                if self.emit_source_assets:
+                    try:
+                        extra_specs.extend(self._build_source_specs(manifest))
+                    except Exception:
+                        pass
                 if self.external_packages:
                     try:
                         extra_specs.extend(self._build_external_package_specs(manifest))
@@ -1370,6 +1404,7 @@ except ImportError:
         asset_overrides: Optional[Dict[str, AssetOverride]] = Field(default=None)
 
         emit_exposures_as_assets: bool = Field(default=False)
+        emit_source_assets: bool = Field(default=False)
         derive_freshness_policies: bool = Field(default=False)
         emit_contract_checks: bool = Field(default=False)
         external_packages: Optional[List[str]] = Field(default=None)

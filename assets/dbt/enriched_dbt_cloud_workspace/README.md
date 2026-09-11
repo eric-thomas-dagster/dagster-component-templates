@@ -80,6 +80,7 @@ job_selection_exclude: "type:ci"                         # everything except CI
 | Field | What |
 |---|---|
 | `emit_exposures_as_assets` | Emit dbt exposures as observable `AssetSpec`s with real deps on upstream models. Kind is `dashboard` / `notebook` / `analysis` / `ml` / `application`. |
+| `emit_source_assets` | Emit each dbt source as an observable external `AssetSpec` (kinds `dbt`, `source`). Merges with upstream Fivetran / Sling declarations at the same key. |
 | `emit_semantic_layer_as_assets` | Emit dbt `semantic_models` + `metrics` as observable `AssetSpec`s (kinds `semantic_model` / `metric`). |
 | `emit_contract_checks` | For every model with `config.contract.enforced: true`, emit one `AssetCheckSpec` per column constraint. |
 | `external_packages` | dbt mesh: emit observable stub `AssetSpec`s for models whose `package_name` matches. Pair with `exclude: 'package:X'`. |

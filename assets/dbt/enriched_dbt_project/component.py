@@ -771,6 +771,16 @@ try:
         upstream models (in addition to metadata). Gives downstream lineage:
         if this model breaks, which dashboards are affected?"""
 
+        emit_source_assets: bool = False
+        """Emit each dbt source as an observable external AssetSpec (kinds
+        `dbt`, `source`). By default sources are only rendered as upstream
+        deps of models — this makes them first-class Dagster assets so the
+        UI shows them as nodes, freshness policies apply, and downstream
+        assets can be selected via `+<source_key>`. When another integration
+        (Fivetran, Sling, manual observable_source_asset) declares an asset
+        with the same key, Dagster merges the two — dbt's freshness policy
+        + kinds layer on top of the upstream materializer's declaration."""
+
         derive_freshness_policies: bool = False
         """Auto-attach FreshnessPolicy to sources (from `sources.freshness`) and
         models with dbt 1.9+ `config.freshness.build_after`. Also honors
@@ -1275,6 +1285,38 @@ try:
                 )
             return specs
 
+        def _build_source_specs(self, manifest: dict) -> List[dg.AssetSpec]:
+            """Emit observable AssetSpec per dbt source. Same key derivation
+            as the base translator (schema + table_name → AssetKey). Sources
+            with freshness config get a FreshnessPolicy if
+            derive_freshness_policies is also set."""
+            specs: List[dg.AssetSpec] = []
+            seen: set[dg.AssetKey] = set()
+            for src_uid, src in (manifest.get("sources") or {}).items():
+                schema = src.get("schema") or src.get("source_name") or ""
+                name = src.get("identifier") or src.get("name") or ""
+                if not name:
+                    continue
+                key_parts = [schema, name] if schema else [name]
+                key = dg.AssetKey([str(p) for p in key_parts if p])
+                if key in seen:
+                    continue
+                seen.add(key)
+
+                policy = _derive_freshness_policy({**src, "unique_id": src_uid}) if self.derive_freshness_policies else None
+                specs.append(
+                    dg.AssetSpec(
+                        key=key,
+                        description=src.get("description"),
+                        kinds={"dbt", "source"},
+                        metadata={
+                            _UNIQUE_ID_KEY: src_uid,
+                        },
+                        freshness_policy=policy,
+                    )
+                )
+            return specs
+
         def _build_external_package_specs(self, manifest: dict) -> List[dg.AssetSpec]:
             """Emit stub AssetSpec per model whose ``package_name`` is in
             ``external_packages`` (dbt mesh — upstream project owns the asset)."""
@@ -1399,6 +1441,11 @@ try:
                     extra_specs.extend(
                         self._build_exposure_specs(manifest, base_specs_by_unique_id)
                     )
+                except Exception:
+                    pass
+            if self.emit_source_assets:
+                try:
+                    extra_specs.extend(self._build_source_specs(manifest))
                 except Exception:
                     pass
             if self.external_packages:

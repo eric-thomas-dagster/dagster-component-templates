@@ -40,6 +40,7 @@ identically to the base `DbtProjectComponent`.
 | Field | What |
 |---|---|
 | `emit_exposures_as_assets` | Emit dbt exposures as observable `AssetSpec`s with real deps on upstream models. Kind is `dashboard` / `notebook` / `analysis` / `ml` / `application` per `exposure.type` for distinct UI icons. |
+| `emit_source_assets` | Emit each dbt source as an observable external `AssetSpec` (kinds `dbt`, `source`). Sources become first-class Dagster nodes (freshness policies apply, downstream selectors work, `+<key>` returns the source). Merges with any upstream Fivetran / Sling / manual observable-source declaration at the same key. |
 | `emit_semantic_layer_as_assets` | Emit dbt `semantic_models` + `metrics` as observable `AssetSpec`s (kinds `semantic_model` / `metric`). semantic_models dep on their upstream model; metrics dep on the semantic models they aggregate. |
 | `emit_contract_checks` | For every model with `config.contract.enforced: true`, emit one `AssetCheckSpec` per column constraint (`not_null`, `unique`, `primary_key`, `foreign_key`, `check`). |
 | `external_packages` | dbt mesh: emit observable stub `AssetSpec`s for models whose `package_name` matches. Pair with `exclude: 'package:X'` so this project's dbt run doesn't try to rebuild them — downstream lineage still renders because the upstream Dagster code location merges in. |

@@ -11,18 +11,49 @@ Asset-scoped `on_success` / `on_failure` callbacks. Prefect's `@task(on_completi
 
 ## Callback signatures
 
-- **`on_success`** callbacks: `fn(context, result) -> None`
-- **`on_failure`** callbacks: `fn(context, exception) -> None`
+- **`on_start`** callbacks:   `fn(context) -> None`                        (fires BEFORE compute)
+- **`on_success`** callbacks: `fn(context, result) -> None`                (fires on successful compute)
+- **`on_failure`** callbacks: `fn(context, exception) -> None`             (fires on failed compute)
+- **`on_end`** callbacks:     `fn(context, outcome, result_or_exc) -> None` (fires FINALLY-STYLE after on_success/on_failure; `outcome in ("success", "failure")`)
 
 Callbacks are ordinary Python `mod:fn` references — same shape as `@lifecycle`'s custom checks or `@data_contract`'s probes.
 
 ## Semantics
 
-- Callbacks are called SEQUENTIALLY.
+- Callbacks are called SEQUENTIALLY, in list order, within each phase.
 - Any exception raised by a callback is **LOGGED**, not re-raised. Hooks don't change the compute's outcome. Matches Prefect.
-- On failure: only `on_failure` callbacks fire, then the exception re-raises.
-- On success: only `on_success` callbacks fire.
-- `dg.Failure` counts as failure (fires `on_failure`).
+- Firing order for a SUCCESS: `on_start` → compute → `on_success` → `on_end("success", result)`.
+- Firing order for a FAILURE: `on_start` → compute (raises) → `on_failure` → `on_end("failure", exc)` → exception re-raises.
+- `dg.Failure` counts as failure (fires `on_failure` + `on_end("failure", ...)`).
+
+## Full lifecycle example
+
+```python
+import dagster as dg
+from dagster_community_components import on_hooks
+
+def log_start(context):
+    context.log.info("[hook] on_start fired")
+
+def notify_success(context, result):
+    context.log.info(f"[hook] on_success — result rows={len(result)}")
+
+def create_ticket(context, exc):
+    context.log.info(f"[hook] on_failure — {type(exc).__name__}: {exc}")
+
+def emit_metric(context, outcome, result_or_exc):
+    context.log.info(f"[hook] on_end — outcome={outcome}")
+
+@dg.asset
+@on_hooks(
+    on_start=["my_project.hooks:log_start"],
+    on_success=["my_project.hooks:notify_success"],
+    on_failure=["my_project.hooks:create_ticket"],
+    on_end=["my_project.hooks:emit_metric"],
+)
+def critical_report(context):
+    return build_report()
+```
 
 ## Full YAML example
 
@@ -35,6 +66,9 @@ attributes:
     kind: python
     python: "my_project.reports:build_critical"
 
+  on_start:
+    - "my_project.hooks:log_run_start"
+
   on_success:
     - "my_project.hooks:notify_slack_success"
     - "my_project.hooks:update_dashboard"
@@ -42,6 +76,9 @@ attributes:
   on_failure:
     - "my_project.hooks:create_jira_ticket"
     - "my_project.hooks:page_oncall"
+
+  on_end:
+    - "my_project.hooks:emit_lifecycle_metric"
 ```
 
 Callback module:
@@ -91,7 +128,6 @@ For an asset-first project where you don't build jobs by hand, that's awkward. `
 
 ## What's not in v1 (roadmap)
 
-- **`on_start` / `on_end`** — fire BEFORE compute + AFTER compute regardless of outcome. `finally`-style hooks.
 - **Async callbacks** — v1 runs synchronously.
 - **Cross-asset hook sharing** — declare a hook once, reference from N assets.
 

@@ -24,14 +24,18 @@ kind, `@data_contract`'s custom probes, etc.
 
 ## Signatures
 
+Start callback:   `fn(context) -> None`   (fires BEFORE compute)
 Success callback: `fn(context, result) -> None`
 Failure callback: `fn(context, exception) -> None`
+End callback:     `fn(context, outcome, result_or_exc) -> None`
+                  (fires FINALLY-STYLE after success/failure;
+                   `outcome in ("success", "failure")`)
 
 The result of the wrapped compute is passed to on_success; the raised
-exception (or `dg.Failure`) to on_failure. Callbacks are called
-sequentially; any exception raised by a callback is LOGGED but doesn't
-alter the outcome (compute success stays success; failure stays
-failure). This matches Prefect's semantics.
+exception (or `dg.Failure`) to on_failure. on_end fires last regardless
+of outcome. Callbacks are called sequentially; any exception raised by a
+callback is LOGGED but doesn't alter the outcome (compute success stays
+success; failure stays failure). This matches Prefect's semantics.
 
 ## Composes with
 
@@ -43,9 +47,8 @@ failure). This matches Prefect's semantics.
 
 ## What's not in v1
 
-- **on_start / on_end** — fire before compute + after regardless of
-  outcome. `finally`-style hooks.
 - **Async hooks** — v1 runs callbacks synchronously.
+- **Cross-asset hook sharing** — declare a hook once, reference from N assets.
 """
 
 import functools
@@ -80,26 +83,81 @@ def _run_callbacks(
             )
 
 
+def _run_start_callbacks(callbacks: List[str], context: Any) -> None:
+    """Run on_start callbacks — signature `(context) -> None`. Each is wrapped
+    in try/except so a bad hook doesn't take down the compute."""
+    for ref in callbacks:
+        if not ref or ":" not in ref:
+            context.log.warning(
+                f"[hooks] start: malformed callback ref {ref!r} (expected 'mod:fn')"
+            )
+            continue
+        try:
+            mod_path, fn_name = ref.rsplit(":", 1)
+            fn = getattr(importlib.import_module(mod_path.strip()), fn_name.strip(), None)
+            if not callable(fn):
+                context.log.warning(f"[hooks] start: {ref!r} not callable")
+                continue
+            fn(context)
+        except Exception as exc:  # noqa: BLE001
+            context.log.error(
+                f"[hooks] start callback {ref!r} raised {type(exc).__name__}: {exc}"
+            )
+
+
+def _run_end_callbacks(
+    callbacks: List[str], context: Any, outcome: str, result_or_exc: Any,
+) -> None:
+    """Run on_end callbacks — signature `(context, outcome, result_or_exc) -> None`.
+    `outcome` is 'success' or 'failure'. Runs finally-style AFTER on_success /
+    on_failure. Each callback wrapped in try/except."""
+    for ref in callbacks:
+        if not ref or ":" not in ref:
+            context.log.warning(
+                f"[hooks] end: malformed callback ref {ref!r} (expected 'mod:fn')"
+            )
+            continue
+        try:
+            mod_path, fn_name = ref.rsplit(":", 1)
+            fn = getattr(importlib.import_module(mod_path.strip()), fn_name.strip(), None)
+            if not callable(fn):
+                context.log.warning(f"[hooks] end: {ref!r} not callable")
+                continue
+            fn(context, outcome, result_or_exc)
+        except Exception as exc:  # noqa: BLE001
+            context.log.error(
+                f"[hooks] end callback {ref!r} raised {type(exc).__name__}: {exc}"
+            )
+
+
 def on_hooks(
     *,
     on_success: Optional[List[str]] = None,
     on_failure: Optional[List[str]] = None,
+    on_start: Optional[List[str]] = None,
+    on_end: Optional[List[str]] = None,
 ) -> Callable:
-    """Attach on_success / on_failure callbacks to a Dagster asset compute.
+    """Attach lifecycle callbacks to a Dagster asset compute.
 
     Applied BEFORE `@dg.asset`. Callbacks are ordinary Python `mod:fn`
     references. Signatures:
-      - `on_success`: `fn(context, result) -> None`
-      - `on_failure`: `fn(context, exception) -> None`
+      - `on_start`:   `fn(context) -> None`                    (fires BEFORE compute)
+      - `on_success`: `fn(context, result) -> None`            (fires on successful compute)
+      - `on_failure`: `fn(context, exception) -> None`         (fires on failed compute)
+      - `on_end`:     `fn(context, outcome, result_or_exc) -> None`
+                      where `outcome in ("success", "failure")` — fires
+                      FINALLY-STYLE after on_success/on_failure.
 
     ```python
     from dagster_community_components import on_hooks
 
     @dg.asset
     @on_hooks(
+        on_start=["my_project.hooks:log_run_start"],
         on_success=["my_project.hooks:notify_slack_success"],
         on_failure=["my_project.hooks:create_jira_ticket",
                     "my_project.hooks:page_oncall"],
+        on_end=["my_project.hooks:emit_lifecycle_metric"],
     )
     def critical_report(context):
         return build_report()
@@ -110,6 +168,8 @@ def on_hooks(
     """
     _success = list(on_success or [])
     _failure = list(on_failure or [])
+    _start = list(on_start or [])
+    _end = list(on_end or [])
 
     def _decorator(fn: Callable) -> Callable:
         @functools.wraps(fn)
@@ -122,16 +182,26 @@ def on_hooks(
             if context is None:
                 raise RuntimeError("@on_hooks requires a Dagster context.")
 
+            if _start:
+                context.log.info(f"[hooks] running {len(_start)} on_start callback(s)")
+                _run_start_callbacks(_start, context)
+
             try:
                 result = fn(*args, **kwargs)
             except BaseException as exc:  # noqa: BLE001
                 if _failure:
                     context.log.info(f"[hooks] running {len(_failure)} on_failure callback(s)")
                     _run_callbacks(_failure, context, exc, "failure")
+                if _end:
+                    context.log.info(f"[hooks] running {len(_end)} on_end callback(s) [failure]")
+                    _run_end_callbacks(_end, context, "failure", exc)
                 raise
             if _success:
                 context.log.info(f"[hooks] running {len(_success)} on_success callback(s)")
                 _run_callbacks(_success, context, result, "success")
+            if _end:
+                context.log.info(f"[hooks] running {len(_end)} on_end callback(s) [success]")
+                _run_end_callbacks(_end, context, "success", result)
             return result
 
         return _wrapped
@@ -183,6 +253,21 @@ class HooksAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="List of 'mod:fn' refs called with (context, exception) on failure. Doesn't change the outcome.",
     )
+    on_start: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Callbacks fired BEFORE compute (in list order). Signature: `(context) -> None`. "
+            "Each is a `mod:fn` reference."
+        ),
+    )
+    on_end: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Callbacks fired AFTER compute (finally-style — regardless of success or failure, "
+            "in list order). Signature: `(context, outcome: str, result_or_exc) -> None`. "
+            "Runs after on_success/on_failure."
+        ),
+    )
 
     group_name: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)
@@ -212,6 +297,8 @@ class HooksAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         compute = dict(self.compute)
         success_cbs = list(self.on_success or [])
         failure_cbs = list(self.on_failure or [])
+        start_cbs = list(self.on_start or [])
+        end_cbs = list(self.on_end or [])
 
         kinds_set = set(self.kinds or []) | {"python", "hooks"}
         tag_map = dict(self.tags or {})
@@ -248,6 +335,10 @@ class HooksAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             n_positional = sum(1 for p in sig.parameters.values()
                                if p.kind in (p.POSITIONAL_OR_KEYWORD, p.POSITIONAL_ONLY))
 
+            if start_cbs:
+                context.log.info(f"[hooks] running {len(start_cbs)} on_start callback(s)")
+                _run_start_callbacks(start_cbs, context)
+
             try:
                 if n_positional == 0:
                     result = fn()
@@ -259,15 +350,23 @@ class HooksAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 if failure_cbs:
                     context.log.info(f"[hooks] running {len(failure_cbs)} on_failure callback(s)")
                     _run_callbacks(failure_cbs, context, exc, "failure")
+                if end_cbs:
+                    context.log.info(f"[hooks] running {len(end_cbs)} on_end callback(s) [failure]")
+                    _run_end_callbacks(end_cbs, context, "failure", exc)
                 raise
             if success_cbs:
                 context.log.info(f"[hooks] running {len(success_cbs)} on_success callback(s)")
                 _run_callbacks(success_cbs, context, result, "success")
+            if end_cbs:
+                context.log.info(f"[hooks] running {len(end_cbs)} on_end callback(s) [success]")
+                _run_end_callbacks(end_cbs, context, "success", result)
 
             return dg.MaterializeResult(
                 metadata={
                     "n_success_hooks": dg.MetadataValue.int(len(success_cbs)),
                     "n_failure_hooks": dg.MetadataValue.int(len(failure_cbs)),
+                    "n_start_hooks": dg.MetadataValue.int(len(start_cbs)),
+                    "n_end_hooks": dg.MetadataValue.int(len(end_cbs)),
                 }
             )
 
@@ -316,6 +415,8 @@ class HooksAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
         success_cbs = list(self.on_success or [])
         failure_cbs = list(self.on_failure or [])
+        start_cbs = list(self.on_start or [])
+        end_cbs = list(self.on_end or [])
 
         inner_kinds = set(getattr(spec, "kinds", None) or []) if spec else set()
         merged_kinds = inner_kinds | set(self.kinds or []) | {"hooks"}
@@ -325,7 +426,8 @@ class HooksAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         inner_description = (spec.description if spec else None) or f"Hooks-wrapped {key.to_user_string()}"
         merged_description = (
             f"{inner_description}  "
-            f"[hooks: on_success={len(success_cbs)}, on_failure={len(failure_cbs)}]"
+            f"[hooks: on_start={len(start_cbs)}, on_success={len(success_cbs)}, "
+            f"on_failure={len(failure_cbs)}, on_end={len(end_cbs)}]"
         )
         inner_deps = list(spec.deps) if (spec and getattr(spec, "deps", None)) else []
 
@@ -342,6 +444,12 @@ class HooksAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             code_version=(spec.code_version if spec else None),
         )
         def _hooks_wrapped(context: dg.AssetExecutionContext, **kwargs):
+            if start_cbs:
+                context.log.info(
+                    f"[hooks wrap] running {len(start_cbs)} on_start callback(s)"
+                )
+                _run_start_callbacks(start_cbs, context)
+
             try:
                 result = inner_compute(context, **kwargs)
             except BaseException as exc:  # noqa: BLE001
@@ -350,17 +458,29 @@ class HooksAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                         f"[hooks wrap] running {len(failure_cbs)} on_failure callback(s)"
                     )
                     _run_callbacks(failure_cbs, context, exc, "failure")
+                if end_cbs:
+                    context.log.info(
+                        f"[hooks wrap] running {len(end_cbs)} on_end callback(s) [failure]"
+                    )
+                    _run_end_callbacks(end_cbs, context, "failure", exc)
                 raise
             if success_cbs:
                 context.log.info(
                     f"[hooks wrap] running {len(success_cbs)} on_success callback(s)"
                 )
                 _run_callbacks(success_cbs, context, result, "success")
+            if end_cbs:
+                context.log.info(
+                    f"[hooks wrap] running {len(end_cbs)} on_end callback(s) [success]"
+                )
+                _run_end_callbacks(end_cbs, context, "success", result)
 
             # Merge hook counts into the inner's MaterializeResult (if any).
             passthrough_meta = {
                 "n_success_hooks": dg.MetadataValue.int(len(success_cbs)),
                 "n_failure_hooks": dg.MetadataValue.int(len(failure_cbs)),
+                "n_start_hooks": dg.MetadataValue.int(len(start_cbs)),
+                "n_end_hooks": dg.MetadataValue.int(len(end_cbs)),
             }
             if isinstance(result, dg.MaterializeResult):
                 merged = dict(result.metadata or {})

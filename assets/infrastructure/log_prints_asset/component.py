@@ -2,8 +2,10 @@
 
 Stolen from Prefect's `@flow(log_prints=True)`. Redirects `print()` and
 `sys.stdout.write()` calls inside the compute function to
-`context.log.info`, so print-heavy scripts land in the Dagster event log
-naturally without rewriting them.
+`context.log.info` (with optional level routing via `INFO:` / `WARN:` /
+`ERROR:` / `DEBUG:` line prefixes), so print-heavy scripts land in the
+Dagster event log naturally without rewriting them. Optionally also
+captures `sys.stderr`.
 
 ## Why this belongs in Dagster
 
@@ -26,27 +28,27 @@ compute call.
 
 ## Behavior
 
-- Wraps compute with `contextlib.redirect_stdout(sink)`.
+- Wraps compute with `contextlib.redirect_stdout(sink)` (and
+  `contextlib.redirect_stderr(sink_err)` when `capture_stderr=True`).
 - Each line written to stdout is emitted as `context.log.info(...)`.
+  When `route_levels=True` (default), a leading `INFO:` / `WARN:` /
+  `WARNING:` / `ERROR:` / `DEBUG:` prefix routes to the matching
+  `context.log.<level>()` — case-insensitive, colon-terminated.
+- Stderr lines default to `context.log.warning(...)` (or level-routed
+  when `route_levels=True`).
 - Empty lines are skipped.
-- Original stdout is restored after compute (whether success or fail).
+- Original stdout/stderr are restored after compute (success or fail).
 
 ## Composes with
 
 - **All other decorators** — `@log_prints` is orthogonal.
-
-## What's not in v1
-
-- **stderr capture** — v1 only redirects stdout. Add `log_stderr=True`
-  in a future iteration.
-- **Level per line** — v1 emits all captured lines at `info` level.
-  A line-prefix like `WARN:` could route to `context.log.warning`.
 """
 
 import contextlib
 import functools
 import importlib
 import io
+import re
 import sys
 from typing import Any, Callable, Dict, List, Optional
 
@@ -54,13 +56,46 @@ import dagster as dg
 from pydantic import Field
 
 
-class _LogPrintSink(io.TextIOBase):
-    """Buffer + flush-on-newline sink that routes lines to `context.log.info`."""
+_LEVEL_PREFIX_RE = re.compile(
+    r"^\s*(INFO|WARN|WARNING|ERROR|DEBUG)\s*:\s*(.*)$",
+    re.IGNORECASE,
+)
 
-    def __init__(self, context: Any, prefix: str = ""):
+_LEVEL_METHOD = {
+    "INFO": "info",
+    "WARN": "warning",
+    "WARNING": "warning",
+    "ERROR": "error",
+    "DEBUG": "debug",
+}
+
+
+class _LogPrintSink(io.TextIOBase):
+    """Buffer + flush-on-newline sink that routes lines to `context.log.<level>`.
+
+    Args:
+        context: Dagster execution context (must expose `.log`).
+        prefix: Prepended to every emitted line.
+        route_levels: If True, parse leading `INFO:` / `WARN:` / `WARNING:` /
+            `ERROR:` / `DEBUG:` prefix on each line and dispatch to the
+            matching `context.log.<level>` (falling back to `default_level`).
+        default_level: Log method name used when no level prefix matches.
+            Defaults to `"info"` (stdout). Set to `"warning"` for stderr sinks.
+    """
+
+    def __init__(
+        self,
+        context: Any,
+        prefix: str = "",
+        *,
+        route_levels: bool = True,
+        default_level: str = "info",
+    ):
         self._context = context
         self._prefix = prefix
         self._buffer = ""
+        self._route_levels = route_levels
+        self._default_level = default_level
 
     def write(self, s: str) -> int:  # type: ignore[override]
         if not s:
@@ -80,8 +115,16 @@ class _LogPrintSink(io.TextIOBase):
         line = line.rstrip()
         if not line:
             return
+        level = self._default_level
+        message = line
+        if self._route_levels:
+            m = _LEVEL_PREFIX_RE.match(line)
+            if m:
+                level = _LEVEL_METHOD[m.group(1).upper()]
+                message = m.group(2)
         try:
-            self._context.log.info(f"{self._prefix}{line}")
+            log_method = getattr(self._context.log, level, None) or self._context.log.info
+            log_method(f"{self._prefix}{message}")
         except Exception:  # noqa: BLE001
             pass
 
@@ -89,23 +132,36 @@ class _LogPrintSink(io.TextIOBase):
 def log_prints(
     *,
     prefix: str = "[print] ",
+    route_levels: bool = True,
+    capture_stderr: bool = False,
 ) -> Callable:
-    """Redirect `print()` inside the decorated compute to `context.log.info`.
+    """Redirect `print()` inside the decorated compute to `context.log.<level>`.
 
     ```python
     @dg.asset
     @log_prints()
     def porting_script(context):
-        print("Starting job")
-        print(f"Processed {n} rows")
+        print("Starting job")            # -> context.log.info
+        print("WARN: throttled")         # -> context.log.warning (when route_levels=True)
+        print("ERROR: timeout")          # -> context.log.error
         return build()
     ```
 
     All `print()` output (and anything else that goes to `sys.stdout`)
-    gets captured line-by-line and emitted as info-level Dagster log
-    events, so they show up in the run's log panel + are searchable
-    across runs. Original stdout is restored on completion (success or
-    failure).
+    gets captured line-by-line and emitted as Dagster log events, so
+    they show up in the run's log panel + are searchable across runs.
+
+    Args:
+        prefix: Prepended to every emitted line.
+        route_levels: If True (default), lines that start with
+            `INFO:` / `WARN:` / `WARNING:` / `ERROR:` / `DEBUG:` route to
+            the matching `context.log.<level>()`; all other lines default
+            to `.info` (stdout) / `.warning` (stderr).
+        capture_stderr: If True, ALSO redirect `sys.stderr` into
+            `context.log`. Stderr lines default to `.warning` (or level
+            routed when `route_levels=True`). Default False.
+
+    Original stdout/stderr are restored on completion (success or failure).
     """
     def _decorator(fn: Callable) -> Callable:
         @functools.wraps(fn)
@@ -117,12 +173,24 @@ def log_prints(
                 context = kwargs["context"]
             if context is None:
                 raise RuntimeError("@log_prints requires a Dagster context.")
-            sink = _LogPrintSink(context, prefix)
-            with contextlib.redirect_stdout(sink):
+            sink_out = _LogPrintSink(
+                context, prefix, route_levels=route_levels, default_level="info"
+            )
+            stack = contextlib.ExitStack()
+            stack.enter_context(contextlib.redirect_stdout(sink_out))
+            sink_err = None
+            if capture_stderr:
+                sink_err = _LogPrintSink(
+                    context, prefix, route_levels=route_levels, default_level="warning"
+                )
+                stack.enter_context(contextlib.redirect_stderr(sink_err))
+            with stack:
                 try:
                     return fn(*args, **kwargs)
                 finally:
-                    sink.flush()
+                    sink_out.flush()
+                    if sink_err is not None:
+                        sink_err.flush()
         return _wrapped
     return _decorator
 
@@ -165,6 +233,23 @@ class LogPrintsAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default="[print] ",
         description="Optional prefix prepended to every captured line before it lands in the log.",
     )
+    route_levels: bool = Field(
+        default=True,
+        description=(
+            "If True (default), captured lines starting with `INFO:` / `WARN:` / "
+            "`WARNING:` / `ERROR:` / `DEBUG:` route to `context.log.<level>()`. "
+            "Case-insensitive; the prefix is stripped from the emitted message. "
+            "Unmatched lines fall back to `.info` for stdout and `.warning` for stderr."
+        ),
+    )
+    capture_stderr: bool = Field(
+        default=False,
+        description=(
+            "If True, also redirect `sys.stderr` into `context.log`. Stderr lines "
+            "default to `context.log.warning` (or level-routed when `route_levels=True`). "
+            "Default False (stdout only)."
+        ),
+    )
 
     group_name: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)
@@ -192,6 +277,8 @@ class LogPrintsAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         upstream_asset_key = self.upstream_asset_key
         compute = dict(self.compute)
         prefix = self.prefix
+        route_levels = self.route_levels
+        capture_stderr = self.capture_stderr
 
         kinds_set = set(self.kinds or []) | {"python", "logging"}
         tag_map = dict(self.tags or {})
@@ -228,8 +315,18 @@ class LogPrintsAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             n_positional = sum(1 for p in sig.parameters.values()
                                if p.kind in (p.POSITIONAL_OR_KEYWORD, p.POSITIONAL_ONLY))
 
-            sink = _LogPrintSink(context, prefix)
-            with contextlib.redirect_stdout(sink):
+            sink_out = _LogPrintSink(
+                context, prefix, route_levels=route_levels, default_level="info"
+            )
+            stack = contextlib.ExitStack()
+            stack.enter_context(contextlib.redirect_stdout(sink_out))
+            sink_err = None
+            if capture_stderr:
+                sink_err = _LogPrintSink(
+                    context, prefix, route_levels=route_levels, default_level="warning"
+                )
+                stack.enter_context(contextlib.redirect_stderr(sink_err))
+            with stack:
                 try:
                     if n_positional == 0:
                         _ = fn()
@@ -238,10 +335,16 @@ class LogPrintsAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     else:
                         _ = fn(context, kwargs.get("upstream"))
                 finally:
-                    sink.flush()
+                    sink_out.flush()
+                    if sink_err is not None:
+                        sink_err.flush()
 
             return dg.MaterializeResult(
-                metadata={"log_prints_prefix": dg.MetadataValue.text(prefix)}
+                metadata={
+                    "log_prints_prefix": dg.MetadataValue.text(prefix),
+                    "log_prints_route_levels": dg.MetadataValue.bool(route_levels),
+                    "log_prints_capture_stderr": dg.MetadataValue.bool(capture_stderr),
+                }
             )
 
         return dg.Definitions(assets=[_asset])
@@ -277,6 +380,8 @@ class LogPrintsAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         inner_compute = getattr(inner_op.compute_fn, "decorated_fn", None) or inner_op.compute_fn
 
         prefix = self.prefix
+        route_levels = self.route_levels
+        capture_stderr = self.capture_stderr
 
         inner_kinds = set(getattr(spec, "kinds", None) or []) if spec else set()
         merged_kinds = inner_kinds | set(self.kinds or []) | {"logging"}
@@ -284,7 +389,11 @@ class LogPrintsAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         merged_tags = {**inner_tags, **(self.tags or {})}
         merged_owners = list((spec.owners if spec else []) or []) + (self.owners or [])
         inner_description = (spec.description if spec else None) or f"Log-prints-wrapped {key.to_user_string()}"
-        merged_description = f"{inner_description}  [log_prints: prefix={prefix!r}]"
+        merged_description = (
+            f"{inner_description}  "
+            f"[log_prints: prefix={prefix!r}, route_levels={route_levels}, "
+            f"capture_stderr={capture_stderr}]"
+        )
         inner_deps = list(spec.deps) if (spec and getattr(spec, "deps", None)) else []
 
         @dg.asset(
@@ -300,15 +409,29 @@ class LogPrintsAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             code_version=(spec.code_version if spec else None),
         )
         def _log_prints_wrapped(context: dg.AssetExecutionContext, **kwargs):
-            sink = _LogPrintSink(context, prefix)
-            with contextlib.redirect_stdout(sink):
+            sink_out = _LogPrintSink(
+                context, prefix, route_levels=route_levels, default_level="info"
+            )
+            stack = contextlib.ExitStack()
+            stack.enter_context(contextlib.redirect_stdout(sink_out))
+            sink_err = None
+            if capture_stderr:
+                sink_err = _LogPrintSink(
+                    context, prefix, route_levels=route_levels, default_level="warning"
+                )
+                stack.enter_context(contextlib.redirect_stderr(sink_err))
+            with stack:
                 try:
                     result = inner_compute(context, **kwargs)
                 finally:
-                    sink.flush()
+                    sink_out.flush()
+                    if sink_err is not None:
+                        sink_err.flush()
 
             passthrough_meta = {
                 "log_prints_prefix": dg.MetadataValue.text(prefix),
+                "log_prints_route_levels": dg.MetadataValue.bool(route_levels),
+                "log_prints_capture_stderr": dg.MetadataValue.bool(capture_stderr),
             }
             if isinstance(result, dg.MaterializeResult):
                 merged = dict(result.metadata or {})

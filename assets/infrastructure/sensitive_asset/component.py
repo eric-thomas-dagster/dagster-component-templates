@@ -22,7 +22,26 @@ can prove the scrub ran.
 - **`SensitiveAssetComponent`** (YAML)
 - **`@sensitive` decorator** (Python)
 
-## Match rules
+## Detection engines
+
+Two opt-in engines:
+
+- `regex` (default, zero deps) — case-insensitive glob against dict
+  keys + inline `key=value` regex against structured strings. Fast,
+  no extra install. Catches known-format identifiers.
+- `presidio` — Microsoft Presidio's analyzer runs pre-trained
+  recognizers for 50+ entity types (SSN, CREDIT_CARD, EMAIL_ADDRESS,
+  PERSON, PHONE_NUMBER, ...) plus configurable NER models. Catches
+  semantic PII that regex can't (e.g. "Jane Doe visited Tuesday" →
+  PERSON detected). Install on demand:
+
+      pip install "presidio-analyzer[server]" presidio-anonymizer
+      python -m spacy download en_core_web_sm
+
+  Presidio is NOT a hard dependency of this package — it's imported
+  lazily and only when `engine: presidio` is selected.
+
+## Match rules (regex engine)
 
 Each `key` in the config is a case-insensitive glob against dict keys
 + substring against structured strings (e.g., `key=value`, `"key": "..."`
@@ -134,16 +153,144 @@ def _scrub_str(s: str, patterns: List[str], strategy: str, counter: List[int]) -
     return _KV_PAIR_RE.sub(_sub, s)
 
 
-class _ScrubbingLog:
-    """Proxy for context.log that scrubs positional str args + dict extras."""
+# --------------------------------------------------------------------------
+# Presidio engine (opt-in, lazy-imported)
+# --------------------------------------------------------------------------
 
-    def __init__(self, inner, patterns: List[str], strategy: str, counter: List[int]):
+
+_PRESIDIO_INSTALL_HINT = (
+    "engine='presidio' requires Microsoft Presidio. Install:\n"
+    "    pip install \"presidio-analyzer[server]\" presidio-anonymizer\n"
+    "    python -m spacy download en_core_web_sm\n"
+    "(Presidio is NOT a hard dependency of dagster-community-components.)"
+)
+
+
+def _presidio_get_engines():
+    """Lazy-import Presidio + spaCy model. Raise dg.Failure with install hint if missing."""
+    try:
+        from presidio_analyzer import AnalyzerEngine  # type: ignore
+        from presidio_anonymizer import AnonymizerEngine  # type: ignore
+    except ImportError as e:
+        raise dg.Failure(
+            description=f"Presidio not installed: {e}\n\n{_PRESIDIO_INSTALL_HINT}"
+        ) from e
+    return AnalyzerEngine, AnonymizerEngine
+
+
+def _presidio_scrub(
+    text: str,
+    entities: Optional[List[str]],
+    language: str,
+    strategy: str,
+) -> tuple:
+    """Run Presidio detection + anonymization over `text`.
+
+    Returns (scrubbed_text, replacement_count).
+    """
+    if not isinstance(text, str) or not text:
+        return text, 0
+    AnalyzerEngine, AnonymizerEngine = _presidio_get_engines()
+    try:
+        from presidio_anonymizer.entities import OperatorConfig  # type: ignore
+    except ImportError as e:
+        raise dg.Failure(
+            description=f"Presidio anonymizer entities missing: {e}\n\n{_PRESIDIO_INSTALL_HINT}"
+        ) from e
+
+    try:
+        analyzer = AnalyzerEngine()
+    except Exception as e:  # noqa: BLE001
+        raise dg.Failure(
+            description=(
+                f"Presidio AnalyzerEngine init failed: {type(e).__name__}: {e}\n"
+                "Usually a missing spaCy model. Run: python -m spacy download en_core_web_sm"
+            )
+        ) from e
+    anonymizer = AnonymizerEngine()
+
+    results = analyzer.analyze(text=text, entities=entities, language=language)
+    if not results:
+        return text, 0
+
+    if strategy == "hash":
+        operator = OperatorConfig("hash", {"hash_type": "sha256"})
+    elif strategy == "mask":
+        operator = OperatorConfig(
+            "mask",
+            {"masking_char": "*", "chars_to_mask": 12, "from_end": False},
+        )
+    else:
+        operator = OperatorConfig("replace", {"new_value": "[REDACTED]"})
+
+    try:
+        anonymized = anonymizer.anonymize(
+            text=text,
+            analyzer_results=results,
+            operators={"DEFAULT": operator},
+        )
+    except Exception as e:  # noqa: BLE001
+        raise dg.Failure(
+            description=f"Presidio anonymize failed: {type(e).__name__}: {e}"
+        ) from e
+    return anonymized.text, len(results)
+
+
+def _presidio_scrub_value(
+    v: Any,
+    entities: Optional[List[str]],
+    language: str,
+    strategy: str,
+    counter: List[int],
+) -> Any:
+    """Recursively presidio-scrub strings inside dicts / lists."""
+    if isinstance(v, dict):
+        return {k: _presidio_scrub_value(val, entities, language, strategy, counter) for k, val in v.items()}
+    if isinstance(v, (list, tuple)):
+        cls = type(v)
+        return cls(_presidio_scrub_value(x, entities, language, strategy, counter) for x in v)
+    if isinstance(v, str):
+        scrubbed, n = _presidio_scrub(v, entities, language, strategy)
+        counter[0] += n
+        return scrubbed
+    return v
+
+
+class _ScrubbingLog:
+    """Proxy for context.log that scrubs positional str args + dict extras.
+
+    Dispatches on `engine`: `regex` (default) uses key-pattern globs +
+    `_KV_PAIR_RE`; `presidio` runs Microsoft Presidio's analyzer over
+    every string (lazy-imported).
+    """
+
+    def __init__(
+        self,
+        inner,
+        patterns: List[str],
+        strategy: str,
+        counter: List[int],
+        engine: str = "regex",
+        presidio_entities: Optional[List[str]] = None,
+        presidio_language: str = "en",
+    ):
         self._inner = inner
         self._patterns = patterns
         self._strategy = strategy
         self._counter = counter
+        self._engine = engine
+        self._presidio_entities = presidio_entities
+        self._presidio_language = presidio_language
 
     def _scrub(self, x: Any) -> Any:
+        if self._engine == "presidio":
+            return _presidio_scrub_value(
+                x,
+                self._presidio_entities,
+                self._presidio_language,
+                self._strategy,
+                self._counter,
+            )
         return _scrub_value(x, self._patterns, self._strategy, self._counter)
 
     def _wrap(self, level_name: str) -> Callable:
@@ -184,9 +331,27 @@ def _emit_scrub_observation(context: Any, count: int) -> None:
 class _SensitiveContextProxy:
     """Wraps a Dagster context so `.log` is our scrubbing proxy."""
 
-    def __init__(self, inner, patterns: List[str], strategy: str, counter: List[int]):
+    def __init__(
+        self,
+        inner,
+        patterns: List[str],
+        strategy: str,
+        counter: List[int],
+        engine: str = "regex",
+        presidio_entities: Optional[List[str]] = None,
+        presidio_language: str = "en",
+    ):
         object.__setattr__(self, "_inner", inner)
-        object.__setattr__(self, "_scrub_log", _ScrubbingLog(inner.log, patterns, strategy, counter))
+        object.__setattr__(
+            self,
+            "_scrub_log",
+            _ScrubbingLog(
+                inner.log, patterns, strategy, counter,
+                engine=engine,
+                presidio_entities=presidio_entities,
+                presidio_language=presidio_language,
+            ),
+        )
 
     def __getattr__(self, name: str) -> Any:
         if name == "log":
@@ -197,19 +362,43 @@ class _SensitiveContextProxy:
         setattr(object.__getattribute__(self, "_inner"), name, value)
 
 
-def _post_scrub_result(result: Any, patterns: List[str], strategy: str, counter: List[int]) -> Any:
+def _post_scrub_result(
+    result: Any,
+    patterns: List[str],
+    strategy: str,
+    counter: List[int],
+    engine: str = "regex",
+    presidio_entities: Optional[List[str]] = None,
+    presidio_language: str = "en",
+) -> Any:
+    """Scrub MaterializeResult metadata via the configured engine before it's persisted."""
     if isinstance(result, dg.MaterializeResult):
         md = result.metadata or {}
         clean_md: Dict[str, Any] = {}
-        for k, v in md.items():
-            if _matches(str(k), patterns):
-                counter[0] += 1
-                if hasattr(v, "value"):
-                    clean_md[k] = dg.MetadataValue.text(_redact(getattr(v, "value", ""), strategy))
+        if engine == "presidio":
+            # Presidio path — scrub the string form of every metadata value
+            # via the analyzer (semantic PII detection).
+            for k, v in md.items():
+                raw = getattr(v, "value", v)
+                if isinstance(raw, str):
+                    scrubbed, n = _presidio_scrub(raw, presidio_entities, presidio_language, strategy)
+                    if n > 0:
+                        counter[0] += n
+                        clean_md[k] = dg.MetadataValue.text(scrubbed)
+                    else:
+                        clean_md[k] = v
                 else:
-                    clean_md[k] = dg.MetadataValue.text(_redact(v, strategy))
-            else:
-                clean_md[k] = v
+                    clean_md[k] = v
+        else:
+            for k, v in md.items():
+                if _matches(str(k), patterns):
+                    counter[0] += 1
+                    if hasattr(v, "value"):
+                        clean_md[k] = dg.MetadataValue.text(_redact(getattr(v, "value", ""), strategy))
+                    else:
+                        clean_md[k] = dg.MetadataValue.text(_redact(v, strategy))
+                else:
+                    clean_md[k] = v
         return dg.MaterializeResult(
             asset_key=result.asset_key,
             metadata=clean_md,
@@ -224,6 +413,9 @@ def sensitive(
     *,
     keys: Optional[List[str]] = None,
     strategy: str = "redact",
+    engine: str = "regex",
+    presidio_entities: Optional[List[str]] = None,
+    presidio_language: str = "en",
 ) -> Callable:
     """Redact configured field names from `context.log` calls + returned metadata.
 
@@ -237,13 +429,36 @@ def sensitive(
         )
     ```
 
+    Presidio (opt-in, semantic PII detection):
+
+    ```python
+    @dg.asset
+    @sensitive(engine="presidio", presidio_entities=["PERSON", "SSN", "CREDIT_CARD"])
+    def patient_export(context):
+        context.log.info("Jane Doe visited on Tuesday, SSN 123-45-6789")
+        # → info: "<PERSON> visited on Tuesday, SSN [REDACTED]"
+    ```
+
+    Presidio install (NOT a hard dep):
+
+        pip install "presidio-analyzer[server]" presidio-anonymizer
+        python -m spacy download en_core_web_sm
+
     Args:
         keys: Field-name globs. `*` and `?` supported. Case-insensitive.
-            Defaults to a common PII/secrets list.
+            Defaults to a common PII/secrets list. Regex engine only.
         strategy: `redact` (default) | `hash` | `mask`.
+        engine: `regex` (default, zero deps) | `presidio` (semantic PII;
+            requires `pip install "presidio-analyzer[server]" presidio-anonymizer`
+            + a spaCy language model).
+        presidio_entities: Presidio-only. Entity types to detect (e.g.
+            `["SSN", "CREDIT_CARD", "PERSON"]`). None → Presidio defaults.
+        presidio_language: Presidio-only. Language code (default `en`).
     """
     if strategy not in ("redact", "hash", "mask"):
         raise ValueError(f"strategy must be 'redact', 'hash', or 'mask'; got {strategy!r}")
+    if engine not in ("regex", "presidio"):
+        raise ValueError(f"engine must be 'regex' or 'presidio'; got {engine!r}")
     patterns = list(keys or DEFAULT_KEYS)
 
     def _decorator(fn: Callable) -> Callable:
@@ -258,7 +473,12 @@ def sensitive(
                 raise RuntimeError("@sensitive requires a Dagster context.")
 
             counter = [0]
-            proxy = _SensitiveContextProxy(context, patterns, strategy, counter)
+            proxy = _SensitiveContextProxy(
+                context, patterns, strategy, counter,
+                engine=engine,
+                presidio_entities=presidio_entities,
+                presidio_language=presidio_language,
+            )
 
             new_args = list(args)
             if new_args and new_args[0] is context:
@@ -267,7 +487,12 @@ def sensitive(
                 kwargs = {**kwargs, "context": proxy}
 
             result = fn(*new_args, **kwargs)
-            result = _post_scrub_result(result, patterns, strategy, counter)
+            result = _post_scrub_result(
+                result, patterns, strategy, counter,
+                engine=engine,
+                presidio_entities=presidio_entities,
+                presidio_language=presidio_language,
+            )
             _emit_scrub_observation(context, counter[0])
             return result
 

@@ -28,6 +28,35 @@ Point-in-time snapshots of asset outputs. After compute succeeds, serialize + wr
 - **fsspec URIs** — same code writes local / S3 / GCS / Azure.
 - **Complementary to `@cached`** — `@cached` skips compute; `@snapshot` always runs but saves a checkpoint. Combine for retro-cache access.
 
+## `@snapshot` vs. the IO manager — when to use which
+
+Your Dagster IO manager already writes DataFrame returns to disk / cloud. Isn't `@snapshot` redundant?
+
+**No — they solve different problems**:
+
+| Concern | IO manager | `@snapshot` |
+|---|---|---|
+| Purpose | **Latest state** for downstream consumption | **Historical audit trail** |
+| Files per (asset, partition) | 1, overwritten every run | N, accumulated over time |
+| Path shape | `<asset>/<partition>` (deterministic) | `<uri>/<asset>/<code_version>/<UTC_ts>__<run_id>.<ext>` |
+| Loaded by downstream? | Yes — feeds the DAG | No — write-only |
+| Rollback support | No (write-2 clobbers write-1) | Yes — pick any prior file by code_version + ts |
+| Cost | Required (writes are the point) | Extra write per run |
+
+**Use `@snapshot` when:**
+- Your IO manager overwrites (local parquet, `PickledObjectFilesystemIOManager`, most SQL/warehouse IO managers). No natural history.
+- Regulated / audit environment: "prove what asset X emitted on 2024-11-14".
+- Rollback playbook: "we shipped code_version 2.1 last week, numbers went bad, load snapshot from 2.0 to restore".
+- Debug: compare last-week's output to today's without re-running compute.
+
+**Skip `@snapshot` when:**
+- **Iceberg / Delta Lake IO manager** — table format handles time-travel natively (`FOR VERSION AS OF ...`). `@snapshot` duplicates it.
+- **Warehouse with time-travel** — Snowflake Time Travel, BigQuery table snapshots, similar.
+- **Versioned cloud storage** — S3 versioning + lifecycle rule + a way to enumerate versions gives you the history.
+- **You never need to look back at old outputs** — the extra write is pure overhead.
+
+Rule of thumb: if your storage layer doesn't remember yesterday's value, `@snapshot` is your history.
+
 ## Full YAML example
 
 ```yaml
@@ -41,6 +70,7 @@ attributes:
 
   uri: "s3://backups/report_snapshots"       # or gs://, abfs://, /local/path
   # format: null                              # auto-detect from returned value
+  compression: zstd                           # parquet uses pyarrow codec; csv/json/text gain a .zst suffix
   retention_days: 30
   code_version: "2.1.0"
 ```
@@ -81,10 +111,21 @@ def restore_report(context):
 - **`@dry_run`** — dry runs don't snapshot (skip when tag active).
 - **`@profile`** — snapshot the profile alongside the data.
 
+## Compression
+
+`compression` is a per-format field.
+
+| Format | Supported codecs | How it's applied |
+|---|---|---|
+| `parquet` | `snappy` (default) / `gzip` / `zstd` / `brotli` / `lz4` | Forwarded to `df.to_parquet(compression=...)`; stored inside the parquet file, no filename suffix. |
+| `json` / `text` / `bin` | `gzip` / `bz2` / `zstd` / `xz` | Applied via stdlib codecs (or `zstandard` for zstd); filename gains a `.gz` / `.bz2` / `.zst` / `.xz` suffix so the codec is visible on disk. |
+| `pickle` | (none) | Compression flag is ignored; a warning is logged. |
+
+Setting `compression: none` (or leaving it unset) uses the format default. Parquet's default is `snappy`; the text formats default to uncompressed.
+
 ## What's not in v1 (roadmap)
 
 - **`load_snapshot(asset, code_version=..., ts=...)` helper** — convenience wrapper over the event log query.
-- **Compression** — gzip/zstd for text/JSON snapshots.
 - **Snapshot diffing** — surface the diff between two snapshots as an observation.
 
 ## CLI demos using this template

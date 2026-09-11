@@ -15,12 +15,26 @@ Capture `print()` calls inside compute and route them to `context.log.info`. Eve
 
 ## How it works
 
-Wraps compute with `contextlib.redirect_stdout(sink)`. The sink is a custom `io.TextIOBase` that:
-- Buffers stdout writes
+Wraps compute with `contextlib.redirect_stdout(sink)` (and `contextlib.redirect_stderr(sink_err)` when `capture_stderr=True`). The sink is a custom `io.TextIOBase` that:
+- Buffers writes
 - Splits on newlines
-- Emits each non-empty line as `context.log.info(prefix + line)`
+- Emits each non-empty line as `context.log.<level>(prefix + line)`
 
-Original `sys.stdout` is restored after compute completes (success or failure).
+### Level routing
+
+With `route_levels=True` (default), each captured line is inspected for a leading `INFO:` / `WARN:` / `WARNING:` / `ERROR:` / `DEBUG:` prefix (case-insensitive) and dispatched to the matching `context.log.<level>()`. Unmatched lines fall back to `.info` (stdout) or `.warning` (stderr). The level prefix is stripped from the emitted message.
+
+```python
+@dg.asset
+@log_prints(route_levels=True, capture_stderr=True)
+def porting_script(context):
+    print("Starting job")                             # -> context.log.info
+    print("WARN: connection pool low")                # -> context.log.warning
+    print("ERROR: retry exhausted", file=sys.stderr)  # -> context.log.error (stderr captured)
+    return build()
+```
+
+Original `sys.stdout` / `sys.stderr` are restored after compute completes (success or failure).
 
 ## Full YAML example
 
@@ -33,7 +47,9 @@ attributes:
     kind: python
     python: "my_project.legacy:process_batch"
 
-  prefix: "[print] "     # prepended to every captured line
+  prefix: "[print] "      # prepended to every captured line
+  route_levels: true      # parse `WARN:` / `ERROR:` / `DEBUG:` line prefix → context.log.<level>
+  capture_stderr: false   # set true to also redirect sys.stderr
 ```
 
 ## `@log_prints` decorator
@@ -55,11 +71,6 @@ Every `print()` line lands in the Dagster UI log panel + is searchable across ru
 ## Composes with
 
 Orthogonal to every other decorator. Stack it with `@smart_retry`, `@lifecycle`, `@sla`, etc., freely.
-
-## What's not in v1 (roadmap)
-
-- **stderr capture** — currently only stdout is redirected. Add `capture_stderr=True`.
-- **Level routing** — parse line prefix like `WARN:` / `ERROR:` and route to `context.log.warning` / `context.log.error`.
 
 ## CLI demos using this template
 

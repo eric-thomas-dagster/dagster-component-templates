@@ -172,6 +172,107 @@ def _save_cache(df, cache_path: str, fmt: str):
             df.to_json(p, orient="records", lines=True)
 
 
+def _evict_lru(
+    cache_dir: str,
+    max_entries: Optional[int],
+    max_bytes: Optional[int],
+    context: Any,
+) -> int:
+    """LRU eviction — delete oldest files in cache_dir until BOTH caps satisfied.
+
+    Skips no-op when both caps are None. Local filesystem only for v1 —
+    fsspec URIs are logged + skipped (S3/GCS/etc. mtime scans are expensive
+    and provider-specific).
+
+    Returns the number of files evicted.
+    """
+    if max_entries is None and max_bytes is None:
+        return 0
+
+    if "://" in cache_dir:
+        try:
+            context.log.warning(
+                f"[cached] LRU eviction skipped: cache_dir {cache_dir!r} is an fsspec URI "
+                "(local-only for v1)"
+            )
+        except Exception:  # noqa: BLE001
+            pass
+        return 0
+
+    dir_path = Path(cache_dir).expanduser()
+    if not dir_path.exists():
+        return 0
+
+    # Gather (mtime, size, path) tuples for regular files only.
+    entries = []
+    for f in dir_path.iterdir():
+        if not f.is_file():
+            continue
+        try:
+            st = f.stat()
+        except OSError:
+            continue
+        entries.append((st.st_mtime, st.st_size, f))
+
+    # Sort by mtime ascending — oldest first (LRU eviction candidates).
+    entries.sort(key=lambda t: t[0])
+
+    total_count = len(entries)
+    total_bytes = sum(sz for _, sz, _ in entries)
+
+    evicted_count = 0
+    evicted_bytes = 0
+    idx = 0
+    while entries and idx < len(entries):
+        over_count = max_entries is not None and total_count > max_entries
+        over_bytes = max_bytes is not None and total_bytes > max_bytes
+        if not (over_count or over_bytes):
+            break
+        _mtime, size, path = entries[idx]
+        try:
+            path.unlink()
+            evicted_count += 1
+            evicted_bytes += size
+            total_count -= 1
+            total_bytes -= size
+        except OSError:
+            pass
+        idx += 1
+
+    if evicted_count > 0:
+        try:
+            context.log.info(
+                f"[cached] LRU evicted {evicted_count} files (freed {evicted_bytes} bytes)"
+            )
+        except Exception:  # noqa: BLE001
+            pass
+        # Emit AssetObservation for evictions.
+        from dagster import AssetKey, AssetObservation, MetadataValue
+        try:
+            asset_key = context.asset_key
+        except Exception:  # noqa: BLE001
+            asset_key = AssetKey(["cached_asset"])
+        if hasattr(context, "log_event"):
+            try:
+                context.log_event(AssetObservation(
+                    asset_key=asset_key,
+                    tags={"cached_asset_lru_evicted": str(evicted_count)},
+                    metadata={
+                        "lru_evicted_files": MetadataValue.int(evicted_count),
+                        "lru_evicted_bytes": MetadataValue.int(evicted_bytes),
+                    },
+                ))
+            except Exception as e:  # noqa: BLE001
+                try:
+                    context.log.warning(
+                        f"[cached] failed to emit LRU AssetObservation: {type(e).__name__}: {e}"
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+
+    return evicted_count
+
+
 def _emit_cache_event(context: Any, key: str, hit: bool, path: str):
     """Emit AssetObservation with cache hit/miss info.
 
@@ -219,6 +320,8 @@ def cached(
     ttl_seconds: Optional[float] = None,
     format: str = "parquet",
     key_fn: Optional[str] = None,
+    max_entries: Optional[int] = None,
+    max_bytes: Optional[int] = None,
 ) -> Callable:
     """Content-addressable cache decorator for Dagster asset compute.
 
@@ -248,6 +351,10 @@ def cached(
     and returns cached DataFrame without calling compute.
     On miss: emits `AssetObservation(tags={cached_asset_status: miss, ...})`
     and runs compute, saves result.
+
+    Optional LRU eviction (local FS only): pass `max_entries=N` and/or
+    `max_bytes=X` to cap the size of `cache_dir/`. After every miss-write,
+    the oldest files (by mtime) are evicted until BOTH caps are satisfied.
     """
     if format not in ("parquet", "csv", "json"):
         raise ValueError(f"format must be parquet|csv|json; got {format!r}")
@@ -303,6 +410,7 @@ def cached(
                 )
             _save_cache(df, path, format)
             context.log.info(f"[cached] saved {len(df)} rows to {path}")
+            _evict_lru(cache_dir, max_entries, max_bytes, context)
             yield dg.Output(
                 df,
                 metadata={
@@ -375,6 +483,22 @@ class CachedAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Optional `mod:fn` callable mixed into the cache key.",
     )
+    max_entries: Optional[int] = Field(
+        default=None,
+        description=(
+            "LRU eviction: cap total number of cached parquets in `cache_dir/`. "
+            "When set, after every miss-write we scan the dir, sort by mtime ascending "
+            "(oldest = LRU), and delete the oldest files until count <= max_entries."
+        ),
+    )
+    max_bytes: Optional[int] = Field(
+        default=None,
+        description=(
+            "LRU eviction: cap total bytes in `cache_dir/`. Same mechanic as max_entries "
+            "but tallies file sizes. Both can be set simultaneously (whichever cap is hit "
+            "first triggers eviction)."
+        ),
+    )
 
     # Catalog / governance
     group_name: Optional[str] = Field(default=None)
@@ -412,6 +536,8 @@ class CachedAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         ttl_seconds = self.ttl_seconds
         fmt = self.format
         key_fn = self.key_fn
+        max_entries = self.max_entries
+        max_bytes = self.max_bytes
 
         if fmt not in ("parquet", "csv", "json"):
             raise ValueError(f"format must be parquet|csv|json; got {fmt!r}")
@@ -486,6 +612,7 @@ class CachedAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
             _save_cache(df, path, fmt)
             context.log.info(f"[cached] saved {len(df)} rows to {path}")
+            _evict_lru(cache_dir, max_entries, max_bytes, context)
             return dg.MaterializeResult(
                 metadata={
                     "cache_status": dg.MetadataValue.text("miss"),
@@ -532,6 +659,8 @@ class CachedAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         ttl_seconds = self.ttl_seconds
         fmt = self.format
         key_fn_ref = self.key_fn
+        max_entries = self.max_entries
+        max_bytes = self.max_bytes
 
         if fmt not in ("parquet", "csv", "json"):
             raise ValueError(f"format must be parquet|csv|json; got {fmt!r}")
@@ -608,6 +737,7 @@ class CachedAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
             _save_cache(df_to_cache, path, fmt)
             context.log.info(f"[cached wrap] saved {len(df_to_cache)} rows to {path}")
+            _evict_lru(cache_dir, max_entries, max_bytes, context)
             return dg.Output(
                 df_to_cache,
                 metadata={

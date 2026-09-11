@@ -100,27 +100,118 @@ _EXT_BY_FORMAT = {
     "bin": ".bin",
 }
 
+# Codec -> suffix appended to csv/json/text/bin files (empty = no suffix).
+# Parquet handles compression internally with no filename suffix.
+_TEXT_COMPRESSION_SUFFIX = {
+    "gzip": ".gz",
+    "gz": ".gz",
+    "bz2": ".bz2",
+    "zstd": ".zst",
+    "zst": ".zst",
+    "xz": ".xz",
+}
 
-def _serialize(value: Any, fmt: str) -> bytes:
+# Pandas-normalized codec names for `.to_csv` / `.to_json` compression=.
+_PANDAS_TEXT_CODEC = {
+    "gzip": "gzip",
+    "gz": "gzip",
+    "bz2": "bz2",
+    "zstd": "zstd",
+    "zst": "zstd",
+    "xz": "xz",
+}
+
+
+def _apply_compression_suffix(ext: str, compression: Optional[str]) -> str:
+    """For text-ish formats, append a compression suffix (.gz/.zst/.bz2) to the extension."""
+    if not compression or compression.lower() == "none":
+        return ext
+    suffix = _TEXT_COMPRESSION_SUFFIX.get(compression.lower())
+    if not suffix:
+        return ext
+    return ext + suffix
+
+
+def _serialize(value: Any, fmt: str, compression: Optional[str] = None) -> bytes:
+    """Serialize `value` to bytes.
+
+    `compression` is passed through to pandas / stdlib codecs for supported
+    formats:
+      * parquet -> `df.to_parquet(compression=<codec>)` (snappy default, gzip / zstd / brotli / lz4 supported by pyarrow)
+      * json / csv (via DataFrame) -> `df.to_json` / `df.to_csv` with `compression=` (produces already-compressed bytes)
+      * pickle / text / bin -> compression is currently a no-op (a warning is
+        emitted upstream if the caller requested one for these formats).
+    """
+    codec = (compression or "").lower() or None
+    if codec == "none":
+        codec = None
+
     if fmt == "parquet":
         try:
-            import io
-            buf = io.BytesIO()
-            value.to_parquet(buf)
+            import io as _io
+            buf = _io.BytesIO()
+            if codec:
+                value.to_parquet(buf, compression=codec)
+            else:
+                value.to_parquet(buf)
             return buf.getvalue()
         except Exception:
             fmt = "pickle"
+
     if fmt == "json":
-        return json.dumps(value, default=str).encode("utf-8")
+        # Prefer DataFrame.to_json when we have one so pandas-native compression works.
+        try:
+            import pandas as pd
+            if isinstance(value, pd.DataFrame):
+                import io as _io
+                buf = _io.BytesIO()
+                pd_codec = _PANDAS_TEXT_CODEC.get(codec) if codec else None
+                if pd_codec:
+                    value.to_json(buf, compression=pd_codec)
+                else:
+                    value.to_json(buf)
+                return buf.getvalue()
+        except ImportError:
+            pass
+        # Plain dict/list JSON. Apply codec via stdlib if requested.
+        raw = json.dumps(value, default=str).encode("utf-8")
+        return _text_compress_bytes(raw, codec) if codec else raw
+
     if fmt == "pickle":
         return pickle.dumps(value)
     if fmt == "text":
-        return str(value).encode("utf-8")
+        raw = str(value).encode("utf-8")
+        return _text_compress_bytes(raw, codec) if codec else raw
     if fmt == "bin":
-        if isinstance(value, (bytes, bytearray)):
-            return bytes(value)
-        return str(value).encode("utf-8")
+        raw = bytes(value) if isinstance(value, (bytes, bytearray)) else str(value).encode("utf-8")
+        return _text_compress_bytes(raw, codec) if codec else raw
     raise ValueError(f"unknown snapshot format: {fmt!r}")
+
+
+def _text_compress_bytes(raw: bytes, codec: Optional[str]) -> bytes:
+    """Best-effort codec-based compression of a raw byte payload."""
+    if not codec:
+        return raw
+    codec = codec.lower()
+    try:
+        if codec in ("gzip", "gz"):
+            import gzip
+            return gzip.compress(raw)
+        if codec == "bz2":
+            import bz2
+            return bz2.compress(raw)
+        if codec == "xz":
+            import lzma
+            return lzma.compress(raw)
+        if codec in ("zstd", "zst"):
+            try:
+                import zstandard as zstd
+                return zstd.ZstdCompressor().compress(raw)
+            except ImportError:
+                return raw
+    except Exception:  # noqa: BLE001
+        return raw
+    return raw
 
 
 def _get_fs(uri: str):
@@ -246,7 +337,14 @@ def _dry_run_active(context: Any) -> bool:
         return False
 
 
-def _do_snapshot(context: Any, value: Any, uri: str, fmt: Optional[str], retention_days: Optional[int]) -> None:
+def _do_snapshot(
+    context: Any,
+    value: Any,
+    uri: str,
+    fmt: Optional[str],
+    retention_days: Optional[int],
+    compression: Optional[str] = None,
+) -> None:
     if _dry_run_active(context):
         try:
             context.log.info("@snapshot: dry_run active — skipping write")
@@ -254,14 +352,35 @@ def _do_snapshot(context: Any, value: Any, uri: str, fmt: Optional[str], retenti
             pass
         return
     resolved_fmt, ext = _detect_format(value, fmt)
-    data = _serialize(value, resolved_fmt)
+
+    # Warn if compression is set for a format that ignores it.
+    codec = (compression or "").lower() or None
+    if codec == "none":
+        codec = None
+    if codec and resolved_fmt in {"pickle"}:
+        try:
+            context.log.warning(
+                f"@snapshot: compression={codec!r} ignored for format={resolved_fmt!r}"
+            )
+        except Exception:  # noqa: BLE001
+            pass
+        codec = None
+
+    data = _serialize(value, resolved_fmt, codec)
     folder = _snapshot_folder(context, uri)
-    filename = _snapshot_filename(context) + ext
+    # For non-parquet formats, append a compression suffix (.gz/.zst/etc)
+    # so the file reflects its codec on disk. Parquet stores codec metadata
+    # inside the file, so keep `.parquet`.
+    ext_with_codec = ext if resolved_fmt == "parquet" else _apply_compression_suffix(ext, codec)
+    filename = _snapshot_filename(context) + ext_with_codec
     full_path = _write(folder, filename, data)
     pruned = _prune(folder, retention_days)
     _emit_snapshot_observation(context, full_path, len(data), resolved_fmt, pruned)
     try:
-        context.log.info(f"@snapshot: wrote {full_path} ({len(data)} bytes, format={resolved_fmt})")
+        codec_note = f", compression={codec}" if codec else ""
+        context.log.info(
+            f"@snapshot: wrote {full_path} ({len(data)} bytes, format={resolved_fmt}{codec_note})"
+        )
     except Exception:  # noqa: BLE001
         pass
 
@@ -271,12 +390,13 @@ def snapshot(
     uri: str,
     format: Optional[str] = None,
     retention_days: Optional[int] = None,
+    compression: Optional[str] = None,
 ) -> Callable:
     """Write a point-in-time snapshot of the wrapped asset's return value.
 
     ```python
     @dg.asset(code_version="2.1.0")
-    @snapshot(uri="s3://backups/report_snapshots", retention_days=30)
+    @snapshot(uri="s3://backups/report_snapshots", retention_days=30, compression="zstd")
     def daily_report(context):
         return build_report()
     ```
@@ -289,6 +409,12 @@ def snapshot(
             auto-detects from the returned value.
         retention_days: If set, delete snapshots older than N days from this
             asset's folder after a successful write.
+        compression: Codec name (`gzip` | `zstd` | `snappy` | `brotli` |
+            `bz2` | `xz` | `none`). Parquet writes pass this to
+            `df.to_parquet(compression=...)` (default is `snappy` if omitted).
+            JSON / text / bin writes gzip/bz2/zstd via stdlib codecs — the
+            file gains a `.gz` / `.zst` / `.bz2` suffix. Pickle ignores the
+            flag (a warning is emitted).
     """
     if not uri:
         raise ValueError("@snapshot requires uri=<fsspec URI directory>")
@@ -306,7 +432,7 @@ def snapshot(
 
             value = fn(*args, **kwargs)
             try:
-                _do_snapshot(context, value, uri, format, retention_days)
+                _do_snapshot(context, value, uri, format, retention_days, compression)
             except Exception as e:  # noqa: BLE001
                 # Snapshot failure should not fail the primary compute.
                 try:
@@ -361,6 +487,16 @@ class SnapshotAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="`parquet` | `json` | `pickle` | `text` | `bin`. If null, auto-detected from the returned value.",
     )
+    compression: Optional[str] = Field(
+        default=None,
+        description=(
+            "Compression codec: `gzip` | `zstd` | `snappy` | `brotli` | `bz2` | `xz` | `none`. "
+            "Default None = format default (parquet defaults to snappy). "
+            "Parquet forwards this to `df.to_parquet(compression=...)`. "
+            "JSON / text / bin writes gzip/bz2/zstd via stdlib codecs and the file gains a "
+            "`.gz` / `.zst` / `.bz2` suffix. Pickle ignores the flag (warns)."
+        ),
+    )
     retention_days: Optional[int] = Field(
         default=None,
         description="If set, delete snapshots older than N days from this asset's folder after a successful write.",
@@ -397,6 +533,7 @@ class SnapshotAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         compute = dict(self.compute)
         uri_ = self.uri
         fmt = self.format
+        compression = self.compression
         retention = self.retention_days
         code_version = self.code_version
 
@@ -443,7 +580,7 @@ class SnapshotAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 value = fn(context, kwargs.get("upstream"))
 
             try:
-                _do_snapshot(context, value, uri_, fmt, retention)
+                _do_snapshot(context, value, uri_, fmt, retention, compression)
             except Exception as e:  # noqa: BLE001
                 context.log.warning(f"@snapshot: write failed (asset still succeeds): {type(e).__name__}: {e}")
 
@@ -483,6 +620,7 @@ class SnapshotAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
         uri_ = self.uri
         fmt = self.format
+        compression = self.compression
         retention = self.retention_days
         code_version = self.code_version
 
@@ -492,7 +630,11 @@ class SnapshotAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         merged_tags = {**inner_tags, **(self.tags or {})}
         merged_owners = list((spec.owners if spec else []) or []) + (self.owners or [])
         inner_description = (spec.description if spec else None) or f"Snapshot-wrapped {key.to_user_string()}"
-        merged_description = f"{inner_description}  [snapshot: uri={uri_}, format={fmt or 'auto'}, retention_days={retention}]"
+        merged_description = (
+            f"{inner_description}  "
+            f"[snapshot: uri={uri_}, format={fmt or 'auto'}, "
+            f"compression={compression or 'default'}, retention_days={retention}]"
+        )
         inner_deps = list(spec.deps) if (spec and getattr(spec, "deps", None)) else []
 
         @dg.asset(
@@ -525,11 +667,12 @@ class SnapshotAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             snapshot_meta: Dict[str, Any] = {}
             if value_to_snap is not None:
                 try:
-                    _do_snapshot(context, value_to_snap, uri_, fmt, retention)
+                    _do_snapshot(context, value_to_snap, uri_, fmt, retention, compression)
                     resolved_fmt, _ext = _detect_format(value_to_snap, fmt)
                     snapshot_meta = {
                         "snapshot_written": dg.MetadataValue.bool(True),
                         "snapshot_format": dg.MetadataValue.text(resolved_fmt),
+                        "snapshot_compression": dg.MetadataValue.text(compression or "default"),
                     }
                 except Exception as e:  # noqa: BLE001
                     context.log.warning(

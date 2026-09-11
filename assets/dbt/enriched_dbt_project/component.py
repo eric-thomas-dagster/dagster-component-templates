@@ -223,6 +223,70 @@ def _parse_duration_string(s: Any) -> Optional[timedelta]:
     return timedelta(**{unit_map[unit]: value})
 
 
+# ─── State comparison (dbt state explain equivalent) ─────────────────
+#
+# dbt's `dbt state explain` command (dbt 2.0+) explains WHY a model was
+# rebuilt / reused / cloned. The core comparison it does is
+# per-model-checksum against a state manifest. We reproduce that
+# comparison at build time and attach the result as per-model metadata,
+# so users can see the reason in the Dagster UI without running the
+# CLI.
+
+
+def _load_state_manifest(state_manifest_path: str) -> Optional[dict]:
+    """Load a state manifest.json (or the manifest.json inside a state dir)."""
+    from pathlib import Path as _P
+    p = _P(state_manifest_path)
+    if p.is_dir():
+        p = p / "manifest.json"
+    try:
+        return json.loads(p.read_text())
+    except (FileNotFoundError, PermissionError, json.JSONDecodeError):
+        return None
+
+
+def _state_explain_for_node(
+    dbt_resource_props: Mapping[str, Any],
+    state_manifest: Optional[dict],
+) -> Optional[dict[str, str]]:
+    """Return ``{state, explanation}`` for a model comparing its
+    ``checksum.checksum`` to the state manifest's checksum for the same
+    unique_id. State is one of ``modified`` / ``unchanged`` / ``new``.
+    Returns None for non-model resources or when state_manifest is None."""
+    if not state_manifest:
+        return None
+    if dbt_resource_props.get("resource_type") != "model":
+        return None
+    unique_id = dbt_resource_props.get("unique_id")
+    if not unique_id:
+        return None
+    state_nodes = state_manifest.get("nodes") or {}
+    state_node = state_nodes.get(unique_id)
+    current_checksum = (dbt_resource_props.get("checksum") or {}).get("checksum")
+    if state_node is None:
+        return {
+            "state": "new",
+            "explanation": f"Model '{unique_id}' does not exist in the state manifest — will rebuild.",
+        }
+    state_checksum = (state_node.get("checksum") or {}).get("checksum")
+    if current_checksum == state_checksum:
+        return {
+            "state": "unchanged",
+            "explanation": (
+                f"Model '{unique_id}' checksum matches state — dbt will reuse the "
+                "state's build (no-op) unless a config/macro/contract change is detected "
+                "by a deeper state selector."
+            ),
+        }
+    return {
+        "state": "modified",
+        "explanation": (
+            f"Model '{unique_id}' checksum differs from state — will rebuild. "
+            f"(state checksum: {(state_checksum or '')[:8]}, current: {(current_checksum or '')[:8]})"
+        ),
+    }
+
+
 def _lag_tolerance_of(dbt_resource_props: Mapping[str, Any]) -> Optional[timedelta]:
     """Extract dbt State ``config.state.lag_tolerance`` as a ``timedelta`` (real
     dbt feature — see https://docs.getdbt.com/reference/resource-configs/lag-tolerance).
@@ -742,6 +806,26 @@ try:
         already carry an `automation_condition` from `meta.dagster.*` (user
         override wins)."""
 
+        state_manifest_path: Optional[str] = None
+        """Path to a dbt state manifest.json (or a directory containing one).
+        When set alongside ``include_state_explain`` or ``derive_state_tags``,
+        each model gets a per-checksum comparison result — matches dbt's own
+        ``dbt state explain`` behavior for the checksum path (see
+        https://docs.getdbt.com/docs/deploy/dbt-state-about)."""
+
+        include_state_explain: bool = False
+        """Requires ``state_manifest_path``. Attach ``dbt_state/state`` (one of
+        ``modified`` / ``unchanged`` / ``new``) and ``dbt_state/explanation``
+        (human-readable reason) as metadata on each model asset. Users can
+        see WHY a model is scheduled to rebuild / reuse in the Dagster UI
+        without running ``dbt state explain`` in a terminal."""
+
+        derive_state_tags: bool = False
+        """Requires ``state_manifest_path``. Add a ``dbt/state`` tag with the
+        same modified / unchanged / new value so asset selections like
+        ``tag:dbt/state=modified`` work. Independent of
+        ``include_state_explain`` (which adds metadata, not tags)."""
+
         code_version_strategy: Literal["disabled", "hash", "sqlglot"] = "disabled"
         """How to derive Dagster ``code_version`` per model asset:
 
@@ -990,6 +1074,34 @@ try:
                         try:
                             enriched = enriched.replace_attributes(
                                 automation_condition=dg.AutomationCondition.freshness_failed()
+                            )
+                        except Exception:
+                            pass
+
+            # State comparison — attach per-model state explain metadata + tag
+            # if state_manifest_path is set. Loaded lazily and cached at the
+            # instance level so N calls to _enrich_spec don't re-read the file.
+            if (self.include_state_explain or self.derive_state_tags) and self.state_manifest_path:
+                if not hasattr(self, "_cached_state_manifest"):
+                    self._cached_state_manifest = _load_state_manifest(self.state_manifest_path)  # type: ignore[attr-defined]
+                state_result = _state_explain_for_node(
+                    {**node, "unique_id": unique_id}, self._cached_state_manifest  # type: ignore[attr-defined]
+                )
+                if state_result is not None:
+                    if self.include_state_explain:
+                        try:
+                            enriched = enriched.merge_attributes(
+                                metadata={
+                                    "dbt_state/state": dg.MetadataValue.text(state_result["state"]),
+                                    "dbt_state/explanation": dg.MetadataValue.text(state_result["explanation"]),
+                                }
+                            )
+                        except Exception:
+                            pass
+                    if self.derive_state_tags:
+                        try:
+                            enriched = enriched.merge_attributes(
+                                tags={"dbt/state": state_result["state"]}
                             )
                         except Exception:
                             pass

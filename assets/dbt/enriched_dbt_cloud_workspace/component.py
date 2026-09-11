@@ -179,6 +179,57 @@ def _parse_duration_string(s: Any) -> Optional[timedelta]:
     return timedelta(**{unit_map[unit]: value})
 
 
+def _load_state_manifest(state_manifest_path: str) -> Optional[dict]:
+    from pathlib import Path as _P
+    p = _P(state_manifest_path)
+    if p.is_dir():
+        p = p / "manifest.json"
+    try:
+        return json.loads(p.read_text())
+    except (FileNotFoundError, PermissionError, json.JSONDecodeError):
+        return None
+
+
+def _state_explain_for_node(
+    dbt_resource_props: Mapping[str, Any],
+    state_manifest: Optional[dict],
+) -> Optional[dict]:
+    """Compare per-model checksum vs state manifest. Returns
+    {state: new|unchanged|modified, explanation: str}. See Core enriched
+    component for full docs."""
+    if not state_manifest:
+        return None
+    if dbt_resource_props.get("resource_type") != "model":
+        return None
+    unique_id = dbt_resource_props.get("unique_id")
+    if not unique_id:
+        return None
+    state_nodes = state_manifest.get("nodes") or {}
+    state_node = state_nodes.get(unique_id)
+    current_checksum = (dbt_resource_props.get("checksum") or {}).get("checksum")
+    if state_node is None:
+        return {
+            "state": "new",
+            "explanation": f"Model '{unique_id}' does not exist in the state manifest — will rebuild.",
+        }
+    state_checksum = (state_node.get("checksum") or {}).get("checksum")
+    if current_checksum == state_checksum:
+        return {
+            "state": "unchanged",
+            "explanation": (
+                f"Model '{unique_id}' checksum matches state — dbt will reuse the "
+                "state's build (no-op) unless a deeper state selector detects a change."
+            ),
+        }
+    return {
+        "state": "modified",
+        "explanation": (
+            f"Model '{unique_id}' checksum differs from state — will rebuild. "
+            f"(state: {(state_checksum or '')[:8]}, current: {(current_checksum or '')[:8]})"
+        ),
+    }
+
+
 def _lag_tolerance_of(dbt_resource_props: Mapping[str, Any]) -> Optional[timedelta]:
     lag = ((dbt_resource_props.get("config") or {}).get("state") or {}).get("lag_tolerance")
     return _parse_duration_string(lag)
@@ -566,6 +617,21 @@ try:
           Whitespace/comment edits do NOT bump; only semantic SQL changes
           do. Optional dep, falls back to ``hash`` if sqlglot is missing."""
 
+        state_manifest_path: Optional[str] = None
+        """Path to a dbt state manifest.json (or a directory containing one).
+        Enables the checksum-comparison enrichments below."""
+
+        include_state_explain: bool = False
+        """Requires ``state_manifest_path``. Attach ``dbt_state/state`` +
+        ``dbt_state/explanation`` metadata to each model — the checksum
+        comparison result (new / unchanged / modified) with a human-readable
+        reason. Equivalent to running ``dbt state explain`` at build time."""
+
+        derive_state_tags: bool = False
+        """Requires ``state_manifest_path``. Add a ``dbt/state`` tag with the
+        modified / unchanged / new value so ``tag:dbt/state=modified``
+        selections work."""
+
         # ─────────────────────────────────────────────────────────────
         # Internal helpers
         # ─────────────────────────────────────────────────────────────
@@ -742,6 +808,32 @@ try:
                         try:
                             enriched = enriched.replace_attributes(
                                 automation_condition=dg.AutomationCondition.freshness_failed()
+                            )
+                        except Exception:
+                            pass
+
+            # State comparison — attach per-model state explain metadata + tag
+            if (self.include_state_explain or self.derive_state_tags) and self.state_manifest_path:
+                if not hasattr(self, "_cached_state_manifest"):
+                    self._cached_state_manifest = _load_state_manifest(self.state_manifest_path)  # type: ignore[attr-defined]
+                state_result = _state_explain_for_node(
+                    {**node, "unique_id": unique_id}, self._cached_state_manifest  # type: ignore[attr-defined]
+                )
+                if state_result is not None:
+                    if self.include_state_explain:
+                        try:
+                            enriched = enriched.merge_attributes(
+                                metadata={
+                                    "dbt_state/state": dg.MetadataValue.text(state_result["state"]),
+                                    "dbt_state/explanation": dg.MetadataValue.text(state_result["explanation"]),
+                                }
+                            )
+                        except Exception:
+                            pass
+                    if self.derive_state_tags:
+                        try:
+                            enriched = enriched.merge_attributes(
+                                tags={"dbt/state": state_result["state"]}
                             )
                         except Exception:
                             pass
@@ -1286,6 +1378,9 @@ except ImportError:
         auto_trigger_on_freshness_failure: bool = Field(default=False)
         derive_lag_tolerance_automation: bool = Field(default=False)
         code_version_strategy: Literal["disabled", "hash", "sqlglot"] = Field(default="disabled")
+        state_manifest_path: Optional[str] = Field(default=None)
+        include_state_explain: bool = Field(default=False)
+        derive_state_tags: bool = Field(default=False)
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             raise ImportError(

@@ -676,6 +676,38 @@ class AssetOverride(dg.Resolvable):
     depends_on: Optional[List[str]] = None
 
 
+@dataclass
+class DbtDeferConfig(dg.Resolvable):
+    """Configuration for dbt's ``--defer``/``--state``/``--favor-state`` slim-CI options.
+
+    Ported from ``et/dbt-defer-state`` PR. Slim CI pattern: dbt runs models that
+    changed vs a state manifest, deferring ``ref()`` resolution to the state's
+    tables for unchanged upstream models. Skips rebuilding data that hasn't
+    changed.
+
+    Args:
+        state_path: Path to the state directory (containing ``manifest.json``) or
+            the ``manifest.json`` file itself. Passed to dbt via ``--state <path>``.
+        defer: If True (default), pass ``--defer`` so missing / unbuilt models
+            resolve to the state's tables. Slim CI's core primitive.
+        favor_state: If True, pass ``--favor-state`` so dbt prefers the state's
+            version even when the current run has updated the table. Useful for
+            cross-environment reads. Defaults to False.
+    """
+
+    state_path: str
+    defer: bool = True
+    favor_state: bool = False
+
+    def to_cli_args(self) -> List[str]:
+        args: List[str] = ["--state", self.state_path]
+        if self.defer:
+            args.append("--defer")
+        if self.favor_state:
+            args.append("--favor-state")
+        return args
+
+
 def _resolve_override_deps(
     asset_overrides: Optional[Dict[str, "AssetOverride"]],
     lookup_key: str,
@@ -764,6 +796,14 @@ try:
         include_doc_blocks: bool = False
         manifest_path: Optional[str] = None
         asset_overrides: Optional[Dict[str, AssetOverride]] = None
+
+        defer_config: Optional[DbtDeferConfig] = None
+        """dbt slim-CI config — append ``--state <path> [--defer] [--favor-state]``
+        to the dbt invocation. When set, the component runs models that changed
+        vs the supplied state manifest, deferring ref() resolution to the state's
+        tables for unchanged upstream models. Combines naturally with
+        ``state_manifest_path`` (which drives the metadata enrichments) —
+        typically both point at the same state artifact."""
 
         # ── Phase 1 additions ─────────────────────────────────────────
         emit_exposures_as_assets: bool = False
@@ -1380,6 +1420,17 @@ try:
         # Override build_defs_from_state
         # ─────────────────────────────────────────────────────────────
 
+        def _apply_defer_config_to_cli_args(self) -> None:
+            """Append defer_config.to_cli_args() to self.cli_args in place.
+            Idempotent — doesn't double-append if called twice."""
+            if self.defer_config is None:
+                return
+            defer_flags = self.defer_config.to_cli_args()
+            existing = list(self.cli_args or [])
+            if "--state" in existing:
+                return  # already applied or user set --state manually
+            self.cli_args = existing + defer_flags  # type: ignore[assignment]
+
         def build_defs_from_state(
             self, context: dg.ComponentLoadContext, state_path: Optional[Path]
         ) -> dg.Definitions:
@@ -1390,6 +1441,10 @@ try:
                     "from eric-thomas-dagster/dbt-cloud-mesh-demo. For now, use "
                     "the base DbtCloudComponent from dagster-dbt directly."
                 )
+
+            # Slim CI — append --state / --defer / --favor-state to cli_args
+            # before the base runs.
+            self._apply_defer_config_to_cli_args()
 
             base_defs = super().build_defs_from_state(context, state_path)
 
@@ -1504,6 +1559,7 @@ except ImportError:
         include_source_freshness: bool = Field(default=False)
         include_doc_blocks: bool = Field(default=False)
         asset_overrides: Optional[Dict[str, AssetOverride]] = Field(default=None)
+        defer_config: Optional[DbtDeferConfig] = Field(default=None)
 
         # Phase 1 additions
         emit_exposures_as_assets: bool = Field(default=False)

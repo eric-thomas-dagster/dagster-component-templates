@@ -53,6 +53,7 @@ identically to the base `DbtProjectComponent`.
 | `include_state_explain` | Requires `state_manifest_path`. Attaches `dbt_state/state` (`new` / `unchanged` / `modified`) and `dbt_state/explanation` (human-readable reason) metadata per model. Build-time equivalent of the state-reuse case of `dbt state explain`. |
 | `derive_state_tags` | Requires `state_manifest_path`. Adds a `dbt/state` tag with the same value so `tag:dbt/state=modified` selections work. |
 | `asset_overrides` | Per-asset overrides keyed by asset key. Today supports `{depends_on: [...]}` to inject Dagster asset dependencies (e.g. external assets not managed by dbt). |
+| `defer_config` | dbt slim CI config: `{state_path, defer, favor_state}`. Appends `--state <path> [--defer] [--favor-state]` to the dbt invocation so the run only builds changed models, deferring `ref()` resolution to the state's tables for unchanged upstream models. Pairs naturally with `state_manifest_path` (typically both point at the same state artifact). |
 
 ### Per-model config (read from dbt YAML `meta.dagster.*`)
 

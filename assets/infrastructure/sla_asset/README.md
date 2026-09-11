@@ -141,7 +141,7 @@ Plus one `AssetObservation` per breach with the same fields — searchable in th
 
 | Demo | Setup script | What it shows |
 |---|---|---|
-| [`sla_asset.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/sla_asset.md) | [`setup_sla_asset_demo.sh`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/setup_sla_asset_demo.sh) | 100% offline. Four runs of one `@sla`-wrapped asset controlled by `SLEEP_SECONDS` env: RUN 1 (0.2s) within SLA → no observation; RUN 2 & 3 (1.0s) → breach observations (`sla_escalated=false`); RUN 4 (1.0s, third breach in window) → `sla_escalated=true` — sensor-actionable. Ends with an event-log query showing the full breach history. |
+| [`sla_asset.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/sla_asset.md) | [`setup_sla_asset_demo.sh`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/setup_sla_asset_demo.sh) | 100% offline. Demonstrates BOTH shapes: (1) `@sla` Python decorator over `@dg.asset` — 4 runs controlled by `SLEEP_SECONDS`, RUN 1 (0.2s) within SLA, RUN 2 & 3 (1.0s) breach, RUN 4 → `sla_escalated=true` (sensor-actionable), (2) `SlaAssetComponent { wraps: SyntheticDataGeneratorComponent }` — the "money shot" composability where the outer SLA decorator stacks over another DCC component with zero Python. Both shapes emit the same breach observation format. |
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_sla_asset_demo.sh | bash

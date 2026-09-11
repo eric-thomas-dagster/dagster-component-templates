@@ -97,7 +97,7 @@ def budget_alert(context):
 
 | Demo | Setup script | What it shows |
 |---|---|---|
-| [`budget_asset.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/budget_asset.md) | [`setup_budget_asset_demo.sh`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/setup_budget_asset_demo.sh) | 100% offline. Three runs of one `@budget`-wrapped asset — each costs $0.40 via a user `cost_fn`. RUN 1+2 within $1.00 cap; RUN 3 crosses over → observation tagged `budget_breach=true`. Ends with a query that reads cost + cumulative + breach status from the event log — the shape you'd use for a FinOps dashboard. |
+| [`budget_asset.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/budget_asset.md) | [`setup_budget_asset_demo.sh`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/setup_budget_asset_demo.sh) | 100% offline. Demonstrates BOTH shapes: (1) `@budget` Python decorator over `@dg.asset` with a user `cost_fn` — 3 runs of $0.40 each; cumulative crosses $1.00 cap on RUN 3 → `budget_breach=true`, (2) `BudgetAssetComponent { wraps: SyntheticDataGeneratorComponent }` — the "money shot" composability with `cost_per_second: 100.0` wall-clock rate blowing through the cap on the very first run. Both shapes emit the same cost + cumulative + breach observations — the shape you'd use for a FinOps dashboard. |
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_budget_asset_demo.sh | bash

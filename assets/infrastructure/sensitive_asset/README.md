@@ -106,17 +106,11 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 
 ## Fields
 
-### Required
-
-| Field | Type | Description |
-|---|---|---|
-| `asset_name` | `str` | Dagster asset name. |
-| `compute` | `Dict[str, Any]` | `{kind: python, python: 'mod:fn'}`. |
-
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `asset_name` | `str` | — | Dagster asset name. Required when NOT using `wraps:` (inherited from inner in wraps mode). |
 | `group_name` | `str` | — | — |
 | `description` | `str` | — | — |
 | `owners` | `List[str]` | — | — |
@@ -128,6 +122,8 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `upstream_asset_key` | `str` | — | — |
+| `compute` | `Dict[str, Any]` | — | `{kind: python, python: 'mod:fn'}`. Mutually exclusive with `wraps`. |
+| `wraps` | `Dict[str, Any]` | — | Wrap another DCC component's assets with PII/secret log+metadata redaction instead of defining new compute. Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`. Mutually exclusive with `compute`. |
 | `keys` | `List[str]` | — | Case-insensitive globs against dict keys and structured strings. Defaults to a common PII/secrets list (passwords, tokens, api_key, ssn, credit_card, cvv, authorization). |
 | `strategy` | `str` | `"redact"` | 'redact' (default) → [REDACTED]; 'hash' → sha256:xxxxxxxx; 'mask' → ***last4. |
 

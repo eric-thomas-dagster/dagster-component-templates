@@ -296,17 +296,11 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 
 ## Fields
 
-### Required
-
-| Field | Type | Description |
-|---|---|---|
-| `asset_name` | `str` | Dagster asset name. |
-| `compute` | `Dict[str, Any]` | How to run the actual work. Shape: `{kind: python\|shell\|http, ...kind-specific fields}`. python: `python: 'mod.path:func'`. shell: `cmd: '...'` or `cmd: [list]` + optional `timeout_seconds`. http: `method, url, headers… _(full docs in schema.json + component README)_ |
-
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `asset_name` | `str` | — | Dagster asset name. Required when NOT using `wraps:` (inherited from inner in wraps mode). |
 | `group_name` | `str` | — | — |
 | `description` | `str` | — | — |
 | `owners` | `List[str]` | — | — |
@@ -334,6 +328,8 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `upstream_asset_key` | `str` | — | Optional upstream asset the compute callable receives as second arg. |
+| `compute` | `Dict[str, Any]` | — | How to run the actual work. Shape: `{kind: python\|shell\|http, ...kind-specific fields}`. python: `python: 'mod.path:func'`. shell: `cmd: '...'` or `cmd: [list]` + optional `timeout_seconds`. http: `method, url, headers… _(full docs in schema.json + component README)_ |
+| `wraps` | `Dict[str, Any]` | — | Wrap another DCC component's assets with smart_retry logic instead of defining new compute. Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`. Mutually exclusive with `compute`. |
 | `llm_fallback` | `Dict[str, Any]` | — | OPTIONAL. LLM classification for unclassified errors — one API call per un-rule-matched exception. Shape: `{model: 'gpt-4o-mini', api_key_env_var: 'OPENAI_API_KEY', timeout_seconds: 10}`. Omit to skip LLM fallback (uncla… _(full docs in schema.json + component README)_ |
 | `rate_limit` | `Dict[str, Any]` | — | OPTIONAL. Sliding-window rate limit ON RETRIES. Prevents runaway retry loops. Shape: `{max_events: 3, window_seconds: 60, mode: fail\|wait, key: null}`. `key` defaults to `asset_name`; set explicitly to share a limit acr… _(full docs in schema.json + component README)_ |
 | `circuit_breaker` | `Dict[str, Any]` | — | OPTIONAL. Cross-materialization circuit breaker. After `threshold` failures in `observation_window_seconds`, opens the circuit for `cooldown_seconds` — any new attempt during that window fails IMMEDIATELY without touchin… _(full docs in schema.json + component README)_ |

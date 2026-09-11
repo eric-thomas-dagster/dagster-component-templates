@@ -29,7 +29,7 @@ In a typical RAG or semantic-search pipeline:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `batch_size` | `int` | `100` | Number of texts sent to the OpenAI API per request. |
+| `batch_size` | `int` | `100` | Number of texts per embedding API request (inline path only). |
 
 ### Catalog metadata
 
@@ -80,9 +80,11 @@ In a typical RAG or semantic-search pipeline:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `embedding_model` | `str` | `"text-embedding-3-small"` | OpenAI embedding model name. |
-| `openai_api_key_env_var` | `str` | `"OPENAI_API_KEY"` | Env var containing the OpenAI API key. |
-| `dimensions` | `int` | `1536` | Vector dimensionality. Must match the chosen model's output size (1 536 for text-embedding-3-small, 3 072 for text-embedding-3-large). |
+| `precomputed_embedding_column` | `Union[str, int]` | — | Column in the upstream DataFrame that already contains embedding vectors (list[float] per row). When set, the component skips the embedder entirely and just upserts the pre-computed vectors — compose with any upstream em… _(full docs in schema.json + component README)_ |
+| `embedding_model` | `str` | `"text-embedding-3-small"` | LiteLLM model string for the inline-embedding path (only used when `precomputed_embedding_column` is unset). Any LiteLLM-supported model works: `text-embedding-3-small` (OpenAI, default), `voyage/voyage-3`, `cohere/embed… _(full docs in schema.json + component README)_ |
+| `openai_api_key_env_var` | `str` | — | Env var containing the API key for the chosen embedding provider (OpenAI: OPENAI_API_KEY, Voyage: VOYAGE_API_KEY, Cohere: COHERE_API_KEY, etc.). Not required for local Ollama or when using `precomputed_embedding_column`… _(full docs in schema.json + component README)_ |
+| `api_base_env_var` | `str` | — | Optional env var containing the API base URL — required for self-hosted providers like Ollama (e.g. `http://localhost:11434`) or Azure OpenAI. Forwarded to LiteLLM as `api_base`. |
+| `dimensions` | `int` | `1536` | Vector dimensionality. Must match the chosen model's output size (1 536 for text-embedding-3-small, 3 072 for text-embedding-3-large, 1 024 for voyage-3, 768 for nomic-embed-text, etc.). Also becomes the pgvector column… _(full docs in schema.json + component README)_ |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output DataFrame in metadata (for builder UIs). |
 | `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |

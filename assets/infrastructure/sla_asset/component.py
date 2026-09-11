@@ -49,6 +49,42 @@ from pydantic import Field
 
 
 # --------------------------------------------------------------------------
+# Per-partition scoping helper
+# --------------------------------------------------------------------------
+
+
+def _lookup_per_partition(
+    partition_key: Optional[str],
+    per_partition_map: Optional[Dict[str, float]],
+    default_value: float,
+    matcher: str = "exact",
+) -> float:
+    """Return the per-partition override for `partition_key`, else `default_value`.
+
+    Matcher modes:
+    - 'exact': partition_key must equal a map key
+    - 'prefix': map key is a prefix of partition_key
+    - 'regex': map key is a regex pattern against partition_key
+    """
+    if not partition_key or not per_partition_map:
+        return default_value
+    if matcher == "exact":
+        return per_partition_map.get(partition_key, default_value)
+    if matcher == "prefix":
+        for k, v in per_partition_map.items():
+            if partition_key.startswith(k):
+                return v
+        return default_value
+    if matcher == "regex":
+        import re
+        for pat, v in per_partition_map.items():
+            if re.match(pat, partition_key):
+                return v
+        return default_value
+    raise ValueError(f"unknown matcher: {matcher!r}")
+
+
+# --------------------------------------------------------------------------
 # Breach event emission + cross-run history
 # --------------------------------------------------------------------------
 
@@ -113,6 +149,139 @@ def _count_recent_breaches(context: Any, key: str, window_seconds: float) -> int
 
 
 # --------------------------------------------------------------------------
+# Historical baseline — auto-derive expected_duration_seconds from prior runs
+# --------------------------------------------------------------------------
+
+
+def _statistic(values: List[float], statistic: str) -> float:
+    """Compute median / mean / p95 / p99 over `values`."""
+    import math
+    if not values:
+        raise ValueError("cannot compute statistic over empty list")
+    s = sorted(values)
+    n = len(s)
+    stat = (statistic or "median").lower()
+    if stat == "mean":
+        return sum(s) / n
+    if stat == "median":
+        mid = n // 2
+        return s[mid] if n % 2 == 1 else (s[mid - 1] + s[mid]) / 2.0
+    if stat in ("p95", "p99"):
+        pct = 0.95 if stat == "p95" else 0.99
+        rank = pct * (n - 1)
+        lo = int(math.floor(rank))
+        hi = int(math.ceil(rank))
+        if lo == hi:
+            return s[lo]
+        return s[lo] + (s[hi] - s[lo]) * (rank - lo)
+    raise ValueError(f"unknown statistic {statistic!r} (allowed: median/mean/p95/p99)")
+
+
+def _derive_expected_from_history(
+    context: Any,
+    derive_cfg: Dict[str, Any],
+    asset_key_obj: Optional[Any],
+    fallback_expected: float,
+) -> float:
+    """Query prior AssetObservations tagged with `sla_actual_seconds` for
+    `asset_key_obj`; return `statistic * multiplier` over the last N.
+
+    Falls back to `fallback_expected` if fewer than 3 usable prior runs exist.
+    """
+    n_runs = int(derive_cfg.get("n_runs", 10))
+    statistic = str(derive_cfg.get("statistic", "median"))
+    multiplier = float(derive_cfg.get("multiplier", 1.5))
+    try:
+        from dagster import EventRecordsFilter, DagsterEventType
+        records = context.instance.get_event_records(
+            event_records_filter=EventRecordsFilter(
+                event_type=DagsterEventType.ASSET_OBSERVATION,
+                asset_key=asset_key_obj,
+            ),
+            limit=max(n_runs * 4, 40),
+            ascending=False,
+        )
+    except Exception:  # noqa: BLE001
+        return fallback_expected
+
+    durations: List[float] = []
+    for r in records:
+        obs = getattr(r, "asset_observation", None)
+        if obs is None:
+            continue
+        tags = obs.tags or {}
+        actual: Optional[float] = None
+        try:
+            meta = obs.metadata or {}
+            mv = meta.get("sla_actual_seconds")
+            if mv is not None:
+                actual = float(getattr(mv, "value", mv))
+        except Exception:  # noqa: BLE001
+            actual = None
+        if actual is None:
+            raw = tags.get("sla_actual_seconds")
+            if raw is not None:
+                try:
+                    actual = float(raw)
+                except (TypeError, ValueError):
+                    actual = None
+        if actual is not None and actual > 0:
+            durations.append(actual)
+            if len(durations) >= n_runs:
+                break
+
+    if len(durations) < 3:
+        try:
+            context.log.info(
+                f"[sla] derive_expected_from_history: only {len(durations)} prior runs "
+                f"(need >= 3); falling back to expected_duration_seconds={fallback_expected}s"
+            )
+        except Exception:  # noqa: BLE001
+            pass
+        return fallback_expected
+
+    baseline = _statistic(durations, statistic)
+    derived = baseline * multiplier
+    try:
+        context.log.info(
+            f"[sla] derived expected_duration_seconds={derived:.3f}s from "
+            f"{len(durations)} recent runs ({statistic}={baseline:.3f}s x multiplier={multiplier})"
+        )
+    except Exception:  # noqa: BLE001
+        pass
+    return derived
+
+
+def _emit_sla_actual_observation(
+    context: Any, key: str, actual_s: float, expected_s: float,
+) -> None:
+    """Emit AssetObservation for every run (breach OR non-breach) so the
+    `sla_actual_seconds` history is populated for baseline derivation.
+    """
+    try:
+        from dagster import AssetObservation
+        asset_key = getattr(context, "asset_key", None)
+        if asset_key is None:
+            from dagster import AssetKey
+            asset_key = AssetKey(["sla_asset"])
+        if hasattr(context, "log_event"):
+            context.log_event(AssetObservation(
+                asset_key=asset_key,
+                tags={
+                    "sla_key": key,
+                    "sla_actual_seconds": str(round(actual_s, 3)),
+                    "sla_expected_seconds": str(round(expected_s, 3)),
+                },
+                metadata={
+                    "sla_actual_seconds": dg.MetadataValue.float(round(actual_s, 3)),
+                    "sla_expected_seconds": dg.MetadataValue.float(round(expected_s, 3)),
+                },
+            ))
+    except Exception:  # noqa: BLE001
+        pass
+
+
+# --------------------------------------------------------------------------
 # @sla decorator
 # --------------------------------------------------------------------------
 
@@ -124,6 +293,9 @@ def sla(
     escalate_after_n_breaches: Optional[int] = None,
     escalate_window_seconds: float = 3600,
     key: Optional[str] = None,
+    per_partition_expected: Optional[Dict[str, float]] = None,
+    partition_matcher: str = "exact",
+    derive_expected_from_history: Optional[Dict[str, Any]] = None,
 ) -> Callable:
     """Wrap a compute function with wall-clock SLA enforcement.
 
@@ -169,11 +341,29 @@ def sla(
             if context is None:
                 raise RuntimeError("@sla requires a Dagster context.")
 
+            # `context.partition_key` is a property that RAISES for un-partitioned
+            # runs (not just returns None). Wrap the access itself.
+            try:
+                partition_key = context.partition_key
+            except Exception:  # noqa: BLE001
+                partition_key = None
+            effective_expected = _lookup_per_partition(
+                partition_key, per_partition_expected, expected_duration_seconds, partition_matcher,
+            )
+
+            # Auto-derive from history — overrides both the hardcoded and per-partition
+            # values when configured. Runs BEFORE the timer starts.
+            if derive_expected_from_history and getattr(context, "instance", None) is not None:
+                asset_key_obj = getattr(context, "asset_key", None)
+                effective_expected = _derive_expected_from_history(
+                    context, derive_expected_from_history, asset_key_obj, effective_expected,
+                )
+
             t0 = time.time()
             result = fn(*args, **kwargs)
             elapsed = time.time() - t0
 
-            if elapsed > expected_duration_seconds:
+            if elapsed > effective_expected:
                 escalated = False
                 if escalate_after_n_breaches and getattr(context, "instance", None) is not None:
                     prior = _count_recent_breaches(context, _state_key, escalate_window_seconds)
@@ -182,28 +372,31 @@ def sla(
                         escalated = True
 
                 _emit_breach_observation(
-                    context, _state_key, elapsed, expected_duration_seconds, escalated,
+                    context, _state_key, elapsed, effective_expected, escalated,
                 )
-                overrun_pct = (elapsed - expected_duration_seconds) / expected_duration_seconds * 100.0
+                overrun_pct = (elapsed - effective_expected) / effective_expected * 100.0
                 context.log.warning(
                     f"[sla] BREACH: {_state_key} took {elapsed:.1f}s "
-                    f"(expected <= {expected_duration_seconds}s, "
+                    f"(expected <= {effective_expected}s, "
                     f"overrun {overrun_pct:.1f}%){' [ESCALATED]' if escalated else ''}"
                 )
                 if on_breach == "fail":
                     raise dg.Failure(
-                        description=f"SLA breach: {_state_key} took {elapsed:.1f}s > expected {expected_duration_seconds}s",
+                        description=f"SLA breach: {_state_key} took {elapsed:.1f}s > expected {effective_expected}s",
                         metadata={
                             "sla_actual_seconds": dg.MetadataValue.float(round(elapsed, 3)),
-                            "sla_expected_seconds": dg.MetadataValue.float(round(expected_duration_seconds, 3)),
+                            "sla_expected_seconds": dg.MetadataValue.float(round(effective_expected, 3)),
                             "sla_overrun_pct": dg.MetadataValue.float(round(overrun_pct, 1)),
                             "sla_escalated": dg.MetadataValue.bool(escalated),
                         },
                     )
             else:
                 context.log.info(
-                    f"[sla] {_state_key} completed in {elapsed:.1f}s (within {expected_duration_seconds}s SLA)"
+                    f"[sla] {_state_key} completed in {elapsed:.1f}s (within {effective_expected}s SLA)"
                 )
+                # Emit the actuals-only observation so history stays populated for
+                # baseline derivation. Breaches already emit their own observation.
+                _emit_sla_actual_observation(context, _state_key, elapsed, effective_expected)
             return result
 
         return _wrapped
@@ -272,6 +465,31 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Shared SLA key. Defaults to asset_name. Set explicitly to group multiple assets under one SLA budget.",
     )
+    per_partition_expected: Optional[Dict[str, float]] = Field(
+        default=None,
+        description=(
+            "Per-partition-key override. e.g. {'hourly': 30, 'daily': 300}. Falls back to "
+            "expected_duration_seconds if no key matches. Only meaningful on partitioned assets."
+        ),
+    )
+    partition_matcher: str = Field(
+        default="exact",
+        description=(
+            "How partition_key is matched against per_partition_expected keys: "
+            "'exact' | 'prefix' | 'regex'. Default exact match."
+        ),
+    )
+    derive_expected_from_history: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Auto-derive expected_duration_seconds from prior materializations. "
+            "Shape: {n_runs: 10, statistic: 'median' | 'p95' | 'mean' | 'p99', multiplier: 1.5}. "
+            "If set, this OVERRIDES expected_duration_seconds. "
+            "n_runs = how many recent successful runs to consider. "
+            "multiplier = safety factor (1.5 = allow 50%% overhead over baseline). "
+            "If fewer than 3 runs available, falls back to expected_duration_seconds."
+        ),
+    )
 
     # Catalog / governance
     group_name: Optional[str] = Field(default=None)
@@ -309,6 +527,14 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         escalate_n = self.escalate_after_n_breaches
         escalate_window = float(self.escalate_window_seconds)
         state_key = self.sla_key or asset_name
+        per_partition_map = (
+            {k: float(v) for k, v in self.per_partition_expected.items()}
+            if self.per_partition_expected else None
+        )
+        matcher = self.partition_matcher
+        derive_cfg = (
+            dict(self.derive_expected_from_history) if self.derive_expected_from_history else None
+        )
 
         if on_breach not in ("warn", "fail"):
             raise ValueError(f"on_breach must be warn|fail; got {on_breach!r}")
@@ -348,6 +574,22 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             n_positional = sum(1 for p in sig.parameters.values()
                                if p.kind in (p.POSITIONAL_OR_KEYWORD, p.POSITIONAL_ONLY))
 
+            try:
+                partition_key = getattr(context, "partition_key", None)
+            except Exception:  # noqa: BLE001
+                partition_key = None
+            effective_expected = _lookup_per_partition(
+                partition_key, per_partition_map, expected_s, matcher,
+            )
+
+            # Auto-derive from history — OVERRIDES both the hardcoded + per-partition
+            # values when configured. Runs BEFORE the timer starts.
+            if derive_cfg and getattr(context, "instance", None) is not None:
+                asset_key_obj = getattr(context, "asset_key", None)
+                effective_expected = _derive_expected_from_history(
+                    context, derive_cfg, asset_key_obj, effective_expected,
+                )
+
             t0 = time.time()
             if n_positional == 0:
                 result = fn()
@@ -357,11 +599,11 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 result = fn(context, kwargs.get("upstream"))
             elapsed = time.time() - t0
 
-            breach = elapsed > expected_s
+            breach = elapsed > effective_expected
             escalated = False
             metadata = {
                 "sla_actual_seconds": dg.MetadataValue.float(round(elapsed, 3)),
-                "sla_expected_seconds": dg.MetadataValue.float(round(expected_s, 3)),
+                "sla_expected_seconds": dg.MetadataValue.float(round(effective_expected, 3)),
                 "sla_breach": dg.MetadataValue.bool(breach),
             }
 
@@ -370,24 +612,26 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     prior = _count_recent_breaches(context, state_key, escalate_window)
                     if prior + 1 >= escalate_n:
                         escalated = True
-                _emit_breach_observation(context, state_key, elapsed, expected_s, escalated)
-                overrun_pct = (elapsed - expected_s) / expected_s * 100.0
+                _emit_breach_observation(context, state_key, elapsed, effective_expected, escalated)
+                overrun_pct = (elapsed - effective_expected) / effective_expected * 100.0
                 metadata["sla_overrun_pct"] = dg.MetadataValue.float(round(overrun_pct, 1))
                 metadata["sla_escalated"] = dg.MetadataValue.bool(escalated)
                 context.log.warning(
                     f"[sla] BREACH: {state_key} took {elapsed:.1f}s "
-                    f"(expected <= {expected_s}s, overrun {overrun_pct:.1f}%)"
+                    f"(expected <= {effective_expected}s, overrun {overrun_pct:.1f}%)"
                     f"{' [ESCALATED]' if escalated else ''}"
                 )
                 if on_breach == "fail":
                     raise dg.Failure(
-                        description=f"SLA breach: {state_key} took {elapsed:.1f}s > expected {expected_s}s",
+                        description=f"SLA breach: {state_key} took {elapsed:.1f}s > expected {effective_expected}s",
                         metadata=metadata,
                     )
             else:
                 context.log.info(
-                    f"[sla] {state_key} completed in {elapsed:.1f}s (within {expected_s}s SLA)"
+                    f"[sla] {state_key} completed in {elapsed:.1f}s (within {effective_expected}s SLA)"
                 )
+                # Emit non-breach observation so the historical baseline has actuals to derive from.
+                _emit_sla_actual_observation(context, state_key, elapsed, effective_expected)
 
             return dg.MaterializeResult(metadata=metadata)
 
@@ -442,6 +686,14 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         escalate_n = self.escalate_after_n_breaches
         escalate_window = float(self.escalate_window_seconds)
         state_key = self.sla_key or key.to_user_string()
+        per_partition_map = (
+            {k: float(v) for k, v in self.per_partition_expected.items()}
+            if self.per_partition_expected else None
+        )
+        matcher = self.partition_matcher
+        derive_cfg = (
+            dict(self.derive_expected_from_history) if self.derive_expected_from_history else None
+        )
 
         if on_breach not in ("warn", "fail"):
             raise ValueError(f"on_breach must be warn|fail; got {on_breach!r}")
@@ -481,15 +733,30 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             code_version=(spec.code_version if spec else None),
         )
         def _sla_wrapped(context: dg.AssetExecutionContext, **kwargs):
+            try:
+                partition_key = getattr(context, "partition_key", None)
+            except Exception:  # noqa: BLE001
+                partition_key = None
+            effective_expected = _lookup_per_partition(
+                partition_key, per_partition_map, expected_s, matcher,
+            )
+
+            # Auto-derive from history — OVERRIDES hardcoded/per-partition values.
+            if derive_cfg and getattr(context, "instance", None) is not None:
+                asset_key_obj = getattr(context, "asset_key", None)
+                effective_expected = _derive_expected_from_history(
+                    context, derive_cfg, asset_key_obj, effective_expected,
+                )
+
             t0 = time.time()
             result = inner_compute(context, **kwargs)
             elapsed = time.time() - t0
 
-            breach = elapsed > expected_s
+            breach = elapsed > effective_expected
             escalated = False
             extra_meta = {
                 "sla_actual_seconds": dg.MetadataValue.float(round(elapsed, 3)),
-                "sla_expected_seconds": dg.MetadataValue.float(round(expected_s, 3)),
+                "sla_expected_seconds": dg.MetadataValue.float(round(effective_expected, 3)),
                 "sla_breach": dg.MetadataValue.bool(breach),
             }
 
@@ -498,24 +765,26 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     prior = _count_recent_breaches(context, state_key, escalate_window)
                     if prior + 1 >= escalate_n:
                         escalated = True
-                _emit_breach_observation(context, state_key, elapsed, expected_s, escalated)
-                overrun_pct = (elapsed - expected_s) / expected_s * 100.0
+                _emit_breach_observation(context, state_key, elapsed, effective_expected, escalated)
+                overrun_pct = (elapsed - effective_expected) / effective_expected * 100.0
                 extra_meta["sla_overrun_pct"] = dg.MetadataValue.float(round(overrun_pct, 1))
                 extra_meta["sla_escalated"] = dg.MetadataValue.bool(escalated)
                 context.log.warning(
                     f"[sla] BREACH (wrap): {state_key} took {elapsed:.1f}s "
-                    f"(expected <= {expected_s}s, overrun {overrun_pct:.1f}%)"
+                    f"(expected <= {effective_expected}s, overrun {overrun_pct:.1f}%)"
                     f"{' [ESCALATED]' if escalated else ''}"
                 )
                 if on_breach == "fail":
                     raise dg.Failure(
-                        description=f"SLA breach: {state_key} took {elapsed:.1f}s > expected {expected_s}s",
+                        description=f"SLA breach: {state_key} took {elapsed:.1f}s > expected {effective_expected}s",
                         metadata=extra_meta,
                     )
             else:
                 context.log.info(
-                    f"[sla] {state_key} completed in {elapsed:.1f}s (within {expected_s}s SLA)"
+                    f"[sla] {state_key} completed in {elapsed:.1f}s (within {effective_expected}s SLA)"
                 )
+                # Non-breach: emit actuals-only observation so history stays populated.
+                _emit_sla_actual_observation(context, state_key, elapsed, effective_expected)
 
             # If the inner returned a MaterializeResult, merge SLA metadata into it.
             if isinstance(result, dg.MaterializeResult):

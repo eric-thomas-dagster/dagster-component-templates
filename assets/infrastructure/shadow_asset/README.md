@@ -111,18 +111,11 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 
 ## Fields
 
-### Required
-
-| Field | Type | Description |
-|---|---|---|
-| `asset_name` | `str` | Dagster asset name. |
-| `compute` | `Dict[str, Any]` | Primary compute: `{kind: python, python: 'mod:fn'}`. |
-| `shadow_compute` | `Dict[str, Any]` | Shadow compute: `{kind: python, python: 'mod:fn'}`. Same signature as primary. |
-
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `asset_name` | `str` | — | Required when NOT using `wraps:`. |
 | `group_name` | `str` | — | — |
 | `description` | `str` | — | — |
 | `owners` | `List[str]` | — | — |
@@ -134,6 +127,10 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `upstream_asset_key` | `str` | — | — |
+| `compute` | `Dict[str, Any]` | — | Primary compute: `{kind: python, python: 'mod:fn'}`. Mutually exclusive with `wraps`. |
+| `shadow_compute` | `Dict[str, Any]` | — | Shadow compute: `{kind: python, python: 'mod:fn'}`. Same signature as primary. Required in `compute:` mode. |
+| `wraps` | `Dict[str, Any]` | — | Wrap a DCC component's assets with shadow instrumentation. Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`. The outer shadow adds side-by-side execution of the `shadow_wraps:` component; pr… _(full docs in schema.json + component README)_ |
+| `shadow_wraps` | `Dict[str, Any]` | — | Shadow component to run alongside `wraps:` — its result is diffed against the primary but NOT materialized. Required when using `wraps:`. |
 | `enforce_match` | `bool` | `false` | When True, mismatch between primary and shadow raises dg.Failure. Default off = observe only. |
 
 [//]: # (FIELDS:END)

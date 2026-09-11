@@ -103,9 +103,43 @@ def budget_alert(context):
 curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_budget_asset_demo.sh | bash
 ```
 
+## Per-partition budgets
+
+Different partitions of the same asset can have different budget caps. Set
+`per_partition_budget` to a `{partition_key: usd}` map; the runtime picks the
+matching override at compute time. When set, cumulative cost is scoped
+per-partition — the cumulative window query is filtered to observations tagged
+with the same `budget_partition_key`, so each partition's budget is isolated
+from the others.
+
+```yaml
+budget_usd: 100                          # default fallback cap
+per_partition_budget:
+  hourly: 10                              # hourly partitions capped at $10
+  daily: 100                              # daily partitions capped at $100
+partition_matcher: exact                  # 'exact' (default) | 'prefix' | 'regex'
+window_days: 30
+```
+
+Python decorator:
+
+```python
+@dg.asset(partitions_def=dg.StaticPartitionsDefinition(["hourly", "daily"]))
+@budget(
+    cost_per_second=0.02,
+    budget_usd=100.0,
+    per_partition_budget={"hourly": 10, "daily": 100},
+    on_breach="fail",
+)
+def costly_pipeline(context):
+    return build()
+```
+
+Observations carry `budget_partition_key=<key>` so per-partition cumulative
+queries work end-to-end.
+
 ## What's not in v1 (roadmap)
 
-- **Per-partition budget** — separate caps for hourly vs. daily partitions.
 - **Multi-asset shared budget** — cap a group of assets under a single team budget.
 - **Auto-throttle on approach** — reduce trigger frequency as budget approaches cap.
 
@@ -113,32 +147,35 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 
 ## Fields
 
-### Required
-
-| Field | Type | Description |
-|---|---|---|
-| `asset_name` | `str` | Dagster asset name. |
-| `compute` | `Dict[str, Any]` | `{kind: python, python: 'mod:fn'}`. |
-
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `asset_name` | `str` | — | Dagster asset name. Required when NOT using `wraps:` (inherited from inner in wraps mode). |
 | `group_name` | `str` | — | — |
 | `description` | `str` | — | — |
 | `owners` | `List[str]` | — | — |
 | `tags` | `Dict[str, str]` | — | — |
 | `kinds` | `List[str]` | — | Default: ['python', 'budget', 'cost']. |
 
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_matcher` | `str` | `"exact"` | How partition_key is matched against per_partition_budget keys: 'exact' \| 'prefix' \| 'regex'. Default exact match. |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `upstream_asset_key` | `str` | — | — |
+| `compute` | `Dict[str, Any]` | — | `{kind: python, python: 'mod:fn'}`. Mutually exclusive with `wraps`. |
+| `wraps` | `Dict[str, Any]` | — | Wrap another DCC component's assets with cost tracking. Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`. Mutually exclusive with `compute`. |
 | `cost_per_second` | `float` | — | Wall-clock USD/sec rate. Used when cost_fn is null. |
 | `cost_fn` | `str` | — | Optional 'mod:fn' callable returning USD given (context, elapsed_s, result). |
 | `budget_usd` | `float` | — | Rolling window cap. Null → observation-only, no breach. |
 | `window_days` | `float` | `30.0` | Rolling window (days) for cumulative cost sum. |
 | `on_breach` | `str` | `"warn"` | 'warn' (default): always run, emit budget_breach observation; 'fail': dg.Failure pre-flight if cumulative >= budget or post-flight if this run breaches; 'skip': return MaterializeResult(budget_skipped=true) pre-flight. |
+| `per_partition_budget` | `Dict[str, float]` | — | Per-partition-key override. e.g. {'hourly': 10, 'daily': 100}. Falls back to budget_usd if no key matches. When set, cumulative cost is tracked per-partition (each partition's budget is isolated from others). |
 
 [//]: # (FIELDS:END)

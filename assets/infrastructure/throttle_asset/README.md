@@ -99,9 +99,37 @@ def throttle_alert(context):
         ...
 ```
 
+## Per-partition throttling
+
+Different partitions of the same asset can have different throttle windows. Set
+`per_partition_min_gap` to a `{partition_key: seconds}` map; the runtime picks
+the matching override at compute time. When set, throttling is genuinely
+per-partition — the "last materialization" query is filtered to the same
+`partition_key`, so hourly and daily partitions throttle independently of each
+other.
+
+```yaml
+min_gap_seconds: 60                     # default fallback
+per_partition_min_gap:
+  hourly: 30                             # hourly partitions: 30s min gap
+  daily: 3600                            # daily partitions: 1h min gap
+partition_matcher: exact                 # 'exact' (default) | 'prefix' | 'regex'
+```
+
+Python decorator:
+
+```python
+@dg.asset(partitions_def=dg.StaticPartitionsDefinition(["hourly", "daily"]))
+@throttle(
+    min_gap_seconds=60,
+    per_partition_min_gap={"hourly": 30, "daily": 3600},
+)
+def hot_index(context):
+    return refresh_index()
+```
+
 ## What's not in v1 (roadmap)
 
-- **Per-partition throttling** — separate windows per partition_key.
 - **Token bucket** — allow burst-N up to a cap, then throttle.
 - **Sliding-window rate** — max N materializations in a window.
 
@@ -113,26 +141,34 @@ def throttle_alert(context):
 
 | Field | Type | Description |
 |---|---|---|
-| `asset_name` | `str` | Dagster asset name. |
-| `compute` | `Dict[str, Any]` | `{kind: python, python: 'mod:fn'}`. |
 | `min_gap_seconds` | `float` | Minimum wall-clock gap between materializations. Materializations closer than this are skipped or failed depending on on_throttle. |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `asset_name` | `str` | — | Dagster asset name. Required when NOT using `wraps:` (inherited from inner in wraps mode). |
 | `group_name` | `str` | — | — |
 | `description` | `str` | — | — |
 | `owners` | `List[str]` | — | — |
 | `tags` | `Dict[str, str]` | — | — |
 | `kinds` | `List[str]` | — | Default: ['python', 'throttle']. |
 
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_matcher` | `str` | `"exact"` | How partition_key is matched against per_partition_min_gap keys: 'exact' \| 'prefix' \| 'regex'. Default exact match. |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `upstream_asset_key` | `str` | — | — |
+| `compute` | `Dict[str, Any]` | — | `{kind: python, python: 'mod:fn'}`. Mutually exclusive with `wraps`. |
+| `wraps` | `Dict[str, Any]` | — | Wrap another DCC component's assets with throttle rate-limiting instead of defining new compute. Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`. Mutually exclusive with `compute`. |
 | `on_throttle` | `str` | `"skip"` | 'skip' (default) returns None + emits AssetObservation; 'fail' raises dg.Failure. |
 | `key` | `str` | — | Optional label for the throttle_skipped observation tag. Defaults to asset name. |
+| `per_partition_min_gap` | `Dict[str, float]` | — | Per-partition-key override. e.g. {'hourly': 30, 'daily': 300}. Falls back to min_gap_seconds if no key matches. When set, throttling is per-partition — the 'last materialization' check is filtered to the same partition_k… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)

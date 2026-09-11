@@ -1399,6 +1399,8 @@ _HELPERS = {
         "dagster_community_components.assets.infrastructure.sensitive_asset.component:sensitive",
     "snapshot":
         "dagster_community_components.assets.infrastructure.snapshot_asset.component:snapshot",
+    "load_snapshot":
+        "dagster_community_components.assets.infrastructure.snapshot_asset.component:load_snapshot",
     "partition_lock":
         "dagster_community_components.assets.infrastructure.partition_lock_asset.component:partition_lock",
     "budget":

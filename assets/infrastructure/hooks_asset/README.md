@@ -145,17 +145,11 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 
 ## Fields
 
-### Required
-
-| Field | Type | Description |
-|---|---|---|
-| `asset_name` | `str` | Dagster asset name. |
-| `compute` | `Dict[str, Any]` | `{kind: python, python: 'mod:fn'}`. |
-
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `asset_name` | `str` | — | Dagster asset name. Required when NOT using `wraps:` (inherited from inner in wraps mode). |
 | `group_name` | `str` | — | — |
 | `description` | `str` | — | — |
 | `owners` | `List[str]` | — | — |
@@ -167,7 +161,11 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `upstream_asset_key` | `str` | — | — |
+| `compute` | `Dict[str, Any]` | — | `{kind: python, python: 'mod:fn'}`. Mutually exclusive with `wraps`. |
+| `wraps` | `Dict[str, Any]` | — | Wrap another DCC component's assets with success/failure hooks instead of defining new compute. Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`. Mutually exclusive with `compute`. |
 | `on_success` | `List[str]` | — | List of 'mod:fn' refs called with (context, result) after successful compute. |
 | `on_failure` | `List[str]` | — | List of 'mod:fn' refs called with (context, exception) on failure. Doesn't change the outcome. |
+| `on_start` | `List[str]` | — | Callbacks fired BEFORE compute (in list order). Signature: `(context) -> None`. Each is a `mod:fn` reference. |
+| `on_end` | `List[str]` | — | Callbacks fired AFTER compute (finally-style — regardless of success or failure, in list order). Signature: `(context, outcome: str, result_or_exc) -> None`. Runs after on_success/on_failure. |
 
 [//]: # (FIELDS:END)

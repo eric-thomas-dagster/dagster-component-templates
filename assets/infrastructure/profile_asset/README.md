@@ -23,7 +23,12 @@ The profile lands in Dagster's event log as an `AssetObservation` with typed met
 - `null_count` (int), `null_ratio` (float)
 - `distinct_count` (int)
 - **Numeric only**: `min`, `max`, `mean`, `std`
+- **Numeric only, opt-in**: `histogram` (bin_edges + counts) when `histogram_bins` is set
+- **Numeric only, opt-in**: `quantiles` (`{"p25": ..., "p50": ..., "p75": ..., "p95": ..., "p99": ...}`) when `quantiles` is non-empty
 - **Categorical only** (< `categorical_max_distinct` distinct): `top_value_ratio`
+
+### Top-level (opt-in)
+- `correlation_matrix`: Pearson correlation across numeric columns when `correlation_matrix: true`. Emitted as `{col_a: {col_b: 0.87, ...}, ...}`. Pairs where either column is all-null are skipped. Off by default — expensive on wide tables.
 
 ### User extensions
 
@@ -119,10 +124,44 @@ def drift_sensor(context):
         ...
 ```
 
+## Expanded numeric profile (histograms, quantiles, correlation)
+
+Three opt-in extensions to the numeric profile:
+
+- `histogram_bins: int` — per-numeric-column histogram with this many bins. Emitted as `histogram: {bin_edges: [...], counts: [...]}` inside each numeric column profile. Default `None` → skipped.
+- `quantiles: List[float]` — quantile fractions per numeric column. Emitted as `quantiles: {"p25": ..., "p50": ..., ...}`. Default `[0.25, 0.5, 0.75, 0.95, 0.99]`. Empty list disables.
+- `correlation_matrix: bool` — Pearson correlation across numeric columns, emitted as a nested dict on the top-level profile. Default `False`. Skips pairs where either column is all-null. Off by default — expensive on wide tables.
+
+### YAML
+
+```yaml
+type: dagster_community_components.ProfileAssetComponent
+attributes:
+  asset_name: orders_profiled
+  compute:
+    kind: python
+    python: "my_project.orders:build_daily"
+
+  histogram_bins: 10
+  quantiles: [0.25, 0.5, 0.75, 0.95, 0.99]
+  correlation_matrix: true
+```
+
+### `@profile`
+
+```python
+@dg.asset
+@profile(
+    histogram_bins=10,
+    quantiles=[0.25, 0.5, 0.75, 0.95, 0.99],
+    correlation_matrix=True,
+)
+def orders(context):
+    return build_orders()
+```
+
 ## What's not in v1 (roadmap)
 
-- **Histograms / quantiles** — expand numeric stats beyond min/max/mean/std.
-- **Correlation matrix** — auto-compute for numeric columns (opt-in for cost).
 - **PSI / KS drift scores** — compute drift score vs. baseline observation.
 - **Freshness of profile** — emit a warning if the profile is stale (asset hasn't materialized recently).
 
@@ -140,17 +179,11 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 
 ## Fields
 
-### Required
-
-| Field | Type | Description |
-|---|---|---|
-| `asset_name` | `str` | Dagster asset name. |
-| `compute` | `Dict[str, Any]` | `{kind: python, python: 'mod:fn'}`. Returns pandas DataFrame. |
-
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `asset_name` | `str` | — | Dagster asset name. Required when NOT using `wraps:` (inherited from inner in wraps mode). |
 | `group_name` | `str` | — | — |
 | `description` | `str` | — | — |
 | `owners` | `List[str]` | — | — |
@@ -162,8 +195,13 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `upstream_asset_key` | `str` | — | — |
+| `compute` | `Dict[str, Any]` | — | `{kind: python, python: 'mod:fn'}`. Returns pandas DataFrame. Mutually exclusive with `wraps`. |
+| `wraps` | `Dict[str, Any]` | — | Wrap another DCC component's assets with auto-profiling instead of defining new compute. Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`. Inner asset must return pandas.DataFrame. Mutually… _(full docs in schema.json + component README)_ |
 | `categorical_max_distinct` | `int` | `50` | Columns with <= this many distinct values get `top_value_ratio` computed. |
 | `top_n_columns` | `int` | — | Profile only first N columns (for very wide DataFrames). Omit to profile all. |
 | `custom_probes` | `List[Dict[str, Any]]` | — | Extensions: [{name, python: 'mod:fn'}]. fn(df) returns dict. |
+| `histogram_bins` | `int` | — | If set, emit per-numeric-column histogram with this many bins. |
+| `quantiles` | `List[float]` | `lambda: [0.25, 0.5, 0.75, 0.95, 0.99]()` | Quantile fractions to compute per numeric column. Empty list disables. |
+| `correlation_matrix` | `bool` | `false` | If True, compute Pearson correlation between numeric columns and emit as metadata. Expensive on wide tables — off by default. |
 
 [//]: # (FIELDS:END)

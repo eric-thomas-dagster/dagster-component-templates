@@ -86,17 +86,11 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 
 ## Fields
 
-### Required
-
-| Field | Type | Description |
-|---|---|---|
-| `asset_name` | `str` | Dagster asset name. |
-| `compute` | `Dict[str, Any]` | `{kind: python, python: 'mod:fn'}`. Any return type. |
-
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `asset_name` | `str` | — | Dagster asset name. Required when NOT using `wraps:` (inherited from inner in wraps mode). |
 | `group_name` | `str` | — | — |
 | `description` | `str` | — | — |
 | `owners` | `List[str]` | — | — |
@@ -114,5 +108,9 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `upstream_asset_key` | `str` | — | — |
+| `compute` | `Dict[str, Any]` | — | `{kind: python, python: 'mod:fn'}`. Any return type. Mutually exclusive with `wraps`. |
+| `wraps` | `Dict[str, Any]` | — | Wrap another DCC component's assets with stdout-to-context.log capture instead of defining new compute. Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`. Mutually exclusive with `compute`. |
+| `route_levels` | `bool` | `true` | If True (default), captured lines starting with `INFO:` / `WARN:` / `WARNING:` / `ERROR:` / `DEBUG:` route to `context.log.<level>()`. Case-insensitive; the prefix is stripped from the emitted message. Unmatched lines fa… _(full docs in schema.json + component README)_ |
+| `capture_stderr` | `bool` | `false` | If True, also redirect `sys.stderr` into `context.log`. Stderr lines default to `context.log.warning` (or level-routed when `route_levels=True`). Default False (stdout only). |
 
 [//]: # (FIELDS:END)

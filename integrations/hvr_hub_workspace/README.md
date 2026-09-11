@@ -113,9 +113,9 @@ See `example.yaml`.
 | `channel_selector` | `ChannelSelector` | — | Optional inclusion/exclusion filter for channel names. |
 | `asset_key_prefix` | `List[str]` | — | Asset key prefix parts. Default: `['hvr', <hub_name>]`. Every emitted asset gets `[<prefix>..., <channel>, <target_loc>, <table>]`. |
 | `action` | `str` | `"noop"` | What each asset does when materialized: `noop` (default — HVR CDC is continuous; there's nothing to trigger) or `refresh` (POST `/channels/{c}/refresh` + poll until integrate catches up). |
-| `polling_sensor` | `bool` | `false` | If true, adds a polling sensor `{hub_name}_hvr_observer` that polls `GET /jobs?fetch=latency` and emits AssetMaterialization events (or AssetObservation via `emit_materialization: false`) with `integrate_lag_seconds`, `state`, `job_name`, `observed_at` metadata per asset. Per-job cursor dedup — only emits when lag or state actually changes. |
+| `polling_sensor` | `bool` | `false` | If true, adds a polling sensor `{hub_name}_hvr_observer` that polls `GET /jobs?fetch=latency` and emits AssetMaterialization events (or AssetObservation — see `emit_materialization`) with `integrate_lag_seconds`, `state`… _(full docs in schema.json + component README)_ |
 | `observation_interval_seconds` | `int` | `300` | Polling sensor cadence. |
-| `emit_materialization` | `bool` | `true` | When true (default), the polling sensor emits `AssetMaterialization` — HVR tiles go GREEN on integrate-lag / state advance. When false, emits `AssetObservation` for "observed, not materialized" semantics (dashed / gray tile). Both carry a `dagster/data_version` tag. |
+| `emit_materialization` | `bool` | `true` | When True (default), the polling sensor emits AssetMaterialization events — HVR asset tiles go GREEN in the Dagster UI when integrate lag or state advances, matching how snowflake_workspace, tasks, snowpipes, and dynamic… _(full docs in schema.json + component README)_ |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for Dagster Cloud. |
 
 [//]: # (FIELDS:END)

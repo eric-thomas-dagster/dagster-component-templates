@@ -35,16 +35,6 @@ Two complementary OpenMetadata paths in the registry:
 |---|---|---|
 | `job_name` | `str` | Dagster job name |
 
-### Connection
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `catalog_url` | `str` | `"https://openmetadata.example.com"` | OpenMetadata host (e.g. https://openmetadata.acme.com). /api/v1/... is appended. |
-| `api_token_env` | `str` | `"OPENMETADATA_API_TOKEN"` | Env var holding the JWT bearer token. Generate one in OpenMetadata under Settings → Bots. |
-| `service_name` | `str` | `"dagster"` | OpenMetadata DatabaseService name to ensure-exist + parent the asset graph under. |
-| `database_name` | `str` | `"default"` | OpenMetadata Database name under the service. |
-| `verify_ssl` | `bool` | `true` | Verify TLS cert. Set False for self-signed dev OpenMetadata. |
-
 ### Catalog metadata
 
 | Field | Type | Default | Description |
@@ -62,8 +52,13 @@ Two complementary OpenMetadata paths in the registry:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `schedule` | `str` | — | Cron schedule (None = manual / sensor-triggered). |
+| `catalog_url` | `str` | `"https://openmetadata.example.com"` | OpenMetadata host (e.g. https://openmetadata.acme.com). /api/v1/... is appended. |
+| `api_token_env` | `str` | `"OPENMETADATA_API_TOKEN"` | Env var holding the JWT bearer token. Generate one in OpenMetadata under Settings → Bots. |
+| `service_name` | `str` | `"dagster"` | OpenMetadata DatabaseService name to ensure-exist + parent the asset graph under. |
+| `database_name` | `str` | `"default"` | OpenMetadata Database name under the service. |
+| `verify_ssl` | `bool` | `true` | Verify TLS cert. Set False for self-signed dev OpenMetadata. |
 | `only_export_on_change` | `bool` | `true` | If True, hash the structural payload and skip the push when the hash matches the previous run's. Stored as job-tag metadata on the run. |
-| `fail_on_catalog_error` | `bool` | `true` | If True, an unreachable / errored catalog fails the run. Default True — OpenMetadata PUTs are idempotent so failure usually indicates a real config issue worth surfacing. |
+| `fail_on_catalog_error` | `bool` | `true` | If True, an unreachable / errored catalog fails the run. Default True — OpenMetadata PUTs are idempotent so failure usually indicates a real config issue worth surfacing rather than silently retrying next tick. |
 
 [//]: # (FIELDS:END)
 

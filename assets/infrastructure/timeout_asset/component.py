@@ -51,10 +51,47 @@ last hour → page oncall."
 import concurrent.futures
 import functools
 import importlib
+import time
 from typing import Any, Callable, Dict, List, Optional
 
 import dagster as dg
 from pydantic import Field
+
+
+# --------------------------------------------------------------------------
+# Per-partition scoping helper
+# --------------------------------------------------------------------------
+
+
+def _lookup_per_partition(
+    partition_key: Optional[str],
+    per_partition_map: Optional[Dict[str, float]],
+    default_value: float,
+    matcher: str = "exact",
+) -> float:
+    """Return the per-partition override for `partition_key`, else `default_value`.
+
+    Matcher modes:
+    - 'exact': partition_key must equal a map key
+    - 'prefix': map key is a prefix of partition_key
+    - 'regex': map key is a regex pattern against partition_key
+    """
+    if not partition_key or not per_partition_map:
+        return default_value
+    if matcher == "exact":
+        return per_partition_map.get(partition_key, default_value)
+    if matcher == "prefix":
+        for k, v in per_partition_map.items():
+            if partition_key.startswith(k):
+                return v
+        return default_value
+    if matcher == "regex":
+        import re
+        for pat, v in per_partition_map.items():
+            if re.match(pat, partition_key):
+                return v
+        return default_value
+    raise ValueError(f"unknown matcher: {matcher!r}")
 
 
 def _emit_timeout_observation(context: Any, key: str, timeout_s: float):
@@ -80,11 +117,151 @@ def _emit_timeout_observation(context: Any, key: str, timeout_s: float):
         pass
 
 
+def _emit_timeout_actual_observation(
+    context: Any, key: str, actual_s: float, timeout_s: float,
+) -> None:
+    """Emit AssetObservation on SUCCESS (no timeout) so the historical
+    baseline has actual durations to derive from.
+    """
+    try:
+        from dagster import AssetObservation
+        asset_key = getattr(context, "asset_key", None)
+        if asset_key is None:
+            from dagster import AssetKey
+            asset_key = AssetKey(["timeout_asset"])
+        if hasattr(context, "log_event"):
+            context.log_event(AssetObservation(
+                asset_key=asset_key,
+                tags={
+                    "timeout_key": key,
+                    "timeout_actual_seconds": str(round(actual_s, 3)),
+                    "timeout_seconds": str(round(timeout_s, 3)),
+                },
+                metadata={
+                    "timeout_actual_seconds": dg.MetadataValue.float(round(actual_s, 3)),
+                    "timeout_seconds": dg.MetadataValue.float(round(timeout_s, 3)),
+                },
+            ))
+    except Exception:  # noqa: BLE001
+        pass
+
+
+# --------------------------------------------------------------------------
+# Historical baseline — auto-derive timeout_seconds from prior runs
+# --------------------------------------------------------------------------
+
+
+def _statistic(values: List[float], statistic: str) -> float:
+    """Compute median / mean / p95 / p99 over `values`."""
+    import math
+    if not values:
+        raise ValueError("cannot compute statistic over empty list")
+    s = sorted(values)
+    n = len(s)
+    stat = (statistic or "p99").lower()
+    if stat == "mean":
+        return sum(s) / n
+    if stat == "median":
+        mid = n // 2
+        return s[mid] if n % 2 == 1 else (s[mid - 1] + s[mid]) / 2.0
+    if stat in ("p95", "p99"):
+        pct = 0.95 if stat == "p95" else 0.99
+        rank = pct * (n - 1)
+        lo = int(math.floor(rank))
+        hi = int(math.ceil(rank))
+        if lo == hi:
+            return s[lo]
+        return s[lo] + (s[hi] - s[lo]) * (rank - lo)
+    raise ValueError(f"unknown statistic {statistic!r} (allowed: median/mean/p95/p99)")
+
+
+def _derive_timeout_from_history(
+    context: Any,
+    derive_cfg: Dict[str, Any],
+    asset_key_obj: Optional[Any],
+    fallback_timeout: float,
+) -> float:
+    """Query prior AssetObservations tagged `timeout_actual_seconds` for
+    `asset_key_obj`; return `statistic * multiplier` over the last N SUCCESSFUL runs.
+
+    Default statistic is `p99` (want to allow outlier-yet-successful runs).
+    Falls back to `fallback_timeout` if fewer than 3 usable prior runs exist.
+    """
+    n_runs = int(derive_cfg.get("n_runs", 10))
+    statistic = str(derive_cfg.get("statistic", "p99"))
+    multiplier = float(derive_cfg.get("multiplier", 1.5))
+    try:
+        from dagster import EventRecordsFilter, DagsterEventType
+        records = context.instance.get_event_records(
+            event_records_filter=EventRecordsFilter(
+                event_type=DagsterEventType.ASSET_OBSERVATION,
+                asset_key=asset_key_obj,
+            ),
+            limit=max(n_runs * 4, 40),
+            ascending=False,
+        )
+    except Exception:  # noqa: BLE001
+        return fallback_timeout
+
+    durations: List[float] = []
+    for r in records:
+        obs = getattr(r, "asset_observation", None)
+        if obs is None:
+            continue
+        tags = obs.tags or {}
+        # Skip observations that recorded a TIMEOUT — we only want successful durations.
+        if tags.get("timeout_hit"):
+            continue
+        actual: Optional[float] = None
+        try:
+            meta = obs.metadata or {}
+            mv = meta.get("timeout_actual_seconds")
+            if mv is not None:
+                actual = float(getattr(mv, "value", mv))
+        except Exception:  # noqa: BLE001
+            actual = None
+        if actual is None:
+            raw = tags.get("timeout_actual_seconds")
+            if raw is not None:
+                try:
+                    actual = float(raw)
+                except (TypeError, ValueError):
+                    actual = None
+        if actual is not None and actual > 0:
+            durations.append(actual)
+            if len(durations) >= n_runs:
+                break
+
+    if len(durations) < 3:
+        try:
+            context.log.info(
+                f"[timeout] derive_timeout_from_history: only {len(durations)} prior successful runs "
+                f"(need >= 3); falling back to timeout_seconds={fallback_timeout}s"
+            )
+        except Exception:  # noqa: BLE001
+            pass
+        return fallback_timeout
+
+    baseline = _statistic(durations, statistic)
+    derived = baseline * multiplier
+    try:
+        context.log.info(
+            f"[timeout] derived timeout_seconds={derived:.3f}s from "
+            f"{len(durations)} recent successful runs ({statistic}={baseline:.3f}s x multiplier={multiplier})"
+        )
+    except Exception:  # noqa: BLE001
+        pass
+    return derived
+
+
 def timeout(
     seconds: float,
     *,
     on_timeout: str = "fail",
     key: Optional[str] = None,
+    per_partition_timeout: Optional[Dict[str, float]] = None,
+    partition_matcher: str = "exact",
+    derive_timeout_from_history: Optional[Dict[str, Any]] = None,
 ) -> Callable:
     """Wrap compute with a hard timeout.
 
@@ -124,22 +301,42 @@ def timeout(
             if context is None:
                 raise RuntimeError("@timeout requires a Dagster context.")
 
+            try:
+                partition_key = getattr(context, "partition_key", None)
+            except Exception:  # noqa: BLE001
+                partition_key = None
+            effective_timeout = _lookup_per_partition(
+                partition_key, per_partition_timeout, seconds, partition_matcher,
+            )
+
+            # Auto-derive from history — OVERRIDES per-partition + hardcoded. Runs
+            # BEFORE the timer starts.
+            if derive_timeout_from_history and getattr(context, "instance", None) is not None:
+                asset_key_obj = getattr(context, "asset_key", None)
+                effective_timeout = _derive_timeout_from_history(
+                    context, derive_timeout_from_history, asset_key_obj, effective_timeout,
+                )
+
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(fn, *args, **kwargs)
+                t0 = time.time()
                 try:
-                    return future.result(timeout=seconds)
+                    result = future.result(timeout=effective_timeout)
+                    elapsed = time.time() - t0
+                    _emit_timeout_actual_observation(context, _state_key, elapsed, effective_timeout)
+                    return result
                 except concurrent.futures.TimeoutError:
                     future.cancel()
-                    _emit_timeout_observation(context, _state_key, seconds)
+                    _emit_timeout_observation(context, _state_key, effective_timeout)
                     context.log.error(
-                        f"[timeout] {_state_key} exceeded {seconds}s — compute cancelled"
+                        f"[timeout] {_state_key} exceeded {effective_timeout}s — compute cancelled"
                     )
                     if on_timeout == "fail":
                         raise dg.Failure(
-                            description=f"@timeout exceeded: {_state_key} > {seconds}s",
+                            description=f"@timeout exceeded: {_state_key} > {effective_timeout}s",
                             metadata={
                                 "timeout_key": dg.MetadataValue.text(_state_key),
-                                "timeout_seconds": dg.MetadataValue.float(seconds),
+                                "timeout_seconds": dg.MetadataValue.float(effective_timeout),
                             },
                         ) from None
                     return None
@@ -181,6 +378,31 @@ class TimeoutAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Shared key for cross-run timeout counting via event log. Defaults to asset_name.",
     )
+    per_partition_timeout: Optional[Dict[str, float]] = Field(
+        default=None,
+        description=(
+            "Per-partition-key override. e.g. {'hourly': 30, 'daily': 300}. Falls back to "
+            "timeout_seconds if no key matches. Only meaningful on partitioned assets."
+        ),
+    )
+    partition_matcher: str = Field(
+        default="exact",
+        description=(
+            "How partition_key is matched against per_partition_timeout keys: "
+            "'exact' | 'prefix' | 'regex'. Default exact match."
+        ),
+    )
+    derive_timeout_from_history: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Auto-derive timeout_seconds from prior SUCCESSFUL materializations. "
+            "Shape: {n_runs: 10, statistic: 'p99' | 'p95' | 'median' | 'mean', multiplier: 1.5}. "
+            "If set, this OVERRIDES timeout_seconds. Default statistic is 'p99' (want to allow "
+            "outlier-yet-successful runs; median would starve them). Reads `timeout_actual_seconds` "
+            "from prior observations; ignores runs that hit the timeout. "
+            "If fewer than 3 successful runs available, falls back to timeout_seconds."
+        ),
+    )
 
     group_name: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)
@@ -211,6 +433,14 @@ class TimeoutAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         timeout_s = float(self.timeout_seconds)
         on_to = self.on_timeout
         state_key = self.timeout_key or asset_name
+        per_partition_map = (
+            {k: float(v) for k, v in self.per_partition_timeout.items()}
+            if self.per_partition_timeout else None
+        )
+        matcher = self.partition_matcher
+        derive_cfg = (
+            dict(self.derive_timeout_from_history) if self.derive_timeout_from_history else None
+        )
 
         if on_to not in ("fail", "warn"):
             raise ValueError(f"on_timeout must be fail|warn; got {on_to!r}")
@@ -259,29 +489,51 @@ class TimeoutAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     return fn(context)
                 return fn(context, kwargs.get("upstream"))
 
+            try:
+                partition_key = getattr(context, "partition_key", None)
+            except Exception:  # noqa: BLE001
+                partition_key = None
+            effective_timeout = _lookup_per_partition(
+                partition_key, per_partition_map, timeout_s, matcher,
+            )
+
+            # Auto-derive from history — OVERRIDES per-partition + hardcoded.
+            if derive_cfg and getattr(context, "instance", None) is not None:
+                asset_key_obj = getattr(context, "asset_key", None)
+                effective_timeout = _derive_timeout_from_history(
+                    context, derive_cfg, asset_key_obj, effective_timeout,
+                )
+
+            elapsed = 0.0
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(_call)
+                t0 = time.time()
                 try:
-                    result = future.result(timeout=timeout_s)
+                    result = future.result(timeout=effective_timeout)
+                    elapsed = time.time() - t0
                 except concurrent.futures.TimeoutError:
                     future.cancel()
-                    _emit_timeout_observation(context, state_key, timeout_s)
+                    _emit_timeout_observation(context, state_key, effective_timeout)
                     context.log.error(
-                        f"[timeout] {state_key} exceeded {timeout_s}s — compute cancelled"
+                        f"[timeout] {state_key} exceeded {effective_timeout}s — compute cancelled"
                     )
                     if on_to == "fail":
                         raise dg.Failure(
-                            description=f"@timeout exceeded: {state_key} > {timeout_s}s",
+                            description=f"@timeout exceeded: {state_key} > {effective_timeout}s",
                             metadata={
                                 "timeout_key": dg.MetadataValue.text(state_key),
-                                "timeout_seconds": dg.MetadataValue.float(timeout_s),
+                                "timeout_seconds": dg.MetadataValue.float(effective_timeout),
                             },
                         ) from None
                     result = None
 
+            # Success path — emit `timeout_actual_seconds` so history baseline can derive.
+            _emit_timeout_actual_observation(context, state_key, elapsed, effective_timeout)
+
             return dg.MaterializeResult(
                 metadata={
-                    "timeout_seconds": dg.MetadataValue.float(timeout_s),
+                    "timeout_seconds": dg.MetadataValue.float(effective_timeout),
+                    "timeout_actual_seconds": dg.MetadataValue.float(round(elapsed, 3)),
                     "timeout_hit": dg.MetadataValue.bool(False),
                 }
             )
@@ -321,6 +573,14 @@ class TimeoutAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         timeout_s = float(self.timeout_seconds)
         on_to = self.on_timeout
         state_key = self.timeout_key or key.to_user_string()
+        per_partition_map = (
+            {k: float(v) for k, v in self.per_partition_timeout.items()}
+            if self.per_partition_timeout else None
+        )
+        matcher = self.partition_matcher
+        derive_cfg = (
+            dict(self.derive_timeout_from_history) if self.derive_timeout_from_history else None
+        )
 
         if on_to not in ("fail", "warn"):
             raise ValueError(f"on_timeout must be fail|warn; got {on_to!r}")
@@ -352,29 +612,51 @@ class TimeoutAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             def _call():
                 return inner_compute(context, **kwargs)
 
+            try:
+                partition_key = getattr(context, "partition_key", None)
+            except Exception:  # noqa: BLE001
+                partition_key = None
+            effective_timeout = _lookup_per_partition(
+                partition_key, per_partition_map, timeout_s, matcher,
+            )
+
+            # Auto-derive from history — OVERRIDES per-partition + hardcoded.
+            if derive_cfg and getattr(context, "instance", None) is not None:
+                asset_key_obj = getattr(context, "asset_key", None)
+                effective_timeout = _derive_timeout_from_history(
+                    context, derive_cfg, asset_key_obj, effective_timeout,
+                )
+
+            elapsed = 0.0
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(_call)
+                t0 = time.time()
                 try:
-                    result = future.result(timeout=timeout_s)
+                    result = future.result(timeout=effective_timeout)
+                    elapsed = time.time() - t0
                 except concurrent.futures.TimeoutError:
                     future.cancel()
-                    _emit_timeout_observation(context, state_key, timeout_s)
+                    _emit_timeout_observation(context, state_key, effective_timeout)
                     context.log.error(
-                        f"[timeout wrap] {state_key} exceeded {timeout_s}s — inner compute cancelled"
+                        f"[timeout wrap] {state_key} exceeded {effective_timeout}s — inner compute cancelled"
                     )
                     if on_to == "fail":
                         raise dg.Failure(
-                            description=f"@timeout (wrap) exceeded: {state_key} > {timeout_s}s",
+                            description=f"@timeout (wrap) exceeded: {state_key} > {effective_timeout}s",
                             metadata={
                                 "timeout_key": dg.MetadataValue.text(state_key),
-                                "timeout_seconds": dg.MetadataValue.float(timeout_s),
+                                "timeout_seconds": dg.MetadataValue.float(effective_timeout),
                             },
                         ) from None
                     return None
 
+            # Success — emit `timeout_actual_seconds` so history baseline has data.
+            _emit_timeout_actual_observation(context, state_key, elapsed, effective_timeout)
+
             # Merge timeout metadata into inner's MaterializeResult if present
             timeout_meta = {
-                "timeout_seconds": dg.MetadataValue.float(timeout_s),
+                "timeout_seconds": dg.MetadataValue.float(effective_timeout),
+                "timeout_actual_seconds": dg.MetadataValue.float(round(elapsed, 3)),
                 "timeout_hit": dg.MetadataValue.bool(False),
             }
             if isinstance(result, dg.MaterializeResult):

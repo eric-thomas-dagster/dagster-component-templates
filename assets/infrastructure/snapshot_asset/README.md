@@ -123,9 +123,32 @@ def restore_report(context):
 
 Setting `compression: none` (or leaving it unset) uses the format default. Parquet's default is `snappy`; the text formats default to uncompressed.
 
+## Loading snapshots
+
+`load_snapshot` walks the event log for `AssetObservation(snapshot_asset=written)` entries and rehydrates the payload — no manual filesystem or event-log spelunking needed:
+
+```python
+from dagster_community_components import load_snapshot
+from dagster import DagsterInstance
+
+instance = DagsterInstance.get()  # or the ambient one inside a sensor/op
+
+# Latest snapshot regardless of version
+df = load_snapshot(instance, "daily_report", latest=True)
+
+# Latest snapshot before a rollback event
+df = load_snapshot(instance, "daily_report", at_or_before_ts="2024-11-14T00:00:00Z")
+
+# Specific version's most recent snapshot
+df = load_snapshot(instance, "daily_report", code_version="v1.2")
+```
+
+At least one of `code_version`, `at_or_before_ts`, or `latest=True` is required. The file's extension drives deserialization — parquet → `pd.DataFrame`, `.json` → DataFrame or dict/list, `.pkl` → the unpickled object, `.txt` → `str`, `.bin` → `bytes`. `.gz` / `.bz2` / `.zst` / `.xz` codec suffixes are decoded automatically.
+
+Raises `FileNotFoundError` if no matching snapshot exists.
+
 ## What's not in v1 (roadmap)
 
-- **`load_snapshot(asset, code_version=..., ts=...)` helper** — convenience wrapper over the event log query.
 - **Snapshot diffing** — surface the diff between two snapshots as an observation.
 
 ## CLI demos using this template
@@ -146,14 +169,13 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 
 | Field | Type | Description |
 |---|---|---|
-| `asset_name` | `str` | Dagster asset name. |
-| `compute` | `Dict[str, Any]` | `{kind: python, python: 'mod:fn'}`. |
 | `uri` | `str` | fsspec URI directory for snapshots (e.g., `s3://bucket/dir`, `/local/path`). |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `asset_name` | `str` | — | Dagster asset name. Required when NOT using `wraps:` (inherited from inner in wraps mode). |
 | `code_version` | `str` | — | Optional asset code_version. Written into the snapshot path so rollbacks can filter by version. |
 | `group_name` | `str` | — | — |
 | `description` | `str` | — | — |
@@ -172,6 +194,9 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `upstream_asset_key` | `str` | — | — |
+| `compute` | `Dict[str, Any]` | — | `{kind: python, python: 'mod:fn'}`. Mutually exclusive with `wraps`. |
+| `wraps` | `Dict[str, Any]` | — | Wrap another DCC component's assets with point-in-time snapshot writes instead of defining new compute. Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`. Mutually exclusive with `compute`. |
+| `compression` | `str` | — | Compression codec: `gzip` \| `zstd` \| `snappy` \| `brotli` \| `bz2` \| `xz` \| `none`. Default None = format default (parquet defaults to snappy). Parquet forwards this to `df.to_parquet(compression=...)`. JSON / text /… _(full docs in schema.json + component README)_ |
 | `retention_days` | `int` | — | If set, delete snapshots older than N days from this asset's folder after a successful write. |
 
 [//]: # (FIELDS:END)

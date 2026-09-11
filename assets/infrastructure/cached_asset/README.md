@@ -158,14 +158,13 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 
 | Field | Type | Description |
 |---|---|---|
-| `asset_name` | `str` | Dagster asset name. |
-| `compute` | `Dict[str, Any]` | `{kind: python, python: 'mod:fn'}`. Returns pandas DataFrame. |
 | `cache_dir` | `str` | Where cached parquets live. Local path or fsspec URI. |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `asset_name` | `str` | — | Dagster asset name. Required when NOT using `wraps:` (inherited from inner in wraps mode). |
 | `code_version` | `str` | — | Version string mixed into the cache key. Bump to invalidate cache. Also set as `code_version` on the asset so downstream sees a bump. |
 | `group_name` | `str` | — | — |
 | `description` | `str` | — | — |
@@ -184,7 +183,11 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `upstream_asset_key` | `str` | — | — |
+| `compute` | `Dict[str, Any]` | — | `{kind: python, python: 'mod:fn'}`. Returns pandas DataFrame. Mutually exclusive with `wraps`. |
+| `wraps` | `Dict[str, Any]` | — | Wrap another DCC component's assets with caching instead of defining new compute. Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`. Inner asset must return pandas.DataFrame. Mutually exclusive with `compute`. |
 | `ttl_seconds` | `float` | — | Cache expiry. If the cached file's mtime is older than this, treat as miss. |
 | `key_fn` | `str` | — | Optional `mod:fn` callable mixed into the cache key. |
+| `max_entries` | `int` | — | LRU eviction: cap total number of cached parquets in `cache_dir/`. When set, after every miss-write we scan the dir, sort by mtime ascending (oldest = LRU), and delete the oldest files until count <= max_entries. |
+| `max_bytes` | `int` | — | LRU eviction: cap total bytes in `cache_dir/`. Same mechanic as max_entries but tallies file sizes. Both can be set simultaneously (whichever cap is hit first triggers eviction). |
 
 [//]: # (FIELDS:END)

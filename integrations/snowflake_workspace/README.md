@@ -99,19 +99,19 @@ uv run dg dev                   # auto-loads .env + .env.secrets
 | `import_dynamic_tables` | `bool` | `false` | Import dynamic tables as observable assets |
 | `dt_modeling` | `str` | `"external"` | How imported dynamic tables are emitted: 'external' (default; AssetSpec — no manual refresh from Dagster, sensor owns materialization events) or 'asset' (legacy @asset with manual ALTER ... REFRESH — sensor still runs, s… _(full docs in schema.json + component README)_ |
 | `dt_refresh_sensor_interval_seconds` | `int` | `60` | Polling interval (seconds) for the DT-refresh detection sensor. The sensor runs whenever import_dynamic_tables=True regardless of dt_modeling, so Snowflake's TARGET_LAG-driven auto-refreshes propagate to downstream Dagster consumers. |
-| `import_streams` | `bool` | `false` | Import streams as observable assets |
+| `import_streams` | `bool` | `false` | Import streams as external assets. The observation sensor probes SYSTEM$STREAM_HAS_DATA + INFORMATION_SCHEMA.QUERY_HISTORY and emits AssetMaterialization when the CDC state advances (rows actually flow through the stream… _(full docs in schema.json + component README)_ |
 | `import_snowpipes` | `bool` | `false` | Import Snowpipe continuous ingestion pipes as materializable assets |
-| `import_stages` | `bool` | `false` | Import internal and external stages as observable assets |
+| `import_stages` | `bool` | `false` | Import internal and external stages as external assets. The observation sensor runs LIST @stage and emits AssetMaterialization when file_count or total_bytes changes. |
 | `import_materialized_views` | `bool` | `false` | Import materialized views as materializable assets (trigger refresh) |
 | `import_external_tables` | `bool` | `false` | Import external tables as materializable assets (trigger refresh) |
-| `import_alerts` | `bool` | `false` | Import Snowflake alerts as observable assets (monitor alert status) |
-| `import_openflow_flows` | `bool` | `false` | Import OpenFlow data integration flows as observable assets (monitor via telemetry) |
+| `import_alerts` | `bool` | `false` | Import Snowflake alerts as external assets. The observation sensor runs SHOW ALERTS + ALERT_HISTORY and emits AssetMaterialization when a new evaluation is recorded. |
+| `import_openflow_flows` | `bool` | `false` | Import OpenFlow data integration flows as external assets. The observation sensor queries SNOWFLAKE.TELEMETRY.EVENTS and emits AssetMaterialization when new metrics land. |
 | `import_tables` | `bool` | `false` | Import tables as Dagster assets. **NOT recommended for most cases** — regular tables aren't orchestration primitives (no EXECUTE / REFRESH / server-side event), so the best Dagster can do is poll INFORMATION_SCHEMA.TABLE… _(full docs in schema.json + component README)_ |
 | `import_views` | `bool` | `false` | Import non-materialized views (TABLE_TYPE='VIEW') as Dagster assets. **NOT recommended for most cases** — same reasoning as `import_tables`. Views have no server-side event Dagster can key off; the best we can do is obse… _(full docs in schema.json + component README)_ |
 | `view_modeling` | `str` | `"virtual"` | How imported views are emitted. One of: 'virtual' (default) — AssetSpec(is_virtual=True). Views have no state of their own (Snowflake reads the underlying tables live on every query) and INFORMATION_SCHEMA.TABLES.ROW_COU… _(full docs in schema.json + component README)_ |
 | `exclude_name_pattern` | `str` | — | Regex pattern to exclude entities by name |
 | `task_filter_by_state` | `str` | — | Filter tasks by state (STARTED, SUSPENDED). If not specified, imports all tasks. |
-| `generate_sensor` | `bool` | `true` | If true, create a sensor that polls Snowflake for completed task runs and dynamic-table refreshes and emits AssetMaterialization / AssetObservation events into Dagster's event log. Matches the `polling_sensor` convention… _(full docs in schema.json + component README)_ |
+| `generate_sensor` | `bool` | `true` | If true, create the observation sensor. It polls Snowflake and emits AssetMaterialization for: task runs (TASK_HISTORY), Snowpipe loads (COPY_HISTORY), stream CDC advances (SYSTEM$STREAM_HAS_DATA + QUERY_HISTORY), stage… _(full docs in schema.json + component README)_ |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for prod runs against Dagster Cloud. |
 | `assets_by_name` | `Dict[str, Dict[str, Any]]` | — | Override the AssetSpec for specific imported entities (Tasks, Dynamic Tables, Stored Procedures, Streams, Snowpipes, etc.) by their Snowflake name. Mirrors the official dagster-databricks `DatabricksWorkspaceComponent.as… _(full docs in schema.json + component README)_ |
 

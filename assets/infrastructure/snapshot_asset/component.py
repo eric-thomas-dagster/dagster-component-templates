@@ -64,7 +64,10 @@ import importlib
 import json
 import os
 import pickle
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from dagster import AssetKey, DagsterInstance
 
 import dagster as dg
 from pydantic import Field
@@ -443,6 +446,219 @@ def snapshot(
 
         return _wrapped
     return _decorator
+
+
+# --------------------------------------------------------------------------
+# load_snapshot — first-class helper to fetch a snapshot from the event log
+# --------------------------------------------------------------------------
+
+
+def _parse_ts(ts: Union[str, "_dt.datetime"]) -> _dt.datetime:
+    """Accept an ISO-8601 string or a datetime; return a tz-aware datetime."""
+    if isinstance(ts, _dt.datetime):
+        return ts if ts.tzinfo else ts.replace(tzinfo=_dt.timezone.utc)
+    if isinstance(ts, str):
+        s = ts.strip()
+        # datetime.fromisoformat before 3.11 doesn't accept trailing "Z"
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        try:
+            dt = _dt.datetime.fromisoformat(s)
+        except ValueError as e:
+            raise ValueError(f"load_snapshot: cannot parse timestamp {ts!r}: {e}") from e
+        return dt if dt.tzinfo else dt.replace(tzinfo=_dt.timezone.utc)
+    raise TypeError(f"load_snapshot: at_or_before_ts must be str or datetime; got {type(ts).__name__}")
+
+
+def _read_snapshot_file(path: str) -> Any:
+    """Read a snapshot file back into its original value based on the extension.
+
+    Returns a pandas DataFrame for `.parquet`/`.json` (if pandas is installed and the
+    JSON was written from a DataFrame), a dict/list for JSON dicts, a str for `.txt`,
+    bytes for `.bin`, or the unpickled object for `.pkl`. Handles `.gz`/`.bz2`/`.zst`
+    compression suffixes for text formats.
+    """
+    fs = _get_fs(path)
+    if fs is None:
+        with open(path, "rb") as f:
+            data = f.read()
+    else:
+        proto, p = path.split("://", 1)
+        with fs.open(p, "rb") as f:
+            data = f.read()
+
+    lower = path.lower()
+    # Strip codec suffix to determine base extension
+    for suffix in (".gz", ".bz2", ".zst", ".xz"):
+        if lower.endswith(suffix):
+            if suffix in (".gz",):
+                import gzip
+                data = gzip.decompress(data)
+            elif suffix == ".bz2":
+                import bz2
+                data = bz2.decompress(data)
+            elif suffix == ".zst":
+                try:
+                    import zstandard as zstd
+                    data = zstd.ZstdDecompressor().decompress(data)
+                except ImportError as e:
+                    raise ImportError(
+                        "load_snapshot: zstandard package required to read .zst files"
+                    ) from e
+            elif suffix == ".xz":
+                import lzma
+                data = lzma.decompress(data)
+            lower = lower[: -len(suffix)]
+            break
+
+    if lower.endswith(".parquet"):
+        try:
+            import io as _io
+            import pandas as pd
+            return pd.read_parquet(_io.BytesIO(data))
+        except ImportError as e:
+            raise ImportError("load_snapshot: pandas required to read parquet snapshots") from e
+    if lower.endswith(".json"):
+        try:
+            import io as _io
+            import pandas as pd
+            # Try pandas first (round-trips DataFrame snapshots correctly)
+            try:
+                return pd.read_json(_io.BytesIO(data))
+            except (ValueError, Exception):  # noqa: BLE001
+                pass
+        except ImportError:
+            pass
+        return json.loads(data.decode("utf-8"))
+    if lower.endswith(".txt"):
+        return data.decode("utf-8")
+    if lower.endswith(".pkl"):
+        return pickle.loads(data)
+    if lower.endswith(".bin"):
+        return data
+    # Unknown extension — return raw bytes.
+    return data
+
+
+def load_snapshot(
+    instance: "DagsterInstance",
+    asset_key: Union[str, "AssetKey"],
+    code_version: Optional[str] = None,
+    at_or_before_ts: Optional[Union[str, "_dt.datetime"]] = None,
+    latest: bool = False,
+) -> Any:
+    """Load a snapshot of an asset by code_version + timestamp.
+
+    At least one of ``code_version``, ``at_or_before_ts``, or ``latest=True``
+    must be supplied.
+
+    Resolution order:
+
+    1. Query the event log for ``AssetObservation(snapshot_asset=written)``
+       events on ``asset_key``.
+    2. Filter by ``code_version`` if given (matched against the parent
+       folder segment in the observation's ``snapshot_path`` metadata).
+    3. Filter to those with timestamp <= ``at_or_before_ts`` if given
+       (or take latest if ``latest=True``).
+    4. Take the most recent match.
+    5. Read the parquet / json / pickle / text / bin file back via
+       ``fsspec`` (auto-detecting the codec from the extension).
+
+    Args:
+        instance: DagsterInstance to query.
+        asset_key: Either the user-string form (``"daily_report"`` or
+            ``"reports/daily"``) or a real ``AssetKey``.
+        code_version: If set, only consider snapshots whose path segment
+            after ``<asset>`` matches this string.
+        at_or_before_ts: ISO-8601 string or ``datetime``. Only consider
+            snapshots observed at/before this timestamp.
+        latest: If True, return the most recent matching snapshot
+            regardless of timestamp.
+
+    Returns:
+        The rehydrated value (typically a ``pd.DataFrame``, ``dict``,
+        ``list``, ``bytes``, or ``str`` depending on how it was written).
+
+    Raises:
+        ValueError: if none of ``code_version`` / ``at_or_before_ts`` /
+            ``latest`` are supplied.
+        FileNotFoundError: if no matching snapshot exists in the event log.
+    """
+    if not (code_version or at_or_before_ts or latest):
+        raise ValueError(
+            "load_snapshot: must supply at least one of `code_version`, "
+            "`at_or_before_ts`, or `latest=True`."
+        )
+    from dagster import AssetKey, EventRecordsFilter, DagsterEventType
+
+    if isinstance(asset_key, str):
+        asset_key_obj = AssetKey.from_user_string(asset_key)
+    else:
+        asset_key_obj = asset_key
+
+    cutoff_dt: Optional[_dt.datetime] = None
+    if at_or_before_ts is not None:
+        cutoff_dt = _parse_ts(at_or_before_ts)
+
+    records = instance.get_event_records(
+        event_records_filter=EventRecordsFilter(
+            event_type=DagsterEventType.ASSET_OBSERVATION,
+            asset_key=asset_key_obj,
+        ),
+        limit=500,
+        ascending=False,
+    )
+
+    best_path: Optional[str] = None
+    best_ts: Optional[float] = None
+    for r in records:
+        obs = getattr(r, "asset_observation", None)
+        if obs is None:
+            continue
+        tags = obs.tags or {}
+        if tags.get(_SNAPSHOT_TAG) != "written":
+            continue
+        meta = obs.metadata or {}
+        path_mv = meta.get("snapshot_path")
+        if path_mv is None:
+            continue
+        path_val = getattr(path_mv, "value", None) or getattr(path_mv, "path", None) or str(path_mv)
+        if not path_val:
+            continue
+
+        # Filter by code_version — snapshot layout is <root>/<asset>/<code_version>/<file>
+        if code_version:
+            # Split off filename, then last dir segment is code_version.
+            parent_dir = path_val.rsplit("/", 1)[0]
+            observed_version = parent_dir.rsplit("/", 1)[-1] if "/" in parent_dir else ""
+            if observed_version != code_version:
+                continue
+
+        ts = r.timestamp  # unix seconds (float)
+        if cutoff_dt is not None:
+            if ts is None:
+                continue
+            if _dt.datetime.fromtimestamp(float(ts), tz=_dt.timezone.utc) > cutoff_dt:
+                continue
+
+        if best_ts is None or (ts is not None and float(ts) > best_ts):
+            best_ts = float(ts) if ts is not None else best_ts
+            best_path = path_val
+
+    if not best_path:
+        filters: List[str] = []
+        if code_version:
+            filters.append(f"code_version={code_version!r}")
+        if at_or_before_ts is not None:
+            filters.append(f"at_or_before_ts={at_or_before_ts!r}")
+        if latest and not filters:
+            filters.append("latest=True")
+        raise FileNotFoundError(
+            f"load_snapshot: no snapshot observation found for asset_key={asset_key_obj.to_user_string()!r}"
+            + (f" ({', '.join(filters)})" if filters else "")
+        )
+
+    return _read_snapshot_file(best_path)
 
 
 class SnapshotAssetComponent(dg.Component, dg.Model, dg.Resolvable):

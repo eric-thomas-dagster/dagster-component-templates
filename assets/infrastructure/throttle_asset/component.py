@@ -53,8 +53,51 @@ from pydantic import Field
 _THROTTLE_TAG = "throttle_skipped"
 
 
-def _last_materialization_ts(context: Any, asset_key: dg.AssetKey) -> Optional[float]:
+# --------------------------------------------------------------------------
+# Per-partition scoping helper
+# --------------------------------------------------------------------------
+
+
+def _lookup_per_partition(
+    partition_key: Optional[str],
+    per_partition_map: Optional[Dict[str, float]],
+    default_value: float,
+    matcher: str = "exact",
+) -> float:
+    """Return the per-partition override for `partition_key`, else `default_value`.
+
+    Matcher modes:
+    - 'exact': partition_key must equal a map key
+    - 'prefix': map key is a prefix of partition_key
+    - 'regex': map key is a regex pattern against partition_key
+    """
+    if not partition_key or not per_partition_map:
+        return default_value
+    if matcher == "exact":
+        return per_partition_map.get(partition_key, default_value)
+    if matcher == "prefix":
+        for k, v in per_partition_map.items():
+            if partition_key.startswith(k):
+                return v
+        return default_value
+    if matcher == "regex":
+        import re
+        for pat, v in per_partition_map.items():
+            if re.match(pat, partition_key):
+                return v
+        return default_value
+    raise ValueError(f"unknown matcher: {matcher!r}")
+
+
+def _last_materialization_ts(
+    context: Any,
+    asset_key: dg.AssetKey,
+    partition_key: Optional[str] = None,
+) -> Optional[float]:
     """Read the most recent materialization timestamp for `asset_key` from event log.
+
+    If `partition_key` is given, restrict to materializations of that partition
+    (scan up to 200 recent materializations for a matching partition tag).
 
     Returns UNIX seconds, or None if no prior materialization.
     """
@@ -63,20 +106,41 @@ def _last_materialization_ts(context: Any, asset_key: dg.AssetKey) -> Optional[f
         if instance is None:
             return None
         from dagster import EventRecordsFilter, DagsterEventType
+        # When filtering by partition we may have to scan back a bit further to
+        # find the most recent materialization of the *same* partition.
+        limit = 200 if partition_key else 1
         records = instance.get_event_records(
             event_records_filter=EventRecordsFilter(
                 event_type=DagsterEventType.ASSET_MATERIALIZATION,
                 asset_key=asset_key,
             ),
-            limit=1,
+            limit=limit,
             ascending=False,
         )
         if not records:
             return None
-        ts = records[0].timestamp
-        if ts is None:
-            return None
-        return float(ts)
+        for r in records:
+            if partition_key is not None:
+                # Pull the partition off the materialization event.
+                event_partition = None
+                dagster_event = getattr(r, "dagster_event", None)
+                if dagster_event is not None:
+                    mat = getattr(dagster_event, "event_specific_data", None)
+                    mat = getattr(mat, "materialization", None) if mat is not None else None
+                    if mat is not None:
+                        event_partition = getattr(mat, "partition", None)
+                if event_partition is None:
+                    # Fallback: look on the raw asset_materialization attr.
+                    am = getattr(r, "asset_materialization", None)
+                    if am is not None:
+                        event_partition = getattr(am, "partition", None)
+                if event_partition != partition_key:
+                    continue
+            ts = r.timestamp
+            if ts is None:
+                continue
+            return float(ts)
+        return None
     except Exception:  # noqa: BLE001
         return None
 
@@ -122,6 +186,8 @@ def throttle(
     *,
     key: Optional[str] = None,
     on_throttle: str = "skip",
+    per_partition_min_gap: Optional[Dict[str, float]] = None,
+    partition_matcher: str = "exact",
 ) -> Callable:
     """Enforce a minimum gap between materializations of the wrapped asset.
 
@@ -160,27 +226,38 @@ def throttle(
             asset_key = _resolve_asset_key(context, key or "")
             label = key or asset_key.to_user_string()
 
-            last_ts = _last_materialization_ts(context, asset_key)
+            try:
+                partition_key = getattr(context, "partition_key", None)
+            except Exception:  # noqa: BLE001
+                partition_key = None
+            effective_gap = _lookup_per_partition(
+                partition_key, per_partition_min_gap, min_gap_seconds, partition_matcher,
+            )
+            # In per-partition mode, throttle against last materialization of the
+            # SAME partition only (isolate hourly from daily, etc.).
+            filter_partition = partition_key if per_partition_min_gap else None
+
+            last_ts = _last_materialization_ts(context, asset_key, filter_partition)
             now = time.time()
             if last_ts is not None:
                 elapsed = now - last_ts
-                if elapsed < min_gap_seconds:
-                    wait = min_gap_seconds - elapsed
-                    _emit_throttle_observation(context, label, wait, min_gap_seconds)
+                if elapsed < effective_gap:
+                    wait = effective_gap - elapsed
+                    _emit_throttle_observation(context, label, wait, effective_gap)
                     if on_throttle == "fail":
                         raise dg.Failure(
                             description=f"@throttle: last materialization {elapsed:.3f}s ago, "
-                                        f"min_gap={min_gap_seconds}s ({wait:.3f}s early)",
+                                        f"min_gap={effective_gap}s ({wait:.3f}s early)",
                             metadata={
                                 "throttle_key": dg.MetadataValue.text(label),
                                 "throttle_wait_seconds": dg.MetadataValue.float(float(round(wait, 3))),
-                                "throttle_min_gap_seconds": dg.MetadataValue.float(float(round(min_gap_seconds, 3))),
+                                "throttle_min_gap_seconds": dg.MetadataValue.float(float(round(effective_gap, 3))),
                             },
                         )
                     try:
                         context.log.info(
                             f"@throttle skipped: last materialization {elapsed:.3f}s ago, "
-                            f"min_gap={min_gap_seconds}s"
+                            f"min_gap={effective_gap}s"
                         )
                     except Exception:  # noqa: BLE001
                         pass
@@ -240,6 +317,22 @@ class ThrottleAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Optional label for the throttle_skipped observation tag. Defaults to asset name.",
     )
+    per_partition_min_gap: Optional[Dict[str, float]] = Field(
+        default=None,
+        description=(
+            "Per-partition-key override. e.g. {'hourly': 30, 'daily': 300}. Falls back to "
+            "min_gap_seconds if no key matches. When set, throttling is per-partition — the "
+            "'last materialization' check is filtered to the same partition_key so hourly "
+            "and daily partitions throttle independently."
+        ),
+    )
+    partition_matcher: str = Field(
+        default="exact",
+        description=(
+            "How partition_key is matched against per_partition_min_gap keys: "
+            "'exact' | 'prefix' | 'regex'. Default exact match."
+        ),
+    )
 
     group_name: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)
@@ -270,6 +363,11 @@ class ThrottleAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         min_gap_s = float(self.min_gap_seconds)
         on_throttle_mode = self.on_throttle
         label = self.key or asset_name
+        per_partition_map = (
+            {k: float(v) for k, v in self.per_partition_min_gap.items()}
+            if self.per_partition_min_gap else None
+        )
+        matcher = self.partition_matcher
 
         if on_throttle_mode not in ("skip", "fail"):
             raise ValueError(f"on_throttle must be 'skip' or 'fail'; got {on_throttle_mode!r}")
@@ -294,32 +392,40 @@ class ThrottleAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         )
         def _asset(context: dg.AssetExecutionContext, **kwargs):
             asset_key = _resolve_asset_key(context, asset_name)
-            last_ts = _last_materialization_ts(context, asset_key)
+            try:
+                partition_key = getattr(context, "partition_key", None)
+            except Exception:  # noqa: BLE001
+                partition_key = None
+            effective_gap = _lookup_per_partition(
+                partition_key, per_partition_map, min_gap_s, matcher,
+            )
+            filter_partition = partition_key if per_partition_map else None
+            last_ts = _last_materialization_ts(context, asset_key, filter_partition)
             now = time.time()
             if last_ts is not None:
                 elapsed = now - last_ts
-                if elapsed < min_gap_s:
-                    wait = min_gap_s - elapsed
-                    _emit_throttle_observation(context, label, wait, min_gap_s)
+                if elapsed < effective_gap:
+                    wait = effective_gap - elapsed
+                    _emit_throttle_observation(context, label, wait, effective_gap)
                     if on_throttle_mode == "fail":
                         raise dg.Failure(
                             description=f"@throttle: last materialization {elapsed:.3f}s ago, "
-                                        f"min_gap={min_gap_s}s ({wait:.3f}s early)",
+                                        f"min_gap={effective_gap}s ({wait:.3f}s early)",
                             metadata={
                                 "throttle_key": dg.MetadataValue.text(label),
                                 "throttle_wait_seconds": dg.MetadataValue.float(float(round(wait, 3))),
-                                "throttle_min_gap_seconds": dg.MetadataValue.float(float(round(min_gap_s, 3))),
+                                "throttle_min_gap_seconds": dg.MetadataValue.float(float(round(effective_gap, 3))),
                             },
                         )
                     context.log.info(
                         f"@throttle skipped: last materialization {elapsed:.3f}s ago, "
-                        f"min_gap={min_gap_s}s"
+                        f"min_gap={effective_gap}s"
                     )
                     return dg.MaterializeResult(
                         metadata={
                             "throttle_skipped": dg.MetadataValue.bool(True),
                             "throttle_wait_seconds": dg.MetadataValue.float(float(round(wait, 3))),
-                            "throttle_min_gap_seconds": dg.MetadataValue.float(float(round(min_gap_s, 3))),
+                            "throttle_min_gap_seconds": dg.MetadataValue.float(float(round(effective_gap, 3))),
                         }
                     )
 
@@ -348,7 +454,7 @@ class ThrottleAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             return dg.MaterializeResult(
                 metadata={
                     "throttle_skipped": dg.MetadataValue.bool(False),
-                    "throttle_min_gap_seconds": dg.MetadataValue.float(float(round(min_gap_s, 3))),
+                    "throttle_min_gap_seconds": dg.MetadataValue.float(float(round(effective_gap, 3))),
                 }
             )
 
@@ -397,6 +503,11 @@ class ThrottleAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         min_gap_s = float(self.min_gap_seconds)
         on_throttle_mode = self.on_throttle
         label = self.key or key.to_user_string()
+        per_partition_map = (
+            {k: float(v) for k, v in self.per_partition_min_gap.items()}
+            if self.per_partition_min_gap else None
+        )
+        matcher = self.partition_matcher
 
         if on_throttle_mode not in ("skip", "fail"):
             raise ValueError(f"on_throttle must be 'skip' or 'fail'; got {on_throttle_mode!r}")
@@ -425,32 +536,40 @@ class ThrottleAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         def _throttle_wrapped(context: dg.AssetExecutionContext, **kwargs):
             # Throttle gate — check event log for last materialization.
             asset_key = _resolve_asset_key(context, label)
-            last_ts = _last_materialization_ts(context, asset_key)
+            try:
+                partition_key = getattr(context, "partition_key", None)
+            except Exception:  # noqa: BLE001
+                partition_key = None
+            effective_gap = _lookup_per_partition(
+                partition_key, per_partition_map, min_gap_s, matcher,
+            )
+            filter_partition = partition_key if per_partition_map else None
+            last_ts = _last_materialization_ts(context, asset_key, filter_partition)
             now = time.time()
             if last_ts is not None:
                 elapsed = now - last_ts
-                if elapsed < min_gap_s:
-                    wait = min_gap_s - elapsed
-                    _emit_throttle_observation(context, label, wait, min_gap_s)
+                if elapsed < effective_gap:
+                    wait = effective_gap - elapsed
+                    _emit_throttle_observation(context, label, wait, effective_gap)
                     if on_throttle_mode == "fail":
                         raise dg.Failure(
                             description=f"@throttle (wrap): last materialization {elapsed:.3f}s ago, "
-                                        f"min_gap={min_gap_s}s ({wait:.3f}s early)",
+                                        f"min_gap={effective_gap}s ({wait:.3f}s early)",
                             metadata={
                                 "throttle_key": dg.MetadataValue.text(label),
                                 "throttle_wait_seconds": dg.MetadataValue.float(float(round(wait, 3))),
-                                "throttle_min_gap_seconds": dg.MetadataValue.float(float(round(min_gap_s, 3))),
+                                "throttle_min_gap_seconds": dg.MetadataValue.float(float(round(effective_gap, 3))),
                             },
                         )
                     context.log.info(
                         f"[throttle wrap] skipped: last materialization {elapsed:.3f}s ago, "
-                        f"min_gap={min_gap_s}s"
+                        f"min_gap={effective_gap}s"
                     )
                     return dg.MaterializeResult(
                         metadata={
                             "throttle_skipped": dg.MetadataValue.bool(True),
                             "throttle_wait_seconds": dg.MetadataValue.float(float(round(wait, 3))),
-                            "throttle_min_gap_seconds": dg.MetadataValue.float(float(round(min_gap_s, 3))),
+                            "throttle_min_gap_seconds": dg.MetadataValue.float(float(round(effective_gap, 3))),
                         }
                     )
 
@@ -460,7 +579,7 @@ class ThrottleAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             # Merge throttle metadata into the inner's MaterializeResult (if any)
             passthrough_meta = {
                 "throttle_skipped": dg.MetadataValue.bool(False),
-                "throttle_min_gap_seconds": dg.MetadataValue.float(float(round(min_gap_s, 3))),
+                "throttle_min_gap_seconds": dg.MetadataValue.float(float(round(effective_gap, 3))),
             }
             if isinstance(result, dg.MaterializeResult):
                 merged = dict(result.metadata or {})

@@ -65,10 +65,56 @@ from pydantic import Field
 
 
 _COST_TAG = "budget_cost_asset"
+_PARTITION_TAG = "budget_partition_key"
 
 
-def _cumulative_cost_usd(context: Any, asset_key: dg.AssetKey, window_days: float) -> float:
-    """Sum budget_cost_estimate_usd metadata from observations in the last window_days."""
+# --------------------------------------------------------------------------
+# Per-partition scoping helper
+# --------------------------------------------------------------------------
+
+
+def _lookup_per_partition(
+    partition_key: Optional[str],
+    per_partition_map: Optional[Dict[str, float]],
+    default_value: float,
+    matcher: str = "exact",
+) -> float:
+    """Return the per-partition override for `partition_key`, else `default_value`.
+
+    Matcher modes:
+    - 'exact': partition_key must equal a map key
+    - 'prefix': map key is a prefix of partition_key
+    - 'regex': map key is a regex pattern against partition_key
+    """
+    if not partition_key or not per_partition_map:
+        return default_value
+    if matcher == "exact":
+        return per_partition_map.get(partition_key, default_value)
+    if matcher == "prefix":
+        for k, v in per_partition_map.items():
+            if partition_key.startswith(k):
+                return v
+        return default_value
+    if matcher == "regex":
+        import re
+        for pat, v in per_partition_map.items():
+            if re.match(pat, partition_key):
+                return v
+        return default_value
+    raise ValueError(f"unknown matcher: {matcher!r}")
+
+
+def _cumulative_cost_usd(
+    context: Any,
+    asset_key: dg.AssetKey,
+    window_days: float,
+    partition_key: Optional[str] = None,
+) -> float:
+    """Sum budget_cost_estimate_usd metadata from observations in the last window_days.
+
+    If `partition_key` is provided, only sum observations tagged with the same
+    `budget_partition_key`. This isolates per-partition budgets from each other.
+    """
     try:
         instance = getattr(context, "instance", None)
         if instance is None:
@@ -91,6 +137,10 @@ def _cumulative_cost_usd(context: Any, asset_key: dg.AssetKey, window_days: floa
             obs = getattr(r, "asset_observation", None)
             if obs is None:
                 continue
+            if partition_key is not None:
+                tags = getattr(obs, "tags", None) or {}
+                if tags.get(_PARTITION_TAG) != partition_key:
+                    continue
             md = getattr(obs, "metadata", None) or {}
             v = md.get("budget_cost_estimate_usd")
             if v is None:
@@ -148,11 +198,16 @@ def _preflight(
     budget_usd: Optional[float],
     on_breach: str,
     window_days: float,
+    partition_key: Optional[str] = None,
 ) -> Optional[dg.MaterializeResult]:
-    """Return a MaterializeResult if we should skip, or raise Failure. Otherwise None."""
+    """Return a MaterializeResult if we should skip, or raise Failure. Otherwise None.
+
+    When `partition_key` is provided, cumulative is scoped to observations tagged
+    with the same `budget_partition_key`.
+    """
     if budget_usd is None or budget_usd <= 0:
         return None
-    cumulative = _cumulative_cost_usd(context, asset_key, window_days)
+    cumulative = _cumulative_cost_usd(context, asset_key, window_days, partition_key)
     key = _asset_key_str(context)
     if cumulative >= budget_usd:
         if on_breach == "fail":
@@ -165,17 +220,22 @@ def _preflight(
                     "budget_usd": dg.MetadataValue.float(float(budget_usd)),
                     "budget_window_days": dg.MetadataValue.float(float(window_days)),
                     "budget_asset_key": dg.MetadataValue.text(key),
+                    "budget_partition_key": dg.MetadataValue.text(partition_key or ""),
                 },
             )
         if on_breach == "skip":
+            skip_tags = {_COST_TAG: key, "budget_skipped": "true"}
+            if partition_key:
+                skip_tags[_PARTITION_TAG] = partition_key
             _emit_observation(
                 context,
-                tags={_COST_TAG: key, "budget_skipped": "true"},
+                tags=skip_tags,
                 metadata={
                     "budget_cumulative_usd": dg.MetadataValue.float(float(round(cumulative, 6))),
                     "budget_usd": dg.MetadataValue.float(float(budget_usd)),
                     "budget_window_days": dg.MetadataValue.float(float(window_days)),
                     "budget_skipped": dg.MetadataValue.bool(True),
+                    "budget_partition_key": dg.MetadataValue.text(partition_key or ""),
                 },
             )
             try:
@@ -201,11 +261,16 @@ def _emit_cost_observation(
     budget_usd: Optional[float],
     window_days: float,
     breached: bool,
+    partition_key: Optional[str] = None,
 ) -> float:
-    """Emit AssetObservation with cost metadata. Return new cumulative (including this run)."""
+    """Emit AssetObservation with cost metadata. Return new cumulative (including this run).
+
+    When `partition_key` is set, the observation is tagged with
+    `budget_partition_key=<key>` so per-partition cumulative queries can filter.
+    """
     key = _asset_key_str(context)
     asset_key = getattr(context, "asset_key", None) or dg.AssetKey(["budget_asset"])
-    prior_cumulative = _cumulative_cost_usd(context, asset_key, window_days)
+    prior_cumulative = _cumulative_cost_usd(context, asset_key, window_days, partition_key)
     new_cumulative = prior_cumulative + float(cost_usd)
     metadata: Dict[str, Any] = {
         "budget_cost_estimate_usd": dg.MetadataValue.float(float(round(cost_usd, 6))),
@@ -217,7 +282,11 @@ def _emit_cost_observation(
     if budget_usd is not None:
         metadata["budget_usd"] = dg.MetadataValue.float(float(budget_usd))
         metadata["budget_breached"] = dg.MetadataValue.bool(bool(breached))
+    if partition_key:
+        metadata["budget_partition_key"] = dg.MetadataValue.text(partition_key)
     tags = {_COST_TAG: key}
+    if partition_key:
+        tags[_PARTITION_TAG] = partition_key
     if breached:
         tags["budget_breach"] = "true"
     _emit_observation(context, tags, metadata)
@@ -231,6 +300,8 @@ def budget(
     budget_usd: Optional[float] = None,
     window_days: float = 30.0,
     on_breach: str = "warn",
+    per_partition_budget: Optional[Dict[str, float]] = None,
+    partition_matcher: str = "exact",
 ) -> Callable:
     """Track $ cost per materialization + rolling window budget.
 
@@ -276,7 +347,20 @@ def budget(
 
             asset_key = getattr(context, "asset_key", None) or dg.AssetKey(["budget_asset"])
 
-            preflight = _preflight(context, asset_key, budget_usd, on_breach, window_days)
+            try:
+                partition_key = getattr(context, "partition_key", None)
+            except Exception:  # noqa: BLE001
+                partition_key = None
+            effective_budget = _lookup_per_partition(
+                partition_key, per_partition_budget, budget_usd if budget_usd is not None else 0.0,
+                partition_matcher,
+            ) if per_partition_budget else budget_usd
+            # In per-partition mode, scope cumulative queries to the same partition.
+            filter_partition = partition_key if per_partition_budget else None
+
+            preflight = _preflight(
+                context, asset_key, effective_budget, on_breach, window_days, filter_partition,
+            )
             if preflight is not None:
                 return preflight
 
@@ -296,17 +380,19 @@ def budget(
             else:
                 cost = elapsed * (cost_per_second or 0.0)
 
-            breached = budget_usd is not None and (cost >= budget_usd or
-                _cumulative_cost_usd(context, asset_key, window_days) + cost >= budget_usd)
-            _emit_cost_observation(context, elapsed, cost, budget_usd, window_days, breached)
+            breached = effective_budget is not None and (cost >= effective_budget or
+                _cumulative_cost_usd(context, asset_key, window_days, filter_partition) + cost >= effective_budget)
+            _emit_cost_observation(
+                context, elapsed, cost, effective_budget, window_days, breached, filter_partition,
+            )
 
             if breached and on_breach == "fail":
                 raise dg.Failure(
                     description=f"@budget: this run pushes cumulative over budget "
-                                f"(cost=${cost:.4f}, budget=${budget_usd:.4f})",
+                                f"(cost=${cost:.4f}, budget=${effective_budget:.4f})",
                     metadata={
                         "budget_cost_estimate_usd": dg.MetadataValue.float(float(round(cost, 6))),
-                        "budget_usd": dg.MetadataValue.float(float(budget_usd)),
+                        "budget_usd": dg.MetadataValue.float(float(effective_budget)),
                         "budget_window_days": dg.MetadataValue.float(float(window_days)),
                     },
                 )
@@ -370,6 +456,21 @@ class BudgetAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     "'fail': dg.Failure pre-flight if cumulative >= budget or post-flight if this run breaches; "
                     "'skip': return MaterializeResult(budget_skipped=true) pre-flight.",
     )
+    per_partition_budget: Optional[Dict[str, float]] = Field(
+        default=None,
+        description=(
+            "Per-partition-key override. e.g. {'hourly': 10, 'daily': 100}. Falls back to "
+            "budget_usd if no key matches. When set, cumulative cost is tracked per-partition "
+            "(each partition's budget is isolated from others)."
+        ),
+    )
+    partition_matcher: str = Field(
+        default="exact",
+        description=(
+            "How partition_key is matched against per_partition_budget keys: "
+            "'exact' | 'prefix' | 'regex'. Default exact match."
+        ),
+    )
 
     group_name: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)
@@ -402,6 +503,11 @@ class BudgetAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         budget = self.budget_usd
         window_d = float(self.window_days)
         breach = self.on_breach
+        per_partition_map = (
+            {k: float(v) for k, v in self.per_partition_budget.items()}
+            if self.per_partition_budget else None
+        )
+        matcher = self.partition_matcher
 
         if breach not in ("warn", "fail", "skip"):
             raise ValueError(f"on_breach must be 'warn', 'fail', or 'skip'; got {breach!r}")
@@ -430,7 +536,19 @@ class BudgetAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         )
         def _asset(context: dg.AssetExecutionContext, **kwargs):
             asset_key = context.asset_key
-            preflight = _preflight(context, asset_key, budget, breach, window_d)
+            try:
+                partition_key = getattr(context, "partition_key", None)
+            except Exception:  # noqa: BLE001
+                partition_key = None
+            effective_budget = _lookup_per_partition(
+                partition_key, per_partition_map,
+                budget if budget is not None else 0.0, matcher,
+            ) if per_partition_map else budget
+            filter_partition = partition_key if per_partition_map else None
+
+            preflight = _preflight(
+                context, asset_key, effective_budget, breach, window_d, filter_partition,
+            )
             if preflight is not None:
                 return preflight
 
@@ -468,17 +586,19 @@ class BudgetAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             else:
                 cost = elapsed * (cost_per_s or 0.0)
 
-            breached = budget is not None and (cost >= budget or
-                _cumulative_cost_usd(context, asset_key, window_d) + cost >= budget)
-            _emit_cost_observation(context, elapsed, cost, budget, window_d, breached)
+            breached = effective_budget is not None and (cost >= effective_budget or
+                _cumulative_cost_usd(context, asset_key, window_d, filter_partition) + cost >= effective_budget)
+            _emit_cost_observation(
+                context, elapsed, cost, effective_budget, window_d, breached, filter_partition,
+            )
 
             if breached and breach == "fail":
                 raise dg.Failure(
                     description=f"@budget: this run pushes cumulative over budget "
-                                f"(cost=${cost:.4f}, budget=${budget:.4f})",
+                                f"(cost=${cost:.4f}, budget=${effective_budget:.4f})",
                     metadata={
                         "budget_cost_estimate_usd": dg.MetadataValue.float(float(round(cost, 6))),
-                        "budget_usd": dg.MetadataValue.float(float(budget)),
+                        "budget_usd": dg.MetadataValue.float(float(effective_budget)),
                     },
                 )
 
@@ -527,6 +647,11 @@ class BudgetAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         budget = self.budget_usd
         window_d = float(self.window_days)
         breach = self.on_breach
+        per_partition_map = (
+            {k: float(v) for k, v in self.per_partition_budget.items()}
+            if self.per_partition_budget else None
+        )
+        matcher = self.partition_matcher
         resolved_cost_fn = _resolve_cost_fn(cost_fn_str) if cost_fn_str else None
 
         if breach not in ("warn", "fail", "skip"):
@@ -557,8 +682,20 @@ class BudgetAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         )
         def _budget_wrapped(context: dg.AssetExecutionContext, **kwargs):
             asset_key = context.asset_key
+            try:
+                partition_key = getattr(context, "partition_key", None)
+            except Exception:  # noqa: BLE001
+                partition_key = None
+            effective_budget = _lookup_per_partition(
+                partition_key, per_partition_map,
+                budget if budget is not None else 0.0, matcher,
+            ) if per_partition_map else budget
+            filter_partition = partition_key if per_partition_map else None
+
             # Pre-flight check: if cumulative already >= budget, fail-or-skip BEFORE inner runs
-            preflight = _preflight(context, asset_key, budget, breach, window_d)
+            preflight = _preflight(
+                context, asset_key, effective_budget, breach, window_d, filter_partition,
+            )
             if preflight is not None:
                 return preflight
 
@@ -575,17 +712,19 @@ class BudgetAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             else:
                 cost = elapsed * (cost_per_s or 0.0)
 
-            breached = budget is not None and (cost >= budget or
-                _cumulative_cost_usd(context, asset_key, window_d) + cost >= budget)
-            _emit_cost_observation(context, elapsed, cost, budget, window_d, breached)
+            breached = effective_budget is not None and (cost >= effective_budget or
+                _cumulative_cost_usd(context, asset_key, window_d, filter_partition) + cost >= effective_budget)
+            _emit_cost_observation(
+                context, elapsed, cost, effective_budget, window_d, breached, filter_partition,
+            )
 
             if breached and breach == "fail":
                 raise dg.Failure(
                     description=f"@budget (wrap): this run pushes cumulative over budget "
-                                f"(cost=${cost:.4f}, budget=${budget:.4f})",
+                                f"(cost=${cost:.4f}, budget=${effective_budget:.4f})",
                     metadata={
                         "budget_cost_estimate_usd": dg.MetadataValue.float(float(round(cost, 6))),
-                        "budget_usd": dg.MetadataValue.float(float(budget) if budget is not None else 0.0),
+                        "budget_usd": dg.MetadataValue.float(float(effective_budget) if effective_budget is not None else 0.0),
                     },
                 )
 

@@ -94,6 +94,18 @@ job_selection_exclude: "type:ci"                         # everything except CI
 | `derive_state_tags` | Requires `state_manifest_path`. Adds a `dbt/state` tag with `new` / `unchanged` / `modified` so `tag:dbt/state=modified` selections work. |
 | `asset_overrides` | Per-asset overrides keyed by asset key. Today supports `{depends_on: [...]}` to inject Dagster asset dependencies. |
 
+### Enhanced polling sensor
+
+When any of the flags below is set, the base OOTB polling sensor is replaced
+with an enhanced version that walks recent dbt Cloud runs and emits richer
+events.
+
+| Field | What |
+|---|---|
+| `emit_test_check_evaluations` | Emit `AssetCheckEvaluation` (pass/fail/warn) for every model result in each finished Cloud run. Externally-triggered runs (Cloud schedule, Cloud UI) surface test outcomes as check tiles in the Dagster UI instead of being dropped. |
+| `emit_skip_reason_observations` | For every skipped model in `run_results.json`, emit an `AssetObservation` carrying `skip_reason` (from dbt's `message` field) as metadata. Engineers see WHY a model was skipped (`parent failed`, `state-reuse`, `microbatch batch skipped`, selector exclusion, etc.) without opening dbt Cloud. |
+| `filter_external_packages_from_sensor` | Skip sensor events for models whose `package_name` is in `external_packages` — the upstream Dagster code location owns them. Prevents duplicate materializations when both projects' sensors observe the same run. |
+
 ## Full example
 
 ```yaml

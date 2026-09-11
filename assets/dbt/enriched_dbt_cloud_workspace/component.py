@@ -620,6 +620,30 @@ try:
           Whitespace/comment edits do NOT bump; only semantic SQL changes
           do. Optional dep, falls back to ``hash`` if sqlglot is missing."""
 
+        emit_test_check_evaluations: bool = False
+        """Replace the base polling sensor with one that emits
+        AssetCheckEvaluation events for every dbt model result — passed for
+        success, failed for error/fail. This makes failed models show a
+        degraded check tile in the Dagster UI for EXTERNALLY-triggered dbt
+        Cloud runs (Cloud schedule, Cloud UI, external cron). The default
+        base sensor only emits AssetMaterialization; test/check outcomes are
+        dropped."""
+
+        emit_skip_reason_observations: bool = False
+        """Requires enhanced polling sensor (auto-enabled when this is set).
+        For every skipped model in a Cloud run's ``run_results.json``, emit
+        an AssetObservation with the ``skip_reason`` (from dbt's ``message``
+        field) as metadata. Shows up in the Dagster UI as an informational
+        observation on the asset — engineers see WHY the model was skipped
+        (parent failed, state-reuse, microbatch batch skipped, selector
+        excluded, etc.) without opening dbt Cloud."""
+
+        filter_external_packages_from_sensor: bool = False
+        """Requires enhanced polling sensor. Skip sensor events for models
+        whose ``package_name`` is in ``external_packages`` — the upstream
+        Dagster code location owns those assets. Prevents duplicate
+        materializations when both projects' sensors see the same run."""
+
         state_manifest_path: Optional[str] = None
         """Path to a dbt state manifest.json (or a directory containing one).
         Enables the checksum-comparison enrichments below."""
@@ -1075,6 +1099,184 @@ try:
                         )
             return checks
 
+        def _wants_enhanced_sensor(self) -> bool:
+            return (
+                self.emit_test_check_evaluations
+                or self.emit_skip_reason_observations
+                or self.filter_external_packages_from_sensor
+            )
+
+        def _build_enhanced_polling_sensor(
+            self, manifest: dict
+        ) -> Optional[dg.SensorDefinition]:
+            """Build a polling sensor that:
+             - emits AssetMaterialization for successful models (base behavior)
+             - emits AssetCheckEvaluation for every result (pass/fail) if
+               emit_test_check_evaluations
+             - emits AssetObservation with skip_reason for skipped models if
+               emit_skip_reason_observations
+             - filters out external_packages if
+               filter_external_packages_from_sensor
+
+            Replaces the base component's OOTB polling sensor when any of
+            the above flags are set. Ports the pattern from
+            eric-thomas-dagster/dbt-cloud-mesh-demo's mesh_aware_sensor.
+            """
+            from datetime import timedelta as _td
+
+            workspace = self.workspace
+
+            # Build the {AssetKey → node metadata} lookup used per-event
+            # for external-package filtering.
+            external_asset_keys: set[dg.AssetKey] = set()
+            if self.filter_external_packages_from_sensor and self.external_packages:
+                package_set = set(self.external_packages)
+                for _uid, props in (manifest.get("nodes") or {}).items():
+                    if props.get("resource_type") != "model":
+                        continue
+                    if props.get("package_name") not in package_set:
+                        continue
+                    alias = props.get("alias") or props.get("name")
+                    if alias:
+                        external_asset_keys.add(dg.AssetKey(alias))
+
+            emit_checks = self.emit_test_check_evaluations
+            emit_skips = self.emit_skip_reason_observations
+            captured_manifest = manifest
+
+            @dg.sensor(
+                name=f"enriched_dbt_cloud_polling_sensor_{id(workspace)}",
+                description=(
+                    "Enhanced dbt Cloud polling sensor — emits check evaluations "
+                    "on test results and skip-reason observations in addition to "
+                    "materializations."
+                ),
+                minimum_interval_seconds=30,
+                default_status=dg.DefaultSensorStatus.RUNNING,
+            )
+            def _enhanced_sensor(context: dg.SensorEvaluationContext) -> dg.SensorResult:
+                from dagster._time import datetime_from_timestamp, get_current_datetime
+
+                cursor_ts = float(context.cursor) if context.cursor else None
+                now = get_current_datetime()
+                lower = cursor_ts if cursor_ts is not None else (now - _td(seconds=60)).timestamp()
+                upper = now.timestamp()
+
+                client = workspace.get_client() if hasattr(workspace, "get_client") else getattr(workspace, "client", None)
+                if client is None:
+                    context.log.warning("workspace has no client — skipping tick")
+                    return dg.SensorResult()
+
+                workspace_data = None
+                try:
+                    workspace_data = workspace.get_or_fetch_workspace_data()
+                except Exception:
+                    pass
+
+                # Load the recent-runs list. API shape varies slightly across
+                # dagster-dbt versions.
+                runs: list = []
+                try:
+                    project_id = getattr(workspace, "project_id", None) or getattr(client, "project_id", None)
+                    environment_id = getattr(workspace, "environment_id", None) or getattr(client, "environment_id", None)
+                    result = client.get_runs_batch(
+                        project_id=project_id,
+                        environment_id=environment_id,
+                        finished_at_lower_bound=datetime_from_timestamp(lower),
+                        finished_at_upper_bound=datetime_from_timestamp(upper),
+                        offset=0,
+                    )
+                    runs = result[0] if isinstance(result, tuple) else (result or [])
+                except Exception as e:
+                    context.log.warning(f"failed to fetch runs batch: {e}")
+                    return dg.SensorResult()
+
+                adhoc_job_ids: set = set(getattr(workspace_data, "adhoc_job_ids", set()) or set())
+
+                all_events: list = []
+                for run_details in runs:
+                    try:
+                        from dagster_dbt.cloud_v2.types import DbtCloudRun
+                        run = DbtCloudRun.from_run_details(run_details)
+                    except Exception:
+                        continue
+                    if run.job_definition_id in adhoc_job_ids:
+                        continue
+
+                    try:
+                        run_results_json = client.get_run_results_json(run_id=run.id)
+                    except Exception:
+                        continue
+
+                    invocation_id = (run_results_json.get("metadata") or {}).get("invocation_id", "")
+                    run_url = getattr(run, "url", None)
+
+                    for result in run_results_json.get("results", []):
+                        unique_id = result.get("unique_id", "")
+                        node = captured_manifest.get("nodes", {}).get(unique_id)
+                        if not node:
+                            continue
+                        if node.get("resource_type") not in ("model", "seed", "snapshot"):
+                            continue
+                        alias = node.get("alias") or node.get("name")
+                        if not alias:
+                            continue
+                        asset_key = dg.AssetKey(alias)
+
+                        if asset_key in external_asset_keys:
+                            continue
+
+                        status = str(result.get("status") or "").lower()
+                        exec_time = result.get("execution_time", 0.0)
+                        message = result.get("message") or ""
+
+                        base_meta: dict = {
+                            "unique_id": unique_id,
+                            "invocation_id": invocation_id,
+                            "execution_duration": exec_time,
+                        }
+                        if run_url:
+                            base_meta["run_url"] = dg.MetadataValue.url(run_url)
+
+                        # Success → materialization (base behavior)
+                        if status in ("success", "pass", "noop", "partial_success"):
+                            all_events.append(
+                                dg.AssetMaterialization(asset_key=asset_key, metadata=base_meta)
+                            )
+
+                        # Skipped → observation with skip_reason
+                        if status == "skipped" and emit_skips:
+                            all_events.append(
+                                dg.AssetObservation(
+                                    asset_key=asset_key,
+                                    metadata={**base_meta, "skip_reason": message or "(no reason from dbt)"},
+                                )
+                            )
+
+                        # Any result → check evaluation
+                        if emit_checks and status in ("success", "pass", "fail", "error", "warn"):
+                            all_events.append(
+                                dg.AssetCheckEvaluation(
+                                    asset_key=asset_key,
+                                    check_name="dbt_cloud_run_status",
+                                    passed=(status in ("success", "pass")),
+                                    metadata={**base_meta, "status": status, "message": message},
+                                    severity=(
+                                        dg.AssetCheckSeverity.WARN
+                                        if status == "warn"
+                                        else dg.AssetCheckSeverity.ERROR
+                                    ),
+                                )
+                            )
+
+                context.update_cursor(str(upper))
+                context.log.info(
+                    f"enriched dbt Cloud sensor emitting {len(all_events)} events from {len(runs)} runs"
+                )
+                return dg.SensorResult(asset_events=all_events)
+
+            return _enhanced_sensor
+
         def _build_mirror_jobs_addendum(self) -> dg.Definitions:
             """Return a Definitions with AssetSpec + @job for every user-defined
             Cloud job, per ``mirror_jobs`` mode. Filtered by
@@ -1353,6 +1555,36 @@ try:
                             f"monitor_runs wrap failed, using unmonitored defs: {e}"
                         )
 
+            # Enhanced polling sensor — replaces base OOTB sensor with one
+            # that emits check evaluations + skip-reason observations + can
+            # filter external_packages. Only when the user asked for one of
+            # the enhancements; otherwise leave the base sensor alone.
+            if manifest is not None and self._wants_enhanced_sensor():
+                try:
+                    enhanced_sensor = self._build_enhanced_polling_sensor(manifest)
+                    if enhanced_sensor is not None:
+                        # Drop the base polling sensor (any sensor whose name
+                        # contains 'polling') and add ours in its place. Other
+                        # user-supplied sensors pass through unchanged.
+                        kept_sensors = [
+                            s for s in (defs.sensors or [])
+                            if "polling" not in (getattr(s, "name", "") or "").lower()
+                        ]
+                        kept_sensors.append(enhanced_sensor)
+                        defs = dg.Definitions(
+                            assets=list(defs.assets) if defs.assets else None,
+                            resources=defs.resources,
+                            schedules=defs.schedules,
+                            sensors=kept_sensors,
+                            asset_checks=list(defs.asset_checks) if defs.asset_checks else None,
+                            jobs=list(defs.jobs) if defs.jobs else None,
+                        )
+                except Exception as e:
+                    if hasattr(context, "log"):
+                        context.log.warning(  # type: ignore[attr-defined]
+                            f"enhanced polling sensor build failed, keeping base sensor: {e}"
+                        )
+
             # Mirror Cloud jobs as AssetSpecs / Dagster @jobs / both.
             # Filtered by job_selection_include/exclude inside the builder.
             if self.mirror_jobs != "off":
@@ -1416,6 +1648,9 @@ except ImportError:
         state_manifest_path: Optional[str] = Field(default=None)
         include_state_explain: bool = Field(default=False)
         derive_state_tags: bool = Field(default=False)
+        emit_test_check_evaluations: bool = Field(default=False)
+        emit_skip_reason_observations: bool = Field(default=False)
+        filter_external_packages_from_sensor: bool = Field(default=False)
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             raise ImportError(

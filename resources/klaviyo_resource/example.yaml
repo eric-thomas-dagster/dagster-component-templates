@@ -1,0 +1,5 @@
+type: dagster_community_components.KlaviyoResourceComponent
+attributes:
+  resource_key: klaviyo
+  api_key_env_var: KLAVIYO_API_KEY   # your Klaviyo private API key (starts with pk_)
+  api_revision: "2024-10-15"          # Klaviyo pins API behavior per date

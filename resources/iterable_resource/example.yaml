@@ -1,0 +1,5 @@
+type: dagster_community_components.IterableResourceComponent
+attributes:
+  resource_key: iterable
+  api_key_env_var: ITERABLE_API_KEY
+  base_url: https://api.iterable.com   # https://api.eu.iterable.com for EU workspaces

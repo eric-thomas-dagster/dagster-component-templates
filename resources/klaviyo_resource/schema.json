@@ -1,0 +1,15 @@
+{
+  "component_type": "dagster_component_templates.KlaviyoResourceComponent",
+  "description": "Register a KlaviyoResource under a resource key. Holds auth (private API key + revision date header) and exposes upsert_profiles_bulk for downstream Klaviyo sinks.",
+  "category": "resource",
+  "icon": "si:klaviyo",
+  "attributes": {
+    "resource_key": {"type": "string", "required": false, "default": "klaviyo"},
+    "api_key_env_var": {"type": "string", "required": false, "default": "KLAVIYO_API_KEY"},
+    "api_revision": {"type": "string", "required": false, "default": "2024-10-15", "description": "Klaviyo API revision date sent in the `revision` header."},
+    "base_url": {"type": "string", "required": false, "default": "https://a.klaviyo.com"},
+    "request_timeout_seconds": {"type": "integer", "required": false, "default": 30}
+  },
+  "tags": ["resource", "klaviyo", "reverse-etl", "customer-engagement", "email", "sms", "e-commerce"],
+  "name": "Klaviyo Resource"
+}

@@ -1,0 +1,20 @@
+type: dagster_community_components.DataframeToKlaviyoComponent
+attributes:
+  asset_name: klaviyo_daily_profile_sync
+  upstream_asset_key: dim_customers_current
+
+  resource_key: klaviyo                  # KlaviyoResourceComponent
+
+  email_column: email
+  external_id_column: customer_id
+
+  fields_map:
+    first: first_name                    # reserved: lands at top level
+    last: last_name
+    ltv: lifetime_value_usd              # custom: nests under `properties`
+    segment: segment
+
+  list_id: "abc123"                      # optional Klaviyo list to add profiles to
+  freshness_cron: "0 8 * * *"
+  partition_type: daily
+  partition_start: "2026-01-01"

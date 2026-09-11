@@ -1,0 +1,14 @@
+{
+  "component_type": "dagster_component_templates.IterableResourceComponent",
+  "description": "Register an IterableResource under a resource key. Holds auth (API key) + exposes bulk_update_users and bulk_track_events for downstream Iterable sinks.",
+  "category": "resource",
+  "icon": "si:iterable",
+  "attributes": {
+    "resource_key": {"type": "string", "required": false, "default": "iterable"},
+    "api_key_env_var": {"type": "string", "required": false, "default": "ITERABLE_API_KEY"},
+    "base_url": {"type": "string", "required": false, "default": "https://api.iterable.com", "description": "https://api.eu.iterable.com for EU workspaces."},
+    "request_timeout_seconds": {"type": "integer", "required": false, "default": 30}
+  },
+  "tags": ["resource", "iterable", "reverse-etl", "customer-engagement", "email", "sms", "push"],
+  "name": "Iterable Resource"
+}

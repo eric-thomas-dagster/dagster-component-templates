@@ -11939,6 +11939,74 @@
       "icon": "si:influxdb"
     },
     {
+      "id": "dataframe_to_iterable",
+      "name": "DataFrame to Iterable",
+      "category": "sink",
+      "description": "Reverse-ETL sink — batch-POST DataFrame rows to Iterable via bulk endpoints. Two modes: `users` (POST /api/users/bulkUpdate, up to 1000/batch) or `events` (POST /api/events/trackBulk, up to 1000/batch). Two source shapes (upstream_asset_key OR inline source: kind sql/csv/inline). Auth via IterableResource (recommended) or inline api_key_env_var.",
+      "path": "assets/sinks/dataframe_to_iterable",
+      "tags": [
+        "sink",
+        "iterable",
+        "reverse-etl",
+        "customer-engagement",
+        "email",
+        "sms",
+        "push",
+        "events"
+      ],
+      "icon": "si:iterable",
+      "type": "dagster_component_templates.DataframeToIterableComponent",
+      "component_type": "dagster_component_templates.DataframeToIterableComponent",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_iterable/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_iterable/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_iterable/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_iterable/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_iterable/requirements.txt",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:iterable",
+        "asset:dataframe"
+      ],
+      "keywords": [
+        "iterable",
+        "user profiles",
+        "user attributes",
+        "event tracking",
+        "reverse etl",
+        "customer engagement platform",
+        "marketing activation"
+      ],
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "MaterializeResult",
+        "outputs": "One reverse-ETL asset that POSTs rows to Iterable. Source is either an upstream DataFrame asset OR an inline sql/csv/inline block. Auth via IterableResource or inline env var.",
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ],
+        "side_effects": "POST to Iterable REST API. Requires ITERABLE_API_KEY env var. Use base_url `https://api.eu.iterable.com` for EU workspaces."
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-09-10"
+      },
+      "emitted_assets": {
+        "pattern": "One Dagster asset per component instance — POSTs each partition's rows to Iterable.",
+        "source_field": "asset_name",
+        "key_template": "{asset_name}"
+      }
+    },
+    {
       "id": "dataframe_to_json",
       "name": "DataFrame to JSON",
       "category": "sink",
@@ -11983,6 +12051,74 @@
         "write to",
         "output"
       ]
+    },
+    {
+      "id": "dataframe_to_klaviyo",
+      "name": "DataFrame to Klaviyo",
+      "category": "sink",
+      "description": "Reverse-ETL sink — batch-POST DataFrame rows to Klaviyo profiles via the async bulk profile-import job endpoint (POST /api/profile-bulk-import-jobs, up to 10000/batch). Two source shapes (upstream_asset_key OR inline source: kind sql/csv/inline). Reserved fields (email, phone_number, external_id, first_name, ...) land at the top level; everything else nests under `properties`. Auth via KlaviyoResource (recommended) or inline api_key_env_var.",
+      "path": "assets/sinks/dataframe_to_klaviyo",
+      "tags": [
+        "sink",
+        "klaviyo",
+        "reverse-etl",
+        "customer-engagement",
+        "email",
+        "sms",
+        "e-commerce",
+        "profile-sync"
+      ],
+      "icon": "si:klaviyo",
+      "type": "dagster_component_templates.DataframeToKlaviyoComponent",
+      "component_type": "dagster_component_templates.DataframeToKlaviyoComponent",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_klaviyo/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_klaviyo/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_klaviyo/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_klaviyo/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_klaviyo/requirements.txt",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:klaviyo",
+        "asset:dataframe"
+      ],
+      "keywords": [
+        "klaviyo",
+        "customer profiles",
+        "profile upsert",
+        "ecommerce activation",
+        "reverse etl",
+        "email marketing",
+        "customer engagement platform"
+      ],
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "MaterializeResult",
+        "outputs": "One reverse-ETL asset that POSTs rows to Klaviyo as profile bulk-import jobs. Source is either an upstream DataFrame asset OR an inline sql/csv/inline block. Auth via KlaviyoResource or inline env var.",
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ],
+        "side_effects": "POST to Klaviyo profile-bulk-import-jobs endpoint (async). Requires KLAVIYO_API_KEY env var (starts with pk_). Optional list_id adds profiles to a Klaviyo list."
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-09-10"
+      },
+      "emitted_assets": {
+        "pattern": "One Dagster asset per component instance — POSTs each partition's rows to Klaviyo.",
+        "source_field": "asset_name",
+        "key_template": "{asset_name}"
+      }
     },
     {
       "id": "dataframe_to_kusto",
@@ -24754,6 +24890,58 @@
       "icon": "Shuffle"
     },
     {
+      "id": "iterable_resource",
+      "name": "Iterable Resource",
+      "category": "resource",
+      "description": "Register an IterableResource under a resource key for use by downstream Iterable components. Holds Iterable auth (Api-Key header) and exposes typed batch operations (`bulk_update_users`, `bulk_track_events`) for downstream Iterable sinks.",
+      "path": "resources/iterable_resource",
+      "tags": [
+        "resource",
+        "iterable",
+        "reverse-etl",
+        "customer-engagement",
+        "email",
+        "sms",
+        "push"
+      ],
+      "icon": "si:iterable",
+      "type": "dagster_component_templates.IterableResourceComponent",
+      "component_type": "dagster_component_templates.IterableResourceComponent",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/iterable_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/iterable_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/iterable_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/iterable_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/iterable_resource/requirements.txt",
+      "produces": [
+        "resource"
+      ],
+      "keywords": [
+        "iterable",
+        "customer engagement",
+        "rest api key",
+        "eu workspace",
+        "activation"
+      ],
+      "agent_hints": {
+        "output_type": "Resource",
+        "outputs": "One Iterable REST API resource registered under resource_key (default 'iterable').",
+        "requires_pip": [
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-09-10"
+      }
+    },
+    {
       "id": "iterative_supervisor_agent",
       "name": "Iterative Supervisor Agent",
       "category": "ai",
@@ -26109,6 +26297,60 @@
         "read from",
         "upsert"
       ]
+    },
+    {
+      "id": "klaviyo_resource",
+      "name": "Klaviyo Resource",
+      "category": "resource",
+      "description": "Register a KlaviyoResource under a resource key for use by downstream Klaviyo components. Holds Klaviyo auth (private API key with `Klaviyo-API-Key` scheme + `revision` date header) and exposes typed batch operations (`upsert_profiles_bulk`) for downstream Klaviyo sinks.",
+      "path": "resources/klaviyo_resource",
+      "tags": [
+        "resource",
+        "klaviyo",
+        "reverse-etl",
+        "customer-engagement",
+        "email",
+        "sms",
+        "e-commerce"
+      ],
+      "icon": "si:klaviyo",
+      "type": "dagster_component_templates.KlaviyoResourceComponent",
+      "component_type": "dagster_component_templates.KlaviyoResourceComponent",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/klaviyo_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/klaviyo_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/klaviyo_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/klaviyo_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/klaviyo_resource/requirements.txt",
+      "produces": [
+        "resource"
+      ],
+      "keywords": [
+        "klaviyo",
+        "customer engagement",
+        "private api key",
+        "revision header",
+        "email marketing",
+        "ecommerce",
+        "activation"
+      ],
+      "agent_hints": {
+        "output_type": "Resource",
+        "outputs": "One Klaviyo REST API resource registered under resource_key (default 'klaviyo').",
+        "requires_pip": [
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-09-10"
+      }
     },
     {
       "id": "label_encoder",

@@ -194,11 +194,39 @@ def throttle(
 
 
 class ThrottleAssetComponent(dg.Component, dg.Model, dg.Resolvable):
-    """YAML shape of `@throttle`. Wraps a compute with cross-run rate limiting."""
+    """YAML shape of `@throttle`. Two authoring modes:
 
-    asset_name: str = Field(description="Dagster asset name.")
+    1. **Define a new asset from scratch** (original shape): supply
+       `asset_name` + `compute: {kind: python, python: 'mod:fn'}`. Builds a
+       single throttled asset that calls the referenced Python compute.
+
+    2. **Wrap an existing DCC component** (composability): supply
+       `wraps: {type: <component_class>, attributes: {...}}`. The inner
+       component's assets get materialized as they would normally, but
+       each compute is wrapped with the throttle primitive. Preserves
+       inner asset partitions, deps, resources, kinds, tags, group,
+       description. Direct YAML analog of `@throttle @dg.asset` in Python.
+
+    `wraps:` and `compute:` are mutually exclusive.
+    """
+
+    asset_name: Optional[str] = Field(
+        default=None,
+        description="Dagster asset name. Required when NOT using `wraps:` (inherited from inner in wraps mode).",
+    )
     upstream_asset_key: Optional[str] = Field(default=None)
-    compute: Dict[str, Any] = Field(description="`{kind: python, python: 'mod:fn'}`.")
+    compute: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="`{kind: python, python: 'mod:fn'}`. Mutually exclusive with `wraps`.",
+    )
+    wraps: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Wrap another DCC component's assets with throttle rate-limiting instead of "
+            "defining new compute. Shape: `{type: 'dagster_community_components.<Component>', "
+            "attributes: {...}}`. Mutually exclusive with `compute`."
+        ),
+    )
 
     min_gap_seconds: float = Field(
         description="Minimum wall-clock gap between materializations. Materializations closer "
@@ -225,6 +253,17 @@ class ThrottleAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         return ComponentFormConfig(label="Throttle Asset", editable=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        # Route: wraps-an-inner-component  vs  builds-own-asset
+        if self.wraps is not None:
+            if self.compute is not None:
+                raise ValueError("ThrottleAssetComponent: supply exactly ONE of `wraps` or `compute`, not both.")
+            return self._build_wrapped(context)
+
+        if self.compute is None:
+            raise ValueError("ThrottleAssetComponent: supply either `compute` (build a new asset) or `wraps` (wrap an existing component).")
+        if not self.asset_name:
+            raise ValueError("ThrottleAssetComponent: `asset_name` required when using `compute:` (inferred from inner in `wraps:` mode).")
+
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
         compute = dict(self.compute)
@@ -314,3 +353,150 @@ class ThrottleAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
         return dg.Definitions(assets=[_asset])
+
+    # ----------------------------------------------------------------------
+    # `wraps:` composability — YAML analog of `@throttle @dg.asset` stacking
+    # ----------------------------------------------------------------------
+
+    def _build_wrapped(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        """Instantiate the inner component; rewrap each of its assets
+        with throttle rate-limiting around the original compute.
+        """
+        inner = _resolve_inner_component(self.wraps or {})
+        inner_defs = inner.build_defs(context)
+
+        wrapped_assets = []
+        for asset_def in list(inner_defs.assets or []):
+            if len(asset_def.keys) != 1:
+                # Multi-asset AssetsDefinition not supported in v1 — pass through unwrapped.
+                wrapped_assets.append(asset_def)
+                continue
+            wrapped_assets.append(self._wrap_single_asset(asset_def))
+
+        return dg.Definitions(
+            assets=wrapped_assets,
+            resources=inner_defs.resources,
+            sensors=inner_defs.sensors,
+            schedules=inner_defs.schedules,
+            asset_checks=inner_defs.asset_checks,
+            jobs=inner_defs.jobs,
+            loggers=inner_defs.loggers,
+        )
+
+    def _wrap_single_asset(self, asset_def: "dg.AssetsDefinition") -> "dg.AssetsDefinition":
+        """Rebuild one single-key AssetsDefinition with throttle wrapped around
+        the original compute. Preserves partitions/deps/kinds/tags/group/description/metadata.
+        """
+        key = next(iter(asset_def.keys))
+        specs_by_key = getattr(asset_def, "specs_by_key", {}) or {}
+        spec = specs_by_key.get(key)
+
+        inner_op = asset_def.op
+        inner_compute = getattr(inner_op.compute_fn, "decorated_fn", None) or inner_op.compute_fn
+
+        min_gap_s = float(self.min_gap_seconds)
+        on_throttle_mode = self.on_throttle
+        label = self.key or key.to_user_string()
+
+        if on_throttle_mode not in ("skip", "fail"):
+            raise ValueError(f"on_throttle must be 'skip' or 'fail'; got {on_throttle_mode!r}")
+
+        inner_kinds = set(getattr(spec, "kinds", None) or []) if spec else set()
+        merged_kinds = inner_kinds | set(self.kinds or []) | {"throttle"}
+        inner_tags = dict(getattr(spec, "tags", None) or {}) if spec else {}
+        merged_tags = {**inner_tags, **(self.tags or {})}
+        merged_owners = list((spec.owners if spec else []) or []) + (self.owners or [])
+        inner_description = (spec.description if spec else None) or f"Throttled {key.to_user_string()}"
+        merged_description = f"{inner_description}  [throttle: min_gap={min_gap_s}s, on={on_throttle_mode}]"
+        inner_deps = list(spec.deps) if (spec and getattr(spec, "deps", None)) else []
+
+        @dg.asset(
+            key=key,
+            partitions_def=asset_def.partitions_def,
+            deps=inner_deps,
+            group_name=(spec.group_name if spec else None),
+            kinds=merged_kinds,
+            tags=merged_tags,
+            owners=merged_owners,
+            description=merged_description,
+            metadata=(dict(spec.metadata) if (spec and spec.metadata) else {}),
+            code_version=(spec.code_version if spec else None),
+        )
+        def _throttle_wrapped(context: dg.AssetExecutionContext, **kwargs):
+            # Throttle gate — check event log for last materialization.
+            asset_key = _resolve_asset_key(context, label)
+            last_ts = _last_materialization_ts(context, asset_key)
+            now = time.time()
+            if last_ts is not None:
+                elapsed = now - last_ts
+                if elapsed < min_gap_s:
+                    wait = min_gap_s - elapsed
+                    _emit_throttle_observation(context, label, wait, min_gap_s)
+                    if on_throttle_mode == "fail":
+                        raise dg.Failure(
+                            description=f"@throttle (wrap): last materialization {elapsed:.3f}s ago, "
+                                        f"min_gap={min_gap_s}s ({wait:.3f}s early)",
+                            metadata={
+                                "throttle_key": dg.MetadataValue.text(label),
+                                "throttle_wait_seconds": dg.MetadataValue.float(float(round(wait, 3))),
+                                "throttle_min_gap_seconds": dg.MetadataValue.float(float(round(min_gap_s, 3))),
+                            },
+                        )
+                    context.log.info(
+                        f"[throttle wrap] skipped: last materialization {elapsed:.3f}s ago, "
+                        f"min_gap={min_gap_s}s"
+                    )
+                    return dg.MaterializeResult(
+                        metadata={
+                            "throttle_skipped": dg.MetadataValue.bool(True),
+                            "throttle_wait_seconds": dg.MetadataValue.float(float(round(wait, 3))),
+                            "throttle_min_gap_seconds": dg.MetadataValue.float(float(round(min_gap_s, 3))),
+                        }
+                    )
+
+            # Passthrough — call the inner compute
+            result = inner_compute(context, **kwargs)
+
+            # Merge throttle metadata into the inner's MaterializeResult (if any)
+            passthrough_meta = {
+                "throttle_skipped": dg.MetadataValue.bool(False),
+                "throttle_min_gap_seconds": dg.MetadataValue.float(float(round(min_gap_s, 3))),
+            }
+            if isinstance(result, dg.MaterializeResult):
+                merged = dict(result.metadata or {})
+                merged.update(passthrough_meta)
+                return dg.MaterializeResult(
+                    asset_key=result.asset_key,
+                    metadata=merged,
+                    check_results=result.check_results,
+                    data_version=result.data_version,
+                    tags=result.tags,
+                )
+            return result
+
+        return _throttle_wrapped
+
+
+def _resolve_inner_component(wraps: Dict[str, Any]):
+    """Resolve `{type: 'mod.path.ClassName' OR 'mod.path:ClassName', attributes: {...}}` → component instance."""
+    type_str = wraps.get("type")
+    attrs = wraps.get("attributes") or {}
+    if not type_str or not isinstance(type_str, str):
+        raise ValueError("ThrottleAssetComponent.wraps requires `type: <fully-qualified-class-name>`.")
+    if ":" in type_str:
+        mod_path, cls_name = type_str.rsplit(":", 1)
+    else:
+        mod_path, cls_name = type_str.rsplit(".", 1)
+    try:
+        mod = importlib.import_module(mod_path)
+    except ImportError as e:
+        raise ValueError(f"ThrottleAssetComponent.wraps: cannot import module {mod_path!r}: {e}") from e
+    cls = getattr(mod, cls_name, None)
+    if cls is None:
+        raise ValueError(f"ThrottleAssetComponent.wraps: {cls_name!r} not found in {mod_path!r}.")
+    try:
+        return cls(**attrs)
+    except Exception as e:  # noqa: BLE001
+        raise ValueError(
+            f"ThrottleAssetComponent.wraps: constructing {type_str} failed: {type(e).__name__}: {e}"
+        ) from e

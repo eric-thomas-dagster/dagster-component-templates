@@ -31,6 +31,29 @@ attributes:
   on_throttle: skip           # skip (default) | fail
 ```
 
+## Composability — `wraps:` an existing component
+
+Stack the throttle primitive over another DCC component's assets with **zero Python**. Direct YAML analog of `@throttle @dg.asset` decorator stacking:
+
+```yaml
+type: dagster_community_components.ThrottleAssetComponent
+attributes:
+  min_gap_seconds: 60
+  on_throttle: skip
+  wraps:
+    type: dagster_community_components.SyntheticDataGeneratorComponent
+    attributes:
+      asset_name: customers
+      schema_type: customers
+      row_count: 1000
+```
+
+One asset is registered (`customers`) — no duplication. The outer throttle intercepts the inner's compute + emits `throttle_skipped` observations if the min-gap isn't satisfied. Inner's partitions, deps, kinds, tags, group all pass through unchanged.
+
+Stacks arbitrarily deep — `BudgetAssetComponent { wraps: ThrottleAssetComponent { wraps: <inner> } }`.
+
+Same caveats as `SlaAssetComponent.wraps`: single-key inner AssetsDefinitions only; multi-asset inners pass through unwrapped.
+
 ## `@throttle` decorator
 
 ```python
@@ -49,6 +72,16 @@ def hot_search_index(context):
 - **`@sla`** — SLA measures compute duration; `@throttle` measures inter-run gap.
 - **`@cached`** — cache hits still count as materializations for throttling.
 - **`@lifecycle`** — throttle checks BEFORE staging; no wasted Write-Audit-Publish work.
+
+## CLI demos using this template
+
+| Demo | Setup script | What it shows |
+|---|---|---|
+| [`throttle_asset.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/throttle_asset.md) | [`setup_throttle_asset_demo.sh`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/setup_throttle_asset_demo.sh) | 100% offline. Demonstrates BOTH shapes side by side: (1) `@throttle` Python decorator over a `@dg.asset`, (2) `ThrottleAssetComponent { wraps: SyntheticDataGeneratorComponent }` — zero Python, pure YAML composability. Both share the same event-log-backed rate limit and emit the same `throttle_skipped` observations. |
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_throttle_asset_demo.sh | bash
+```
 
 ## Sensor pattern — alert on excessive throttling
 

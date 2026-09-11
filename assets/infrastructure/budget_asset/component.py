@@ -318,11 +318,35 @@ def budget(
 
 
 class BudgetAssetComponent(dg.Component, dg.Model, dg.Resolvable):
-    """YAML shape of `@budget`. Wraps a compute with per-run + rolling-window cost tracking."""
+    """YAML shape of `@budget`. Two authoring modes:
 
-    asset_name: str = Field(description="Dagster asset name.")
+    1. **Define a new cost-tracked asset**: supply `asset_name` +
+       `compute: {kind: python, python: 'mod:fn'}`.
+
+    2. **Wrap an existing DCC component**: supply `wraps: {type, attributes}`.
+       Outer budget tracks cost of the inner component's compute; observations
+       still fire on cumulative-breach.
+
+    `wraps:` and `compute:`/`asset_name` are mutually exclusive.
+    """
+
+    asset_name: Optional[str] = Field(
+        default=None,
+        description="Dagster asset name. Required when NOT using `wraps:` (inherited from inner in wraps mode).",
+    )
     upstream_asset_key: Optional[str] = Field(default=None)
-    compute: Dict[str, Any] = Field(description="`{kind: python, python: 'mod:fn'}`.")
+    compute: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="`{kind: python, python: 'mod:fn'}`. Mutually exclusive with `wraps`.",
+    )
+    wraps: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Wrap another DCC component's assets with cost tracking. "
+            "Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`. "
+            "Mutually exclusive with `compute`."
+        ),
+    )
 
     cost_per_second: Optional[float] = Field(
         default=None,
@@ -359,6 +383,17 @@ class BudgetAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         return ComponentFormConfig(label="Budget Asset", editable=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        # Route: wraps-an-inner-component  vs  builds-own-asset
+        if self.wraps is not None:
+            if self.compute is not None:
+                raise ValueError("BudgetAssetComponent: supply exactly ONE of `wraps` or `compute`, not both.")
+            return self._build_wrapped(context)
+
+        if self.compute is None:
+            raise ValueError("BudgetAssetComponent: supply either `compute` (build new asset) or `wraps` (wrap existing component).")
+        if not self.asset_name:
+            raise ValueError("BudgetAssetComponent: `asset_name` required when using `compute:` (inferred from inner in `wraps:` mode).")
+
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
         compute = dict(self.compute)
@@ -456,3 +491,150 @@ class BudgetAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
         return dg.Definitions(assets=[_asset])
+
+    # ----------------------------------------------------------------------
+    # `wraps:` composability
+    # ----------------------------------------------------------------------
+
+    def _build_wrapped(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        inner = _resolve_inner_component(self.wraps or {})
+        inner_defs = inner.build_defs(context)
+        wrapped_assets = []
+        for asset_def in list(inner_defs.assets or []):
+            if len(asset_def.keys) != 1:
+                wrapped_assets.append(asset_def)
+                continue
+            wrapped_assets.append(self._wrap_single_asset(asset_def))
+        return dg.Definitions(
+            assets=wrapped_assets,
+            resources=inner_defs.resources,
+            sensors=inner_defs.sensors,
+            schedules=inner_defs.schedules,
+            asset_checks=inner_defs.asset_checks,
+            jobs=inner_defs.jobs,
+            loggers=inner_defs.loggers,
+        )
+
+    def _wrap_single_asset(self, asset_def: "dg.AssetsDefinition") -> "dg.AssetsDefinition":
+        key = next(iter(asset_def.keys))
+        specs_by_key = getattr(asset_def, "specs_by_key", {}) or {}
+        spec = specs_by_key.get(key)
+        inner_op = asset_def.op
+        inner_compute = getattr(inner_op.compute_fn, "decorated_fn", None) or inner_op.compute_fn
+
+        cost_per_s = self.cost_per_second
+        cost_fn_str = self.cost_fn
+        budget = self.budget_usd
+        window_d = float(self.window_days)
+        breach = self.on_breach
+        resolved_cost_fn = _resolve_cost_fn(cost_fn_str) if cost_fn_str else None
+
+        if breach not in ("warn", "fail", "skip"):
+            raise ValueError(f"on_breach must be 'warn', 'fail', or 'skip'; got {breach!r}")
+        if cost_per_s is None and not cost_fn_str:
+            raise ValueError("BudgetAssetComponent requires cost_per_second OR cost_fn")
+
+        inner_kinds = set(getattr(spec, "kinds", None) or []) if spec else set()
+        merged_kinds = inner_kinds | set(self.kinds or []) | {"budget", "cost"}
+        inner_tags = dict(getattr(spec, "tags", None) or {}) if spec else {}
+        merged_tags = {**inner_tags, **(self.tags or {})}
+        merged_owners = list((spec.owners if spec else []) or []) + (self.owners or [])
+        inner_description = (spec.description if spec else None) or f"Budget-tracked {key.to_user_string()}"
+        merged_description = f"{inner_description}  [budget: ${budget}/{window_d}d, on={breach}]"
+        inner_deps = list(spec.deps) if (spec and getattr(spec, "deps", None)) else []
+
+        @dg.asset(
+            key=key,
+            partitions_def=asset_def.partitions_def,
+            deps=inner_deps,
+            group_name=(spec.group_name if spec else None),
+            kinds=merged_kinds,
+            tags=merged_tags,
+            owners=merged_owners,
+            description=merged_description,
+            metadata=(dict(spec.metadata) if (spec and spec.metadata) else {}),
+            code_version=(spec.code_version if spec else None),
+        )
+        def _budget_wrapped(context: dg.AssetExecutionContext, **kwargs):
+            asset_key = context.asset_key
+            # Pre-flight check: if cumulative already >= budget, fail-or-skip BEFORE inner runs
+            preflight = _preflight(context, asset_key, budget, breach, window_d)
+            if preflight is not None:
+                return preflight
+
+            t0 = time.time()
+            result = inner_compute(context, **kwargs)
+            elapsed = time.time() - t0
+
+            if resolved_cost_fn is not None:
+                try:
+                    cost = float(resolved_cost_fn(context, elapsed, result))
+                except Exception as e:  # noqa: BLE001
+                    context.log.warning(f"@budget (wrap): cost_fn raised — falling back to per-second rate: {e}")
+                    cost = elapsed * (cost_per_s or 0.0)
+            else:
+                cost = elapsed * (cost_per_s or 0.0)
+
+            breached = budget is not None and (cost >= budget or
+                _cumulative_cost_usd(context, asset_key, window_d) + cost >= budget)
+            _emit_cost_observation(context, elapsed, cost, budget, window_d, breached)
+
+            if breached and breach == "fail":
+                raise dg.Failure(
+                    description=f"@budget (wrap): this run pushes cumulative over budget "
+                                f"(cost=${cost:.4f}, budget=${budget:.4f})",
+                    metadata={
+                        "budget_cost_estimate_usd": dg.MetadataValue.float(float(round(cost, 6))),
+                        "budget_usd": dg.MetadataValue.float(float(budget) if budget is not None else 0.0),
+                    },
+                )
+
+            # Merge budget metadata into inner's MaterializeResult if present
+            budget_meta = {
+                "budget_cost_estimate_usd": dg.MetadataValue.float(float(round(cost, 6))),
+                "budget_elapsed_seconds": dg.MetadataValue.float(float(round(elapsed, 3))),
+                "budget_breached": dg.MetadataValue.bool(bool(breached)),
+            }
+            if isinstance(result, dg.MaterializeResult):
+                merged = dict(result.metadata or {})
+                merged.update(budget_meta)
+                return dg.MaterializeResult(
+                    asset_key=result.asset_key,
+                    metadata=merged,
+                    check_results=result.check_results,
+                    data_version=result.data_version,
+                    tags=result.tags,
+                )
+            # Non-MaterializeResult: passthrough + emit materialization event carrying budget meta
+            try:
+                context.log_event(dg.AssetMaterialization(asset_key=key, metadata=budget_meta))
+            except Exception:  # noqa: BLE001
+                pass
+            return result
+
+        return _budget_wrapped
+
+
+def _resolve_inner_component(wraps: Dict[str, Any]):
+    """Resolve `{type: '...', attributes: {...}}` → instantiated component."""
+    type_str = wraps.get("type")
+    attrs = wraps.get("attributes") or {}
+    if not type_str or not isinstance(type_str, str):
+        raise ValueError("BudgetAssetComponent.wraps requires `type: <fully-qualified-class-name>`.")
+    if ":" in type_str:
+        mod_path, cls_name = type_str.rsplit(":", 1)
+    else:
+        mod_path, cls_name = type_str.rsplit(".", 1)
+    try:
+        mod = importlib.import_module(mod_path)
+    except ImportError as e:
+        raise ValueError(f"BudgetAssetComponent.wraps: cannot import {mod_path!r}: {e}") from e
+    cls = getattr(mod, cls_name, None)
+    if cls is None:
+        raise ValueError(f"BudgetAssetComponent.wraps: {cls_name!r} not found in {mod_path!r}.")
+    try:
+        return cls(**attrs)
+    except Exception as e:  # noqa: BLE001
+        raise ValueError(
+            f"BudgetAssetComponent.wraps: constructing {type_str} failed: {type(e).__name__}: {e}"
+        ) from e

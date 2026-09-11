@@ -324,16 +324,37 @@ def cached(
 
 
 class CachedAssetComponent(dg.Component, dg.Model, dg.Resolvable):
-    """YAML shape of the cache. Defines a new asset whose compute is only
-    called on cache miss.
+    """YAML shape of the cache. Two authoring modes:
 
-    For an EXISTING @dg.asset, use the `@cached` decorator instead.
+    1. **Define a new cached asset** (original shape): supply `asset_name`
+       + `compute: {kind: python, python: 'mod:fn'}` + `cache_dir`. Builds
+       a single asset whose compute is only called on cache miss.
+
+    2. **Wrap an existing DCC component** (composability): supply
+       `wraps: {type: <component_class>, attributes: {...}}` + `cache_dir`.
+       The inner component's asset compute is only invoked on cache miss;
+       on hit, the cached parquet is loaded and the inner is skipped.
+       Requires the inner component's asset to return a `pandas.DataFrame`.
+
+    `wraps:` and `compute:`/`asset_name` are mutually exclusive.
     """
 
-    asset_name: str = Field(description="Dagster asset name.")
+    asset_name: Optional[str] = Field(
+        default=None,
+        description="Dagster asset name. Required when NOT using `wraps:` (inherited from inner in wraps mode).",
+    )
     upstream_asset_key: Optional[str] = Field(default=None)
-    compute: Dict[str, Any] = Field(
-        description="`{kind: python, python: 'mod:fn'}`. Returns pandas DataFrame."
+    compute: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="`{kind: python, python: 'mod:fn'}`. Returns pandas DataFrame. Mutually exclusive with `wraps`.",
+    )
+    wraps: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Wrap another DCC component's assets with caching instead of defining new compute. "
+            "Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`. "
+            "Inner asset must return pandas.DataFrame. Mutually exclusive with `compute`."
+        ),
     )
     cache_dir: str = Field(
         description="Where cached parquets live. Local path or fsspec URI."
@@ -371,6 +392,17 @@ class CachedAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         return ComponentFormConfig(label="Cached Asset", editable=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        # Route: wraps-an-inner-component  vs  builds-own-asset
+        if self.wraps is not None:
+            if self.compute is not None:
+                raise ValueError("CachedAssetComponent: supply exactly ONE of `wraps` or `compute`, not both.")
+            return self._build_wrapped(context)
+
+        if self.compute is None:
+            raise ValueError("CachedAssetComponent: supply either `compute` (build a new asset) or `wraps` (wrap an existing component).")
+        if not self.asset_name:
+            raise ValueError("CachedAssetComponent: `asset_name` required when using `compute:` (inferred from inner in `wraps:` mode).")
+
         _self = self
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
@@ -464,3 +496,151 @@ class CachedAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
         return dg.Definitions(assets=[_cached_asset])
+
+    # ----------------------------------------------------------------------
+    # `wraps:` composability
+    # ----------------------------------------------------------------------
+
+    def _build_wrapped(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        inner = _resolve_inner_component(self.wraps or {})
+        inner_defs = inner.build_defs(context)
+        wrapped_assets = []
+        for asset_def in list(inner_defs.assets or []):
+            if len(asset_def.keys) != 1:
+                wrapped_assets.append(asset_def)
+                continue
+            wrapped_assets.append(self._wrap_single_asset(asset_def))
+        return dg.Definitions(
+            assets=wrapped_assets,
+            resources=inner_defs.resources,
+            sensors=inner_defs.sensors,
+            schedules=inner_defs.schedules,
+            asset_checks=inner_defs.asset_checks,
+            jobs=inner_defs.jobs,
+            loggers=inner_defs.loggers,
+        )
+
+    def _wrap_single_asset(self, asset_def: "dg.AssetsDefinition") -> "dg.AssetsDefinition":
+        key = next(iter(asset_def.keys))
+        specs_by_key = getattr(asset_def, "specs_by_key", {}) or {}
+        spec = specs_by_key.get(key)
+        inner_op = asset_def.op
+        inner_compute = getattr(inner_op.compute_fn, "decorated_fn", None) or inner_op.compute_fn
+
+        cache_dir = self.cache_dir
+        code_version = self.code_version
+        ttl_seconds = self.ttl_seconds
+        fmt = self.format
+        key_fn_ref = self.key_fn
+
+        if fmt not in ("parquet", "csv", "json"):
+            raise ValueError(f"format must be parquet|csv|json; got {fmt!r}")
+
+        inner_kinds = set(getattr(spec, "kinds", None) or []) if spec else set()
+        merged_kinds = inner_kinds | set(self.kinds or []) | {"cache"}
+        inner_tags = dict(getattr(spec, "tags", None) or {}) if spec else {}
+        merged_tags = {**inner_tags, **(self.tags or {})}
+        merged_owners = list((spec.owners if spec else []) or []) + (self.owners or [])
+        inner_description = (spec.description if spec else None) or f"Cached {key.to_user_string()}"
+        merged_description = f"{inner_description}  [cached: dir={cache_dir}, version={code_version!r}]"
+        inner_deps = list(spec.deps) if (spec and getattr(spec, "deps", None)) else []
+
+        @dg.asset(
+            key=key,
+            partitions_def=asset_def.partitions_def,
+            deps=inner_deps,
+            group_name=(spec.group_name if spec else None),
+            kinds=merged_kinds,
+            tags=merged_tags,
+            owners=merged_owners,
+            description=merged_description,
+            metadata=(dict(spec.metadata) if (spec and spec.metadata) else {}),
+            code_version=code_version or (spec.code_version if spec else None),
+        )
+        def _cache_wrapped(context: dg.AssetExecutionContext, **kwargs):
+            import pandas as pd
+
+            upstream = kwargs.get("upstream")
+            cache_key = _compute_cache_key(context, code_version, key_fn_ref, upstream)
+            path = _cache_path(cache_dir, cache_key, fmt)
+
+            cached_df = _load_cache(path, fmt, ttl_seconds)
+            if cached_df is not None:
+                context.log.info(f"[cached wrap] HIT for key={cache_key} at {path} ({len(cached_df)} rows)")
+                _emit_cache_event(context, cache_key, hit=True, path=path)
+                return dg.Output(
+                    cached_df,
+                    metadata={
+                        "cache_status": dg.MetadataValue.text("hit"),
+                        "cache_key": dg.MetadataValue.text(cache_key),
+                        "cache_path": dg.MetadataValue.path(path),
+                        "cache_rows": dg.MetadataValue.int(len(cached_df)),
+                    },
+                )
+
+            context.log.info(f"[cached wrap] MISS for key={cache_key} — invoking inner compute")
+            _emit_cache_event(context, cache_key, hit=False, path=path)
+            result = inner_compute(context, **kwargs)
+
+            # Extract the DataFrame from the inner's return value.
+            df_to_cache = None
+            if isinstance(result, pd.DataFrame):
+                df_to_cache = result
+            elif isinstance(result, dg.Output):
+                if isinstance(result.value, pd.DataFrame):
+                    df_to_cache = result.value
+            elif isinstance(result, dg.MaterializeResult):
+                # MaterializeResult carries metadata but not value; the value is
+                # already handled by the inner asset's IO manager. We can't cache
+                # what we can't see.
+                context.log.warning(
+                    "[cached wrap] inner returned MaterializeResult (no value); "
+                    "cannot cache — passing through unchanged"
+                )
+                return result
+
+            if df_to_cache is None:
+                context.log.warning(
+                    f"[cached wrap] inner returned {type(result).__name__} (not DataFrame); "
+                    "skipping cache write — passing through unchanged"
+                )
+                return result
+
+            _save_cache(df_to_cache, path, fmt)
+            context.log.info(f"[cached wrap] saved {len(df_to_cache)} rows to {path}")
+            return dg.Output(
+                df_to_cache,
+                metadata={
+                    "cache_status": dg.MetadataValue.text("miss"),
+                    "cache_key": dg.MetadataValue.text(cache_key),
+                    "cache_path": dg.MetadataValue.path(path),
+                    "cache_rows": dg.MetadataValue.int(len(df_to_cache)),
+                },
+            )
+
+        return _cache_wrapped
+
+
+def _resolve_inner_component(wraps: Dict[str, Any]):
+    """Resolve `{type: '...', attributes: {...}}` → instantiated component."""
+    type_str = wraps.get("type")
+    attrs = wraps.get("attributes") or {}
+    if not type_str or not isinstance(type_str, str):
+        raise ValueError("CachedAssetComponent.wraps requires `type: <fully-qualified-class-name>`.")
+    if ":" in type_str:
+        mod_path, cls_name = type_str.rsplit(":", 1)
+    else:
+        mod_path, cls_name = type_str.rsplit(".", 1)
+    try:
+        mod = importlib.import_module(mod_path)
+    except ImportError as e:
+        raise ValueError(f"CachedAssetComponent.wraps: cannot import {mod_path!r}: {e}") from e
+    cls = getattr(mod, cls_name, None)
+    if cls is None:
+        raise ValueError(f"CachedAssetComponent.wraps: {cls_name!r} not found in {mod_path!r}.")
+    try:
+        return cls(**attrs)
+    except Exception as e:  # noqa: BLE001
+        raise ValueError(
+            f"CachedAssetComponent.wraps: constructing {type_str} failed: {type(e).__name__}: {e}"
+        ) from e

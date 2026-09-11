@@ -268,13 +268,45 @@ def shadow(
 
 
 class ShadowAssetComponent(dg.Component, dg.Model, dg.Resolvable):
-    """YAML shape of `@shadow`. Wraps a primary compute with a shadow implementation."""
+    """YAML shape of `@shadow`. Two authoring modes:
 
-    asset_name: str = Field(description="Dagster asset name.")
+    1. **Define a new shadow-instrumented asset**: `asset_name` +
+       `compute: {...}` (primary) + `shadow_compute: {...}` (shadow).
+
+    2. **Wrap two DCC components**: `wraps: {type, attributes}` (primary
+       component whose assets register) + `shadow_wraps: {type, attributes}`
+       (shadow component whose compute runs alongside; assets NOT registered).
+       Perfect for vendor swaps: `wraps: NewVendor { ... }, shadow_wraps: OldVendor { ... }`.
+
+    `wraps:` and `compute:`/`asset_name` are mutually exclusive. `shadow_wraps:`
+    is required in wraps mode; `shadow_compute:` is required in compute mode.
+    """
+
+    asset_name: Optional[str] = Field(default=None, description="Required when NOT using `wraps:`.")
     upstream_asset_key: Optional[str] = Field(default=None)
-    compute: Dict[str, Any] = Field(description="Primary compute: `{kind: python, python: 'mod:fn'}`.")
-    shadow_compute: Dict[str, Any] = Field(
-        description="Shadow compute: `{kind: python, python: 'mod:fn'}`. Same signature as primary."
+    compute: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Primary compute: `{kind: python, python: 'mod:fn'}`. Mutually exclusive with `wraps`.",
+    )
+    shadow_compute: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Shadow compute: `{kind: python, python: 'mod:fn'}`. Same signature as primary. Required in `compute:` mode.",
+    )
+    wraps: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Wrap a DCC component's assets with shadow instrumentation. "
+            "Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`. "
+            "The outer shadow adds side-by-side execution of the `shadow_wraps:` component; "
+            "primary result is what materializes."
+        ),
+    )
+    shadow_wraps: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Shadow component to run alongside `wraps:` — its result is diffed against the primary "
+            "but NOT materialized. Required when using `wraps:`."
+        ),
     )
 
     enforce_match: bool = Field(
@@ -294,6 +326,21 @@ class ShadowAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         return ComponentFormConfig(label="Shadow Asset", editable=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        # Route: wraps-two-components vs builds-own-asset
+        if self.wraps is not None:
+            if self.compute is not None:
+                raise ValueError("ShadowAssetComponent: `wraps:` and `compute:` are mutually exclusive.")
+            if self.shadow_wraps is None:
+                raise ValueError("ShadowAssetComponent: `wraps:` mode requires `shadow_wraps:` (the alt implementation to run alongside).")
+            return self._build_wrapped(context)
+
+        if self.compute is None:
+            raise ValueError("ShadowAssetComponent: supply either `compute` + `shadow_compute` OR `wraps` + `shadow_wraps`.")
+        if self.shadow_compute is None:
+            raise ValueError("ShadowAssetComponent: `compute:` mode requires `shadow_compute:`.")
+        if not self.asset_name:
+            raise ValueError("ShadowAssetComponent: `asset_name` required when using `compute:`.")
+
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
         primary = dict(self.compute)
@@ -344,3 +391,114 @@ class ShadowAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             return primary_result
 
         return dg.Definitions(assets=[_asset])
+
+    # ----------------------------------------------------------------------
+    # `wraps:` composability — outer shadow wraps two components side-by-side
+    # ----------------------------------------------------------------------
+
+    def _build_wrapped(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        primary_inner = _resolve_inner_component(self.wraps or {}, "wraps")
+        shadow_inner = _resolve_inner_component(self.shadow_wraps or {}, "shadow_wraps")
+        primary_defs = primary_inner.build_defs(context)
+        shadow_defs = shadow_inner.build_defs(context)
+
+        # Build a map of shadow asset key -> shadow's raw compute callable
+        # so we can call it side-by-side per primary key.
+        shadow_computes: Dict[Any, Any] = {}
+        for a in list(shadow_defs.assets or []):
+            for k in a.keys:
+                inner_op = a.op
+                shadow_computes[k] = getattr(inner_op.compute_fn, "decorated_fn", None) or inner_op.compute_fn
+
+        # For each primary asset (single-key only), rebuild with shadow side-effect.
+        wrapped_assets = []
+        for asset_def in list(primary_defs.assets or []):
+            if len(asset_def.keys) != 1:
+                wrapped_assets.append(asset_def)
+                continue
+            primary_key = next(iter(asset_def.keys))
+            shadow_compute = shadow_computes.get(primary_key)
+            if shadow_compute is None:
+                # No matching shadow asset — fall back to any single shadow asset
+                if len(shadow_computes) == 1:
+                    shadow_compute = next(iter(shadow_computes.values()))
+                else:
+                    context.log.warning(
+                        f"ShadowAssetComponent.wraps: no shadow compute matching key "
+                        f"{primary_key.to_user_string()!r} (found {len(shadow_computes)} shadow assets); "
+                        f"skipping shadow for this asset"
+                    )
+                    wrapped_assets.append(asset_def)
+                    continue
+            wrapped_assets.append(self._wrap_single_asset(asset_def, shadow_compute))
+
+        return dg.Definitions(
+            assets=wrapped_assets,
+            resources=primary_defs.resources,
+            sensors=primary_defs.sensors,
+            schedules=primary_defs.schedules,
+            asset_checks=primary_defs.asset_checks,
+            jobs=primary_defs.jobs,
+            loggers=primary_defs.loggers,
+        )
+
+    def _wrap_single_asset(self, asset_def: "dg.AssetsDefinition", shadow_compute) -> "dg.AssetsDefinition":
+        key = next(iter(asset_def.keys))
+        specs_by_key = getattr(asset_def, "specs_by_key", {}) or {}
+        spec = specs_by_key.get(key)
+        inner_op = asset_def.op
+        primary_compute = getattr(inner_op.compute_fn, "decorated_fn", None) or inner_op.compute_fn
+
+        enforce = bool(self.enforce_match)
+
+        inner_kinds = set(getattr(spec, "kinds", None) or []) if spec else set()
+        merged_kinds = inner_kinds | set(self.kinds or []) | {"shadow"}
+        inner_tags = dict(getattr(spec, "tags", None) or {}) if spec else {}
+        merged_tags = {**inner_tags, **(self.tags or {})}
+        merged_owners = list((spec.owners if spec else []) or []) + (self.owners or [])
+        inner_description = (spec.description if spec else None) or f"Shadow-wrapped {key.to_user_string()}"
+        merged_description = f"{inner_description}  [shadow: enforce_match={enforce}]"
+        inner_deps = list(spec.deps) if (spec and getattr(spec, "deps", None)) else []
+
+        @dg.asset(
+            key=key,
+            partitions_def=asset_def.partitions_def,
+            deps=inner_deps,
+            group_name=(spec.group_name if spec else None),
+            kinds=merged_kinds,
+            tags=merged_tags,
+            owners=merged_owners,
+            description=merged_description,
+            metadata=(dict(spec.metadata) if (spec and spec.metadata) else {}),
+            code_version=(spec.code_version if spec else None),
+        )
+        def _shadow_wrapped(context: dg.AssetExecutionContext, **kwargs):
+            primary_result = primary_compute(context, **kwargs)
+            _run_shadow(context, shadow_compute, (context,), dict(kwargs), primary_result, enforce)
+            return primary_result
+
+        return _shadow_wrapped
+
+
+def _resolve_inner_component(wraps: Dict[str, Any], field_name: str):
+    type_str = wraps.get("type")
+    attrs = wraps.get("attributes") or {}
+    if not type_str or not isinstance(type_str, str):
+        raise ValueError(f"ShadowAssetComponent.{field_name} requires `type: <fully-qualified-class-name>`.")
+    if ":" in type_str:
+        mod_path, cls_name = type_str.rsplit(":", 1)
+    else:
+        mod_path, cls_name = type_str.rsplit(".", 1)
+    try:
+        mod = importlib.import_module(mod_path)
+    except ImportError as e:
+        raise ValueError(f"ShadowAssetComponent.{field_name}: cannot import {mod_path!r}: {e}") from e
+    cls = getattr(mod, cls_name, None)
+    if cls is None:
+        raise ValueError(f"ShadowAssetComponent.{field_name}: {cls_name!r} not found in {mod_path!r}.")
+    try:
+        return cls(**attrs)
+    except Exception as e:  # noqa: BLE001
+        raise ValueError(
+            f"ShadowAssetComponent.{field_name}: constructing {type_str} failed: {type(e).__name__}: {e}"
+        ) from e

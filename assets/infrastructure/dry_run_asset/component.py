@@ -182,11 +182,40 @@ def dry_run(*, enabled: Optional[bool] = None) -> Callable:
 
 
 class DryRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
-    """YAML shape of `@dry_run`. Wraps a compute with dry-run mode support."""
+    """YAML shape of `@dry_run`. Two authoring modes:
 
-    asset_name: str = Field(description="Dagster asset name.")
+    1. **Define a new asset from scratch** (original shape): supply
+       `asset_name` + `compute: {kind: python, python: 'mod:fn'}`. Builds a
+       single dry-run-capable asset that calls the referenced Python compute.
+
+    2. **Wrap an existing DCC component** (composability): supply
+       `wraps: {type: <component_class>, attributes: {...}}`. The inner
+       component's assets get materialized as they would normally, but
+       each compute is short-circuited when dry-run mode is enabled.
+       Preserves inner asset partitions, deps, resources, kinds, tags,
+       group, description. Direct YAML analog of `@dry_run @dg.asset` in
+       Python.
+
+    `wraps:` and `compute:` are mutually exclusive.
+    """
+
+    asset_name: Optional[str] = Field(
+        default=None,
+        description="Dagster asset name. Required when NOT using `wraps:` (inherited from inner in wraps mode).",
+    )
     upstream_asset_key: Optional[str] = Field(default=None)
-    compute: Dict[str, Any] = Field(description="`{kind: python, python: 'mod:fn'}`.")
+    compute: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="`{kind: python, python: 'mod:fn'}`. Mutually exclusive with `wraps`.",
+    )
+    wraps: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Wrap another DCC component's assets with dry-run short-circuit behavior instead "
+            "of defining new compute. Shape: `{type: 'dagster_community_components.<Component>', "
+            "attributes: {...}}`. Mutually exclusive with `compute`."
+        ),
+    )
 
     enabled: Optional[bool] = Field(
         default=None,
@@ -206,6 +235,17 @@ class DryRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         return ComponentFormConfig(label="Dry Run Asset", editable=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        # Route: wraps-an-inner-component  vs  builds-own-asset
+        if self.wraps is not None:
+            if self.compute is not None:
+                raise ValueError("DryRunAssetComponent: `wraps:` and `compute:` are mutually exclusive.")
+            return self._build_wrapped(context)
+
+        if self.compute is None:
+            raise ValueError("DryRunAssetComponent: supply either `compute` (build new asset) or `wraps` (wrap existing component).")
+        if not self.asset_name:
+            raise ValueError("DryRunAssetComponent: `asset_name` required when using `compute:`.")
+
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
         compute = dict(self.compute)
@@ -275,3 +315,137 @@ class DryRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
         return dg.Definitions(assets=[_asset])
+
+    # ----------------------------------------------------------------------
+    # `wraps:` composability — YAML analog of `@dry_run @dg.asset` stacking
+    # ----------------------------------------------------------------------
+
+    def _build_wrapped(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        """Instantiate the inner component; rewrap each of its assets with
+        dry-run short-circuit around the original compute.
+        """
+        inner = _resolve_inner_component(self.wraps or {})
+        inner_defs = inner.build_defs(context)
+
+        wrapped_assets = []
+        for asset_def in list(inner_defs.assets or []):
+            if len(asset_def.keys) != 1:
+                # Multi-asset AssetsDefinition not supported in v1 — pass through unwrapped.
+                wrapped_assets.append(asset_def)
+                continue
+            wrapped_assets.append(self._wrap_single_asset(asset_def))
+
+        return dg.Definitions(
+            assets=wrapped_assets,
+            resources=inner_defs.resources,
+            sensors=inner_defs.sensors,
+            schedules=inner_defs.schedules,
+            asset_checks=inner_defs.asset_checks,
+            jobs=inner_defs.jobs,
+            loggers=inner_defs.loggers,
+        )
+
+    def _wrap_single_asset(self, asset_def: "dg.AssetsDefinition") -> "dg.AssetsDefinition":
+        """Rebuild one single-key AssetsDefinition with dry-run short-circuit
+        wrapping the original compute. When enabled, inner compute is NOT
+        called and a synthetic MaterializeResult tagged dry_run=true is emitted.
+        Preserves partitions/deps/kinds/tags/group/description/metadata.
+        """
+        key = next(iter(asset_def.keys))
+        specs_by_key = getattr(asset_def, "specs_by_key", {}) or {}
+        spec = specs_by_key.get(key)
+
+        inner_op = asset_def.op
+        inner_compute = getattr(inner_op.compute_fn, "decorated_fn", None) or inner_op.compute_fn
+
+        enabled_arg = self.enabled
+
+        inner_kinds = set(getattr(spec, "kinds", None) or []) if spec else set()
+        merged_kinds = inner_kinds | set(self.kinds or []) | {"dry_run"}
+        inner_tags = dict(getattr(spec, "tags", None) or {}) if spec else {}
+        merged_tags = {**inner_tags, **(self.tags or {})}
+        merged_owners = list((spec.owners if spec else []) or []) + (self.owners or [])
+        inner_description = (spec.description if spec else None) or f"Dry-run-capable {key.to_user_string()}"
+        merged_description = f"{inner_description}  [dry_run: run tag `dry_run=true` or env DAGSTER_DRY_RUN]"
+        inner_deps = list(spec.deps) if (spec and getattr(spec, "deps", None)) else []
+
+        @dg.asset(
+            key=key,
+            partitions_def=asset_def.partitions_def,
+            deps=inner_deps,
+            group_name=(spec.group_name if spec else None),
+            kinds=merged_kinds,
+            tags=merged_tags,
+            owners=merged_owners,
+            description=merged_description,
+            metadata=(dict(spec.metadata) if (spec and spec.metadata) else {}),
+            code_version=(spec.code_version if spec else None),
+        )
+        def _dry_run_wrapped(context: dg.AssetExecutionContext, **kwargs):
+            enabled_now = _is_enabled(context, enabled_arg)
+            if enabled_now:
+                # Short-circuit: DO NOT call inner_compute. Emit synthetic
+                # MaterializeResult tagged dry_run=true.
+                try:
+                    context.log.info(
+                        "[dry_run wrap] mode ENABLED — inner compute SKIPPED, "
+                        "emitting synthetic MaterializeResult"
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+                _emit_dry_run_observation(context, elapsed_s=0.0, would_size=None)
+                return dg.MaterializeResult(
+                    metadata={
+                        "dry_run": dg.MetadataValue.bool(True),
+                        "dry_run_wrapped_asset": dg.MetadataValue.text(key.to_user_string()),
+                        "inner_compute_invoked": dg.MetadataValue.bool(False),
+                    }
+                )
+
+            # Disabled: passthrough.
+            t0 = time.time()
+            result = inner_compute(context, **kwargs)
+            elapsed = time.time() - t0
+
+            passthrough_meta = {
+                "dry_run": dg.MetadataValue.bool(False),
+                "elapsed_seconds": dg.MetadataValue.float(float(round(elapsed, 3))),
+            }
+            if isinstance(result, dg.MaterializeResult):
+                merged = dict(result.metadata or {})
+                merged.update(passthrough_meta)
+                return dg.MaterializeResult(
+                    asset_key=result.asset_key,
+                    metadata=merged,
+                    check_results=result.check_results,
+                    data_version=result.data_version,
+                    tags=result.tags,
+                )
+            return result
+
+        return _dry_run_wrapped
+
+
+def _resolve_inner_component(wraps: Dict[str, Any]):
+    """Resolve `{type: 'mod.path.ClassName' OR 'mod.path:ClassName', attributes: {...}}` → component instance."""
+    type_str = wraps.get("type")
+    attrs = wraps.get("attributes") or {}
+    if not type_str or not isinstance(type_str, str):
+        raise ValueError("DryRunAssetComponent.wraps requires `type: <fully-qualified-class-name>`.")
+    if ":" in type_str:
+        mod_path, cls_name = type_str.rsplit(":", 1)
+    else:
+        mod_path, cls_name = type_str.rsplit(".", 1)
+    try:
+        mod = importlib.import_module(mod_path)
+    except ImportError as e:
+        raise ValueError(f"DryRunAssetComponent.wraps: cannot import {mod_path!r}: {e}") from e
+    cls = getattr(mod, cls_name, None)
+    if cls is None:
+        raise ValueError(f"DryRunAssetComponent.wraps: {cls_name!r} not found in {mod_path!r}.")
+    try:
+        return cls(**attrs)
+    except Exception as e:  # noqa: BLE001
+        raise ValueError(
+            f"DryRunAssetComponent.wraps: constructing {type_str} failed: {type(e).__name__}: {e}"
+        ) from e

@@ -320,11 +320,39 @@ def snapshot(
 
 
 class SnapshotAssetComponent(dg.Component, dg.Model, dg.Resolvable):
-    """YAML shape of `@snapshot`. Wraps a compute with point-in-time snapshot writes."""
+    """YAML shape of `@snapshot`. Two authoring modes:
 
-    asset_name: str = Field(description="Dagster asset name.")
+    1. **Define a new asset from scratch** (original shape): supply
+       `asset_name` + `compute: {kind: python, python: 'mod:fn'}`. Builds a
+       single asset whose returned value is snapshotted after compute.
+
+    2. **Wrap an existing DCC component** (composability): supply
+       `wraps: {type: <component_class>, attributes: {...}}`. The inner
+       component's assets are materialized as they would normally, and
+       each compute's return value is snapshotted. Preserves inner asset
+       partitions, deps, resources, kinds, tags, group, description.
+       Direct YAML analog of `@snapshot @dg.asset` in Python.
+
+    `wraps:` and `compute:` are mutually exclusive.
+    """
+
+    asset_name: Optional[str] = Field(
+        default=None,
+        description="Dagster asset name. Required when NOT using `wraps:` (inherited from inner in wraps mode).",
+    )
     upstream_asset_key: Optional[str] = Field(default=None)
-    compute: Dict[str, Any] = Field(description="`{kind: python, python: 'mod:fn'}`.")
+    compute: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="`{kind: python, python: 'mod:fn'}`. Mutually exclusive with `wraps`.",
+    )
+    wraps: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Wrap another DCC component's assets with point-in-time snapshot writes "
+            "instead of defining new compute. Shape: `{type: 'dagster_community_components.<Component>', "
+            "attributes: {...}}`. Mutually exclusive with `compute`."
+        ),
+    )
 
     uri: str = Field(
         description="fsspec URI directory for snapshots (e.g., `s3://bucket/dir`, `/local/path`)."
@@ -354,6 +382,16 @@ class SnapshotAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         return ComponentFormConfig(label="Snapshot Asset", editable=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        # Route: wraps-an-inner-component  vs  builds-own-asset
+        if self.wraps is not None:
+            if self.compute is not None:
+                raise ValueError("SnapshotAssetComponent: `wraps:` and `compute:` are mutually exclusive.")
+            return self._build_wrapped(context)
+        if self.compute is None:
+            raise ValueError("SnapshotAssetComponent: supply either `compute` (build new asset) or `wraps` (wrap existing component).")
+        if not self.asset_name:
+            raise ValueError("SnapshotAssetComponent: `asset_name` required when using `compute:`.")
+
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
         compute = dict(self.compute)
@@ -412,3 +450,140 @@ class SnapshotAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             return value
 
         return dg.Definitions(assets=[_asset])
+
+    # ----------------------------------------------------------------------
+    # `wraps:` composability
+    # ----------------------------------------------------------------------
+
+    def _build_wrapped(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        inner = _resolve_inner_component(self.wraps or {})
+        inner_defs = inner.build_defs(context)
+        wrapped_assets = []
+        for asset_def in list(inner_defs.assets or []):
+            if len(asset_def.keys) != 1:
+                wrapped_assets.append(asset_def)
+                continue
+            wrapped_assets.append(self._wrap_single_asset(asset_def))
+        return dg.Definitions(
+            assets=wrapped_assets,
+            resources=inner_defs.resources,
+            sensors=inner_defs.sensors,
+            schedules=inner_defs.schedules,
+            asset_checks=inner_defs.asset_checks,
+            jobs=inner_defs.jobs,
+            loggers=inner_defs.loggers,
+        )
+
+    def _wrap_single_asset(self, asset_def: "dg.AssetsDefinition") -> "dg.AssetsDefinition":
+        key = next(iter(asset_def.keys))
+        specs_by_key = getattr(asset_def, "specs_by_key", {}) or {}
+        spec = specs_by_key.get(key)
+        inner_op = asset_def.op
+        inner_compute = getattr(inner_op.compute_fn, "decorated_fn", None) or inner_op.compute_fn
+
+        uri_ = self.uri
+        fmt = self.format
+        retention = self.retention_days
+        code_version = self.code_version
+
+        inner_kinds = set(getattr(spec, "kinds", None) or []) if spec else set()
+        merged_kinds = inner_kinds | set(self.kinds or []) | {"snapshot"}
+        inner_tags = dict(getattr(spec, "tags", None) or {}) if spec else {}
+        merged_tags = {**inner_tags, **(self.tags or {})}
+        merged_owners = list((spec.owners if spec else []) or []) + (self.owners or [])
+        inner_description = (spec.description if spec else None) or f"Snapshot-wrapped {key.to_user_string()}"
+        merged_description = f"{inner_description}  [snapshot: uri={uri_}, format={fmt or 'auto'}, retention_days={retention}]"
+        inner_deps = list(spec.deps) if (spec and getattr(spec, "deps", None)) else []
+
+        @dg.asset(
+            key=key,
+            partitions_def=asset_def.partitions_def,
+            deps=inner_deps,
+            group_name=(spec.group_name if spec else None),
+            kinds=merged_kinds,
+            tags=merged_tags,
+            owners=merged_owners,
+            description=merged_description,
+            metadata=(dict(spec.metadata) if (spec and spec.metadata) else {}),
+            code_version=code_version or (spec.code_version if spec else None),
+        )
+        def _snapshot_wrapped(context: dg.AssetExecutionContext, **kwargs):
+            result = inner_compute(context, **kwargs)
+
+            # Extract the value to snapshot. If the inner returned a plain value,
+            # snapshot it directly. If it returned a MaterializeResult, we don't
+            # have a value to snapshot (the IO manager has it) — fall back to the
+            # MaterializeResult's metadata payload if present, else skip.
+            value_to_snap = None
+            if isinstance(result, dg.MaterializeResult):
+                value_to_snap = None  # nothing to snapshot; inner's IO manager owns value
+            elif isinstance(result, dg.Output):
+                value_to_snap = result.value
+            else:
+                value_to_snap = result
+
+            snapshot_meta: Dict[str, Any] = {}
+            if value_to_snap is not None:
+                try:
+                    _do_snapshot(context, value_to_snap, uri_, fmt, retention)
+                    resolved_fmt, _ext = _detect_format(value_to_snap, fmt)
+                    snapshot_meta = {
+                        "snapshot_written": dg.MetadataValue.bool(True),
+                        "snapshot_format": dg.MetadataValue.text(resolved_fmt),
+                    }
+                except Exception as e:  # noqa: BLE001
+                    context.log.warning(
+                        f"[snapshot wrap] write failed (asset still succeeds): {type(e).__name__}: {e}"
+                    )
+                    snapshot_meta = {
+                        "snapshot_written": dg.MetadataValue.bool(False),
+                        "snapshot_error": dg.MetadataValue.text(f"{type(e).__name__}: {e}"),
+                    }
+            else:
+                context.log.warning(
+                    "[snapshot wrap] inner returned MaterializeResult with no value; snapshot skipped"
+                )
+                snapshot_meta = {
+                    "snapshot_written": dg.MetadataValue.bool(False),
+                    "snapshot_skip_reason": dg.MetadataValue.text("inner returned MaterializeResult (no value)"),
+                }
+
+            # Merge snapshot metadata into the inner's MaterializeResult (if any)
+            if isinstance(result, dg.MaterializeResult):
+                merged = dict(result.metadata or {})
+                merged.update(snapshot_meta)
+                return dg.MaterializeResult(
+                    asset_key=result.asset_key,
+                    metadata=merged,
+                    check_results=result.check_results,
+                    data_version=result.data_version,
+                    tags=result.tags,
+                )
+            return result
+
+        return _snapshot_wrapped
+
+
+def _resolve_inner_component(wraps: Dict[str, Any]):
+    """Resolve `{type: '...', attributes: {...}}` → instantiated component."""
+    type_str = wraps.get("type")
+    attrs = wraps.get("attributes") or {}
+    if not type_str or not isinstance(type_str, str):
+        raise ValueError("SnapshotAssetComponent.wraps requires `type: <fully-qualified-class-name>`.")
+    if ":" in type_str:
+        mod_path, cls_name = type_str.rsplit(":", 1)
+    else:
+        mod_path, cls_name = type_str.rsplit(".", 1)
+    try:
+        mod = importlib.import_module(mod_path)
+    except ImportError as e:
+        raise ValueError(f"SnapshotAssetComponent.wraps: cannot import {mod_path!r}: {e}") from e
+    cls = getattr(mod, cls_name, None)
+    if cls is None:
+        raise ValueError(f"SnapshotAssetComponent.wraps: {cls_name!r} not found in {mod_path!r}.")
+    try:
+        return cls(**attrs)
+    except Exception as e:  # noqa: BLE001
+        raise ValueError(
+            f"SnapshotAssetComponent.wraps: constructing {type_str} failed: {type(e).__name__}: {e}"
+        ) from e

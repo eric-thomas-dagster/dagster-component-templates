@@ -246,14 +246,40 @@ def profile(
 
 
 class ProfileAssetComponent(dg.Component, dg.Model, dg.Resolvable):
-    """YAML shape of the profiler. Defines a new asset that computes and
-    emits a data profile on every materialization.
+    """YAML shape of the profiler. Two authoring modes:
+
+    1. **Define a new profiled asset** (original shape): supply
+       `asset_name` + `compute: {kind: python, python: 'mod:fn'}`. Builds
+       a single asset that computes and emits a data profile on every
+       materialization.
+
+    2. **Wrap an existing DCC component** (composability): supply
+       `wraps: {type: <component_class>, attributes: {...}}`. The inner
+       component's assets are materialized as they would normally, and
+       each compute's DataFrame return value is auto-profiled. Preserves
+       inner asset partitions, deps, resources, kinds, tags, group,
+       description. Direct YAML analog of `@profile @dg.asset` in Python.
+       Requires the inner component's asset to return a `pandas.DataFrame`.
+
+    `wraps:` and `compute:` are mutually exclusive.
     """
 
-    asset_name: str = Field(description="Dagster asset name.")
+    asset_name: Optional[str] = Field(
+        default=None,
+        description="Dagster asset name. Required when NOT using `wraps:` (inherited from inner in wraps mode).",
+    )
     upstream_asset_key: Optional[str] = Field(default=None)
-    compute: Dict[str, Any] = Field(
-        description="`{kind: python, python: 'mod:fn'}`. Returns pandas DataFrame."
+    compute: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="`{kind: python, python: 'mod:fn'}`. Returns pandas DataFrame. Mutually exclusive with `wraps`.",
+    )
+    wraps: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Wrap another DCC component's assets with auto-profiling instead of defining new compute. "
+            "Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`. "
+            "Inner asset must return pandas.DataFrame. Mutually exclusive with `compute`."
+        ),
     )
     categorical_max_distinct: int = Field(
         default=50,
@@ -284,6 +310,16 @@ class ProfileAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         return ComponentFormConfig(label="Profile Asset", editable=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        # Route: wraps-an-inner-component  vs  builds-own-asset
+        if self.wraps is not None:
+            if self.compute is not None:
+                raise ValueError("ProfileAssetComponent: `wraps:` and `compute:` are mutually exclusive.")
+            return self._build_wrapped(context)
+        if self.compute is None:
+            raise ValueError("ProfileAssetComponent: supply either `compute` (build new asset) or `wraps` (wrap existing component).")
+        if not self.asset_name:
+            raise ValueError("ProfileAssetComponent: `asset_name` required when using `compute:`.")
+
         _self = self
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
@@ -349,3 +385,121 @@ class ProfileAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             return dg.MaterializeResult(metadata=md)
 
         return dg.Definitions(assets=[_profiled_asset])
+
+    # ----------------------------------------------------------------------
+    # `wraps:` composability
+    # ----------------------------------------------------------------------
+
+    def _build_wrapped(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        inner = _resolve_inner_component(self.wraps or {})
+        inner_defs = inner.build_defs(context)
+        wrapped_assets = []
+        for asset_def in list(inner_defs.assets or []):
+            if len(asset_def.keys) != 1:
+                wrapped_assets.append(asset_def)
+                continue
+            wrapped_assets.append(self._wrap_single_asset(asset_def))
+        return dg.Definitions(
+            assets=wrapped_assets,
+            resources=inner_defs.resources,
+            sensors=inner_defs.sensors,
+            schedules=inner_defs.schedules,
+            asset_checks=inner_defs.asset_checks,
+            jobs=inner_defs.jobs,
+            loggers=inner_defs.loggers,
+        )
+
+    def _wrap_single_asset(self, asset_def: "dg.AssetsDefinition") -> "dg.AssetsDefinition":
+        key = next(iter(asset_def.keys))
+        specs_by_key = getattr(asset_def, "specs_by_key", {}) or {}
+        spec = specs_by_key.get(key)
+        inner_op = asset_def.op
+        inner_compute = getattr(inner_op.compute_fn, "decorated_fn", None) or inner_op.compute_fn
+
+        cat_max = self.categorical_max_distinct
+        top_n = self.top_n_columns
+        probes = list(self.custom_probes or [])
+
+        inner_kinds = set(getattr(spec, "kinds", None) or []) if spec else set()
+        merged_kinds = inner_kinds | set(self.kinds or []) | {"profile", "observability"}
+        inner_tags = dict(getattr(spec, "tags", None) or {}) if spec else {}
+        merged_tags = {**inner_tags, **(self.tags or {})}
+        merged_owners = list((spec.owners if spec else []) or []) + (self.owners or [])
+        inner_description = (spec.description if spec else None) or f"Profile-wrapped {key.to_user_string()}"
+        merged_description = f"{inner_description}  [profile: cat_max={cat_max}, top_n={top_n}, probes={len(probes)}]"
+        inner_deps = list(spec.deps) if (spec and getattr(spec, "deps", None)) else []
+
+        @dg.asset(
+            key=key,
+            partitions_def=asset_def.partitions_def,
+            deps=inner_deps,
+            group_name=(spec.group_name if spec else None),
+            kinds=merged_kinds,
+            tags=merged_tags,
+            owners=merged_owners,
+            description=merged_description,
+            metadata=(dict(spec.metadata) if (spec and spec.metadata) else {}),
+            code_version=(spec.code_version if spec else None),
+        )
+        def _profile_wrapped(context: dg.AssetExecutionContext, **kwargs):
+            import pandas as pd
+
+            result = inner_compute(context, **kwargs)
+
+            # Extract the DataFrame from the inner's return value.
+            df_to_profile = None
+            if isinstance(result, pd.DataFrame):
+                df_to_profile = result
+            elif isinstance(result, dg.Output):
+                if isinstance(result.value, pd.DataFrame):
+                    df_to_profile = result.value
+            elif isinstance(result, dg.MaterializeResult):
+                context.log.warning(
+                    "[profile wrap] inner returned MaterializeResult (no value); "
+                    "cannot profile — passing through unchanged"
+                )
+                return result
+
+            if df_to_profile is None:
+                context.log.warning(
+                    f"[profile wrap] inner returned {type(result).__name__} (not DataFrame); "
+                    "skipping profile — passing through unchanged"
+                )
+                return result
+
+            prof = _compute_profile(df_to_profile, cat_max, top_n)
+            if probes:
+                prof["custom"] = _run_custom_probes(df_to_profile, probes, context)
+            md = _emit_profile_observations(context, prof)
+            context.log.info(
+                f"[profile wrap] rows={prof['global']['row_count']} "
+                f"cols={prof['global']['column_count']} probes={len(probes)}"
+            )
+            return dg.Output(df_to_profile, metadata=md)
+
+        return _profile_wrapped
+
+
+def _resolve_inner_component(wraps: Dict[str, Any]):
+    """Resolve `{type: '...', attributes: {...}}` → instantiated component."""
+    type_str = wraps.get("type")
+    attrs = wraps.get("attributes") or {}
+    if not type_str or not isinstance(type_str, str):
+        raise ValueError("ProfileAssetComponent.wraps requires `type: <fully-qualified-class-name>`.")
+    if ":" in type_str:
+        mod_path, cls_name = type_str.rsplit(":", 1)
+    else:
+        mod_path, cls_name = type_str.rsplit(".", 1)
+    try:
+        mod = importlib.import_module(mod_path)
+    except ImportError as e:
+        raise ValueError(f"ProfileAssetComponent.wraps: cannot import {mod_path!r}: {e}") from e
+    cls = getattr(mod, cls_name, None)
+    if cls is None:
+        raise ValueError(f"ProfileAssetComponent.wraps: {cls_name!r} not found in {mod_path!r}.")
+    try:
+        return cls(**attrs)
+    except Exception as e:  # noqa: BLE001
+        raise ValueError(
+            f"ProfileAssetComponent.wraps: constructing {type_str} failed: {type(e).__name__}: {e}"
+        ) from e

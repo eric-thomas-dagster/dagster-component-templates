@@ -331,11 +331,40 @@ def partition_lock(
 
 
 class PartitionLockAssetComponent(dg.Component, dg.Model, dg.Resolvable):
-    """YAML shape of `@partition_lock`. Wraps a compute with per-partition mutex."""
+    """YAML shape of `@partition_lock`. Two authoring modes:
 
-    asset_name: str = Field(description="Dagster asset name.")
+    1. **Define a new asset from scratch** (original shape): supply
+       `asset_name` + `compute: {kind: python, python: 'mod:fn'}`. Builds a
+       single asset whose compute is protected by a per-partition mutex.
+
+    2. **Wrap an existing DCC component** (composability): supply
+       `wraps: {type: <component_class>, attributes: {...}}`. The inner
+       component's assets get materialized as they would normally, but
+       each compute is gated by the partition-scoped lock. Preserves
+       inner asset partitions, deps, resources, kinds, tags, group,
+       description. Direct YAML analog of `@partition_lock @dg.asset` in
+       Python.
+
+    `wraps:` and `compute:` are mutually exclusive.
+    """
+
+    asset_name: Optional[str] = Field(
+        default=None,
+        description="Dagster asset name. Required when NOT using `wraps:` (inherited from inner in wraps mode).",
+    )
     upstream_asset_key: Optional[str] = Field(default=None)
-    compute: Dict[str, Any] = Field(description="`{kind: python, python: 'mod:fn'}`.")
+    compute: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="`{kind: python, python: 'mod:fn'}`. Mutually exclusive with `wraps`.",
+    )
+    wraps: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Wrap another DCC component's assets with per-partition mutex behavior instead "
+            "of defining new compute. Shape: `{type: 'dagster_community_components.<Component>', "
+            "attributes: {...}}`. Mutually exclusive with `compute`."
+        ),
+    )
 
     ttl_seconds: float = Field(
         default=3600.0,
@@ -370,6 +399,17 @@ class PartitionLockAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         return ComponentFormConfig(label="Partition Lock Asset", editable=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        # Route: wraps-an-inner-component  vs  builds-own-asset
+        if self.wraps is not None:
+            if self.compute is not None:
+                raise ValueError("PartitionLockAssetComponent: `wraps:` and `compute:` are mutually exclusive.")
+            return self._build_wrapped(context)
+
+        if self.compute is None:
+            raise ValueError("PartitionLockAssetComponent: supply either `compute` (build new asset) or `wraps` (wrap existing component).")
+        if not self.asset_name:
+            raise ValueError("PartitionLockAssetComponent: `asset_name` required when using `compute:`.")
+
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
         compute = dict(self.compute)
@@ -447,3 +487,141 @@ class PartitionLockAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 _release_lock(context, pk)
 
         return dg.Definitions(assets=[_asset])
+
+    # ----------------------------------------------------------------------
+    # `wraps:` composability — YAML analog of `@partition_lock @dg.asset` stacking
+    # ----------------------------------------------------------------------
+
+    def _build_wrapped(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        """Instantiate the inner component; rewrap each of its assets with
+        per-partition mutex around the original compute.
+        """
+        inner = _resolve_inner_component(self.wraps or {})
+        inner_defs = inner.build_defs(context)
+
+        wrapped_assets = []
+        for asset_def in list(inner_defs.assets or []):
+            if len(asset_def.keys) != 1:
+                # Multi-asset AssetsDefinition not supported in v1 — pass through unwrapped.
+                wrapped_assets.append(asset_def)
+                continue
+            wrapped_assets.append(self._wrap_single_asset(asset_def))
+
+        return dg.Definitions(
+            assets=wrapped_assets,
+            resources=inner_defs.resources,
+            sensors=inner_defs.sensors,
+            schedules=inner_defs.schedules,
+            asset_checks=inner_defs.asset_checks,
+            jobs=inner_defs.jobs,
+            loggers=inner_defs.loggers,
+        )
+
+    def _wrap_single_asset(self, asset_def: "dg.AssetsDefinition") -> "dg.AssetsDefinition":
+        """Rebuild one single-key AssetsDefinition with per-partition mutex
+        wrapping the original compute. Preserves
+        partitions/deps/kinds/tags/group/description/metadata.
+        """
+        key = next(iter(asset_def.keys))
+        specs_by_key = getattr(asset_def, "specs_by_key", {}) or {}
+        spec = specs_by_key.get(key)
+
+        inner_op = asset_def.op
+        inner_compute = getattr(inner_op.compute_fn, "decorated_fn", None) or inner_op.compute_fn
+
+        ttl = float(self.ttl_seconds)
+        conflict = self.on_conflict
+        max_wait = float(self.max_wait_seconds)
+        poll = float(self.poll_seconds)
+        pk_override = self.partition_key
+
+        if conflict not in ("wait", "skip", "fail"):
+            raise ValueError(f"on_conflict must be 'wait', 'skip', or 'fail'; got {conflict!r}")
+
+        inner_kinds = set(getattr(spec, "kinds", None) or []) if spec else set()
+        merged_kinds = inner_kinds | set(self.kinds or []) | {"lock"}
+        inner_tags = dict(getattr(spec, "tags", None) or {}) if spec else {}
+        merged_tags = {**inner_tags, **(self.tags or {})}
+        merged_owners = list((spec.owners if spec else []) or []) + (self.owners or [])
+        inner_description = (spec.description if spec else None) or f"Partition-locked {key.to_user_string()}"
+        merged_description = (
+            f"{inner_description}  "
+            f"[partition_lock: ttl={ttl}s, on_conflict={conflict}]"
+        )
+        inner_deps = list(spec.deps) if (spec and getattr(spec, "deps", None)) else []
+
+        @dg.asset(
+            key=key,
+            partitions_def=asset_def.partitions_def,
+            deps=inner_deps,
+            group_name=(spec.group_name if spec else None),
+            kinds=merged_kinds,
+            tags=merged_tags,
+            owners=merged_owners,
+            description=merged_description,
+            metadata=(dict(spec.metadata) if (spec and spec.metadata) else {}),
+            code_version=(spec.code_version if spec else None),
+        )
+        def _partition_lock_wrapped(context: dg.AssetExecutionContext, **kwargs):
+            asset_key = context.asset_key
+            pk = _get_partition_key(context, pk_override)
+
+            try:
+                _acquire_lock(context, asset_key, pk, ttl, conflict, max_wait, poll)
+            except _LockConflictSkip:
+                # on_conflict=skip: short-circuit without invoking inner compute.
+                return dg.MaterializeResult(
+                    metadata={
+                        "partition_lock_skipped": dg.MetadataValue.bool(True),
+                        "partition_key": dg.MetadataValue.text(pk),
+                    }
+                )
+
+            try:
+                result = inner_compute(context, **kwargs)
+
+                # Merge lock metadata into the inner's MaterializeResult (if any).
+                passthrough_meta = {
+                    "partition_lock_skipped": dg.MetadataValue.bool(False),
+                    "partition_key": dg.MetadataValue.text(pk),
+                }
+                if isinstance(result, dg.MaterializeResult):
+                    merged = dict(result.metadata or {})
+                    merged.update(passthrough_meta)
+                    return dg.MaterializeResult(
+                        asset_key=result.asset_key,
+                        metadata=merged,
+                        check_results=result.check_results,
+                        data_version=result.data_version,
+                        tags=result.tags,
+                    )
+                return result
+            finally:
+                _release_lock(context, pk)
+
+        return _partition_lock_wrapped
+
+
+def _resolve_inner_component(wraps: Dict[str, Any]):
+    """Resolve `{type: 'mod.path.ClassName' OR 'mod.path:ClassName', attributes: {...}}` → component instance."""
+    type_str = wraps.get("type")
+    attrs = wraps.get("attributes") or {}
+    if not type_str or not isinstance(type_str, str):
+        raise ValueError("PartitionLockAssetComponent.wraps requires `type: <fully-qualified-class-name>`.")
+    if ":" in type_str:
+        mod_path, cls_name = type_str.rsplit(":", 1)
+    else:
+        mod_path, cls_name = type_str.rsplit(".", 1)
+    try:
+        mod = importlib.import_module(mod_path)
+    except ImportError as e:
+        raise ValueError(f"PartitionLockAssetComponent.wraps: cannot import {mod_path!r}: {e}") from e
+    cls = getattr(mod, cls_name, None)
+    if cls is None:
+        raise ValueError(f"PartitionLockAssetComponent.wraps: {cls_name!r} not found in {mod_path!r}.")
+    try:
+        return cls(**attrs)
+    except Exception as e:  # noqa: BLE001
+        raise ValueError(
+            f"PartitionLockAssetComponent.wraps: constructing {type_str} failed: {type(e).__name__}: {e}"
+        ) from e

@@ -93,6 +93,16 @@ def budget_alert(context):
 - **`@dry_run`** — dry runs still cost compute time; the observation still lands.
 - **`@smart_retry`** — retries still count toward the budget.
 
+## CLI demos using this template
+
+| Demo | Setup script | What it shows |
+|---|---|---|
+| [`budget_asset.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/budget_asset.md) | [`setup_budget_asset_demo.sh`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/setup_budget_asset_demo.sh) | 100% offline. Three runs of one `@budget`-wrapped asset — each costs $0.40 via a user `cost_fn`. RUN 1+2 within $1.00 cap; RUN 3 crosses over → observation tagged `budget_breach=true`. Ends with a query that reads cost + cumulative + breach status from the event log — the shape you'd use for a FinOps dashboard. |
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_budget_asset_demo.sh | bash
+```
+
 ## What's not in v1 (roadmap)
 
 - **Per-partition budget** — separate caps for hourly vs. daily partitions.

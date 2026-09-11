@@ -137,6 +137,16 @@ Plus one `AssetObservation` per breach with the same fields — searchable in th
 - **`@data_contract`** — contract violations don't count as SLA breaches (they're their own event).
 - **Any sensor** — watch for `sla_breach` observations, fire PagerDuty / Slack alerts.
 
+## CLI demos using this template
+
+| Demo | Setup script | What it shows |
+|---|---|---|
+| [`sla_asset.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/sla_asset.md) | [`setup_sla_asset_demo.sh`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/setup_sla_asset_demo.sh) | 100% offline. Four runs of one `@sla`-wrapped asset controlled by `SLEEP_SECONDS` env: RUN 1 (0.2s) within SLA → no observation; RUN 2 & 3 (1.0s) → breach observations (`sla_escalated=false`); RUN 4 (1.0s, third breach in window) → `sla_escalated=true` — sensor-actionable. Ends with an event-log query showing the full breach history. |
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_sla_asset_demo.sh | bash
+```
+
 ## Alerting recipe
 
 ```python

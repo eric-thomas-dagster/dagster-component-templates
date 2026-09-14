@@ -1,0 +1,129 @@
+{
+  "component_type": "dagster_community_components.AutomationAnywhereIntegrationComponent",
+  "description": "Automation Anywhere (A360 on-prem / AAI Cloud) Control Room REST API integration. Each declared Bot (fileId) becomes a daily-partitioned Dagster asset with a retry policy. Ships with 5 ops + jobs (redeploy, pause, resume, stop, reconcile), an external-execution monitor sensor, an inbound-trigger sensor, and an hourly reconciliation schedule. demo_mode=true simulates the full REST API lifecycle on stdout so the whole component runs end-to-end with zero external dependencies.",
+  "category": "integration",
+  "icon": "Schedule",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "One daily-partitioned Dagster asset per Automation Anywhere Bot + optional external source-table assets + 5 ops/jobs + 2 sensors + 1 schedule."
+    }
+  },
+  "attributes": {
+    "demo_mode": {
+      "type": "boolean",
+      "label": "Demo Mode",
+      "required": false,
+      "default": true,
+      "description": "Simulate the REST API on stdout (no external calls).",
+      "ui:widget": "checkbox"
+    },
+    "endpoint": {
+      "type": "string",
+      "label": "Endpoint",
+      "required": false,
+      "default": "https://control-room.internal",
+      "description": "Automation Anywhere Control Room REST API base URL (used when demo_mode=false)."
+    },
+    "jobs": {
+      "type": "array",
+      "label": "Bots",
+      "required": false,
+      "description": "Automation Anywhere Bots (fileIds) to wrap as daily-partitioned Dagster assets. Each item: {file_id, asset_name, description?, workspace?, application?, device_pool_id?, run_as_user_ids?, bot_input?, run_as?}."
+    },
+    "source_tables": {
+      "type": "array",
+      "label": "Source Tables",
+      "required": false,
+      "description": "Tables populated by AA bots that Dagster observes (adds to lineage). Each item: {table_name, asset_name, description?, group_name?, produced_by?}."
+    },
+    "upstream_deps": {
+      "type": "array",
+      "label": "Upstream Deps",
+      "required": false,
+      "description": "Upstream asset keys (slash-separated for nested keys) that must complete before bots run."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "automation_anywhere_integration",
+      "description": "Dagster asset group for the bot assets."
+    },
+    "automation_anywhere_user_env": {
+      "type": "string",
+      "label": "Automation Anywhere User Env Var",
+      "required": false,
+      "default": "AUTOMATION_ANYWHERE_USER",
+      "description": "Env var holding the Control Room REST username."
+    },
+    "automation_anywhere_password_env": {
+      "type": "string",
+      "label": "Automation Anywhere Password Env Var",
+      "required": false,
+      "default": "AUTOMATION_ANYWHERE_PASSWORD",
+      "description": "Env var holding the Control Room REST password (or apiKey)."
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "required": false,
+      "default": 10,
+      "description": "Seconds between AA execution status polls."
+    },
+    "poll_timeout_seconds": {
+      "type": "integer",
+      "label": "Poll Timeout Seconds",
+      "required": false,
+      "default": 3600,
+      "description": "Total seconds to wait for terminal status before failing."
+    },
+    "log_retrieval": {
+      "type": "boolean",
+      "label": "Log Retrieval",
+      "required": false,
+      "default": true,
+      "description": "Retrieve execution logs on completion.",
+      "ui:widget": "checkbox"
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "required": false,
+      "default": 2,
+      "description": "Dagster-side asset retries on failure."
+    },
+    "retry_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Delay Seconds",
+      "required": false,
+      "default": 60,
+      "description": "Delay between Dagster asset retries."
+    },
+    "partition_start_date": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "required": false,
+      "default": "2024-01-01",
+      "description": "Start date for the daily partitioned assets."
+    },
+    "reconciliation_cron": {
+      "type": "string",
+      "label": "Reconciliation Cron",
+      "required": false,
+      "default": "0 * * * *",
+      "description": "Cron for the Automation Anywhere vs Dagster state reconciliation job."
+    }
+  },
+  "tags": [
+    "integration",
+    "automation-anywhere",
+    "a360",
+    "aai",
+    "rpa",
+    "orchestration",
+    "bot",
+    "workload-automation"
+  ],
+  "name": "AutomationAnywhereIntegration"
+}

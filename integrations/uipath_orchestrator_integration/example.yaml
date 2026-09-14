@@ -1,0 +1,57 @@
+type: dagster_community_components.UiPathOrchestratorIntegrationComponent
+
+attributes:
+  # demo_mode simulates the REST API on stdout — flip to false to hit a real
+  # UiPath Orchestrator (requires UIPATH_CLIENT_ID / UIPATH_CLIENT_SECRET env vars
+  # from an External Application registered under Admin -> External Applications).
+  demo_mode: true
+  endpoint: "https://cloud.uipath.com/organization/tenant/orchestrator_"
+
+  group_name: uipath_orchestrator_integration
+
+  # Auth (production mode only)
+  uipath_client_id_env: UIPATH_CLIENT_ID
+  uipath_client_secret_env: UIPATH_CLIENT_SECRET
+
+  # Dagster-side retry policy applied to every job asset
+  max_retries: 2
+  retry_delay_seconds: 60
+
+  # Upstream deps that must complete before UiPath jobs run
+  upstream_deps: []
+
+  # UiPath Releases — each becomes a daily-partitioned Dagster asset
+  jobs:
+    - release_key: "abc12345-6789-def0-1234-567890abcdef"
+      asset_name: uipath_invoice_processing
+      description: >-
+        Invoice-processing RPA process. Dagster starts the job via
+        Orchestrator's OData API with the partition date as an InputArgument,
+        polls Pending -> Running -> Successful, then captures OutputArguments.
+      folder: Finance
+      folder_id: 42
+      robot_ids: []
+      input_arguments:
+        RunDate: "{partition_key}"
+        Mode: "batch"
+      machine_group: finance_robots
+      run_as: svc_dagster
+
+    - release_key: "fedcba98-7654-3210-fedc-ba9876543210"
+      asset_name: uipath_kyc_screening
+      description: >-
+        KYC / sanctions-list screening RPA process. Must complete before
+        compliance dashboards refresh.
+      folder: Compliance
+      folder_id: 57
+      robot_ids: []
+      input_arguments:
+        ScreeningDate: "{partition_key}"
+      machine_group: compliance_robots
+
+  # Optional: UiPath-populated tables that Dagster observes (adds to lineage)
+  source_tables: []
+  # source_tables:
+  #   - table_name: "FINANCE.INVOICE_STAGING"
+  #     asset_name: uipath_invoice_table
+  #     produced_by: uipath_invoice_processing

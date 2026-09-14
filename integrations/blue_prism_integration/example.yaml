@@ -1,0 +1,55 @@
+type: dagster_community_components.BluePrismIntegrationComponent
+
+attributes:
+  # demo_mode simulates the REST API on stdout — flip to false to hit a real
+  # Blue Prism 7+ Web API instance (requires BLUE_PRISM_USER / BLUE_PRISM_PASSWORD
+  # or BLUE_PRISM_API_KEY env vars).
+  demo_mode: true
+  endpoint: "https://blueprism.internal/api/v7"
+
+  group_name: blue_prism_integration
+
+  # Auth (production mode only)
+  blue_prism_user_env: BLUE_PRISM_USER
+  blue_prism_password_env: BLUE_PRISM_PASSWORD
+  blue_prism_api_key_env: BLUE_PRISM_API_KEY
+
+  # Dagster-side retry policy applied to every process asset
+  max_retries: 2
+  retry_delay_seconds: 60
+
+  # Upstream deps that must complete before Blue Prism processes run
+  upstream_deps: []
+
+  # Blue Prism processes — each becomes a daily-partitioned Dagster asset
+  jobs:
+    - process_id: "b1e2c3d4-5f6a-7b8c-9d0e-1f2a3b4c5d6e"
+      asset_name: bp_invoice_extraction
+      description: >-
+        Invoice extraction bot. Blue Prism scrapes the AP portal, normalizes
+        vendors, and loads to the staging table. Dagster starts the session
+        with the partition_key as the invoice date, polls
+        Pending -> Running -> Completed, then retrieves logs.
+      resource_id: "a0b1c2d3-4e5f-6a7b-8c9d-0e1f2a3b4c5d"
+      resource_group: Finance
+      application: Accounts_Payable
+      inputs:
+        invoice_date: "{partition_key}"
+        batch_size: 500
+
+    - process_id: "c3d4e5f6-7a8b-9c0d-1e2f-3a4b5c6d7e8f"
+      asset_name: bp_hr_onboarding
+      description: >-
+        Employee onboarding bot. Creates AD/Okta accounts, sends welcome
+        emails, and files the HRIS record. Must complete before HR dashboards
+        refresh.
+      resource_id: "d4e5f6a7-8b9c-0d1e-2f3a-4b5c6d7e8f90"
+      resource_group: HR
+      application: Employee_Lifecycle
+
+  # Optional: Blue Prism-managed tables that Dagster observes (adds to lineage)
+  source_tables: []
+  # source_tables:
+  #   - table_name: "FINANCE.INVOICE_STAGING"
+  #     asset_name: bp_invoice_staging_table
+  #     produced_by: bp_invoice_extraction

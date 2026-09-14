@@ -52535,6 +52535,260 @@
         "read from jams",
         "windows scheduler"
       ]
+    },
+    {
+      "id": "uipath_orchestrator_integration",
+      "name": "UiPath Orchestrator Integration",
+      "component_type": "dagster_community_components.UiPathOrchestratorIntegrationComponent",
+      "path": "integrations/uipath_orchestrator_integration",
+      "category": "integration",
+      "icon": "Schedule",
+      "description": "UiPath Orchestrator REST API integration \u2014 wraps RPA process runs (UiPath Jobs) as daily-partitioned Dagster assets. OAuth2 client credentials auth. Ships 5 op-backed jobs (restart / soft-stop / kill / disable schedule / reconcile), 2 sensors (external-execution monitor + inbound trigger via Dagster GraphQL), and hourly reconciliation schedule. demo_mode=true simulates the full REST lifecycle on stdout with zero external dependencies; flip false + set UIPATH_CLIENT_ID/UIPATH_CLIENT_SECRET to hit a real UiPath Orchestrator (Cloud or on-prem). UiPath Cloud Community tier available free at cloud.uipath.com/signup.",
+      "tags": [
+        "integration",
+        "uipath",
+        "orchestrator",
+        "rpa",
+        "hybrid-deployment",
+        "workload-automation"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/uipath_orchestrator_integration/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/uipath_orchestrator_integration/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/uipath_orchestrator_integration/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/uipath_orchestrator_integration/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/uipath_orchestrator_integration/schema.json",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/uipath_orchestrator_integration.md",
+        "last_validated": "2026-09-14"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "one_daily_partitioned_asset_per_uipath_process",
+          "optional_source_table_assets",
+          "5_op_jobs_restart_stop_kill_disable_reconcile",
+          "external_execution_monitor_sensor",
+          "inbound_trigger_sensor",
+          "hourly_reconciliation_schedule"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "automation_anywhere_integration",
+          "blue_prism_integration",
+          "power_automate_integration",
+          "controlm_integration",
+          "runmyjobs_integration"
+        ],
+        "anti_uses": "RPA-domain sibling of the batch-scheduler family. Hybrid deployment shape \u2014 Dagster orchestrates the wider pipeline, UiPath keeps owning the desktop/attended RPA."
+      },
+      "produces": [
+        "multi_asset"
+      ],
+      "keywords": [
+        "uipath integration",
+        "rpa integration",
+        "read from uipath",
+        "trigger uipath from dagster",
+        "hybrid deployment"
+      ]
+    },
+    {
+      "id": "automation_anywhere_integration",
+      "name": "Automation Anywhere Integration",
+      "component_type": "dagster_community_components.AutomationAnywhereIntegrationComponent",
+      "path": "integrations/automation_anywhere_integration",
+      "category": "integration",
+      "icon": "Schedule",
+      "description": "Automation Anywhere A360 Control Room REST API integration \u2014 wraps RPA bot deployments as daily-partitioned Dagster assets. JWT auth via /v1/authentication. Ships 5 op-backed jobs (redeploy / pause / resume / stop / reconcile), 2 sensors (external-execution monitor + inbound trigger), and hourly reconciliation schedule. demo_mode=true simulates the full REST lifecycle on stdout; flip false + set AUTOMATION_ANYWHERE_USER/AUTOMATION_ANYWHERE_PASSWORD to hit a real Control Room. AAI Cloud tier available with a business trial account.",
+      "tags": [
+        "integration",
+        "automation-anywhere",
+        "a360",
+        "rpa",
+        "hybrid-deployment",
+        "workload-automation"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/automation_anywhere_integration/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/automation_anywhere_integration/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/automation_anywhere_integration/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/automation_anywhere_integration/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/automation_anywhere_integration/schema.json",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/automation_anywhere_integration.md",
+        "last_validated": "2026-09-14"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "one_daily_partitioned_asset_per_a360_bot",
+          "optional_source_table_assets",
+          "5_op_jobs_redeploy_pause_resume_stop_reconcile",
+          "external_execution_monitor_sensor",
+          "inbound_trigger_sensor",
+          "hourly_reconciliation_schedule"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "uipath_orchestrator_integration",
+          "blue_prism_integration",
+          "power_automate_integration"
+        ],
+        "anti_uses": "RPA-domain integration. Hybrid deployment shape."
+      },
+      "produces": [
+        "multi_asset"
+      ],
+      "keywords": [
+        "automation anywhere integration",
+        "a360 integration",
+        "rpa integration",
+        "read from automation anywhere"
+      ]
+    },
+    {
+      "id": "blue_prism_integration",
+      "name": "Blue Prism Integration",
+      "component_type": "dagster_community_components.BluePrismIntegrationComponent",
+      "path": "integrations/blue_prism_integration",
+      "category": "integration",
+      "icon": "Schedule",
+      "description": "Blue Prism (SS&C) REST API integration \u2014 wraps RPA process sessions as daily-partitioned Dagster assets. Basic auth against Blue Prism 7+ Web API (older versions expose only the SOAP API). Ships 5 op-backed jobs (restart / stop / terminate / hold / reconcile), 2 sensors (external-execution monitor + inbound trigger), and hourly reconciliation schedule. demo_mode=true simulates the full REST lifecycle on stdout; flip false + set BLUE_PRISM_USER/BLUE_PRISM_PASSWORD to hit a real Blue Prism controller.",
+      "tags": [
+        "integration",
+        "blue-prism",
+        "ssc",
+        "rpa",
+        "hybrid-deployment",
+        "workload-automation"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/blue_prism_integration/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/blue_prism_integration/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/blue_prism_integration/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/blue_prism_integration/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/blue_prism_integration/schema.json",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/blue_prism_integration.md",
+        "last_validated": "2026-09-14"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "one_daily_partitioned_asset_per_blue_prism_process",
+          "optional_source_table_assets",
+          "5_op_jobs_restart_stop_terminate_hold_reconcile",
+          "external_execution_monitor_sensor",
+          "inbound_trigger_sensor",
+          "hourly_reconciliation_schedule"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "uipath_orchestrator_integration",
+          "automation_anywhere_integration",
+          "power_automate_integration"
+        ],
+        "anti_uses": "RPA-domain integration. Hybrid deployment shape. Requires Blue Prism 7+ Web API for the REST surface."
+      },
+      "produces": [
+        "multi_asset"
+      ],
+      "keywords": [
+        "blue prism integration",
+        "rpa integration",
+        "read from blue prism",
+        "ssc rpa"
+      ]
+    },
+    {
+      "id": "power_automate_integration",
+      "name": "Microsoft Power Automate Integration",
+      "component_type": "dagster_community_components.PowerAutomateIntegrationComponent",
+      "path": "integrations/power_automate_integration",
+      "category": "integration",
+      "icon": "Schedule",
+      "description": "Microsoft Power Automate (cloud flows) REST API integration \u2014 wraps flow runs as daily-partitioned Dagster assets. OAuth2 client credentials via Azure AD / Entra ID. Ships 5 op-backed jobs (retrigger / cancel / turn-off / turn-on / reconcile), 2 sensors (external-execution monitor + inbound trigger), and hourly reconciliation schedule. demo_mode=true simulates the full REST lifecycle on stdout; flip false + set POWER_AUTOMATE_TENANT_ID/POWER_AUTOMATE_CLIENT_ID/POWER_AUTOMATE_CLIENT_SECRET to hit a real Power Automate environment. Cloud-only (Microsoft SaaS); no Docker option.",
+      "tags": [
+        "integration",
+        "power-automate",
+        "microsoft",
+        "azure",
+        "m365",
+        "rpa",
+        "cloud",
+        "hybrid-deployment"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/power_automate_integration/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/power_automate_integration/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/power_automate_integration/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/power_automate_integration/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/power_automate_integration/schema.json",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/power_automate_integration.md",
+        "last_validated": "2026-09-14"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "one_daily_partitioned_asset_per_power_automate_flow",
+          "optional_source_table_assets",
+          "5_op_jobs_retrigger_cancel_off_on_reconcile",
+          "external_execution_monitor_sensor",
+          "inbound_trigger_sensor",
+          "hourly_reconciliation_schedule"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "uipath_orchestrator_integration",
+          "automation_anywhere_integration",
+          "blue_prism_integration"
+        ],
+        "anti_uses": "Cloud-only Microsoft SaaS integration. Hybrid deployment shape. Requires Azure AD app registration with Flow Service permissions."
+      },
+      "produces": [
+        "multi_asset"
+      ],
+      "keywords": [
+        "power automate integration",
+        "rpa integration",
+        "microsoft flows",
+        "azure flows",
+        "m365 automation"
+      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

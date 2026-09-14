@@ -1,0 +1,57 @@
+type: dagster_community_components.AutomationAnywhereIntegrationComponent
+
+attributes:
+  # demo_mode simulates the REST API on stdout — flip to false to hit a real
+  # Automation Anywhere Control Room (requires AUTOMATION_ANYWHERE_USER /
+  # AUTOMATION_ANYWHERE_PASSWORD env vars).
+  demo_mode: true
+  endpoint: "https://control-room.internal"
+
+  group_name: automation_anywhere_integration
+
+  # Auth (production mode only)
+  automation_anywhere_user_env: AUTOMATION_ANYWHERE_USER
+  automation_anywhere_password_env: AUTOMATION_ANYWHERE_PASSWORD
+
+  # Dagster-side retry policy applied to every bot asset
+  max_retries: 2
+  retry_delay_seconds: 60
+
+  # Upstream deps that must complete before AA bots run
+  upstream_deps: []
+
+  # Automation Anywhere Bots (fileIds) — each becomes a daily-partitioned Dagster asset
+  jobs:
+    - file_id: 12345
+      asset_name: aa_invoice_extract
+      description: >-
+        Invoice extraction bot. Automation Anywhere orchestrates the
+        underlying screen-scraping + PDF parsing steps. Dagster deploys
+        via REST with the partition date as botInput, polls through
+        DEPLOYED -> QUEUED -> RUNNING -> COMPLETED, then retrieves logs.
+      workspace: Public
+      application: FINANCE
+      device_pool_id: 7
+      run_as_user_ids: [42]
+      bot_input:
+        run_date: "{partition_key}"
+        source_folder: "/mnt/invoices/inbound"
+
+    - file_id: 12346
+      asset_name: aa_hr_onboarding
+      description: >-
+        HR new-hire onboarding bot. Reads new-hire records for the
+        partition date and provisions accounts across HRIS + IdP + payroll.
+      workspace: Public
+      application: HR
+      device_pool_id: 3
+      run_as_user_ids: [42]
+      bot_input:
+        run_date: "{partition_key}"
+
+  # Optional: AA-managed tables that Dagster observes (adds to lineage)
+  source_tables: []
+  # source_tables:
+  #   - table_name: "FINANCE.INVOICE_EXTRACT_STAGING"
+  #     asset_name: aa_invoice_staging_table
+  #     produced_by: aa_invoice_extract

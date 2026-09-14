@@ -1,0 +1,135 @@
+{
+  "component_type": "dagster_community_components.BluePrismIntegrationComponent",
+  "description": "SS&C Blue Prism 7+ Web API integration. Each declared Blue Prism process becomes a daily-partitioned Dagster asset with a retry policy. Ships with 5 ops + jobs (restart / stop / terminate / hold / reconcile), an external-execution monitor sensor, an inbound-trigger sensor, and an hourly reconciliation schedule. demo_mode=true simulates the full REST API lifecycle on stdout so the whole component runs end-to-end with zero external dependencies (Blue Prism has no public Docker image).",
+  "category": "integration",
+  "icon": "Schedule",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "One daily-partitioned Dagster asset per Blue Prism process + optional external source-table assets + 5 ops/jobs + 2 sensors + 1 schedule."
+    }
+  },
+  "attributes": {
+    "demo_mode": {
+      "type": "boolean",
+      "label": "Demo Mode",
+      "required": false,
+      "default": true,
+      "description": "Simulate the REST API on stdout (no external calls).",
+      "ui:widget": "checkbox"
+    },
+    "endpoint": {
+      "type": "string",
+      "label": "Endpoint",
+      "required": false,
+      "default": "https://blueprism.internal/api/v7",
+      "description": "Blue Prism Web API base URL (used when demo_mode=false)."
+    },
+    "jobs": {
+      "type": "array",
+      "label": "Jobs",
+      "required": false,
+      "description": "Blue Prism processes to wrap as daily-partitioned Dagster assets. Each item: {process_id, asset_name, description?, resource_id?, resource_group?, application?, inputs?, run_as?}."
+    },
+    "source_tables": {
+      "type": "array",
+      "label": "Source Tables",
+      "required": false,
+      "description": "Tables loaded by Blue Prism that Dagster observes (adds to lineage). Each item: {table_name, asset_name, description?, group_name?, produced_by?}."
+    },
+    "upstream_deps": {
+      "type": "array",
+      "label": "Upstream Deps",
+      "required": false,
+      "description": "Upstream asset keys (slash-separated for nested keys) that must complete before jobs run."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "blue_prism_integration",
+      "description": "Dagster asset group for the process assets."
+    },
+    "blue_prism_user_env": {
+      "type": "string",
+      "label": "Blue Prism User Env Var",
+      "required": false,
+      "default": "BLUE_PRISM_USER",
+      "description": "Env var holding the Blue Prism REST username."
+    },
+    "blue_prism_password_env": {
+      "type": "string",
+      "label": "Blue Prism Password Env Var",
+      "required": false,
+      "default": "BLUE_PRISM_PASSWORD",
+      "description": "Env var holding the Blue Prism REST password."
+    },
+    "blue_prism_api_key_env": {
+      "type": "string",
+      "label": "Blue Prism API Key Env Var",
+      "required": false,
+      "default": "BLUE_PRISM_API_KEY",
+      "description": "Env var holding the Blue Prism 7 Web API key (alternative to user+password)."
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "required": false,
+      "default": 10,
+      "description": "Seconds between Blue Prism session status polls."
+    },
+    "poll_timeout_seconds": {
+      "type": "integer",
+      "label": "Poll Timeout Seconds",
+      "required": false,
+      "default": 3600,
+      "description": "Total seconds to wait for terminal status before failing."
+    },
+    "log_retrieval": {
+      "type": "boolean",
+      "label": "Log Retrieval",
+      "required": false,
+      "default": true,
+      "description": "Retrieve session logs on completion.",
+      "ui:widget": "checkbox"
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "required": false,
+      "default": 2,
+      "description": "Dagster-side asset retries on failure."
+    },
+    "retry_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Delay Seconds",
+      "required": false,
+      "default": 60,
+      "description": "Delay between Dagster asset retries."
+    },
+    "partition_start_date": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "required": false,
+      "default": "2024-01-01",
+      "description": "Start date for the daily partitioned assets."
+    },
+    "reconciliation_cron": {
+      "type": "string",
+      "label": "Reconciliation Cron",
+      "required": false,
+      "default": "0 * * * *",
+      "description": "Cron for the Blue Prism vs Dagster state reconciliation job."
+    }
+  },
+  "tags": [
+    "integration",
+    "blue-prism",
+    "ssnc",
+    "rpa",
+    "orchestration",
+    "automation",
+    "workload-automation"
+  ],
+  "name": "BluePrismIntegration"
+}

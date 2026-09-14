@@ -1,0 +1,57 @@
+type: dagster_community_components.PowerAutomateIntegrationComponent
+
+attributes:
+  # demo_mode simulates the REST API on stdout — flip to false to hit a real
+  # Power Automate service (requires POWER_AUTOMATE_TENANT_ID /
+  # POWER_AUTOMATE_CLIENT_ID / POWER_AUTOMATE_CLIENT_SECRET env vars +
+  # an Azure AD app registration with Flows.Read.All / Flows.Manage.All).
+  demo_mode: true
+  endpoint: "https://api.flow.microsoft.com"
+
+  group_name: power_automate_integration
+
+  # Auth (production mode only) — Azure AD client credentials
+  power_automate_tenant_env: POWER_AUTOMATE_TENANT_ID
+  power_automate_client_id_env: POWER_AUTOMATE_CLIENT_ID
+  power_automate_client_secret_env: POWER_AUTOMATE_CLIENT_SECRET
+
+  # Dagster-side retry policy applied to every flow asset
+  max_retries: 2
+  retry_delay_seconds: 60
+
+  # Upstream deps that must complete before Power Automate flows run
+  upstream_deps: []
+
+  # Power Automate cloud flows — each becomes a daily-partitioned Dagster asset
+  jobs:
+    - flow_id: "b1c2d3e4-5f60-7a80-9b0c-1d2e3f405060"
+      asset_name: pa_invoice_approval
+      description: >-
+        Invoice-approval cloud flow. Power Automate handles the SharePoint
+        + Outlook + Teams orchestration Dagster shouldn't. Dagster triggers
+        via the manual trigger REST endpoint, polls Running -> Succeeded,
+        records the runName.
+      environment_id: "Default-a0b1c2d3-e4f5-6789-abcd-ef0123456789"
+      solution: Finance
+      application: INVOICE_OPS
+      trigger_input:
+        DATE: "{partition_key}"
+        SOURCE_SYSTEM: SAP
+
+    - flow_id: "c2d3e4f5-6071-8b90-ac1d-2e3f40506070"
+      asset_name: pa_onboarding_workflow
+      description: >-
+        HR onboarding automation. Must complete before downstream identity /
+        access provisioning fires.
+      environment_id: "Default-a0b1c2d3-e4f5-6789-abcd-ef0123456789"
+      solution: HR
+      application: ONBOARDING
+      trigger_input:
+        DATE: "{partition_key}"
+
+  # Optional: Power-Automate-managed tables that Dagster observes (adds to lineage)
+  source_tables: []
+  # source_tables:
+  #   - table_name: "FINANCE.INVOICE_APPROVALS"
+  #     asset_name: pa_invoice_approvals_table
+  #     produced_by: pa_invoice_approval

@@ -1,0 +1,48 @@
+type: dagster_community_components.RundeckIntegrationComponent
+
+attributes:
+  # demo_mode simulates the REST API on stdout — flip to false to hit a real
+  # Rundeck server (requires RUNDECK_API_TOKEN env var).
+  demo_mode: true
+  endpoint: "http://localhost:4440"
+  api_version: 47
+
+  group_name: rundeck_integration
+
+  # Auth (production mode only) — bearer-style X-Rundeck-Auth-Token header.
+  # Create in the Rundeck UI: User Profile -> User API Tokens -> Generate New Token.
+  rundeck_token_env: RUNDECK_API_TOKEN
+
+  # Dagster-side retry policy applied to every job asset
+  max_retries: 2
+  retry_delay_seconds: 60
+
+  # Upstream deps that must complete before Rundeck jobs run
+  upstream_deps: []
+
+  # Rundeck Jobs — each becomes a daily-partitioned Dagster asset
+  jobs:
+    - job_id: 3d7f9e2a-1c4b-4a5f-8d2e-6f8a1b2c3d4e
+      asset_name: rundeck_eod_settlement
+      description: >-
+        End-of-day settlement job. Rundeck runs the underlying shell / Ansible
+        steps across the settlement node group. Dagster fires the execution via
+        REST with the partition date as an argString option, polls through
+        running -> succeeded, then records the executionId.
+      project: DAILY_BATCH
+      arg_string: "-runDate {{ partition_key }} -mode full"
+
+    - job_id: 7a2b8c1d-9e4f-4b6a-8c5d-2f1e3a4b5c6d
+      asset_name: rundeck_regulatory_extract
+      description: >-
+        Regulatory reporting extract. Must complete before compliance
+        dashboards refresh.
+      project: DAILY_BATCH
+      arg_string: "-runDate {{ partition_key }} -region ALL"
+
+  # Optional: Rundeck-managed tables that Dagster observes (adds to lineage)
+  source_tables: []
+  # source_tables:
+  #   - table_name: "CORE_BANKING.SETTLEMENT_LEDGER"
+  #     asset_name: rundeck_settlement_table
+  #     produced_by: rundeck_eod_settlement

@@ -1,0 +1,50 @@
+type: dagster_community_components.IWSIntegrationComponent
+
+attributes:
+  # demo_mode simulates the REST API on stdout — flip to false to hit a real
+  # IWS server (requires IWS_USER / IWS_PASSWORD env vars).
+  demo_mode: true
+  # Distributed engine default. z/OS engine: swap /twsd/v1 for /twsz/v1.
+  endpoint: "https://iws.internal:31116/twsd/v1"
+
+  group_name: iws_integration
+
+  # Auth (production mode only)
+  iws_user_env: IWS_USER
+  iws_password_env: IWS_PASSWORD
+
+  # Dagster-side retry policy applied to every job asset
+  max_retries: 2
+  retry_delay_seconds: 60
+
+  # Upstream deps that must complete before IWS jobs run
+  upstream_deps: []
+
+  # IWS Jobs — each becomes a daily-partitioned Dagster asset
+  jobs:
+    - job_name: EOD_SETTLE
+      asset_name: iws_eod_settle
+      description: >-
+        End-of-day settlement. IWS orchestrates the underlying mainframe
+        JCL and distributed batch. Dagster submits via REST with the
+        scheduled date from the partition key, polls through
+        Waiting -> Ready -> Running -> Succ, then retrieves stdlist.
+      application: DAILY_BATCH
+      workstation: CPU1-MASTER
+      alias_name: CORE_BANKING_SETTLEMENT
+
+    - job_name: REG_EXTRACT
+      asset_name: iws_reg_extract
+      description: >-
+        Regulatory reporting extract. Must complete before compliance
+        dashboards refresh.
+      application: DAILY_BATCH
+      workstation: CPU2-COMPLIANCE
+      alias_name: COMPLIANCE_REGULATORY
+
+  # Optional: IWS-managed tables that Dagster observes (adds to lineage)
+  source_tables: []
+  # source_tables:
+  #   - table_name: "CORE_BANKING.SETTLEMENT_LEDGER"
+  #     asset_name: iws_settlement_table
+  #     produced_by: iws_eod_settle

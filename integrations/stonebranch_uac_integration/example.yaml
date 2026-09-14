@@ -1,0 +1,51 @@
+type: dagster_community_components.StonebranchUACIntegrationComponent
+
+attributes:
+  # demo_mode simulates the REST API on stdout — flip to false to hit a real
+  # Stonebranch UAC server (requires STONEBRANCH_USER / STONEBRANCH_PASSWORD env vars).
+  demo_mode: true
+  endpoint: "http://localhost:8080/uc"
+
+  group_name: stonebranch_uac_integration
+
+  # Auth (production mode only)
+  stonebranch_user_env: STONEBRANCH_USER
+  stonebranch_password_env: STONEBRANCH_PASSWORD
+
+  # Dagster-side retry policy applied to every task asset
+  max_retries: 2
+  retry_delay_seconds: 60
+
+  # Upstream deps that must complete before Stonebranch tasks run
+  upstream_deps: []
+
+  # Stonebranch UAC Tasks — each becomes a daily-partitioned Dagster asset
+  jobs:
+    - task_name: EOD_BATCH_SETTLEMENT
+      asset_name: sb_eod_settlement
+      description: >-
+        End-of-day batch settlement. Stonebranch UAC orchestrates the underlying
+        SAP / mainframe processes via a Universal Agent. Dagster launches via
+        REST with the scheduled date from the partition key, polls through
+        Waiting -> Queued -> Running -> Success, then emits an event.
+      workflow: DAILY_BATCH
+      application: CORE_BANKING
+      agent: ux-agent-01
+      run_as: svc_dagster
+
+    - task_name: REGULATORY_EXTRACT
+      asset_name: sb_regulatory_extract
+      description: >-
+        Regulatory reporting extract. Must complete before compliance
+        dashboards refresh.
+      workflow: DAILY_BATCH
+      application: COMPLIANCE
+      agent: ux-agent-compliance
+      run_as: svc_dagster
+
+  # Optional: Stonebranch-managed tables that Dagster observes (adds to lineage)
+  source_tables: []
+  # source_tables:
+  #   - table_name: "CORE_BANKING.SETTLEMENT_LEDGER"
+  #     asset_name: sb_settlement_table
+  #     produced_by: sb_eod_settlement

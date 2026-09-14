@@ -1,0 +1,49 @@
+type: dagster_community_components.ActiveBatchIntegrationComponent
+
+attributes:
+  # demo_mode simulates the REST API on stdout — flip to false to hit a real
+  # ActiveBatch server (requires ACTIVEBATCH_USER / ACTIVEBATCH_PASSWORD env vars).
+  demo_mode: true
+  endpoint: "http://activebatch.internal/absvc/api/v1"
+
+  group_name: activebatch_integration
+
+  # Auth (production mode only)
+  activebatch_user_env: ACTIVEBATCH_USER
+  activebatch_password_env: ACTIVEBATCH_PASSWORD
+
+  # Dagster-side retry policy applied to every job asset
+  max_retries: 2
+  retry_delay_seconds: 60
+
+  # Upstream deps that must complete before ActiveBatch jobs run
+  upstream_deps: []
+
+  # ActiveBatch Jobs — each becomes a daily-partitioned Dagster asset
+  jobs:
+    - object_id: "12345"
+      asset_name: ab_eod_settlement
+      description: >-
+        End-of-day batch settlement. ActiveBatch orchestrates the underlying
+        Windows / SQL / mainframe processes. Dagster triggers via REST with the
+        scheduled date from the partition key, polls through
+        Queued -> Running -> Succeeded, then emits an event.
+      plan: DAILY_BATCH
+      execution_queue: WIN-Q-01
+      application: CORE_BANKING
+
+    - object_id: "12346"
+      asset_name: ab_regulatory_extract
+      description: >-
+        Regulatory reporting extract. Must complete before compliance
+        dashboards refresh.
+      plan: DAILY_BATCH
+      execution_queue: COMPLIANCE-Q-01
+      application: COMPLIANCE
+
+  # Optional: ActiveBatch-managed tables that Dagster observes (adds to lineage)
+  source_tables: []
+  # source_tables:
+  #   - table_name: "CORE_BANKING.SETTLEMENT_LEDGER"
+  #     asset_name: ab_settlement_table
+  #     produced_by: ab_eod_settlement

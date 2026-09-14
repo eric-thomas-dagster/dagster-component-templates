@@ -1,0 +1,130 @@
+{
+  "component_type": "dagster_community_components.StonebranchUACIntegrationComponent",
+  "description": "Stonebranch Universal Automation Center (UAC) REST API integration. Each declared Task becomes a daily-partitioned Dagster asset with a retry policy. Ships with 5 ops + jobs (rerun, hold, release, cancel, reconcile), an external-execution monitor sensor, an inbound-trigger sensor, and an hourly reconciliation schedule. demo_mode=true simulates the full REST API lifecycle on stdout so the whole component runs end-to-end with zero external dependencies.",
+  "category": "integration",
+  "icon": "Schedule",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "One daily-partitioned Dagster asset per Stonebranch UAC Task + optional external source-table assets + 5 ops/jobs + 2 sensors + 1 schedule."
+    }
+  },
+  "attributes": {
+    "demo_mode": {
+      "type": "boolean",
+      "label": "Demo Mode",
+      "required": false,
+      "default": true,
+      "description": "Simulate the REST API on stdout (no external calls).",
+      "ui:widget": "checkbox"
+    },
+    "endpoint": {
+      "type": "string",
+      "label": "Endpoint",
+      "required": false,
+      "default": "http://localhost:8080/uc",
+      "description": "Stonebranch UAC REST API base URL (used when demo_mode=false)."
+    },
+    "jobs": {
+      "type": "array",
+      "label": "Tasks",
+      "required": false,
+      "description": "Stonebranch UAC Tasks to wrap as daily-partitioned Dagster assets. Each item: {task_name, asset_name, description?, workflow?, application?, agent?, run_as?}."
+    },
+    "source_tables": {
+      "type": "array",
+      "label": "Source Tables",
+      "required": false,
+      "description": "Tables loaded by Stonebranch tasks that Dagster observes (adds to lineage). Each item: {table_name, asset_name, description?, group_name?, produced_by?}."
+    },
+    "upstream_deps": {
+      "type": "array",
+      "label": "Upstream Deps",
+      "required": false,
+      "description": "Upstream asset keys (slash-separated for nested keys) that must complete before tasks run."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "stonebranch_uac_integration",
+      "description": "Dagster asset group for the task assets."
+    },
+    "stonebranch_user_env": {
+      "type": "string",
+      "label": "Stonebranch User Env Var",
+      "required": false,
+      "default": "STONEBRANCH_USER",
+      "description": "Env var holding the Stonebranch UAC REST username."
+    },
+    "stonebranch_password_env": {
+      "type": "string",
+      "label": "Stonebranch Password Env Var",
+      "required": false,
+      "default": "STONEBRANCH_PASSWORD",
+      "description": "Env var holding the Stonebranch UAC REST password."
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "required": false,
+      "default": 10,
+      "description": "Seconds between Stonebranch task instance status polls."
+    },
+    "poll_timeout_seconds": {
+      "type": "integer",
+      "label": "Poll Timeout Seconds",
+      "required": false,
+      "default": 3600,
+      "description": "Total seconds to wait for terminal status before failing."
+    },
+    "output_retrieval": {
+      "type": "boolean",
+      "label": "Output Retrieval",
+      "required": false,
+      "default": true,
+      "description": "Retrieve task instance output on completion.",
+      "ui:widget": "checkbox"
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "required": false,
+      "default": 2,
+      "description": "Dagster-side asset retries on failure."
+    },
+    "retry_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Delay Seconds",
+      "required": false,
+      "default": 60,
+      "description": "Delay between Dagster asset retries."
+    },
+    "partition_start_date": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "required": false,
+      "default": "2024-01-01",
+      "description": "Start date for the daily partitioned assets."
+    },
+    "reconciliation_cron": {
+      "type": "string",
+      "label": "Reconciliation Cron",
+      "required": false,
+      "default": "0 * * * *",
+      "description": "Cron for the Stonebranch vs Dagster state reconciliation job."
+    }
+  },
+  "tags": [
+    "integration",
+    "stonebranch",
+    "uac",
+    "universal-automation-center",
+    "universal-controller",
+    "scheduler",
+    "orchestration",
+    "batch",
+    "workload-automation"
+  ],
+  "name": "StonebranchUACIntegration"
+}

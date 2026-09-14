@@ -1,0 +1,127 @@
+{
+  "component_type": "dagster_community_components.JenkinsIntegrationComponent",
+  "description": "Jenkins REST API integration for teams migrating off Jenkins (or living alongside it during the transition). Each declared Jenkins job becomes a daily-partitioned Dagster asset with a retry policy. Ships 5 op-backed jobs (rebuild / disable / enable / stop / reconcile), 2 sensors (external-execution monitor + inbound trigger via Dagster GraphQL), and an hourly reconciliation schedule. demo_mode=true simulates the full REST API lifecycle on stdout so the whole component runs end-to-end with zero external dependencies.",
+  "category": "integration",
+  "icon": "Schedule",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "One daily-partitioned Dagster asset per Jenkins job + optional external source-table assets + 5 ops/jobs + 2 sensors + 1 schedule."
+    }
+  },
+  "attributes": {
+    "demo_mode": {
+      "type": "boolean",
+      "label": "Demo Mode",
+      "required": false,
+      "default": true,
+      "description": "Simulate the Jenkins REST API on stdout (no external calls).",
+      "ui:widget": "checkbox"
+    },
+    "endpoint": {
+      "type": "string",
+      "label": "Endpoint",
+      "required": false,
+      "default": "http://localhost:8080",
+      "description": "Jenkins controller base URL (used when demo_mode=false). No trailing slash."
+    },
+    "jobs": {
+      "type": "array",
+      "label": "Jobs",
+      "required": false,
+      "description": "Jenkins jobs to wrap as daily-partitioned Dagster assets. Each item: {job_name, asset_name, description?, folder?, application?, node_label?, parameters?, run_as?}."
+    },
+    "source_tables": {
+      "type": "array",
+      "label": "Source Tables",
+      "required": false,
+      "description": "Tables loaded by Jenkins that Dagster observes (adds to lineage). Each item: {table_name, asset_name, description?, group_name?, produced_by?}."
+    },
+    "upstream_deps": {
+      "type": "array",
+      "label": "Upstream Deps",
+      "required": false,
+      "description": "Upstream asset keys (slash-separated for nested keys) that must complete before jobs run."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "jenkins_integration",
+      "description": "Dagster asset group for the job assets."
+    },
+    "jenkins_user_env": {
+      "type": "string",
+      "label": "Jenkins User Env Var",
+      "required": false,
+      "default": "JENKINS_USER",
+      "description": "Env var holding the Jenkins REST username."
+    },
+    "jenkins_token_env": {
+      "type": "string",
+      "label": "Jenkins Token Env Var",
+      "required": false,
+      "default": "JENKINS_API_TOKEN",
+      "description": "Env var holding the Jenkins user's API token."
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "required": false,
+      "default": 5,
+      "description": "Seconds between Jenkins queue/build status polls."
+    },
+    "poll_timeout_seconds": {
+      "type": "integer",
+      "label": "Poll Timeout Seconds",
+      "required": false,
+      "default": 3600,
+      "description": "Total seconds to wait for terminal result before failing."
+    },
+    "console_retrieval": {
+      "type": "boolean",
+      "label": "Console Retrieval",
+      "required": false,
+      "default": true,
+      "description": "Retrieve consoleText on completion.",
+      "ui:widget": "checkbox"
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "required": false,
+      "default": 2,
+      "description": "Dagster-side asset retries on failure."
+    },
+    "retry_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Delay Seconds",
+      "required": false,
+      "default": 60,
+      "description": "Delay between Dagster asset retries."
+    },
+    "partition_start_date": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "required": false,
+      "default": "2024-01-01",
+      "description": "Start date for the daily partitioned assets."
+    },
+    "reconciliation_cron": {
+      "type": "string",
+      "label": "Reconciliation Cron",
+      "required": false,
+      "default": "0 * * * *",
+      "description": "Cron for the Jenkins vs Dagster state reconciliation job."
+    }
+  },
+  "tags": [
+    "integration",
+    "jenkins",
+    "ci-cd",
+    "scheduler",
+    "orchestration",
+    "hybrid-deployment"
+  ],
+  "name": "JenkinsIntegration"
+}

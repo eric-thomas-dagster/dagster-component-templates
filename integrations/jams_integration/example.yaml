@@ -1,0 +1,50 @@
+type: dagster_community_components.JAMSIntegrationComponent
+
+attributes:
+  # demo_mode simulates the REST API on stdout — flip to false to hit a real
+  # JAMS server (requires JAMS_USER / JAMS_PASSWORD env vars).
+  demo_mode: true
+  endpoint: "https://jams.internal/jams/rest/api"
+
+  group_name: jams_integration
+
+  # Auth (production mode only)
+  jams_user_env: JAMS_USER
+  jams_password_env: JAMS_PASSWORD
+
+  # Dagster-side retry policy applied to every job asset
+  max_retries: 2
+  retry_delay_seconds: 60
+
+  # Upstream deps that must complete before JAMS jobs run
+  upstream_deps: []
+
+  # JAMS Jobs — each becomes a daily-partitioned Dagster asset
+  jobs:
+    - job_name: EOD_SETTLE
+      asset_name: jams_eod_settle
+      description: >-
+        End-of-day settlement. JAMS orchestrates the underlying Windows /
+        SQL Agent / PowerShell steps. Dagster submits via REST with the
+        scheduled date from the partition key, polls through
+        Queued -> Scheduled -> Executing -> Completed, then retrieves the
+        entry log.
+      folder: DAILY_BATCH
+      agent: WIN-AGT-01
+      application: CORE_BANKING
+
+    - job_name: REGULATORY_EXTRACT
+      asset_name: jams_regulatory_extract
+      description: >-
+        Regulatory reporting extract. Must complete before compliance
+        dashboards refresh.
+      folder: DAILY_BATCH
+      agent: WIN-AGT-02
+      application: COMPLIANCE
+
+  # Optional: JAMS-managed tables that Dagster observes (adds to lineage)
+  source_tables: []
+  # source_tables:
+  #   - table_name: "CORE_BANKING.SETTLEMENT_LEDGER"
+  #     asset_name: jams_settlement_table
+  #     produced_by: jams_eod_settle

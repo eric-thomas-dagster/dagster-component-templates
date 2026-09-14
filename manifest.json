@@ -52147,6 +52147,394 @@
         "read from runmyjobs",
         "trigger runmyjobs from dagster"
       ]
+    },
+    {
+      "id": "jenkins_integration",
+      "name": "Jenkins Integration",
+      "component_type": "dagster_community_components.JenkinsIntegrationComponent",
+      "path": "integrations/jenkins_integration",
+      "category": "integration",
+      "icon": "Schedule",
+      "description": "Jenkins REST API integration for teams migrating off Jenkins (or living alongside it during transition). Each declared Jenkins job becomes a daily-partitioned Dagster asset with retry policy. Ships 5 op-backed jobs (rebuild/disable/enable/stop/reconcile), 2 sensors (external-execution monitor + inbound trigger via Dagster GraphQL), and hourly reconciliation schedule. HTTP Basic + API token auth with CSRF crumb. demo_mode=true simulates the full REST lifecycle on stdout; flip false + set JENKINS_USER/JENKINS_API_TOKEN for a real Jenkins controller. Public Docker image jenkins/jenkins:lts recommended for real-mode testing.",
+      "tags": [
+        "integration",
+        "jenkins",
+        "ci-cd",
+        "scheduler",
+        "orchestration",
+        "hybrid-deployment",
+        "migration"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jenkins_integration/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jenkins_integration/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jenkins_integration/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jenkins_integration/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jenkins_integration/schema.json",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/jenkins_integration.md",
+        "last_validated": "2026-09-14"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "one_daily_partitioned_asset_per_jenkins_job",
+          "optional_source_table_assets",
+          "5_op_jobs_rebuild_disable_enable_stop_reconcile",
+          "external_execution_monitor_sensor",
+          "inbound_trigger_sensor",
+          "hourly_reconciliation_schedule"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "controlm_integration",
+          "runmyjobs_integration",
+          "rundeck_integration",
+          "airflow_dag_proxy"
+        ],
+        "anti_uses": "Transition-phase shape: Dagster owns new pipelines, Jenkins keeps owning what it already runs. For a full migration off Jenkins, use assets + sql_transform / snowflake_workspace / airflow_dag_proxy patterns."
+      },
+      "produces": [
+        "multi_asset"
+      ],
+      "keywords": [
+        "jenkins integration",
+        "jenkins as dagster asset",
+        "migrate off jenkins",
+        "hybrid deployment",
+        "read from jenkins",
+        "trigger jenkins from dagster"
+      ]
+    },
+    {
+      "id": "rundeck_integration",
+      "name": "Rundeck Integration",
+      "component_type": "dagster_community_components.RundeckIntegrationComponent",
+      "path": "integrations/rundeck_integration",
+      "category": "integration",
+      "icon": "Schedule",
+      "description": "Rundeck REST API integration. Each declared Rundeck job becomes a daily-partitioned Dagster asset with retry policy. Ships 5 op-backed jobs (restart/disable/enable/abort/reconcile), 2 sensors (external-execution monitor + inbound trigger), and hourly reconciliation schedule. Token-based auth via X-Rundeck-Auth-Token header. demo_mode=true simulates the full REST lifecycle on stdout; flip false + set RUNDECK_API_TOKEN to hit a real Rundeck instance. Rundeck Community Edition (open-source Docker image rundeck/rundeck) works out of the box for real-mode testing.",
+      "tags": [
+        "integration",
+        "rundeck",
+        "scheduler",
+        "orchestration",
+        "hybrid-deployment",
+        "open-source"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/rundeck_integration/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/rundeck_integration/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/rundeck_integration/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/rundeck_integration/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/rundeck_integration/schema.json",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/rundeck_integration.md",
+        "last_validated": "2026-09-14"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "one_daily_partitioned_asset_per_rundeck_job",
+          "optional_source_table_assets",
+          "5_op_jobs_restart_disable_enable_abort_reconcile",
+          "external_execution_monitor_sensor",
+          "inbound_trigger_sensor",
+          "hourly_reconciliation_schedule"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "controlm_integration",
+          "runmyjobs_integration",
+          "jenkins_integration"
+        ],
+        "anti_uses": "Hybrid deployment shape. For migration off Rundeck, use assets + sql_transform / snowflake_workspace / airflow_dag_proxy patterns."
+      },
+      "produces": [
+        "multi_asset"
+      ],
+      "keywords": [
+        "rundeck integration",
+        "rundeck as dagster asset",
+        "hybrid deployment",
+        "read from rundeck",
+        "trigger rundeck from dagster",
+        "pagerduty rundeck"
+      ]
+    },
+    {
+      "id": "stonebranch_uac_integration",
+      "name": "Stonebranch UAC Integration",
+      "component_type": "dagster_community_components.StonebranchUACIntegrationComponent",
+      "path": "integrations/stonebranch_uac_integration",
+      "category": "integration",
+      "icon": "Schedule",
+      "description": "Stonebranch Universal Automation Center (UAC) REST API integration. Each declared UAC task becomes a daily-partitioned Dagster asset with retry policy. Ships 5 op-backed jobs (rerun/hold/release/cancel/reconcile), 2 sensors (external-execution monitor + inbound trigger), and hourly reconciliation schedule. HTTP Basic auth. demo_mode=true simulates the full REST lifecycle on stdout; flip false + set STONEBRANCH_USER/STONEBRANCH_PASSWORD to hit a real UAC server. Stonebranch offers a UAC demo Docker image (stonebranch/uac-demo, trial-account required).",
+      "tags": [
+        "integration",
+        "stonebranch",
+        "uac",
+        "scheduler",
+        "orchestration",
+        "hybrid-deployment",
+        "workload-automation"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/stonebranch_uac_integration/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/stonebranch_uac_integration/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/stonebranch_uac_integration/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/stonebranch_uac_integration/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/stonebranch_uac_integration/schema.json",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/stonebranch_uac_integration.md",
+        "last_validated": "2026-09-14"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "one_daily_partitioned_asset_per_uac_task",
+          "optional_source_table_assets",
+          "5_op_jobs_rerun_hold_release_cancel_reconcile",
+          "external_execution_monitor_sensor",
+          "inbound_trigger_sensor",
+          "hourly_reconciliation_schedule"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "controlm_integration",
+          "runmyjobs_integration"
+        ],
+        "anti_uses": "Hybrid deployment shape. For migration off UAC, use assets + sql_transform / snowflake_workspace patterns."
+      },
+      "produces": [
+        "multi_asset"
+      ],
+      "keywords": [
+        "stonebranch integration",
+        "uac integration",
+        "hybrid deployment",
+        "read from stonebranch",
+        "trigger stonebranch from dagster"
+      ]
+    },
+    {
+      "id": "iws_integration",
+      "name": "IBM Workload Scheduler Integration",
+      "component_type": "dagster_community_components.IWSIntegrationComponent",
+      "path": "integrations/iws_integration",
+      "category": "integration",
+      "icon": "Schedule",
+      "description": "IBM Workload Scheduler (IWS/TWS, formerly Tivoli Workload Scheduler) REST API integration. Each declared IWS job becomes a daily-partitioned Dagster asset with retry policy. Ships 5 op-backed jobs (rerun/hold/release/kill/reconcile), 2 sensors (external-execution monitor + inbound trigger), and hourly reconciliation schedule. HTTP Basic auth. demo_mode=true simulates the full REST lifecycle on stdout; flip false + set IWS_USER/IWS_PASSWORD to hit a real IWS controller. IBM offers WA container images at icr.io/wa-container/* (BYOL license-gated).",
+      "tags": [
+        "integration",
+        "iws",
+        "tws",
+        "ibm",
+        "tivoli",
+        "workload-scheduler",
+        "mainframe",
+        "scheduler",
+        "orchestration",
+        "hybrid-deployment"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/iws_integration/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/iws_integration/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/iws_integration/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/iws_integration/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/iws_integration/schema.json",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/iws_integration.md",
+        "last_validated": "2026-09-14"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "one_daily_partitioned_asset_per_iws_job",
+          "optional_source_table_assets",
+          "5_op_jobs_rerun_hold_release_kill_reconcile",
+          "external_execution_monitor_sensor",
+          "inbound_trigger_sensor",
+          "hourly_reconciliation_schedule"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "controlm_integration",
+          "runmyjobs_integration"
+        ],
+        "anti_uses": "Hybrid deployment shape. Distributed engine uses /twsd/v1; z/OS uses /twsz/v1 (BYOL). For full migration, use warehouse_migration + sql_transform patterns."
+      },
+      "produces": [
+        "multi_asset"
+      ],
+      "keywords": [
+        "iws integration",
+        "tws integration",
+        "tivoli workload scheduler",
+        "ibm workload scheduler",
+        "hybrid deployment",
+        "read from iws"
+      ]
+    },
+    {
+      "id": "activebatch_integration",
+      "name": "ActiveBatch Integration",
+      "component_type": "dagster_community_components.ActiveBatchIntegrationComponent",
+      "path": "integrations/activebatch_integration",
+      "category": "integration",
+      "icon": "Schedule",
+      "description": "ActiveBatch (by Redwood) REST API integration. Each declared ActiveBatch job becomes a daily-partitioned Dagster asset with retry policy. Ships 5 op-backed jobs (restart/hold/release/abort/reconcile), 2 sensors (external-execution monitor + inbound trigger), and hourly reconciliation schedule. HTTP Basic auth. demo_mode=true simulates the full REST lifecycle on stdout; flip false + set ACTIVEBATCH_USER/ACTIVEBATCH_PASSWORD to hit a real ActiveBatch controller. Windows-native; no public Docker image.",
+      "tags": [
+        "integration",
+        "activebatch",
+        "redwood",
+        "windows",
+        "scheduler",
+        "orchestration",
+        "hybrid-deployment",
+        "workload-automation"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/activebatch_integration/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/activebatch_integration/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/activebatch_integration/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/activebatch_integration/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/activebatch_integration/schema.json",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/activebatch_integration.md",
+        "last_validated": "2026-09-14"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "one_daily_partitioned_asset_per_activebatch_job",
+          "optional_source_table_assets",
+          "5_op_jobs_restart_hold_release_abort_reconcile",
+          "external_execution_monitor_sensor",
+          "inbound_trigger_sensor",
+          "hourly_reconciliation_schedule"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "controlm_integration",
+          "runmyjobs_integration",
+          "jams_integration"
+        ],
+        "anti_uses": "Hybrid deployment shape. Companion to runmyjobs_integration (both owned by Redwood)."
+      },
+      "produces": [
+        "multi_asset"
+      ],
+      "keywords": [
+        "activebatch integration",
+        "hybrid deployment",
+        "read from activebatch",
+        "windows scheduler"
+      ]
+    },
+    {
+      "id": "jams_integration",
+      "name": "JAMS Scheduler Integration",
+      "component_type": "dagster_community_components.JAMSIntegrationComponent",
+      "path": "integrations/jams_integration",
+      "category": "integration",
+      "icon": "Schedule",
+      "description": "JAMS Scheduler (Fortra/HelpSystems) REST API integration. Each declared JAMS job becomes a daily-partitioned Dagster asset with retry policy. Ships 5 op-backed jobs (restart/hold/release/cancel/reconcile), 2 sensors (external-execution monitor + inbound trigger), and hourly reconciliation schedule. HTTP Basic auth. demo_mode=true simulates the full REST lifecycle on stdout; flip false + set JAMS_USER/JAMS_PASSWORD to hit a real JAMS server. Windows-native; no public Docker image.",
+      "tags": [
+        "integration",
+        "jams",
+        "fortra",
+        "helpsystems",
+        "windows",
+        "scheduler",
+        "orchestration",
+        "hybrid-deployment"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jams_integration/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jams_integration/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jams_integration/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jams_integration/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/jams_integration/schema.json",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/jams_integration.md",
+        "last_validated": "2026-09-14"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "one_daily_partitioned_asset_per_jams_job",
+          "optional_source_table_assets",
+          "5_op_jobs_restart_hold_release_cancel_reconcile",
+          "external_execution_monitor_sensor",
+          "inbound_trigger_sensor",
+          "hourly_reconciliation_schedule"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "controlm_integration",
+          "runmyjobs_integration",
+          "activebatch_integration"
+        ],
+        "anti_uses": "Hybrid deployment shape. Windows/.NET-heavy shops."
+      },
+      "produces": [
+        "multi_asset"
+      ],
+      "keywords": [
+        "jams integration",
+        "hybrid deployment",
+        "read from jams",
+        "windows scheduler"
+      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

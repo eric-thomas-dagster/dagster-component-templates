@@ -1,0 +1,44 @@
+type: dagster_community_components.JenkinsIntegrationComponent
+
+attributes:
+  # demo_mode simulates the Jenkins REST API on stdout — flip to false to hit
+  # a real Jenkins controller (requires JENKINS_USER / JENKINS_API_TOKEN env vars).
+  demo_mode: true
+  endpoint: "http://localhost:8080"
+
+  group_name: jenkins_integration
+  jenkins_user_env: JENKINS_USER
+  jenkins_token_env: JENKINS_API_TOKEN
+
+  max_retries: 2
+  retry_delay_seconds: 60
+  partition_start_date: "2024-01-01"
+
+  jobs:
+    - job_name: eod-batch-settlement
+      asset_name: jenkins_eod_settlement
+      description: >-
+        End-of-day batch settlement. Jenkins pipeline runs the actual
+        settlement job on a Linux agent; Dagster triggers via REST with
+        the partition date, polls the build to terminal result, and pulls
+        consoleText for troubleshooting.
+      folder: banking
+      application: CORE_BANKING
+      node_label: linux-heavy
+      parameters:
+        SETTLEMENT_DATE: "{partition_key}"
+
+    - job_name: regulatory-extract
+      asset_name: jenkins_regulatory_extract
+      description: >-
+        Regulatory reporting extract.
+      folder: banking
+      application: COMPLIANCE
+      node_label: linux-heavy
+
+  # Optional: Jenkins-managed tables that Dagster observes (adds to lineage)
+  source_tables: []
+  # source_tables:
+  #   - table_name: "CORE_BANKING.SETTLEMENT_LEDGER"
+  #     asset_name: jenkins_settlement_table
+  #     produced_by: jenkins_eod_settlement

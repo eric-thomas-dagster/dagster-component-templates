@@ -55,42 +55,114 @@ for i, block in enumerate(doc["blocks"]):
 
 Without `task_name`, calls auto-suffix by seq (`_1`, `_2`, ...) — fine for one-off calls, ugly for fan-outs.
 
-### Caching — resumable on re-execute-from-failure
+### Caching — full Prefect `@task` parity
 
-Pass `cache_key_fn` (and a cache backend) to `@task` and matching keys become cache hits. Cache keys are automatically scoped to the run's lineage via `root_run_id`:
-
-- **Same failed run → resumed via "Re-execute from failure"** — succeeded `@task` calls from the prior attempt are cache hits; the failed step re-runs.
-- **Net-new run** — fresh `root_run_id`, so no cache bleed from any prior run.
+Every Prefect `@task` cache feature has a `@task` in DCC equivalent, plus a few Dagster-native extras. Simplest form — zero-config:
 
 ```python
-from dagster_community_components import task, FilesystemTaskCache
+from dagster_community_components import task
 import dagster as dg
 
-_cache = FilesystemTaskCache(base_dir="/tmp/task_cache", ttl_seconds=3600)
-
-@task(cache=_cache, cache_key_fn=lambda ctx, url: url)
+@task(cache=True)                  # auto-hash inputs + filesystem backend
 def parse_url(context, url):
     return expensive_scrape(url)
 
 @dg.asset
 def parse_document(context):
     for url in urls:
-        parse_url(context, url)   # cached per URL, survives run retry
+        parse_url(context, url)    # cached per URL — same inputs = hit
 ```
+
+`cache=True` auto-configures a `FilesystemTaskCache` at `/tmp/dagster_task_cache/<task_name>/` and enables input-hashed cache keys (Prefect's `task_input_hash` default). Zero decorator params required for common cases.
+
+#### Composable cache policy — Prefect `CachePolicy` parity
+
+Compose behavior with `+`:
+
+```python
+from dagster_community_components import task, INPUTS, TASK_SOURCE, CROSS_RUN, NO_CACHE
+from datetime import timedelta
+
+@task(cache=True, cache_policy=INPUTS + TASK_SOURCE, cache_expiration=timedelta(hours=1))
+def parse_url(context, url):
+    return expensive_scrape(url)
+```
+
+| Building block | Effect |
+|---|---|
+| `INPUTS` | Hash args/kwargs into the cache key (Prefect's `task_input_hash`). |
+| `TASK_SOURCE` | Include the function's source-code hash — invalidates cache when the function body changes. |
+| `ROOT_RUN` | Scope to `root_run_id` (default; survives re-execute-from-failure). |
+| `RUN_ONLY` | Scope to the specific `run_id` (this run only). |
+| `CROSS_RUN` | No run scoping — cache shared across all runs ("parse this URL once ever"; Prefect's default). |
+| `NO_CACHE` | Disable caching entirely, even if `cache=` is set. |
+
+Combine freely: `INPUTS + TASK_SOURCE + CROSS_RUN` = inputs-hashed, invalidates on source edits, shared across runs.
+
+#### Refresh overrides — decorator + per-run + per-call
+
+Three ways to bypass a hit:
+
+```python
+# 1. Per-task always-refresh (Prefect refresh_cache=True at decorator level):
+@task(cache=True, refresh_cache=True)
+def probe(context):
+    ...
+
+# 2. Per-run override (via Dagster run tag — Prefect .submit(refresh_cache=True)):
+#    dg launch --assets my_asset --tags refresh_cache=true
+#    dg.materialize([my_asset], tags={"refresh_cache": "true"})
+
+# 3. Per-call bypass (this specific invocation):
+result = parse_url(context, url, task_no_cache=True)
+```
+
+#### `cache_expiration` — accepts `timedelta`
+
+```python
+from datetime import timedelta
+
+@task(cache=True, cache_expiration=timedelta(hours=1))     # Prefect shape
+def parse_url(context, url): ...
+
+@task(cache=True, cache_ttl_seconds=3600)                  # Original DCC name — kept for compat
+def parse_url(context, url): ...
+```
+
+#### Custom cache_key_fn — override the auto-hash
+
+If your inputs need special hashing (a DataFrame's content, a normalized URL, etc.):
+
+```python
+@task(cache=True, cache_key_fn=lambda ctx, url: url.lower().rstrip("/"))
+def parse_url(context, url): ...
+```
+
+Explicit `cache_key_fn` wins over `INPUTS` when both are set. `TASK_SOURCE`, run scoping, and refresh signals still apply on top.
 
 Cache hits still render — the child_step wraps the (skipped) execution and the log line is tagged `[cache_hit]`, so the graph node still shows up with near-zero duration.
 
-Without `cache_key_fn`, caching is off — the default. `cache_ttl_seconds` is optional; unset = never expire.
+#### Cache backends
 
-**Cache backends** (interchangeable — anything satisfying the `TaskCache` protocol):
+- `FilesystemTaskCache(base_dir, ttl_seconds=None, max_entries=None, max_bytes=None)` — pickle files under `<base>/<sha256(key)>.pkl`. Optional LRU eviction: `max_entries` and/or `max_bytes` cap the cache dir, evicting oldest files (by mtime) after each put.
+- `IOManagerBackedTaskCache(io_manager, ttl_seconds=None)` — **wraps any Dagster IOManager as a cache backend**. Reuse an existing s3_pickle / gcs_pickle / azure_blob_pickle IO manager as the cache store — no separate cache storage to provision.
+- Custom — implement `TaskCache.get(key) → value | TaskCache.MISS` + `put(key, value)`.
 
-- `FilesystemTaskCache(base_dir, ttl_seconds=None)` — pickle files under `<base>/<sha256(key)>.pkl`. Zero-config for local + shared-filesystem deployments.
-- `IOManagerBackedTaskCache(io_manager, ttl_seconds=None)` — **wraps any Dagster IOManager as a cache backend**. If you already have an s3/gcs pickle IO manager for asset outputs, reuse it here for free — no separate cache storage to provision. Works with filesystem / s3_pickle / gcs_pickle out of the box; database-schema IO managers that require a real run_id row won't.
-- Custom — implement the `TaskCache` protocol (`get(key) → value | TaskCache.MISS` + `put(key, value)`).
+Alternative to `cache=`: supply `cache_resource="task_cache"` and declare the resource on the parent asset.
 
-Alternative to `cache=`: supply `cache_resource="task_cache"` and declare the resource on the parent asset (Dagster filters undeclared resources from step context).
+### Prefect `@task` ↔ DCC `@task` parity
 
-For cross-run memoization ("scrape this URL once ever"), use a real Dagster asset with an IO manager, not `@task` caching — this is deliberate.
+| Prefect `@task` feature | DCC `@task` |
+|---|---|
+| `cache_key_fn` | `cache_key_fn=` (explicit) or `INPUTS` in `cache_policy` (auto-hash) |
+| `cache_expiration` | `cache_expiration=` (accepts `int` / `float` / `timedelta`) |
+| `cache_policy` | `cache_policy=` — composable `CachePolicy` with `+` |
+| `refresh_cache=True` | `refresh_cache=True` (decorator) OR `--tags refresh_cache=true` (per-run) OR `task_no_cache=True` (per-call) |
+| `task_input_hash` (default) | `INPUTS` (module-level constant) — used automatically when `cache=True` |
+| `TASK_SOURCE` | `TASK_SOURCE` (module-level constant) |
+| Cross-run cache | `CROSS_RUN` (opt-in; Dagster defaults to `ROOT_RUN` for re-execute-from-failure survival) |
+| Persistent result / result storage | `IOManagerBackedTaskCache` on any Dagster IO manager |
+| Custom serializer | Comes from the IO manager choice |
 
 ### `child_step` — the primitive underneath
 

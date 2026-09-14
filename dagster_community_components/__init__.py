@@ -1439,6 +1439,22 @@ _HELPERS = {
         "dagster_community_components.assets.infrastructure.task_asset.component:FilesystemTaskCache",
     "IOManagerBackedTaskCache":
         "dagster_community_components.assets.infrastructure.task_asset.component:IOManagerBackedTaskCache",
+    "CachePolicy":
+        "dagster_community_components.assets.infrastructure.task_asset.component:CachePolicy",
+    "INPUTS":
+        "dagster_community_components.assets.infrastructure.task_asset.component:INPUTS",
+    "TASK_SOURCE":
+        "dagster_community_components.assets.infrastructure.task_asset.component:TASK_SOURCE",
+    "ROOT_RUN":
+        "dagster_community_components.assets.infrastructure.task_asset.component:ROOT_RUN",
+    "RUN_ONLY":
+        "dagster_community_components.assets.infrastructure.task_asset.component:RUN_ONLY",
+    "CROSS_RUN":
+        "dagster_community_components.assets.infrastructure.task_asset.component:CROSS_RUN",
+    "NO_CACHE":
+        "dagster_community_components.assets.infrastructure.task_asset.component:NO_CACHE",
+    "DEFAULT_CACHE_POLICY":
+        "dagster_community_components.assets.infrastructure.task_asset.component:DEFAULT_CACHE_POLICY",
 }
 
 

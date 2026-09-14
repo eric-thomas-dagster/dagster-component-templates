@@ -262,13 +262,26 @@ class TaskCache:
 
 class FilesystemTaskCache(TaskCache):
     """Local disk task cache. Stores each entry as a pickle file under
-    `<base_dir>/<sha256(key)>.pkl`. Optional TTL enforced on `get`."""
+    `<base_dir>/<sha256(key)>.pkl`. Optional TTL enforced on `get`.
 
-    def __init__(self, base_dir: str, ttl_seconds: Optional[float] = None):
+    LRU eviction: pass `max_entries` and/or `max_bytes` to cap the cache
+    dir size. After each `put`, if EITHER cap is exceeded, oldest files
+    (by mtime) are deleted until BOTH caps are satisfied.
+    """
+
+    def __init__(
+        self,
+        base_dir: str,
+        ttl_seconds: Optional[float] = None,
+        max_entries: Optional[int] = None,
+        max_bytes: Optional[int] = None,
+    ):
         import os
         os.makedirs(base_dir, exist_ok=True)
         self._base = base_dir
         self._ttl = ttl_seconds
+        self._max_entries = max_entries
+        self._max_bytes = max_bytes
 
     def _path(self, key: str) -> str:
         import hashlib, os
@@ -294,6 +307,161 @@ class FilesystemTaskCache(TaskCache):
         import pickle
         with open(self._path(key), "wb") as f:
             pickle.dump(value, f)
+        if self._max_entries is not None or self._max_bytes is not None:
+            self._evict_lru()
+
+    def _evict_lru(self) -> None:
+        """Delete oldest files (by mtime) until both caps are satisfied."""
+        import os
+        try:
+            files = [
+                (os.path.join(self._base, f), os.path.getmtime(os.path.join(self._base, f)), os.path.getsize(os.path.join(self._base, f)))
+                for f in os.listdir(self._base) if f.endswith(".pkl")
+            ]
+        except OSError:
+            return
+        files.sort(key=lambda t: t[1])  # oldest first
+        while files:
+            over_entries = self._max_entries is not None and len(files) > self._max_entries
+            over_bytes = self._max_bytes is not None and sum(t[2] for t in files) > self._max_bytes
+            if not (over_entries or over_bytes):
+                break
+            path, _, _ = files.pop(0)
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+
+
+# ═════════════════════════════════════════════════════════════════════
+# CachePolicy — composable cache-key policy (Prefect parity)
+# ═════════════════════════════════════════════════════════════════════
+
+@functools.total_ordering
+class CachePolicy:
+    """Composable cache policy. Prefect-parity `CachePolicy` shape.
+
+    Combine building blocks with `+`:
+
+        INPUTS + TASK_SOURCE     # cache key = hash(inputs) + hash(function source)
+        INPUTS + CROSS_RUN       # inputs-hashed, cache shared across all runs
+        NO_CACHE                 # bypass cache entirely, even if @task cache= is set
+
+    Building blocks (module-level constants below):
+      INPUTS       — include a hash of task inputs in the key (Prefect's `task_input_hash`)
+      TASK_SOURCE  — include a hash of the function's source code (invalidates on code edit)
+      RUN_ONLY     — scope cache to the current run's run_id (never survives across runs)
+      ROOT_RUN     — scope to root_run_id (Dagster default; survives re-execute-from-failure)
+      CROSS_RUN    — no run scoping (Prefect default; "parse this URL once ever")
+      NO_CACHE     — disable caching for this task
+
+    Attributes:
+      include_inputs: hash args/kwargs into the cache key.
+      include_source: hash the function's source code into the cache key.
+      run_scope: 'root_run' | 'cross_run' | 'run_only'.
+      disabled: bypass the cache entirely (NO_CACHE).
+    """
+    __slots__ = ("include_inputs", "include_source", "run_scope", "disabled")
+
+    def __init__(
+        self,
+        include_inputs: bool = False,
+        include_source: bool = False,
+        run_scope: str = "root_run",
+        disabled: bool = False,
+    ):
+        if run_scope not in ("root_run", "cross_run", "run_only"):
+            raise ValueError(f"CachePolicy run_scope must be one of root_run/cross_run/run_only; got {run_scope!r}")
+        object.__setattr__(self, "include_inputs", include_inputs)
+        object.__setattr__(self, "include_source", include_source)
+        object.__setattr__(self, "run_scope", run_scope)
+        object.__setattr__(self, "disabled", disabled)
+
+    def __add__(self, other: "CachePolicy") -> "CachePolicy":
+        if not isinstance(other, CachePolicy):
+            return NotImplemented
+        # NO_CACHE + anything = NO_CACHE (short-circuits)
+        if self.disabled or other.disabled:
+            return CachePolicy(disabled=True)
+        # For run_scope: right-hand non-default wins so `INPUTS + CROSS_RUN` → cross_run.
+        rs = other.run_scope if other.run_scope != "root_run" else self.run_scope
+        return CachePolicy(
+            include_inputs=self.include_inputs or other.include_inputs,
+            include_source=self.include_source or other.include_source,
+            run_scope=rs,
+            disabled=False,
+        )
+
+    def __repr__(self) -> str:
+        if self.disabled:
+            return "NO_CACHE"
+        parts = []
+        if self.include_inputs: parts.append("INPUTS")
+        if self.include_source: parts.append("TASK_SOURCE")
+        if self.run_scope != "root_run": parts.append(self.run_scope.upper())
+        return " + ".join(parts) if parts else "CachePolicy()"
+
+    def __eq__(self, other):
+        return (isinstance(other, CachePolicy)
+                and self.include_inputs == other.include_inputs
+                and self.include_source == other.include_source
+                and self.run_scope == other.run_scope
+                and self.disabled == other.disabled)
+
+    def __lt__(self, other):
+        # For total_ordering — never actually ordered semantically.
+        return repr(self) < repr(other)
+
+    def __hash__(self):
+        return hash((self.include_inputs, self.include_source, self.run_scope, self.disabled))
+
+
+# Building-block constants — combine with `+`
+INPUTS = CachePolicy(include_inputs=True)
+TASK_SOURCE = CachePolicy(include_source=True)
+RUN_ONLY = CachePolicy(run_scope="run_only")
+ROOT_RUN = CachePolicy(run_scope="root_run")
+CROSS_RUN = CachePolicy(run_scope="cross_run")
+NO_CACHE = CachePolicy(disabled=True)
+# Default = INPUTS with root_run scoping (Prefect's default + Dagster's re-execute survival property).
+DEFAULT_CACHE_POLICY = INPUTS
+
+
+def _hash_task_inputs(args: tuple, kwargs: dict) -> str:
+    """Auto cache-key from args + kwargs (Prefect's `task_input_hash` parity).
+
+    Skips positional args[0] (the Dagster context) since it isn't a task
+    input in the Prefect sense. Uses repr() for stability; complex types
+    (DataFrames, numpy) should pre-serialize.
+    """
+    import hashlib
+    payload = repr((args[1:], sorted(kwargs.items()) if kwargs else []))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _hash_function_source(fn: Callable) -> str:
+    """SHA-256 of the function's source code. Invalidates cache when the
+    function body changes (Prefect `TASK_SOURCE` parity)."""
+    import hashlib, inspect
+    try:
+        src = inspect.getsource(fn)
+    except (OSError, TypeError):
+        # Falls back to qualname when source is unavailable (e.g. C-extension).
+        src = getattr(fn, "__qualname__", repr(fn))
+    return hashlib.sha256(src.encode("utf-8")).hexdigest()
+
+
+def _coerce_expiration(cache_ttl_seconds: Optional[float], cache_expiration: Any) -> Optional[float]:
+    """cache_expiration accepts int/float/timedelta; cache_ttl_seconds is
+    the original name kept for backward-compat. If both are set,
+    cache_expiration wins (it's the newer, Prefect-shape param)."""
+    if cache_expiration is not None:
+        # Handle timedelta transparently
+        seconds = getattr(cache_expiration, "total_seconds", None)
+        if callable(seconds):
+            return seconds()
+        return float(cache_expiration)
+    return cache_ttl_seconds
 
 
 class IOManagerBackedTaskCache(TaskCache):
@@ -395,10 +563,14 @@ def task(
     name: Optional[str] = None,
     cache_key_fn: Optional[Callable] = None,
     cache_ttl_seconds: Optional[float] = None,
-    cache: Optional["TaskCache"] = None,
+    cache_expiration: Any = None,
+    cache: Any = None,
+    cache_policy: Optional["CachePolicy"] = None,
     cache_resource: Optional[str] = None,
+    refresh_cache: bool = False,
 ) -> Callable:
-    """Mark a callable as a Dagster sub-task. Behavior depends on where
+    """Mark a callable as a Dagster sub-task with optional cache — Prefect
+    `@task` parity plus Dagster-native extras. Behavior depends on where
     it's called from:
 
     **Inside a `@task_asset`** — the call is RECORDED (not executed) so the
@@ -411,52 +583,85 @@ def task(
     depth; step_key reflects the call stack. Not graph-visible.
 
     ```python
-    @task
+    # Zero-config cache (Prefect parity — auto-hash inputs, filesystem backend):
+    @task(cache=True)
     def parse_url(context, url): ...
 
-    @task
-    def parse_text(context, block):
-        for url in extract_urls(block):
-            parse_url(context, url)   # nested — graph fans out if inside @task_asset
+    # Composable cache policy (Prefect CachePolicy parity):
+    @task(cache=True, cache_policy=INPUTS + TASK_SOURCE, cache_expiration=timedelta(hours=1))
+    def parse_url(context, url): ...
 
-    @task_asset
-    def parse_document(context):
-        doc = load()
-        parse_title(context, doc)     # RECORDED → fans out as graph node
-        for block in doc["blocks"]:
-            if block["kind"] == "text":
-                parse_text(context, block)   # RECORDED
+    # Custom backend:
+    _cache = FilesystemTaskCache(base_dir="/tmp/cache", max_entries=1000, max_bytes=10*1024**3)
+    @task(cache=_cache, cache_policy=INPUTS)
+    def parse_url(context, url): ...
+
+    # Cross-run scoping (parse this URL once ever):
+    @task(cache=True, cache_policy=INPUTS + CROSS_RUN)
+    def parse_url(context, url): ...
+
+    # Per-call bypass:
+    result = parse_url(context, url, task_no_cache=True)   # this call skips cache
     ```
 
     Args:
         fn: The wrapped function. First positional arg must be a Dagster context.
         name: Override the task name; defaults to `fn.__name__`.
-        cache_key_fn: Optional `(context, *args, **kwargs) -> str`. Return a
-            cache key computed from inputs; identical keys → cache hit.
-            When None, cache is disabled for this task (default).
-        cache_ttl_seconds: Optional TTL. Entries older than this are treated
-            as cache misses. None = never expire.
-        cache: A `TaskCache` instance passed directly (usually a module-level
-            singleton, e.g., `FilesystemTaskCache(base_dir="/tmp/cache")`).
-        cache_resource: Alternative to `cache=` — name of a `TaskCache`
-            resource. Requires the parent asset to declare
-            `required_resource_keys={<name>}` (Dagster filters undeclared
-            resources from the step context).
+        cache: One of —
+            * ``TaskCache`` instance (e.g., ``FilesystemTaskCache(base_dir=...)``)
+            * ``True`` — auto-configure a ``FilesystemTaskCache`` at ``/tmp/dagster_task_cache/<name>/``
+            * ``None`` (default) — no caching
+        cache_policy: Composable ``CachePolicy`` (default ``INPUTS`` when ``cache`` is set).
+            Combine with ``+``: ``INPUTS + TASK_SOURCE + CROSS_RUN``.
+        cache_key_fn: Optional ``(context, *args, **kwargs) -> str``. If supplied,
+            takes precedence over ``cache_policy.include_inputs``. When both are
+            None but ``cache`` is set, auto-hash inputs (Prefect ``task_input_hash`` parity).
+        cache_ttl_seconds: Optional TTL in seconds. Entries older than this are
+            treated as misses.
+        cache_expiration: Alias for ``cache_ttl_seconds`` accepting ``int`` /
+            ``float`` / ``datetime.timedelta`` (Prefect parity). Wins over
+            ``cache_ttl_seconds`` if both are set.
+        cache_resource: Alternative to ``cache=`` — name of a resource-registered
+            ``TaskCache``. Requires the parent asset to declare
+            ``required_resource_keys={<name>}``.
+        refresh_cache: If True, every invocation forces a cache MISS (always
+            re-computes and re-stores). Prefect ``refresh_cache=True`` parity
+            at the decorator level. See also the ``refresh_cache=true`` run tag
+            (per-run override).
 
-    Cache scoping — the ONLY behavior:
+    Runtime overrides:
+        - Set run tag ``refresh_cache=true`` (or ``dagster/refresh_cache=true``)
+          to force a MISS across all @task calls in the run — Prefect
+          ``.submit(refresh_cache=True)`` parity.
+        - Pass ``task_no_cache=True`` at the call site to bypass cache for
+          a single invocation without any decorator change.
 
-        Cache keys are automatically scoped to the run's lineage via
-        `root_run_id`. Dagster preserves `root_run_id` across
-        re-execute-from-failure attempts of a single failed run, so
-        cached results from earlier attempts SURVIVE the retry — the
-        resumability story. Net-new materializations get a fresh
-        `root_run_id`, so cached results from any prior run are
-        invisible — no bleeding of stale cross-run values.
+    Cache scoping:
 
-        There is no way to opt out of lineage scoping. If you want
-        cross-run memoization ("parse this URL once ever"), use a real
-        Dagster asset with an IO manager, not a @task cache.
+        By default cache keys are scoped to ``root_run_id`` — Dagster's
+        re-execute-from-failure preserves ``root_run_id`` across attempts,
+        so cached results from earlier attempts SURVIVE the retry. Net-new
+        materializations get a fresh ``root_run_id``, so cached results
+        from any prior run are invisible — no bleeding of stale cross-run
+        values.
+
+        Opt into other scopes via ``cache_policy``:
+        - ``ROOT_RUN`` (default) — survives re-execute-from-failure
+        - ``RUN_ONLY`` — cache lives only for one specific run_id
+        - ``CROSS_RUN`` — cache shared across all runs (Prefect's default;
+          "parse this URL once ever")
     """
+    # Coerce cache=True into a real FilesystemTaskCache with sensible defaults.
+    _cache_arg = cache
+    if _cache_arg is True:
+        import tempfile, os
+        _default_dir = os.path.join(tempfile.gettempdir(), "dagster_task_cache", name or (fn.__name__ if fn else "task"))
+        _cache_arg = FilesystemTaskCache(base_dir=_default_dir)
+    # Resolve cache policy default: when cache is set but no policy given,
+    # use INPUTS (Prefect's default — task_input_hash equivalent).
+    _policy = cache_policy if cache_policy is not None else (INPUTS if _cache_arg is not None else None)
+    # TTL: cache_expiration (timedelta-friendly) supersedes cache_ttl_seconds.
+    _ttl = _coerce_expiration(cache_ttl_seconds, cache_expiration)
     def _decorator(inner: Callable) -> Callable:
         step_name = name or getattr(inner, "__name__", "task")
 
@@ -493,26 +698,66 @@ def task(
             # `task_name` becomes the mapping_key badge; op_name stays fn.__name__
             mapping_key = explicit_name if explicit_name != step_name else None
 
+            # Per-call bypass: task_no_cache=True at the call site skips cache
+            # for this specific invocation (Prefect .submit(refresh_cache=True) parity).
+            call_no_cache = bool(kwargs.pop("task_no_cache", False))
+
             # ── CACHE LOOKUP (before running the block) ──
-            resolved_cache = _resolve_cache(context, cache, cache_resource) if cache_key_fn else None
+            # Cache is engaged when EITHER a user cache_key_fn is set OR a
+            # cache backend + policy is present (auto-hash inputs).
+            policy = _policy
+            policy_disabled = policy is not None and policy.disabled
+            wants_cache = (
+                (cache_key_fn is not None or (policy is not None and policy.include_inputs))
+                and not policy_disabled
+                and not call_no_cache
+            )
+            resolved_cache = _resolve_cache(context, _cache_arg, cache_resource) if wants_cache else None
             if resolved_cache is not None:
+                # Build the user cache key: explicit cache_key_fn wins;
+                # otherwise auto-hash inputs (Prefect task_input_hash parity).
                 try:
-                    user_key = cache_key_fn(context, *args[1:], **kwargs) if cache_key_fn else None
+                    if cache_key_fn is not None:
+                        user_key = cache_key_fn(context, *args[1:], **kwargs)
+                    else:
+                        user_key = _hash_task_inputs(args, kwargs)
                 except Exception as exc:  # noqa: BLE001
                     context.log.warning(f"[task:{step_name}] cache_key_fn raised {type(exc).__name__}; bypassing cache")
                     user_key = None
                 if user_key is not None:
-                    # Always scope cache keys to the run lineage. Dagster's
-                    # re-execute-from-failure preserves root_run_id across
-                    # attempts, so the cache survives failure → re-execute.
-                    # Net-new materializations get a fresh root_run_id → cache
-                    # starts empty. This means the cache does what users
-                    # actually want (resume from failure) without ever hitting
-                    # the "did last week's cached value bleed into today?"
-                    # foot-gun.
-                    root_id = getattr(context.run, "root_run_id", None) or context.run.run_id
-                    key = f"{root_id}:{user_key}"
-                    hit = resolved_cache.get(key)
+                    # Optionally include function source hash — invalidate on code edit.
+                    key_parts = [user_key]
+                    if policy is not None and policy.include_source:
+                        key_parts.append(_hash_function_source(inner))
+                    user_key = ":".join(key_parts)
+
+                    # Run scoping: root_run (default; survives re-execute-from-failure) /
+                    # run_only (this specific run) / cross_run (no scoping — Prefect default).
+                    run_scope = policy.run_scope if policy is not None else "root_run"
+                    if run_scope == "cross_run":
+                        key = f"cross:{user_key}"
+                    elif run_scope == "run_only":
+                        key = f"{context.run.run_id}:{user_key}"
+                    else:  # root_run (default)
+                        root_id = getattr(context.run, "root_run_id", None) or context.run.run_id
+                        key = f"{root_id}:{user_key}"
+
+                    # Refresh signals: decorator-level `refresh_cache=True` +
+                    # run-tag `refresh_cache=true` (per-run override). Both bypass
+                    # cache read AND overwrite on put.
+                    run_tags = getattr(context.run, "tags", None) or {}
+                    tag_refresh = any(
+                        str(run_tags.get(k, "")).lower() in ("true", "1", "yes")
+                        for k in ("refresh_cache", "dagster/refresh_cache")
+                    )
+                    refresh_requested = refresh_cache or tag_refresh
+                    hit = TaskCache.MISS if refresh_requested else resolved_cache.get(key)
+                    if refresh_requested:
+                        which = "decorator refresh_cache=True" if refresh_cache else "run tag refresh_cache=true"
+                        try:
+                            context.log.info(f"[task:{step_name}] {which} — forced MISS, key={user_key[:32]}...")
+                        except Exception:  # noqa: BLE001
+                            pass
                     if hit is not TaskCache.MISS:
                         # Emit synthetic events so the node still renders.
                         with child_step(context, step_name, mapping_key=mapping_key):
@@ -531,6 +776,7 @@ def task(
                     return result
 
             # ── NO CACHE — plain execute ──
+            # NO_CACHE policy / call_no_cache=True / no cache_key_fn+backend
             with child_step(context, step_name, mapping_key=mapping_key):
                 return inner(*args, **kwargs)
 

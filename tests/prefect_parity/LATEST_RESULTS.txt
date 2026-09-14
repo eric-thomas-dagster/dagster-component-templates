@@ -1,8 +1,8 @@
 ═══════════════════════════════════════════════════════════════════════
  Prefect parity — validation output
- Run at: 2026-09-14 21:44:06Z
+ Run at: 2026-09-14 22:02:02Z
  Host: Darwin 25.6.0 arm64  Python: Python 3.12.9
- Templates commit: 728ce652 (before this commit)
+ Templates commit: 9a9207c7 (before this commit)
 ═══════════════════════════════════════════════════════════════════════
 
 ─── smoke.py — session-wide smoke sweep ───────────────────────────────
@@ -51,4 +51,6 @@
 ✓ @task result_storage_key template                                      result_storage_key template respected
 ✓ @task viz_return_value flag                                            viz_return_value=False marker emitted, value still flows
 ✓ @task + smart_retry composition (advanced retry classification)        smart_retry composed with @task: 2 attempts recorded
-═══ 19 PASS / 0 FAIL / 19 TOTAL ═══
+✓ @task state hooks + observations (Running/AwaitingRetry/Completed/Failed) state hooks: running=2 completed=1 failed=1 awaiting_retry=2
+✓ @task state observations — queryable via event log                     state observations queryable: ['Completed', 'Running']
+═══ 21 PASS / 0 FAIL / 21 TOTAL ═══

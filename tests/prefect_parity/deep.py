@@ -638,6 +638,115 @@ check("@task + smart_retry composition (advanced retry classification)", _test_s
 
 
 # ═════════════════════════════════════════════════════════════════════
+# NEW: Prefect state-model parity — Running / AwaitingRetry / Completed / Failed
+# ═════════════════════════════════════════════════════════════════════
+
+def _test_task_state_hooks_and_observations():
+    """State observations emitted + state hooks fired at each transition."""
+    from assets.infrastructure.task_asset.component import task
+    fired = {"running": 0, "completed": 0, "failed": 0, "awaiting_retry": 0}
+
+    @task(
+        on_running=[lambda ctx: fired.__setitem__("running", fired["running"] + 1)],
+        on_completion=[lambda ctx: fired.__setitem__("completed", fired["completed"] + 1)],
+    )
+    def good(context):
+        return "ok"
+
+    @task(
+        on_running=[lambda ctx: fired.__setitem__("running", fired["running"] + 1)],
+        on_failure=[lambda ctx, exc: fired.__setitem__("failed", fired["failed"] + 1)],
+    )
+    def bad(context):
+        raise RuntimeError("boom")
+
+    @task(
+        retry_condition_fn=lambda ctx, exc: True,
+        max_retries=1, retry_delay_seconds=0,
+        on_awaiting_retry=[lambda ctx, exc: fired.__setitem__("awaiting_retry", fired["awaiting_retry"] + 1)],
+    )
+    def flaky(context):
+        raise ValueError("retry me")
+
+    @dg.asset(name="good_asset_states")
+    def demo_good(context):
+        return good(context)
+
+    @dg.asset(name="bad_asset_states")
+    def demo_bad(context):
+        return bad(context)
+
+    @dg.asset(name="flaky_asset_states")
+    def demo_flaky(context):
+        return flaky(context)
+
+    with dg.DagsterInstance.ephemeral() as instance:
+        dg.materialize([demo_good], instance=instance)
+        dg.materialize([demo_bad], instance=instance, raise_on_error=False)
+        dg.materialize([demo_flaky], instance=instance, raise_on_error=False)
+
+    assert fired["running"] >= 2, f"on_running should have fired at least 2x (good + bad); got {fired['running']}"
+    assert fired["completed"] == 1, f"on_completion expected 1 fire, got {fired['completed']}"
+    assert fired["failed"] == 1, f"on_failure expected 1 fire, got {fired['failed']}"
+    assert fired["awaiting_retry"] >= 1, f"on_awaiting_retry expected >=1 fire, got {fired['awaiting_retry']}"
+    return f"state hooks: running={fired['running']} completed={fired['completed']} failed={fired['failed']} awaiting_retry={fired['awaiting_retry']}"
+
+check("@task state hooks + observations (Running/AwaitingRetry/Completed/Failed)", _test_task_state_hooks_and_observations)
+
+
+def _test_task_state_observations_queryable():
+    """State-transition observations land in the event log — queryable by
+    asset-observation filter on the synthetic __task_state_<name> key."""
+    from assets.infrastructure.task_asset.component import task
+    from dagster import EventRecordsFilter, DagsterEventType
+
+    @task
+    def probe(context, x):
+        return x * 2
+
+    @dg.asset
+    def demo_probe(context):
+        return probe(context, 5)
+
+    with dg.DagsterInstance.ephemeral() as instance:
+        r = dg.materialize([demo_probe], instance=instance)
+        assert r.success
+        # Query the synthetic state asset key for observations
+        state_asset_key = dg.AssetKey(["__task_state_probe"])
+        records = instance.get_event_records(
+            event_records_filter=EventRecordsFilter(
+                event_type=DagsterEventType.ASSET_OBSERVATION,
+                asset_key=state_asset_key,
+            ),
+            limit=20,
+        )
+        assert len(records) >= 2, f"expected >=2 state observations (Running + Completed); got {len(records)}"
+
+        # Confirm state values
+        states_seen = set()
+        for rec in records:
+            obs = getattr(rec, "asset_observation", None)
+            md = getattr(obs, "metadata", None) if obs else None
+            if md is None:
+                de = getattr(rec, "dagster_event", None)
+                esd = getattr(de, "event_specific_data", None) if de else None
+                mat = getattr(esd, "asset_observation", None) if esd else None
+                md = getattr(mat, "metadata", None) if mat else None
+            if md and "state" in md:
+                state_val = md["state"]
+                for attr in ("value", "text"):
+                    inner = getattr(state_val, attr, None)
+                    if inner is not None:
+                        states_seen.add(str(inner))
+                        break
+        assert "Running" in states_seen, f"Running state not observed; saw: {states_seen}"
+        assert "Completed" in states_seen, f"Completed state not observed; saw: {states_seen}"
+    return f"state observations queryable: {sorted(states_seen)}"
+
+check("@task state observations — queryable via event log", _test_task_state_observations_queryable)
+
+
+# ═════════════════════════════════════════════════════════════════════
 # Report
 # ═════════════════════════════════════════════════════════════════════
 

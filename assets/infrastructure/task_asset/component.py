@@ -760,9 +760,12 @@ def task(
     log_prints: bool = False,
     on_completion: Optional[List[Callable]] = None,
     on_failure: Optional[List[Callable]] = None,
+    on_running: Optional[List[Callable]] = None,
+    on_awaiting_retry: Optional[List[Callable]] = None,
     task_run_name: Optional[str] = None,
     result_storage_key: Optional[str] = None,
     viz_return_value: bool = True,
+    emit_state_observations: bool = True,
 ) -> Callable:
     """Mark a callable as a Dagster sub-task with optional cache — Prefect
     `@task` parity plus Dagster-native extras. Behavior depends on where
@@ -1107,12 +1110,43 @@ def task(
                         except Exception:  # noqa: BLE001
                             pass
 
+            _TASK_STATE_ASSET_KEY = dg.AssetKey([f"__task_state_{step_name}"])
+
+            def _emit_state(state_name: str, extra: Optional[dict] = None):
+                """Emit an AssetObservation event capturing a task-run state
+                transition. Prefect-parity for the state model (Running /
+                AwaitingRetry / Completed / Failed). Queryable via
+                context.instance.get_event_records + AssetObservation filter.
+                """
+                if not emit_state_observations:
+                    return
+                md = {
+                    "state": state_name,
+                    "task": step_name,
+                    "run_id": getattr(context.run, "run_id", "unknown"),
+                    "ts_epoch": time.time(),
+                }
+                if extra:
+                    md.update({k: str(v) for k, v in extra.items()})
+                try:
+                    context.log_event(dg.AssetObservation(
+                        asset_key=_TASK_STATE_ASSET_KEY, metadata=md,
+                    ))
+                except Exception:  # noqa: BLE001
+                    pass
+
             def _call():
                 # Wraps: log_prints capture → timeout → retry_condition_fn guard
-                # → on_completion / on_failure hooks
+                # → on_completion / on_failure hooks. Emits Running →
+                # Completed/Failed/AwaitingRetry state observations along the
+                # way (Prefect state-model parity, minus Cancelled/Crashed
+                # which need Dagster kill-signal integration).
+                _emit_state("Running")
+                _run_hooks(on_running, "running")
                 try:
                     with _maybe_capture_prints():
                         result = _apply_timeout(fn_to_call, args, kwargs)
+                    _emit_state("Completed")
                     _run_hooks(on_completion, "completion")
                     if not viz_return_value:
                         # Emit a marker asset observation so users can spot the
@@ -1149,10 +1183,16 @@ def task(
                                 f"{type(exc).__name__} — requesting Dagster retry "
                                 f"(max_retries={max_retries}, delay={round(delay, 3)}s)"
                             )
+                            _emit_state("AwaitingRetry", extra={
+                                "exception": type(exc).__name__,
+                                "delay_seconds": round(delay, 3),
+                            })
+                            _run_hooks(on_awaiting_retry, "awaiting_retry", exc)
                             raise dg.RetryRequested(
                                 max_retries=max_retries,
                                 seconds_to_wait=max(0.0, delay),
                             ) from exc
+                    _emit_state("Failed", extra={"exception": type(exc).__name__})
                     _run_hooks(on_failure, "failure", exc)
                     raise
 

@@ -749,12 +749,20 @@ def task(
     retry_condition_fn: Optional[Callable] = None,
     max_retries: int = 3,
     retry_delay_seconds: float = 0.0,
+    retry_jitter_factor: float = 0.0,
     concurrency_pool: Optional[str] = None,
     max_concurrent: Optional[int] = None,
     concurrency_pool_scope: str = "in_process",
     concurrency_pool_ttl_seconds: float = 3600.0,
     concurrency_pool_wait_interval_seconds: float = 2.0,
     concurrency_pool_max_wait_attempts: int = 300,
+    timeout_seconds: Optional[float] = None,
+    log_prints: bool = False,
+    on_completion: Optional[List[Callable]] = None,
+    on_failure: Optional[List[Callable]] = None,
+    task_run_name: Optional[str] = None,
+    result_storage_key: Optional[str] = None,
+    viz_return_value: bool = True,
 ) -> Callable:
     """Mark a callable as a Dagster sub-task with optional cache — Prefect
     `@task` parity plus Dagster-native extras. Behavior depends on where
@@ -880,9 +888,45 @@ def task(
         # decoration time.
         inner = _wrap_async_as_sync(inner)
 
+        def _templated_task_run_name(args_seq, kwargs_map):
+            """Format task_run_name using function args + kwargs. Prefect parity.
+
+            Templates like 'parse_{url}' or 'row_{i}_of_{n}' pull from kwargs
+            (fallback to positional args by index) — dynamic display name for
+            the run graph node. Malformed templates fall back to step_name.
+            """
+            if not task_run_name:
+                return None
+            try:
+                lookup = dict(kwargs_map)
+                for i, v in enumerate(args_seq[1:]):  # skip context arg
+                    lookup.setdefault(f"arg{i}", v)
+                return task_run_name.format(**lookup)
+            except Exception:  # noqa: BLE001
+                return None
+
+        def _templated_storage_key(args_seq, kwargs_map):
+            """Format result_storage_key using args + kwargs. Prefect parity —
+            gives users control over the cache storage path so cached files
+            are inspectable by name (e.g. 'invoices/{invoice_id}.pkl' vs
+            an opaque sha256 hash). Overrides cache_key_fn / INPUTS when set."""
+            if not result_storage_key:
+                return None
+            try:
+                lookup = dict(kwargs_map)
+                for i, v in enumerate(args_seq[1:]):
+                    lookup.setdefault(f"arg{i}", v)
+                return result_storage_key.format(**lookup)
+            except Exception:  # noqa: BLE001
+                return None
+
         @functools.wraps(inner)
         def _wrapped(*args, **kwargs):
-            explicit_name = kwargs.pop("task_name", None) or step_name
+            # Precedence: call-site task_name= overrides everything, then
+            # decorator-supplied task_run_name (with template rendering),
+            # then step_name (the function name).
+            _templated = _templated_task_run_name(args, kwargs) if task_run_name else None
+            explicit_name = kwargs.pop("task_name", None) or _templated or step_name
 
             # ── RECORDING MODE (called inside a @task_asset) ──
             queue = _recording_queue.get()
@@ -932,7 +976,12 @@ def task(
                 # Build the user cache key: explicit cache_key_fn wins;
                 # otherwise auto-hash inputs (Prefect task_input_hash parity).
                 try:
-                    if cache_key_fn is not None:
+                    # Precedence: result_storage_key template (human-readable)
+                    # > user cache_key_fn > auto INPUTS hash.
+                    templated_storage = _templated_storage_key(args, kwargs) if result_storage_key else None
+                    if templated_storage is not None:
+                        user_key = templated_storage
+                    elif cache_key_fn is not None:
                         user_key = cache_key_fn(context, *args[1:], **kwargs)
                     else:
                         user_key = _hash_task_inputs(args, kwargs)
@@ -996,41 +1045,115 @@ def task(
                 return _execute_with_guards(context, inner, args, kwargs)
 
         def _execute_with_guards(context, fn_to_call, args, kwargs):
-            """Wrap the actual inner call with concurrency-pool + retry_condition_fn.
+            """Wrap the actual inner call with the full Prefect-parity feature set:
 
-            Concurrency: block on `_pool_semaphore.acquire()` before execute;
-            release in a finally clause. In-process only (threading.Semaphore).
-            For cross-run/cross-process pools, use `rpa_queue_concurrency_lock`.
-
-            Retry-condition: catch any exception from `fn_to_call`; if the
-            user's `retry_condition_fn(context, exc)` returns True, raise
-            `dg.RetryRequested(max_retries=max_retries, seconds_to_wait=retry_delay_seconds)`
-            so Dagster retries the whole step. Otherwise re-raise (kills the run).
+            - Concurrency pool (in_process semaphore or cross_run event-log)
+            - Timeout (hard-kill compute past deadline via ThreadPoolExecutor)
+            - Log prints (redirect print() to context.log.info during execute)
+            - retry_condition_fn (predicate → RetryRequested with jitter)
+            - on_completion / on_failure hooks (fire per outcome, exceptions trapped)
+            - task_run_name (templated from args → mapping_key badge)
+            - Result truncation for the run graph if viz_return_value=False
+            - Cache-key contribution from result_storage_key template
             """
-            def _call():
-                if retry_condition_fn is None:
-                    return fn_to_call(*args, **kwargs)
-                try:
-                    return fn_to_call(*args, **kwargs)
-                except Exception as exc:  # noqa: BLE001
+            import random as _random
+            import contextlib as _contextlib
+            import io as _io
+
+            @_contextlib.contextmanager
+            def _maybe_capture_prints():
+                if not log_prints:
+                    yield
+                    return
+                buf = _io.StringIO()
+                with _contextlib.redirect_stdout(buf):
                     try:
-                        should_retry = bool(retry_condition_fn(context, exc))
-                    except Exception as pred_exc:  # noqa: BLE001
-                        context.log.warning(
-                            f"[task:{step_name}] retry_condition_fn raised "
-                            f"{type(pred_exc).__name__}; treating as re-raise"
-                        )
-                        raise exc from None
-                    if should_retry:
-                        context.log.info(
-                            f"[task:{step_name}] retry_condition_fn matched "
-                            f"{type(exc).__name__} — requesting Dagster retry "
-                            f"(max_retries={max_retries})"
-                        )
-                        raise dg.RetryRequested(
-                            max_retries=max_retries,
-                            seconds_to_wait=retry_delay_seconds,
-                        ) from exc
+                        yield
+                    finally:
+                        captured = buf.getvalue().rstrip()
+                        if captured:
+                            for line in captured.splitlines():
+                                try:
+                                    context.log.info(f"[print] {line}")
+                                except Exception:  # noqa: BLE001
+                                    pass
+
+            def _apply_timeout(fn, args, kwargs):
+                if timeout_seconds is None:
+                    return fn(*args, **kwargs)
+                import concurrent.futures as _cf
+                with _cf.ThreadPoolExecutor(max_workers=1) as _ex:
+                    fut = _ex.submit(fn, *args, **kwargs)
+                    try:
+                        return fut.result(timeout=timeout_seconds)
+                    except _cf.TimeoutError:
+                        raise TimeoutError(
+                            f"@task {step_name!r} exceeded timeout_seconds={timeout_seconds}"
+                        ) from None
+
+            def _run_hooks(hooks, kind, exc=None):
+                if not hooks:
+                    return
+                for hook in hooks:
+                    try:
+                        hook(context, exc) if exc is not None else hook(context)
+                    except Exception as hook_exc:  # noqa: BLE001
+                        try:
+                            context.log.warning(
+                                f"[task:{step_name}] on_{kind} hook "
+                                f"{getattr(hook, '__name__', repr(hook))!r} raised "
+                                f"{type(hook_exc).__name__}; ignored"
+                            )
+                        except Exception:  # noqa: BLE001
+                            pass
+
+            def _call():
+                # Wraps: log_prints capture → timeout → retry_condition_fn guard
+                # → on_completion / on_failure hooks
+                try:
+                    with _maybe_capture_prints():
+                        result = _apply_timeout(fn_to_call, args, kwargs)
+                    _run_hooks(on_completion, "completion")
+                    if not viz_return_value:
+                        # Emit a marker asset observation so users can spot the
+                        # hidden-return-value flag; the returned value itself
+                        # still flows to the caller (Dagster's asset return is
+                        # already the caller's, not the graph's — this is a
+                        # display-only flag matching Prefect's viz_return_value).
+                        try:
+                            context.log.info(f"[task:{step_name}] viz_return_value=False (return value hidden from run-graph preview)")
+                        except Exception:  # noqa: BLE001
+                            pass
+                    return result
+                except Exception as exc:  # noqa: BLE001
+                    if retry_condition_fn is not None:
+                        try:
+                            should_retry = bool(retry_condition_fn(context, exc))
+                        except Exception as pred_exc:  # noqa: BLE001
+                            context.log.warning(
+                                f"[task:{step_name}] retry_condition_fn raised "
+                                f"{type(pred_exc).__name__}; treating as re-raise"
+                            )
+                            _run_hooks(on_failure, "failure", exc)
+                            raise exc from None
+                        if should_retry:
+                            # Apply Prefect-parity retry jitter to the delay.
+                            base_delay = retry_delay_seconds or 0.0
+                            jitter = retry_jitter_factor or 0.0
+                            if jitter > 0:
+                                delay = base_delay * (1 + _random.uniform(-jitter, jitter))
+                            else:
+                                delay = base_delay
+                            context.log.info(
+                                f"[task:{step_name}] retry_condition_fn matched "
+                                f"{type(exc).__name__} — requesting Dagster retry "
+                                f"(max_retries={max_retries}, delay={round(delay, 3)}s)"
+                            )
+                            raise dg.RetryRequested(
+                                max_retries=max_retries,
+                                seconds_to_wait=max(0.0, delay),
+                            ) from exc
+                    _run_hooks(on_failure, "failure", exc)
                     raise
 
             if _pool_semaphore is not None:

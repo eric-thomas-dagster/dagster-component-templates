@@ -1,0 +1,54 @@
+═══════════════════════════════════════════════════════════════════════
+ Prefect parity — validation output
+ Run at: 2026-09-14 21:44:06Z
+ Host: Darwin 25.6.0 arm64  Python: Python 3.12.9
+ Templates commit: 728ce652 (before this commit)
+═══════════════════════════════════════════════════════════════════════
+
+─── smoke.py — session-wide smoke sweep ───────────────────────────────
+✓ controlm_integration                                         assets=1 jobs=5 sensors=2
+✓ runmyjobs_integration                                        assets=1 jobs=5 sensors=2
+✓ jenkins_integration                                          assets=1 jobs=5 sensors=2
+✓ rundeck_integration                                          assets=1 jobs=5 sensors=2
+✓ stonebranch_uac_integration                                  assets=1 jobs=5 sensors=2
+✓ iws_integration                                              assets=1 jobs=5 sensors=2
+✓ activebatch_integration                                      assets=1 jobs=5 sensors=2
+✓ jams_integration                                             assets=1 jobs=5 sensors=2
+✓ uipath_orchestrator_integration                              assets=1 jobs=5 sensors=2
+✓ automation_anywhere_integration                              assets=1 jobs=5 sensors=2
+✓ blue_prism_integration                                       assets=1 jobs=5 sensors=2
+✓ power_automate_integration                                   assets=1 jobs=5 sensors=2
+✓ rpa_output_parser                                            materialized 2 MISSING rows
+✓ rpa_queue_concurrency_lock                                   pool acquire/release cycle OK
+✓ rpa_health_check                                             check def builds
+✓ cron_schedule (partitioned)                                  cron '15 9 * * *' preserved via decomposition
+✓ interval_schedule (partitioned)                              1h+hourly OK, 15m+hourly raises
+✓ external_bigquery_table (kinds trim)                         default kinds trimmed to 3: ['bigquery', 'gcp', 'table']
+✓ cached_asset (refresh_cache + input_hash_cache_key_fn)       refresh_cache tag + input_hash_cache_key_fn OK
+✓ task_asset (cache parity: CachePolicy + cache=True + LRU + NO_CACHE) compose + cache=True + LRU + NO_CACHE all OK
+✓ task_asset — async task support (NEW)                        async def task auto-awaited
+✓ task_asset — retry_condition_fn (NEW)                        predicate + Dagster RetryRequested chained 3 attempts
+✓ task_asset — concurrency_pool (NEW)                          pool cap enforced (peak=2, cap=2); mismatched cap raises
+═══ 23 PASS / 0 FAIL / 23 TOTAL ═══
+
+─── deep.py — real end-to-end coverage ────────────────────────────────
+✓ rpa_health_check — PASS on fresh Successful                            check passed against fresh target (status=Successful)
+✓ rpa_health_check — FAIL on Faulted status                              check correctly FAILED for status='Faulted'
+✓ rpa_health_check — FAIL on no materialization                          check correctly FAILED for no materialization
+✓ rpa_output_parser — real vendor normalization                          vendor+status+run_id+output_field all normalized correctly
+✓ cached_asset — E2E: MISS → HIT → refresh tag → forced MISS             MISS → HIT → refresh_cache tag → forced MISS across 3 runs
+✓ @task retry_condition_fn — DON'T-retry path                            non-retriable exception → 1 attempt, no retries
+✓ @task ROOT_RUN default scoping — no cross-run bleed                    cache correctly isolated by root_run_id across runs
+✓ @task CROSS_RUN scoping — cache survives runs                          cache correctly survived across runs via CROSS_RUN
+✓ @task IOManagerBackedTaskCache — real IO-manager backend               cache stored + retrieved via fs_io_manager backend
+✓ @task concurrency_pool — actually BLOCKS (peak ≤ cap)                  pool blocks correctly: 5 tasks against cap=2, peak=2
+✓ @task async — nested-event-loop thread fallback                        async task inside running event loop: thread-fallback path OK
+✓ @task timeout_seconds (in-decorator)                                   timeout_seconds fired on slow task
+✓ @task log_prints (in-decorator)                                        captured 2 print() lines
+✓ @task on_completion / on_failure hooks (in-decorator)                  on_completion + on_failure fired at correct times
+✓ @task retry_jitter_factor                                              retry_jitter_factor accepted without error
+✓ @task task_run_name templating                                         template renders correctly; materialize with templated task_run_name OK
+✓ @task result_storage_key template                                      result_storage_key template respected
+✓ @task viz_return_value flag                                            viz_return_value=False marker emitted, value still flows
+✓ @task + smart_retry composition (advanced retry classification)        smart_retry composed with @task: 2 attempts recorded
+═══ 19 PASS / 0 FAIL / 19 TOTAL ═══

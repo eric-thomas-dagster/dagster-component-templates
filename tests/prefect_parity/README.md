@@ -8,6 +8,21 @@ See [`LATEST_RESULTS.txt`](./LATEST_RESULTS.txt) for the timestamped output of t
 
 **47 tests / 47 PASS** as of the most recent capture — 23 smoke + 24 real end-to-end.
 
+## Runnable end-to-end demo
+
+If you want to see the features live in a real Dagster project (not just tests), the CLI examples repo ships a one-command scaffold that stands up a working project with an asset exercising every feature — cache / retry / timeout / hooks / concurrency pool / `gather_async` for 10 concurrent async calls — and materializes it end-to-end:
+
+- Script: <https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/setup_task_prefect_parity_demo.sh>
+- Walkthrough: <https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/task_prefect_parity.md>
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_task_prefect_parity_demo.sh | bash
+cd task-prefect-parity-demo
+uv run dg dev
+```
+
+Under a minute end-to-end, zero external services.
+
 ## Running the tests
 
 Two scripts, run separately or together:

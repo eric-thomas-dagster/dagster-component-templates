@@ -1,0 +1,62 @@
+{
+  "component_type": "dagster_community_components.RPAHealthCheckComponent",
+  "description": "Asset check that verifies an RPA asset ran successfully within SLA (freshness + terminal-success status + optional non-empty output).",
+  "category": "check",
+  "icon": "CheckCircle",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetCheckResult",
+      "description": "Asset check result"
+    }
+  },
+  "attributes": {
+    "type": "object",
+    "properties": {
+      "target_asset": {
+        "type": "string",
+        "label": "Target Asset",
+        "description": "Slash-separated asset key to check (e.g. 'uipath_invoice_extract' or 'rpa/uipath/invoices')."
+      },
+      "check_name": {
+        "type": "string",
+        "label": "Check Name",
+        "description": "Asset check name shown in the UI.",
+        "default": "rpa_health"
+      },
+      "max_age_hours": {
+        "type": "number",
+        "label": "Max Age Hours",
+        "description": "Fail if the latest materialization is older than this many hours.",
+        "default": 24.0
+      },
+      "expected_statuses": {
+        "type": "array",
+        "items": {"type": "string"},
+        "label": "Expected Statuses",
+        "description": "Terminal-success values across RPA + scheduler vendors. Check passes if the asset's status metadata is in this list.",
+        "default": ["success", "Successful", "COMPLETED", "Completed", "Succeeded", "Ended OK"]
+      },
+      "require_non_empty_output": {
+        "type": "boolean",
+        "label": "Require Non-Empty Output",
+        "description": "Also fail if output_payload.output_arguments (or output_payload.trigger_input) is empty.",
+        "default": false
+      },
+      "severity": {
+        "type": "string",
+        "enum": ["ERROR", "WARN"],
+        "label": "Severity",
+        "description": "'WARN' (flag only) or 'ERROR' (blocks downstream materialization).",
+        "default": "WARN"
+      }
+    },
+    "required": ["target_asset"]
+  },
+  "tags": [
+    "check",
+    "rpa",
+    "sla",
+    "health"
+  ],
+  "name": "RPA Health Check"
+}

@@ -52789,6 +52789,183 @@
         "azure flows",
         "m365 automation"
       ]
+    },
+    {
+      "id": "rpa_output_parser",
+      "name": "RPA Output Parser",
+      "component_type": "dagster_community_components.RPAOutputParserComponent",
+      "path": "assets/transforms/rpa_output_parser",
+      "category": "transformation",
+      "icon": "TableView",
+      "description": "Normalize RPA output_payload metadata across UiPath / Automation Anywhere / Blue Prism / Power Automate into one flat DataFrame shape (vendor / run_id / status / asset_key / materialized_at / output_field / raw_payload). Downstream extract / classify / AgenticPipeline steps consume a single shape regardless of which bot vendor produced the raw data.",
+      "tags": [
+        "transformation",
+        "rpa",
+        "normalized",
+        "vendor-agnostic"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/rpa_output_parser/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/rpa_output_parser/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/rpa_output_parser/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/rpa_output_parser/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/rpa_output_parser/schema.json",
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/rpa_meets_ai.md",
+        "last_validated": "2026-09-14"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "one_dataframe_with_normalized_rpa_rows"
+        ],
+        "requires_pip": [],
+        "chains_with": [
+          "uipath_orchestrator_integration",
+          "automation_anywhere_integration",
+          "blue_prism_integration",
+          "power_automate_integration",
+          "agentic_pipeline",
+          "llm_evaluator"
+        ],
+        "anti_uses": "Only useful downstream of DCC RPA integration components; doesn't fetch from vendor APIs directly."
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "rpa normalize",
+        "rpa parser",
+        "flatten rpa output",
+        "vendor-agnostic rpa"
+      ]
+    },
+    {
+      "id": "rpa_queue_concurrency_lock",
+      "name": "RPA Queue Concurrency Lock",
+      "component_type": "dagster_community_components.RPAQueueConcurrencyLockComponent",
+      "path": "assets/infrastructure/rpa_queue_concurrency_lock",
+      "category": "infrastructure",
+      "icon": "Lock",
+      "description": "Cross-run concurrency limit for RPA bots (or any bounded-license resource). Wraps an existing asset with an inner op that acquires + releases a slot in a named pool tracked via Dagster event log. When pool is at max_concurrent, incoming materializations either wait / skip / fail per config. Stale acquires auto-expire after ttl_seconds so a killed run doesn't permanently hold a slot. Modeled on partition_lock_asset pattern.",
+      "tags": [
+        "infrastructure",
+        "rpa",
+        "concurrency",
+        "lock",
+        "license-limit",
+        "queue-management"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/rpa_queue_concurrency_lock/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/rpa_queue_concurrency_lock/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/rpa_queue_concurrency_lock/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/rpa_queue_concurrency_lock/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/rpa_queue_concurrency_lock/schema.json",
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/rpa_meets_ai.md",
+        "last_validated": "2026-09-14"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "one_wrapped_asset_with_pool_acquire_release_lifecycle",
+          "pool_state_asset_observation_events"
+        ],
+        "requires_pip": [],
+        "chains_with": [
+          "uipath_orchestrator_integration",
+          "automation_anywhere_integration",
+          "blue_prism_integration",
+          "power_automate_integration",
+          "partition_lock_asset",
+          "throttle_asset"
+        ],
+        "anti_uses": "Not distributed-atomic (event-log-based; probabilistic under heavy contention). For strict global limits, use an external mutex service."
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "rpa concurrency",
+        "rpa license limit",
+        "bot pool",
+        "concurrency limit",
+        "cross-run lock"
+      ]
+    },
+    {
+      "id": "rpa_health_check",
+      "name": "RPA Health Check",
+      "component_type": "dagster_community_components.RPAHealthCheckComponent",
+      "path": "asset_checks/rpa_health_check",
+      "category": "check",
+      "icon": "CheckCircle",
+      "description": "Asset check that verifies an RPA (or any scheduler-integration) asset ran successfully within SLA. Reads the target asset's latest materialization event and validates: freshness (max_age_hours), status (matches one of expected_statuses \u2014 covers all RPA + scheduler vendor terminal-success values), and optionally non-empty output. Fails as WARN or ERROR per config; wires into asset-checks-first schedules or alerts.",
+      "tags": [
+        "check",
+        "rpa",
+        "health",
+        "freshness",
+        "sla",
+        "asset-check"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/rpa_health_check/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/rpa_health_check/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/rpa_health_check/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/rpa_health_check/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/rpa_health_check/schema.json",
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/rpa_meets_ai.md",
+        "last_validated": "2026-09-14"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "one_asset_check_per_target_asset"
+        ],
+        "requires_pip": [],
+        "chains_with": [
+          "uipath_orchestrator_integration",
+          "automation_anywhere_integration",
+          "blue_prism_integration",
+          "power_automate_integration",
+          "controlm_integration",
+          "runmyjobs_integration",
+          "jenkins_integration",
+          "rundeck_integration"
+        ],
+        "anti_uses": "Read-only observability \u2014 does not mutate the target asset. Use rpa_queue_concurrency_lock to control execution rate."
+      },
+      "produces": [
+        "asset_check"
+      ],
+      "keywords": [
+        "rpa health",
+        "rpa sla",
+        "rpa check",
+        "freshness check",
+        "status check"
+      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

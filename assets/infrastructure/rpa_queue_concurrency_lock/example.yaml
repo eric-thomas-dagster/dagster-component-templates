@@ -1,0 +1,20 @@
+type: dagster_community_components.RPAQueueConcurrencyLockComponent
+attributes:
+  # Wrap a Dagster asset that holds one seat of a UiPath 5-bot pool.
+  asset_name: uipath_invoice_bot_slot
+  pool_key: uipath_bot_pool_prod
+  max_concurrent: 5
+
+  # If the pool is full, poll every 15s up to 40 times (~10 min);
+  # then request a Dagster retry (frees the worker slot while waiting).
+  on_capacity: wait
+  wait_interval_seconds: 15
+  max_wait_attempts: 40
+
+  # Stale-slot expiry: any acquire older than 1h without a matching
+  # release is treated as released (protects against killed runs).
+  ttl_seconds: 3600
+  window_seconds: 7200
+
+  group_name: rpa_queue_locks
+  kinds: [python, rpa, uipath, queue-lock]

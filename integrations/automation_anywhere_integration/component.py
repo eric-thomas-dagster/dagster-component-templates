@@ -432,6 +432,16 @@ class AutomationAnywhereIntegrationComponent(dg.Component, dg.Model, dg.Resolvab
                         "partition_key": result.get("partition_key", "N/A"),
                         "duration_seconds": duration,
                         "demo_mode": _demo,
+                        "output_payload": dg.MetadataValue.json({
+                            "vendor": "automation_anywhere",
+                            "run_id": str(result.get("execution_id", "")),
+                            "deployment_id": str(result.get("deployment_id", "")),
+                            "status": result.get("status", ""),
+                            "file_id": _bot.file_id,
+                            "workspace": _bot.workspace,
+                            "device_pool_id": _bot.device_pool_id,
+                            "bot_input": _bot.bot_input,
+                        }),
                     })
 
                 return _asset_fn

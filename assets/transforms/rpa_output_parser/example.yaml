@@ -1,0 +1,15 @@
+type: dagster_community_components.RPAOutputParserComponent
+
+attributes:
+  asset_name: invoice_output_normalized
+  group_name: rpa_normalized
+  upstream_asset_keys:
+    - uipath_extract_standard_pdf
+    - aa_ocr_scanned_image
+    - bp_edi_parser
+    - pa_email_extract
+
+  # Set true to raise when any upstream asset has no materialization on record
+  # (default false — emit a row with status='MISSING' instead so downstream sees
+  # the gap without failing the whole pipeline).
+  fail_on_missing_upstream: false

@@ -1,0 +1,22 @@
+{
+  "component_type": "dagster_community_components.RPAOutputParserComponent",
+  "description": "Normalize RPA output_payload metadata across UiPath / Automation Anywhere / Blue Prism / Power Automate into one flat DataFrame shape (vendor / run_id / status / asset_key / materialized_at / output_field / raw_payload). Downstream extract / classify / AgenticPipeline steps consume a single shape regardless of which bot vendor produced the raw data.",
+  "category": "transformation",
+  "icon": "TableView",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "asset",
+      "description": "One DataFrame asset with one row per upstream RPA asset (columns: vendor, run_id, status, asset_key, materialized_at, output_field, raw_payload)."
+    }
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true, "description": "Name of the resulting normalized DataFrame asset."},
+    "upstream_asset_keys": {"type": "array", "label": "Upstream Asset Keys", "required": true, "items": {"type": "string"}, "description": "Slash-separated asset keys of upstream RPA assets (from uipath_orchestrator_integration, automation_anywhere_integration, blue_prism_integration, power_automate_integration)."},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "rpa_normalized", "description": "Dagster asset group."},
+    "kinds": {"type": "array", "label": "Kinds", "required": false, "items": {"type": "string"}, "description": "Asset kinds to attach (defaults to ['python', 'rpa', 'normalized'])."},
+    "description": {"type": "string", "label": "Description", "required": false, "description": "Prose description shown in the Dagster UI."},
+    "fail_on_missing_upstream": {"type": "boolean", "label": "Fail On Missing Upstream", "required": false, "default": false, "description": "If true, raise when any upstream has no materialization on record; else emit a row with status='MISSING'.", "ui:widget": "checkbox"}
+  },
+  "tags": ["transformation", "rpa", "normalized", "vendor-agnostic", "downstream-friendly"],
+  "name": "RPAOutputParser"
+}

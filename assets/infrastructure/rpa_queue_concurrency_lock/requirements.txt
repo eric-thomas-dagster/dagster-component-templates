@@ -1,0 +1,1 @@
+# stdlib-only (event-log state + AssetObservation only; no external counter)

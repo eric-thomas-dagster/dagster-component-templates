@@ -1,0 +1,54 @@
+# One asset check per RPA-produced asset. Declare as many as you need —
+# each block below becomes a separate @asset_check attached to the target
+# asset in the Dagster UI.
+
+# UiPath — invoice extraction bot must have run within the last 6h and
+# returned non-empty output arguments.
+type: dagster_community_components.RPAHealthCheckComponent
+attributes:
+  target_asset: uipath_invoice_extract
+  check_name: uipath_invoice_health
+  max_age_hours: 6.0
+  require_non_empty_output: true
+  severity: ERROR
+
+---
+
+# Automation Anywhere — nightly reconciliation bot.
+type: dagster_community_components.RPAHealthCheckComponent
+attributes:
+  target_asset: aa_nightly_recon
+  check_name: aa_recon_health
+  max_age_hours: 26.0
+  severity: WARN
+
+---
+
+# Blue Prism — CRM sync process.
+type: dagster_community_components.RPAHealthCheckComponent
+attributes:
+  target_asset: blueprism_crm_sync
+  check_name: blueprism_crm_sync_health
+  max_age_hours: 24.0
+  severity: WARN
+
+---
+
+# Power Automate — SharePoint file mover.
+type: dagster_community_components.RPAHealthCheckComponent
+attributes:
+  target_asset: power_automate_sharepoint_move
+  check_name: sharepoint_move_health
+  max_age_hours: 12.0
+  severity: WARN
+
+---
+
+# Control-M — end-of-day batch anchor asset ("Ended OK" is the terminal
+# success value on Control-M and RunMyJobs).
+type: dagster_community_components.RPAHealthCheckComponent
+attributes:
+  target_asset: controlm/eod/final_close
+  check_name: eod_close_health
+  max_age_hours: 25.0
+  severity: ERROR

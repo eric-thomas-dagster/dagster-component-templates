@@ -437,6 +437,16 @@ class UiPathOrchestratorIntegrationComponent(dg.Component, dg.Model, dg.Resolvab
                         "output_arguments_chars": len(result.get("output_arguments", "") or ""),
                         "duration_seconds": duration,
                         "demo_mode": _demo,
+                        "output_payload": dg.MetadataValue.json({
+                            "vendor": "uipath",
+                            "run_id": str(result.get("job_id", "")),
+                            "run_key": result.get("job_key", ""),
+                            "status": result.get("status", ""),
+                            "output_arguments": result.get("output_arguments", ""),
+                            "folder_id": _job.folder_id,
+                            "folder": _job.folder,
+                            "release_key": _job.release_key,
+                        }),
                     })
 
                 return _asset_fn

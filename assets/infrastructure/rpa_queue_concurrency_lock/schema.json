@@ -1,0 +1,134 @@
+{
+  "component_type": "dagster_community_components.RPAQueueConcurrencyLockComponent",
+  "description": "Cross-run concurrency limit keyed on a named pool. Wraps a Dagster asset with an acquire/release protocol backed by AssetObservation events on a synthetic pool asset key (__pool_<pool_key>). Multiple assets sharing the same pool_key share one concurrency counter — solves RPA-bot license overrun (fixed number of UiPath / Automation Anywhere / Blue Prism seats vs Dagster fan-out). on_capacity: wait (poll then RetryRequested) | skip (log + no-op) | fail (dg.Failure). Stale acquires older than ttl_seconds auto-expire so killed runs don't permanently hold slots. Borrows the event-log state pattern from partition_lock_asset.",
+  "category": "decorator",
+  "icon": "Lock",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "asset",
+      "description": "One @dg.asset. Emits acquire/release AssetObservations to a synthetic __pool_<pool_key> asset key. On skip: metadata.pool_at_capacity=true."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Dagster asset that gets wrapped with the pool lock."
+    },
+    "pool_key": {
+      "type": "string",
+      "label": "Pool Key",
+      "required": true,
+      "description": "Named pool identifier (e.g. 'uipath_bot_pool_prod'). Assets sharing this key share the same concurrency counter."
+    },
+    "max_concurrent": {
+      "type": "integer",
+      "label": "Max Concurrent",
+      "required": true,
+      "description": "Max simultaneously-running holders allowed to occupy the pool."
+    },
+    "on_capacity": {
+      "type": "string",
+      "label": "On Capacity",
+      "required": false,
+      "default": "wait",
+      "enum": [
+        "wait",
+        "skip",
+        "fail"
+      ],
+      "description": "'wait' polls then RetryRequested; 'skip' returns MaterializeResult(pool_at_capacity=true); 'fail' raises dg.Failure."
+    },
+    "wait_interval_seconds": {
+      "type": "integer",
+      "label": "Wait Interval Seconds",
+      "required": false,
+      "default": 15,
+      "description": "Seconds between pool-availability polls when on_capacity='wait'."
+    },
+    "max_wait_attempts": {
+      "type": "integer",
+      "label": "Max Wait Attempts",
+      "required": false,
+      "default": 40,
+      "description": "Max in-run polls before RetryRequested (in-run wait ceiling ~= wait_interval_seconds * max_wait_attempts)."
+    },
+    "ttl_seconds": {
+      "type": "integer",
+      "label": "TTL Seconds",
+      "required": false,
+      "default": 3600,
+      "description": "Stale-acquire expiry. Unreleased acquire older than this is treated as released (auto-expiry for killed runs)."
+    },
+    "window_seconds": {
+      "type": "integer",
+      "label": "Window Seconds",
+      "required": false,
+      "default": 7200,
+      "description": "Event-log lookback window (should be >= ttl_seconds)."
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "default": [
+        "python",
+        "rpa",
+        "queue-lock"
+      ],
+      "ui:widget": "list"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "rpa_queue_locks"
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "default": null,
+      "description": "Optional upstream asset key (slash-separated for nested keys)."
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "hourly"
+      ],
+      "description": "'daily' | 'hourly' | omit for unpartitioned."
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "required": false,
+      "default": null,
+      "description": "ISO start date when partition_type is set."
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    }
+  },
+  "tags": [
+    "lock",
+    "concurrency",
+    "pool",
+    "rpa",
+    "uipath",
+    "automation-anywhere",
+    "blue-prism",
+    "event-log",
+    "infrastructure"
+  ],
+  "name": "RPA Queue Concurrency Lock"
+}

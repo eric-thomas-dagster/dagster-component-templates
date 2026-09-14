@@ -421,6 +421,15 @@ class PowerAutomateIntegrationComponent(dg.Component, dg.Model, dg.Resolvable):
                         "environment_id": result.get("environment_id", "N/A"),
                         "duration_seconds": duration,
                         "demo_mode": _demo,
+                        "output_payload": dg.MetadataValue.json({
+                            "vendor": "power_automate",
+                            "run_id": result.get("run_name", ""),
+                            "status": result.get("status", ""),
+                            "environment_id": result.get("environment_id", ""),
+                            "flow_id": _flow.flow_id,
+                            "solution": _flow.solution,
+                            "trigger_input": _flow.trigger_input,
+                        }),
                     })
 
                 return _asset_fn

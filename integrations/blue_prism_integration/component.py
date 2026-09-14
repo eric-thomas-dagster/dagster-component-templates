@@ -432,6 +432,15 @@ class BluePrismIntegrationComponent(dg.Component, dg.Model, dg.Resolvable):
                         "scheduled_time": result.get("scheduled_time", "N/A"),
                         "duration_seconds": duration,
                         "demo_mode": _demo,
+                        "output_payload": dg.MetadataValue.json({
+                            "vendor": "blue_prism",
+                            "run_id": result.get("session_id", ""),
+                            "status": result.get("status", ""),
+                            "process_id": _job.process_id,
+                            "resource_id": _job.resource_id,
+                            "resource_group": _job.resource_group,
+                            "inputs": _job.inputs,
+                        }),
                     })
 
                 return _asset_fn

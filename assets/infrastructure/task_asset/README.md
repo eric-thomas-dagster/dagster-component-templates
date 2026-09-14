@@ -221,7 +221,18 @@ def gpu_embedding(context, texts):
 
 Both tasks share one pool of 3 slots — at most 3 concurrent invocations across both. All tasks binding a given pool_name must agree on `max_concurrent` (mismatch raises at decoration time).
 
-Backed by a `threading.Semaphore` — **in-process concurrency control**. For cross-run / cross-process pools (e.g., "5 GPU licenses shared across every run in the fleet"), use the `rpa_queue_concurrency_lock` component — event-log-backed, works across processes.
+Two scopes, controlled by `concurrency_pool_scope`:
+
+- **`in_process`** (default) — `threading.Semaphore`; enforces the cap within one Python process (one asset materialization). Fast, no external state.
+- **`cross_run`** — event-log-backed; emits `AssetObservation` events on a synthetic `__task_pool_<name>` asset key + polls to count active slots. Enforces the cap **across every run in the fleet** (all Dagster+ Serverless workers, all Hybrid jobs, all local materializations sharing the instance). Same substrate `rpa_queue_concurrency_lock` uses. TTL auto-expires stale acquires from killed runs (default 3600s).
+
+```python
+# "5 GPU licenses shared across every run in the fleet"
+@task(concurrency_pool="gpu", max_concurrent=5, concurrency_pool_scope="cross_run",
+      concurrency_pool_ttl_seconds=3600.0)
+def gpu_inference(context, batch):
+    return heavy_model.predict(batch)
+```
 
 ### `child_step` — the primitive underneath
 

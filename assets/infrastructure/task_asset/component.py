@@ -487,6 +487,119 @@ def _get_pool(name: str, max_concurrent: int) -> "_threading.Semaphore":
         return _POOLS[name]
 
 
+# ─── Cross-run pool (event-log-backed) ─────────────────────────────
+#
+# Prefect's global concurrency limits are cross-run because their API server
+# tracks slot state centrally. Dagster has no per-se API server, but the
+# event log IS a shared substrate — the same one @cached and @throttle use.
+# `_cross_run_pool_*` emits AssetObservation events on a synthetic
+# `__task_pool_<name>` asset key; scans back to count active slots.
+
+_CROSS_RUN_TAG_SAFE = frozenset(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-"
+)
+
+
+def _cross_run_pool_key(name: str) -> "dg.AssetKey":
+    """Synthetic asset key where acquire/release events are emitted."""
+    safe = "".join(c if c in _CROSS_RUN_TAG_SAFE else "_" for c in name)
+    return dg.AssetKey([f"__task_pool_{safe}"])
+
+
+def _cross_run_pool_count(
+    instance: Any,
+    pool_asset_key: "dg.AssetKey",
+    ttl_seconds: float,
+    window_seconds: float,
+) -> int:
+    """Scan recent AssetObservation events on the pool key; count active slots.
+
+    Pairs acquire/release by run_id in metadata. Any acquire older than
+    ttl_seconds without a matching release is treated as released (stale —
+    killed run). Same pattern as rpa_queue_concurrency_lock.
+    """
+    try:
+        from dagster import EventRecordsFilter, DagsterEventType
+    except Exception:  # noqa: BLE001
+        return 0
+
+    now_ts = time.time()
+    try:
+        records = instance.get_event_records(
+            event_records_filter=EventRecordsFilter(
+                event_type=DagsterEventType.ASSET_OBSERVATION,
+                asset_key=pool_asset_key,
+                after_timestamp=now_ts - float(window_seconds),
+            ),
+            limit=5000,
+            ascending=True,
+        )
+    except Exception:  # noqa: BLE001
+        return 0
+
+    def _md_get(md: Any, key: str) -> Optional[str]:
+        if md is None:
+            return None
+        v = md.get(key) if hasattr(md, "get") else None
+        if v is None:
+            return None
+        for attr in ("value", "text"):
+            inner = getattr(v, attr, None)
+            if inner is not None:
+                return str(inner)
+        return str(v)
+
+    active: Dict[str, float] = {}  # run_id -> acquired_at_ts
+    for r in records:
+        obs = getattr(r, "asset_observation", None)
+        md = getattr(obs, "metadata", None) if obs is not None else None
+        if md is None:
+            de = getattr(r, "dagster_event", None)
+            esd = getattr(de, "event_specific_data", None) if de is not None else None
+            mat = getattr(esd, "asset_observation", None) if esd is not None else None
+            md = getattr(mat, "metadata", None) if mat is not None else None
+        if md is None:
+            continue
+        run_id = _md_get(md, "run_id")
+        event = _md_get(md, "event")
+        ts_str = _md_get(md, "ts_epoch")
+        try:
+            ts_val = float(ts_str) if ts_str is not None else float(getattr(r, "timestamp", now_ts) or now_ts)
+        except Exception:  # noqa: BLE001
+            ts_val = float(getattr(r, "timestamp", now_ts) or now_ts)
+        if not run_id or not event:
+            continue
+        if event == "acquire":
+            active[run_id] = ts_val
+        elif event == "release":
+            active.pop(run_id, None)
+
+    return sum(1 for ts in active.values() if now_ts - ts <= ttl_seconds)
+
+
+def _cross_run_pool_emit(context, pool_asset_key: "dg.AssetKey", event_name: str, task_name: str) -> None:
+    """Emit an acquire/release event to the pool asset key."""
+    try:
+        context.log_event(dg.AssetObservation(
+            asset_key=pool_asset_key,
+            metadata={
+                "run_id": context.run.run_id,
+                "event": event_name,
+                "task": task_name,
+                "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "ts_epoch": time.time(),
+            },
+        ))
+    except Exception as exc:  # noqa: BLE001
+        try:
+            context.log.warning(
+                f"[task:{task_name}] cross-run pool emit {event_name!r} failed: "
+                f"{type(exc).__name__} — slot state may drift"
+            )
+        except Exception:  # noqa: BLE001
+            pass
+
+
 # ═════════════════════════════════════════════════════════════════════
 # Async task support (Prefect async @task parity)
 # ═════════════════════════════════════════════════════════════════════
@@ -638,6 +751,10 @@ def task(
     retry_delay_seconds: float = 0.0,
     concurrency_pool: Optional[str] = None,
     max_concurrent: Optional[int] = None,
+    concurrency_pool_scope: str = "in_process",
+    concurrency_pool_ttl_seconds: float = 3600.0,
+    concurrency_pool_wait_interval_seconds: float = 2.0,
+    concurrency_pool_max_wait_attempts: int = 300,
 ) -> Callable:
     """Mark a callable as a Dagster sub-task with optional cache — Prefect
     `@task` parity plus Dagster-native extras. Behavior depends on where
@@ -738,7 +855,23 @@ def task(
             "@task: concurrency_pool and max_concurrent must be set together. "
             "Pass both, or neither."
         )
-    _pool_semaphore = _get_pool(concurrency_pool, max_concurrent) if concurrency_pool else None
+    if concurrency_pool_scope not in ("in_process", "cross_run"):
+        raise ValueError(
+            f"@task: concurrency_pool_scope must be 'in_process' or 'cross_run'; "
+            f"got {concurrency_pool_scope!r}"
+        )
+    # in_process → threading.Semaphore (per-python-process cap)
+    # cross_run → event-log-backed (works across runs / workers / hosts)
+    _pool_semaphore = (
+        _get_pool(concurrency_pool, max_concurrent)
+        if concurrency_pool and concurrency_pool_scope == "in_process"
+        else None
+    )
+    _cross_run_pool = (
+        _cross_run_pool_key(concurrency_pool)
+        if concurrency_pool and concurrency_pool_scope == "cross_run"
+        else None
+    )
     def _decorator(inner: Callable) -> Callable:
         step_name = name or getattr(inner, "__name__", "task")
         # Auto-wrap async coroutine functions so sync execution paths (Dagster ops)
@@ -900,15 +1033,47 @@ def task(
                         ) from exc
                     raise
 
-            if _pool_semaphore is None:
-                return _call()
-            # Concurrency pool: block until a slot frees.
-            context.log.info(f"[task:{step_name}] acquiring pool={concurrency_pool!r} (cap={max_concurrent})")
-            _pool_semaphore.acquire()
-            try:
-                return _call()
-            finally:
-                _pool_semaphore.release()
+            if _pool_semaphore is not None:
+                # In-process semaphore path
+                context.log.info(f"[task:{step_name}] acquiring in-process pool={concurrency_pool!r} (cap={max_concurrent})")
+                _pool_semaphore.acquire()
+                try:
+                    return _call()
+                finally:
+                    _pool_semaphore.release()
+            if _cross_run_pool is not None:
+                # Cross-run event-log-backed pool. Poll until active < max_concurrent
+                # (bounded by max_wait_attempts), emit acquire, run, emit release.
+                for attempt in range(concurrency_pool_max_wait_attempts):
+                    active = _cross_run_pool_count(
+                        context.instance,
+                        _cross_run_pool,
+                        concurrency_pool_ttl_seconds,
+                        max(concurrency_pool_ttl_seconds * 2, 7200.0),
+                    )
+                    if active < max_concurrent:
+                        break
+                    context.log.info(
+                        f"[task:{step_name}] cross-run pool={concurrency_pool!r} at "
+                        f"capacity ({active}/{max_concurrent}); waiting "
+                        f"{concurrency_pool_wait_interval_seconds}s "
+                        f"(attempt {attempt + 1}/{concurrency_pool_max_wait_attempts})"
+                    )
+                    time.sleep(concurrency_pool_wait_interval_seconds)
+                else:
+                    raise dg.Failure(
+                        description=(
+                            f"@task pool={concurrency_pool!r} did not free a slot "
+                            f"within {concurrency_pool_max_wait_attempts * concurrency_pool_wait_interval_seconds:.0f}s"
+                        )
+                    )
+                context.log.info(f"[task:{step_name}] acquired cross-run pool={concurrency_pool!r} slot ({active + 1}/{max_concurrent})")
+                _cross_run_pool_emit(context, _cross_run_pool, "acquire", step_name)
+                try:
+                    return _call()
+                finally:
+                    _cross_run_pool_emit(context, _cross_run_pool, "release", step_name)
+            return _call()
 
         _wrapped.__task_name__ = step_name  # type: ignore[attr-defined]
         return _wrapped

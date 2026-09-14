@@ -1,0 +1,52 @@
+type: dagster_community_components.ControlMIntegrationComponent
+
+attributes:
+  # demo_mode simulates the Automation API on stdout — flip to false to hit
+  # a real Control-M server (requires CONTROLM_USER / CONTROLM_PASSWORD env vars).
+  demo_mode: true
+  endpoint: "https://controlm.internal:8443/automation-api"
+
+  group_name: controlm_integration
+
+  # Auth (production mode only)
+  controlm_user_env: CONTROLM_USER
+  controlm_password_env: CONTROLM_PASSWORD
+
+  # Dagster-side retry policy applied to every job asset
+  max_retries: 2
+  retry_delay_seconds: 60
+
+  # Upstream deps that must complete before Control-M jobs run
+  # (each becomes an AssetKey; nested keys use slash-separated paths)
+  upstream_deps: []
+
+  # Control-M jobs — each becomes a daily-partitioned Dagster asset
+  jobs:
+    - job_name: EOD_BATCH_SETTLEMENT
+      asset_name: controlm_eod_settlement
+      description: >-
+        End-of-day batch settlement. Control-M for z/OS manages the JCL
+        submission and JES scheduling. Dagster triggers via Automation API
+        with ODATE from the partition key, polls through Submitted ->
+        Executing -> Ended OK, then sends feedback.
+      folder: DAILY_BATCH
+      application: CORE_BANKING
+      sub_application: SETTLEMENT
+      host: ctm-agent-prod-01
+
+    - job_name: REGULATORY_EXTRACT
+      asset_name: controlm_regulatory_extract
+      description: >-
+        Regulatory reporting extract. Must complete before compliance
+        dashboards refresh.
+      folder: DAILY_BATCH
+      application: COMPLIANCE
+      sub_application: REGULATORY_REPORTING
+      host: ctm-agent-prod-02
+
+  # Optional: Control-M-managed tables that Dagster observes (adds to lineage)
+  source_tables: []
+  # source_tables:
+  #   - table_name: "CORE_BANKING.SETTLEMENT_LEDGER"
+  #     asset_name: controlm_settlement_table
+  #     produced_by: controlm_eod_settlement

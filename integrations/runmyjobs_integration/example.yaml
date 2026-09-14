@@ -1,0 +1,51 @@
+type: dagster_community_components.RunMyJobsIntegrationComponent
+
+attributes:
+  # demo_mode simulates the REST API on stdout — flip to false to hit a real
+  # RunMyJobs server (requires RUNMYJOBS_USER / RUNMYJOBS_PASSWORD env vars).
+  demo_mode: true
+  endpoint: "https://runmyjobs.internal:8443/RunMyJobs/api-rest"
+
+  group_name: runmyjobs_integration
+
+  # Auth (production mode only)
+  runmyjobs_user_env: RUNMYJOBS_USER
+  runmyjobs_password_env: RUNMYJOBS_PASSWORD
+
+  # Dagster-side retry policy applied to every job asset
+  max_retries: 2
+  retry_delay_seconds: 60
+
+  # Upstream deps that must complete before RunMyJobs jobs run
+  upstream_deps: []
+
+  # RunMyJobs JobDefinitions — each becomes a daily-partitioned Dagster asset
+  jobs:
+    - job_definition: EOD_BATCH_SETTLEMENT
+      asset_name: rmj_eod_settlement
+      description: >-
+        End-of-day batch settlement. RunMyJobs orchestrates the underlying
+        SAP / mainframe processes. Dagster submits via REST with the
+        scheduled date from the partition key, polls through
+        Waiting Time -> Ready -> Running -> Completed, then emits an event.
+      application: DAILY_BATCH
+      partition_type: CORE_BANKING
+      sub_partition_type: SETTLEMENT
+      queue: prod_queue
+
+    - job_definition: REGULATORY_EXTRACT
+      asset_name: rmj_regulatory_extract
+      description: >-
+        Regulatory reporting extract. Must complete before compliance
+        dashboards refresh.
+      application: DAILY_BATCH
+      partition_type: COMPLIANCE
+      sub_partition_type: REGULATORY_REPORTING
+      queue: compliance_queue
+
+  # Optional: RunMyJobs-managed tables that Dagster observes (adds to lineage)
+  source_tables: []
+  # source_tables:
+  #   - table_name: "CORE_BANKING.SETTLEMENT_LEDGER"
+  #     asset_name: rmj_settlement_table
+  #     produced_by: rmj_eod_settlement

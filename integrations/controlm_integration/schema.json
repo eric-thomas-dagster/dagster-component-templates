@@ -1,0 +1,130 @@
+{
+  "component_type": "dagster_community_components.ControlMIntegrationComponent",
+  "description": "BMC Control-M Automation API integration. Each declared job becomes a daily-partitioned Dagster asset with a retry policy. Ships with 5 ops + jobs (restart, hold, free, kill, reconcile), an external-execution monitor sensor, an inbound-trigger sensor, and an hourly reconciliation schedule. demo_mode=true simulates the full Automation API lifecycle on stdout so the whole component runs end-to-end with zero external dependencies.",
+  "category": "integration",
+  "icon": "Schedule",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "One daily-partitioned Dagster asset per Control-M job + optional external source-table assets + 5 ops/jobs + 2 sensors + 1 schedule."
+    }
+  },
+  "attributes": {
+    "demo_mode": {
+      "type": "boolean",
+      "label": "Demo Mode",
+      "required": false,
+      "default": true,
+      "description": "Simulate the Automation API on stdout (no external calls).",
+      "ui:widget": "checkbox"
+    },
+    "endpoint": {
+      "type": "string",
+      "label": "Endpoint",
+      "required": false,
+      "default": "https://controlm.internal:8443/automation-api",
+      "description": "Control-M Automation API base URL (used when demo_mode=false)."
+    },
+    "jobs": {
+      "type": "array",
+      "label": "Jobs",
+      "required": false,
+      "description": "Control-M jobs to wrap as daily-partitioned Dagster assets. Each item: {job_name, asset_name, description?, folder?, application?, sub_application?, host?, run_as?}."
+    },
+    "source_tables": {
+      "type": "array",
+      "label": "Source Tables",
+      "required": false,
+      "description": "Tables loaded by Control-M that Dagster observes (adds to lineage). Each item: {table_name, asset_name, description?, group_name?, produced_by?}."
+    },
+    "upstream_deps": {
+      "type": "array",
+      "label": "Upstream Deps",
+      "required": false,
+      "description": "Upstream asset keys (slash-separated for nested keys) that must complete before jobs run."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "controlm_integration",
+      "description": "Dagster asset group for the job assets."
+    },
+    "controlm_user_env": {
+      "type": "string",
+      "label": "Control-M User Env Var",
+      "required": false,
+      "default": "CONTROLM_USER",
+      "description": "Env var holding the Automation API username."
+    },
+    "controlm_password_env": {
+      "type": "string",
+      "label": "Control-M Password Env Var",
+      "required": false,
+      "default": "CONTROLM_PASSWORD",
+      "description": "Env var holding the Automation API password."
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "required": false,
+      "default": 10,
+      "description": "Seconds between Control-M status polls."
+    },
+    "poll_timeout_seconds": {
+      "type": "integer",
+      "label": "Poll Timeout Seconds",
+      "required": false,
+      "default": 3600,
+      "description": "Total seconds to wait for terminal status before failing."
+    },
+    "spool_retrieval": {
+      "type": "boolean",
+      "label": "Spool Retrieval",
+      "required": false,
+      "default": true,
+      "description": "Retrieve job spool output on completion.",
+      "ui:widget": "checkbox"
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "required": false,
+      "default": 2,
+      "description": "Dagster-side asset retries on failure."
+    },
+    "retry_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Delay Seconds",
+      "required": false,
+      "default": 60,
+      "description": "Delay between Dagster asset retries."
+    },
+    "partition_start_date": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "required": false,
+      "default": "2024-01-01",
+      "description": "Start date for the daily partitioned assets (ODATE origin)."
+    },
+    "reconciliation_cron": {
+      "type": "string",
+      "label": "Reconciliation Cron",
+      "required": false,
+      "default": "0 * * * *",
+      "description": "Cron for the Control-M vs Dagster state reconciliation job."
+    }
+  },
+  "tags": [
+    "integration",
+    "control-m",
+    "controlm",
+    "bmc",
+    "scheduler",
+    "orchestration",
+    "mainframe",
+    "batch",
+    "z/os"
+  ],
+  "name": "ControlMIntegration"
+}

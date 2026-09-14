@@ -1,6 +1,6 @@
 {
-  "component_type": "dagster_component_templates.IntervalScheduleComponent",
-  "description": "Run an asset selection at a fixed interval (every N minutes / hours / days).",
+  "component_type": "dagster_community_components.IntervalScheduleComponent",
+  "description": "Run an asset selection at a fixed interval (every N minutes / hours / days / weeks / months). Supports time-based partitioned assets via build_schedule_from_partitioned_job — set partition_type + partition_start and the interval must match the partition cadence (every: 1h ↔ hourly, every: 1d ↔ daily, etc.). Mirrors cron_schedule's partition surface.",
   "category": "infrastructure",
   "icon": "Clock",
   "x-dagster-io": {
@@ -13,12 +13,14 @@
     "schedule_name": {
       "type": "string",
       "label": "Schedule Name",
-      "required": true
+      "required": true,
+      "description": "Unique schedule name."
     },
     "every": {
       "type": "string",
       "label": "Every",
-      "required": true
+      "required": true,
+      "description": "Interval value + unit: e.g. '15m', '2h', '1d', '1w', '1mo'. In partitioned mode, must be exactly '1<unit>' where unit matches the partition cadence."
     },
     "asset_keys": {
       "type": "array",
@@ -26,39 +28,77 @@
       "required": true,
       "items": {
         "type": "string"
-      }
+      },
+      "description": "Slash-separated asset keys to materialize on each tick."
     },
     "job_name": {
       "type": "string",
       "label": "Job Name",
-      "required": false
+      "required": false,
+      "description": "Name of the underlying job (defaults to '<schedule_name>_job')."
     },
     "execution_timezone": {
       "type": "string",
       "label": "Execution Timezone",
-      "required": true
+      "required": false,
+      "default": "UTC",
+      "description": "IANA timezone (e.g. 'America/New_York'). Applied only in the un-partitioned path — in the partitioned path Dagster uses the partitions_def's timezone."
     },
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "required": true,
+      "required": false,
+      "default": "STOPPED",
       "enum": [
-        "stopped",
-        "running"
+        "STOPPED",
+        "RUNNING"
       ],
-      "ui:widget": "select"
+      "ui:widget": "select",
+      "description": "'RUNNING' (live) or 'STOPPED' (dormant; user must enable)."
     },
     "tags": {
       "type": "object",
       "label": "Tags",
-      "required": false
+      "required": false,
+      "description": "Tags applied to runs created by this schedule."
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. Only time-based types work with the partitioned-job path."
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "required": false,
+      "description": "Partition start in ISO format (e.g. '2024-01-01' or '2024-01-01-00:00' for hourly). Required for time-based types."
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "required": false,
+      "description": "Comma-separated values for multi-axis partitioning."
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "description": "Name for DynamicPartitionsDefinition (rejected by this schedule — declared for parity with cron_schedule)."
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "label": "Partition Dimensions",
+      "required": false,
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set."
     }
   },
   "tags": [
     "infrastructure",
     "schedule",
     "interval",
-    "orchestration"
+    "orchestration",
+    "partitioned"
   ],
   "name": "IntervalSchedule"
 }

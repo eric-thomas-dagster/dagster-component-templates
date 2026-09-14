@@ -1,8 +1,8 @@
 {
-  "component_type": "dagster_component_templates.CronScheduleComponent",
-  "description": "Run an asset selection on a cron schedule.",
+  "component_type": "dagster_community_components.CronScheduleComponent",
+  "description": "Defines a ScheduleDefinition + underlying asset job that materializes the configured asset keys on cron. Two modes: (1) un-partitioned — ScheduleDefinition with your cron; (2) time-partitioned — build_schedule_from_partitioned_job, cron is decomposed into minute_of_hour/hour_of_day/day_of_week/day_of_month args and combined with the partitions_def cadence (Dagster forbids passing a raw cron_schedule for time-partitioned jobs). Cron validated against partitions_def cadence; static/dynamic partitions rejected in the partitioned path with a helpful error.",
   "category": "infrastructure",
-  "icon": "Clock",
+  "icon": "Schedule",
   "x-dagster-io": {
     "outputs": {
       "type": "Schedule",
@@ -13,12 +13,14 @@
     "schedule_name": {
       "type": "string",
       "label": "Schedule Name",
-      "required": true
+      "required": true,
+      "description": "Unique schedule name shown in the UI."
     },
     "cron_expression": {
       "type": "string",
       "label": "Cron Expression",
-      "required": true
+      "required": false,
+      "description": "Cron expression (5 fields: m h dom mon dow). E.g. '0 9 * * *' = daily 09:00. REQUIRED when no partition fields are set; OPTIONAL when partitioned (cadence is inferred from the partitions_def; when supplied, cron is decomposed into offset args and validated against cadence)."
     },
     "asset_keys": {
       "type": "array",
@@ -26,39 +28,77 @@
       "required": true,
       "items": {
         "type": "string"
-      }
+      },
+      "description": "Slash-separated asset keys to materialize on each tick."
     },
     "job_name": {
       "type": "string",
       "label": "Job Name",
-      "required": false
+      "required": false,
+      "description": "Name of the underlying job (defaults to '<schedule_name>_job')."
     },
     "execution_timezone": {
       "type": "string",
       "label": "Execution Timezone",
-      "required": true
+      "required": false,
+      "default": "UTC",
+      "description": "IANA timezone for cron evaluation, e.g. 'America/Los_Angeles'. Applied in the un-partitioned path; in the partitioned path Dagster uses the partitions_def's timezone (this field is silently ignored)."
     },
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "required": true,
+      "required": false,
+      "default": "STOPPED",
       "enum": [
-        "stopped",
-        "running"
+        "STOPPED",
+        "RUNNING"
       ],
-      "ui:widget": "select"
+      "ui:widget": "select",
+      "description": "'RUNNING' (live) or 'STOPPED' (dormant; user must enable)."
     },
     "tags": {
       "type": "object",
       "label": "Tags",
-      "required": false
+      "required": false,
+      "description": "Tags applied to runs created by this schedule."
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. Only time-based types work with the partitioned-job path."
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "required": false,
+      "description": "Partition start in ISO format (e.g. '2024-01-01' or '2024-01-01-00:00' for hourly). Required for time-based types."
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "required": false,
+      "description": "Comma-separated values for static or multi partitioning."
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'). Rejected in the partitioned-schedule path."
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "label": "Partition Dimensions",
+      "required": false,
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set."
     }
   },
   "tags": [
     "infrastructure",
     "schedule",
     "cron",
-    "orchestration"
+    "orchestration",
+    "partitioned"
   ],
   "name": "CronSchedule"
 }

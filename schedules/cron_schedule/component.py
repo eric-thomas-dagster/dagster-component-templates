@@ -126,6 +126,67 @@ def _build_partitions_def(
     raise ValueError(f"unknown partition_type: {partition_type!r}")
 
 
+def _decompose_cron_to_time_args(cron_expression: str, cadence: str) -> dict:
+    """Decompose a cron expression into build_schedule_from_partitioned_job args.
+
+    `build_schedule_from_partitioned_job` REJECTS the raw `cron_schedule` kwarg
+    for time-partitioned jobs (Dagster raises "Cannot provide cron_schedule or
+    execution_timezone to build_schedule_from_partitioned_job for a time-
+    partitioned job"). It only accepts positional offset args — minute_of_hour,
+    hour_of_day, day_of_week, day_of_month — which Dagster combines with the
+    partitions_def cadence to compute the final cron.
+
+    Extracts the fixed positions from the user's cron and returns them as
+    a dict suitable for **-splat into the partitioned-job builder. Raises
+    ValueError if the cron uses list / range / step values in a fixed field
+    (only single integers supported for offset args).
+    """
+    parts = cron_expression.split()
+    if len(parts) != 5:
+        return {}
+    minute, hour, dom, _mon, dow = parts
+
+    def _as_int(field: str, name: str) -> Optional[int]:
+        if field == "*" or field.startswith("*/"):
+            return None
+        if any(c in field for c in ",-/"):
+            raise ValueError(
+                f"cron field {name}={field!r} must be a single integer for "
+                f"partitioned schedules — Dagster's partitioned-job builder "
+                f"accepts one value per field, not lists / ranges / steps."
+            )
+        return int(field)
+
+    kwargs: dict = {}
+    m = _as_int(minute, "minute")
+    h = _as_int(hour, "hour")
+    if cadence == "hourly":
+        if m is not None:
+            kwargs["minute_of_hour"] = m
+    elif cadence == "daily":
+        if m is not None:
+            kwargs["minute_of_hour"] = m
+        if h is not None:
+            kwargs["hour_of_day"] = h
+    elif cadence == "weekly":
+        if m is not None:
+            kwargs["minute_of_hour"] = m
+        if h is not None:
+            kwargs["hour_of_day"] = h
+        d = _as_int(dow, "day_of_week")
+        if d is not None:
+            kwargs["day_of_week"] = d
+    elif cadence == "monthly":
+        if m is not None:
+            kwargs["minute_of_hour"] = m
+        if h is not None:
+            kwargs["hour_of_day"] = h
+        d = _as_int(dom, "day_of_month")
+        if d is not None:
+            kwargs["day_of_month"] = d
+    return kwargs
+
+
 def _validate_cron_for_cadence(cron_expression: str, cadence: str) -> None:
     """Loosely validate a user-supplied cron against a partitions_def cadence.
 
@@ -204,7 +265,17 @@ class CronScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     asset_keys: List[str] = Field(description="Slash-separated asset keys to materialize on each tick.")
     job_name: Optional[str] = Field(default=None, description="Name of the underlying job (defaults to '<schedule_name>_job').")
-    execution_timezone: str = Field(default="UTC", description="IANA timezone for cron evaluation, e.g. 'America/Los_Angeles'.")
+    execution_timezone: Optional[str] = Field(
+        default=None,
+        description=(
+            "IANA timezone for cron evaluation, e.g. 'America/Los_Angeles'. "
+            "Applied in the un-partitioned path (Dagster falls back to UTC "
+            "when None). Silently IGNORED in the partitioned path — Dagster's "
+            "build_schedule_from_partitioned_job forbids execution_timezone "
+            "for time-partitioned jobs and uses the partitions_def's own "
+            "timezone instead."
+        ),
+    )
     default_status: str = Field(default="STOPPED", description="'RUNNING' (live) or 'STOPPED' (dormant; user must enable).")
     tags: Optional[Dict[str, str]] = Field(default=None, description="Tags applied to runs created by this schedule.")
 
@@ -289,17 +360,22 @@ class CronScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
                 selection=AssetSelection.assets(*targets),
                 partitions_def=partitions_def,
             )
+            # build_schedule_from_partitioned_job REJECTS a raw cron_schedule
+            # kwarg for time-partitioned jobs — it only accepts positional
+            # offset args (minute_of_hour / hour_of_day / day_of_week /
+            # day_of_month), which Dagster combines with the partitions_def
+            # cadence to compute the final cron. Decompose the user's cron
+            # into those positional args when supplied.
+            _time_kwargs: dict = {}
+            if self.cron_expression and _cadence:
+                _time_kwargs = _decompose_cron_to_time_args(self.cron_expression, _cadence)
+
             sched = build_schedule_from_partitioned_job(
                 job=job,
                 name=self.schedule_name,
                 default_status=_default_status,
                 tags=self.tags or {},
-                # cron_schedule is inferred from partitions_def cadence when
-                # this kwarg is omitted; pass it through when the user
-                # specified one so a non-default firing minute/hour
-                # (e.g. '15 * * * *' for hourly partitions firing at :15)
-                # propagates to the schedule.
-                **({"cron_schedule": self.cron_expression} if self.cron_expression else {}),
+                **_time_kwargs,
             )
         else:
             if not self.cron_expression:
@@ -314,7 +390,7 @@ class CronScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
                 name=self.schedule_name,
                 cron_schedule=self.cron_expression,
                 job=job,
-                execution_timezone=self.execution_timezone,
+                execution_timezone=self.execution_timezone or "UTC",
                 default_status=_default_status,
                 tags=self.tags or {},
             )

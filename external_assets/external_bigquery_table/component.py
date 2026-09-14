@@ -113,6 +113,21 @@ class ExternalBigQueryTableAsset(dg.Component, dg.Model, dg.Resolvable):
     table_id: str = Field(description="BigQuery table ID")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     description: Optional[str] = Field(default=None, description="Human-readable description")
+    kinds: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Dagster asset kinds (max 3 badges per house convention). "
+            "Defaults to ['bigquery', 'gcp', 'table']."
+        ),
+    )
+    owners: Optional[List[str]] = Field(
+        default=None,
+        description="Asset owners (e.g. ['team:data-platform', 'user:alice@example.com']).",
+    )
+    metadata: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Extra metadata merged on top of the auto-populated {project_id, dataset_id, table_id, dagster/uri, dagster.observability_type}.",
+    )
 
     partition_type: Optional[str] = Field(
         default=None,
@@ -143,18 +158,23 @@ class ExternalBigQueryTableAsset(dg.Component, dg.Model, dg.Resolvable):
             self.dynamic_partition_name,
             self.partition_dimensions,
         )
+        _kinds = set(self.kinds) if self.kinds else {"bigquery", "gcp", "table"}
+        _metadata = {
+            "project_id": self.project_id,
+            "dataset_id": self.dataset_id,
+            "table_id": self.table_id,
+            "dagster/uri": f"bq://{self.project_id}/{self.dataset_id}/{self.table_id}",
+            "dagster.observability_type": "external",
+        }
+        if self.metadata:
+            _metadata.update(self.metadata)
         spec = dg.AssetSpec(
             key=dg.AssetKey.from_user_string(self.asset_key),
             group_name=self.group_name,
             description=self.description or f"BigQuery {self.project_id}.{self.dataset_id}.{self.table_id}",
-            kinds={"bigquery", "gcp", "sql", "table"},
-            metadata={
-                "project_id": self.project_id,
-                "dataset_id": self.dataset_id,
-                "table_id": self.table_id,
-                "dagster/uri": f"bq://{self.project_id}/{self.dataset_id}/{self.table_id}",
-                "dagster.observability_type": "external",
-            },
+            kinds=_kinds,
+            metadata=_metadata,
+            owners=self.owners or [],
             partitions_def=partitions_def,
         )
         return dg.Definitions(assets=[spec])

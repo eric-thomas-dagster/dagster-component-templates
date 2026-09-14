@@ -82,12 +82,35 @@ def orders(context):
 
 ## Invalidation levers
 
-- **Bump `code_version`** — most common, tracks alongside the asset.
+- **`refresh_cache=true` run tag** — Prefect-parity one-run bust. Launch with `--tags refresh_cache=true` (or the fully-qualified `dagster/refresh_cache=true`) and the run treats the cache as a MISS, re-computes, and overwrites. No code change required.
+
+  ```bash
+  uv run dg launch --assets 'orders' --tags refresh_cache=true
+  ```
+
+  From Python: `dg.materialize([orders], tags={"refresh_cache": "true"})`. From Dagster+: set on the run form or from a sensor's `RunRequest(tags={"refresh_cache": "true"})`.
+
+- **Bump `code_version`** — most common, tracks alongside the asset. Permanent invalidation until the next bump.
 - **Wait for TTL** — cache staleness is a "just wait it out" recovery.
 - **Change `key_fn` output** — external config invalidation.
 - **Manual bust** — delete the parquet file at the cache_path.
 
 Delete = full manual reset. Combine with a scheduled cleanup for retention.
+
+## Stock `key_fn` helpers
+
+For YAML users who don't want to write Python, the package ships one built-in cache-key function that hashes upstream inputs (Prefect's default `task_input_hash` parity):
+
+```yaml
+type: dagster_community_components.CachedAssetComponent
+attributes:
+  asset_name: expensive_computation
+  cache_dir: s3://my-cache/computed/
+  key_fn: "dagster_community_components:input_hash_cache_key_fn"
+  # ...
+```
+
+Reference the fully-qualified name (`dagster_community_components:input_hash_cache_key_fn`) and the cache key will include a stable hash of the upstream inputs — no per-project cache_key.py needed. For custom hashing (e.g., DataFrame content hash instead of `repr()`), write your own callable and reference it via `module:function` — the built-in is the "just works" default.
 
 ## Eviction policies
 

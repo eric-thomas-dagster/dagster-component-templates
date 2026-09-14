@@ -101,6 +101,60 @@ def _compute_cache_key(
     return _hash_str(*parts)
 
 
+def _is_refresh_cache_requested(context: Any) -> bool:
+    """Detect Prefect-parity `refresh_cache` runtime override via run tags.
+
+    Users bust the cache for a single run without editing code_version by
+    launching with tag `refresh_cache=true` (or the dagster-prefixed
+    `dagster/refresh_cache=true`). Both forms accepted for parity with
+    Prefect's `.submit(refresh_cache=True)` idiom.
+    """
+    run_tags = None
+    for attr in ("run_tags", "_run_tags"):
+        rt = getattr(context, attr, None)
+        if isinstance(rt, dict):
+            run_tags = rt
+            break
+    if run_tags is None:
+        # Fall back to context.run.tags for older Dagster versions.
+        run = getattr(context, "run", None)
+        if run is not None:
+            run_tags = getattr(run, "tags", None) or {}
+    if not run_tags:
+        return False
+    for k in ("refresh_cache", "dagster/refresh_cache"):
+        v = run_tags.get(k)
+        if isinstance(v, str) and v.lower() in ("true", "1", "yes"):
+            return True
+    return False
+
+
+def input_hash_cache_key_fn(context: Any, upstream: Any = None) -> str:
+    """Stock cache_key_fn that hashes upstream inputs (Prefect default parity).
+
+    Reference from YAML as
+    `key_fn: "dagster_community_components:input_hash_cache_key_fn"` — no
+    Python file required. Uses the same repr-based hash as `_compute_cache_key`.
+
+    Prefect's `@task(cache_key_fn=task_input_hash)` is the analog. This
+    implementation hashes `repr(upstream)` and falls back to `str(context)`
+    if no upstream is available. For deterministic hashing of complex types
+    (dataframes, numpy), pre-serialize before passing upstream.
+    """
+    if upstream is not None:
+        try:
+            return _hash_str("input_hash", repr(upstream))
+        except Exception:  # noqa: BLE001
+            return _hash_str("input_hash", str(type(upstream).__name__))
+    # No upstream — best effort on context surface
+    parts = [
+        "input_hash",
+        str(getattr(context, "asset_key", "")),
+        str(getattr(context, "partition_key", "") if getattr(context, "has_partition_key", False) else ""),
+    ]
+    return _hash_str(*parts)
+
+
 def _cache_path(cache_dir: str, cache_key: str, fmt: str) -> str:
     ext = "parquet" if fmt == "parquet" else fmt
     if "://" in cache_dir:
@@ -385,7 +439,10 @@ def cached(
             key = _compute_cache_key(context, code_version, key_fn, upstream)
             path = _cache_path(cache_dir, key, format)
 
-            cached_df = _load_cache(path, format, ttl_seconds)
+            # Prefect-parity `refresh_cache=true` run tag bypasses the cache
+            # for a single run without a code_version bump. Treats as forced MISS.
+            refresh_requested = _is_refresh_cache_requested(context)
+            cached_df = None if refresh_requested else _load_cache(path, format, ttl_seconds)
             if cached_df is not None:
                 context.log.info(f"[cached] HIT for key={key} at {path} ({len(cached_df)} rows)")
                 _emit_cache_event(context, key, hit=True, path=path)
@@ -401,7 +458,10 @@ def cached(
                 return
 
             # MISS — run compute + save result.
-            context.log.info(f"[cached] MISS for key={key} — running compute")
+            if refresh_requested:
+                context.log.info(f"[cached] refresh_cache=true run tag — forced MISS, key={key}")
+            else:
+                context.log.info(f"[cached] MISS for key={key} — running compute")
             _emit_cache_event(context, key, hit=False, path=path)
             df = fn(*args, **kwargs)
             if not isinstance(df, pd.DataFrame):
@@ -568,7 +628,8 @@ class CachedAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             key = _compute_cache_key(context, code_version, key_fn, upstream)
             path = _cache_path(cache_dir, key, fmt)
 
-            cached_df = _load_cache(path, fmt, ttl_seconds)
+            refresh_requested = _is_refresh_cache_requested(context)
+            cached_df = None if refresh_requested else _load_cache(path, fmt, ttl_seconds)
             if cached_df is not None:
                 context.log.info(f"[cached] HIT for key={key} at {path}")
                 _emit_cache_event(context, key, hit=True, path=path)
@@ -582,7 +643,10 @@ class CachedAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 )
 
             # MISS — resolve compute + run + save.
-            context.log.info(f"[cached] MISS for key={key} — running compute")
+            if refresh_requested:
+                context.log.info(f"[cached] refresh_cache=true run tag — forced MISS, key={key}")
+            else:
+                context.log.info(f"[cached] MISS for key={key} — running compute")
             _emit_cache_event(context, key, hit=False, path=path)
 
             kind = (compute.get("kind") or "python").lower()
@@ -693,7 +757,8 @@ class CachedAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             cache_key = _compute_cache_key(context, code_version, key_fn_ref, upstream)
             path = _cache_path(cache_dir, cache_key, fmt)
 
-            cached_df = _load_cache(path, fmt, ttl_seconds)
+            refresh_requested = _is_refresh_cache_requested(context)
+            cached_df = None if refresh_requested else _load_cache(path, fmt, ttl_seconds)
             if cached_df is not None:
                 context.log.info(f"[cached wrap] HIT for key={cache_key} at {path} ({len(cached_df)} rows)")
                 _emit_cache_event(context, cache_key, hit=True, path=path)
@@ -707,7 +772,10 @@ class CachedAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     },
                 )
 
-            context.log.info(f"[cached wrap] MISS for key={cache_key} — invoking inner compute")
+            if refresh_requested:
+                context.log.info(f"[cached wrap] refresh_cache=true run tag — forced MISS, key={cache_key}")
+            else:
+                context.log.info(f"[cached wrap] MISS for key={cache_key} — invoking inner compute")
             _emit_cache_event(context, cache_key, hit=False, path=path)
             result = inner_compute(context, **kwargs)
 

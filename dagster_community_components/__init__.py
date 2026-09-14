@@ -1399,6 +1399,8 @@ _HELPERS = {
         "dagster_community_components.assets.infrastructure.data_contract.component:contract_from_json_schema",
     "cached":
         "dagster_community_components.assets.infrastructure.cached_asset.component:cached",
+    "input_hash_cache_key_fn":
+        "dagster_community_components.assets.infrastructure.cached_asset.component:input_hash_cache_key_fn",
     "profile":
         "dagster_community_components.assets.infrastructure.profile_asset.component:profile",
     "sla":

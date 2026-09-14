@@ -451,6 +451,71 @@ def _hash_function_source(fn: Callable) -> str:
     return hashlib.sha256(src.encode("utf-8")).hexdigest()
 
 
+# ═════════════════════════════════════════════════════════════════════
+# Task-tag concurrency pool (Prefect concurrency-limit parity)
+# ═════════════════════════════════════════════════════════════════════
+#
+# Prefect: `@task(tags=["gpu"])` + a global concurrency limit per tag.
+# DCC:     `@task(concurrency_pool="gpu", max_concurrent=3)` — acquires
+#          a slot from a named pool before running; releases after.
+#
+# Backed by a threading.Semaphore registry — in-process concurrency
+# control. For cross-run / cross-process pools (5 GPU licenses across
+# a fleet), use `rpa_queue_concurrency_lock` (event-log-backed).
+
+import threading as _threading
+
+_POOL_LOCK = _threading.Lock()
+_POOLS: Dict[str, "_threading.Semaphore"] = {}
+_POOL_CAPS: Dict[str, int] = {}
+
+
+def _get_pool(name: str, max_concurrent: int) -> "_threading.Semaphore":
+    """Get-or-create a named semaphore. Raises if max_concurrent differs
+    from a prior binding for the same name (misconfiguration guard)."""
+    with _POOL_LOCK:
+        existing_cap = _POOL_CAPS.get(name)
+        if existing_cap is not None and existing_cap != max_concurrent:
+            raise ValueError(
+                f"Task concurrency pool {name!r} previously bound to "
+                f"max_concurrent={existing_cap}; got {max_concurrent}. "
+                f"All @task calls sharing a pool must agree on max_concurrent."
+            )
+        if name not in _POOLS:
+            _POOLS[name] = _threading.Semaphore(max_concurrent)
+            _POOL_CAPS[name] = max_concurrent
+        return _POOLS[name]
+
+
+# ═════════════════════════════════════════════════════════════════════
+# Async task support (Prefect async @task parity)
+# ═════════════════════════════════════════════════════════════════════
+
+def _wrap_async_as_sync(inner: Callable) -> Callable:
+    """If `inner` is an async coroutine function, wrap it so the sync
+    caller can invoke it. Uses `asyncio.run()` for the common case (no
+    running event loop) and falls back to a thread when already inside
+    a running loop."""
+    import asyncio, inspect
+    if not inspect.iscoroutinefunction(inner):
+        return inner
+
+    @functools.wraps(inner)
+    def _sync_wrapper(*args, **kwargs):
+        try:
+            asyncio.get_running_loop()
+            # Already inside a running event loop — nested asyncio.run() forbidden.
+            # Isolate the coroutine in a fresh thread with its own loop.
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+                return ex.submit(asyncio.run, inner(*args, **kwargs)).result()
+        except RuntimeError:
+            # No running loop in this thread — safe to use asyncio.run directly.
+            return asyncio.run(inner(*args, **kwargs))
+
+    return _sync_wrapper
+
+
 def _coerce_expiration(cache_ttl_seconds: Optional[float], cache_expiration: Any) -> Optional[float]:
     """cache_expiration accepts int/float/timedelta; cache_ttl_seconds is
     the original name kept for backward-compat. If both are set,
@@ -568,6 +633,11 @@ def task(
     cache_policy: Optional["CachePolicy"] = None,
     cache_resource: Optional[str] = None,
     refresh_cache: bool = False,
+    retry_condition_fn: Optional[Callable] = None,
+    max_retries: int = 3,
+    retry_delay_seconds: float = 0.0,
+    concurrency_pool: Optional[str] = None,
+    max_concurrent: Optional[int] = None,
 ) -> Callable:
     """Mark a callable as a Dagster sub-task with optional cache — Prefect
     `@task` parity plus Dagster-native extras. Behavior depends on where
@@ -662,8 +732,20 @@ def task(
     _policy = cache_policy if cache_policy is not None else (INPUTS if _cache_arg is not None else None)
     # TTL: cache_expiration (timedelta-friendly) supersedes cache_ttl_seconds.
     _ttl = _coerce_expiration(cache_ttl_seconds, cache_expiration)
+    # Concurrency pool validation — if either is set, both must be set.
+    if (concurrency_pool is None) ^ (max_concurrent is None):
+        raise ValueError(
+            "@task: concurrency_pool and max_concurrent must be set together. "
+            "Pass both, or neither."
+        )
+    _pool_semaphore = _get_pool(concurrency_pool, max_concurrent) if concurrency_pool else None
     def _decorator(inner: Callable) -> Callable:
         step_name = name or getattr(inner, "__name__", "task")
+        # Auto-wrap async coroutine functions so sync execution paths (Dagster ops)
+        # can invoke them transparently. `inner` stays sync-shape for the rest of
+        # the wrapper; async detection + event-loop handling is done once at
+        # decoration time.
+        inner = _wrap_async_as_sync(inner)
 
         @functools.wraps(inner)
         def _wrapped(*args, **kwargs):
@@ -768,7 +850,7 @@ def task(
                         return hit
                     # Miss — execute inside child_step, then cache the result.
                     with child_step(context, step_name, mapping_key=mapping_key):
-                        result = inner(*args, **kwargs)
+                        result = _execute_with_guards(context, inner, args, kwargs)
                     try:
                         resolved_cache.put(key, result)
                     except Exception as exc:  # noqa: BLE001
@@ -778,7 +860,55 @@ def task(
             # ── NO CACHE — plain execute ──
             # NO_CACHE policy / call_no_cache=True / no cache_key_fn+backend
             with child_step(context, step_name, mapping_key=mapping_key):
-                return inner(*args, **kwargs)
+                return _execute_with_guards(context, inner, args, kwargs)
+
+        def _execute_with_guards(context, fn_to_call, args, kwargs):
+            """Wrap the actual inner call with concurrency-pool + retry_condition_fn.
+
+            Concurrency: block on `_pool_semaphore.acquire()` before execute;
+            release in a finally clause. In-process only (threading.Semaphore).
+            For cross-run/cross-process pools, use `rpa_queue_concurrency_lock`.
+
+            Retry-condition: catch any exception from `fn_to_call`; if the
+            user's `retry_condition_fn(context, exc)` returns True, raise
+            `dg.RetryRequested(max_retries=max_retries, seconds_to_wait=retry_delay_seconds)`
+            so Dagster retries the whole step. Otherwise re-raise (kills the run).
+            """
+            def _call():
+                if retry_condition_fn is None:
+                    return fn_to_call(*args, **kwargs)
+                try:
+                    return fn_to_call(*args, **kwargs)
+                except Exception as exc:  # noqa: BLE001
+                    try:
+                        should_retry = bool(retry_condition_fn(context, exc))
+                    except Exception as pred_exc:  # noqa: BLE001
+                        context.log.warning(
+                            f"[task:{step_name}] retry_condition_fn raised "
+                            f"{type(pred_exc).__name__}; treating as re-raise"
+                        )
+                        raise exc from None
+                    if should_retry:
+                        context.log.info(
+                            f"[task:{step_name}] retry_condition_fn matched "
+                            f"{type(exc).__name__} — requesting Dagster retry "
+                            f"(max_retries={max_retries})"
+                        )
+                        raise dg.RetryRequested(
+                            max_retries=max_retries,
+                            seconds_to_wait=retry_delay_seconds,
+                        ) from exc
+                    raise
+
+            if _pool_semaphore is None:
+                return _call()
+            # Concurrency pool: block until a slot frees.
+            context.log.info(f"[task:{step_name}] acquiring pool={concurrency_pool!r} (cap={max_concurrent})")
+            _pool_semaphore.acquire()
+            try:
+                return _call()
+            finally:
+                _pool_semaphore.release()
 
         _wrapped.__task_name__ = step_name  # type: ignore[attr-defined]
         return _wrapped

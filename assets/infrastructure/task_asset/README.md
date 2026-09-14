@@ -163,6 +163,65 @@ Alternative to `cache=`: supply `cache_resource="task_cache"` and declare the re
 | Cross-run cache | `CROSS_RUN` (opt-in; Dagster defaults to `ROOT_RUN` for re-execute-from-failure survival) |
 | Persistent result / result storage | `IOManagerBackedTaskCache` on any Dagster IO manager |
 | Custom serializer | Comes from the IO manager choice |
+| Async task functions | `@task` auto-detects `async def` and wraps for sync execution |
+| `retry_condition_fn` (retry on specific exceptions) | `retry_condition_fn=lambda ctx, exc: isinstance(exc, HTTPError)` + `max_retries=N` |
+| Concurrency limits (tag-based) | `concurrency_pool="gpu" + max_concurrent=3` (in-process semaphore) |
+
+### Async tasks
+
+Native Python `async def` functions work as `@task` — the decorator detects them and wraps for sync execution:
+
+```python
+@task(cache=True)
+async def fetch_url(context, url):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            return await resp.text()
+
+@dg.asset
+def scrape(context):
+    return fetch_url(context, "https://example.com")   # runs the coroutine synchronously
+```
+
+Uses `asyncio.run()` when called from a sync context (Dagster ops); isolates in a thread when nested inside an existing event loop.
+
+### `retry_condition_fn` — retry on specific exceptions
+
+Prefect parity — decide whether to retry based on the exception:
+
+```python
+import requests
+
+@task(
+    retry_condition_fn=lambda context, exc: isinstance(exc, requests.HTTPError) and exc.response.status_code in {429, 502, 503},
+    max_retries=3,
+    retry_delay_seconds=5.0,
+)
+def call_api(context, endpoint):
+    r = requests.get(endpoint)
+    r.raise_for_status()
+    return r.json()
+```
+
+When the predicate returns True, the task raises `dg.RetryRequested(max_retries=..., seconds_to_wait=...)` — Dagster retries the whole step with fresh state. When False (or predicate itself raises), the original exception propagates.
+
+### Concurrency pools — cap simultaneous invocations
+
+Prefect's tag-based concurrency limits — cap how many `@task` calls run at once across all tasks sharing a pool name:
+
+```python
+@task(concurrency_pool="gpu", max_concurrent=3)
+def gpu_inference(context, batch):
+    return heavy_model.predict(batch)
+
+@task(concurrency_pool="gpu", max_concurrent=3)   # SAME pool, SAME cap
+def gpu_embedding(context, texts):
+    return embedding_model.encode(texts)
+```
+
+Both tasks share one pool of 3 slots — at most 3 concurrent invocations across both. All tasks binding a given pool_name must agree on `max_concurrent` (mismatch raises at decoration time).
+
+Backed by a `threading.Semaphore` — **in-process concurrency control**. For cross-run / cross-process pools (e.g., "5 GPU licenses shared across every run in the fleet"), use the `rpa_queue_concurrency_lock` component — event-log-backed, works across processes.
 
 ### `child_step` — the primitive underneath
 

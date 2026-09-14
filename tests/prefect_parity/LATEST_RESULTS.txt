@@ -1,8 +1,8 @@
 ═══════════════════════════════════════════════════════════════════════
  Prefect parity — validation output
- Run at: 2026-09-14 22:02:02Z
+ Run at: 2026-09-14 22:14:03Z
  Host: Darwin 25.6.0 arm64  Python: Python 3.12.9
- Templates commit: 9a9207c7 (before this commit)
+ Templates commit: e65ff7f7 (before this commit)
 ═══════════════════════════════════════════════════════════════════════
 
 ─── smoke.py — session-wide smoke sweep ───────────────────────────────
@@ -53,4 +53,7 @@
 ✓ @task + smart_retry composition (advanced retry classification)        smart_retry composed with @task: 2 attempts recorded
 ✓ @task state hooks + observations (Running/AwaitingRetry/Completed/Failed) state hooks: running=2 completed=1 failed=1 awaiting_retry=2
 ✓ @task state observations — queryable via event log                     state observations queryable: ['Completed', 'Running']
-═══ 21 PASS / 0 FAIL / 21 TOTAL ═══
+✓ gather_async — concurrent async execution (Prefect asyncio.gather parity) 10 concurrent async tasks: 0.20s vs 2.10s serial (10.4x speedup)
+✓ gather_async — bounded concurrency via max_concurrent=                 cap=2 correctly serialized past cap: 1.00s (expected ~1.0s)
+✓ gather_async — return_exceptions=True (fault tolerance)                return_exceptions=True: 4 successes + 1 ValueError in result list
+═══ 24 PASS / 0 FAIL / 24 TOTAL ═══

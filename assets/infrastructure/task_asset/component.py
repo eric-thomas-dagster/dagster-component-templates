@@ -608,7 +608,12 @@ def _wrap_async_as_sync(inner: Callable) -> Callable:
     """If `inner` is an async coroutine function, wrap it so the sync
     caller can invoke it. Uses `asyncio.run()` for the common case (no
     running event loop) and falls back to a thread when already inside
-    a running loop."""
+    a running loop.
+
+    Also attaches `.aio(...)` to the returned wrapper — returns the
+    RAW coroutine without executing it, so callers can compose with
+    `gather_async(...)` or their own `asyncio.gather()` for concurrent
+    execution."""
     import asyncio, inspect
     if not inspect.iscoroutinefunction(inner):
         return inner
@@ -626,7 +631,86 @@ def _wrap_async_as_sync(inner: Callable) -> Callable:
             # No running loop in this thread — safe to use asyncio.run directly.
             return asyncio.run(inner(*args, **kwargs))
 
+    # Expose the raw async function via `.aio(...)` so callers can build
+    # coroutines for gather_async. Signature is identical to the wrapped
+    # function; returns a coroutine (not a result). Prefect parity for
+    # `asyncio.gather(*tasks)` on N concurrent async task calls.
+    _sync_wrapper.aio = inner  # type: ignore[attr-defined]
     return _sync_wrapper
+
+
+# ═════════════════════════════════════════════════════════════════════
+# Concurrent async execution (Prefect asyncio.gather parity)
+# ═════════════════════════════════════════════════════════════════════
+
+def gather_async(
+    context,
+    coroutines: List[Any],
+    max_concurrent: Optional[int] = None,
+    return_exceptions: bool = False,
+) -> List[Any]:
+    """Run N async task calls concurrently in one event loop — the practical
+    Prefect asyncio.gather parity for agentic workloads (batch of LLM calls,
+    concurrent tool invocations, parallel API scrapes).
+
+    Args:
+        context: The Dagster asset/op context (used for logging).
+        coroutines: List of coroutine objects — typically produced by
+            calling `.aio(...)` on an async @task. E.g.::
+
+                @task
+                async def call_llm(ctx, prompt): ...
+
+                @dg.asset
+                def batch(ctx):
+                    coros = [call_llm.aio(ctx, p) for p in prompts]
+                    return gather_async(ctx, coros, max_concurrent=5)
+
+        max_concurrent: Optional semaphore cap — at most N coroutines
+            actually running at once (rest await). Useful for provider
+            rate-limit avoidance. None = unbounded concurrency.
+        return_exceptions: If True, mirror asyncio.gather(return_exceptions=True)
+            — exceptions become entries in the result list rather than
+            raising. Useful for "process N, tolerate a few failures" patterns.
+
+    Returns:
+        List of results in submission order.
+
+    Runs on this thread's event loop when available; otherwise spins up
+    a fresh loop via asyncio.run(). Same thread-fallback pattern as
+    _wrap_async_as_sync — safe to call from any Dagster compute context.
+    """
+    import asyncio
+
+    async def _bounded_gather():
+        if max_concurrent is None:
+            return await asyncio.gather(*coroutines, return_exceptions=return_exceptions)
+        sem = asyncio.Semaphore(max_concurrent)
+
+        async def _run(coro):
+            async with sem:
+                return await coro
+        return await asyncio.gather(
+            *(_run(c) for c in coroutines),
+            return_exceptions=return_exceptions,
+        )
+
+    try:
+        context.log.info(
+            f"[gather_async] running {len(coroutines)} coroutines "
+            f"(max_concurrent={max_concurrent or 'unbounded'})"
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
+    try:
+        asyncio.get_running_loop()
+        # Already inside a running loop — thread fallback
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            return ex.submit(asyncio.run, _bounded_gather()).result()
+    except RuntimeError:
+        return asyncio.run(_bounded_gather())
 
 
 def _coerce_expiration(cache_ttl_seconds: Optional[float], cache_expiration: Any) -> Optional[float]:

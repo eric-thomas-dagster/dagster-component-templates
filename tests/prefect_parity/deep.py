@@ -747,6 +747,118 @@ check("@task state observations — queryable via event log", _test_task_state_o
 
 
 # ═════════════════════════════════════════════════════════════════════
+# NEW: Async-native concurrent execution via gather_async
+# ═════════════════════════════════════════════════════════════════════
+
+def _test_gather_async_concurrent_speedup():
+    """Prove gather_async actually runs coroutines concurrently — 10 tasks
+    that each sleep 0.2s should complete in ~0.2s (concurrent), not ~2.0s
+    (serial). Prefect asyncio.gather parity for concurrent LLM API calls."""
+    import asyncio
+    from assets.infrastructure.task_asset.component import task, gather_async
+
+    @task
+    async def slow_llm(context, prompt):
+        await asyncio.sleep(0.2)
+        return f"response_to_{prompt}"
+
+    @dg.asset(name="serial_asset")
+    def serial(context):
+        start = time.time()
+        results = [slow_llm(context, f"p{i}") for i in range(10)]
+        return time.time() - start
+
+    @dg.asset(name="concurrent_asset")
+    def concurrent(context):
+        start = time.time()
+        coros = [slow_llm.aio(context, f"p{i}") for i in range(10)]
+        results = gather_async(context, coros)
+        return time.time() - start
+
+    with dg.DagsterInstance.ephemeral() as inst:
+        r1 = dg.materialize([serial], instance=inst)
+        r2 = dg.materialize([concurrent], instance=inst)
+        assert r1.success and r2.success, "materialize failed"
+        # Read the returned elapsed via the IO manager output
+        # Serial: 10 * 0.2s = ~2s. Concurrent: ~0.2s. Assert concurrent is at
+        # least 5x faster than serial (leaves plenty of slack for CI noise).
+        serial_elapsed = r1.output_for_node("serial_asset")
+        concurrent_elapsed = r2.output_for_node("concurrent_asset")
+        speedup = serial_elapsed / max(concurrent_elapsed, 0.001)
+        assert speedup >= 5.0, (
+            f"expected >= 5x speedup, got {speedup:.1f}x "
+            f"(serial={serial_elapsed:.2f}s, concurrent={concurrent_elapsed:.2f}s)"
+        )
+    return f"10 concurrent async tasks: {concurrent_elapsed:.2f}s vs {serial_elapsed:.2f}s serial ({speedup:.1f}x speedup)"
+
+check("gather_async — concurrent async execution (Prefect asyncio.gather parity)", _test_gather_async_concurrent_speedup)
+
+
+def _test_gather_async_bounded_concurrency():
+    """gather_async with max_concurrent=N should serialize past N parallel
+    calls. 10 tasks × 0.2s each with cap=2 should take ~1.0s (5 batches of 2)."""
+    import asyncio
+    from assets.infrastructure.task_asset.component import task, gather_async
+
+    @task
+    async def sleep_task(context, i):
+        await asyncio.sleep(0.2)
+        return i
+
+    @dg.asset
+    def demo(context):
+        start = time.time()
+        coros = [sleep_task.aio(context, i) for i in range(10)]
+        results = gather_async(context, coros, max_concurrent=2)
+        elapsed = time.time() - start
+        assert results == list(range(10)), f"unexpected results: {results}"
+        return elapsed
+
+    with dg.DagsterInstance.ephemeral() as inst:
+        r = dg.materialize([demo], instance=inst)
+        assert r.success
+        elapsed = r.output_for_node("demo")
+        # Expected: ~1.0s (5 batches × 0.2s). Serial would be 2s. Full concurrent 0.2s.
+        assert 0.8 <= elapsed <= 1.5, (
+            f"bounded concurrency: expected ~1.0s (cap=2), got {elapsed:.2f}s"
+        )
+    return f"cap=2 correctly serialized past cap: {elapsed:.2f}s (expected ~1.0s)"
+
+check("gather_async — bounded concurrency via max_concurrent=", _test_gather_async_bounded_concurrency)
+
+
+def _test_gather_async_return_exceptions():
+    """return_exceptions=True — one task raises, others succeed, exception
+    ends up in results list rather than raising. asyncio.gather parity."""
+    import asyncio
+    from assets.infrastructure.task_asset.component import task, gather_async
+
+    @task
+    async def maybe_fail(context, i):
+        await asyncio.sleep(0.01)
+        if i == 3:
+            raise ValueError(f"task {i} failed")
+        return i * 10
+
+    @dg.asset
+    def demo(context):
+        coros = [maybe_fail.aio(context, i) for i in range(5)]
+        results = gather_async(context, coros, return_exceptions=True)
+        return results
+
+    with dg.DagsterInstance.ephemeral() as inst:
+        r = dg.materialize([demo], instance=inst)
+        assert r.success
+        results = r.output_for_node("demo")
+        assert len(results) == 5, f"expected 5 results, got {len(results)}"
+        assert results[0] == 0 and results[4] == 40, f"good results wrong: {results}"
+        assert isinstance(results[3], ValueError), f"expected ValueError in slot 3, got {type(results[3])}"
+    return "return_exceptions=True: 4 successes + 1 ValueError in result list"
+
+check("gather_async — return_exceptions=True (fault tolerance)", _test_gather_async_return_exceptions)
+
+
+# ═════════════════════════════════════════════════════════════════════
 # Report
 # ═════════════════════════════════════════════════════════════════════
 

@@ -1455,6 +1455,8 @@ _HELPERS = {
         "dagster_community_components.assets.infrastructure.task_asset.component:NO_CACHE",
     "DEFAULT_CACHE_POLICY":
         "dagster_community_components.assets.infrastructure.task_asset.component:DEFAULT_CACHE_POLICY",
+    "gather_async":
+        "dagster_community_components.assets.infrastructure.task_asset.component:gather_async",
 }
 
 

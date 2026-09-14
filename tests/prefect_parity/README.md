@@ -6,7 +6,7 @@ Reproducible tests for the parity claims made in the internal "Prefect vs Dagste
 
 See [`LATEST_RESULTS.txt`](./LATEST_RESULTS.txt) for the timestamped output of the most recent run.
 
-**44 tests / 44 PASS** as of the most recent capture — 23 smoke + 21 real end-to-end.
+**47 tests / 47 PASS** as of the most recent capture — 23 smoke + 24 real end-to-end.
 
 ## Running the tests
 

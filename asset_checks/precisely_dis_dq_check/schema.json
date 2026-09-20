@@ -1,75 +1,79 @@
 {
-  "additionalProperties": false,
+  "component_type": "dagster_component_templates.PreciselyDISDQCheckComponent",
   "description": "Wrap a Precisely DIS Data Quality rule set as N Dagster asset checks.\n\nExample:\n    ```yaml\n    type: dagster_community_components.PreciselyDISDQCheckComponent\n    attributes:\n      asset_key: warehouse/orders\n      dataset_id: \"ds-abc-123\"\n      rule_ids: [\"rule-001\", \"rule-002\", \"rule-003\"]\n      client_id_env_var: PRECISELY_DIS_CLIENT_ID\n      client_secret_env_var: PRECISELY_DIS_CLIENT_SECRET\n    ```\n\nThe DIS dataset is referenced by ``dataset_id`` (the DIS-side\nidentifier, not the Dagster asset key). Each rule becomes its own\nDagster asset check named ``dis_dq__{rule_id}`` on the target asset.",
-  "properties": {
+  "category": "check",
+  "icon": "Search",
+  "attributes": {
     "asset_key": {
-      "description": "Dagster asset key the checks attach to (e.g. 'warehouse/orders'). Use '/' separators for nested keys.",
-      "title": "Asset Key",
-      "type": "string"
+      "type": "string",
+      "label": "Asset Key",
+      "required": true,
+      "description": "Dagster asset key the checks attach to (e.g. 'warehouse/orders'). Use '/' separators for nested keys."
     },
     "dataset_id": {
-      "description": "DIS dataset id \u2014 the dataset the rules are bound to in DIS.",
-      "title": "Dataset Id",
-      "type": "string"
+      "type": "string",
+      "label": "Dataset ID",
+      "required": true,
+      "description": "DIS dataset id — the dataset the rules are bound to in DIS."
     },
     "rule_ids": {
-      "description": "Rule ids to execute. Pre-resolved at build_defs time so each becomes its own asset check (individually alertable + retriable). Get rule ids from the DIS UI or the GET /datasets/{dataset_id}/rules endpoint.",
+      "type": "array",
       "items": {
         "type": "string"
       },
-      "title": "Rule Ids",
-      "type": "array"
+      "ui:widget": "list",
+      "label": "Rule Ids",
+      "required": true,
+      "description": "Rule ids to execute. Pre-resolved at build_defs time so each becomes its own asset check (individually alertable + retriable). Get rule ids from the DIS UI or the GET /datasets/{dataset_id}/rules endpoint."
     },
     "client_id_env_var": {
-      "default": "PRECISELY_DIS_CLIENT_ID",
+      "type": "string",
+      "label": "Client ID Env Var",
+      "required": false,
       "description": "Env var with DIS OAuth2 client_id",
-      "title": "Client Id Env Var",
-      "type": "string"
+      "default": "PRECISELY_DIS_CLIENT_ID"
     },
     "client_secret_env_var": {
-      "default": "PRECISELY_DIS_CLIENT_SECRET",
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "required": false,
       "description": "Env var with DIS OAuth2 client_secret",
-      "title": "Client Secret Env Var",
-      "type": "string"
+      "default": "PRECISELY_DIS_CLIENT_SECRET"
     },
     "token_url": {
-      "default": "https://api.data.precisely.com/oauth/token",
+      "type": "string",
+      "label": "Token URL",
+      "required": false,
       "description": "OAuth2 token endpoint (override for non-global DIS tenants).",
-      "title": "Token Url",
-      "type": "string"
+      "default": null
     },
     "dq_base_url": {
-      "default": "https://api.data.precisely.com/data360/dq",
+      "type": "string",
+      "label": "DQ Base URL",
+      "required": false,
       "description": "DIS Data Quality service base URL.",
-      "title": "Dq Base Url",
-      "type": "string"
+      "default": null
     },
     "poll_interval_seconds": {
-      "default": 5,
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "required": false,
       "description": "Seconds between run-status polls while a DQ execution runs.",
-      "minimum": 1,
-      "title": "Poll Interval Seconds",
-      "type": "integer"
+      "default": 5
     },
     "timeout_seconds": {
-      "default": 600,
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "required": false,
       "description": "Hard timeout (seconds) for a single DQ execution.",
-      "minimum": 10,
-      "title": "Timeout Seconds",
-      "type": "integer"
+      "default": 600
     },
     "severity": {
-      "default": "ERROR",
+      "type": "string",
+      "label": "Severity",
+      "required": false,
       "description": "AssetCheckSeverity for failing checks: 'WARN' or 'ERROR'.",
-      "title": "Severity",
-      "type": "string"
+      "default": "ERROR"
     }
-  },
-  "required": [
-    "asset_key",
-    "dataset_id",
-    "rule_ids"
-  ],
-  "title": "PreciselyDISDQCheckComponent",
-  "type": "object"
+  }
 }

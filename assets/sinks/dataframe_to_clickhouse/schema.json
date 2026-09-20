@@ -1,160 +1,141 @@
 {
-  "additionalProperties": false,
+  "component_type": "dagster_component_templates.DataframeToClickHouseComponent",
   "description": "Insert a Pandas DataFrame into a ClickHouse table.\n\nExample:\n    ```yaml\n    type: dagster_community_components.DataframeToClickHouseComponent\n    attributes:\n      asset_name: clickhouse_events_load\n      upstream_asset_key: events_clean\n      table: events\n      database: analytics\n      host_env_var: CLICKHOUSE_HOST\n      port: 8443\n      secure: true\n      username_env_var: CLICKHOUSE_USER\n      password_env_var: CLICKHOUSE_PASSWORD\n    ```",
-  "properties": {
-    "asset_name": {
-      "description": "Output Dagster asset name.",
-      "title": "Asset Name",
-      "type": "string"
+  "category": "sink",
+  "icon": "si:clickhouse",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "Upstream DataFrame"
     },
-    "upstream_asset_key": {
-      "description": "Upstream asset providing the DataFrame.",
-      "title": "Upstream Asset Key",
-      "type": "string"
-    },
-    "table": {
-      "description": "Destination ClickHouse table name.",
-      "title": "Table",
-      "type": "string"
-    },
-    "database": {
-      "default": "default",
-      "description": "Destination ClickHouse database.",
-      "title": "Database",
-      "type": "string"
-    },
-    "host_env_var": {
-      "default": "CLICKHOUSE_HOST",
-      "description": "Env var with ClickHouse hostname.",
-      "title": "Host Env Var",
-      "type": "string"
-    },
-    "port": {
-      "default": 8123,
-      "description": "ClickHouse HTTP port (8123 plain / 8443 TLS).",
-      "title": "Port",
-      "type": "integer"
-    },
-    "username_env_var": {
-      "default": "CLICKHOUSE_USER",
-      "description": "Env var with username.",
-      "title": "Username Env Var",
-      "type": "string"
-    },
-    "password_env_var": {
-      "default": "CLICKHOUSE_PASSWORD",
-      "description": "Env var with password.",
-      "title": "Password Env Var",
-      "type": "string"
-    },
-    "secure": {
-      "default": false,
-      "description": "Enable TLS.",
-      "title": "Secure",
-      "type": "boolean"
-    },
-    "column_names": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Optional explicit column list (must match destination table order). If unset, DataFrame column order is used.",
-      "title": "Column Names"
-    },
-    "request_timeout_seconds": {
-      "default": 300,
-      "minimum": 10,
-      "title": "Request Timeout Seconds",
-      "type": "integer"
-    },
-    "group_name": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": "clickhouse",
-      "description": "Dagster asset group name.",
-      "title": "Group Name"
-    },
-    "description": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Asset description.",
-      "title": "Description"
-    },
-    "owners": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Asset owners.",
-      "title": "Owners"
-    },
-    "tags": {
-      "anyOf": [
-        {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "type": "object"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Catalog tags.",
-      "title": "Tags"
-    },
-    "kinds": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Asset kinds (auto-includes 'clickhouse').",
-      "title": "Kinds"
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Write confirmation with metadata"
     }
   },
-  "required": [
-    "asset_name",
-    "upstream_asset_key",
-    "table"
-  ],
-  "title": "DataframeToClickHouseComponent",
-  "type": "object"
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Output Dagster asset name."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true,
+      "description": "Upstream asset providing the DataFrame."
+    },
+    "table": {
+      "type": "string",
+      "label": "Table",
+      "required": true,
+      "description": "Destination ClickHouse table name."
+    },
+    "database": {
+      "type": "string",
+      "label": "Database",
+      "required": false,
+      "description": "Destination ClickHouse database.",
+      "default": "default"
+    },
+    "host_env_var": {
+      "type": "string",
+      "label": "Host Env Var",
+      "required": false,
+      "description": "Env var with ClickHouse hostname.",
+      "default": "CLICKHOUSE_HOST"
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "required": false,
+      "description": "ClickHouse HTTP port (8123 plain / 8443 TLS).",
+      "default": 8123
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "required": false,
+      "description": "Env var with username.",
+      "default": "CLICKHOUSE_USER"
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "required": false,
+      "description": "Env var with password.",
+      "default": "CLICKHOUSE_PASSWORD"
+    },
+    "secure": {
+      "type": "boolean",
+      "label": "Secure",
+      "required": false,
+      "description": "Enable TLS.",
+      "default": false
+    },
+    "column_names": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list",
+      "label": "Column Names",
+      "required": false,
+      "description": "Optional explicit column list (must match destination table order). If unset, DataFrame column order is used.",
+      "default": null
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "required": false,
+      "default": 300
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null,
+      "description": "Dagster asset group name"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "description": "Catalog tags.",
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "description": "Asset kinds shown in the Dagster catalog. Auto-inferred from component name if empty.",
+      "ui:widget": "list"
+    },
+    "partition_column": {
+      "type": "string",
+      "label": "Partition Column",
+      "required": false,
+      "description": "When set AND the asset is partitioned, appends this column to every row with the current partition key as its value. Enables the single-table + partition_column analytics pattern (WHERE partition_date = '2025-01-15') without needing per-partition tables. Prefer this over `{partition_key}` templating in the `table:` field for warehouse sinks — analytics queries stay clean. See docs/partition_patterns.md.",
+      "default": null
+    }
+  }
 }

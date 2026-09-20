@@ -1,80 +1,55 @@
 {
-  "additionalProperties": false,
+  "component_type": "dagster_component_templates.InfluxDBResourceComponent",
   "description": "Register an InfluxDB resource.\n\nExample (local Docker InfluxDB 2.x):\n\n    ```yaml\n    type: dagster_community_components.InfluxDBResourceComponent\n    attributes:\n      resource_key: influxdb_resource\n      url: http://localhost:8086\n      token_env_var: INFLUXDB_TOKEN\n      org: my-org\n      bucket: metrics\n    ```\n\nExample (InfluxDB Cloud 3.x):\n\n    ```yaml\n    type: dagster_community_components.InfluxDBResourceComponent\n    attributes:\n      resource_key: influxdb_resource\n      url: https://us-east-1-1.aws.cloud2.influxdata.com\n      token_env_var: INFLUXDB_TOKEN\n      org: my-org\n      bucket: events\n    ```",
-  "properties": {
+  "category": "resource",
+  "icon": "si:influxdb",
+  "attributes": {
     "resource_key": {
-      "default": "influxdb_resource",
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
       "description": "Resource key.",
-      "title": "Resource Key",
-      "type": "string"
+      "default": "influxdb_resource"
     },
     "url": {
-      "description": "InfluxDB base URL.",
-      "title": "Url",
-      "type": "string"
+      "type": "string",
+      "label": "URL",
+      "required": true,
+      "description": "InfluxDB base URL."
     },
     "token": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "string",
+      "label": "Token",
+      "required": false,
       "description": "API token. Set this OR token_env_var.",
-      "title": "Token"
+      "default": null
     },
     "token_env_var": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "string",
+      "label": "Token Env Var",
+      "required": false,
       "description": "Env var with API token.",
-      "title": "Token Env Var"
+      "default": null
     },
     "org": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "string",
+      "label": "Org",
+      "required": false,
       "description": "InfluxDB organization (required for v2).",
-      "title": "Org"
+      "default": null
     },
     "bucket": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "string",
+      "label": "Bucket",
+      "required": false,
       "description": "Default destination bucket.",
-      "title": "Bucket"
+      "default": null
     },
     "timeout_ms": {
-      "default": 30000,
-      "minimum": 100,
-      "title": "Timeout Ms",
-      "type": "integer"
+      "type": "integer",
+      "label": "Timeout MS",
+      "required": false,
+      "default": 30000
     }
-  },
-  "required": [
-    "url"
-  ],
-  "title": "InfluxDBResourceComponent",
-  "type": "object"
+  }
 }

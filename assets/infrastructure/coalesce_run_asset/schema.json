@@ -9,7 +9,61 @@
       "description": "Provisioning result"
     }
   },
-  "attributes": {},
+  "attributes": {
+    "environment_id": {
+      "type": "string",
+      "label": "Environment ID",
+      "required": true
+    },
+    "api_token_env_var": {
+      "type": "string",
+      "label": "API Token Env Var",
+      "required": true
+    },
+    "api_base_url": {
+      "type": "string",
+      "label": "API Base URL",
+      "required": false,
+      "default": "https://app.coalescesoftware.io"
+    },
+    "asset_name_prefix": {
+      "type": "string",
+      "label": "Asset Name Prefix",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null,
+      "description": "Dagster asset group name"
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "required": false,
+      "default": 10
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "required": false,
+      "default": 1800
+    },
+    "assets_by_node_name": {
+      "type": "object",
+      "label": "Assets By Node Name",
+      "required": false,
+      "default": null
+    },
+    "defs_state": {
+      "type": "string",
+      "label": "Defs State",
+      "required": false,
+      "default": null
+    }
+  },
   "tags": [
     "infrastructure",
     "coalesce",

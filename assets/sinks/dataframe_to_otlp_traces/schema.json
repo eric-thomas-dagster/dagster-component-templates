@@ -4,7 +4,224 @@
   "category": "sink",
   "icon": "GitBranch",
   "x-dagster-io": {
-    "supports_partitions": false
+    "inputs": {
+      "type": "dataframe",
+      "description": "Upstream DataFrame"
+    },
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Write confirmation with metadata"
+    }
   },
-  "attributes": {}
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Dagster asset name"
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true,
+      "description": "Asset key of upstream DataFrame"
+    },
+    "endpoint": {
+      "type": "string",
+      "label": "Endpoint",
+      "required": true,
+      "description": "OTLP/HTTP endpoint base URL"
+    },
+    "service_name": {
+      "type": "string",
+      "label": "Service Name",
+      "required": false,
+      "default": "dagster"
+    },
+    "span_name_column": {
+      "type": "string",
+      "label": "Span Name Column",
+      "required": true,
+      "description": "Column whose value becomes the span name"
+    },
+    "start_time_column": {
+      "type": "string",
+      "label": "Start Time Column",
+      "required": false,
+      "description": "Column with span start (epoch seconds or datetime). Default: now()",
+      "default": null
+    },
+    "end_time_column": {
+      "type": "string",
+      "label": "End Time Column",
+      "required": false,
+      "description": "Column with span end. Default: start + duration_ms_column or 1ms after start",
+      "default": null
+    },
+    "duration_ms_column": {
+      "type": "string",
+      "label": "Duration MS Column",
+      "required": false,
+      "description": "Column with duration in ms (used if end_time_column is unset)",
+      "default": null
+    },
+    "trace_id_column": {
+      "type": "string",
+      "label": "Trace ID Column",
+      "required": false,
+      "description": "Column to derive trace IDs (rows with same value share a trace). Default: one trace per push.",
+      "default": null
+    },
+    "parent_span_id_column": {
+      "type": "string",
+      "label": "Parent Span ID Column",
+      "required": false,
+      "description": "Column with parent span IDs to build the span tree",
+      "default": null
+    },
+    "attribute_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list",
+      "label": "Attribute Columns",
+      "required": false,
+      "default": null
+    },
+    "bearer_token_env_var": {
+      "type": "string",
+      "label": "Bearer Token Env Var",
+      "required": false,
+      "default": null
+    },
+    "extra_headers": {
+      "type": "object",
+      "label": "Extra Headers",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null,
+      "description": "Dagster asset group name"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "description": "Asset kinds shown in the Dagster catalog. Auto-inferred from component name if empty.",
+      "ui:widget": "list"
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag (minutes)",
+      "required": false,
+      "default": null,
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale."
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron Schedule",
+      "required": false,
+      "default": null,
+      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+      "x-dagster-widget": "cron"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "default": null,
+      "description": "Enable partitioning: 'daily'/'weekly'/'monthly'/'hourly' for time-based; 'static' for a fixed set of values; 'dynamic' for values added at runtime; 'multi' for date × static. Leave empty for unpartitioned.",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "dynamic",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "required": false,
+      "default": null,
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based partition types."
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "required": false,
+      "default": null,
+      "description": "Comma-separated values for static or multi partitioning."
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "default": null,
+      "description": "Name for DynamicPartitionsDefinition when partition_type='dynamic'."
+    }
+  }
 }

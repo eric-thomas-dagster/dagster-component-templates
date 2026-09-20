@@ -1,72 +1,61 @@
 {
-  "additionalProperties": false,
+  "component_type": "dagster_component_templates.TimescaleDBResourceComponent",
   "description": "Register a TimescaleDB resource.\n\nExample:\n\n    ```yaml\n    type: dagster_community_components.TimescaleDBResourceComponent\n    attributes:\n      resource_key: timescaledb_resource\n      host: localhost\n      port: 5432\n      database: metrics\n      username: postgres\n      password_env_var: TIMESCALEDB_PASSWORD\n    ```\n\nUse the resource's helpers from a regular @asset:\n\n    ```python\n    @asset(required_resource_keys={\"timescaledb_resource\"})\n    def setup_metrics_hypertable(context):\n        ctx.resources.timescaledb_resource.create_hypertable(\"events\", \"ts\")\n        ctx.resources.timescaledb_resource.add_compression_policy(\"events\", \"7 days\")\n        ctx.resources.timescaledb_resource.add_retention_policy(\"events\", \"90 days\")\n    ```",
-  "properties": {
+  "category": "resource",
+  "icon": "Plug",
+  "attributes": {
     "resource_key": {
-      "default": "timescaledb_resource",
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
       "description": "Resource key.",
-      "title": "Resource Key",
-      "type": "string"
+      "default": "timescaledb_resource"
     },
     "host": {
-      "description": "TimescaleDB / Postgres host.",
-      "title": "Host",
-      "type": "string"
+      "type": "string",
+      "label": "Host",
+      "required": true,
+      "description": "TimescaleDB / Postgres host."
     },
     "port": {
-      "default": 5432,
+      "type": "integer",
+      "label": "Port",
+      "required": false,
       "description": "Postgres port.",
-      "title": "Port",
-      "type": "integer"
+      "default": 5432
     },
     "database": {
-      "description": "Database name.",
-      "title": "Database",
-      "type": "string"
+      "type": "string",
+      "label": "Database",
+      "required": true,
+      "description": "Database name."
     },
     "username": {
-      "description": "Postgres username.",
-      "title": "Username",
-      "type": "string"
+      "type": "string",
+      "label": "Username",
+      "required": true,
+      "description": "Postgres username."
     },
     "password": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "string",
+      "label": "Password",
+      "required": false,
       "description": "Password. Set this OR password_env_var.",
-      "title": "Password"
+      "default": null
     },
     "password_env_var": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "string",
+      "label": "Password Env Var",
+      "required": false,
       "description": "Env var with password.",
-      "title": "Password Env Var"
+      "default": null
     },
     "ssl": {
-      "default": false,
+      "type": "boolean",
+      "label": "SSL",
+      "required": false,
       "description": "Use sslmode=require.",
-      "title": "Ssl",
-      "type": "boolean"
+      "default": false
     }
-  },
-  "required": [
-    "host",
-    "database",
-    "username"
-  ],
-  "title": "TimescaleDBResourceComponent",
-  "type": "object"
+  }
 }

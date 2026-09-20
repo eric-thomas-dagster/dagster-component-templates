@@ -1,144 +1,87 @@
 {
-  "additionalProperties": false,
+  "component_type": "dagster_component_templates.ExternalDorisTableAsset",
   "description": "Declare an Apache Doris table as an external Dagster asset.\n\nExample:\n    ```yaml\n    type: dagster_community_components.ExternalDorisTableAsset\n    attributes:\n      asset_key: doris/analytics/events_realtime\n      database: analytics\n      table: events_realtime\n      fe_host: doris-fe.mycompany.com\n      group_name: doris\n      description: |\n        Real-time events table populated by Routine Load from Kafka.\n    ```",
-  "properties": {
+  "category": "external",
+  "icon": "si:apache",
+  "attributes": {
     "asset_key": {
-      "description": "Dagster asset key (e.g. 'doris/analytics/events_realtime').",
-      "title": "Asset Key",
-      "type": "string"
+      "type": "string",
+      "label": "Asset Key",
+      "required": true,
+      "description": "Dagster asset key (e.g. 'doris/analytics/events_realtime')."
     },
     "database": {
-      "description": "Doris database (catalog) name.",
-      "title": "Database",
-      "type": "string"
+      "type": "string",
+      "label": "Database",
+      "required": true,
+      "description": "Doris database (catalog) name."
     },
     "table": {
-      "description": "Doris table name.",
-      "title": "Table",
-      "type": "string"
+      "type": "string",
+      "label": "Table",
+      "required": true,
+      "description": "Doris table name."
     },
     "fe_host": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Doris Frontend host \u2014 surfaced as catalog metadata.",
-      "title": "Fe Host"
+      "type": "string",
+      "label": "Fe Host",
+      "required": false,
+      "description": "Doris Frontend host — surfaced as catalog metadata.",
+      "default": null
     },
     "table_model": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "string",
+      "label": "Table Model",
+      "required": false,
       "description": "Doris table model: 'duplicate' (default) / 'unique' / 'aggregate' / 'mv' (materialized view). Surfaced as metadata; doesn't affect the declare-only AssetSpec.",
-      "title": "Table Model"
+      "default": null
     },
     "group_name": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": "doris",
-      "description": "Dagster asset group name.",
-      "title": "Group Name"
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null,
+      "description": "Dagster asset group name"
     },
     "description": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Asset description.",
-      "title": "Description"
+      "type": "string",
+      "label": "Description",
+      "required": false
     },
     "owners": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Asset owners.",
-      "title": "Owners"
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "ui:widget": "list"
     },
     "tags": {
-      "anyOf": [
-        {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "type": "object"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "object",
+      "label": "Tags",
+      "required": false,
       "description": "Catalog tags.",
-      "title": "Tags"
+      "default": null
     },
     "kinds": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Asset kinds (auto-includes 'doris').",
-      "title": "Kinds"
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "description": "Asset kinds shown in the Dagster catalog. Auto-inferred from component name if empty.",
+      "ui:widget": "list"
     },
     "deps": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Upstream Dagster asset keys.",
-      "title": "Deps"
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false
     }
-  },
-  "required": [
-    "asset_key",
-    "database",
-    "table"
-  ],
-  "title": "ExternalDorisTableAsset",
-  "type": "object"
+  }
 }

@@ -1,24 +1,66 @@
 {
-  "x-dagster-provides": ["job"],
+  "description": "Flush Memcached — entire cache or a key list — as a Dagster job.",
   "category": "jobs",
-  "type": "object",
-  "properties": {
-    "job_name": {"type": "string", "description": "Dagster job name."},
-    "schedule": {"type": "string", "description": "Cron schedule (empty = no schedule)."},
-    "default_status": {"type": "string", "enum": ["stopped", "running"], "default": "stopped"},
-    "tags": {"type": "object", "description": "Dagster job tags."},
-    "host": {"type": "string", "default": "localhost"},
-    "port": {"type": "integer", "default": 11211},
+  "icon": "si:memcached",
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "required": true,
+      "description": "Dagster job name"
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "required": false,
+      "description": "Cron schedule (None = no schedule)",
+      "default": null
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "required": false,
+      "description": "STOPPED | RUNNING",
+      "default": "STOPPED"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "description": "Dagster job tags",
+      "default": null
+    },
+    "host": {
+      "type": "string",
+      "label": "Host",
+      "required": false,
+      "description": "Memcached host",
+      "default": "localhost"
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "required": false,
+      "description": "Memcached port",
+      "default": 11211
+    },
     "keys": {
       "type": "array",
-      "items": {"type": "string"},
-      "description": "Explicit keys to delete. When empty, calls flush_all."
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list",
+      "label": "Keys",
+      "required": false,
+      "description": "Explicit list of keys to delete. When None or empty, calls `flush_all` (nukes everything). Memcached has no SCAN, so pattern-based deletes aren't supported — enumerate the keys.",
+      "default": null
     },
-    "timeout_seconds": {"type": "number", "default": 3.0}
-  },
-  "required": ["job_name"],
-  "description": "Flush Memcached — entire cache or a key list — as a Dagster job.",
-  "tags": ["job", "memcached", "cache", "invalidation"],
-  "icon": "si:memcached",
-  "name": "Memcached Cache Flush Job"
+    "timeout_seconds": {
+      "type": "number",
+      "label": "Timeout Seconds",
+      "required": false,
+      "description": "Connect + read/write timeout",
+      "default": 3.0
+    }
+  }
 }

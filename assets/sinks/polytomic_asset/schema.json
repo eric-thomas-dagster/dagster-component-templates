@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.PolytomicAssetComponent",
-  "description": "Polytomic reverse-ETL component \u2014 one Dagster asset per Polytomic sync.",
+  "description": "Polytomic reverse-ETL component — one Dagster asset per Polytomic sync.",
   "category": "sink",
   "icon": "ArrowDownToLine",
   "x-dagster-io": {
@@ -14,7 +14,74 @@
       "description": "Write confirmation with metadata"
     }
   },
-  "attributes": {},
+  "attributes": {
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "required": true
+    },
+    "organization_id": {
+      "type": "string",
+      "label": "Organization ID",
+      "required": false,
+      "default": null
+    },
+    "name_filter": {
+      "type": "string",
+      "label": "Name Filter",
+      "required": false,
+      "default": null
+    },
+    "exclude_sync_ids": {
+      "type": "string",
+      "label": "Exclude Sync Ids",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null,
+      "description": "Dagster asset group name"
+    },
+    "key_prefix": {
+      "type": "string",
+      "label": "Key Prefix",
+      "required": false,
+      "default": null
+    },
+    "wait_for_completion": {
+      "type": "boolean",
+      "label": "Wait For Completion",
+      "required": false,
+      "default": true
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "required": false,
+      "default": 15
+    },
+    "sync_timeout_seconds": {
+      "type": "integer",
+      "label": "Sync Timeout Seconds",
+      "required": false,
+      "default": 7200
+    },
+    "assets_by_sync_name": {
+      "type": "object",
+      "label": "Assets By Sync Name",
+      "required": false,
+      "default": null
+    },
+    "defs_state": {
+      "type": "string",
+      "label": "Defs State",
+      "required": false,
+      "default": null
+    }
+  },
   "tags": [
     "sink",
     "polytomic",

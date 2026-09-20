@@ -14,7 +14,74 @@
       "description": "Analytics result DataFrame"
     }
   },
-  "attributes": {},
+  "attributes": {
+    "database_url_env_var": {
+      "type": "string",
+      "label": "Database URL Env Var",
+      "required": true
+    },
+    "schema_names": {
+      "type": "string",
+      "label": "Schema Names",
+      "required": false,
+      "default": null
+    },
+    "exclude_tables": {
+      "type": "string",
+      "label": "Exclude Tables",
+      "required": false,
+      "default": null
+    },
+    "table_pattern": {
+      "type": "string",
+      "label": "Table Pattern",
+      "required": false,
+      "default": null
+    },
+    "include_views": {
+      "type": "boolean",
+      "label": "Include Views",
+      "required": false,
+      "default": false
+    },
+    "include_columns": {
+      "type": "boolean",
+      "label": "Include Columns",
+      "required": false,
+      "default": true
+    },
+    "key_prefix": {
+      "type": "string",
+      "label": "Key Prefix",
+      "required": false,
+      "default": null
+    },
+    "group_by_schema": {
+      "type": "boolean",
+      "label": "Group By Schema",
+      "required": false,
+      "default": true
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null,
+      "description": "Dagster asset group name"
+    },
+    "tag_with_schema": {
+      "type": "boolean",
+      "label": "Tag With Schema",
+      "required": false,
+      "default": false
+    },
+    "defs_state": {
+      "type": "string",
+      "label": "Defs State",
+      "required": false,
+      "default": null
+    }
+  },
   "tags": [
     "analytics",
     "warehouse",

@@ -9,7 +9,91 @@
       "description": "Provisioning result"
     }
   },
-  "attributes": {},
+  "attributes": {
+    "api_token_env_var": {
+      "type": "string",
+      "label": "API Token Env Var",
+      "required": true
+    },
+    "organization": {
+      "type": "string",
+      "label": "Organization",
+      "required": true
+    },
+    "workspace_filter": {
+      "type": "string",
+      "label": "Workspace Filter",
+      "required": false,
+      "default": null
+    },
+    "exclude_workspaces": {
+      "type": "string",
+      "label": "Exclude Workspaces",
+      "required": false,
+      "default": null
+    },
+    "tags": {
+      "type": "string",
+      "label": "Tags",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null,
+      "description": "Dagster asset group name"
+    },
+    "key_prefix": {
+      "type": "string",
+      "label": "Key Prefix",
+      "required": false,
+      "default": null
+    },
+    "plan_only": {
+      "type": "boolean",
+      "label": "Plan Only",
+      "required": false,
+      "default": false
+    },
+    "auto_apply": {
+      "type": "boolean",
+      "label": "Auto Apply",
+      "required": false,
+      "default": true
+    },
+    "message": {
+      "type": "string",
+      "label": "Message",
+      "required": false,
+      "default": "Triggered by Dagster"
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "required": false,
+      "default": 15
+    },
+    "run_timeout_seconds": {
+      "type": "integer",
+      "label": "Run Timeout Seconds",
+      "required": false,
+      "default": 3600
+    },
+    "assets_by_workspace_name": {
+      "type": "object",
+      "label": "Assets By Workspace Name",
+      "required": false,
+      "default": null
+    },
+    "defs_state": {
+      "type": "string",
+      "label": "Defs State",
+      "required": false,
+      "default": null
+    }
+  },
   "tags": [
     "infrastructure",
     "terraform",

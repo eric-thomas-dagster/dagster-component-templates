@@ -9,7 +9,144 @@
       "description": "Integration result"
     }
   },
-  "attributes": {},
+  "attributes": {
+    "region_name": {
+      "type": "string",
+      "label": "Region Name",
+      "required": true
+    },
+    "aws_access_key_id": {
+      "type": "string",
+      "label": "AWS Access Key ID",
+      "required": false,
+      "default": null
+    },
+    "aws_secret_access_key": {
+      "type": "string",
+      "label": "AWS Secret Access Key",
+      "required": false,
+      "default": null
+    },
+    "aws_session_token": {
+      "type": "string",
+      "label": "AWS Session Token",
+      "required": false,
+      "default": null
+    },
+    "import_jobs": {
+      "type": "boolean",
+      "label": "Import Jobs",
+      "required": false,
+      "default": true
+    },
+    "import_crawlers": {
+      "type": "boolean",
+      "label": "Import Crawlers",
+      "required": false,
+      "default": false
+    },
+    "import_workflows": {
+      "type": "boolean",
+      "label": "Import Workflows",
+      "required": false,
+      "default": false
+    },
+    "import_databrew_jobs": {
+      "type": "boolean",
+      "label": "Import Databrew Jobs",
+      "required": false,
+      "default": false
+    },
+    "import_data_quality_rulesets": {
+      "type": "boolean",
+      "label": "Import Data Quality Rulesets",
+      "required": false,
+      "default": false
+    },
+    "import_catalog_tables": {
+      "type": "boolean",
+      "label": "Import Catalog Tables",
+      "required": false,
+      "default": true
+    },
+    "catalog_database_filter": {
+      "type": "string",
+      "label": "Catalog Database Filter",
+      "required": false,
+      "default": null
+    },
+    "job_name_prefix": {
+      "type": "string",
+      "label": "Job Name Prefix",
+      "required": false,
+      "default": null
+    },
+    "exclude_jobs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list",
+      "label": "Exclude Jobs",
+      "required": false,
+      "default": null
+    },
+    "filter_by_name_pattern": {
+      "type": "string",
+      "label": "Filter By Name Pattern",
+      "required": false,
+      "default": null
+    },
+    "exclude_name_pattern": {
+      "type": "string",
+      "label": "Exclude Name Pattern",
+      "required": false,
+      "default": null
+    },
+    "filter_by_tags": {
+      "type": "string",
+      "label": "Filter By Tags",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null,
+      "description": "Dagster asset group name"
+    },
+    "key_prefix": {
+      "type": "string",
+      "label": "Key Prefix",
+      "required": false,
+      "default": null
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "required": false,
+      "default": 30
+    },
+    "generate_sensor": {
+      "type": "boolean",
+      "label": "Generate Sensor",
+      "required": false,
+      "default": true
+    },
+    "assets_by_job_name": {
+      "type": "object",
+      "label": "Assets By Job Name",
+      "required": false,
+      "default": null
+    },
+    "defs_state": {
+      "type": "string",
+      "label": "Defs State",
+      "required": false,
+      "default": null
+    }
+  },
   "tags": [
     "integration",
     "aws",

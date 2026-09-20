@@ -9,7 +9,99 @@
       "description": "Ingestion result with row count"
     }
   },
-  "attributes": {},
+  "attributes": {
+    "spec_url": {
+      "type": "string",
+      "label": "Spec URL",
+      "required": false,
+      "default": null
+    },
+    "spec_path": {
+      "type": "string",
+      "label": "Spec Path",
+      "required": false,
+      "default": null
+    },
+    "api_base_url_env_var": {
+      "type": "string",
+      "label": "API Base URL Env Var",
+      "required": false,
+      "default": "API_BASE_URL"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "required": false,
+      "default": null
+    },
+    "auth_header": {
+      "type": "string",
+      "label": "Auth Header",
+      "required": false,
+      "default": "Authorization"
+    },
+    "auth_prefix": {
+      "type": "string",
+      "label": "Auth Prefix",
+      "required": false,
+      "default": "Bearer"
+    },
+    "database_url_env_var": {
+      "type": "string",
+      "label": "Database URL Env Var",
+      "required": false,
+      "default": "DATABASE_URL"
+    },
+    "schema_name": {
+      "type": "string",
+      "label": "Schema Name",
+      "required": false,
+      "default": null
+    },
+    "if_exists": {
+      "type": "string",
+      "label": "If Exists",
+      "required": false,
+      "default": "replace"
+    },
+    "include_tags": {
+      "type": "string",
+      "label": "Include Tags",
+      "required": false,
+      "default": null
+    },
+    "exclude_tags": {
+      "type": "string",
+      "label": "Exclude Tags",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null,
+      "description": "Dagster asset group name"
+    },
+    "page_size": {
+      "type": "integer",
+      "label": "Page Size",
+      "required": false,
+      "default": 100
+    },
+    "max_pages": {
+      "type": "integer",
+      "label": "Max Pages",
+      "required": false,
+      "default": 100
+    },
+    "defs_state": {
+      "type": "string",
+      "label": "Defs State",
+      "required": false,
+      "default": null
+    }
+  },
   "tags": [
     "ingestion",
     "openapi",

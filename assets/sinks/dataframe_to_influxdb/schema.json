@@ -1,173 +1,143 @@
 {
-  "additionalProperties": false,
+  "component_type": "dagster_component_templates.DataframeToInfluxDBComponent",
   "description": "Bulk-write a Pandas DataFrame to InfluxDB as line-protocol points.\n\nExample:\n    ```yaml\n    type: dagster_community_components.DataframeToInfluxDBComponent\n    attributes:\n      asset_name: influxdb_metrics_write\n      upstream_asset_key: service_throughput_per_region\n      measurement: service_throughput\n      bucket: metrics\n      url_env_var: INFLUXDB_URL\n      token_env_var: INFLUXDB_TOKEN\n      org_env_var: INFLUXDB_ORG\n      timestamp_column: ts\n      tag_columns: [region, service]\n      field_columns: [throughput, errors]\n    ```",
-  "properties": {
-    "asset_name": {
-      "description": "Output Dagster asset name.",
-      "title": "Asset Name",
-      "type": "string"
+  "category": "sink",
+  "icon": "si:influxdb",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "Upstream DataFrame"
     },
-    "upstream_asset_key": {
-      "description": "Upstream asset providing the DataFrame.",
-      "title": "Upstream Asset Key",
-      "type": "string"
-    },
-    "measurement": {
-      "description": "InfluxDB measurement name.",
-      "title": "Measurement",
-      "type": "string"
-    },
-    "bucket": {
-      "description": "Destination bucket.",
-      "title": "Bucket",
-      "type": "string"
-    },
-    "timestamp_column": {
-      "default": "timestamp",
-      "description": "Column with datetime timestamps.",
-      "title": "Timestamp Column",
-      "type": "string"
-    },
-    "tag_columns": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Columns to use as tags (low-cardinality, indexed). Auto-derived if unset.",
-      "title": "Tag Columns"
-    },
-    "field_columns": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Columns to use as fields (values, numeric). Auto-derived if unset.",
-      "title": "Field Columns"
-    },
-    "url_env_var": {
-      "default": "INFLUXDB_URL",
-      "description": "Env var with InfluxDB base URL.",
-      "title": "Url Env Var",
-      "type": "string"
-    },
-    "token_env_var": {
-      "default": "INFLUXDB_TOKEN",
-      "description": "Env var with API token.",
-      "title": "Token Env Var",
-      "type": "string"
-    },
-    "org_env_var": {
-      "default": "INFLUXDB_ORG",
-      "description": "Env var with organization name.",
-      "title": "Org Env Var",
-      "type": "string"
-    },
-    "batch_size": {
-      "default": 5000,
-      "description": "Rows per write batch.",
-      "minimum": 1,
-      "title": "Batch Size",
-      "type": "integer"
-    },
-    "request_timeout_ms": {
-      "default": 30000,
-      "minimum": 100,
-      "title": "Request Timeout Ms",
-      "type": "integer"
-    },
-    "group_name": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": "influxdb",
-      "description": "Dagster asset group name.",
-      "title": "Group Name"
-    },
-    "description": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Description"
-    },
-    "owners": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Owners"
-    },
-    "tags": {
-      "anyOf": [
-        {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "type": "object"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Tags"
-    },
-    "kinds": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Kinds"
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Write confirmation with metadata"
     }
   },
-  "required": [
-    "asset_name",
-    "upstream_asset_key",
-    "measurement",
-    "bucket"
-  ],
-  "title": "DataframeToInfluxDBComponent",
-  "type": "object"
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Output Dagster asset name."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true,
+      "description": "Upstream asset providing the DataFrame."
+    },
+    "measurement": {
+      "type": "string",
+      "label": "Measurement",
+      "required": true,
+      "description": "InfluxDB measurement name."
+    },
+    "bucket": {
+      "type": "string",
+      "label": "Bucket",
+      "required": true,
+      "description": "Destination bucket."
+    },
+    "timestamp_column": {
+      "type": "string",
+      "label": "Timestamp Column",
+      "required": false,
+      "description": "Column with datetime timestamps.",
+      "default": "timestamp"
+    },
+    "tag_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list",
+      "label": "Tag Columns",
+      "required": false,
+      "description": "Columns to use as tags (low-cardinality, indexed). Auto-derived if unset.",
+      "default": null
+    },
+    "field_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list",
+      "label": "Field Columns",
+      "required": false,
+      "description": "Columns to use as fields (values, numeric). Auto-derived if unset.",
+      "default": null
+    },
+    "url_env_var": {
+      "type": "string",
+      "label": "URL Env Var",
+      "required": false,
+      "description": "Env var with InfluxDB base URL.",
+      "default": "INFLUXDB_URL"
+    },
+    "token_env_var": {
+      "type": "string",
+      "label": "Token Env Var",
+      "required": false,
+      "description": "Env var with API token.",
+      "default": "INFLUXDB_TOKEN"
+    },
+    "org_env_var": {
+      "type": "string",
+      "label": "Org Env Var",
+      "required": false,
+      "description": "Env var with organization name.",
+      "default": "INFLUXDB_ORG"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "description": "Rows per write batch.",
+      "default": 5000
+    },
+    "request_timeout_ms": {
+      "type": "integer",
+      "label": "Request Timeout MS",
+      "required": false,
+      "default": 30000
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null,
+      "description": "Dagster asset group name"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "description": "Asset kinds shown in the Dagster catalog. Auto-inferred from component name if empty.",
+      "ui:widget": "list"
+    }
+  }
 }

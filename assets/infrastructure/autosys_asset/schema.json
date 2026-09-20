@@ -9,7 +9,146 @@
       "description": "Provisioning result"
     }
   },
-  "attributes": {},
+  "attributes": {
+    "host": {
+      "type": "string",
+      "label": "Host",
+      "required": true
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "required": false,
+      "default": 9443
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "required": false,
+      "default": null
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "required": false,
+      "default": null
+    },
+    "token_env_var": {
+      "type": "string",
+      "label": "Token Env Var",
+      "required": false,
+      "default": null
+    },
+    "use_ssl": {
+      "type": "boolean",
+      "label": "Use SSL",
+      "required": false,
+      "default": true
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "label": "Verify SSL",
+      "required": false,
+      "default": true
+    },
+    "use_cli": {
+      "type": "boolean",
+      "label": "Use CLI",
+      "required": false,
+      "default": false
+    },
+    "autosys_instance": {
+      "type": "string",
+      "label": "Autosys Instance",
+      "required": false,
+      "default": null
+    },
+    "job_filter": {
+      "type": "string",
+      "label": "Job Filter",
+      "required": false,
+      "default": "%"
+    },
+    "exclude_jobs": {
+      "type": "string",
+      "label": "Exclude Jobs",
+      "required": false,
+      "default": null
+    },
+    "include_job_types": {
+      "type": "string",
+      "label": "Include Job Types",
+      "required": false,
+      "default": null
+    },
+    "machine_filter": {
+      "type": "string",
+      "label": "Machine Filter",
+      "required": false,
+      "default": null
+    },
+    "expand_box_jobs": {
+      "type": "boolean",
+      "label": "Expand Box Jobs",
+      "required": false,
+      "default": true
+    },
+    "box_completion_asset": {
+      "type": "boolean",
+      "label": "Box Completion Asset",
+      "required": false,
+      "default": true
+    },
+    "map_conditions": {
+      "type": "boolean",
+      "label": "Map Conditions",
+      "required": false,
+      "default": true
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null,
+      "description": "Dagster asset group name"
+    },
+    "key_prefix": {
+      "type": "string",
+      "label": "Key Prefix",
+      "required": false,
+      "default": null
+    },
+    "force_start": {
+      "type": "boolean",
+      "label": "Force Start",
+      "required": false,
+      "default": false
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "required": false,
+      "default": 30
+    },
+    "job_timeout_seconds": {
+      "type": "integer",
+      "label": "Job Timeout Seconds",
+      "required": false,
+      "default": 7200
+    },
+    "assets_by_job_name": {
+      "type": "object",
+      "label": "Assets By Job Name",
+      "required": false,
+      "default": null
+    },
+    "defs_state": {
+      "type": "string",
+      "label": "Defs State",
+      "required": false,
+      "default": null
+    }
+  },
   "tags": [
     "infrastructure",
     "autosys",

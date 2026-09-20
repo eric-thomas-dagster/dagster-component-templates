@@ -1,152 +1,107 @@
 {
-  "additionalProperties": false,
+  "component_type": "dagster_component_templates.VictoriaMetricsQueryAssetComponent",
   "description": "Run a PromQL query against VictoriaMetrics; emit result as a DataFrame.\n\nExample:\n    ```yaml\n    type: dagster_community_components.VictoriaMetricsQueryAssetComponent\n    attributes:\n      asset_name: vm_request_rate_last_24h\n      query: 'sum(rate(http_requests_total[5m])) by (service)'\n      query_range: true\n      range_lookback_minutes: 1440      # 24h\n      step_seconds: 60\n      base_url_env_var: VM_BASE_URL\n    ```",
-  "properties": {
+  "category": "source",
+  "icon": "si:victoriametrics",
+  "attributes": {
     "asset_name": {
-      "description": "Output Dagster asset name.",
-      "title": "Asset Name",
-      "type": "string"
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Output Dagster asset name."
     },
     "query": {
-      "description": "PromQL query string.",
-      "title": "Query",
-      "type": "string"
+      "type": "string",
+      "label": "Query",
+      "required": true,
+      "description": "PromQL query string."
     },
     "query_range": {
-      "default": true,
+      "type": "boolean",
+      "label": "Query Range",
+      "required": false,
       "description": "If true (default), use /api/v1/query_range; else /api/v1/query (instant).",
-      "title": "Query Range",
-      "type": "boolean"
+      "default": true
     },
     "range_lookback_minutes": {
-      "default": 60,
+      "type": "integer",
+      "label": "Range Lookback Minutes",
+      "required": false,
       "description": "For query_range: lookback window from now (in minutes).",
-      "minimum": 1,
-      "title": "Range Lookback Minutes",
-      "type": "integer"
+      "default": 60
     },
     "step_seconds": {
-      "default": 60,
+      "type": "integer",
+      "label": "Step Seconds",
+      "required": false,
       "description": "For query_range: PromQL step (seconds between samples).",
-      "minimum": 1,
-      "title": "Step Seconds",
-      "type": "integer"
+      "default": 60
     },
     "base_url_env_var": {
-      "default": "VM_BASE_URL",
+      "type": "string",
+      "label": "Base URL Env Var",
+      "required": false,
       "description": "Env var with VictoriaMetrics base URL.",
-      "title": "Base Url Env Var",
-      "type": "string"
+      "default": "VM_BASE_URL"
     },
     "bearer_token_env_var": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "string",
+      "label": "Bearer Token Env Var",
+      "required": false,
       "description": "Env var with bearer token.",
-      "title": "Bearer Token Env Var"
+      "default": null
     },
     "request_timeout_seconds": {
-      "default": 60,
-      "minimum": 1,
-      "title": "Request Timeout Seconds",
-      "type": "integer"
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "required": false,
+      "default": 60
     },
     "group_name": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": "victoriametrics",
-      "description": "Dagster asset group name.",
-      "title": "Group Name"
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null,
+      "description": "Dagster asset group name"
     },
     "description": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Description"
+      "type": "string",
+      "label": "Description",
+      "required": false
     },
     "owners": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Owners"
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "ui:widget": "list"
     },
     "tags": {
-      "anyOf": [
-        {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "type": "object"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Tags"
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "default": null
     },
     "kinds": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Kinds"
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "description": "Asset kinds shown in the Dagster catalog. Auto-inferred from component name if empty.",
+      "ui:widget": "list"
     },
     "deps": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Deps"
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false
     }
-  },
-  "required": [
-    "asset_name",
-    "query"
-  ],
-  "title": "VictoriaMetricsQueryAssetComponent",
-  "type": "object"
+  }
 }

@@ -1,178 +1,161 @@
 {
-  "additionalProperties": false,
-  "description": "Bulk-ingest a Pandas DataFrame into StarRocks via Stream Load.\n\nMirrors ``dataframe_to_doris`` \u2014 same wire protocol, same response\nshape. Use this when your tables live on StarRocks instead of Doris.\n\nExample:\n    ```yaml\n    type: dagster_community_components.DataframeToStarRocksComponent\n    attributes:\n      asset_name: starrocks_orders_load\n      upstream_asset_key: orders_clean\n      table: orders\n      database: analytics\n      host_env_var: STARROCKS_FE_HOST\n      username_env_var: STARROCKS_USER\n      password_env_var: STARROCKS_PASSWORD\n    ```",
-  "properties": {
-    "asset_name": {
-      "description": "Output Dagster asset name.",
-      "title": "Asset Name",
-      "type": "string"
+  "component_type": "dagster_component_templates.DataframeToStarRocksComponent",
+  "description": "Bulk-ingest a Pandas DataFrame into StarRocks via Stream Load.\n\nMirrors ``dataframe_to_doris`` — same wire protocol, same response\nshape. Use this when your tables live on StarRocks instead of Doris.\n\nExample:\n    ```yaml\n    type: dagster_community_components.DataframeToStarRocksComponent\n    attributes:\n      asset_name: starrocks_orders_load\n      upstream_asset_key: orders_clean\n      table: orders\n      database: analytics\n      host_env_var: STARROCKS_FE_HOST\n      username_env_var: STARROCKS_USER\n      password_env_var: STARROCKS_PASSWORD\n    ```",
+  "category": "sink",
+  "icon": "favicon:starrocks.io",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "Upstream DataFrame"
     },
-    "upstream_asset_key": {
-      "description": "Upstream asset providing the DataFrame.",
-      "title": "Upstream Asset Key",
-      "type": "string"
-    },
-    "table": {
-      "description": "Destination StarRocks table name.",
-      "title": "Table",
-      "type": "string"
-    },
-    "database": {
-      "description": "Destination StarRocks database.",
-      "title": "Database",
-      "type": "string"
-    },
-    "host_env_var": {
-      "default": "STARROCKS_FE_HOST",
-      "description": "Env var with StarRocks FE host.",
-      "title": "Host Env Var",
-      "type": "string"
-    },
-    "http_port": {
-      "default": 8030,
-      "description": "StarRocks FE HTTP port.",
-      "title": "Http Port",
-      "type": "integer"
-    },
-    "username_env_var": {
-      "default": "STARROCKS_USER",
-      "description": "Env var with StarRocks username.",
-      "title": "Username Env Var",
-      "type": "string"
-    },
-    "password_env_var": {
-      "default": "STARROCKS_PASSWORD",
-      "description": "Env var with StarRocks password.",
-      "title": "Password Env Var",
-      "type": "string"
-    },
-    "ssl": {
-      "default": false,
-      "description": "Use https for the Stream Load endpoint.",
-      "title": "Ssl",
-      "type": "boolean"
-    },
-    "format": {
-      "default": "csv",
-      "description": "'csv' or 'json'.",
-      "title": "Format",
-      "type": "string"
-    },
-    "column_separator": {
-      "default": ",",
-      "description": "CSV column separator.",
-      "title": "Column Separator",
-      "type": "string"
-    },
-    "line_delimiter": {
-      "default": "\\n",
-      "description": "CSV line delimiter.",
-      "title": "Line Delimiter",
-      "type": "string"
-    },
-    "columns": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Optional explicit column list (defaults to DataFrame column order).",
-      "title": "Columns"
-    },
-    "request_timeout_seconds": {
-      "default": 300,
-      "minimum": 10,
-      "title": "Request Timeout Seconds",
-      "type": "integer"
-    },
-    "group_name": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": "starrocks",
-      "description": "Dagster asset group name.",
-      "title": "Group Name"
-    },
-    "description": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Asset description.",
-      "title": "Description"
-    },
-    "owners": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Asset owners.",
-      "title": "Owners"
-    },
-    "tags": {
-      "anyOf": [
-        {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "type": "object"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Catalog tags.",
-      "title": "Tags"
-    },
-    "kinds": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Asset kinds (auto-includes 'starrocks').",
-      "title": "Kinds"
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Write confirmation with metadata"
     }
   },
-  "required": [
-    "asset_name",
-    "upstream_asset_key",
-    "table",
-    "database"
-  ],
-  "title": "DataframeToStarRocksComponent",
-  "type": "object"
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Output Dagster asset name."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true,
+      "description": "Upstream asset providing the DataFrame."
+    },
+    "table": {
+      "type": "string",
+      "label": "Table",
+      "required": true,
+      "description": "Destination StarRocks table name."
+    },
+    "database": {
+      "type": "string",
+      "label": "Database",
+      "required": true,
+      "description": "Destination StarRocks database."
+    },
+    "host_env_var": {
+      "type": "string",
+      "label": "Host Env Var",
+      "required": false,
+      "description": "Env var with StarRocks FE host.",
+      "default": "STARROCKS_FE_HOST"
+    },
+    "http_port": {
+      "type": "integer",
+      "label": "HTTP Port",
+      "required": false,
+      "description": "StarRocks FE HTTP port.",
+      "default": 8030
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "required": false,
+      "description": "Env var with StarRocks username.",
+      "default": "STARROCKS_USER"
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "required": false,
+      "description": "Env var with StarRocks password.",
+      "default": "STARROCKS_PASSWORD"
+    },
+    "ssl": {
+      "type": "boolean",
+      "label": "SSL",
+      "required": false,
+      "description": "Use https for the Stream Load endpoint.",
+      "default": false
+    },
+    "format": {
+      "type": "string",
+      "label": "Format",
+      "required": false,
+      "description": "'csv' or 'json'.",
+      "default": "csv"
+    },
+    "column_separator": {
+      "type": "string",
+      "label": "Column Separator",
+      "required": false,
+      "description": "CSV column separator.",
+      "default": ","
+    },
+    "line_delimiter": {
+      "type": "string",
+      "label": "Line Delimiter",
+      "required": false,
+      "description": "CSV line delimiter.",
+      "default": "\\n"
+    },
+    "columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list",
+      "label": "Columns",
+      "required": false,
+      "description": "Optional explicit column list (defaults to DataFrame column order).",
+      "default": null
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "required": false,
+      "default": 300
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null,
+      "description": "Dagster asset group name"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "description": "Catalog tags.",
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "description": "Asset kinds shown in the Dagster catalog. Auto-inferred from component name if empty.",
+      "ui:widget": "list"
+    },
+    "partition_column": {
+      "type": "string",
+      "label": "Partition Column",
+      "required": false,
+      "description": "When set AND the asset is partitioned, appends this column to every row with the current partition key as its value. Enables the single-table + partition_column analytics pattern (WHERE partition_date = '2025-01-15') without needing per-partition tables. Prefer this over `{partition_key}` templating in the `table:` field for warehouse sinks — analytics queries stay clean. See docs/partition_patterns.md.",
+      "default": null
+    }
+  }
 }

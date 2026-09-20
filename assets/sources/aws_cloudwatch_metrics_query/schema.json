@@ -6,5 +6,193 @@
   "x-dagster-io": {
     "supports_partitions": false
   },
-  "attributes": {}
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Output Dagster asset name"
+    },
+    "region": {
+      "type": "string",
+      "label": "Region",
+      "required": true,
+      "description": "AWS region, e.g. 'us-east-1'"
+    },
+    "namespace": {
+      "type": "string",
+      "label": "Namespace",
+      "required": true,
+      "description": "CloudWatch namespace, e.g. 'AWS/Lambda', 'AWS/RDS'"
+    },
+    "metric_name": {
+      "type": "string",
+      "label": "Metric Name",
+      "required": true,
+      "description": "Metric name, e.g. 'Invocations', 'CPUUtilization'"
+    },
+    "statistic": {
+      "type": "string",
+      "label": "Statistic",
+      "required": false,
+      "description": "'Average' | 'Sum' | 'Maximum' | 'Minimum' | 'SampleCount'",
+      "default": "Average"
+    },
+    "period_seconds": {
+      "type": "integer",
+      "label": "Period Seconds",
+      "required": false,
+      "description": "Aggregation period (must be >= 60)",
+      "default": 300
+    },
+    "range_minutes": {
+      "type": "integer",
+      "label": "Range Minutes",
+      "required": false,
+      "description": "How far back to query",
+      "default": 60
+    },
+    "dimensions": {
+      "type": "object",
+      "label": "Dimensions",
+      "required": false,
+      "description": "Dimension filters as {Name: Value}",
+      "default": null
+    },
+    "aws_access_key_id_env_var": {
+      "type": "string",
+      "label": "AWS Access Key ID Env Var",
+      "required": false,
+      "description": "If unset, uses default boto3 chain (IAM role / env vars / aws config)",
+      "default": null
+    },
+    "aws_secret_access_key_env_var": {
+      "type": "string",
+      "label": "AWS Secret Access Key Env Var",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null,
+      "description": "Dagster asset group name"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "description": "Asset kinds shown in the Dagster catalog. Auto-inferred from component name if empty.",
+      "ui:widget": "list"
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag (minutes)",
+      "required": false,
+      "default": null,
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale."
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron Schedule",
+      "required": false,
+      "default": null,
+      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+      "x-dagster-widget": "cron"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "default": null,
+      "description": "Enable partitioning: 'daily'/'weekly'/'monthly'/'hourly' for time-based; 'static' for a fixed set of values; 'dynamic' for values added at runtime; 'multi' for date × static. Leave empty for unpartitioned.",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "dynamic",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "required": false,
+      "default": null,
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based partition types."
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "required": false,
+      "default": null,
+      "description": "Comma-separated values for static or multi partitioning."
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "default": null,
+      "description": "Name for DynamicPartitionsDefinition when partition_type='dynamic'."
+    }
+  }
 }

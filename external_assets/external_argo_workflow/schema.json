@@ -1,151 +1,89 @@
 {
-  "additionalProperties": false,
+  "component_type": "dagster_component_templates.ExternalArgoWorkflowAsset",
   "description": "Declare an Argo Workflow as an external Dagster asset.\n\nExample:\n    ```yaml\n    type: dagster_community_components.ExternalArgoWorkflowAsset\n    attributes:\n      asset_key: argo/etl/nightly_aggregation\n      workflow_template: nightly-aggregation\n      namespace: argo\n      argo_ui_url: https://argo.mycompany.com\n      group_name: argo\n    ```",
-  "properties": {
+  "category": "external",
+  "icon": "ExternalLink",
+  "attributes": {
     "asset_key": {
-      "description": "Dagster asset key (e.g. 'argo/etl/nightly_aggregation').",
-      "title": "Asset Key",
-      "type": "string"
+      "type": "string",
+      "label": "Asset Key",
+      "required": true,
+      "description": "Dagster asset key (e.g. 'argo/etl/nightly_aggregation')."
     },
     "workflow_template": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "string",
+      "label": "Workflow Template",
+      "required": false,
       "description": "Argo WorkflowTemplate name (the reusable template; templates produce Workflows when triggered).",
-      "title": "Workflow Template"
+      "default": null
     },
     "workflow_name": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "string",
+      "label": "Workflow Name",
+      "required": false,
       "description": "Specific Argo Workflow name this asset represents (one-off runs, not template-derived).",
-      "title": "Workflow Name"
+      "default": null
     },
     "namespace": {
-      "default": "argo",
+      "type": "string",
+      "label": "Namespace",
+      "required": false,
       "description": "Kubernetes namespace the workflow runs in.",
-      "title": "Namespace",
-      "type": "string"
+      "default": "argo"
     },
     "argo_ui_url": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Argo Server UI base URL \u2014 surfaced as a clickable link in the catalog.",
-      "title": "Argo Ui Url"
+      "type": "string",
+      "label": "Argo UI URL",
+      "required": false,
+      "description": "Argo Server UI base URL — surfaced as a clickable link in the catalog.",
+      "default": null
     },
     "group_name": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": "argo",
-      "description": "Dagster asset group name.",
-      "title": "Group Name"
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null,
+      "description": "Dagster asset group name"
     },
     "description": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Asset description.",
-      "title": "Description"
+      "type": "string",
+      "label": "Description",
+      "required": false
     },
     "owners": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Asset owners.",
-      "title": "Owners"
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "ui:widget": "list"
     },
     "tags": {
-      "anyOf": [
-        {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "type": "object"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "object",
+      "label": "Tags",
+      "required": false,
       "description": "Catalog tags.",
-      "title": "Tags"
+      "default": null
     },
     "kinds": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Asset kinds (auto-includes 'argo', 'workflow').",
-      "title": "Kinds"
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "description": "Asset kinds shown in the Dagster catalog. Auto-inferred from component name if empty.",
+      "ui:widget": "list"
     },
     "deps": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Upstream Dagster asset keys.",
-      "title": "Deps"
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false
     }
-  },
-  "required": [
-    "asset_key"
-  ],
-  "title": "ExternalArgoWorkflowAsset",
-  "type": "object"
+  }
 }

@@ -1,119 +1,113 @@
 {
-  "additionalProperties": false,
-  "description": "Lineage \u2192 Precisely Data360 Govern \u2014 sink asset that depends on lineage_graph.\n\nExample:\n    ```yaml\n    type: dagster_community_components.LineageToData360Component\n    attributes:\n      asset_name: lineage_to_data360\n      upstream_asset_key: lineage_graph\n      catalog_url: https://api.data.precisely.com/data360/catalog\n      client_id_env: PRECISELY_DIS_CLIENT_ID\n      client_secret_env: PRECISELY_DIS_CLIENT_SECRET\n    ```\n\nPair with the registry's ``lineage_graph_extractor`` component as\nthe upstream \u2014 it produces the canonical lineage payload every\n``lineage_to_*`` sink consumes.",
-  "properties": {
-    "asset_name": {
-      "default": "lineage_to_data360",
-      "description": "Output sink asset name.",
-      "title": "Asset Name",
-      "type": "string"
+  "component_type": "dagster_component_templates.LineageToData360Component",
+  "description": "Lineage → Precisely Data360 Govern — sink asset that depends on lineage_graph.\n\nExample:\n    ```yaml\n    type: dagster_community_components.LineageToData360Component\n    attributes:\n      asset_name: lineage_to_data360\n      upstream_asset_key: lineage_graph\n      catalog_url: https://api.data.precisely.com/data360/catalog\n      client_id_env: PRECISELY_DIS_CLIENT_ID\n      client_secret_env: PRECISELY_DIS_CLIENT_SECRET\n    ```\n\nPair with the registry's ``lineage_graph_extractor`` component as\nthe upstream — it produces the canonical lineage payload every\n``lineage_to_*`` sink consumes.",
+  "category": "sink",
+  "icon": "Network",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "Upstream DataFrame"
     },
-    "upstream_asset_key": {
-      "default": "lineage_graph",
-      "description": "Upstream asset emitting the canonical lineage payload (lineage_graph_extractor).",
-      "title": "Upstream Asset Key",
-      "type": "string"
-    },
-    "catalog_url": {
-      "default": "https://api.data.precisely.com/data360/catalog",
-      "description": "Data360 Govern Catalog REST base URL.",
-      "title": "Catalog Url",
-      "type": "string"
-    },
-    "token_url": {
-      "default": "https://api.data.precisely.com/oauth/token",
-      "description": "OAuth2 token endpoint (override for non-global Data360 tenants).",
-      "title": "Token Url",
-      "type": "string"
-    },
-    "client_id_env": {
-      "default": "PRECISELY_DIS_CLIENT_ID",
-      "description": "Env var with the Data360 OAuth2 client_id.",
-      "title": "Client Id Env",
-      "type": "string"
-    },
-    "client_secret_env": {
-      "default": "PRECISELY_DIS_CLIENT_SECRET",
-      "description": "Env var with the Data360 OAuth2 client_secret.",
-      "title": "Client Secret Env",
-      "type": "string"
-    },
-    "request_timeout_seconds": {
-      "default": 30,
-      "description": "Per-request HTTP timeout.",
-      "minimum": 1,
-      "title": "Request Timeout Seconds",
-      "type": "integer"
-    },
-    "only_push_on_change": {
-      "default": true,
-      "description": "If true, skip the catalog POST when the upstream payload_hash matches the last successfully pushed hash. Stored as asset metadata across runs.",
-      "title": "Only Push On Change",
-      "type": "boolean"
-    },
-    "group_name": {
-      "default": "lineage",
-      "title": "Group Name",
-      "type": "string"
-    },
-    "description": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Description"
-    },
-    "owners": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Owners"
-    },
-    "asset_tags": {
-      "anyOf": [
-        {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "type": "object"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Asset Tags"
-    },
-    "kinds": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Kinds"
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Write confirmation with metadata"
     }
   },
-  "title": "LineageToData360Component",
-  "type": "object"
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output sink asset name.",
+      "default": "lineage_to_data360"
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Upstream asset emitting the canonical lineage payload (lineage_graph_extractor).",
+      "default": "lineage_graph"
+    },
+    "catalog_url": {
+      "type": "string",
+      "label": "Catalog URL",
+      "required": false,
+      "description": "Data360 Govern Catalog REST base URL.",
+      "default": "https://api.data.precisely.com/data360/catalog"
+    },
+    "token_url": {
+      "type": "string",
+      "label": "Token URL",
+      "required": false,
+      "description": "OAuth2 token endpoint (override for non-global Data360 tenants).",
+      "default": null
+    },
+    "client_id_env": {
+      "type": "string",
+      "label": "Client ID Env",
+      "required": false,
+      "description": "Env var with the Data360 OAuth2 client_id.",
+      "default": "PRECISELY_DIS_CLIENT_ID"
+    },
+    "client_secret_env": {
+      "type": "string",
+      "label": "Client Secret Env",
+      "required": false,
+      "description": "Env var with the Data360 OAuth2 client_secret.",
+      "default": "PRECISELY_DIS_CLIENT_SECRET"
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "required": false,
+      "description": "Per-request HTTP timeout.",
+      "default": 30
+    },
+    "only_push_on_change": {
+      "type": "boolean",
+      "label": "Only Push On Change",
+      "required": false,
+      "description": "If true, skip the catalog POST when the upstream payload_hash matches the last successfully pushed hash. Stored as asset metadata across runs.",
+      "default": true
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null,
+      "description": "Dagster asset group name"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "description": "Asset kinds shown in the Dagster catalog. Auto-inferred from component name if empty.",
+      "ui:widget": "list"
+    }
+  }
 }

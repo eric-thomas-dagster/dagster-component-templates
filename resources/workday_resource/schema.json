@@ -6,5 +6,43 @@
   "x-dagster-io": {
     "supports_partitions": false
   },
-  "attributes": {}
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "description": "Dagster resource key",
+      "default": "workday"
+    },
+    "tenant_url": {
+      "type": "string",
+      "label": "Tenant URL",
+      "required": true,
+      "description": "Tenant base URL"
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client ID Env Var",
+      "required": true,
+      "description": "Env var with OAuth Client ID"
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "required": true,
+      "description": "Env var with OAuth Client Secret"
+    },
+    "refresh_token_env_var": {
+      "type": "string",
+      "label": "Refresh Token Env Var",
+      "required": true,
+      "description": "Env var with Refresh Token"
+    },
+    "token_url": {
+      "type": "string",
+      "label": "Token URL",
+      "required": false,
+      "default": null
+    }
+  }
 }

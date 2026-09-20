@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.DataikuAssetComponent",
-  "description": "Dataiku DSS scenario component \u2014 one Dagster asset per Dataiku scenario.",
+  "description": "Dataiku DSS scenario component — one Dagster asset per Dataiku scenario.",
   "category": "analytics",
   "icon": "BarChart2",
   "x-dagster-io": {
@@ -14,7 +14,85 @@
       "description": "Analytics result DataFrame"
     }
   },
-  "attributes": {},
+  "attributes": {
+    "host_env_var": {
+      "type": "string",
+      "label": "Host Env Var",
+      "required": true
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "required": true
+    },
+    "project_keys": {
+      "type": "string",
+      "label": "Project Keys",
+      "required": false,
+      "default": null
+    },
+    "exclude_project_keys": {
+      "type": "string",
+      "label": "Exclude Project Keys",
+      "required": false,
+      "default": null
+    },
+    "scenario_name_prefix": {
+      "type": "string",
+      "label": "Scenario Name Prefix",
+      "required": false,
+      "default": null
+    },
+    "exclude_scenario_ids": {
+      "type": "string",
+      "label": "Exclude Scenario Ids",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null,
+      "description": "Dagster asset group name"
+    },
+    "key_prefix": {
+      "type": "string",
+      "label": "Key Prefix",
+      "required": false,
+      "default": null
+    },
+    "wait_for_completion": {
+      "type": "boolean",
+      "label": "Wait For Completion",
+      "required": false,
+      "default": true
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "required": false,
+      "default": 10
+    },
+    "scenario_timeout_seconds": {
+      "type": "integer",
+      "label": "Scenario Timeout Seconds",
+      "required": false,
+      "default": 7200
+    },
+    "assets_by_scenario_name": {
+      "type": "object",
+      "label": "Assets By Scenario Name",
+      "required": false,
+      "default": null
+    },
+    "defs_state": {
+      "type": "string",
+      "label": "Defs State",
+      "required": false,
+      "default": null
+    }
+  },
   "tags": [
     "analytics",
     "dataiku",

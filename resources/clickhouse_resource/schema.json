@@ -1,72 +1,63 @@
 {
-  "additionalProperties": false,
-  "description": "Register a ClickHouse resource for use by other components.\n\nExample:\n\n    ```yaml\n    type: dagster_community_components.ClickHouseResourceComponent\n    attributes:\n      resource_key: clickhouse_resource\n      host: clickhouse.mycompany.com\n      port: 8443\n      database: analytics\n      username: dagster_runner\n      password_env_var: CLICKHOUSE_PASSWORD\n      secure: true\n    ```\n\nPairs with:\n  - ``clickhouse_io_manager`` \u2014 Pandas asset persistence\n  - ``dataframe_to_clickhouse`` \u2014 bulk insert\n  - ``external_clickhouse_table`` \u2014 catalog declaration\n  - Generic SQL components via ``connection_string``",
-  "properties": {
+  "component_type": "dagster_component_templates.ClickHouseResourceComponent",
+  "description": "Register a ClickHouse resource for use by other components.\n\nExample:\n\n    ```yaml\n    type: dagster_community_components.ClickHouseResourceComponent\n    attributes:\n      resource_key: clickhouse_resource\n      host: clickhouse.mycompany.com\n      port: 8443\n      database: analytics\n      username: dagster_runner\n      password_env_var: CLICKHOUSE_PASSWORD\n      secure: true\n    ```\n\nPairs with:\n  - ``clickhouse_io_manager`` — Pandas asset persistence\n  - ``dataframe_to_clickhouse`` — bulk insert\n  - ``external_clickhouse_table`` — catalog declaration\n  - Generic SQL components via ``connection_string``",
+  "category": "resource",
+  "icon": "si:clickhouse",
+  "attributes": {
     "resource_key": {
-      "default": "clickhouse_resource",
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
       "description": "Resource key.",
-      "title": "Resource Key",
-      "type": "string"
+      "default": "clickhouse_resource"
     },
     "host": {
-      "description": "ClickHouse server hostname.",
-      "title": "Host",
-      "type": "string"
+      "type": "string",
+      "label": "Host",
+      "required": true,
+      "description": "ClickHouse server hostname."
     },
     "port": {
-      "default": 8123,
+      "type": "integer",
+      "label": "Port",
+      "required": false,
       "description": "HTTP port (8123 plain, 8443 TLS). For native TCP use 9000 + a different client.",
-      "title": "Port",
-      "type": "integer"
+      "default": 8123
     },
     "database": {
-      "default": "default",
+      "type": "string",
+      "label": "Database",
+      "required": false,
       "description": "Database name.",
-      "title": "Database",
-      "type": "string"
+      "default": "default"
     },
     "username": {
-      "default": "default",
+      "type": "string",
+      "label": "Username",
+      "required": false,
       "description": "ClickHouse username.",
-      "title": "Username",
-      "type": "string"
+      "default": "default"
     },
     "password": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "string",
+      "label": "Password",
+      "required": false,
       "description": "Password. Set this OR password_env_var.",
-      "title": "Password"
+      "default": null
     },
     "password_env_var": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "string",
+      "label": "Password Env Var",
+      "required": false,
       "description": "Env var with password.",
-      "title": "Password Env Var"
+      "default": null
     },
     "secure": {
-      "default": false,
+      "type": "boolean",
+      "label": "Secure",
+      "required": false,
       "description": "Enable TLS.",
-      "title": "Secure",
-      "type": "boolean"
+      "default": false
     }
-  },
-  "required": [
-    "host"
-  ],
-  "title": "ClickHouseResourceComponent",
-  "type": "object"
+  }
 }

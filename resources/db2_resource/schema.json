@@ -1,120 +1,94 @@
 {
-  "additionalProperties": false,
-  "description": "Register an IBM Db2 resource for use by other components.\n\nPairs with the generic SQL components \u2014 ``dataframe_to_table``,\n``sql_command_job``, ``warehouse_maintenance_job``, ``database_replication``,\n``database_schema_inventory`` \u2014 by exporting its SQLAlchemy URL.\n\nExample (Docker Db2 Community Edition \u2014 Linux/Unix/Windows):\n\n    ```yaml\n    type: dagster_community_components.Db2ResourceComponent\n    attributes:\n      resource_key: db2_resource\n      host: localhost\n      port: 50000\n      database: testdb\n      username: db2inst1\n      password_env_var: DB2_PASSWORD\n      system_type: luw                  # default \u2014 can omit\n    ```\n\nExample (Db2 on Cloud):\n\n    ```yaml\n    type: dagster_community_components.Db2ResourceComponent\n    attributes:\n      resource_key: db2_resource\n      host: '<id>.databases.appdomain.cloud'\n      port: 31198\n      database: bludb\n      username: bluadmin\n      password_env_var: DB2_CLOUD_PASSWORD\n      ssl: true\n      system_type: cloud\n    ```\n\nExample (Db2 for i / AS/400 / iSeries):\n\n    ```yaml\n    type: dagster_community_components.Db2ResourceComponent\n    attributes:\n      resource_key: db2_iseries_resource\n      host: as400.example.com\n      # port defaults to 446 when system_type=iseries \u2014 DRDA listener\n      database: 'S101ABCD'              # *LOCAL system name (RDB) \u2014 see your IBM i\n      username: QSECOFR\n      password_env_var: AS400_PASSWORD\n      ssl: true                         # almost always required on i 7.x+\n      system_type: iseries\n      library_list:                     # AS/400 search path\n        - MYAPP\n        - MYAPP_DATA\n        - QSYS2\n    ```\n\n    Notes for AS/400:\n      - ``host`` is the IBM i system hostname or IP.\n      - ``database`` is the **Relational Database Directory (RDB) name**\n        (often the *LOCAL system name). Find it with\n        ``WRKRDBDIRE`` on the i \u2014 the entry marked ``*LOCAL``.\n      - ``library_list`` maps to ``CURRENT SCHEMA`` (first entry) +\n        ``CURRENT PATH`` (rest). Schema-inventory and migration\n        components honor this when ``database_type='db2_iseries'``.\n      - The catalog lives at ``QSYS2.SYSTABLES`` / ``QSYS2.SYSCOLUMNS``,\n        NOT ``SYSCAT.*``. Use ``database_schema_inventory`` with\n        ``database_type: db2_iseries`` for AS/400-aware queries.",
-  "properties": {
+  "component_type": "dagster_component_templates.Db2ResourceComponent",
+  "description": "Register an IBM Db2 resource for use by other components.\n\nPairs with the generic SQL components — ``dataframe_to_table``,\n``sql_command_job``, ``warehouse_maintenance_job``, ``database_replication``,\n``database_schema_inventory`` — by exporting its SQLAlchemy URL.\n\nExample (Docker Db2 Community Edition — Linux/Unix/Windows):\n\n    ```yaml\n    type: dagster_community_components.Db2ResourceComponent\n    attributes:\n      resource_key: db2_resource\n      host: localhost\n      port: 50000\n      database: testdb\n      username: db2inst1\n      password_env_var: DB2_PASSWORD\n      system_type: luw                  # default — can omit\n    ```\n\nExample (Db2 on Cloud):\n\n    ```yaml\n    type: dagster_community_components.Db2ResourceComponent\n    attributes:\n      resource_key: db2_resource\n      host: '<id>.databases.appdomain.cloud'\n      port: 31198\n      database: bludb\n      username: bluadmin\n      password_env_var: DB2_CLOUD_PASSWORD\n      ssl: true\n      system_type: cloud\n    ```\n\nExample (Db2 for i / AS/400 / iSeries):\n\n    ```yaml\n    type: dagster_community_components.Db2ResourceComponent\n    attributes:\n      resource_key: db2_iseries_resource\n      host: as400.example.com\n      # port defaults to 446 when system_type=iseries — DRDA listener\n      database: 'S101ABCD'              # *LOCAL system name (RDB) — see your IBM i\n      username: QSECOFR\n      password_env_var: AS400_PASSWORD\n      ssl: true                         # almost always required on i 7.x+\n      system_type: iseries\n      library_list:                     # AS/400 search path\n        - MYAPP\n        - MYAPP_DATA\n        - QSYS2\n    ```\n\n    Notes for AS/400:\n      - ``host`` is the IBM i system hostname or IP.\n      - ``database`` is the **Relational Database Directory (RDB) name**\n        (often the *LOCAL system name). Find it with\n        ``WRKRDBDIRE`` on the i — the entry marked ``*LOCAL``.\n      - ``library_list`` maps to ``CURRENT SCHEMA`` (first entry) +\n        ``CURRENT PATH`` (rest). Schema-inventory and migration\n        components honor this when ``database_type='db2_iseries'``.\n      - The catalog lives at ``QSYS2.SYSTABLES`` / ``QSYS2.SYSCOLUMNS``,\n        NOT ``SYSCAT.*``. Use ``database_schema_inventory`` with\n        ``database_type: db2_iseries`` for AS/400-aware queries.",
+  "category": "resource",
+  "icon": "si:ibm",
+  "attributes": {
     "resource_key": {
-      "default": "db2_resource",
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
       "description": "Resource key. Other components reference it via this name.",
-      "title": "Resource Key",
-      "type": "string"
+      "default": "db2_resource"
     },
     "host": {
-      "description": "Db2 hostname (LUW server / Cloud DBaaS endpoint / IBM i system name).",
-      "title": "Host",
-      "type": "string"
+      "type": "string",
+      "label": "Host",
+      "required": true,
+      "description": "Db2 hostname (LUW server / Cloud DBaaS endpoint / IBM i system name)."
     },
     "port": {
-      "anyOf": [
-        {
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Db2 port. If unset, defaults based on system_type: 50000 (luw / cloud) or 446 (iseries \u2014 DRDA listener). Override for non-standard ports (Db2 on Cloud typically uses 31xxx).",
-      "title": "Port"
+      "type": "integer",
+      "label": "Port",
+      "required": false,
+      "description": "Db2 port. If unset, defaults based on system_type: 50000 (luw / cloud) or 446 (iseries — DRDA listener). Override for non-standard ports (Db2 on Cloud typically uses 31xxx).",
+      "default": null
     },
     "database": {
-      "default": "",
-      "description": "Database name. For LUW / Cloud / Warehouse this is the DB name (e.g. 'BLUDB', 'testdb'). For iSeries this is the **Relational Database Directory entry** (often the *LOCAL system name). **Leave empty on iSeries** and the resource auto-discovers it via ``SELECT CURRENT_SERVER`` \u2014 no `WRKRDBDIRE` lookup required.",
-      "title": "Database",
-      "type": "string"
+      "type": "string",
+      "label": "Database",
+      "required": false,
+      "description": "Database name. For LUW / Cloud / Warehouse this is the DB name (e.g. 'BLUDB', 'testdb'). For iSeries this is the **Relational Database Directory entry** (often the *LOCAL system name). **Leave empty on iSeries** and the resource auto-discovers it via ``SELECT CURRENT_SERVER`` — no `WRKRDBDIRE` lookup required.",
+      "default": ""
     },
     "username": {
-      "description": "Login username (AS/400: user profile name, e.g. QSECOFR or a service profile).",
-      "title": "Username",
-      "type": "string"
+      "type": "string",
+      "label": "Username",
+      "required": true,
+      "description": "Login username (AS/400: user profile name, e.g. QSECOFR or a service profile)."
     },
     "password": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "string",
+      "label": "Password",
+      "required": false,
       "description": "Db2 password (literal). Set this OR password_env_var.",
-      "title": "Password"
+      "default": null
     },
     "password_env_var": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "string",
+      "label": "Password Env Var",
+      "required": false,
       "description": "Env var holding the password. Set this OR password.",
-      "title": "Password Env Var"
+      "default": null
     },
     "ssl": {
-      "default": false,
+      "type": "boolean",
+      "label": "SSL",
+      "required": false,
       "description": "Enable SSL connection. Required for Db2 on Cloud and almost always required for IBM i 7.x+.",
-      "title": "Ssl",
-      "type": "boolean"
+      "default": false
     },
     "security_mechanism": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "string",
+      "label": "Security Mechanism",
+      "required": false,
       "description": "Optional SecurityMechanism override (e.g. 'PLAIN'). Leave unset for default.",
-      "title": "Security Mechanism"
+      "default": null
     },
     "system_type": {
-      "default": "luw",
-      "description": "Db2 system variant: 'luw' (default \u2014 Db2 LUW / Community Edition / Warehouse), 'cloud' (Db2 on Cloud DBaaS), or 'iseries' (Db2 for i / AS/400 / IBM i). Drives port defaults + library-list connection params. All three use the same ibm_db_sa SQLAlchemy dialect; the catalog SQL differs (see database_schema_inventory's database_type='db2_iseries').",
-      "title": "System Type",
-      "type": "string"
+      "type": "string",
+      "label": "System Type",
+      "required": false,
+      "description": "Db2 system variant: 'luw' (default — Db2 LUW / Community Edition / Warehouse), 'cloud' (Db2 on Cloud DBaaS), or 'iseries' (Db2 for i / AS/400 / IBM i). Drives port defaults + library-list connection params. All three use the same ibm_db_sa SQLAlchemy dialect; the catalog SQL differs (see database_schema_inventory's database_type='db2_iseries').",
+      "default": "luw"
     },
     "library_list": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list",
+      "label": "Library List",
+      "required": false,
       "description": "AS/400 only: ordered library-list passed as CURRENT SCHEMA (first entry) + CURRENT PATH (rest). Equivalent to a CHGLIBL on the i. Ignored when system_type != 'iseries'.",
-      "title": "Library List"
+      "default": null
     },
     "ccsid": {
-      "default": 1208,
-      "description": "AS/400 only: CCSID for string-column encoding. Defaults to 1208 (UTF-8) \u2014 fixes EBCDIC mojibake without requiring CHGUSRPRF on the i. Override only if you have a specific reason to use a different CCSID. Ignored when system_type != 'iseries'.",
-      "title": "Ccsid",
-      "type": "integer"
+      "type": "integer",
+      "label": "CCSID",
+      "required": false,
+      "description": "AS/400 only: CCSID for string-column encoding. Defaults to 1208 (UTF-8) — fixes EBCDIC mojibake without requiring CHGUSRPRF on the i. Override only if you have a specific reason to use a different CCSID. Ignored when system_type != 'iseries'.",
+      "default": 1208
     }
-  },
-  "required": [
-    "host",
-    "username"
-  ],
-  "title": "Db2ResourceComponent",
-  "type": "object"
+  }
 }

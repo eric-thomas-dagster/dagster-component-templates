@@ -1,62 +1,55 @@
 {
-  "additionalProperties": false,
-  "description": "Register a Starburst resource \u2014 alias for ``trino_resource``.\n\nSame field surface as ``trino_resource``; differs only in:\n\n  * Default ``resource_key`` is ``starburst_resource``\n  * Default ``port`` is 443 (Starburst Galaxy default)\n  * Vendor grouping (Starburst vs Trino) in the registry UI\n\nExample (Starburst Galaxy):\n\n    ```yaml\n    type: dagster_community_components.StarburstResourceComponent\n    attributes:\n      resource_key: starburst_resource\n      host: my-cluster.galaxy.starburst.io\n      port: 443\n      user: my-user@example.com\n      catalog: tpch\n      schema_name: sf1\n      password_env_var: STARBURST_PASSWORD\n    ```",
-  "properties": {
-    "resource_key": {
-      "default": "starburst_resource",
-      "title": "Resource Key",
-      "type": "string"
-    },
+  "component_type": "dagster_component_templates.StarburstResourceComponent",
+  "description": "Register a Starburst resource — alias for ``trino_resource``.\n\nSame field surface as ``trino_resource``; differs only in:\n\n  * Default ``resource_key`` is ``starburst_resource``\n  * Default ``port`` is 443 (Starburst Galaxy default)\n  * Vendor grouping (Starburst vs Trino) in the registry UI\n\nExample (Starburst Galaxy):\n\n    ```yaml\n    type: dagster_community_components.StarburstResourceComponent\n    attributes:\n      resource_key: starburst_resource\n      host: my-cluster.galaxy.starburst.io\n      port: 443\n      user: my-user@example.com\n      catalog: tpch\n      schema_name: sf1\n      password_env_var: STARBURST_PASSWORD\n    ```",
+  "category": "resource",
+  "icon": "Plug",
+  "attributes": {
     "host": {
-      "default": "localhost",
+      "type": "string",
+      "label": "Host",
+      "required": false,
       "description": "Trino coordinator host",
-      "title": "Host",
-      "type": "string"
-    },
-    "port": {
-      "default": 443,
-      "title": "Port",
-      "type": "integer"
+      "default": "localhost"
     },
     "user": {
-      "default": "dagster",
+      "type": "string",
+      "label": "User",
+      "required": false,
       "description": "Trino user name",
-      "title": "User",
-      "type": "string"
+      "default": "dagster"
     },
     "catalog": {
-      "default": "iceberg",
+      "type": "string",
+      "label": "Catalog",
+      "required": false,
       "description": "Default catalog, e.g. 'iceberg', 'hive', 'delta'",
-      "title": "Catalog",
-      "type": "string"
+      "default": "iceberg"
     },
     "schema_name": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "string",
+      "label": "Schema Name",
+      "required": false,
       "description": "Default schema within the catalog",
-      "title": "Schema Name"
+      "default": null
     },
     "password_env_var": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "string",
+      "label": "Password Env Var",
+      "required": false,
       "description": "Environment variable holding the Trino password (for basic auth)",
-      "title": "Password Env Var"
+      "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "starburst_resource"
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "required": false,
+      "default": 443
     }
-  },
-  "title": "StarburstResourceComponent",
-  "type": "object"
+  }
 }

@@ -1,151 +1,119 @@
 {
-  "additionalProperties": false,
+  "component_type": "dagster_component_templates.DataframeToVictoriaMetricsComponent",
   "description": "Bulk-ingest a Pandas DataFrame as VictoriaMetrics time-series.\n\nExample:\n    ```yaml\n    type: dagster_community_components.DataframeToVictoriaMetricsComponent\n    attributes:\n      asset_name: vm_orders_throughput\n      upstream_asset_key: orders_throughput_per_region\n      metric_name: orders_throughput\n      base_url_env_var: VM_BASE_URL\n      timestamp_column: ts\n      value_column: throughput\n      # All other columns become labels:\n      # (region, source) on every emitted series\n    ```",
-  "properties": {
-    "asset_name": {
-      "description": "Output Dagster asset name.",
-      "title": "Asset Name",
-      "type": "string"
+  "category": "sink",
+  "icon": "si:victoriametrics",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "Upstream DataFrame"
     },
-    "upstream_asset_key": {
-      "description": "Upstream asset providing the DataFrame.",
-      "title": "Upstream Asset Key",
-      "type": "string"
-    },
-    "metric_name": {
-      "description": "Prometheus metric name (e.g. 'orders_throughput').",
-      "title": "Metric Name",
-      "type": "string"
-    },
-    "timestamp_column": {
-      "default": "timestamp",
-      "description": "Column with datetime timestamps.",
-      "title": "Timestamp Column",
-      "type": "string"
-    },
-    "value_column": {
-      "default": "value",
-      "description": "Column with numeric metric values.",
-      "title": "Value Column",
-      "type": "string"
-    },
-    "label_columns": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Explicit column list to use as labels. If unset, every column other than timestamp_column + value_column becomes a label.",
-      "title": "Label Columns"
-    },
-    "base_url_env_var": {
-      "default": "VM_BASE_URL",
-      "description": "Env var with VictoriaMetrics base URL.",
-      "title": "Base Url Env Var",
-      "type": "string"
-    },
-    "bearer_token_env_var": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Env var with bearer token.",
-      "title": "Bearer Token Env Var"
-    },
-    "request_timeout_seconds": {
-      "default": 60,
-      "minimum": 1,
-      "title": "Request Timeout Seconds",
-      "type": "integer"
-    },
-    "group_name": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": "victoriametrics",
-      "description": "Dagster asset group name.",
-      "title": "Group Name"
-    },
-    "description": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Description"
-    },
-    "owners": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Owners"
-    },
-    "tags": {
-      "anyOf": [
-        {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "type": "object"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Tags"
-    },
-    "kinds": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Kinds"
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Write confirmation with metadata"
     }
   },
-  "required": [
-    "asset_name",
-    "upstream_asset_key",
-    "metric_name"
-  ],
-  "title": "DataframeToVictoriaMetricsComponent",
-  "type": "object"
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Output Dagster asset name."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true,
+      "description": "Upstream asset providing the DataFrame."
+    },
+    "metric_name": {
+      "type": "string",
+      "label": "Metric Name",
+      "required": true,
+      "description": "Prometheus metric name (e.g. 'orders_throughput')."
+    },
+    "timestamp_column": {
+      "type": "string",
+      "label": "Timestamp Column",
+      "required": false,
+      "description": "Column with datetime timestamps.",
+      "default": "timestamp"
+    },
+    "value_column": {
+      "type": "string",
+      "label": "Value Column",
+      "required": false,
+      "description": "Column with numeric metric values.",
+      "default": "value"
+    },
+    "label_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list",
+      "label": "Label Columns",
+      "required": false,
+      "description": "Explicit column list to use as labels. If unset, every column other than timestamp_column + value_column becomes a label.",
+      "default": null
+    },
+    "base_url_env_var": {
+      "type": "string",
+      "label": "Base URL Env Var",
+      "required": false,
+      "description": "Env var with VictoriaMetrics base URL.",
+      "default": "VM_BASE_URL"
+    },
+    "bearer_token_env_var": {
+      "type": "string",
+      "label": "Bearer Token Env Var",
+      "required": false,
+      "description": "Env var with bearer token.",
+      "default": null
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "required": false,
+      "default": 60
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null,
+      "description": "Dagster asset group name"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "description": "Asset kinds shown in the Dagster catalog. Auto-inferred from component name if empty.",
+      "ui:widget": "list"
+    }
+  }
 }

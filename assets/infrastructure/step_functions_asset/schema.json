@@ -9,7 +9,80 @@
       "description": "Provisioning result"
     }
   },
-  "attributes": {},
+  "attributes": {
+    "region_name": {
+      "type": "string",
+      "label": "Region Name",
+      "required": true
+    },
+    "aws_profile": {
+      "type": "string",
+      "label": "AWS Profile",
+      "required": false,
+      "default": null
+    },
+    "role_arn": {
+      "type": "string",
+      "label": "Role ARN",
+      "required": false,
+      "default": null
+    },
+    "name_prefix": {
+      "type": "string",
+      "label": "Name Prefix",
+      "required": false,
+      "default": null
+    },
+    "exclude_names": {
+      "type": "string",
+      "label": "Exclude Names",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null,
+      "description": "Dagster asset group name"
+    },
+    "key_prefix": {
+      "type": "string",
+      "label": "Key Prefix",
+      "required": false,
+      "default": null
+    },
+    "wait_for_completion": {
+      "type": "boolean",
+      "label": "Wait For Completion",
+      "required": false,
+      "default": true
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "required": false,
+      "default": 10
+    },
+    "execution_timeout_seconds": {
+      "type": "integer",
+      "label": "Execution Timeout Seconds",
+      "required": false,
+      "default": 3600
+    },
+    "assets_by_state_machine_name": {
+      "type": "object",
+      "label": "Assets By State Machine Name",
+      "required": false,
+      "default": null
+    },
+    "defs_state": {
+      "type": "string",
+      "label": "Defs State",
+      "required": false,
+      "default": null
+    }
+  },
   "tags": [
     "infrastructure",
     "step",

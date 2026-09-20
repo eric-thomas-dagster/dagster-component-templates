@@ -6,5 +6,31 @@
   "x-dagster-io": {
     "supports_partitions": false
   },
-  "attributes": {}
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "description": "Dagster resource key",
+      "default": "plaid"
+    },
+    "environment": {
+      "type": "string",
+      "label": "Environment",
+      "required": false,
+      "default": "sandbox"
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client ID Env Var",
+      "required": true,
+      "description": "Env var with Plaid client_id"
+    },
+    "secret_env_var": {
+      "type": "string",
+      "label": "Secret Env Var",
+      "required": true,
+      "description": "Env var with Plaid secret"
+    }
+  }
 }

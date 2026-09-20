@@ -1,139 +1,86 @@
 {
-  "additionalProperties": false,
+  "component_type": "dagster_component_templates.ExternalStarRocksTableAsset",
   "description": "Declare a StarRocks table as an external Dagster asset.\n\nExample:\n    ```yaml\n    type: dagster_community_components.ExternalStarRocksTableAsset\n    attributes:\n      asset_key: starrocks/analytics/events_realtime\n      database: analytics\n      table: events_realtime\n      fe_host: starrocks-fe.mycompany.com\n      group_name: starrocks\n    ```",
-  "properties": {
+  "category": "external",
+  "icon": "favicon:starrocks.io",
+  "attributes": {
     "asset_key": {
-      "description": "Dagster asset key.",
-      "title": "Asset Key",
-      "type": "string"
+      "type": "string",
+      "label": "Asset Key",
+      "required": true,
+      "description": "Dagster asset key."
     },
     "database": {
-      "description": "StarRocks database (catalog) name.",
-      "title": "Database",
-      "type": "string"
+      "type": "string",
+      "label": "Database",
+      "required": true,
+      "description": "StarRocks database (catalog) name."
     },
     "table": {
-      "description": "StarRocks table name.",
-      "title": "Table",
-      "type": "string"
+      "type": "string",
+      "label": "Table",
+      "required": true,
+      "description": "StarRocks table name."
     },
     "fe_host": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "string",
+      "label": "Fe Host",
+      "required": false,
       "description": "StarRocks Frontend host (metadata only).",
-      "title": "Fe Host"
+      "default": null
     },
     "table_model": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "string",
+      "label": "Table Model",
+      "required": false,
       "description": "StarRocks table model: 'duplicate' / 'unique' / 'aggregate' / 'primary' / 'mv'.",
-      "title": "Table Model"
+      "default": null
     },
     "group_name": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": "starrocks",
-      "description": "Dagster asset group name.",
-      "title": "Group Name"
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null,
+      "description": "Dagster asset group name"
     },
     "description": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Description"
+      "type": "string",
+      "label": "Description",
+      "required": false
     },
     "owners": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Owners"
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "ui:widget": "list"
     },
     "tags": {
-      "anyOf": [
-        {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "type": "object"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Tags"
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "default": null
     },
     "kinds": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Kinds"
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "description": "Asset kinds shown in the Dagster catalog. Auto-inferred from component name if empty.",
+      "ui:widget": "list"
     },
     "deps": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Deps"
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false
     }
-  },
-  "required": [
-    "asset_key",
-    "database",
-    "table"
-  ],
-  "title": "ExternalStarRocksTableAsset",
-  "type": "object"
+  }
 }

@@ -1,78 +1,68 @@
 {
-  "additionalProperties": false,
+  "component_type": "dagster_component_templates.StarRocksResourceComponent",
   "description": "Register a StarRocks resource for use by other components.\n\nExample:\n\n    ```yaml\n    type: dagster_community_components.StarRocksResourceComponent\n    attributes:\n      resource_key: starrocks_resource\n      host: starrocks-fe.mycompany.com\n      query_port: 9030\n      http_port: 8030\n      database: analytics\n      username: dagster_runner\n      password_env_var: STARROCKS_PASSWORD\n    ```",
-  "properties": {
+  "category": "resource",
+  "icon": "favicon:starrocks.io",
+  "attributes": {
     "resource_key": {
-      "default": "starrocks_resource",
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
       "description": "Resource key.",
-      "title": "Resource Key",
-      "type": "string"
+      "default": "starrocks_resource"
     },
     "host": {
-      "description": "StarRocks Frontend (FE) hostname.",
-      "title": "Host",
-      "type": "string"
+      "type": "string",
+      "label": "Host",
+      "required": true,
+      "description": "StarRocks Frontend (FE) hostname."
     },
     "query_port": {
-      "default": 9030,
+      "type": "integer",
+      "label": "Query Port",
+      "required": false,
       "description": "MySQL-protocol query port.",
-      "title": "Query Port",
-      "type": "integer"
+      "default": 9030
     },
     "http_port": {
-      "default": 8030,
+      "type": "integer",
+      "label": "HTTP Port",
+      "required": false,
       "description": "HTTP frontend port.",
-      "title": "Http Port",
-      "type": "integer"
+      "default": 8030
     },
     "database": {
-      "description": "Database name.",
-      "title": "Database",
-      "type": "string"
+      "type": "string",
+      "label": "Database",
+      "required": true,
+      "description": "Database name."
     },
     "username": {
-      "description": "StarRocks username.",
-      "title": "Username",
-      "type": "string"
+      "type": "string",
+      "label": "Username",
+      "required": true,
+      "description": "StarRocks username."
     },
     "password": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "string",
+      "label": "Password",
+      "required": false,
       "description": "StarRocks password. Set this OR password_env_var.",
-      "title": "Password"
+      "default": null
     },
     "password_env_var": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "string",
+      "label": "Password Env Var",
+      "required": false,
       "description": "Env var with password.",
-      "title": "Password Env Var"
+      "default": null
     },
     "ssl": {
-      "default": false,
+      "type": "boolean",
+      "label": "SSL",
+      "required": false,
       "description": "Enable TLS.",
-      "title": "Ssl",
-      "type": "boolean"
+      "default": false
     }
-  },
-  "required": [
-    "host",
-    "database",
-    "username"
-  ],
-  "title": "StarRocksResourceComponent",
-  "type": "object"
+  }
 }

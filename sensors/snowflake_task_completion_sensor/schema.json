@@ -5,7 +5,7 @@
   "icon": "si:snowflake",
   "x-dagster-io": {
     "outputs": {
-      "type": "AssetMaterialization + RunRequest",
+      "type": "AssetMaterialization",
       "description": "Materialization events (always when asset_key set) + optional RunRequest (when job_name set)"
     }
   },

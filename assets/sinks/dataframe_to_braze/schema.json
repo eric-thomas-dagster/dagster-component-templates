@@ -4,7 +4,7 @@
   "category": "sink",
   "icon": "si:braze",
   "x-dagster-io": {
-    "inputs": {"type": "DataFrame | source", "description": "Rows to POST to Braze"},
+    "inputs": {"type": "dataframe", "description": "Rows to POST to Braze"},
     "outputs": {"type": "MaterializeResult", "description": "Export summary metadata"}
   },
   "attributes": {

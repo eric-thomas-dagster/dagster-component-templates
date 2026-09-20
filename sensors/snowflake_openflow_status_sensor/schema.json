@@ -4,7 +4,7 @@
   "category": "sensor",
   "icon": "si:snowflake",
   "x-dagster-io": {
-    "outputs": { "type": "AssetMaterialization + RunRequest", "description": "AssetMaterialization (asset_key set) and/or RunRequest (job_name set)" }
+    "outputs": { "type": "AssetMaterialization", "description": "AssetMaterialization (asset_key set) and/or RunRequest (job_name set)" }
   },
   "attributes": {
     "sensor_name": { "type": "string", "label": "Sensor Name", "required": true },

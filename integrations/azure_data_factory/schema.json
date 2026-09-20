@@ -6,7 +6,7 @@
   "icon": "si:microsoftazure",
   "x-dagster-io": {
     "inputs":  {"type": "none", "description": "Discovery hits ADF Management API; no upstream Dagster inputs."},
-    "outputs": {"type": "asset,sensor", "description": "One @multi_asset per ADF pipeline, external assets per trigger / linked_service / dataset / data_flow / integration_runtime, plus optional polling sensor for pipeline-run observation."}
+    "outputs": {"type": "integration", "description": "One @multi_asset per ADF pipeline, external assets per trigger / linked_service / dataset / data_flow / integration_runtime, plus optional polling sensor for pipeline-run observation."}
   },
   "attributes": {
     "workspace":                     {"type": "object",  "required": true, "label": "Workspace",

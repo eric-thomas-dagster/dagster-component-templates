@@ -5,7 +5,7 @@
   "icon": "GroupAdd",
   "x-dagster-io": {
     "inputs":  {"type": "text", "description": "Upstream asset's text is posted to Teams for approval."},
-    "outputs": {"type": "asset,sensor", "description": "One `{asset_name}_posted` asset (records the Teams message ID + sidecar state) + one `{asset_name}_watcher` sensor (polls votes + writes the approval token on quorum)."}
+    "outputs": {"type": "asset", "description": "One `{asset_name}_posted` asset (records the Teams message ID + sidecar state) + one `{asset_name}_watcher` sensor (polls votes + writes the approval token on quorum)."}
   },
   "attributes": {
     "asset_name":                  {"type": "string",  "required": true, "label": "Asset Name"},

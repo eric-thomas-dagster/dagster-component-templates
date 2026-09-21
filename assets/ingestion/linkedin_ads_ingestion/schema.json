@@ -195,7 +195,89 @@
     "destination_credentials_url": {
       "type": "string",
       "label": "Destination Credentials Url",
-      "required": false
+      "required": false,
+      "x-dagster-destination-fields": {
+        "trigger_field": "destination",
+        "options": {
+          "snowflake": {
+            "fields": [
+              {
+                "name": "account",
+                "label": "Account",
+                "required": true,
+                "description": "e.g. xy12345.us-east-1"
+              },
+              {
+                "name": "username",
+                "label": "Username",
+                "required": true
+              },
+              {
+                "name": "password",
+                "label": "Password",
+                "required": true,
+                "widget": "password"
+              },
+              {
+                "name": "database",
+                "label": "Database",
+                "required": true
+              },
+              {
+                "name": "warehouse",
+                "label": "Warehouse",
+                "required": false
+              },
+              {
+                "name": "role",
+                "label": "Role",
+                "required": false
+              }
+            ],
+            "template": {
+              "base": "snowflake://{username}:{password}@{account}/{database}",
+              "query_params": {
+                "warehouse": "warehouse",
+                "role": "role"
+              }
+            }
+          },
+          "postgres": {
+            "fields": [
+              {
+                "name": "host",
+                "label": "Host",
+                "required": true
+              },
+              {
+                "name": "port",
+                "label": "Port",
+                "required": false,
+                "default": "5432"
+              },
+              {
+                "name": "username",
+                "label": "Username",
+                "required": true
+              },
+              {
+                "name": "password",
+                "label": "Password",
+                "required": true,
+                "widget": "password"
+              },
+              {
+                "name": "database",
+                "label": "Database",
+                "required": true
+              }
+            ],
+            "template": {
+              "base": "postgresql://{username}:{password}@{host}:{port}/{database}"
+            }
+          }
+        }
+      }
     },
     "destination_credentials_env_var": {
       "type": "string",

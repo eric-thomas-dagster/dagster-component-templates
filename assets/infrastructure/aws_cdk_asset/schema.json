@@ -23,11 +23,15 @@
       "required": true
     },
     "stacks": {
-      "type": "string",
+      "type": "array",
       "label": "Stacks",
       "description": "Specific CDK stack names to deploy. When None all stacks are deployed (equivalent to ``cdk deploy \"*\"``).",
       "required": false,
-      "default": null
+      "default": null,
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list"
     },
     "context": {
       "type": "object",
@@ -177,19 +181,21 @@
       "ui:widget": "code"
     },
     "deps": {
-      "type": "string",
+      "type": "array",
       "label": "Deps",
       "description": "Dagster asset keys that this asset depends on. Useful when downstream data assets need to declare a dependency on this provisioning asset.",
       "required": false,
-      "default": null
-    },
-    "column_lineage": {
-      "type": "array",
+      "default": null,
       "items": {
         "type": "string"
       },
+      "ui:widget": "list"
+    },
+    "column_lineage": {
+      "type": "object",
       "label": "Column Lineage",
-      "required": false
+      "required": false,
+      "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "partition_type": {
       "type": "string",

@@ -82,7 +82,7 @@
     "scoring": {
       "type": "string",
       "label": "Scoring",
-      "description": "sklearn scoring string (None = ",
+      "description": "sklearn scoring string (None = 'accuracy' for classification, 'r2' for regression)",
       "required": false,
       "default": null
     },

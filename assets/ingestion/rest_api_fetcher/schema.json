@@ -28,7 +28,15 @@
       "description": "HTTP method",
       "required": false,
       "default": "GET",
-      "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
+      "enum": [
+        "GET",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE",
+        "HEAD",
+        "OPTIONS"
+      ],
       "ui:widget": "select"
     },
     "headers": {
@@ -58,7 +66,10 @@
       "description": "Authentication type — leave empty for no auth.",
       "required": false,
       "default": null,
-      "enum": ["basic", "bearer"],
+      "enum": [
+        "basic",
+        "bearer"
+      ],
       "ui:widget": "select"
     },
     "auth_username": {
@@ -97,7 +108,14 @@
       "description": "'dataframe' (parsed JSON in a pandas DataFrame, ready for downstream transforms), 'json' (raw dict/list), 'csv', 'parquet', or 'text'/'html' (raw response body in a 1-row DataFrame).",
       "required": false,
       "default": "dataframe",
-      "enum": ["dataframe", "json", "csv", "parquet", "text", "html"],
+      "enum": [
+        "dataframe",
+        "json",
+        "csv",
+        "parquet",
+        "text",
+        "html"
+      ],
       "ui:widget": "select"
     },
     "json_path": {
@@ -151,7 +169,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -188,11 +206,15 @@
       "x-dagster-widget": "cron"
     },
     "deps": {
-      "type": "string",
+      "type": "array",
       "label": "Deps",
-      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "description": "Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])",
       "required": false,
-      "default": null
+      "default": null,
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list"
     },
     "include_preview_metadata": {
       "type": "boolean",
@@ -205,7 +227,7 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },
@@ -266,12 +288,10 @@
       "ui:widget": "select"
     },
     "column_lineage": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
+      "type": "object",
       "label": "Column Lineage",
-      "required": false
+      "required": false,
+      "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "partition_date_column": {
       "type": "string",

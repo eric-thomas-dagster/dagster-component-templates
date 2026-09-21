@@ -39,7 +39,7 @@
     "filters": {
       "type": "object",
       "label": "Filters",
-      "description": "Run filters (e.g., {\\",
+      "description": "Run filters (e.g., {\"state\": \"finished\"})",
       "required": false,
       "default": null,
       "ui:widget": "key-value"

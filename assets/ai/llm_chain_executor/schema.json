@@ -56,10 +56,13 @@
       "required": true
     },
     "chain_steps": {
-      "type": "string",
+      "type": "array",
       "label": "Chain Steps",
       "description": "JSON array of chain steps, each with ",
-      "required": true
+      "required": true,
+      "items": {
+        "type": "object"
+      }
     },
     "temperature": {
       "type": "number",

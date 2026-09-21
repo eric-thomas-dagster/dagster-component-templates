@@ -24,7 +24,7 @@
     "database_path": {
       "type": "string",
       "label": "Database Path",
-      "description": "Path to the DuckDB database file (will be created if doesn",
+      "description": "Path to the DuckDB database file (will be created if doesn't exist)",
       "required": false,
       "default": "data.duckdb"
     },
@@ -52,7 +52,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -109,7 +109,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -176,12 +176,10 @@
       "ui:widget": "select"
     },
     "column_lineage": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
+      "type": "object",
       "label": "Column Lineage",
-      "required": false
+      "required": false,
+      "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "deps": {
       "type": "array",

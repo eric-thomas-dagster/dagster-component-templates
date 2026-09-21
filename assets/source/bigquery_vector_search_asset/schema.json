@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.BigqueryVectorSearchAssetComponent",
-  "description": "BigqueryVectorSearchAssetComponent \u2014 k-NN similarity search against a BQ vector column.",
+  "description": "BigqueryVectorSearchAssetComponent — k-NN similarity search against a BQ vector column.",
   "category": "source",
   "attributes": {
     "asset_name": {
@@ -102,10 +102,10 @@
       "default": false
     },
     "fraction_lists_to_search": {
-      "type": "string",
+      "type": "number",
       "label": "Fraction Lists To Search",
       "required": false,
-      "description": "IVF index tuning: 0\u20131, higher = more accurate / slower. Default uses BQ's choice."
+      "description": "IVF index tuning: 0–1, higher = more accurate / slower. Default uses BQ's choice."
     },
     "description": {
       "type": "string",

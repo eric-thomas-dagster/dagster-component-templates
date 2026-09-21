@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.FixMessageParserComponent",
-  "description": "FixMessageParserComponent \u2014 parse FIX (Financial Information eXchange) messages.",
+  "description": "FixMessageParserComponent — parse FIX (Financial Information eXchange) messages.",
   "category": "transformation",
   "attributes": {
     "asset_name": {
@@ -24,10 +24,14 @@
       "x-dagster-widget": "column"
     },
     "msg_type_filter": {
-      "type": "integer",
+      "type": "array",
       "label": "Msg Type Filter",
       "required": false,
-      "description": "Optional list of MsgType codes to emit. E.g. [D, 8] for orders + executions only. Default: all. Numeric codes like 8 may be passed as ints in YAML \u2014 they're coerced to str at runtime."
+      "description": "Optional list of MsgType codes to emit. E.g. [D, 8] for orders + executions only. Default: all. Numeric codes like 8 may be passed as ints in YAML — they're coerced to str at runtime.",
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list"
     },
     "description": {
       "type": "string",

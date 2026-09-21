@@ -52,14 +52,24 @@
       "required": true
     },
     "order": {
-      "type": "integer",
+      "type": "array",
       "label": "Order",
-      "required": true
+      "required": true,
+      "items": {
+        "type": "integer"
+      },
+      "ui:widget": "list",
+      "description": "SARIMAX order (p,d,q)."
     },
     "seasonal_order": {
-      "type": "integer",
+      "type": "array",
       "label": "Seasonal Order",
-      "required": false
+      "required": false,
+      "items": {
+        "type": "integer"
+      },
+      "ui:widget": "list",
+      "description": "Seasonal order (P,D,Q,m). None = non-seasonal."
     },
     "include_preview_metadata": {
       "type": "boolean",
@@ -124,12 +134,10 @@
       "x-dagster-widget": "cron"
     },
     "column_lineage": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
+      "type": "object",
       "label": "Column Lineage",
-      "required": false
+      "required": false,
+      "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "partition_type": {
       "type": "string",

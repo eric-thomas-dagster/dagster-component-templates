@@ -4,31 +4,103 @@
   "category": "transformation",
   "icon": "Workflow",
   "x-dagster-io": {
-    "inputs":  {"type": "dataframe", "description": "Upstream DataFrame(s) — one or more, depending on shape"},
-    "outputs": {"type": "dataframe", "description": "Polars or pandas DataFrame after the chain (last step / primary_step)"}
+    "inputs": {
+      "type": "dataframe",
+      "description": "Upstream DataFrame(s) — one or more, depending on shape"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Polars or pandas DataFrame after the chain (last step / primary_step)"
+    }
   },
   "attributes": {
-    "asset_name":          {"type": "string", "required": true, "label": "Asset Name"},
-
-    "upstream_asset_key":  {"type": "string", "label": "Upstream Asset Key", "description": "Flat shape (one source, one ops chain, one sink)"},
-    "operations":          {"type": "array",  "label": "Operations", "items": {"type": "object"},
-                             "description": "Flat shape: ordered list of polars ops applied to upstream_asset_key. Supported: filter, with_columns, select, drop, group_by, sort, head/limit, tail, head_per_group, unique, drop_nulls, fill_null, cast, join, sql."},
-
-    "steps":               {"type": "array", "items": {"type": "object"},
-                             "description": "Multi-step form. Each step: {id, source: {kind: upstream|ref, upstream_asset_key|ref}, operations: [...]}. Use 'op: sql' to drop into polars SQLContext (current chain = 'self'; prior steps usable by id)."},
-    "sinks":               {"type": "array", "items": {"type": "object"},
-                             "description": "Optional side-output writes. Each: {from: <step_id>, kind: parquet|csv|table, path: '...' (parquet/csv), resource_key/table/schema/if_exists/partition_column (table), mode: upsert_on_match + match: [col, col] (idempotent partition-rewrite: DELETE-then-INSERT keyed by match tuple in a transaction — safe to re-run the same partition). kind:table auto-detects DuckDB .register() fast path (10-100x faster than to_sql), else SQLAlchemy fallback. Asset's return value still comes from primary_step."},
-    "primary_step":        {"type": "string", "description": "Step id whose frame is the asset's return value (default: last step)"},
-
-    "output_type":         {"type": "string", "label": "Output Type", "enum": ["polars", "pandas"], "default": "polars"},
-    "streaming":           {"type": "boolean", "label": "Streaming", "default": false},
-    "group_name":          {"type": "string", "label": "Asset Group"},
-    "description":         {"type": "string"},
-    "asset_tags":          {"type": "object"},
-    "kinds":               {"type": "array", "items": {"type": "string"}},
-    "owners":              {"type": "array", "items": {"type": "string"}},
-    "deps":                {"type": "array", "items": {"type": "string"}},
-    "include_preview_metadata": {"type": "boolean", "default": false},
-    "preview_rows":        {"type": "integer", "default": 25, "minimum": 1, "maximum": 500}
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name"
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Flat shape (one source, one ops chain, one sink)"
+    },
+    "operations": {
+      "type": "array",
+      "label": "Operations",
+      "items": {
+        "type": "object"
+      },
+      "description": "Flat shape: ordered list of polars ops applied to upstream_asset_key. Supported: filter, with_columns, select, drop, group_by, sort, head/limit, tail, head_per_group, unique, drop_nulls, fill_null, cast, join, sql."
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Multi-step form. Each step: {id, source: {kind: upstream|ref, upstream_asset_key|ref}, operations: [...]}. Use 'op: sql' to drop into polars SQLContext (current chain = 'self'; prior steps usable by id)."
+    },
+    "sinks": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Optional side-output writes. Each: {from: <step_id>, kind: parquet|csv, path: '...'}. These run after the chain finishes; the asset's return value comes from primary_step."
+    },
+    "primary_step": {
+      "type": "string",
+      "description": "Step id whose frame is the asset's return value (default: last step)"
+    },
+    "output_type": {
+      "type": "string",
+      "label": "Output Type",
+      "enum": [
+        "polars",
+        "pandas"
+      ],
+      "default": "polars"
+    },
+    "streaming": {
+      "type": "boolean",
+      "label": "Streaming",
+      "default": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Asset Group"
+    },
+    "description": {
+      "type": "string"
+    },
+    "asset_tags": {
+      "type": "object"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "default": 25,
+      "minimum": 1,
+      "maximum": 500
+    }
   }
 }

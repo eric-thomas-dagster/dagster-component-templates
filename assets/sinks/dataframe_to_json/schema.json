@@ -116,11 +116,15 @@
       "x-dagster-widget": "column"
     },
     "partition_values": {
-      "type": "string",
+      "type": "array",
       "label": "Partition Values",
       "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
       "required": false,
-      "default": null
+      "default": null,
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list"
     },
     "partition_static_dim": {
       "type": "string",
@@ -198,12 +202,10 @@
       "required": false
     },
     "column_lineage": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
+      "type": "object",
       "label": "Column Lineage",
-      "required": false
+      "required": false,
+      "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "deps": {
       "type": "array",

@@ -36,11 +36,15 @@
       "default": null
     },
     "feature_views": {
-      "type": "string",
+      "type": "array",
       "label": "Feature Views",
       "description": "Specific feature view names to trigger materialization for. When None all feature views in the workspace are triggered.",
       "required": false,
-      "default": null
+      "default": null,
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list"
     },
     "online": {
       "type": "boolean",
@@ -176,11 +180,15 @@
       "default": "tecton_features"
     },
     "deps": {
-      "type": "string",
+      "type": "array",
       "label": "Deps",
       "description": "Upstream asset keys for lineage.",
       "required": false,
-      "default": null
+      "default": null,
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list"
     },
     "retry_policy_max_retries": {
       "type": "integer",

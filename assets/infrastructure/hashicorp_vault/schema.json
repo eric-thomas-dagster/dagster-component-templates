@@ -60,18 +60,25 @@
       "required": true
     },
     "secrets": {
-      "type": "string",
+      "type": "array",
       "label": "Secrets",
       "description": "List of secrets to fetch from Vault. Each entry must have: ``path`` (KV v2 path including 'data/' segment), ``key`` (key within the secret dict), and ``env_var`` (name of the environment variable to set).",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "list",
+      "items": {
+        "type": "string"
+      }
     },
     "commands": {
-      "type": "string",
+      "type": "array",
       "label": "Commands",
       "description": "Optional shell commands to run after secrets are fetched. Secrets are injected as environment variables into each subprocess.",
       "required": false,
-      "default": null
+      "default": null,
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list"
     },
     "export_to_env": {
       "type": "boolean",
@@ -139,19 +146,21 @@
       "ui:widget": "code"
     },
     "deps": {
-      "type": "string",
+      "type": "array",
       "label": "Deps",
       "description": "Upstream asset keys this asset depends on.",
       "required": false,
-      "default": null
-    },
-    "column_lineage": {
-      "type": "array",
+      "default": null,
       "items": {
         "type": "string"
       },
+      "ui:widget": "list"
+    },
+    "column_lineage": {
+      "type": "object",
       "label": "Column Lineage",
-      "required": false
+      "required": false,
+      "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "partition_type": {
       "type": "string",

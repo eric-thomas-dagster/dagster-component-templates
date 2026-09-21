@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.CloudTextToSpeechAssetComponent",
-  "description": "CloudTextToSpeechAssetComponent \u2014 Cloud Text-to-Speech (WaveNet / Neural2 / Chirp).",
+  "description": "CloudTextToSpeechAssetComponent — Cloud Text-to-Speech (WaveNet / Neural2 / Chirp).",
   "category": "ai",
   "attributes": {
     "asset_name": {
@@ -44,7 +44,7 @@
       "type": "string",
       "label": "Output Filename Template",
       "required": false,
-      "description": "Filename template (without dir). Supports row column substitutions like `{<column>}_{row_index}.mp3`. Default appends row_index \u2192 `0.mp3`, `1.mp3`.",
+      "description": "Filename template (without dir). Supports row column substitutions like `{<column>}_{row_index}.mp3`. Default appends row_index → `0.mp3`, `1.mp3`.",
       "default": "{row_index}.mp3"
     },
     "output_path_column": {
@@ -76,21 +76,21 @@
       "default": "MP3"
     },
     "speaking_rate": {
-      "type": "string",
+      "type": "number",
       "label": "Speaking Rate",
       "required": false,
-      "description": "Speed multiplier (0.25\u20134.0). 1.0 = normal.",
+      "description": "Speed multiplier (0.25–4.0). 1.0 = normal.",
       "default": 1.0
     },
     "pitch": {
-      "type": "string",
+      "type": "number",
       "label": "Pitch",
       "required": false,
       "description": "Pitch in semitones (-20.0 to 20.0). 0.0 = baseline.",
       "default": 0.0
     },
     "rate_limit_delay": {
-      "type": "string",
+      "type": "number",
       "label": "Rate Limit Delay",
       "required": false,
       "description": "Sleep between rows.",

@@ -81,7 +81,7 @@
     "sla_hours": {
       "type": "string",
       "label": "Sla Hours",
-      "description": "JSON dict mapping customer tier to SLA hours: {\\",
+      "description": "JSON dict mapping customer tier to SLA hours: {\"enterprise\": 4, \"pro\": 24, \"basic\": 72}",
       "required": false,
       "default": null
     },
@@ -135,14 +135,14 @@
     "tier_weights": {
       "type": "string",
       "label": "Tier Weights",
-      "description": "JSON dict of tier weight multipliers: {\\",
+      "description": "JSON dict of tier weight multipliers: {\"enterprise\": 1.5, \"pro\": 1.2, \"basic\": 1.0}",
       "required": false,
       "default": null
     },
     "urgency_weights": {
       "type": "string",
       "label": "Urgency Weights",
-      "description": "JSON dict of urgency weight multipliers: {\\",
+      "description": "JSON dict of urgency weight multipliers: {\"critical\": 2.0, \"high\": 1.5, \"medium\": 1.0, \"low\": 0.5}",
       "required": false,
       "default": null
     },
@@ -323,11 +323,15 @@
       "default": 25
     },
     "deps": {
-      "type": "string",
+      "type": "array",
       "label": "Deps",
-      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "description": "Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])",
       "required": false,
-      "default": null
+      "default": null,
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list"
     },
     "retry_policy_max_retries": {
       "type": "integer",

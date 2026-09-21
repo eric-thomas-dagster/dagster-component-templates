@@ -41,7 +41,7 @@
         "type": "string"
       },
       "label": "Candidate Labels",
-      "description": "Categories to classify into e.g. [",
+      "description": "Categories to classify into e.g. ['positive', 'negative', 'neutral']",
       "required": true,
       "ui:widget": "list"
     },

@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.VideoFrameExtractAssetComponent",
-  "description": "VideoFrameExtractAssetComponent \u2014 pull N frames per video as image files.",
+  "description": "VideoFrameExtractAssetComponent — pull N frames per video as image files.",
   "category": "transformation",
   "attributes": {
     "asset_name": {
@@ -53,7 +53,7 @@
       "type": "integer",
       "label": "Image Quality",
       "required": false,
-      "description": "JPEG quality 1\u2013100 (PNG ignores).",
+      "description": "JPEG quality 1–100 (PNG ignores).",
       "default": 85
     },
     "mode": {
@@ -70,7 +70,7 @@
       "ui:widget": "select"
     },
     "every_seconds": {
-      "type": "string",
+      "type": "number",
       "label": "Every Seconds",
       "required": false,
       "description": "`every_seconds`: 1 frame per N seconds.",

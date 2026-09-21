@@ -64,7 +64,7 @@
     "where": {
       "type": "object",
       "label": "Where",
-      "description": "Metadata filter (e.g., {\\",
+      "description": "Metadata filter (e.g., {\"source\": \"web\"})",
       "required": false,
       "default": null,
       "ui:widget": "key-value"
@@ -75,7 +75,7 @@
         "type": "string"
       },
       "label": "Include",
-      "description": "What to include in results: [",
+      "description": "What to include in results: ['documents', 'metadatas', 'distances', 'embeddings']",
       "required": false,
       "default": null,
       "ui:widget": "list"

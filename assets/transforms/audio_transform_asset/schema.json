@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.AudioTransformAssetComponent",
-  "description": "AudioTransformAssetComponent \u2014 ffmpeg-based audio resample / convert / trim.",
+  "description": "AudioTransformAssetComponent — ffmpeg-based audio resample / convert / trim.",
   "category": "transformation",
   "attributes": {
     "asset_name": {
@@ -69,13 +69,13 @@
       "description": "Output bitrate (e.g. `64k`, `128k`, `192k`). Lossy formats only."
     },
     "start_seconds": {
-      "type": "string",
+      "type": "number",
       "label": "Start Seconds",
       "required": false,
       "description": "Trim start offset in seconds."
     },
     "end_seconds": {
-      "type": "string",
+      "type": "number",
       "label": "End Seconds",
       "required": false,
       "description": "Trim end offset in seconds."

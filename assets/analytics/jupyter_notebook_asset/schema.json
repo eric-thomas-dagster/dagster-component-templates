@@ -199,11 +199,15 @@
       "ui:widget": "code"
     },
     "deps": {
-      "type": "string",
+      "type": "array",
       "label": "Deps",
       "description": "Upstream asset keys this asset depends on.",
       "required": false,
-      "default": null
+      "default": null,
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list"
     },
     "retry_policy_max_retries": {
       "type": "integer",

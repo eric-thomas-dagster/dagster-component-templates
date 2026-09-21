@@ -30,7 +30,7 @@
     "target_schema": {
       "type": "object",
       "label": "Target Schema",
-      "description": "Target schema definition: {column_name: description} e.g. {",
+      "description": "Target schema definition: {column_name: description} e.g. {'customer_id': 'unique customer identifier'}",
       "required": true,
       "ui:widget": "key-value"
     },

@@ -58,11 +58,15 @@
       "ui:widget": "checkbox"
     },
     "target_resources": {
-      "type": "string",
+      "type": "array",
       "label": "Target Resources",
       "description": "Limit the operation to specific resource URNs via --target.",
       "required": false,
-      "default": null
+      "default": null,
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list"
     },
     "config": {
       "type": "object",
@@ -153,19 +157,21 @@
       "ui:widget": "code"
     },
     "deps": {
-      "type": "string",
-      "label": "Deps",
-      "description": "Upstream Dagster asset keys this asset depends on (e.g. [",
-      "required": false,
-      "default": null
-    },
-    "column_lineage": {
       "type": "array",
+      "label": "Deps",
+      "description": "Upstream Dagster asset keys this asset depends on (e.g. ['raw_orders', 'schema/orders']).",
+      "required": false,
+      "default": null,
       "items": {
         "type": "string"
       },
+      "ui:widget": "list"
+    },
+    "column_lineage": {
+      "type": "object",
       "label": "Column Lineage",
-      "required": false
+      "required": false,
+      "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "partition_type": {
       "type": "string",

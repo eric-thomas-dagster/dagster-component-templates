@@ -45,18 +45,26 @@
       "default": null
     },
     "tags": {
-      "type": "string",
+      "type": "array",
       "label": "Tags",
       "description": "Limit execution to tasks with these Ansible tags (--tags).",
       "required": false,
-      "default": null
+      "default": null,
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list"
     },
     "skip_tags": {
-      "type": "string",
+      "type": "array",
       "label": "Skip Tags",
       "description": "Skip tasks with these Ansible tags (--skip-tags).",
       "required": false,
-      "default": null
+      "default": null,
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list"
     },
     "limit": {
       "type": "string",
@@ -206,19 +214,21 @@
       "ui:widget": "code"
     },
     "deps": {
-      "type": "string",
+      "type": "array",
       "label": "Deps",
       "description": "Upstream asset keys this asset depends on.",
       "required": false,
-      "default": null
-    },
-    "column_lineage": {
-      "type": "array",
+      "default": null,
       "items": {
         "type": "string"
       },
+      "ui:widget": "list"
+    },
+    "column_lineage": {
+      "type": "object",
       "label": "Column Lineage",
-      "required": false
+      "required": false,
+      "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "partition_type": {
       "type": "string",

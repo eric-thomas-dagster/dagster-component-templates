@@ -44,11 +44,15 @@
       "ui:widget": "checkbox"
     },
     "values_files": {
-      "type": "string",
+      "type": "array",
       "label": "Values Files",
       "description": "List of values.yaml files passed as -f to helm upgrade.",
       "required": false,
-      "default": null
+      "default": null,
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list"
     },
     "set_values": {
       "type": "object",
@@ -206,19 +210,21 @@
       "ui:widget": "code"
     },
     "deps": {
-      "type": "string",
-      "label": "Deps",
-      "description": "Upstream Dagster asset keys this asset depends on (e.g. [",
-      "required": false,
-      "default": null
-    },
-    "column_lineage": {
       "type": "array",
+      "label": "Deps",
+      "description": "Upstream Dagster asset keys this asset depends on (e.g. ['raw_orders', 'schema/orders']).",
+      "required": false,
+      "default": null,
       "items": {
         "type": "string"
       },
+      "ui:widget": "list"
+    },
+    "column_lineage": {
+      "type": "object",
       "label": "Column Lineage",
-      "required": false
+      "required": false,
+      "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "partition_type": {
       "type": "string",

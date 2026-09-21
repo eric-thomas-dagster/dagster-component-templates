@@ -52,9 +52,14 @@
       "required": true
     },
     "indices": {
-      "type": "integer",
+      "type": "array",
       "label": "Indices",
-      "required": false
+      "required": false,
+      "items": {
+        "type": "integer"
+      },
+      "ui:widget": "list",
+      "description": "Specific row indices for 'indices' mode."
     },
     "filter_expression": {
       "type": "string",
@@ -126,12 +131,10 @@
       "x-dagster-widget": "cron"
     },
     "column_lineage": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
+      "type": "object",
       "label": "Column Lineage",
-      "required": false
+      "required": false,
+      "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "partition_type": {
       "type": "string",

@@ -47,9 +47,14 @@
       "required": true
     },
     "bbox": {
-      "type": "number",
+      "type": "array",
       "label": "Bbox",
-      "required": false
+      "required": false,
+      "items": {
+        "type": "number"
+      },
+      "ui:widget": "list",
+      "description": "Optional explicit bbox [minx, miny, maxx, maxy] in src_crs. If None, derived from input."
     },
     "include_preview_metadata": {
       "type": "boolean",
@@ -114,12 +119,10 @@
       "x-dagster-widget": "cron"
     },
     "column_lineage": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
+      "type": "object",
       "label": "Column Lineage",
-      "required": false
+      "required": false,
+      "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "partition_type": {
       "type": "string",

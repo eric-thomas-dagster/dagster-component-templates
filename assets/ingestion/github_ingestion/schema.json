@@ -148,11 +148,15 @@
       "ui:widget": "checkbox"
     },
     "deps": {
-      "type": "string",
+      "type": "array",
       "label": "Deps",
-      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "description": "Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])",
       "required": false,
-      "default": null
+      "default": null,
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list"
     },
     "dataset_name": {
       "type": "string",
@@ -218,12 +222,10 @@
       "ui:widget": "select"
     },
     "column_lineage": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
+      "type": "object",
       "label": "Column Lineage",
-      "required": false
+      "required": false,
+      "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "partition_date_column": {
       "type": "string",

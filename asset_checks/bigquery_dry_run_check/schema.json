@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.BigqueryDryRunCheckComponent",
-  "description": "BigqueryDryRunCheckComponent \u2014 cost guardrail for a BigQuery query.",
+  "description": "BigqueryDryRunCheckComponent — cost guardrail for a BigQuery query.",
   "category": "check",
   "attributes": {
     "asset_key": {
@@ -46,19 +46,19 @@
       "type": "integer",
       "label": "Max Bytes",
       "required": false,
-      "description": "Max estimated bytes scanned. Check fails if exceeded. E.g. 100_000_000_000 = 100 GB. Pick this OR max_cost_usd (or both \u2014 strictest wins)."
+      "description": "Max estimated bytes scanned. Check fails if exceeded. E.g. 100_000_000_000 = 100 GB. Pick this OR max_cost_usd (or both — strictest wins)."
     },
     "max_cost_usd": {
-      "type": "string",
+      "type": "number",
       "label": "Max Cost Usd",
       "required": false,
-      "description": "Max estimated USD cost. NOTE: BigQuery's dry-run does NOT return a cost \u2014 only bytes. This is computed locally as bytes_scanned / 1e12 * on_demand_price_per_tb_usd. The rate is YOUR responsibility to keep current. For flat-rate / capacity reservations, this number is meaningless \u2014 use max_slot_ms instead."
+      "description": "Max estimated USD cost. NOTE: BigQuery's dry-run does NOT return a cost — only bytes. This is computed locally as bytes_scanned / 1e12 * on_demand_price_per_tb_usd. The rate is YOUR responsibility to keep current. For flat-rate / capacity reservations, this number is meaningless — use max_slot_ms instead."
     },
     "on_demand_price_per_tb_usd": {
-      "type": "string",
+      "type": "number",
       "label": "On Demand Price Per Tb Usd",
       "required": false,
-      "description": "On-demand $/TB rate used to compute `max_cost_usd`. Default $6.25/TB (US, on-demand, as of 2025). Verify against https://cloud.google.com/bigquery/pricing#analysis_pricing for your region + contract. If you're on capacity reservations, ignore this \u2014 use max_slot_ms.",
+      "description": "On-demand $/TB rate used to compute `max_cost_usd`. Default $6.25/TB (US, on-demand, as of 2025). Verify against https://cloud.google.com/bigquery/pricing#analysis_pricing for your region + contract. If you're on capacity reservations, ignore this — use max_slot_ms.",
       "default": 6.25
     },
     "max_slot_ms": {

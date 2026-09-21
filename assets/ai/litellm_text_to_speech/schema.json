@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.LitellmTextToSpeechComponent",
-  "description": "LitellmTextToSpeechComponent \u2014 multi-provider TTS via LiteLLM.",
+  "description": "LitellmTextToSpeechComponent — multi-provider TTS via LiteLLM.",
   "category": "ai",
   "attributes": {
     "asset_name": {
@@ -68,14 +68,14 @@
       "default": "mp3"
     },
     "speed": {
-      "type": "string",
+      "type": "number",
       "label": "Speed",
       "required": false,
-      "description": "OpenAI: 0.25\u20134.0 speed multiplier. Other providers may ignore.",
+      "description": "OpenAI: 0.25–4.0 speed multiplier. Other providers may ignore.",
       "default": 1.0
     },
     "rate_limit_delay": {
-      "type": "string",
+      "type": "number",
       "label": "Rate Limit Delay",
       "required": false,
       "default": 0.0

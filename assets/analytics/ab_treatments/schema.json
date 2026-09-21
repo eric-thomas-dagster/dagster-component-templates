@@ -45,9 +45,14 @@
       }
     },
     "weights": {
-      "type": "number",
+      "type": "array",
       "label": "Weights",
-      "required": false
+      "required": false,
+      "items": {
+        "type": "number"
+      },
+      "ui:widget": "list",
+      "description": "Per-variant weights (must sum to 1). Equal split if None."
     },
     "output_column": {
       "type": "string",
@@ -118,12 +123,10 @@
       "x-dagster-widget": "cron"
     },
     "column_lineage": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
+      "type": "object",
       "label": "Column Lineage",
-      "required": false
+      "required": false,
+      "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "partition_type": {
       "type": "string",

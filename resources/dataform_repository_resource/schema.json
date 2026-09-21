@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.DataformRepositoryResourceComponent",
-  "description": "DataformRepositoryResourceComponent \u2014 YAML wrapper around dagster_dataform.DataformRepositoryResource.",
+  "description": "DataformRepositoryResourceComponent — YAML wrapper around dagster_dataform.DataformRepositoryResource.",
   "category": "resource",
   "attributes": {
     "resource_key": {
@@ -43,7 +43,7 @@
       "type": "string",
       "label": "Environment",
       "required": false,
-      "description": "Dataform release environment (a Dataform concept \u2014 typically 'production', 'staging', etc.)."
+      "description": "Dataform release environment (a Dataform concept — typically 'production', 'staging', etc.)."
     },
     "sensor_minimum_interval_seconds": {
       "type": "integer",
@@ -52,7 +52,7 @@
       "default": 120
     },
     "asset_fresh_policy_lag_minutes": {
-      "type": "string",
+      "type": "number",
       "label": "Asset Fresh Policy Lag Minutes",
       "required": false,
       "default": 1440

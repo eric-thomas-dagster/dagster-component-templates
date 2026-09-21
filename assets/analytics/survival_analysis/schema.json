@@ -67,7 +67,7 @@
         "type": "string"
       },
       "label": "Covariate Columns",
-      "description": "Covariate columns for Cox model (required when method=",
+      "description": "Covariate columns for Cox model (required when method='cox')",
       "required": false,
       "default": null,
       "ui:widget": "list",

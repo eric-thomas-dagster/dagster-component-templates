@@ -72,7 +72,7 @@
     "output_column": {
       "type": "string",
       "label": "Output Column",
-      "description": "Output column name (defaults to ",
+      "description": "Output column name (defaults to '{column}_bin')",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"

@@ -71,7 +71,7 @@
     "output_column": {
       "type": "string",
       "label": "Output Column",
-      "description": "Name for rank column (defaults to ",
+      "description": "Name for rank column (defaults to '{column}_rank')",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"

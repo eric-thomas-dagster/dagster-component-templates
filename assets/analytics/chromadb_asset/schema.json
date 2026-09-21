@@ -70,12 +70,16 @@
       "x-dagster-widget": "column"
     },
     "metadata_columns": {
-      "type": "string",
+      "type": "array",
       "label": "Metadata Columns",
       "description": "Additional columns to store as ChromaDB document metadata. Useful for metadata-filtered similarity searches.",
       "required": false,
       "default": null,
-      "x-dagster-widget": "column"
+      "x-dagster-widget": "column",
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list"
     },
     "embedding_model": {
       "type": "string",

@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.ImageTransformAssetComponent",
-  "description": "ImageTransformAssetComponent \u2014 Pillow-based image resize / crop / format-convert.",
+  "description": "ImageTransformAssetComponent — Pillow-based image resize / crop / format-convert.",
   "category": "transformation",
   "attributes": {
     "asset_name": {
@@ -45,10 +45,14 @@
       "x-dagster-widget": "column"
     },
     "resize_to": {
-      "type": "integer",
+      "type": "array",
       "label": "Resize To",
       "required": false,
-      "description": "`[width, height]` max-dimensions. Aspect ratio preserved by default."
+      "description": "`[width, height]` max-dimensions. Aspect ratio preserved by default.",
+      "items": {
+        "type": "integer"
+      },
+      "ui:widget": "list"
     },
     "preserve_aspect_ratio": {
       "type": "boolean",
@@ -57,10 +61,14 @@
       "default": true
     },
     "crop_to": {
-      "type": "integer",
+      "type": "array",
       "label": "Crop To",
       "required": false,
-      "description": "`[width, height]` center-crop dimensions. Applied AFTER resize if both set."
+      "description": "`[width, height]` center-crop dimensions. Applied AFTER resize if both set.",
+      "items": {
+        "type": "integer"
+      },
+      "ui:widget": "list"
     },
     "convert_to": {
       "type": "string",

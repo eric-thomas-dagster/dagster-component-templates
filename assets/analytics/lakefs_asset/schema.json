@@ -210,11 +210,15 @@
       "required": true
     },
     "deps": {
-      "type": "string",
+      "type": "array",
       "label": "Deps",
       "description": "Upstream asset keys for lineage.",
       "required": false,
-      "default": null
+      "default": null,
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list"
     },
     "endpoint": {
       "type": "string",

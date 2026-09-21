@@ -89,7 +89,7 @@
     "custom_entities": {
       "type": "string",
       "label": "Custom Entities",
-      "description": "JSON string of custom entity patterns: {\\",
+      "description": "JSON string of custom entity patterns: {\"type\": [\"pattern1\", \"pattern2\"]}",
       "required": false,
       "default": null
     },

@@ -86,7 +86,7 @@
     "filter": {
       "type": "object",
       "label": "Filter",
-      "description": "Metadata filter for query (e.g., {\\",
+      "description": "Metadata filter for query (e.g., {\"category\": \"electronics\"})",
       "required": false,
       "default": null,
       "ui:widget": "key-value"

@@ -450,17 +450,15 @@ group_name=group_name,
                     "dagster/row_count": MetadataValue.int(len(df)),
                     "dagster/column_schema": MetadataValue.table_schema(_col_schema),
                 }
-                # Use explicit lineage, or auto-infer passthrough columns at runtime
+                # Use explicit lineage, or auto-infer passthrough columns at
+                # runtime. This is a source -- there's no upstream DataFrame
+                # to compare against, and _col_schema was built directly
+                # from df.columns above, so every schema column is trivially
+                # a self-map (the old code's "if col in set(df.columns)"
+                # filter here was always true).
                 _effective_lineage = column_lineage
                 if not _effective_lineage:
-                    try:
-                        _upstream_cols = set(df.columns)
-                        _effective_lineage = {
-                            col: [col] for col in _col_schema.columns_by_name
-                            if col in _upstream_cols
-                        }
-                    except Exception:
-                        pass
+                    _effective_lineage = {col.name: [col.name] for col in _col_schema.columns}
                 if _effective_lineage:
                     _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
                     if _upstream_key:

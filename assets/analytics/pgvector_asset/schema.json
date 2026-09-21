@@ -86,12 +86,6 @@
       "description": "Env var containing the API key for the chosen embedding provider (OPENAI_API_KEY / VOYAGE_API_KEY / COHERE_API_KEY / etc.). Not required for local Ollama or when using precomputed_embedding_column. Alias openai_api_key_env_var also accepted.",
       "required": false
     },
-    "openai_api_key_env_var": {
-      "type": "string",
-      "label": "OpenAI API Key Env Var (deprecated alias)",
-      "description": "Deprecated alias for api_key_env_var — kept for backwards compatibility with pre-1.2.0 configs.",
-      "required": false
-    },
     "api_base_env_var": {
       "type": "string",
       "label": "API Base URL Env Var",

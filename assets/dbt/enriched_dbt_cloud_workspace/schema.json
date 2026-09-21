@@ -10,16 +10,6 @@
     }
   },
   "attributes": {
-    "workspace": {
-      "type": "object",
-      "label": "Workspace",
-      "description": "DbtCloudWorkspace resource (account_id, project_id, environment_id, token).",
-      "required": true
-    },
-    "select": {"type": "string", "label": "Select", "required": false},
-    "exclude": {"type": "string", "label": "Exclude", "required": false},
-    "translation": {"type": "object", "label": "Translation", "required": false},
-
     "monitor_runs": {
       "type": "boolean",
       "label": "Monitor Runs",
@@ -43,7 +33,12 @@
     },
     "mirror_jobs": {
       "type": "string",
-      "enum": ["off", "asset", "job", "both"],
+      "enum": [
+        "off",
+        "asset",
+        "job",
+        "both"
+      ],
       "label": "Mirror Jobs Mode",
       "description": "How to surface each dbt Cloud job in Dagster. `off` (default) = don't mirror. `asset` = emit an observable AssetSpec per Cloud job (kind: dbt_cloud_job) so AutomationConditions can react when the job runs. `job` = emit a Dagster @job that triggers + waits for the Cloud run. `both` = emit both.",
       "required": false,
@@ -67,27 +62,65 @@
       "description": "Jobs matching this selection are dropped AFTER include. Same selector syntax.",
       "required": false
     },
-
     "dbt_docs_url": {
       "type": "string",
       "label": "dbt Docs URL",
       "description": "Base URL of your hosted dbt docs site (or dbt Cloud Explorer URL). Each asset gets a clickable {url}/#!/{resource_type}/{unique_id} link.",
       "required": false
     },
-    "include_exposures": {"type": "boolean", "required": false, "default": false, "label": "Include Exposures (metadata)"},
-    "include_metrics": {"type": "boolean", "required": false, "default": false, "label": "Include Metrics"},
-    "include_semantic_models": {"type": "boolean", "required": false, "default": false, "label": "Include Semantic Models"},
-    "include_contracts": {"type": "boolean", "required": false, "default": false, "label": "Include Contracts (metadata)"},
-    "include_meta": {"type": "boolean", "required": false, "default": false, "label": "Include Full Meta"},
-    "include_source_freshness": {"type": "boolean", "required": false, "default": false, "label": "Include Source Freshness (metadata)"},
-    "include_doc_blocks": {"type": "boolean", "required": false, "default": false, "label": "Include Doc Blocks"},
+    "include_exposures": {
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "label": "Include Exposures (metadata)"
+    },
+    "include_metrics": {
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "label": "Include Metrics"
+    },
+    "include_semantic_models": {
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "label": "Include Semantic Models"
+    },
+    "include_contracts": {
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "label": "Include Contracts (metadata)"
+    },
+    "include_meta": {
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "label": "Include Full Meta"
+    },
+    "include_source_freshness": {
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "label": "Include Source Freshness (metadata)"
+    },
+    "include_doc_blocks": {
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "label": "Include Doc Blocks"
+    },
     "manifest_path": {
       "type": "string",
       "label": "Manifest Path Override",
       "description": "Override the manifest.json path. By default, the component fetches the manifest via workspace.get_manifest() or similar workspace attributes.",
       "required": false
     },
-    "asset_overrides": {"type": "object", "label": "Asset Overrides", "required": false},
+    "asset_overrides": {
+      "type": "object",
+      "label": "Asset Overrides",
+      "required": false
+    },
     "emit_exposures_as_assets": {
       "type": "boolean",
       "label": "Emit Exposures as AssetSpecs",
@@ -111,7 +144,9 @@
     },
     "external_packages": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "External Packages (dbt mesh)",
       "description": "dbt package names to emit as observable stub AssetSpecs. Pair with exclude: 'package:X'.",
       "required": false

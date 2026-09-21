@@ -29,13 +29,6 @@
       "required": false,
       "default": "DATABASE_URL"
     },
-    "schema": {
-      "type": "string",
-      "label": "Schema",
-      "description": "Database schema",
-      "required": false,
-      "default": null
-    },
     "columns": {
       "type": "array",
       "items": {

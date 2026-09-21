@@ -57,13 +57,6 @@
         }
       }
     },
-    "role": {
-      "type": "string",
-      "label": "Role",
-      "description": "Role",
-      "required": false,
-      "default": null
-    },
     "import_tasks": {
       "type": "boolean",
       "label": "Import Tasks",
@@ -171,14 +164,6 @@
       "description": "How often (in seconds) the sensor should check for completed runs",
       "required": false,
       "default": 60
-    },
-    "generate_sensor": {
-      "type": "boolean",
-      "label": "Generate Sensor",
-      "description": "Create a sensor to observe task runs and dynamic table refreshes",
-      "required": false,
-      "default": true,
-      "ui:widget": "checkbox"
     },
     "group_name": {
       "type": "string",

@@ -56,12 +56,6 @@
       ],
       "ui:widget": "select"
     },
-    "model": {
-      "type": "string",
-      "label": "Model",
-      "description": "Model name (e.g., ",
-      "required": true
-    },
     "system_prompt": {
       "type": "string",
       "label": "System Prompt",

@@ -29,13 +29,6 @@
       "label": "System Prompt",
       "required": false
     },
-    "model": {
-      "type": "string",
-      "label": "Model",
-      "description": "Cortex model id (claude-3-5-sonnet, llama3.1-70b, mistral-large2, etc.).",
-      "default": "claude-3-5-sonnet",
-      "required": false
-    },
     "account_url_env_var": {
       "type": "string",
       "label": "Account URL Env Var",

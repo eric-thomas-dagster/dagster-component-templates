@@ -15,29 +15,12 @@
       "required": false,
       "default": "jira_resource"
     },
-    "server_url": {
-      "type": "string",
-      "label": "Server URL",
-      "description": "Jira server URL e.g. https://mycompany.atlassian.net",
-      "required": true
-    },
-    "username": {
-      "type": "string",
-      "label": "Username",
-      "description": "Jira username (email)",
-      "required": true
-    },
     "api_token_env_var": {
       "type": "string",
       "label": "API Token Env Var",
       "description": "Env var holding Jira API token",
       "required": true,
       "ui:widget": "env_var"
-    },
-    "api_token": {
-      "type": "string",
-      "label": "Api Token",
-      "required": true
     }
   },
   "tags": [

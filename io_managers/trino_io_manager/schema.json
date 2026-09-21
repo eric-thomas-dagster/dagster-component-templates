@@ -43,13 +43,6 @@
       "required": false,
       "default": "iceberg"
     },
-    "schema_name": {
-      "type": "string",
-      "label": "Schema Name",
-      "description": "Default schema for asset tables",
-      "required": false,
-      "default": "default"
-    },
     "password_env_var": {
       "type": "string",
       "label": "Password Env Var",

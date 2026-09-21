@@ -4,20 +4,61 @@
   "category": "ai",
   "icon": "Bot",
   "x-dagster-io": {
-    "inputs": {"type": "none"},
-    "outputs": {"type": "dict", "description": "Agent run dict: {final_answer, iterations, tool_calls_made, tool_call_details, transcript, stopped_reason, model, mcp_servers}"},
+    "inputs": {
+      "type": "none"
+    },
+    "outputs": {
+      "type": "dict",
+      "description": "Agent run dict: {final_answer, iterations, tool_calls_made, tool_call_details, transcript, stopped_reason, model, mcp_servers}"
+    },
     "supports_partitions": false
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "prompt": {"type": "string", "label": "User Prompt", "description": "User prompt sent on the first turn.", "required": true},
-    "system_prompt": {"type": "string", "label": "System Prompt", "required": false},
-    "model": {"type": "string", "label": "Model", "description": "LiteLLM model string (e.g. gpt-4o, claude-haiku-4-5-20251001, gemini/gemini-2.5-flash).", "required": false, "default": "gpt-4o-mini"},
-    "api_key_env_var": {"type": "string", "label": "API Key Env Var", "required": false},
-    "api_base_env_var": {"type": "string", "label": "API Base Env Var", "required": false},
-    "temperature": {"type": "number", "label": "Temperature", "required": false, "default": 0.0},
-    "max_tokens": {"type": "integer", "label": "Max Tokens", "required": false, "default": 2048},
-    "max_iterations": {"type": "integer", "label": "Max Iterations", "description": "Max tool-call rounds before bailing.", "required": false, "default": 10},
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "prompt": {
+      "type": "string",
+      "label": "User Prompt",
+      "description": "User prompt sent on the first turn.",
+      "required": true
+    },
+    "system_prompt": {
+      "type": "string",
+      "label": "System Prompt",
+      "required": false
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "required": false
+    },
+    "api_base_env_var": {
+      "type": "string",
+      "label": "API Base Env Var",
+      "required": false
+    },
+    "temperature": {
+      "type": "number",
+      "label": "Temperature",
+      "required": false,
+      "default": 0.0
+    },
+    "max_tokens": {
+      "type": "integer",
+      "label": "Max Tokens",
+      "required": false,
+      "default": 2048
+    },
+    "max_iterations": {
+      "type": "integer",
+      "label": "Max Iterations",
+      "description": "Max tool-call rounds before bailing.",
+      "required": false,
+      "default": 10
+    },
     "mcp_servers": {
       "type": "array",
       "label": "MCP Servers",
@@ -26,20 +67,69 @@
       "items": {
         "type": "object",
         "properties": {
-          "name": {"type": "string", "description": "Tool-name prefix."},
-          "type": {"type": "string", "enum": ["stdio", "http", "sse"], "default": "stdio"},
-          "command": {"type": "array", "items": {"type": "string"}, "description": "stdio: [executable, ...args]"},
-          "url": {"type": "string", "description": "http / sse: full URL of the MCP endpoint"},
-          "env": {"type": "object", "description": "stdio: extra env vars for the subprocess"},
-          "headers": {"type": "object", "description": "http / sse: literal HTTP headers (avoid secrets — use headers_env)"},
-          "headers_env": {"type": "object", "description": "http / sse: map of header_name → env_var_name; header value is read from the env var at materialization time"}
+          "name": {
+            "type": "string",
+            "description": "Tool-name prefix."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "stdio",
+              "http",
+              "sse"
+            ],
+            "default": "stdio"
+          },
+          "command": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "stdio: [executable, ...args]"
+          },
+          "url": {
+            "type": "string",
+            "description": "http / sse: full URL of the MCP endpoint"
+          },
+          "env": {
+            "type": "object",
+            "description": "stdio: extra env vars for the subprocess"
+          },
+          "headers": {
+            "type": "object",
+            "description": "http / sse: literal HTTP headers (avoid secrets — use headers_env)"
+          },
+          "headers_env": {
+            "type": "object",
+            "description": "http / sse: map of header_name → env_var_name; header value is read from the env var at materialization time"
+          }
         }
       }
     },
-    "group_name": {"type": "string", "label": "Group", "required": false},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "label": "Owners", "required": false},
-    "asset_tags": {"type": "object", "label": "Tags", "required": false},
-    "deps": {"type": "array", "label": "Lineage-Only Deps", "required": false}
+    "group_name": {
+      "type": "string",
+      "label": "Group",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "label": "Lineage-Only Deps",
+      "required": false
+    }
   }
 }

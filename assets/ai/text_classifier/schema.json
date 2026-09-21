@@ -57,12 +57,6 @@
       "description": "LLM provider",
       "required": true
     },
-    "model": {
-      "type": "string",
-      "label": "Model",
-      "description": "Model name",
-      "required": true
-    },
     "categories": {
       "type": "array",
       "items": {

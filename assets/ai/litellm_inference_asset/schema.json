@@ -15,12 +15,6 @@
     }
   },
   "attributes": {
-    "model": {
-      "type": "string",
-      "label": "Model",
-      "description": "Model",
-      "required": true
-    },
     "api_key_env_var": {
       "type": "string",
       "label": "Api Key Env Var",
@@ -48,20 +42,6 @@
       "description": "Max tokens per completion",
       "required": false,
       "default": 1024
-    },
-    "timeout_seconds": {
-      "type": "integer",
-      "label": "Timeout Seconds",
-      "description": "Request timeout in seconds",
-      "required": false,
-      "default": 60
-    },
-    "max_retries": {
-      "type": "integer",
-      "label": "Max Retries",
-      "description": "Max retries on failure",
-      "required": false,
-      "default": 3
     },
     "asset_name": {
       "type": "string",

@@ -4,41 +4,6 @@
   "category": "resource",
   "icon": "Plug",
   "attributes": {
-    "host": {
-      "type": "string",
-      "label": "Host",
-      "required": false,
-      "description": "Trino coordinator host",
-      "default": "localhost"
-    },
-    "user": {
-      "type": "string",
-      "label": "User",
-      "required": false,
-      "description": "Trino user name",
-      "default": "dagster"
-    },
-    "catalog": {
-      "type": "string",
-      "label": "Catalog",
-      "required": false,
-      "description": "Default catalog, e.g. 'iceberg', 'hive', 'delta'",
-      "default": "iceberg"
-    },
-    "schema_name": {
-      "type": "string",
-      "label": "Schema Name",
-      "required": false,
-      "description": "Default schema within the catalog",
-      "default": null
-    },
-    "password_env_var": {
-      "type": "string",
-      "label": "Password Env Var",
-      "required": false,
-      "description": "Environment variable holding the Trino password (for basic auth)",
-      "default": null
-    },
     "resource_key": {
       "type": "string",
       "label": "Resource Key",

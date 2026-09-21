@@ -33,13 +33,6 @@
       "description": "Reranking method: cohere, cross_encoder, bm25",
       "required": true
     },
-    "model": {
-      "type": "string",
-      "label": "Model",
-      "description": "Model name (e.g., ",
-      "required": false,
-      "default": null
-    },
     "api_key": {
       "type": "string",
       "label": "Api Key",

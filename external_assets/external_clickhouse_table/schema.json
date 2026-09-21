@@ -10,41 +10,12 @@
     }
   },
   "attributes": {
-    "host": {
-      "type": "string",
-      "label": "Host",
-      "description": "ClickHouse host",
-      "required": true
-    },
     "port": {
       "type": "integer",
       "label": "Port",
       "description": "ClickHouse port",
       "required": false,
       "default": 8443
-    },
-    "username": {
-      "type": "string",
-      "label": "Username",
-      "description": "ClickHouse username",
-      "required": false,
-      "default": "default"
-    },
-    "password": {
-      "type": "string",
-      "label": "Password",
-      "description": "ClickHouse password",
-      "required": false,
-      "default": "",
-      "ui:widget": "password"
-    },
-    "secure": {
-      "type": "boolean",
-      "label": "Secure",
-      "description": "Secure",
-      "required": false,
-      "default": true,
-      "ui:widget": "checkbox"
     },
     "asset_key": {
       "type": "string",

@@ -27,13 +27,6 @@
       "description": "Anthropic API key. Use ${ANTHROPIC_API_KEY} for environment variables.",
       "required": true
     },
-    "model": {
-      "type": "string",
-      "label": "Model",
-      "description": "Claude model: claude-3-5-sonnet-20241022, claude-3-opus-20240229, claude-3-sonnet-20240229, claude-3-haiku-20240307",
-      "required": false,
-      "default": "claude-3-5-sonnet-20241022"
-    },
     "system_prompt": {
       "type": "string",
       "label": "System Prompt",

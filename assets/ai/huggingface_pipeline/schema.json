@@ -22,15 +22,11 @@
       "description": "HuggingFace pipeline task — text-classification, object-detection, image-classification, zero-shot-classification, summarization, translation, automatic-speech-recognition, etc.",
       "required": true
     },
-    "model": {
-      "type": "string",
-      "label": "Model",
-      "description": "HuggingFace Hub model id (e.g. 'facebook/detr-resnet-50').",
-      "required": true
-    },
     "inputs": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Inputs",
       "description": "List of inputs (strings for NLP, URLs/paths for image/audio).",
       "required": true,
@@ -42,7 +38,10 @@
       "description": "'local' (transformers.pipeline) or 'inference_api' (huggingface_hub.InferenceClient)",
       "required": false,
       "default": "local",
-      "enum": ["local", "inference_api"]
+      "enum": [
+        "local",
+        "inference_api"
+      ]
     },
     "hf_token_env_var": {
       "type": "string",
@@ -80,7 +79,9 @@
     },
     "owners": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Owners",
       "required": false,
       "ui:widget": "list"
@@ -93,14 +94,18 @@
     },
     "kinds": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Kinds",
       "required": false,
       "ui:widget": "list"
     },
     "deps": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Deps",
       "required": false,
       "ui:widget": "list"

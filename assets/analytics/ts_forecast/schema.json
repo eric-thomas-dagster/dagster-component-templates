@@ -48,13 +48,6 @@
       "required": false,
       "default": 12
     },
-    "model": {
-      "type": "string",
-      "label": "Model",
-      "description": "Model to use: ",
-      "required": false,
-      "default": "auto"
-    },
     "arima_order": {
       "type": "array",
       "items": {

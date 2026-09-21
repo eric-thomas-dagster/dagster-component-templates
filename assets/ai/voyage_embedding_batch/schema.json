@@ -42,29 +42,16 @@
       "default": "embedding",
       "x-dagster-widget": "column"
     },
-    "model": {
-      "type": "string",
-      "label": "Model",
-      "description": "Voyage model id — 'voyage-3-large' (top MTEB retrieval), 'voyage-3', 'voyage-3-lite', 'voyage-code-3', 'voyage-finance-2', 'voyage-law-2', 'voyage-multilingual-2'.",
-      "required": false,
-      "default": "voyage-3-large",
-      "enum": [
-        "voyage-3-large",
-        "voyage-3",
-        "voyage-3-lite",
-        "voyage-code-3",
-        "voyage-finance-2",
-        "voyage-law-2",
-        "voyage-multilingual-2"
-      ]
-    },
     "input_type": {
       "type": "string",
       "label": "Input Type",
       "description": "Voyage asymmetric-embedding mode. 'document' for corpus indexing, 'query' for search-time query embedding, empty for symmetric.",
       "required": false,
       "default": null,
-      "enum": ["document", "query"]
+      "enum": [
+        "document",
+        "query"
+      ]
     },
     "output_dimension": {
       "type": "integer",
@@ -105,7 +92,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -162,7 +149,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -201,7 +188,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },

@@ -40,13 +40,6 @@
       "required": false,
       "default": null
     },
-    "schema": {
-      "type": "string",
-      "label": "Schema",
-      "description": "Snowflake schema",
-      "required": false,
-      "default": null
-    },
     "warehouse": {
       "type": "string",
       "label": "Warehouse",

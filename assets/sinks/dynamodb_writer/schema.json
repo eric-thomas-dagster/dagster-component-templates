@@ -27,12 +27,6 @@
       "description": "Asset key of the upstream DataFrame asset",
       "required": true
     },
-    "table_name": {
-      "type": "string",
-      "label": "Table Name",
-      "description": "DynamoDB table name",
-      "required": true
-    },
     "aws_region": {
       "type": "string",
       "label": "Aws Region",

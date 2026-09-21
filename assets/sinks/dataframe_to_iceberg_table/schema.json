@@ -56,11 +56,6 @@
       "label": "Namespace",
       "required": true
     },
-    "table_name": {
-      "type": "string",
-      "label": "Table Name",
-      "required": true
-    },
     "mode": {
       "type": "string",
       "label": "Mode",

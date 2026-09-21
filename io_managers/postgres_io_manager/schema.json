@@ -48,13 +48,6 @@
       "required": true,
       "ui:widget": "env_var"
     },
-    "schema_name": {
-      "type": "string",
-      "label": "Schema Name",
-      "description": "Schema for asset tables",
-      "required": false,
-      "default": "public"
-    },
     "if_exists": {
       "type": "string",
       "label": "If Exists",

@@ -55,13 +55,6 @@
       "required": false,
       "default": 12
     },
-    "model": {
-      "type": "string",
-      "label": "Model",
-      "description": "Model: ",
-      "required": false,
-      "default": "ets"
-    },
     "arima_order": {
       "type": "array",
       "items": {

@@ -10,37 +10,6 @@
     }
   },
   "attributes": {
-    "project": {
-      "type": "string",
-      "label": "Project",
-      "description": "Path to the dbt project directory (containing dbt_project.yml).",
-      "required": true
-    },
-    "cli_args": {
-      "type": "array",
-      "items": {"type": "string"},
-      "label": "CLI Args",
-      "description": "dbt CLI args (e.g. ['build']). Defaults to ['build'].",
-      "required": false
-    },
-    "select": {
-      "type": "string",
-      "label": "Select",
-      "description": "dbt selection string, e.g. 'tag:daily'.",
-      "required": false
-    },
-    "exclude": {
-      "type": "string",
-      "label": "Exclude",
-      "description": "dbt exclusion string, e.g. 'package:upstream_shared'.",
-      "required": false
-    },
-    "translation": {
-      "type": "object",
-      "label": "Translation",
-      "description": "Optional per-node translation config (owners, groups, tags, kinds, etc).",
-      "required": false
-    },
     "dbt_docs_url": {
       "type": "string",
       "label": "dbt Docs URL",
@@ -131,7 +100,9 @@
     },
     "external_packages": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "External Packages (dbt mesh)",
       "description": "dbt package names to emit as observable stub AssetSpecs. Pair with exclude: 'package:X' so this project's dbt run skips them. Downstream lineage still renders even though the upstream is owned by another Dagster code location.",
       "required": false

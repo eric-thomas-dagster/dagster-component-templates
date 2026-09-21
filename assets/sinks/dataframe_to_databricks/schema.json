@@ -34,12 +34,6 @@
       "required": false,
       "default": "main"
     },
-    "schema": {
-      "type": "string",
-      "label": "Schema",
-      "description": "Target schema/database name",
-      "required": true
-    },
     "table": {
       "type": "string",
       "label": "Table",

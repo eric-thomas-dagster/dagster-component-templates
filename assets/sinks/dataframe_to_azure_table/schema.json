@@ -29,11 +29,6 @@
       "required": false,
       "default": "AZURE_STORAGE_ACCOUNT_KEY"
     },
-    "table_name": {
-      "type": "string",
-      "label": "Table Name",
-      "required": true
-    },
     "partition_key_column": {
       "type": "string",
       "label": "Partition Key Column",

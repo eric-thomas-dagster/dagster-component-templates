@@ -44,7 +44,21 @@
     "destination": {
       "type": "string",
       "label": "Destination",
-      "required": false
+      "required": false,
+      "enum": [
+        "snowflake",
+        "bigquery",
+        "postgres",
+        "redshift",
+        "filesystem",
+        "duckdb",
+        "databricks",
+        "athena",
+        "clickhouse",
+        "mssql",
+        "motherduck"
+      ],
+      "ui:widget": "select"
     },
     "dataset_name": {
       "type": "string",

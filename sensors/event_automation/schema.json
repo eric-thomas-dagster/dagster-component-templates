@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.EventAutomationComponent",
-  "description": "35 declarative triggers \u2192 27 actions in one YAML component. Prefect-Automations analog on top of real Dagster sensors + Dagster+ GraphQL mutations.",
+  "description": "35 declarative triggers → 27 actions in one YAML component. Prefect-Automations analog on top of real Dagster sensors + Dagster+ GraphQL mutations.",
   "category": "sensor",
   "icon": "Bell",
   "x-dagster-io": {
@@ -13,18 +13,18 @@
     "name": {
       "type": "string",
       "label": "Automation Name",
-      "description": "Automation name \u2014 prefix for generated sensor names.",
+      "description": "Automation name — prefix for generated sensor names.",
       "required": true
     },
     "when": {
       "type": "array",
       "label": "Triggers",
-      "description": "Triggers that fire the automation. OR semantics \u2014 any fires it. Discriminator: `type`.",
+      "description": "Triggers that fire the automation. OR semantics — any fires it. Discriminator: `type`.",
       "items": {
         "type": "object",
         "oneOf": [
           {
-            "title": "run_status \u2014 job / asset run finished with specific status",
+            "title": "run_status — job / asset run finished with specific status",
             "properties": {
               "type": {
                 "const": "run_status"
@@ -52,7 +52,7 @@
                 "additionalProperties": {
                   "type": "string"
                 },
-                "description": "Optional run-tag filter \u2014 every listed key=value must be present in the run's tags."
+                "description": "Optional run-tag filter — every listed key=value must be present in the run's tags."
               },
               "monitored_locations": {
                 "type": "array",
@@ -94,7 +94,7 @@
             ]
           },
           {
-            "title": "asset_materialized \u2014 named assets got materialized",
+            "title": "asset_materialized — named assets got materialized",
             "properties": {
               "type": {
                 "const": "asset_materialized"
@@ -120,7 +120,7 @@
             ]
           },
           {
-            "title": "schedule \u2014 cron trigger",
+            "title": "schedule — cron trigger",
             "properties": {
               "type": {
                 "const": "schedule"
@@ -140,7 +140,7 @@
             ]
           },
           {
-            "title": "http_poll \u2014 poll a URL, fire on condition",
+            "title": "http_poll — poll a URL, fire on condition",
             "properties": {
               "type": {
                 "const": "http_poll"
@@ -180,7 +180,7 @@
             ]
           },
           {
-            "title": "freshness_violation \u2014 asset stale beyond max_age",
+            "title": "freshness_violation — asset stale beyond max_age",
             "properties": {
               "type": {
                 "const": "freshness_violation"
@@ -215,7 +215,7 @@
             ]
           },
           {
-            "title": "run_duration \u2014 run finished + duration > threshold",
+            "title": "run_duration — run finished + duration > threshold",
             "properties": {
               "type": {
                 "const": "run_duration"
@@ -285,7 +285,7 @@
             ]
           },
           {
-            "title": "run_stuck \u2014 active run running too long",
+            "title": "run_stuck — active run running too long",
             "properties": {
               "type": {
                 "const": "run_stuck"
@@ -320,7 +320,7 @@
             ]
           },
           {
-            "title": "asset_check_failed \u2014 reactive data quality",
+            "title": "asset_check_failed — reactive data quality",
             "properties": {
               "type": {
                 "const": "asset_check_failed"
@@ -344,7 +344,7 @@
                     "type": "string"
                   }
                 ],
-                "description": "Optional asset key filter. \u2014 accepts a list of keys OR a Dagster asset-selection string (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, boolean composition) or fnmatch glob (`marts/*`)."
+                "description": "Optional asset key filter. — accepts a list of keys OR a Dagster asset-selection string (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, boolean composition) or fnmatch glob (`marts/*`)."
               },
               "minimum_interval_seconds": {
                 "type": "integer",
@@ -356,7 +356,7 @@
             ]
           },
           {
-            "title": "metric_threshold \u2014 numeric metadata crossed threshold",
+            "title": "metric_threshold — numeric metadata crossed threshold",
             "properties": {
               "type": {
                 "const": "metric_threshold"
@@ -396,7 +396,7 @@
             ]
           },
           {
-            "title": "absence \u2014 dead-man's switch (no materialization in window)",
+            "title": "absence — dead-man's switch (no materialization in window)",
             "properties": {
               "type": {
                 "const": "absence"
@@ -431,7 +431,7 @@
             ]
           },
           {
-            "title": "log_pattern \u2014 regex match on run log lines (events + stdout + stderr)",
+            "title": "log_pattern — regex match on run log lines (events + stdout + stderr)",
             "properties": {
               "type": {
                 "const": "log_pattern"
@@ -470,14 +470,14 @@
             ]
           },
           {
-            "title": "daemon_heartbeat \u2014 Dagster daemon / agent stopped heartbeating",
+            "title": "daemon_heartbeat — Dagster daemon / agent stopped heartbeating",
             "properties": {
               "type": {
                 "const": "daemon_heartbeat"
               },
               "daemon_type": {
                 "type": "string",
-                "description": "Filter to daemon type (SENSOR / SCHEDULER / \u2026). None = all."
+                "description": "Filter to daemon type (SENSOR / SCHEDULER / …). None = all."
               },
               "max_seconds_since_heartbeat": {
                 "type": "integer",
@@ -493,7 +493,7 @@
             ]
           },
           {
-            "title": "code_location_status \u2014 code location failed or stuck loading",
+            "title": "code_location_status — code location failed or stuck loading",
             "properties": {
               "type": {
                 "const": "code_location_status"
@@ -527,7 +527,7 @@
             ]
           },
           {
-            "title": "run_startup_slow \u2014 run took too long to start (compute spinup)",
+            "title": "run_startup_slow — run took too long to start (compute spinup)",
             "properties": {
               "type": {
                 "const": "run_startup_slow"
@@ -561,7 +561,7 @@
             ]
           },
           {
-            "title": "asset_observation \u2014 AssetObservation event emitted",
+            "title": "asset_observation — AssetObservation event emitted",
             "properties": {
               "type": {
                 "const": "asset_observation"
@@ -591,7 +591,7 @@
             ]
           },
           {
-            "title": "step_error \u2014 op step raised an exception (step-level)",
+            "title": "step_error — op step raised an exception (step-level)",
             "properties": {
               "type": {
                 "const": "step_error"
@@ -633,7 +633,7 @@
             ]
           },
           {
-            "title": "metadata_match \u2014 materialization/observation carries specific metadata",
+            "title": "metadata_match — materialization/observation carries specific metadata",
             "properties": {
               "type": {
                 "const": "metadata_match"
@@ -669,7 +669,7 @@
             ]
           },
           {
-            "title": "asset_value_change \u2014 numeric metadata \u0394 across materializations",
+            "title": "asset_value_change — numeric metadata Δ across materializations",
             "properties": {
               "type": {
                 "const": "asset_value_change"
@@ -696,7 +696,7 @@
               },
               "min_delta_pct": {
                 "type": "number",
-                "description": "Percentage delta threshold (0-100). Fires when |\u0394|/prev > this."
+                "description": "Percentage delta threshold (0-100). Fires when |Δ|/prev > this."
               },
               "minimum_interval_seconds": {
                 "type": "integer",
@@ -710,7 +710,7 @@
             ]
           },
           {
-            "title": "backfill_status \u2014 partition backfill entered a state",
+            "title": "backfill_status — partition backfill entered a state",
             "properties": {
               "type": {
                 "const": "backfill_status"
@@ -739,7 +739,7 @@
             ]
           },
           {
-            "title": "sensor_failing \u2014 target sensor has failed N consecutive ticks",
+            "title": "sensor_failing — target sensor has failed N consecutive ticks",
             "properties": {
               "type": {
                 "const": "sensor_failing"
@@ -764,7 +764,7 @@
             ]
           },
           {
-            "title": "concurrency_hit \u2014 active-run count exceeded threshold",
+            "title": "concurrency_hit — active-run count exceeded threshold",
             "properties": {
               "type": {
                 "const": "concurrency_hit"
@@ -792,7 +792,7 @@
             ]
           },
           {
-            "title": "hook_fired \u2014 a Dagster hook (@success_hook / @failure_hook) executed",
+            "title": "hook_fired — a Dagster hook (@success_hook / @failure_hook) executed",
             "properties": {
               "type": {
                 "const": "hook_fired"
@@ -833,7 +833,7 @@
             ]
           },
           {
-            "title": "asset_partition_materialized \u2014 specific asset PARTITION materialized",
+            "title": "asset_partition_materialized — specific asset PARTITION materialized",
             "properties": {
               "type": {
                 "const": "asset_partition_materialized"
@@ -856,14 +856,14 @@
                 "oneOf": [
                   {
                     "type": "string",
-                    "description": "Exact partition match \u2014 single-dim (e.g. '2024-01-15')."
+                    "description": "Exact partition match — single-dim (e.g. '2024-01-15')."
                   },
                   {
                     "type": "object",
                     "additionalProperties": {
                       "type": "string"
                     },
-                    "description": "Multi-dim partition filter \u2014 one entry per dimension. Unspecified dims wildcard (e.g. {region: 'us'} matches every date for region=us)."
+                    "description": "Multi-dim partition filter — one entry per dimension. Unspecified dims wildcard (e.g. {region: 'us'} matches every date for region=us)."
                   }
                 ],
                 "description": "Exact partition match. String for single-dim, object for MultiPartitionsDefinition."
@@ -883,7 +883,7 @@
             ]
           },
           {
-            "title": "run_reexecution \u2014 a run was re-executed (retry audit)",
+            "title": "run_reexecution — a run was re-executed (retry audit)",
             "properties": {
               "type": {
                 "const": "run_reexecution"
@@ -908,7 +908,7 @@
             ]
           },
           {
-            "title": "asset_wipe \u2014 materialization history wiped (destructive audit)",
+            "title": "asset_wipe — materialization history wiped (destructive audit)",
             "properties": {
               "type": {
                 "const": "asset_wipe"
@@ -925,7 +925,7 @@
                     "type": "string"
                   }
                 ],
-                "description": "Watch these. None = any wipe. \u2014 accepts a list of keys OR a Dagster asset-selection string (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, boolean composition) or fnmatch glob (`marts/*`)."
+                "description": "Watch these. None = any wipe. — accepts a list of keys OR a Dagster asset-selection string (`group:X`, `tag:foo=bar`, `kind:Y`, `is:external`, boolean composition) or fnmatch glob (`marts/*`)."
               },
               "minimum_interval_seconds": {
                 "type": "integer",
@@ -937,7 +937,7 @@
             ]
           },
           {
-            "title": "config_override \u2014 run launched with non-default config (change-tracking)",
+            "title": "config_override — run launched with non-default config (change-tracking)",
             "properties": {
               "type": {
                 "const": "config_override"
@@ -955,7 +955,7 @@
             ]
           },
           {
-            "title": "tag_set \u2014 run carries specific tag key/value (audit + routing)",
+            "title": "tag_set — run carries specific tag key/value (audit + routing)",
             "properties": {
               "type": {
                 "const": "tag_set"
@@ -986,7 +986,7 @@
             ]
           },
           {
-            "title": "unhandled_exception \u2014 run-level unhandled exception (infra crash)",
+            "title": "unhandled_exception — run-level unhandled exception (infra crash)",
             "properties": {
               "type": {
                 "const": "unhandled_exception"
@@ -1004,7 +1004,7 @@
             ]
           },
           {
-            "title": "asset_check_severity \u2014 asset check evaluations at specific severity",
+            "title": "asset_check_severity — asset check evaluations at specific severity",
             "properties": {
               "type": {
                 "const": "asset_check_severity"
@@ -1047,7 +1047,7 @@
             ]
           },
           {
-            "title": "op_output \u2014 a specific op yielded output (STEP_OUTPUT event)",
+            "title": "op_output — a specific op yielded output (STEP_OUTPUT event)",
             "properties": {
               "type": {
                 "const": "op_output"
@@ -1070,7 +1070,7 @@
             ]
           },
           {
-            "title": "materialization_planned \u2014 pre-materialization event (warm caches, etc.)",
+            "title": "materialization_planned — pre-materialization event (warm caches, etc.)",
             "properties": {
               "type": {
                 "const": "materialization_planned"
@@ -1100,7 +1100,7 @@
             ]
           },
           {
-            "title": "asset_check_started \u2014 asset check evaluation started",
+            "title": "asset_check_started — asset check evaluation started",
             "properties": {
               "type": {
                 "const": "asset_check_started"
@@ -1135,7 +1135,7 @@
             ]
           },
           {
-            "title": "insights_metric \u2014 Dagster+ Insights time-window aggregate crossed threshold",
+            "title": "insights_metric — Dagster+ Insights time-window aggregate crossed threshold",
             "properties": {
               "type": {
                 "const": "insights_metric"
@@ -1214,7 +1214,7 @@
             ]
           },
           {
-            "title": "dagster_plus_audit \u2014 Dagster+ audit log event matching filter",
+            "title": "dagster_plus_audit — Dagster+ audit log event matching filter",
             "properties": {
               "type": {
                 "const": "dagster_plus_audit"
@@ -1319,7 +1319,7 @@
             ]
           },
           {
-            "title": "sqs_poll \u2014 poll an AWS SQS queue for messages",
+            "title": "sqs_poll — poll an AWS SQS queue for messages",
             "properties": {
               "type": {
                 "const": "sqs_poll"
@@ -1352,7 +1352,7 @@
             ]
           },
           {
-            "title": "all_of \u2014 AND-composition, fire when all sub-triggers fire within window",
+            "title": "all_of — AND-composition, fire when all sub-triggers fire within window",
             "properties": {
               "type": {
                 "const": "all_of"
@@ -1379,7 +1379,7 @@
             ]
           },
           {
-            "title": "any_of \u2014 OR-composition inside a compound (nested-only)",
+            "title": "any_of — OR-composition inside a compound (nested-only)",
             "properties": {
               "type": {
                 "const": "any_of"
@@ -1412,7 +1412,7 @@
         "type": "object",
         "oneOf": [
           {
-            "title": "materialize \u2014 launch materialization for named assets",
+            "title": "materialize — launch materialization for named assets",
             "properties": {
               "type": {
                 "const": "materialize"
@@ -1435,14 +1435,14 @@
                 "oneOf": [
                   {
                     "type": "string",
-                    "description": "Single-dim partition. Values run through template rendering \u2014 use '{partition_key}' to pull from the triggering event."
+                    "description": "Single-dim partition. Values run through template rendering — use '{partition_key}' to pull from the triggering event."
                   },
                   {
                     "type": "object",
                     "additionalProperties": {
                       "type": "string"
                     },
-                    "description": "MultiPartitionsDefinition \u2014 one entry per dimension. Values templated (e.g. {date: '{partition_date}', region: '{partition_region}'})."
+                    "description": "MultiPartitionsDefinition — one entry per dimension. Values templated (e.g. {date: '{partition_date}', region: '{partition_region}'})."
                   }
                 ],
                 "description": "Optional partition to materialize. String OR dict; values templated with trigger tokens."
@@ -1454,7 +1454,7 @@
             ]
           },
           {
-            "title": "launch_job \u2014 launch a job",
+            "title": "launch_job — launch a job",
             "properties": {
               "type": {
                 "const": "launch_job"
@@ -1472,7 +1472,7 @@
             ]
           },
           {
-            "title": "webhook \u2014 arbitrary HTTP call with templated body",
+            "title": "webhook — arbitrary HTTP call with templated body",
             "properties": {
               "type": {
                 "const": "webhook"
@@ -1502,7 +1502,7 @@
             ]
           },
           {
-            "title": "slack \u2014 Slack incoming-webhook alert",
+            "title": "slack — Slack incoming-webhook alert",
             "properties": {
               "type": {
                 "const": "slack"
@@ -1531,7 +1531,7 @@
             ]
           },
           {
-            "title": "pagerduty \u2014 PagerDuty Events API v2",
+            "title": "pagerduty — PagerDuty Events API v2",
             "properties": {
               "type": {
                 "const": "pagerduty"
@@ -1551,7 +1551,7 @@
               },
               "summary_template": {
                 "type": "string",
-                "default": "Dagster: {event_type} on {job_name} \u2014 {status}"
+                "default": "Dagster: {event_type} on {job_name} — {status}"
               },
               "dedup_key_template": {
                 "type": "string"
@@ -1572,7 +1572,7 @@
             ]
           },
           {
-            "title": "discord \u2014 Discord webhook alert",
+            "title": "discord — Discord webhook alert",
             "properties": {
               "type": {
                 "const": "discord"
@@ -1591,7 +1591,7 @@
             ]
           },
           {
-            "title": "emit_event \u2014 log emission for downstream sensor chaining",
+            "title": "emit_event — log emission for downstream sensor chaining",
             "properties": {
               "type": {
                 "const": "emit_event"
@@ -1609,7 +1609,7 @@
             ]
           },
           {
-            "title": "cancel_run \u2014 terminate a run",
+            "title": "cancel_run — terminate a run",
             "properties": {
               "type": {
                 "const": "cancel_run"
@@ -1632,7 +1632,7 @@
             ]
           },
           {
-            "title": "retry_run \u2014 re-execute a failed run",
+            "title": "retry_run — re-execute a failed run",
             "properties": {
               "type": {
                 "const": "retry_run"
@@ -1651,7 +1651,7 @@
             ]
           },
           {
-            "title": "email \u2014 SMTP email alert (stdlib smtplib)",
+            "title": "email — SMTP email alert (stdlib smtplib)",
             "properties": {
               "type": {
                 "const": "email"
@@ -1699,7 +1699,7 @@
             ]
           },
           {
-            "title": "teams \u2014 Microsoft Teams webhook alert",
+            "title": "teams — Microsoft Teams webhook alert",
             "properties": {
               "type": {
                 "const": "teams"
@@ -1721,7 +1721,7 @@
             ]
           },
           {
-            "title": "opsgenie \u2014 OpsGenie Alerts API",
+            "title": "opsgenie — OpsGenie Alerts API",
             "properties": {
               "type": {
                 "const": "opsgenie"
@@ -1742,7 +1742,7 @@
               },
               "message_template": {
                 "type": "string",
-                "default": "Dagster: {event_type} on {job_name} \u2014 {status}"
+                "default": "Dagster: {event_type} on {job_name} — {status}"
               },
               "dedup_key_template": {
                 "type": "string"
@@ -1754,7 +1754,7 @@
             ]
           },
           {
-            "title": "mattermost \u2014 Mattermost webhook alert",
+            "title": "mattermost — Mattermost webhook alert",
             "properties": {
               "type": {
                 "const": "mattermost"
@@ -1779,7 +1779,7 @@
             ]
           },
           {
-            "title": "toggle_sensor \u2014 start / stop a Dagster sensor by name",
+            "title": "toggle_sensor — start / stop a Dagster sensor by name",
             "properties": {
               "type": {
                 "const": "toggle_sensor"
@@ -1802,7 +1802,7 @@
             ]
           },
           {
-            "title": "toggle_schedule \u2014 start / stop a Dagster schedule by name",
+            "title": "toggle_schedule — start / stop a Dagster schedule by name",
             "properties": {
               "type": {
                 "const": "toggle_schedule"
@@ -1825,7 +1825,7 @@
             ]
           },
           {
-            "title": "sns \u2014 publish to AWS SNS topic",
+            "title": "sns — publish to AWS SNS topic",
             "properties": {
               "type": {
                 "const": "sns"
@@ -1851,7 +1851,7 @@
             ]
           },
           {
-            "title": "sqs \u2014 send message to AWS SQS queue",
+            "title": "sqs — send message to AWS SQS queue",
             "properties": {
               "type": {
                 "const": "sqs"
@@ -1881,7 +1881,7 @@
             ]
           },
           {
-            "title": "reload_code_location \u2014 reload a Dagster+ code location (or whole workspace)",
+            "title": "reload_code_location — reload a Dagster+ code location (or whole workspace)",
             "properties": {
               "type": {
                 "const": "reload_code_location"
@@ -1908,7 +1908,7 @@
             ]
           },
           {
-            "title": "refresh_defs_state \u2014 refresh Dagster+ definitions state for a code location",
+            "title": "refresh_defs_state — refresh Dagster+ definitions state for a code location",
             "properties": {
               "type": {
                 "const": "refresh_defs_state"
@@ -1940,7 +1940,7 @@
             ]
           },
           {
-            "title": "set_concurrency_limit \u2014 dynamically adjust a pool's slot count",
+            "title": "set_concurrency_limit — dynamically adjust a pool's slot count",
             "properties": {
               "type": {
                 "const": "set_concurrency_limit"
@@ -1961,7 +1961,7 @@
             ]
           },
           {
-            "title": "free_concurrency_slots \u2014 release slots stuck by a crashed run/step",
+            "title": "free_concurrency_slots — release slots stuck by a crashed run/step",
             "properties": {
               "type": {
                 "const": "free_concurrency_slots"
@@ -1981,7 +1981,7 @@
             ]
           },
           {
-            "title": "set_auto_materialize_paused \u2014 globally pause/unpause Declarative Automation (Dagster+)",
+            "title": "set_auto_materialize_paused — globally pause/unpause Declarative Automation (Dagster+)",
             "properties": {
               "type": {
                 "const": "set_auto_materialize_paused"
@@ -2009,7 +2009,7 @@
             ]
           },
           {
-            "title": "mute_alert_policy \u2014 temporarily mute a Dagster+ Alerts policy",
+            "title": "mute_alert_policy — temporarily mute a Dagster+ Alerts policy",
             "properties": {
               "type": {
                 "const": "mute_alert_policy"
@@ -2042,7 +2042,7 @@
             ]
           },
           {
-            "title": "resume_backfill \u2014 resume a paused partition backfill",
+            "title": "resume_backfill — resume a paused partition backfill",
             "properties": {
               "type": {
                 "const": "resume_backfill"
@@ -2070,7 +2070,7 @@
             ]
           },
           {
-            "title": "cancel_backfill \u2014 cancel a partition backfill in progress",
+            "title": "cancel_backfill — cancel a partition backfill in progress",
             "properties": {
               "type": {
                 "const": "cancel_backfill"
@@ -2098,7 +2098,7 @@
             ]
           },
           {
-            "title": "reexecute_backfill \u2014 re-execute a failed partition backfill",
+            "title": "reexecute_backfill — re-execute a failed partition backfill",
             "properties": {
               "type": {
                 "const": "reexecute_backfill"
@@ -2131,7 +2131,7 @@
             ]
           },
           {
-            "title": "add_dynamic_partition \u2014 register a new dynamic partition programmatically",
+            "title": "add_dynamic_partition — register a new dynamic partition programmatically",
             "properties": {
               "type": {
                 "const": "add_dynamic_partition"
@@ -2154,135 +2154,6 @@
         ]
       },
       "required": true
-    },
-    "_throttle_shape": {
-      "type": "object",
-      "description": "Optional throttle config attached to any trigger via `throttle:`.",
-      "properties": {
-        "min_seconds_between_fires": {
-          "type": "integer",
-          "description": "Cooldown between successful fires."
-        },
-        "max_per_hour": {
-          "type": "integer",
-          "description": "Rolling-window hard cap."
-        },
-        "dedup_key_template": {
-          "type": "string",
-          "description": "Templated dedup key for state scoping."
-        },
-        "strategy": {
-          "type": "string",
-          "enum": [
-            "silence",
-            "summarize",
-            "first_last",
-            "llm",
-            "escalate",
-            "auto_resolve"
-          ],
-          "default": "silence"
-        },
-        "flush_after_seconds": {
-          "type": "integer",
-          "default": 600,
-          "description": "For summarize / first_last: buffer window."
-        },
-        "llm_provider": {
-          "type": "string",
-          "enum": [
-            "openai",
-            "anthropic"
-          ],
-          "default": "openai"
-        },
-        "llm_model": {
-          "type": "string",
-          "default": "gpt-4o-mini"
-        },
-        "llm_api_key_env_var": {
-          "type": "string",
-          "default": "OPENAI_API_KEY"
-        },
-        "llm_prompt_template": {
-          "type": "string",
-          "description": "Custom prompt. Tokens: {message}, {recent}, plus standard tokens."
-        },
-        "llm_decision_cache_seconds": {
-          "type": "integer",
-          "default": 60
-        },
-        "business_hours_only": {
-          "type": "string",
-          "description": "Only fire during this daily window. Format: 'HH:MM-HH:MM tz [days]'. E.g. '09:00-17:00 America/New_York mon,tue,wed,thu,fri'."
-        },
-        "maintenance_windows": {
-          "type": "array",
-          "description": "Scheduled quiet periods. Fires within any listed window are suppressed.",
-          "items": {
-            "type": "object",
-            "properties": {
-              "from_ts": {
-                "type": "string",
-                "description": "ISO8601 start (e.g. '2024-01-15T02:00:00Z')."
-              },
-              "to_ts": {
-                "type": "string",
-                "description": "ISO8601 end."
-              },
-              "reason": {
-                "type": "string",
-                "description": "Free-form reason shown in logs."
-              }
-            },
-            "required": [
-              "from_ts",
-              "to_ts"
-            ]
-          }
-        },
-        "correlation_suppress_sensors": {
-          "type": "array",
-          "description": "Sensor-name substrings whose recent fires suppress THIS trigger (root-cause suppression).",
-          "items": {
-            "type": "string"
-          }
-        },
-        "correlation_within_seconds": {
-          "type": "integer",
-          "default": 300,
-          "description": "Correlation lookback window in seconds."
-        },
-        "escalation_ladder": {
-          "type": "array",
-          "description": "For strategy=escalate: fire count \u2192 which action indices fire.",
-          "items": {
-            "type": "object",
-            "properties": {
-              "after_fires": {
-                "type": "integer",
-                "description": "Fire count threshold (0 = first fire)."
-              },
-              "action_indices": {
-                "type": "array",
-                "items": {
-                  "type": "integer"
-                },
-                "description": "Indices into the `then:` list to execute at this tier."
-              }
-            },
-            "required": [
-              "after_fires",
-              "action_indices"
-            ]
-          }
-        },
-        "auto_resolve_message": {
-          "type": "string",
-          "default": "\u2705 Resolved after {duration_seconds}s ({fire_count} fires)",
-          "description": "For strategy=auto_resolve: message template for the paired resolve event."
-        }
-      }
     },
     "default_status": {
       "type": "string",

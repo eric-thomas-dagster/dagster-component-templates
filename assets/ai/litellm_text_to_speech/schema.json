@@ -15,12 +15,6 @@
       "required": false,
       "description": "Upstream DataFrame asset key."
     },
-    "model": {
-      "type": "string",
-      "label": "Model",
-      "required": false,
-      "description": "LiteLLM model id. e.g. `openai/tts-1`, `openai/tts-1-hd`, `elevenlabs/eleven_multilingual_v2`, `azure/<deployment>`."
-    },
     "api_key_env_var": {
       "type": "string",
       "label": "Api Key Env Var",

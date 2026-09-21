@@ -28,12 +28,6 @@
       "required": false,
       "default": "data.duckdb"
     },
-    "table_name": {
-      "type": "string",
-      "label": "Table Name",
-      "description": "Name of the table to write data to",
-      "required": true
-    },
     "description": {
       "type": "string",
       "label": "Description",

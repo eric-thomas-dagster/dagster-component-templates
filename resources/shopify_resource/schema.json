@@ -34,11 +34,6 @@
       "description": "Shopify API version",
       "required": false,
       "default": "2024-01"
-    },
-    "access_token": {
-      "type": "string",
-      "label": "Access Token",
-      "required": true
     }
   },
   "tags": [

@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.JDEOrchestratorWorkspaceComponent",
-  "description": "Auto-emit one Dagster asset per JDE orchestration via the Orchestrator REST API. StateBackedComponent \u2014 discovery cached to disk, refreshed on explicit trigger. Materializing an asset executes the orchestration (sync or async) and polls to terminal state. The workspace-shape peer of the jde_orchestrator_* low-level components.",
+  "description": "Auto-emit one Dagster asset per JDE orchestration via the Orchestrator REST API. StateBackedComponent — discovery cached to disk, refreshed on explicit trigger. Materializing an asset executes the orchestration (sync or async) and polls to terminal state. The workspace-shape peer of the jde_orchestrator_* low-level components.",
   "category": "integration",
   "icon": "AccountTree",
   "x-dagster-io": {
@@ -10,34 +10,6 @@
     }
   },
   "attributes": {
-    "base_url_env_var": {
-      "type": "string",
-      "label": "Base URL Env Var",
-      "required": true
-    },
-    "username_env_var": {
-      "type": "string",
-      "label": "Username Env Var",
-      "required": true
-    },
-    "password_env_var": {
-      "type": "string",
-      "label": "Password Env Var",
-      "required": true
-    },
-    "api_path_prefix": {
-      "type": "string",
-      "label": "API Path Prefix",
-      "required": false,
-      "default": "/jderest/v3/orchestrator"
-    },
-    "verify_ssl": {
-      "type": "boolean",
-      "label": "Verify SSL",
-      "required": false,
-      "default": true,
-      "ui:widget": "checkbox"
-    },
     "orchestration_selector": {
       "type": "object",
       "label": "Orchestration Selector",

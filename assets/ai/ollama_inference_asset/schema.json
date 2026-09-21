@@ -15,13 +15,6 @@
     }
   },
   "attributes": {
-    "host": {
-      "type": "string",
-      "label": "Host",
-      "description": "Ollama server URL",
-      "required": false,
-      "default": "http://localhost:11434"
-    },
     "model": {
       "type": "string",
       "label": "Model",

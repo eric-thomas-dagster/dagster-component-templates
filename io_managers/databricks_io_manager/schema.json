@@ -41,13 +41,6 @@
       "required": false,
       "default": "main"
     },
-    "schema_name": {
-      "type": "string",
-      "label": "Schema Name",
-      "description": "Unity Catalog schema (database) for asset tables",
-      "required": false,
-      "default": "default"
-    },
     "staging_location": {
       "type": "string",
       "label": "Staging Location",

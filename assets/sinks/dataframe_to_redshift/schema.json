@@ -33,13 +33,6 @@
       "description": "Destination Redshift table name",
       "required": true
     },
-    "schema": {
-      "type": "string",
-      "label": "Schema",
-      "description": "Redshift schema",
-      "required": false,
-      "default": "public"
-    },
     "host_env_var": {
       "type": "string",
       "label": "Host Env Var",

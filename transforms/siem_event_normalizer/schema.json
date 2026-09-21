@@ -16,13 +16,6 @@
       "description": "Upstream DataFrame to normalize",
       "required": true
     },
-    "schema": {
-      "type": "string",
-      "label": "Schema",
-      "description": "Target schema: 'ocsf' (Open Cybersecurity Schema Framework) | 'ecs' (Elastic Common Schema)",
-      "required": false,
-      "default": "ocsf"
-    },
     "source_kind": {
       "type": "string",
       "label": "Source Kind",

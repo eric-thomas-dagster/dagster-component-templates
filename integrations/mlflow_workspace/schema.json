@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.MLflowWorkspaceComponent",
-  "description": "Auto-emit one Dagster asset per MLflow experiment (recent runs + metrics + params) and per registered model (versions). StateBackedComponent \u2014 discovery cached to disk. Materializing an experiment asset fetches recent runs; materializing a model asset fetches model version metadata.",
+  "description": "Auto-emit one Dagster asset per MLflow experiment (recent runs + metrics + params) and per registered model (versions). StateBackedComponent — discovery cached to disk. Materializing an experiment asset fetches recent runs; materializing a model asset fetches model version metadata.",
   "category": "ingestion",
   "icon": "AccountTree",
   "x-dagster-io": {
@@ -10,30 +10,6 @@
     }
   },
   "attributes": {
-    "tracking_uri_env_var": {
-      "type": "string",
-      "label": "Tracking URI Env Var",
-      "required": true,
-      "description": "Env var with the MLflow tracking server URI."
-    },
-    "username_env_var": {
-      "type": "string",
-      "label": "Username Env Var",
-      "required": false,
-      "description": "Env var with basic auth username (if the server requires auth)."
-    },
-    "password_env_var": {
-      "type": "string",
-      "label": "Password Env Var",
-      "required": false
-    },
-    "verify_ssl": {
-      "type": "boolean",
-      "label": "Verify SSL",
-      "required": false,
-      "default": true,
-      "ui:widget": "checkbox"
-    },
     "experiment_selector": {
       "type": "object",
       "label": "Experiment Selector",

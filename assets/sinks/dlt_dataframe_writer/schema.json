@@ -21,12 +21,6 @@
       "description": "Name of the asset to create",
       "required": true
     },
-    "table_name": {
-      "type": "string",
-      "label": "Table Name",
-      "description": "Name of the table to write data to in the destination",
-      "required": true
-    },
     "primary_key": {
       "type": "string",
       "label": "Primary Key",

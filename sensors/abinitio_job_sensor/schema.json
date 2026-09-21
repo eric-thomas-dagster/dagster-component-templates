@@ -10,25 +10,6 @@
     }
   },
   "attributes": {
-    "eme_url": {
-      "type": "string",
-      "label": "Eme Url",
-      "description": "Eme Url",
-      "required": true
-    },
-    "username": {
-      "type": "string",
-      "label": "Username",
-      "description": "Ab Initio EME username",
-      "required": true
-    },
-    "password": {
-      "type": "string",
-      "label": "Password",
-      "description": "Ab Initio EME password",
-      "required": true,
-      "ui:widget": "password"
-    },
     "sensor_name": {
       "type": "string",
       "label": "Sensor Name",

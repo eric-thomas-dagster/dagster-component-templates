@@ -28,13 +28,6 @@
       "required": false,
       "default": "transformer"
     },
-    "model": {
-      "type": "string",
-      "label": "Model",
-      "description": "Model name. LLM: gpt-4, claude-3-5-sonnet. Transformer: distilbert-base-uncased-finetuned-sst-2-english, cardiffnlp/twitter-roberta-base-sentiment",
-      "required": false,
-      "default": null
-    },
     "api_key": {
       "type": "string",
       "label": "Api Key",

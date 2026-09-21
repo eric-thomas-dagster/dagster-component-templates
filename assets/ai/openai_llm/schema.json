@@ -27,13 +27,6 @@
       "description": "OpenAI API key. Use ${OPENAI_API_KEY} for environment variables.",
       "required": true
     },
-    "model": {
-      "type": "string",
-      "label": "Model",
-      "description": "OpenAI model: gpt-4, gpt-4-turbo, gpt-3.5-turbo, gpt-4o, gpt-4o-mini",
-      "required": false,
-      "default": "gpt-3.5-turbo"
-    },
     "system_prompt": {
       "type": "string",
       "label": "System Prompt",

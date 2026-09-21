@@ -27,12 +27,6 @@
       "description": "Upstream asset key providing a DataFrame",
       "required": true
     },
-    "table_name": {
-      "type": "string",
-      "label": "Table Name",
-      "description": "Destination database table name",
-      "required": true
-    },
     "database_url_env_var": {
       "type": "string",
       "label": "Database Url Env Var",
@@ -52,13 +46,6 @@
         "append"
       ],
       "ui:widget": "select"
-    },
-    "schema": {
-      "type": "string",
-      "label": "Schema",
-      "description": "Database schema",
-      "required": false,
-      "default": null
     },
     "chunksize": {
       "type": "integer",

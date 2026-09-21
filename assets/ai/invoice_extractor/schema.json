@@ -47,13 +47,6 @@
       ],
       "ui:widget": "select"
     },
-    "model": {
-      "type": "string",
-      "label": "Model",
-      "description": "Model",
-      "required": false,
-      "default": "gpt-4o"
-    },
     "api_key_env_var": {
       "type": "string",
       "label": "Api Key Env Var",

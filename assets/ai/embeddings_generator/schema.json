@@ -27,12 +27,6 @@
       "description": "Embedding provider: openai, cohere, sentence_transformers, huggingface",
       "required": true
     },
-    "model": {
-      "type": "string",
-      "label": "Model",
-      "description": "Model name (e.g., ",
-      "required": true
-    },
     "api_key": {
       "type": "string",
       "label": "Api Key",

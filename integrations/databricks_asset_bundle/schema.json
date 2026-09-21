@@ -10,19 +10,6 @@
     }
   },
   "attributes": {
-    "host": {
-      "type": "string",
-      "label": "Host",
-      "description": "Databricks workspace URL",
-      "required": true
-    },
-    "token": {
-      "type": "string",
-      "label": "Token",
-      "description": "Databricks personal access token",
-      "required": true,
-      "ui:widget": "password"
-    },
     "databricks_config_path": {
       "type": "string",
       "label": "Databricks Config Path",

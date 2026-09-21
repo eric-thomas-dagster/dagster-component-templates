@@ -57,13 +57,13 @@ from dagster.components.utils.translation import (
     create_component_translator_cls,
 )
 from dagster_shared.record import record
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 # Reuse the existing TM1Resource (base_url + username/password + optional
 # cam_namespace + verify_ssl) so the workspace: block matches the
 # `tm1_resource` component and the rest of the TM1 toolkit
 # (tm1_process_trigger_job, tm1_cube_data_ingestion, etc.).
-from dagster_community_components.resources.tm1_resource.component import TM1Resource
+from dagster_community_components import TM1Resource
 
 
 @record
@@ -199,6 +199,12 @@ class TM1WorkspaceComponent(StateBackedComponent, Model, Resolvable):
     # Canonical shape — mirrors dagster-databricks / dagster-fivetran /
     # dagster-powerbi / snowflake_workspace / mlflow_workspace workspace
     # components (all have `workspace: <Resource>`).
+    # `polling_sensor` carries `alias="generate_sensor"` below for backcompat
+    # with the pre-rename field name -- populate_by_name lets BOTH the current
+    # field name and the old alias validate. Without it, Pydantic accepts only
+    # the alias and rejects the current field name as an unknown extra input.
+    model_config = ConfigDict(populate_by_name=True)
+
     workspace: Annotated[
         TM1Resource,
         Resolver(

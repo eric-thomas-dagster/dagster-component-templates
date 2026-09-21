@@ -58,12 +58,12 @@ from dagster.components.utils.translation import (
     create_component_translator_cls,
 )
 from dagster_shared.record import record
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 # Reuse the community `CognosResource` so users don't have to redeclare its
 # fields inline. `CognosResource` already exposes `base_url` / `username` /
 # `password` / `namespace` / `verify_ssl` + REST helper methods.
-from dagster_community_components.resources.cognos_resource.component import CognosResource
+from dagster_community_components import CognosResource
 
 
 @record
@@ -198,6 +198,12 @@ class CognosWorkspaceComponent(StateBackedComponent, Model, Resolvable):
     # dagster-powerbi workspace components (all have `workspace: <Resource>`).
     # `resolve_fields()` lets `{{ env.XXX }}` templating fill the resource
     # fields at parse time.
+    # `polling_sensor` carries `alias="generate_sensor"` below for backcompat
+    # with the pre-rename field name -- populate_by_name lets BOTH the current
+    # field name and the old alias validate. Without it, Pydantic accepts only
+    # the alias and rejects the current field name as an unknown extra input.
+    model_config = ConfigDict(populate_by_name=True)
+
     workspace: Annotated[
         CognosResource,
         Resolver(

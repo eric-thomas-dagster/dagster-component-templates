@@ -61,13 +61,11 @@ from dagster.components.utils.translation import (
     create_component_translator_cls,
 )
 from dagster_shared.record import record
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 # Reuse the community JDE Orchestrator resource so the workspace: block is
 # the same shape used by every other JDE component in the registry.
-from dagster_community_components.resources.jde_orchestrator_resource.component import (
-    JDEOrchestratorResource,
-)
+from dagster_community_components import JDEOrchestratorResource
 
 
 @record
@@ -179,6 +177,12 @@ class JDEOrchestratorWorkspaceComponent(StateBackedComponent, Model, Resolvable)
     # ── Connection: workspace: block IS a JDEOrchestratorResource ─────
     # Canonical shape — mirrors dagster-databricks / dagster-fivetran /
     # dagster-powerbi workspace components (all have `workspace: <Resource>`).
+    # `polling_sensor` carries `alias="generate_sensor"` below for backcompat
+    # with the pre-rename field name -- populate_by_name lets BOTH the current
+    # field name and the old alias validate. Without it, Pydantic accepts only
+    # the alias and rejects the current field name as an unknown extra input.
+    model_config = ConfigDict(populate_by_name=True)
+
     workspace: Annotated[
         JDEOrchestratorResource,
         Resolver(

@@ -1,21 +1,20 @@
 {
   "summary": {
-    "PASS": 784,
-    "SKIP_OPTIONAL_DEP": 51,
+    "PASS": 809,
+    "WARN": 14,
+    "SKIP_OPTIONAL_DEP": 78,
     "SKIP_EXAMPLE_MULTI_DOC": 51,
-    "SKIP_PROJECT_REQUIRED": 30,
-    "SKIP_CREDENTIALS": 43,
-    "WARN": 10,
-    "SKIP_RELATIVE_IMPORT": 2
+    "SKIP_PROJECT_REQUIRED": 24,
+    "FAIL": 7,
+    "SKIP_RELATIVE_IMPORT": 4,
+    "SKIP_CREDENTIALS": 36
   },
   "results": [
     {
       "id": "ab_controls",
       "path": "assets/analytics/ab_controls",
       "status": "PASS",
-      "warnings": [
-        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -76,6 +75,14 @@
       "error_class": null
     },
     {
+      "id": "activebatch_integration",
+      "path": "integrations/activebatch_integration",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "ad_spend_standardizer",
       "path": "assets/analytics/ad_spend_standardizer",
       "status": "PASS",
@@ -89,7 +96,9 @@
       "id": "adaptive_research_brief",
       "path": "assets/ai/adaptive_research_brief",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
       "error": null,
       "error_class": null
     },
@@ -104,8 +113,10 @@
     {
       "id": "adls_cleanup_job",
       "path": "jobs/adls_cleanup_job",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"AdaptiveResearchBriefComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -120,8 +131,9 @@
     {
       "id": "adls_observation_sensor",
       "path": "observations/adls_observation_sensor",
-      "status": "PASS",
+      "status": "WARN",
       "warnings": [
+        "UserWarning: Field name \"model\" in \"AdaptiveResearchBriefComponent\" shadows an attribute in parent \"Resolvable\"",
         "DeprecationWarning: Function `AssetSelection.keys` is deprecated and will be removed in 2.0. Use AssetSelection.assets instead."
       ],
       "error": null,
@@ -188,8 +200,8 @@
       "path": "integrations/airlift_dag_assets",
       "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "cannot import name 'BasicAuthBackend' from 'dagster_airlift.core' (/opt/homebrew/lib/python3.11/site-packages/dagster_airlift/core/__init__.py)",
-      "error_class": null
+      "error": "ModuleNotFoundError: No module named 'dagster_airlift'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "airtable_ingestion",
@@ -210,6 +222,14 @@
     {
       "id": "alter_row",
       "path": "transforms/alter_row",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "amplitude_resource",
+      "path": "resources/amplitude_resource",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -482,6 +502,14 @@
       "error_class": null
     },
     {
+      "id": "automation_anywhere_integration",
+      "path": "integrations/automation_anywhere_integration",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "automation_condition_applicator",
       "path": "assets/infrastructure/automation_condition_applicator",
       "status": "PASS",
@@ -532,51 +560,56 @@
     {
       "id": "aws_dms",
       "path": "integrations/aws_dms",
-      "status": "SKIP_CREDENTIALS",
+      "status": "FAIL",
       "warnings": [],
-      "error": "An error occurred (IncompleteSignatureException) when calling the DescribeReplicationTasks operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'xlj73IqLb2ru8TNffyW5Xi7FtI/HSKAtCmJKNe909Xw='.",
-      "error_class": null
+      "error": "'NoneType' object has no attribute 'Session'",
+      "error_class": "AttributeError",
+      "traceback": [
+        "             ^^^^^^^^^^^^^^^^^^",
+        "  File \"/private/tmp/dagster-component-templates-check/integrations/aws_dms/component.py\", line 136, in _get_client",
+        "    session = boto3.Session(**session_config)",
+        "              ^^^^^^^^^^^^^",
+        "AttributeError: 'NoneType' object has no attribute 'Session'"
+      ]
     },
     {
       "id": "aws_glue",
       "path": "integrations/aws_glue",
-      "status": "SKIP_PROJECT_REQUIRED",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "Could not find dg.toml or pyproject.toml in .",
+      "error": "ModuleNotFoundError: No module named 'boto3'",
       "error_class": null
     },
     {
       "id": "aws_kinesis",
       "path": "integrations/aws_kinesis",
-      "status": "SKIP_CREDENTIALS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "Operation cannot be paginated: list_delivery_streams",
+      "error": "ModuleNotFoundError: No module named 'boto3'",
       "error_class": null
     },
     {
       "id": "aws_redshift",
       "path": "integrations/aws_redshift",
-      "status": "SKIP_CREDENTIALS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "Failed to list stored procedures: An error occurred (ValidationException) when calling the ExecuteStatement operation: Redshift endpoint doesn't exist in this region.",
+      "error": "ModuleNotFoundError: No module named 'boto3'",
       "error_class": null
     },
     {
       "id": "aws_s3_resource",
       "path": "resources/aws_s3_resource",
-      "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-aws` (0.28.1)."
-      ],
-      "error": null,
-      "error_class": null
+      "status": "SKIP_OPTIONAL_DEP",
+      "warnings": [],
+      "error": "ModuleNotFoundError: No module named 'dagster_aws'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "aws_sagemaker",
       "path": "integrations/aws_sagemaker",
-      "status": "SKIP_CREDENTIALS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): '1O8kZo3iUDNIwkUil+PFOQIhWw8hHgRIL4TXyjzdh0M='.",
+      "error": "ModuleNotFoundError: No module named 'boto3'",
       "error_class": null
     },
     {
@@ -590,9 +623,9 @@
     {
       "id": "azure_blob_parquet_io_manager",
       "path": "io_managers/azure_blob_parquet_io_manager",
-      "status": "PASS",
+      "status": "SKIP_RELATIVE_IMPORT",
       "warnings": [],
-      "error": null,
+      "error": "attempted relative import with no known parent package",
       "error_class": null
     },
     {
@@ -640,7 +673,7 @@
       "path": "integrations/azure_stream_analytics",
       "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'azure.mgmt.streamanalytics'",
+      "error": "ModuleNotFoundError: No module named 'azure'",
       "error_class": null
     },
     {
@@ -648,7 +681,7 @@
       "path": "integrations/azure_synapse",
       "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'azure.mgmt.synapse'",
+      "error": "ModuleNotFoundError: No module named 'azure'",
       "error_class": null
     },
     {
@@ -744,10 +777,10 @@
     {
       "id": "bigquery_resource",
       "path": "resources/bigquery_resource",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
-      "error_class": null
+      "error": "ModuleNotFoundError: No module named 'dagster_gcp'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "bigquery_table_freshness_check",
@@ -800,12 +833,43 @@
       "error_class": null
     },
     {
+      "id": "blue_prism_integration",
+      "path": "integrations/blue_prism_integration",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "bounding_box_filter",
       "path": "assets/analytics/bounding_box_filter",
       "status": "SKIP_EXAMPLE_MULTI_DOC",
       "warnings": [],
       "error": "example.yaml has no document with both `type:` and `attributes:`",
       "error_class": null
+    },
+    {
+      "id": "braze_resource",
+      "path": "resources/braze_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "budget_asset",
+      "path": "assets/infrastructure/budget_asset",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "ModuleNotFoundError: No module named 'my_project'",
+      "error_class": "ModuleNotFoundError",
+      "traceback": [
+        "  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed",
+        "  File \"<frozen importlib._bootstrap>\", line 1387, in _gcd_import",
+        "  File \"<frozen importlib._bootstrap>\", line 1360, in _find_and_load",
+        "  File \"<frozen importlib._bootstrap>\", line 1324, in _find_and_load_unlocked",
+        "ModuleNotFoundError: No module named 'my_project'"
+      ]
     },
     {
       "id": "buffer",
@@ -818,6 +882,14 @@
     {
       "id": "cache_invalidation_job",
       "path": "jobs/cache_invalidation_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "cached_asset",
+      "path": "assets/infrastructure/cached_asset",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -886,8 +958,10 @@
     {
       "id": "chromadb_asset",
       "path": "assets/analytics/chromadb_asset",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"CatalogAgentComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -1076,10 +1150,17 @@
     {
       "id": "cognos_workspace",
       "path": "integrations/cognos_workspace",
-      "status": "SKIP_PROJECT_REQUIRED",
+      "status": "FAIL",
       "warnings": [],
-      "error": "Could not find dg.toml or pyproject.toml in .",
-      "error_class": null
+      "error": "ModuleNotFoundError: No module named 'dagster_community_components'",
+      "error_class": "ModuleNotFoundError",
+      "traceback": [
+        "  File \"<frozen importlib._bootstrap_external>\", line 999, in exec_module",
+        "  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed",
+        "  File \"/private/tmp/dagster-component-templates-check/integrations/cognos_workspace/component.py\", line 66, in <module>",
+        "    from dagster_community_components import CognosResource",
+        "ModuleNotFoundError: No module named 'dagster_community_components'"
+      ]
     },
     {
       "id": "cohort_analysis",
@@ -1118,6 +1199,14 @@
       "error_class": null
     },
     {
+      "id": "controlm_integration",
+      "path": "integrations/controlm_integration",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "conversation_memory",
       "path": "assets/ai/conversation_memory",
       "status": "PASS",
@@ -1150,7 +1239,7 @@
       "path": "resources/cosmosdb_resource",
       "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'azure.cosmos'",
+      "error": "ModuleNotFoundError: No module named 'azure'",
       "error_class": null
     },
     {
@@ -1294,6 +1383,14 @@
       "error_class": null
     },
     {
+      "id": "customer_io_resource",
+      "path": "resources/customer_io_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "customer_journey_mapping",
       "path": "assets/analytics/customer_journey_mapping",
       "status": "PASS",
@@ -1323,7 +1420,9 @@
       "id": "dagster_materializations_to_prometheus_sensor",
       "path": "sensors/dagster_materializations_to_prometheus_sensor",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "DependencyWarning: SOCKS support in urllib3 requires the installation of optional dependencies: specifically, PySocks.  For more information, see https://urllib3.readthedocs.io/en/latest/advanced-usage.html#socks-proxies"
+      ],
       "error": null,
       "error_class": null
     },
@@ -1426,6 +1525,14 @@
       "error_class": null
     },
     {
+      "id": "data_contract",
+      "path": "assets/infrastructure/data_contract",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "data_enricher",
       "path": "assets/ai/data_enricher",
       "status": "SKIP_EXAMPLE_MULTI_DOC",
@@ -1486,10 +1593,10 @@
     {
       "id": "database_replication",
       "path": "assets/ingestion/database_replication",
-      "status": "SKIP_CREDENTIALS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "Env var 'ORACLE_DB_URL' (for source_connection) is not set",
-      "error_class": "OSError"
+      "error": "dagster-sling required: pip install dagster-sling",
+      "error_class": null
     },
     {
       "id": "database_schema_inventory",
@@ -1526,10 +1633,10 @@
     {
       "id": "databricks_asset_bundle",
       "path": "integrations/databricks_asset_bundle",
-      "status": "SKIP_PROJECT_REQUIRED",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "Databricks config file not found: /Users/ericthomas/dagster_components/dagster-component-templates /databricks.yml",
-      "error_class": "FileNotFoundError"
+      "error": "ModuleNotFoundError: No module named 'databricks'",
+      "error_class": null
     },
     {
       "id": "databricks_genie_query",
@@ -1550,10 +1657,10 @@
     {
       "id": "databricks_resource",
       "path": "resources/databricks_resource",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
-      "error_class": null
+      "error": "ModuleNotFoundError: No module named 'dagster_databricks'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "databricks_table_observation_sensor",
@@ -1680,6 +1787,14 @@
       "error_class": null
     },
     {
+      "id": "dataframe_to_amplitude",
+      "path": "assets/sinks/dataframe_to_amplitude",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "dataframe_to_avro",
       "path": "assets/sinks/dataframe_to_avro",
       "status": "PASS",
@@ -1704,6 +1819,14 @@
       "error_class": null
     },
     {
+      "id": "dataframe_to_braze",
+      "path": "assets/sinks/dataframe_to_braze",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "dataframe_to_clickhouse",
       "path": "assets/sinks/dataframe_to_clickhouse",
       "status": "PASS",
@@ -1714,6 +1837,14 @@
     {
       "id": "dataframe_to_csv",
       "path": "assets/sinks/dataframe_to_csv",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "dataframe_to_customer_io",
+      "path": "assets/sinks/dataframe_to_customer_io",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -1800,6 +1931,14 @@
       "error_class": null
     },
     {
+      "id": "dataframe_to_iterable",
+      "path": "assets/sinks/dataframe_to_iterable",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "dataframe_to_json",
       "path": "assets/sinks/dataframe_to_json",
       "status": "PASS",
@@ -1808,8 +1947,24 @@
       "error_class": null
     },
     {
+      "id": "dataframe_to_klaviyo",
+      "path": "assets/sinks/dataframe_to_klaviyo",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "dataframe_to_kusto",
       "path": "assets/sinks/dataframe_to_kusto",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "dataframe_to_mixpanel",
+      "path": "assets/sinks/dataframe_to_mixpanel",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -1890,6 +2045,22 @@
     {
       "id": "dataframe_to_security_lake",
       "path": "sinks/dataframe_to_security_lake",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "dataframe_to_segment",
+      "path": "assets/sinks/dataframe_to_segment",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "dataframe_to_sendgrid",
+      "path": "assets/sinks/dataframe_to_sendgrid",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -2018,7 +2189,7 @@
       "path": "resources/dbt_cloud_resource",
       "status": "SKIP_PROJECT_REQUIRED",
       "warnings": [],
-      "error": "deadlock detected by _ModuleLock('dagster_dbt.components.dbt_project.component') at 4824968848",
+      "error": "deadlock detected by _ModuleLock('dagster_dbt.components') at 4540115920",
       "error_class": "_DeadlockError"
     },
     {
@@ -2028,14 +2199,6 @@
       "warnings": [],
       "error": null,
       "error_class": null
-    },
-    {
-      "id": "dbt_docs_enriched_project",
-      "path": "assets/dbt/dbt_docs_enriched_project",
-      "status": "SKIP_PROJECT_REQUIRED",
-      "warnings": [],
-      "error": "'str' object has no attribute 'defs_state_discriminator'",
-      "error_class": "AttributeError"
     },
     {
       "id": "dbt_run_job",
@@ -2072,13 +2235,10 @@
     {
       "id": "delta_lake_io_manager",
       "path": "io_managers/delta_lake_io_manager",
-      "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-deltalake` (0.29.4).",
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-deltalake-pandas` (0.29.4)."
-      ],
-      "error": null,
-      "error_class": null
+      "status": "SKIP_OPTIONAL_DEP",
+      "warnings": [],
+      "error": "ModuleNotFoundError: No module named 'dagster_deltalake_pandas'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "deltalake_polars_io_manager",
@@ -2123,16 +2283,10 @@
     {
       "id": "dlt_pipeline_assets",
       "path": "integrations/dlt_pipeline_assets",
-      "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-dlt` (0.28.1).",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/"
-      ],
-      "error": null,
-      "error_class": null
+      "status": "SKIP_OPTIONAL_DEP",
+      "warnings": [],
+      "error": "ModuleNotFoundError: No module named 'dagster_dlt'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "docker_container_asset",
@@ -2263,6 +2417,14 @@
       "error_class": null
     },
     {
+      "id": "dry_run_asset",
+      "path": "assets/infrastructure/dry_run_asset",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "dspy_program",
       "path": "assets/ai/dspy_program",
       "status": "PASS",
@@ -2275,10 +2437,10 @@
     {
       "id": "duckdb_io_manager",
       "path": "io_managers/duckdb_io_manager",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
-      "error_class": null
+      "error": "ModuleNotFoundError: No module named 'dagster_duckdb_pandas'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "duckdb_polars_io_manager",
@@ -2309,20 +2471,16 @@
     {
       "id": "duckdb_resource",
       "path": "resources/duckdb_resource",
-      "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-duckdb` (0.28.1)."
-      ],
-      "error": null,
-      "error_class": null
+      "status": "SKIP_OPTIONAL_DEP",
+      "warnings": [],
+      "error": "ModuleNotFoundError: No module named 'dagster_duckdb'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "duckdb_table_writer",
       "path": "assets/sinks/duckdb_table_writer",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-duckdb-pandas` (0.28.1)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -2363,9 +2521,9 @@
     {
       "id": "dynamodb_resource",
       "path": "resources/dynamodb_resource",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
+      "error": "ModuleNotFoundError: No module named 'boto3'",
       "error_class": null
     },
     {
@@ -2429,6 +2587,14 @@
       "error_class": null
     },
     {
+      "id": "email_approval_gate",
+      "path": "assets/ai/email_approval_gate",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "email_parser",
       "path": "assets/transforms/email_parser",
       "status": "SKIP_EXAMPLE_MULTI_DOC",
@@ -2449,31 +2615,33 @@
     {
       "id": "enhanced_data_quality_checks",
       "path": "asset_checks/enhanced_data_quality_checks",
-      "status": "PASS",
-      "warnings": [
-        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/"
-      ],
-      "error": null,
+      "status": "SKIP_OPTIONAL_DEP",
+      "warnings": [],
+      "error": "ModuleNotFoundError: No module named 'scipy'",
       "error_class": null
+    },
+    {
+      "id": "enriched_dbt_cloud_workspace",
+      "path": "assets/dbt/enriched_dbt_cloud_workspace",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "2 validation errors for EnrichedDbtCloudWorkspaceComponent\nworkspace.project_id\n  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='{{ env.DBT_CLOUD_PROJECT_ID }}', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing\nworkspace.environment_id\n  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='{{ env.DBT_CLOUD_ENVIRONMENT_ID }}', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing",
+      "error_class": "ValidationError",
+      "traceback": [
+        "  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='{{ env.DBT_CLOUD_PROJECT_ID }}', input_type=str]",
+        "    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing",
+        "workspace.environment_id",
+        "  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='{{ env.DBT_CLOUD_ENVIRONMENT_ID }}', input_type=str]",
+        "    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing"
+      ]
+    },
+    {
+      "id": "enriched_dbt_project",
+      "path": "assets/dbt/enriched_dbt_project",
+      "status": "SKIP_PROJECT_REQUIRED",
+      "warnings": [],
+      "error": "'str' object has no attribute 'defs_state_discriminator'",
+      "error_class": "AttributeError"
     },
     {
       "id": "entity_extractor",
@@ -2767,9 +2935,7 @@
       "id": "external_sql_asset",
       "path": "external_assets/external_sql_asset",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-sling` (0.28.1)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -2801,9 +2967,7 @@
       "id": "external_vercel_deployment",
       "path": "external_assets/external_vercel_deployment",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-pyspark` (0.28.12)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -3006,9 +3170,9 @@
     {
       "id": "firestore_resource",
       "path": "resources/firestore_resource",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
+      "error": "ModuleNotFoundError: No module named 'google.cloud'",
       "error_class": null
     },
     {
@@ -3030,10 +3194,10 @@
     {
       "id": "fivetran_assets",
       "path": "integrations/fivetran_assets",
-      "status": "SKIP_CREDENTIALS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "Errors while initializing resource\n    Error 1: Post processing at path root:api_key of original value {'env': '<fill in>'} failed:\ndagster._config.errors.PostProcessingError: You have attempted to fetch the environment variable \"<fill in>\" which is not set. In order for this execution to succeed it must be set in this environment.\n\nStack Trace:\n  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/_config/post_process.py\", line 83, in _post_process\n    new_value = context.config_type.post_process(config_value)\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/_config/source.py\", line 41, in post_process\n    return str(_ensure_env_variable(cfg))\n               ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/_config/source.py\", line 17, in _ensure_env_variable\n    raise PostProcessingError(\n\n    Error 2: Post processing at path root:api_secret of original value {'env': '<fill in>'} failed:\ndagster._config.errors.PostProcessingError: You have attempted to fetch the environment variable \"<fill in>\" which is not set. In order for this execution to succeed it must be set in this environment.\n\nStack Trace:\n  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/_config/post_process.py\", line 83, in _post_process\n    new_value = context.config_type.post_process(config_value)\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/_config/source.py\", line 41, in post_process\n    return str(_ensure_env_variable(cfg))\n               ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/lib/python3.11/site-packages/dagster/_config/source.py\", line 17, in _ensure_env_variable\n    raise PostProcessingError(\n",
-      "error_class": null
+      "error": "ModuleNotFoundError: No module named 'dagster_fivetran'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "fivetran_sync_sensor",
@@ -3174,10 +3338,10 @@
     {
       "id": "gcs_resource",
       "path": "resources/gcs_resource",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
-      "error_class": null
+      "error": "ModuleNotFoundError: No module named 'dagster_gcp'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "gcs_to_database_asset",
@@ -3308,7 +3472,6 @@
       "path": "assets/ai/gong_call_summary_asset",
       "status": "WARN",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"GongCallSummaryAssetComponent\" shadows an attribute in parent \"Resolvable\"",
         "UserWarning: Field name \"model\" in \"GongCallSummaryAssetComponent\" shadows an attribute in parent \"Resolvable\""
       ],
       "error": null,
@@ -3333,8 +3496,10 @@
     {
       "id": "google_ads_ingestion",
       "path": "assets/ingestion/google_ads_ingestion",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"GongCallSummaryAssetComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -3359,7 +3524,7 @@
       "path": "integrations/google_bigquery",
       "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "cannot import name 'bigquery_datatransfer_v1' from 'google.cloud' (unknown location)",
+      "error": "ModuleNotFoundError: No module named 'google.cloud'",
       "error_class": null
     },
     {
@@ -3375,7 +3540,7 @@
       "path": "integrations/google_cloud_functions",
       "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "cannot import name 'functions_v2' from 'google.cloud' (unknown location)",
+      "error": "ModuleNotFoundError: No module named 'google.cloud'",
       "error_class": null
     },
     {
@@ -3383,7 +3548,7 @@
       "path": "integrations/google_cloud_run_jobs",
       "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "cannot import name 'run_v2' from 'google.cloud' (unknown location)",
+      "error": "ModuleNotFoundError: No module named 'google.cloud'",
       "error_class": null
     },
     {
@@ -3391,7 +3556,7 @@
       "path": "integrations/google_dataflow",
       "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "cannot import name 'dataflow_v1beta3' from 'google.cloud' (unknown location)",
+      "error": "ModuleNotFoundError: No module named 'google.cloud'",
       "error_class": null
     },
     {
@@ -3399,7 +3564,7 @@
       "path": "integrations/google_datastream",
       "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "cannot import name 'datastream_v1' from 'google.cloud' (unknown location)",
+      "error": "ModuleNotFoundError: No module named 'google.cloud'",
       "error_class": null
     },
     {
@@ -3421,17 +3586,17 @@
     {
       "id": "google_pubsub",
       "path": "integrations/google_pubsub",
-      "status": "SKIP_CREDENTIALS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "[Errno 2] No such file or directory: \"{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}\"",
-      "error_class": "FileNotFoundError"
+      "error": "ModuleNotFoundError: No module named 'google.cloud'",
+      "error_class": null
     },
     {
       "id": "google_sheets_ingestion",
       "path": "assets/ingestion/google_sheets_ingestion",
       "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "1 validation error for GoogleSheetsIngestionComponent\ncredentials\n  Input should be a valid dictionary [type=dict_type, input_value='${GOOGLE_SHEETS_CREDENTIALS}', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/dict_type",
+      "error": "1 validation error for GoogleSheetsIngestionComponent\ncredentials\n  Input should be a valid dictionary [type=dict_type, input_value='${GOOGLE_SHEETS_CREDENTIALS}', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/dict_type",
       "error_class": "ValidationError"
     },
     {
@@ -3447,7 +3612,7 @@
       "path": "integrations/google_vertex_ai",
       "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "cannot import name 'aiplatform' from 'google.cloud' (unknown location)",
+      "error": "ModuleNotFoundError: No module named 'google.cloud'",
       "error_class": null
     },
     {
@@ -3517,6 +3682,14 @@
     {
       "id": "hl7_v2_parser",
       "path": "assets/transforms/hl7_v2_parser",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "hooks_asset",
+      "path": "assets/infrastructure/hooks_asset",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -3675,10 +3848,10 @@
       "path": "resources/iceberg_catalog_resource",
       "status": "PASS",
       "warnings": [
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/"
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/"
       ],
       "error": null,
       "error_class": null
@@ -3694,13 +3867,9 @@
     {
       "id": "iceberg_io_manager",
       "path": "io_managers/iceberg_io_manager",
-      "status": "PASS",
-      "warnings": [
-        "PreviewWarning: Class `IcebergCatalogConfig` is currently in preview, and may have breaking changes in patch version releases. This feature is not considered ready for production use.",
-        "PreviewWarning: Class `PyArrowIcebergIOManager` is currently in preview, and may have breaking changes in patch version releases. This feature is not considered ready for production use.",
-        "PreviewWarning: Class `IcebergIOManager` is currently in preview, and may have breaking changes in patch version releases. This feature is not considered ready for production use."
-      ],
-      "error": null,
+      "status": "SKIP_OPTIONAL_DEP",
+      "warnings": [],
+      "error": "ModuleNotFoundError: No module named 'dagster_iceberg'",
       "error_class": null
     },
     {
@@ -3798,7 +3967,6 @@
       "path": "assets/transforms/imputation",
       "status": "PASS",
       "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.18) expected library version (0.29.18) and `dagster-pandas` (0.28.1).",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -3907,6 +4075,14 @@
       "error_class": null
     },
     {
+      "id": "iterable_resource",
+      "path": "resources/iterable_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "iterative_supervisor_agent",
       "path": "assets/ai/iterative_supervisor_agent",
       "status": "PASS",
@@ -3915,21 +4091,37 @@
       "error_class": null
     },
     {
+      "id": "iws_integration",
+      "path": "integrations/iws_integration",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "jams_integration",
+      "path": "integrations/jams_integration",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "jde_orchestration_output_ingestion",
       "path": "assets/ingestion/jde_orchestration_output_ingestion",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
     {
       "id": "jde_orchestration_status_sensor",
       "path": "sensors/jde_orchestration_status_sensor",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -3952,9 +4144,24 @@
     {
       "id": "jde_orchestrator_workspace",
       "path": "integrations/jde_orchestrator_workspace",
-      "status": "SKIP_PROJECT_REQUIRED",
+      "status": "FAIL",
       "warnings": [],
-      "error": "Could not find dg.toml or pyproject.toml in .",
+      "error": "ModuleNotFoundError: No module named 'dagster_community_components'",
+      "error_class": "ModuleNotFoundError",
+      "traceback": [
+        "  File \"<frozen importlib._bootstrap_external>\", line 999, in exec_module",
+        "  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed",
+        "  File \"/private/tmp/dagster-component-templates-check/integrations/jde_orchestrator_workspace/component.py\", line 68, in <module>",
+        "    from dagster_community_components import JDEOrchestratorResource",
+        "ModuleNotFoundError: No module named 'dagster_community_components'"
+      ]
+    },
+    {
+      "id": "jenkins_integration",
+      "path": "integrations/jenkins_integration",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
       "error_class": null
     },
     {
@@ -4124,6 +4331,14 @@
       "error_class": null
     },
     {
+      "id": "klaviyo_resource",
+      "path": "resources/klaviyo_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "label_encoder",
       "path": "assets/transforms/label_encoder",
       "status": "PASS",
@@ -4168,13 +4383,8 @@
     {
       "id": "langgraph_agent",
       "path": "assets/ai/langgraph_agent",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"LangChainChainAssetComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LangGraphStep\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LangGraphAgentComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LangChainChainAssetComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -4189,18 +4399,30 @@
     {
       "id": "lead_scoring",
       "path": "assets/analytics/lead_scoring",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"LangChainChainAssetComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
     {
       "id": "legal_document_extractor",
       "path": "assets/ai/legal_document_extractor",
-      "status": "PASS",
+      "status": "WARN",
       "warnings": [
+        "UserWarning: Field name \"model\" in \"LangGraphStep\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"LangGraphAgentComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "lifecycle_wap",
+      "path": "assets/infrastructure/lifecycle_wap",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -4421,10 +4643,8 @@
     {
       "id": "llm_judge",
       "path": "assets/ai/llm_judge",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"LLMChainExecutorComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LLMChainExecutorComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -4454,7 +4674,6 @@
       "status": "WARN",
       "warnings": [
         "UserWarning: Field name \"model\" in \"LlmMultiPathRouterComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LlmMultiPathRouterComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -4479,6 +4698,14 @@
     {
       "id": "local_parquet_io_manager",
       "path": "io_managers/local_parquet_io_manager",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "log_prints_asset",
+      "path": "assets/infrastructure/log_prints_asset",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -4673,6 +4900,14 @@
       "error_class": null
     },
     {
+      "id": "mixpanel_resource",
+      "path": "resources/mixpanel_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "ml_pipeline",
       "path": "assets/analytics/ml_pipeline",
       "status": "PASS",
@@ -4739,6 +4974,14 @@
     {
       "id": "modal_asset",
       "path": "assets/infrastructure/modal_asset",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "modal_pipes_asset",
+      "path": "assets/infrastructure/modal_pipes_asset",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -4829,10 +5072,10 @@
     {
       "id": "motherduck_io_manager",
       "path": "io_managers/motherduck_io_manager",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
-      "error_class": null
+      "error": "ModuleNotFoundError: No module named 'dagster_duckdb_pandas'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "mqtt_monitor",
@@ -4883,6 +5126,14 @@
       "warnings": [],
       "error": "ModuleNotFoundError: No module named 'dagster_msteams'",
       "error_class": "ModuleNotFoundError"
+    },
+    {
+      "id": "multi_approver_gate",
+      "path": "assets/ai/multi_approver_gate",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "multi_field_binning",
@@ -5091,10 +5342,10 @@
       "path": "resources/oauth_token_resource",
       "status": "PASS",
       "warnings": [
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/"
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/"
       ],
       "error": null,
       "error_class": null
@@ -5154,10 +5405,10 @@
       "path": "resources/odata_resource",
       "status": "PASS",
       "warnings": [
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/"
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/"
       ],
       "error": null,
       "error_class": null
@@ -5181,8 +5432,9 @@
     {
       "id": "one_hot_encoding",
       "path": "assets/transforms/one_hot_encoding",
-      "status": "PASS",
+      "status": "WARN",
       "warnings": [
+        "UserWarning: Field name \"model\" in \"OllamaInferenceAssetComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -5191,18 +5443,18 @@
     {
       "id": "openai_agent",
       "path": "assets/ai/openai_agent",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"OllamaInferenceAssetComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
     {
       "id": "openai_llm",
       "path": "assets/ai/openai_llm",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"OllamaInferenceAssetComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"OllamaInferenceAssetComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -5351,6 +5603,14 @@
       "error_class": null
     },
     {
+      "id": "partition_lock_asset",
+      "path": "assets/infrastructure/partition_lock_asset",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "partitioned_asset_launcher_job",
       "path": "jobs/partitioned_asset_launcher_job",
       "status": "PASS",
@@ -5396,17 +5656,7 @@
       "id": "pearson_correlation",
       "path": "assets/analytics/pearson_correlation",
       "status": "PASS",
-      "warnings": [
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0.",
-        "PydanticDeprecatedSince212: Using `@model_validator` with mode='after' on a classmethod is deprecated. Instead, use an instance method. See the documentation at https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. Deprecated in Pydantic V2.12 to be removed in V3.0."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -5647,6 +5897,14 @@
       "error_class": null
     },
     {
+      "id": "power_automate_integration",
+      "path": "integrations/power_automate_integration",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "precisely_address_verify",
       "path": "assets/transforms/precisely_address_verify",
       "status": "PASS",
@@ -5743,6 +6001,14 @@
     {
       "id": "product_usage_analytics",
       "path": "assets/analytics/product_usage_analytics",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "profile_asset",
+      "path": "assets/infrastructure/profile_asset",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -5871,10 +6137,10 @@
     {
       "id": "pyspark_resource",
       "path": "resources/pyspark_resource",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
-      "error_class": null
+      "error": "ModuleNotFoundError: No module named 'dagster_pyspark'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "python_callable_job",
@@ -6125,10 +6391,10 @@
     {
       "id": "redshift_resource",
       "path": "resources/redshift_resource",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
-      "error_class": null
+      "error": "ModuleNotFoundError: No module named 'dagster_aws'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "regex_parser",
@@ -6229,8 +6495,48 @@
       "error_class": null
     },
     {
+      "id": "rpa_health_check",
+      "path": "asset_checks/rpa_health_check",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "rpa_output_parser",
+      "path": "assets/transforms/rpa_output_parser",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "rpa_queue_concurrency_lock",
+      "path": "assets/infrastructure/rpa_queue_concurrency_lock",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "rss_feed_sensor",
       "path": "sensors/rss_feed_sensor",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "rundeck_integration",
+      "path": "integrations/rundeck_integration",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "runmyjobs_integration",
+      "path": "integrations/runmyjobs_integration",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -6257,9 +6563,9 @@
     {
       "id": "s3_csv_io_manager",
       "path": "io_managers/s3_csv_io_manager",
-      "status": "PASS",
+      "status": "SKIP_RELATIVE_IMPORT",
       "warnings": [],
-      "error": null,
+      "error": "attempted relative import with no known parent package",
       "error_class": null
     },
     {
@@ -6291,9 +6597,9 @@
     {
       "id": "s3_to_database_asset",
       "path": "assets/ingestion/s3_to_database_asset",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
+      "error": "ModuleNotFoundError: No module named 'boto3'",
       "error_class": null
     },
     {
@@ -6367,10 +6673,10 @@
       "path": "resources/sap_hana_resource",
       "status": "PASS",
       "warnings": [
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/"
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/"
       ],
       "error": null,
       "error_class": null
@@ -6388,10 +6694,10 @@
       "path": "resources/sap_rfc_resource",
       "status": "PASS",
       "warnings": [
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/",
-        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/"
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/"
       ],
       "error": null,
       "error_class": null
@@ -6441,6 +6747,14 @@
       "error_class": null
     },
     {
+      "id": "segment_resource",
+      "path": "resources/segment_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "select_columns",
       "path": "assets/transforms/select_columns",
       "status": "PASS",
@@ -6453,6 +6767,22 @@
     {
       "id": "select_records",
       "path": "assets/transforms/select_records",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "sendgrid_resource",
+      "path": "resources/sendgrid_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "sensitive_asset",
+      "path": "assets/infrastructure/sensitive_asset",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -6587,6 +6917,14 @@
       "error_class": null
     },
     {
+      "id": "shadow_asset",
+      "path": "assets/infrastructure/shadow_asset",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "sharepoint_monitor",
       "path": "sensors/sharepoint_monitor",
       "status": "PASS",
@@ -6679,6 +7017,14 @@
       "error_class": null
     },
     {
+      "id": "sla_asset",
+      "path": "assets/infrastructure/sla_asset",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "slack_approval_gate",
       "path": "assets/ai/slack_approval_gate",
       "status": "PASS",
@@ -6729,6 +7075,14 @@
     {
       "id": "sling_replication_asset",
       "path": "integrations/sling_replication_asset",
+      "status": "SKIP_OPTIONAL_DEP",
+      "warnings": [],
+      "error": "ModuleNotFoundError: No module named 'dagster_sling'",
+      "error_class": "ModuleNotFoundError"
+    },
+    {
+      "id": "smart_retry",
+      "path": "assets/infrastructure/smart_retry",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -6753,6 +7107,14 @@
     {
       "id": "smtp_send_asset",
       "path": "assets/sinks/smtp_send_asset",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "snapshot_asset",
+      "path": "assets/infrastructure/snapshot_asset",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -6865,10 +7227,10 @@
     {
       "id": "snowflake_resource",
       "path": "resources/snowflake_resource",
-      "status": "PASS",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": null,
-      "error_class": null
+      "error": "ModuleNotFoundError: No module named 'dagster_snowflake'",
+      "error_class": "ModuleNotFoundError"
     },
     {
       "id": "snowflake_snowpipe",
@@ -6955,9 +7317,9 @@
     {
       "id": "snowflake_workspace",
       "path": "integrations/snowflake_workspace",
-      "status": "SKIP_PROJECT_REQUIRED",
+      "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "Could not find dg.toml or pyproject.toml in .",
+      "error": "ModuleNotFoundError: No module named 'snowflake'",
       "error_class": null
     },
     {
@@ -7175,6 +7537,14 @@
       "error_class": null
     },
     {
+      "id": "stonebranch_uac_integration",
+      "path": "integrations/stonebranch_uac_integration",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "streaming_consumer",
       "path": "assets/ingestion/streaming_consumer",
       "status": "PASS",
@@ -7277,8 +7647,11 @@
     {
       "id": "support_ticket_ingestion",
       "path": "assets/ingestion/support_ticket_ingestion",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"SupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"SupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -7295,11 +7668,8 @@
     {
       "id": "surrogate_key",
       "path": "transforms/surrogate_key",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"SupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"SupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -7400,6 +7770,21 @@
       "warnings": [],
       "error": "Could not find dg.toml or pyproject.toml in .",
       "error_class": null
+    },
+    {
+      "id": "task_asset",
+      "path": "assets/infrastructure/task_asset",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "ModuleNotFoundError: No module named 'my_project'",
+      "error_class": "ModuleNotFoundError",
+      "traceback": [
+        "  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed",
+        "  File \"<frozen importlib._bootstrap>\", line 1387, in _gcd_import",
+        "  File \"<frozen importlib._bootstrap>\", line 1360, in _find_and_load",
+        "  File \"<frozen importlib._bootstrap>\", line 1324, in _find_and_load_unlocked",
+        "ModuleNotFoundError: No module named 'my_project'"
+      ]
     },
     {
       "id": "teams_approval_gate",
@@ -7554,6 +7939,14 @@
       "error_class": null
     },
     {
+      "id": "throttle_asset",
+      "path": "assets/infrastructure/throttle_asset",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "ticket_classifier",
       "path": "assets/ai/ticket_classifier",
       "status": "PASS",
@@ -7588,6 +7981,14 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "timeout_asset",
+      "path": "assets/infrastructure/timeout_asset",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -7634,10 +8035,17 @@
     {
       "id": "tm1_workspace",
       "path": "integrations/tm1_workspace",
-      "status": "SKIP_PROJECT_REQUIRED",
+      "status": "FAIL",
       "warnings": [],
-      "error": "Could not find dg.toml or pyproject.toml in .",
-      "error_class": null
+      "error": "ModuleNotFoundError: No module named 'dagster_community_components'",
+      "error_class": "ModuleNotFoundError",
+      "traceback": [
+        "  File \"<frozen importlib._bootstrap_external>\", line 999, in exec_module",
+        "  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed",
+        "  File \"/private/tmp/dagster-component-templates-check/integrations/tm1_workspace/component.py\", line 66, in <module>",
+        "    from dagster_community_components import TM1Resource",
+        "ModuleNotFoundError: No module named 'dagster_community_components'"
+      ]
     },
     {
       "id": "top_n_per_group",
@@ -7804,6 +8212,14 @@
       "error_class": null
     },
     {
+      "id": "uipath_orchestrator_integration",
+      "path": "integrations/uipath_orchestrator_integration",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "unique_dedup",
       "path": "assets/transforms/unique_dedup",
       "status": "PASS",
@@ -7856,10 +8272,8 @@
     {
       "id": "vector_store_query",
       "path": "assets/ai/vector_store_query",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"VantaEvidenceResponseAgentComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"VantaEvidenceResponseAgentComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,

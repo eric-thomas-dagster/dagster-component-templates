@@ -76,7 +76,7 @@ Most customers should start with `qlik_replicate_workspace` — it's the shortes
 | `compute_kind` | `str` | `"qlik_replicate"` | Compute kind tag for all imported assets. |
 | `action` | `str` | `"run"` | Action sent to Qlik EM on materialize: run \| reload \| stop. |
 | `run_option` | `str` | `"RESUME_PROCESSING"` | `option` query-string arg for the `run` action. |
-| `generate_sensor` | `bool` | `false` | If true, adds a polling sensor that detects Qlik Replicate task state changes and emits AssetObservation events into Dagster's event log. Matches the `polling_sensor` convention on FivetranAccountComponent / SnowflakeWor… _(full docs in schema.json + component README)_ |
+| `polling_sensor` (alias: `generate_sensor`) | `bool` | `false` | If true, adds a polling sensor that detects Qlik Replicate task state changes and emits AssetObservation events into Dagster's event log. Matches the `polling_sensor` convention on FivetranAccountComponent / SnowflakeWor… _(full docs in schema.json + component README)_ |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for prod runs against Dagster Cloud. |
 
 [//]: # (FIELDS:END)

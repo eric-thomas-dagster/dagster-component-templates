@@ -42,7 +42,7 @@ Auto-emit Dagster assets for both **MLflow experiments** (recent runs + metrics 
 | `runs_limit` | `int` | `100` | Max runs fetched per experiment on each materialization. |
 | `asset_key_prefix` | `List[str]` | `lambda: ['mlflow']()` | Key prefix used for all emitted AssetKeys. |
 | `compute_kind` | `str` | `"mlflow"` | Compute kind tag for all imported assets. |
-| `generate_sensor` | `bool` | `false` | If true, adds a polling sensor that detects new MLflow runs landing in enumerated experiments and emits AssetObservation events into Dagster's event log. Useful when MLflow training jobs are triggered outside Dagster (e… _(full docs in schema.json + component README)_ |
+| `polling_sensor` (alias: `generate_sensor`) | `bool` | `false` | If true, adds a polling sensor that detects new MLflow runs landing in enumerated experiments and emits AssetObservation events into Dagster's event log. Useful when MLflow training jobs are triggered outside Dagster (e… _(full docs in schema.json + component README)_ |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for prod runs against Dagster Cloud. |
 
 [//]: # (FIELDS:END)

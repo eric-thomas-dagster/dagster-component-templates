@@ -70,7 +70,7 @@ Same shape for `process_selector` and `chore_selector`. Omit a selector → incl
 | `chore_selector` | `TM1ObjectSelector` | — | Optional inclusion/exclusion filter for chore names. |
 | `asset_key_prefix` | `List[str]` | `lambda: ['tm1']()` | Key prefix used for all emitted AssetKeys. |
 | `compute_kind` | `str` | `"tm1"` | Compute kind tag for all imported assets. |
-| `generate_sensor` | `bool` | `false` | Reserved: if true, add a polling sensor that detects new TM1 process runs and emits AssetObservation events. Matches the `polling_sensor` convention on FivetranAccountComponent and SnowflakeWorkspaceComponent. Off by def… _(full docs in schema.json + component README)_ |
+| `polling_sensor` (alias: `generate_sensor`) | `bool` | `false` | Reserved: if true, add a polling sensor that detects new TM1 process runs and emits AssetObservation events. Matches the `polling_sensor` convention on FivetranAccountComponent and SnowflakeWorkspaceComponent. Off by def… _(full docs in schema.json + component README)_ |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for prod runs against Dagster Cloud. |
 
 [//]: # (FIELDS:END)

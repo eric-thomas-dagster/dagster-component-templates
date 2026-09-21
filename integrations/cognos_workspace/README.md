@@ -42,7 +42,7 @@ The workspace-shape peer of the low-level `cognos_*` components.
 | `report_selector` | `CognosReportSelector` | — | Optional inclusion/exclusion filter for report names. |
 | `asset_key_prefix` | `List[str]` | `lambda: ['cognos', 'report']()` | Key prefix used for all emitted AssetKeys. |
 | `compute_kind` | `str` | `"cognos"` | Compute kind tag for all imported assets. |
-| `generate_sensor` | `bool` | `false` | If true, adds a polling sensor that detects new Cognos report runs and emits AssetObservation events into Dagster's event log. Matches the `polling_sensor` convention on FivetranAccountComponent and SnowflakeWorkspaceCom… _(full docs in schema.json + component README)_ |
+| `polling_sensor` (alias: `generate_sensor`) | `bool` | `false` | If true, adds a polling sensor that detects new Cognos report runs and emits AssetObservation events into Dagster's event log. Matches the `polling_sensor` convention on FivetranAccountComponent and SnowflakeWorkspaceCom… _(full docs in schema.json + component README)_ |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for prod runs against Dagster Cloud. |
 
 [//]: # (FIELDS:END)

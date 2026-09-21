@@ -37,7 +37,7 @@ The workspace-shape peer of the `jde_orchestrator_*` low-level components.
 | `asset_key_prefix` | `List[str]` | `lambda: ['jde', 'orchestration']()` | Key prefix used for all emitted AssetKeys. |
 | `compute_kind` | `str` | `"jde"` | Compute kind tag for all imported assets. |
 | `async_mode` | `bool` | `false` | If true, submit orchestrations with ``?asynchronous=true`` so AIS returns a jobId immediately. Pairs with ``wait_for_completion`` to poll the status endpoint until terminal. |
-| `generate_sensor` | `bool` | `false` | If true, adds a polling sensor that detects newly completed AIS orchestration runs and emits AssetObservation events into Dagster's event log. Matches the ``polling_sensor`` convention on FivetranAccountComponent / Snowf… _(full docs in schema.json + component README)_ |
+| `polling_sensor` (alias: `generate_sensor`) | `bool` | `false` | If true, adds a polling sensor that detects newly completed AIS orchestration runs and emits AssetObservation events into Dagster's event log. Matches the ``polling_sensor`` convention on FivetranAccountComponent / Snowf… _(full docs in schema.json + component README)_ |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for prod runs against Dagster Cloud. |
 
 [//]: # (FIELDS:END)

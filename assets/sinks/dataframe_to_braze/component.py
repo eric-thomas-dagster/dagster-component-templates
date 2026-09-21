@@ -29,6 +29,7 @@ from dagster import (
     AssetExecutionContext,
     AssetIn,
     AssetKey,
+    Backoff,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -209,7 +210,7 @@ class DataframeToBrazeComponent(Component, Model, Resolvable):
             retry_policy = RetryPolicy(
                 max_retries=self.retry_policy_max_retries,
                 delay=self.retry_policy_delay_seconds or 1,
-                backoff=self.retry_policy_backoff,  # type: ignore[arg-type]
+                backoff=Backoff.EXPONENTIAL if self.retry_policy_backoff == "exponential" else Backoff.LINEAR,
             )
 
         cfg = self

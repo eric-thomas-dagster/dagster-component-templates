@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -122,6 +122,12 @@ class PgvectorAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     2. This component materialises an embeddings table that downstream RAG or
        similarity-search assets can query directly with ``<->`` / ``<=>`` operators.
     """
+
+    # `api_key_env_var` carries `alias="openai_api_key_env_var"` for backcompat
+    # (see the field below) -- populate_by_name lets BOTH the current field
+    # name and the old alias validate. Without it, Pydantic accepts only the
+    # alias and rejects the current field name as an unknown extra input.
+    model_config = ConfigDict(populate_by_name=True)
 
     # --- Identity -------------------------------------------------------------
     asset_name: str = Field(description="Dagster asset key for this component.")

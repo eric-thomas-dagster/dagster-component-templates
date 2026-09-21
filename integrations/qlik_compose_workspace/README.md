@@ -68,7 +68,7 @@ Same shape for `data_mart_selector`. Omit → include everything.
 | `data_mart_selector` | `ComposeObjectSelector` | — | Optional inclusion/exclusion filter for data-mart names. |
 | `asset_key_prefix` | `List[str]` | `lambda: ['qlik_compose']()` | Key prefix used for all emitted AssetKeys. |
 | `compute_kind` | `str` | `"qlik_compose"` | Compute kind tag for all imported assets. |
-| `generate_sensor` | `bool` | `false` | If true, opts in to a polling sensor that detects new Compose workflow runs and emits AssetObservation events into Dagster's event log. Matches the `polling_sensor` convention on FivetranAccountComponent / SnowflakeWorks… _(full docs in schema.json + component README)_ |
+| `polling_sensor` (alias: `generate_sensor`) | `bool` | `false` | If true, opts in to a polling sensor that detects new Compose workflow runs and emits AssetObservation events into Dagster's event log. Matches the `polling_sensor` convention on FivetranAccountComponent / SnowflakeWorks… _(full docs in schema.json + component README)_ |
 | `assets_by_name` | `Dict[str, Dict[str, Any]]` | — | Per-object overrides keyed by the imported object's name (workflow name / data-mart name). Values are dicts of @asset kwargs applied on top of the auto-generated ones (group_name, tags, metadata, description, etc.). |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for prod runs against Dagster Cloud. |
 

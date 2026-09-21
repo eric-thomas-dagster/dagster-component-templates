@@ -233,6 +233,23 @@ class DatabaseQueryComponent(Component, Model, Resolvable):
 
     deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
 
+    sinks: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Optional list of sinks that write the queried DataFrame to a warehouse "
+            "table via an existing Dagster resource, in addition to returning the "
+            "DataFrame -- skips needing a separate downstream writer asset. Each: "
+            "{kind: table, resource_key: <name>, table: <name>, schema: <optional>, "
+            "if_exists: append|replace, mode: upsert_on_match, match: [col, col]}. "
+            "mode:upsert_on_match gives partition-rewrite idempotency (DELETE-then-"
+            "INSERT keyed by match, in a transaction). Auto-detects DuckDB "
+            ".register() fast path; falls back to SQLAlchemy for postgres/"
+            "snowflake/bigquery/mysql/mssql. The resource named by resource_key "
+            "must already be configured elsewhere in the project (e.g. a "
+            "snowflake_resource or postgres_resource component instance)."
+        ),
+    )
+
     include_preview_metadata: bool = Field(
         default=False,
         description="Include a preview of the output data in metadata (first 5 rows as markdown table). Used by builder UIs to render asset shape without warehouse access."
@@ -335,6 +352,15 @@ class DatabaseQueryComponent(Component, Model, Resolvable):
         owners = self.owners or []
         column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
 
+        sinks = self.sinks or []
+        # Compute required_resource_keys from sinks -- Dagster wires only what
+        # we declare, so this must reflect every `resource_key` we call into.
+        required_resource_keys: set = set()
+        for _sink in sinks:
+            _rk = _sink.get("resource_key")
+            if _rk:
+                required_resource_keys.add(_rk)
+
 
         # Build retry policy (auto-generated; opt-in via retry_policy_max_retries).
 
@@ -373,6 +399,7 @@ class DatabaseQueryComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
 group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys=required_resource_keys or None,
         )
         def database_query_asset(context: AssetExecutionContext):
             """Asset that executes SQL query and returns results."""
@@ -446,6 +473,169 @@ group_name=group_name,
                         _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
                             TableColumnLineage(_lineage_deps)
                         )
+
+                # ── Sinks: write the DataFrame to configured warehouse tables ────
+                # Auto-detects DuckDB `.register()` fast path; falls back to
+                # SQLAlchemy `to_sql`. Supports `mode: upsert_on_match` for
+                # partition-rewrite idempotency (DELETE + INSERT in a tx). The
+                # asset still returns `df` either way, so this is additive --
+                # a downstream asset can keep chaining off this one as a
+                # DataFrame source even when a sink is also configured. Any
+                # error here is caught by this function's own except/finally
+                # (query-failure logging + engine.dispose()) same as a query error.
+                if sinks:
+                    from contextlib import nullcontext
+                    sink_df = df.copy()  # avoid mutating the asset's return value
+                    for sink in sinks:
+                        kind = (sink.get("kind") or "table").lower()
+                        if kind != "table":
+                            raise ValueError(
+                                f"database_query sinks: only kind=table is supported "
+                                f"(got {kind!r})"
+                            )
+                        sink_resource_key = sink.get("resource_key")
+                        if not sink_resource_key:
+                            raise ValueError("sink kind=table requires 'resource_key'")
+                        sink_table = sink.get("table")
+                        if not sink_table:
+                            raise ValueError("sink kind=table requires 'table'")
+                        sink_schema = sink.get("schema")
+                        sink_if_exists = sink.get("if_exists", "append")
+                        sink_mode = (sink.get("mode") or "").lower() or None
+                        sink_match: List[str] = list(sink.get("match") or [])
+                        if sink_mode == "upsert_on_match" and not sink_match:
+                            raise ValueError(
+                                "sink mode=upsert_on_match requires 'match: [col, ...]'"
+                            )
+
+                        sink_resource = getattr(context.resources, sink_resource_key)
+
+                        def _acquire():
+                            if hasattr(sink_resource, "get_connection"):
+                                gc = sink_resource.get_connection()
+                                return gc if hasattr(gc, "__enter__") else nullcontext(gc)
+                            if hasattr(sink_resource, "get_engine"):
+                                eng = sink_resource.get_engine()
+                                return eng if hasattr(eng, "__enter__") else nullcontext(eng)
+                            raise ValueError(
+                                f"sink resource {sink_resource_key!r} must expose "
+                                f".get_connection() or .get_engine()"
+                            )
+
+                        qualified = f"{sink_schema}.{sink_table}" if sink_schema else sink_table
+                        with _acquire() as conn:
+                            # Fast path: DuckDB .register() / .execute() / .unregister().
+                            if (
+                                hasattr(conn, "register")
+                                and hasattr(conn, "execute")
+                                and hasattr(conn, "unregister")
+                            ):
+                                conn.register("_dbq_sink_batch", sink_df)
+                                try:
+                                    if sink_mode == "upsert_on_match":
+                                        conn.execute(
+                                            f"CREATE TABLE IF NOT EXISTS {qualified} AS "
+                                            f"SELECT * FROM _dbq_sink_batch WHERE 1=0"
+                                        )
+                                        match_tuple = ", ".join(sink_match)
+                                        conn.execute("BEGIN TRANSACTION")
+                                        try:
+                                            conn.execute(
+                                                f"DELETE FROM {qualified} WHERE ({match_tuple}) IN "
+                                                f"(SELECT DISTINCT {match_tuple} FROM _dbq_sink_batch)"
+                                            )
+                                            conn.execute(
+                                                f"INSERT INTO {qualified} "
+                                                f"SELECT * FROM _dbq_sink_batch"
+                                            )
+                                            conn.execute("COMMIT")
+                                        except Exception:
+                                            conn.execute("ROLLBACK")
+                                            raise
+                                    elif sink_if_exists == "replace":
+                                        conn.execute(
+                                            f"CREATE OR REPLACE TABLE {qualified} AS "
+                                            f"SELECT * FROM _dbq_sink_batch"
+                                        )
+                                    else:
+                                        conn.execute(
+                                            f"CREATE TABLE IF NOT EXISTS {qualified} AS "
+                                            f"SELECT * FROM _dbq_sink_batch WHERE 1=0"
+                                        )
+                                        conn.execute("BEGIN TRANSACTION")
+                                        try:
+                                            conn.execute(
+                                                f"INSERT INTO {qualified} "
+                                                f"SELECT * FROM _dbq_sink_batch"
+                                            )
+                                            conn.execute("COMMIT")
+                                        except Exception:
+                                            conn.execute("ROLLBACK")
+                                            raise
+                                    _metadata[f"sink/{qualified}/fast_path"] = "duckdb-register"
+                                finally:
+                                    try:
+                                        conn.unregister("_dbq_sink_batch")
+                                    except Exception:  # noqa: BLE001
+                                        pass
+                            else:
+                                # SQLAlchemy fallback path.
+                                if sink_mode == "upsert_on_match":
+                                    from sqlalchemy import text as _sa_text
+                                    distinct = sink_df[sink_match].drop_duplicates()
+                                    match_tuple = ", ".join(sink_match)
+                                    if len(distinct) > 0:
+                                        placeholders = ", ".join(
+                                            "(" + ", ".join(f":v{i}_{j}" for j in range(len(sink_match))) + ")"
+                                            for i in range(len(distinct))
+                                        )
+                                        params_sql = {}
+                                        for i, row in enumerate(distinct.itertuples(index=False)):
+                                            for j, v in enumerate(row):
+                                                params_sql[f"v{i}_{j}"] = v
+                                        tx = conn.begin() if hasattr(conn, "begin") else None
+                                        if tx is not None:
+                                            with tx as _c:
+                                                _c.execute(
+                                                    _sa_text(
+                                                        f"DELETE FROM {qualified} "
+                                                        f"WHERE ({match_tuple}) IN ({placeholders})"
+                                                    ),
+                                                    params_sql,
+                                                )
+                                                sink_df.to_sql(
+                                                    sink_table, _c, schema=sink_schema,
+                                                    if_exists="append", index=False,
+                                                )
+                                        else:
+                                            sink_df.to_sql(
+                                                sink_table, conn, schema=sink_schema,
+                                                if_exists="append", index=False,
+                                            )
+                                    else:
+                                        sink_df.to_sql(
+                                            sink_table, conn, schema=sink_schema,
+                                            if_exists="append", index=False,
+                                        )
+                                else:
+                                    sink_df.to_sql(
+                                        sink_table, conn, schema=sink_schema,
+                                        if_exists=sink_if_exists, index=False,
+                                    )
+                                _metadata[f"sink/{qualified}/fast_path"] = "sqlalchemy-to_sql"
+
+                        _metadata[f"sink/{qualified}/rows"] = len(sink_df)
+                        _metadata[f"sink/{qualified}/mode"] = (
+                            f"upsert_on_match({','.join(sink_match)})"
+                            if sink_mode == "upsert_on_match"
+                            else sink_if_exists
+                        )
+                        context.log.info(
+                            f"sink → {qualified} (via {sink_resource_key}, "
+                            f"{_metadata[f'sink/{qualified}/mode']}, "
+                            f"{len(sink_df)} rows)"
+                        )
+
                 context.add_output_metadata(_metadata)
 
                 if include_preview and len(df) > 0:

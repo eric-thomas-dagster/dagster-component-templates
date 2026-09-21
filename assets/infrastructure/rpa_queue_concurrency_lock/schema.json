@@ -75,11 +75,7 @@
       },
       "label": "Kinds",
       "required": false,
-      "default": [
-        "python",
-        "rpa",
-        "queue-lock"
-      ],
+      "default": null,
       "ui:widget": "list"
     },
     "group_name": {

@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.ExternalMqttAsset",
-  "description": "Declare an MQTT topic as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
+  "description": "Declare an MQTT topic as an external asset in the Dagster asset graph — makes it visible for lineage without materializing it from Dagster.",
   "category": "external",
   "icon": "Link",
   "x-dagster-io": {
@@ -25,7 +25,7 @@
     "topic": {
       "type": "string",
       "label": "Topic",
-      "description": "Topic",
+      "description": "MQTT topic (supports + and # wildcards)",
       "required": true
     },
     "broker_port": {

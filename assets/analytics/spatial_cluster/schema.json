@@ -46,7 +46,7 @@
     "algorithm": {
       "type": "string",
       "label": "Algorithm",
-      "description": "Clustering algorithm: ",
+      "description": "Clustering algorithm: 'dbscan' (density-based, finds noise) or 'kmeans' (fixed k clusters)",
       "required": false,
       "default": "dbscan"
     },
@@ -74,7 +74,7 @@
     "output_column": {
       "type": "string",
       "label": "Output Column",
-      "description": "Output Column",
+      "description": "Column name for cluster labels (-1 indicates noise in DBSCAN)",
       "required": false,
       "default": "spatial_cluster",
       "x-dagster-widget": "column"
@@ -82,7 +82,7 @@
     "include_cluster_center": {
       "type": "boolean",
       "label": "Include Cluster Center",
-      "description": "Include Cluster Center",
+      "description": "If True, add cluster centroid lat/lng columns (cluster_center_lat, cluster_center_lng)",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -97,7 +97,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -154,7 +154,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -193,7 +193,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },

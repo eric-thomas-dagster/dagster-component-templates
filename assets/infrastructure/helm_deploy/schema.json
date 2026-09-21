@@ -25,7 +25,7 @@
     "chart": {
       "type": "string",
       "label": "Chart",
-      "description": "Chart",
+      "description": "Chart reference: repository alias + name (e.g. 'my-org/ml-serving'), local path (e.g. './charts/ml-serving'), or OCI reference (e.g. 'oci://registry.example.com/charts/ml-serving').",
       "required": true
     },
     "namespace": {
@@ -38,7 +38,7 @@
     "create_namespace": {
       "type": "boolean",
       "label": "Create Namespace",
-      "description": "Create Namespace",
+      "description": "Create the namespace if it does not already exist (--create-namespace).",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
@@ -69,28 +69,28 @@
     "version": {
       "type": "string",
       "label": "Version",
-      "description": "Version",
+      "description": "Pin a specific chart version (--version). Omit to use the latest.",
       "required": false,
       "default": null
     },
     "repo_url": {
       "type": "string",
       "label": "Repo Url",
-      "description": "Repo Url",
+      "description": "Helm repository URL to add before installing (e.g. https://charts.my-company.com). Required when using a repo alias in `chart` and the repo is not already added.",
       "required": false,
       "default": null
     },
     "repo_name": {
       "type": "string",
       "label": "Repo Name",
-      "description": "Repo Name",
+      "description": "Name to register the repository as (e.g. 'my-org'). Must match the alias prefix in `chart` when using a repository reference.",
       "required": false,
       "default": null
     },
     "kube_context": {
       "type": "string",
       "label": "Kube Context",
-      "description": "Kube Context",
+      "description": "Kubernetes context to use (--kube-context). Uses the current context if omitted.",
       "required": false,
       "default": null,
       "ui:widget": "textarea"
@@ -98,14 +98,14 @@
     "kubeconfig": {
       "type": "string",
       "label": "Kubeconfig",
-      "description": "Kubeconfig",
+      "description": "Path to a kubeconfig file (--kubeconfig). Uses ~/.kube/config if omitted.",
       "required": false,
       "default": null
     },
     "atomic": {
       "type": "boolean",
       "label": "Atomic",
-      "description": "Atomic",
+      "description": "Roll back automatically on failure (--atomic). Ensures the release never gets stuck in a broken state.",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
@@ -113,7 +113,7 @@
     "wait": {
       "type": "boolean",
       "label": "Wait",
-      "description": "Wait",
+      "description": "Wait for all pods and resources to be ready before considering the deploy successful (--wait).",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
@@ -121,14 +121,14 @@
     "timeout": {
       "type": "string",
       "label": "Timeout",
-      "description": "Timeout",
+      "description": "Maximum time to wait for resources to become ready (--timeout). Format: '10m', '300s', etc.",
       "required": false,
       "default": "10m"
     },
     "dry_run": {
       "type": "boolean",
       "label": "Dry Run",
-      "description": "Dry Run",
+      "description": "Perform a dry run — render templates and validate but do not apply (--dry-run).",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -136,14 +136,14 @@
     "helm_bin": {
       "type": "string",
       "label": "Helm Bin",
-      "description": "Path to the helm binary (default: ",
+      "description": "Path to the helm binary (default: 'helm', assumed to be on PATH).",
       "required": false,
       "default": "helm"
     },
     "env_vars": {
       "type": "object",
       "label": "Env Vars",
-      "description": "Env Vars",
+      "description": "Extra environment variables for the Helm subprocess (e.g. KUBECONFIG, HELM_KUBEAPISERVER, cloud provider auth vars).",
       "required": false,
       "default": null,
       "ui:widget": "key-value"
@@ -161,7 +161,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },

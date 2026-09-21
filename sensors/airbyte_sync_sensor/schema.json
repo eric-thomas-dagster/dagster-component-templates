@@ -32,14 +32,14 @@
     "username_env_var": {
       "type": "string",
       "label": "Username Env Var",
-      "description": "Username Env Var",
+      "description": "Env var with Airbyte username (Cloud)",
       "required": false,
       "default": null
     },
     "password_env_var": {
       "type": "string",
       "label": "Password Env Var",
-      "description": "Password Env Var",
+      "description": "Env var with Airbyte password (Cloud)",
       "required": false,
       "default": null,
       "ui:widget": "env_var"

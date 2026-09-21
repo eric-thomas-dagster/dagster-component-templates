@@ -84,7 +84,7 @@
       "type": "string",
       "label": "Model",
       "required": false,
-      "default": "gpt-4o-mini"
+      "default": null
     },
     "api_key_env_var": {
       "type": "string",
@@ -105,13 +105,13 @@
       "type": "number",
       "label": "Temperature",
       "required": false,
-      "default": 0.0
+      "default": null
     },
     "max_tokens": {
       "type": "integer",
       "label": "Max Tokens",
       "required": false,
-      "default": 1024
+      "default": null
     },
     "group_name": {
       "type": "string",

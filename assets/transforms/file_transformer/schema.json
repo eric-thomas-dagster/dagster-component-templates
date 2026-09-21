@@ -31,7 +31,7 @@
     "input_file_path": {
       "type": "string",
       "label": "Input File Path",
-      "description": "Input File Path",
+      "description": "Fixed input file path (optional, can use run_config instead)",
       "required": false,
       "default": null,
       "ui:widget": "file"
@@ -39,14 +39,14 @@
     "input_format": {
       "type": "string",
       "label": "Input Format",
-      "description": "Input file format: ",
+      "description": "Input file format: 'auto', 'csv', 'json', 'parquet', 'excel'",
       "required": false,
       "default": "auto"
     },
     "output_format": {
       "type": "string",
       "label": "Output Format",
-      "description": "Output file format: ",
+      "description": "Output file format: 'csv', 'json', 'parquet', 'excel'",
       "required": true
     },
     "output_directory": {
@@ -58,7 +58,7 @@
     "output_filename": {
       "type": "string",
       "label": "Output Filename",
-      "description": "Output Filename",
+      "description": "Output filename (optional, defaults to input filename with new extension)",
       "required": false,
       "default": null
     },
@@ -67,7 +67,7 @@
       "label": "Csv Delimiter",
       "description": "CSV delimiter character",
       "required": false,
-      "default": ""
+      "default": ","
     },
     "csv_encoding": {
       "type": "string",
@@ -79,7 +79,7 @@
     "json_orient": {
       "type": "string",
       "label": "Json Orient",
-      "description": "JSON orientation: ",
+      "description": "JSON orientation: 'records', 'split', 'index', 'columns', 'values'",
       "required": false,
       "default": "records"
     },
@@ -93,7 +93,7 @@
     "parquet_compression": {
       "type": "string",
       "label": "Parquet Compression",
-      "description": "Parquet compression: ",
+      "description": "Parquet compression: 'snappy', 'gzip', 'brotli', None",
       "required": false,
       "default": "snappy"
     },
@@ -108,14 +108,14 @@
     "fill_na_value": {
       "type": "string",
       "label": "Fill Na Value",
-      "description": "Fill Na Value",
+      "description": "Value to fill NaN values with (optional)",
       "required": false,
       "default": null
     },
     "columns_to_keep": {
       "type": "string",
       "label": "Columns To Keep",
-      "description": "Columns To Keep",
+      "description": "Comma-separated list of columns to keep (optional)",
       "required": false,
       "default": null
     },
@@ -137,7 +137,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -194,7 +194,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -233,7 +233,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },

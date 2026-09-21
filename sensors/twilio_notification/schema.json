@@ -19,20 +19,20 @@
     "account_sid_env_var": {
       "type": "string",
       "label": "Account Sid Env Var",
-      "description": "Account Sid Env Var",
+      "description": "Name of the environment variable that holds the Twilio Account SID (e.g., TWILIO_ACCOUNT_SID).",
       "required": true
     },
     "auth_token_env_var": {
       "type": "string",
       "label": "Auth Token Env Var",
-      "description": "Auth Token Env Var",
+      "description": "Name of the environment variable that holds the Twilio Auth Token (e.g., TWILIO_AUTH_TOKEN).",
       "required": true,
       "ui:widget": "env_var"
     },
     "from_number": {
       "type": "string",
       "label": "From Number",
-      "description": "From Number",
+      "description": "The Twilio phone number to send from (e.g., '+15551234567'). For WhatsApp use the plain E.164 number — the 'whatsapp:' prefix is added automatically when channel='whatsapp'.",
       "required": true
     },
     "to_numbers": {
@@ -41,21 +41,21 @@
         "type": "string"
       },
       "label": "To Numbers",
-      "description": "List of recipient phone numbers in E.164 format (e.g., ",
+      "description": "List of recipient phone numbers in E.164 format (e.g., '+15559876543').",
       "required": true,
       "ui:widget": "list"
     },
     "channel": {
       "type": "string",
       "label": "Channel",
-      "description": "Channel",
+      "description": "Messaging channel to use. 'sms' sends a standard SMS; 'whatsapp' prefixes both from/to numbers with 'whatsapp:' automatically.",
       "required": false,
       "default": "sms"
     },
     "message_template": {
       "type": "string",
       "label": "Message Template",
-      "description": "Message Template",
+      "description": "Template string for the notification message. Available format variables: {asset_key}, {event_type}, {timestamp}, {run_id}.",
       "required": false,
       "default": "Dagster alert: {asset_key} {event_type} at {timestamp}",
       "ui:widget": "textarea"
@@ -66,7 +66,7 @@
         "type": "string"
       },
       "label": "Monitored Assets",
-      "description": "Monitored Assets",
+      "description": "List of asset key strings to watch (e.g., ['my_asset', 'namespace/other']). When None (default) all asset events are monitored.",
       "required": false,
       "default": null,
       "ui:widget": "list"
@@ -90,7 +90,7 @@
     "minimum_interval_seconds": {
       "type": "integer",
       "label": "Minimum Interval Seconds",
-      "description": "Minimum Interval Seconds",
+      "description": "Minimum time (in seconds) between sensor evaluations.",
       "required": false,
       "default": 30
     }

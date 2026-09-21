@@ -19,26 +19,26 @@
     "storage_account_name": {
       "type": "string",
       "label": "Storage Account Name",
-      "description": "Azure Storage account name (e.g., ",
+      "description": "Azure Storage account name (e.g., 'mydatalake')",
       "required": true
     },
     "container_name": {
       "type": "string",
       "label": "Container Name",
-      "description": "Container Name",
+      "description": "Name of the ADLS Gen2 container (filesystem) to monitor",
       "required": true
     },
     "directory_path": {
       "type": "string",
       "label": "Directory Path",
-      "description": "Directory path within the container to monitor (e.g., ",
+      "description": "Directory path within the container to monitor (e.g., 'incoming/' or 'data/2024/')",
       "required": false,
       "default": ""
     },
     "file_pattern": {
       "type": "string",
       "label": "File Pattern",
-      "description": "Regex pattern to match file names (e.g., ",
+      "description": "Regex pattern to match file names (e.g., '.*\\.parquet$' for Parquet files)",
       "required": false,
       "default": ".*"
     },
@@ -51,7 +51,7 @@
     "minimum_interval_seconds": {
       "type": "integer",
       "label": "Minimum Interval Seconds",
-      "description": "Minimum Interval Seconds",
+      "description": "Minimum time (in seconds) between sensor evaluations",
       "required": false,
       "default": 30
     },
@@ -81,7 +81,7 @@
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "description": "Default Status",
+      "description": "Default status of the sensor (running or stopped)",
       "required": false,
       "default": "running",
       "enum": [

@@ -19,7 +19,7 @@
     "river_id": {
       "type": "string",
       "label": "River Id",
-      "description": "River Id",
+      "description": "Rivery river (pipeline) ID to monitor",
       "required": true
     },
     "job_name": {
@@ -39,7 +39,7 @@
     "region": {
       "type": "string",
       "label": "Region",
-      "description": "Region",
+      "description": "Rivery region (e.g. us2, eu1, ap1)",
       "required": false,
       "default": "us2"
     },

@@ -41,7 +41,7 @@
       "type": "string",
       "label": "Execution Timezone",
       "required": false,
-      "default": "UTC",
+      "default": null,
       "description": "IANA timezone for cron evaluation, e.g. 'America/Los_Angeles'. Applied in the un-partitioned path; in the partitioned path Dagster uses the partitions_def's timezone (this field is silently ignored)."
     },
     "default_status": {

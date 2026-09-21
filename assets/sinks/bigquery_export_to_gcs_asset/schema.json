@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.BigQueryExportToGcsAssetComponent",
-  "description": "Export a BigQuery table or query result to GCS as parquet / CSV / JSONL / AVRO. The classic warehouse \u2192 lake step at the end of an ELT pipeline. Two source modes: source_table_id (uses BQ EXTRACT job \u2014 faster for whole tables) or source_query (uses EXPORT DATA SQL \u2014 flexible).",
+  "description": "Export a BigQuery table or query result to GCS as parquet / CSV / JSONL / AVRO. The classic warehouse → lake step at the end of an ELT pipeline. Two source modes: source_table_id (uses BQ EXTRACT job — faster for whole tables) or source_query (uses EXPORT DATA SQL — flexible).",
   "category": "sink",
   "icon": "si:googlebigquery",
   "x-dagster-io": {
@@ -56,7 +56,7 @@
       "type": "object",
       "label": "Query Params",
       "required": false,
-      "default": {}
+      "default": null
     },
     "destination_uri": {
       "type": "string",

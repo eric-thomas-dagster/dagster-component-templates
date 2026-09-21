@@ -19,13 +19,13 @@
     "service_url": {
       "type": "string",
       "label": "Service Url",
-      "description": "Pulsar service URL (e.g., ",
+      "description": "Pulsar service URL (e.g., 'pulsar://localhost:6650' or 'pulsar+ssl://host:6651')",
       "required": true
     },
     "topic": {
       "type": "string",
       "label": "Topic",
-      "description": "Pulsar topic name (e.g., ",
+      "description": "Pulsar topic name (e.g., 'persistent://public/default/my-topic')",
       "required": true
     },
     "subscription_name": {
@@ -73,7 +73,7 @@
     "minimum_interval_seconds": {
       "type": "integer",
       "label": "Minimum Interval Seconds",
-      "description": "Minimum Interval Seconds",
+      "description": "Minimum time (in seconds) between sensor evaluations",
       "required": false,
       "default": 30
     },
@@ -88,7 +88,7 @@
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "description": "Default Status",
+      "description": "Default status of the sensor (running or stopped)",
       "required": false,
       "default": "running",
       "enum": [

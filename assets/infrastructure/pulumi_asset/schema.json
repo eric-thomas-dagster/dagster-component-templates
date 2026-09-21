@@ -19,7 +19,7 @@
     "stack_name": {
       "type": "string",
       "label": "Stack Name",
-      "description": "Stack Name",
+      "description": "Fully qualified Pulumi stack name: 'org/project/stack' for Pulumi Cloud, or just 'stack' for local backends.",
       "required": true
     },
     "working_dir": {
@@ -31,14 +31,14 @@
     "operation": {
       "type": "string",
       "label": "Operation",
-      "description": "Pulumi operation to perform: ",
+      "description": "Pulumi operation to perform: 'up', 'destroy', or 'preview'.",
       "required": false,
       "default": "up"
     },
     "expect_no_changes": {
       "type": "boolean",
       "label": "Expect No Changes",
-      "description": "Expect No Changes",
+      "description": "Fail the asset if the operation detects any resource changes. Useful for drift-detection pipelines where the stack should be stable.",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -69,7 +69,7 @@
     "secrets_provider": {
       "type": "string",
       "label": "Secrets Provider",
-      "description": "Secrets Provider",
+      "description": "Secrets provider URL passed as --secrets-provider (e.g. awskms://..., azurekeyvault://...).",
       "required": false,
       "default": null,
       "ui:widget": "password"
@@ -77,14 +77,14 @@
     "pulumi_bin": {
       "type": "string",
       "label": "Pulumi Bin",
-      "description": "Path to the pulumi binary (default: ",
+      "description": "Path to the pulumi binary (default: 'pulumi', assumed to be on PATH).",
       "required": false,
       "default": "pulumi"
     },
     "env_vars": {
       "type": "object",
       "label": "Env Vars",
-      "description": "Env Vars",
+      "description": "Extra environment variables for the Pulumi subprocess (e.g. AWS_PROFILE, PULUMI_ACCESS_TOKEN).",
       "required": false,
       "default": null,
       "ui:widget": "key-value"
@@ -102,7 +102,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },

@@ -38,7 +38,7 @@
     "job_path": {
       "type": "string",
       "label": "Job Path",
-      "description": "Job Path",
+      "description": "EME job/graph path to monitor (e.g. /prod/etl/load_orders)",
       "required": true
     },
     "job_name": {

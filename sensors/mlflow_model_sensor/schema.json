@@ -19,7 +19,7 @@
     "tracking_uri_env_var": {
       "type": "string",
       "label": "Tracking Uri Env Var",
-      "description": "Tracking Uri Env Var",
+      "description": "Name of the environment variable that holds the MLflow Tracking URI (e.g., MLFLOW_TRACKING_URI).  The variable must be set at runtime.",
       "required": true
     },
     "model_name": {
@@ -31,7 +31,7 @@
     "target_stage": {
       "type": "string",
       "label": "Target Stage",
-      "description": "Target Stage",
+      "description": "Model Registry stage transition that triggers a run. Common values: 'Production', 'Staging', 'Archived'.",
       "required": false,
       "default": "Production"
     },
@@ -44,14 +44,14 @@
     "minimum_interval_seconds": {
       "type": "integer",
       "label": "Minimum Interval Seconds",
-      "description": "Minimum Interval Seconds",
+      "description": "Minimum time (in seconds) between sensor evaluations.",
       "required": false,
       "default": 60
     },
     "run_config": {
       "type": "object",
       "label": "Run Config",
-      "description": "Run Config",
+      "description": "Optional extra run config merged into the triggered job's run_config. Keys are merged under the top-level 'ops' key alongside the model metadata injected by the sensor.",
       "required": false,
       "default": null,
       "ui:widget": "key-value"

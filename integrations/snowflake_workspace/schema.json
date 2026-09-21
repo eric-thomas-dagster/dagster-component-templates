@@ -16,16 +16,45 @@
       "description": "Snowflake connection as a dagster_snowflake.SnowflakeResource. Canonical shape — mirrors dagster-databricks / dagster-fivetran / dagster-powerbi.",
       "required": true,
       "properties": {
-        "account": {"type": "string", "description": "Snowflake account identifier (e.g. xy12345.us-east-1)."},
-        "user": {"type": "string", "description": "Snowflake username."},
-        "password": {"type": "string", "description": "Password (leave unset for SSO / keypair).", "ui:widget": "password"},
-        "authenticator": {"type": "string", "description": "SNOWFLAKE_JWT (keypair) / externalbrowser (SSO) / oauth / PROGRAMMATIC_ACCESS_TOKEN."},
-        "private_key_path": {"type": "string", "description": "PEM key file path (SNOWFLAKE_JWT)."},
-        "private_key_password": {"type": "string", "description": "Passphrase for encrypted key.", "ui:widget": "password"},
-        "warehouse": {"type": "string"},
-        "database": {"type": "string"},
-        "schema": {"type": "string", "default": "PUBLIC"},
-        "role": {"type": "string"}
+        "account": {
+          "type": "string",
+          "description": "Snowflake account identifier (e.g. xy12345.us-east-1)."
+        },
+        "user": {
+          "type": "string",
+          "description": "Snowflake username."
+        },
+        "password": {
+          "type": "string",
+          "description": "Password (leave unset for SSO / keypair).",
+          "ui:widget": "password"
+        },
+        "authenticator": {
+          "type": "string",
+          "description": "SNOWFLAKE_JWT (keypair) / externalbrowser (SSO) / oauth / PROGRAMMATIC_ACCESS_TOKEN."
+        },
+        "private_key_path": {
+          "type": "string",
+          "description": "PEM key file path (SNOWFLAKE_JWT)."
+        },
+        "private_key_password": {
+          "type": "string",
+          "description": "Passphrase for encrypted key.",
+          "ui:widget": "password"
+        },
+        "warehouse": {
+          "type": "string"
+        },
+        "database": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "string",
+          "default": "PUBLIC"
+        },
+        "role": {
+          "type": "string"
+        }
       }
     },
     "role": {
@@ -86,7 +115,7 @@
     "import_materialized_views": {
       "type": "boolean",
       "label": "Import Materialized Views",
-      "description": "Import Materialized Views",
+      "description": "Import materialized views as materializable assets (trigger refresh)",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -94,7 +123,7 @@
     "import_external_tables": {
       "type": "boolean",
       "label": "Import External Tables",
-      "description": "Import External Tables",
+      "description": "Import external tables as materializable assets (trigger refresh)",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -102,7 +131,7 @@
     "import_alerts": {
       "type": "boolean",
       "label": "Import Alerts",
-      "description": "Import Alerts",
+      "description": "Import Snowflake alerts as external assets. The observation sensor runs SHOW ALERTS + ALERT_HISTORY and emits AssetMaterialization when a new evaluation is recorded.",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -110,7 +139,7 @@
     "import_openflow_flows": {
       "type": "boolean",
       "label": "Import Openflow Flows",
-      "description": "Import Openflow Flows",
+      "description": "Import OpenFlow data integration flows as external assets. The observation sensor queries SNOWFLAKE.TELEMETRY.EVENTS and emits AssetMaterialization when new metrics land.",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -132,14 +161,14 @@
     "task_filter_by_state": {
       "type": "string",
       "label": "Task Filter By State",
-      "description": "Task Filter By State",
+      "description": "Filter tasks by state (STARTED, SUSPENDED). If not specified, imports all tasks.",
       "required": false,
       "default": null
     },
     "poll_interval_seconds": {
       "type": "integer",
       "label": "Poll Interval Seconds",
-      "description": "Poll Interval Seconds",
+      "description": "How often (in seconds) the sensor should check for completed runs",
       "required": false,
       "default": 60
     },

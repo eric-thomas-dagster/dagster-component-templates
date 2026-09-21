@@ -18,21 +18,21 @@
     "feature_store_repo_path": {
       "type": "string",
       "label": "Feature Store Repo Path",
-      "description": "Feature Store Repo Path",
+      "description": "Path to the Feast repository directory that contains ``feature_store.yaml``.",
       "required": false,
       "default": "."
     },
     "feature_views": {
       "type": "string",
       "label": "Feature Views",
-      "description": "Feature Views",
+      "description": "Specific feature view names to materialize. When None all feature views in the store are materialized.",
       "required": false,
       "default": null
     },
     "incremental": {
       "type": "boolean",
       "label": "Incremental",
-      "description": "Incremental",
+      "description": "When True (default) use ``store.materialize_incremental``, which materializes from the last materialization timestamp to ``end_date``. When False use ``store.materialize`` with an explicit start date.",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
@@ -40,14 +40,14 @@
     "start_date_env_var": {
       "type": "string",
       "label": "Start Date Env Var",
-      "description": "Start Date Env Var",
+      "description": "Name of an environment variable whose value is an ISO-8601 date/datetime string used as ``start_date`` for non-incremental materialization. Required when ``incremental`` is False.",
       "required": false,
       "default": null
     },
     "end_date_offset_days": {
       "type": "integer",
       "label": "End Date Offset Days",
-      "description": "End Date Offset Days",
+      "description": "Number of days before UTC now to use as ``end_date``. 0 means use the current UTC time.",
       "required": false,
       "default": 0
     },
@@ -61,7 +61,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -118,7 +118,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -157,7 +157,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },

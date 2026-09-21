@@ -31,14 +31,14 @@
     "user_data_asset_key": {
       "type": "string",
       "label": "User Data Asset",
-      "description": "User Data Asset",
+      "description": "User/customer data for segmentation (optional)",
       "required": false,
       "default": ""
     },
     "funnel_type": {
       "type": "string",
       "label": "Funnel Type",
-      "description": "Funnel Type",
+      "description": "Funnel type: linear (sequential) or flexible (any order)",
       "required": false,
       "default": "linear"
     },
@@ -73,7 +73,7 @@
     "stage_3_event": {
       "type": "string",
       "label": "Stage 3 Event",
-      "description": "Stage 3 Event",
+      "description": "Event name for third funnel stage (optional)",
       "required": false,
       "default": ""
     },
@@ -87,7 +87,7 @@
     "stage_4_event": {
       "type": "string",
       "label": "Stage 4 Event",
-      "description": "Stage 4 Event",
+      "description": "Event name for fourth funnel stage (optional)",
       "required": false,
       "default": ""
     },
@@ -101,7 +101,7 @@
     "stage_5_event": {
       "type": "string",
       "label": "Stage 5 Event",
-      "description": "Stage 5 Event",
+      "description": "Event name for fifth funnel stage (optional)",
       "required": false,
       "default": ""
     },
@@ -152,7 +152,7 @@
     "segment_by_attribute": {
       "type": "string",
       "label": "Segment By Attribute",
-      "description": "Segment By Attribute",
+      "description": "Additional attribute to segment by (e.g., plan_type, country)",
       "required": false,
       "default": ""
     },
@@ -175,14 +175,14 @@
     "drop_off_threshold": {
       "type": "number",
       "label": "Drop Off Threshold",
-      "description": "Drop Off Threshold",
+      "description": "Drop-off rate threshold to flag (e.g., 0.5 = 50% drop)",
       "required": false,
       "default": 0.5
     },
     "include_user_level_data": {
       "type": "boolean",
       "label": "Include User Level Data",
-      "description": "Include User Level Data",
+      "description": "Include individual user progression (large output)",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -205,7 +205,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -262,7 +262,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -301,7 +301,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },

@@ -31,14 +31,14 @@
     "chunk_size": {
       "type": "integer",
       "label": "Chunk Size",
-      "description": "Chunk Size",
+      "description": "Target chunk size in characters (or tokens for token_aware strategy)",
       "required": false,
       "default": 1000
     },
     "chunk_overlap": {
       "type": "integer",
       "label": "Chunk Overlap",
-      "description": "Chunk Overlap",
+      "description": "Number of characters (or tokens) to overlap between chunks",
       "required": false,
       "default": 200
     },
@@ -61,7 +61,7 @@
     "metadata_columns": {
       "type": "string",
       "label": "Metadata Columns",
-      "description": "Comma-separated list of columns to preserve as metadata (e.g., ",
+      "description": "Comma-separated list of columns to preserve as metadata (e.g., 'doc_id,title,author')",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -69,7 +69,7 @@
     "add_chunk_metadata": {
       "type": "boolean",
       "label": "Add Chunk Metadata",
-      "description": "Add Chunk Metadata",
+      "description": "Add chunk metadata (chunk_index, total_chunks, start_char, end_char)",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
@@ -77,21 +77,21 @@
     "separators": {
       "type": "string",
       "label": "Separators",
-      "description": "Separators",
+      "description": "Custom separators for recursive strategy (comma-separated). Default: '\\n\\n,\\n, ,'",
       "required": false,
       "default": null
     },
     "sentence_tokenizer": {
       "type": "string",
       "label": "Sentence Tokenizer",
-      "description": "Sentence Tokenizer",
+      "description": "Sentence tokenizer: simple (regex), nltk, spacy",
       "required": false,
       "default": "simple"
     },
     "tokenizer_model": {
       "type": "string",
       "label": "Tokenizer Model",
-      "description": "Model for token counting (e.g., ",
+      "description": "Model for token counting (e.g., 'gpt-3.5-turbo', 'cl100k_base'). Required for token_aware strategy.",
       "required": false,
       "default": null
     },
@@ -113,7 +113,7 @@
     "preserve_sentences": {
       "type": "boolean",
       "label": "Preserve Sentences",
-      "description": "Preserve Sentences",
+      "description": "Avoid splitting sentences when possible (for fixed and token_aware)",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
@@ -136,7 +136,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -193,7 +193,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -232,7 +232,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },
@@ -247,7 +247,7 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },

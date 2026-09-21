@@ -31,21 +31,21 @@
     "llm_provider": {
       "type": "string",
       "label": "Llm Provider",
-      "description": "Llm Provider",
+      "description": "LLM provider: openai or anthropic (for method=llm)",
       "required": false,
       "default": null
     },
     "llm_model": {
       "type": "string",
       "label": "Llm Model",
-      "description": "Llm Model",
+      "description": "LLM model name (for method=llm)",
       "required": false,
       "default": null
     },
     "transformer_model": {
       "type": "string",
       "label": "Transformer Model",
-      "description": "Transformer Model",
+      "description": "Transformer model: unitary/toxic-bert, s-nlp/roberta-toxicity-classifier (for method=transformer)",
       "required": false,
       "default": null
     },
@@ -69,12 +69,12 @@
       "label": "Categories",
       "description": "Comma-separated moderation categories to check",
       "required": false,
-      "default": "toxicity"
+      "default": "toxicity,hate_speech,pii,profanity,sexual,violence"
     },
     "threshold": {
       "type": "number",
       "label": "Threshold",
-      "description": "Threshold",
+      "description": "Confidence threshold for flagging content (0.0-1.0)",
       "required": false,
       "default": 0.7
     },
@@ -97,7 +97,7 @@
     "flag_column": {
       "type": "string",
       "label": "Flag Column",
-      "description": "Flag Column",
+      "description": "Column name for overall flag (true if any category exceeds threshold)",
       "required": false,
       "default": "flagged",
       "x-dagster-widget": "column"
@@ -112,7 +112,7 @@
     "temperature": {
       "type": "number",
       "label": "Temperature",
-      "description": "Temperature",
+      "description": "Temperature for LLM (0.0 = deterministic)",
       "required": false,
       "default": 0.0
     },
@@ -140,7 +140,7 @@
     "track_costs": {
       "type": "boolean",
       "label": "Track Costs",
-      "description": "Track Costs",
+      "description": "Track API costs (for paid APIs)",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
@@ -170,7 +170,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -227,7 +227,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -266,7 +266,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },
@@ -281,7 +281,7 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },

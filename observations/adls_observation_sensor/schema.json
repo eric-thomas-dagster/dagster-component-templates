@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.AdlsObservationSensorComponent",
-  "description": "Periodically connect to ADLS and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
+  "description": "Periodically connect to ADLS and record an AssetObservation on the target external asset — surfaces health metrics in the Dagster UI without triggering a pipeline run.",
   "category": "observation",
   "icon": "si:microsoftazure",
   "x-dagster-io": {
@@ -44,7 +44,7 @@
     "connection_string_env_var": {
       "type": "string",
       "label": "Connection String Env Var",
-      "description": "Connection String Env Var",
+      "description": "Env var with connection string (alternative to DefaultAzureCredential)",
       "required": false,
       "default": null
     },

@@ -33,7 +33,7 @@
         "type": "string"
       },
       "label": "Subset",
-      "description": "Subset",
+      "description": "Columns to consider for duplication (None = all columns)",
       "required": false,
       "default": null,
       "ui:widget": "list"
@@ -41,14 +41,14 @@
     "keep": {
       "type": "string",
       "label": "Keep",
-      "description": "Which duplicate to keep: ",
+      "description": "Which duplicate to keep: 'first', 'last', or 'none' (drop all duplicates including original)",
       "required": false,
       "default": "first"
     },
     "output_mode": {
       "type": "string",
       "label": "Output Mode",
-      "description": "Output Mode",
+      "description": "Output mode: 'unique' (keep non-duplicates), 'duplicates' (return only duplicate rows), 'all' (return all rows with is_duplicate bool column)",
       "required": false,
       "default": "unique"
     },
@@ -70,7 +70,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -127,7 +127,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -166,7 +166,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },

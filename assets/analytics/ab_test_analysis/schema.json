@@ -30,7 +30,7 @@
     "confidence_level": {
       "type": "number",
       "label": "Confidence Level",
-      "description": "Confidence Level",
+      "description": "Confidence level for significance testing (default: 0.95 for 95%)",
       "required": false,
       "default": 0.95
     },
@@ -44,21 +44,21 @@
     "minimum_runtime_hours": {
       "type": "integer",
       "label": "Minimum Runtime Hours",
-      "description": "Minimum Runtime Hours",
+      "description": "Minimum test runtime required (hours, optional)",
       "required": false,
       "default": null
     },
     "minimum_detectable_effect": {
       "type": "number",
       "label": "Minimum Detectable Effect",
-      "description": "Minimum Detectable Effect",
+      "description": "Minimum detectable effect (MDE) as decimal (e.g., 0.05 = 5%)",
       "required": false,
       "default": 0.05
     },
     "experiment_id_field": {
       "type": "string",
       "label": "Experiment Id Field",
-      "description": "Experiment Id Field",
+      "description": "Experiment ID column (auto-detected)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -66,7 +66,7 @@
     "variant_field": {
       "type": "string",
       "label": "Variant Field",
-      "description": "Variant Field",
+      "description": "Variant column (control/treatment, A/B, etc.)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -74,7 +74,7 @@
     "user_id_field": {
       "type": "string",
       "label": "User Id Field",
-      "description": "User Id Field",
+      "description": "User ID column (auto-detected)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -82,7 +82,7 @@
     "converted_field": {
       "type": "string",
       "label": "Converted Field",
-      "description": "Converted Field",
+      "description": "Conversion indicator column (auto-detected)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -90,7 +90,7 @@
     "timestamp_field": {
       "type": "string",
       "label": "Timestamp Field",
-      "description": "Timestamp Field",
+      "description": "Timestamp column for runtime validation (optional)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -113,7 +113,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -170,7 +170,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -209,7 +209,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },
@@ -224,7 +224,7 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },

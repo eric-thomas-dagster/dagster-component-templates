@@ -4,12 +4,56 @@
   "category": "sensor",
   "icon": "Bolt",
   "attributes": {
-    "sensor_name": {"type": "string", "label": "Sensor Name", "required": true, "description": "Unique sensor name."},
-    "process_name": {"type": "string", "label": "TI Process Name", "required": true, "description": "TM1 process to watch."},
-    "target_statuses": {"type": "array", "label": "Target Statuses", "required": false, "default": ["CompletedSuccessfully"], "description": "Statuses that should trigger the job."},
-    "job_name": {"type": "string", "label": "Job Name", "required": true, "description": "Job to trigger."},
-    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "tm1_resource", "description": "Resource key to look up."},
-    "minimum_interval_seconds": {"type": "integer", "label": "Poll Interval (s)", "required": false, "default": 60, "description": "Seconds between polls."},
-    "default_status": {"type": "string", "label": "Default Sensor Status", "required": false, "default": "running", "description": "running | stopped", "ui:widget": "select", "enum": ["running", "stopped"]}
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "required": true,
+      "description": "Unique sensor name."
+    },
+    "process_name": {
+      "type": "string",
+      "label": "TI Process Name",
+      "required": true,
+      "description": "TM1 process to watch."
+    },
+    "target_statuses": {
+      "type": "array",
+      "label": "Target Statuses",
+      "required": false,
+      "default": null,
+      "description": "Statuses that should trigger the job."
+    },
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "required": true,
+      "description": "Job to trigger."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "tm1_resource",
+      "description": "Resource key to look up."
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval (s)",
+      "required": false,
+      "default": 60,
+      "description": "Seconds between polls."
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Sensor Status",
+      "required": false,
+      "default": "running",
+      "description": "running | stopped",
+      "ui:widget": "select",
+      "enum": [
+        "running",
+        "stopped"
+      ]
+    }
   }
 }

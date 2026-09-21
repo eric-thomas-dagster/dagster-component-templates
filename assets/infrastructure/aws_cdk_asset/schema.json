@@ -19,20 +19,20 @@
     "working_dir": {
       "type": "string",
       "label": "Working Dir",
-      "description": "Working Dir",
+      "description": "Filesystem path to the directory containing cdk.json and the CDK app entry point.",
       "required": true
     },
     "stacks": {
       "type": "string",
       "label": "Stacks",
-      "description": "Stacks",
+      "description": "Specific CDK stack names to deploy. When None all stacks are deployed (equivalent to ``cdk deploy \"*\"``).",
       "required": false,
       "default": null
     },
     "context": {
       "type": "object",
       "label": "Context",
-      "description": "Context",
+      "description": "CDK context key/value pairs passed as ``-c key=value`` arguments.",
       "required": false,
       "default": null,
       "ui:widget": "key-value"
@@ -40,7 +40,7 @@
     "parameters": {
       "type": "object",
       "label": "Parameters",
-      "description": "Parameters",
+      "description": "CloudFormation parameter overrides in ``StackName:ParameterName=value`` format, passed via ``--parameters``.",
       "required": false,
       "default": null,
       "ui:widget": "key-value"
@@ -48,14 +48,14 @@
     "require_approval": {
       "type": "string",
       "label": "Require Approval",
-      "description": "Require Approval",
+      "description": "Approval level for security-sensitive changes. One of \"never\", \"any-change\", or \"broadening\". Use \"never\" for fully automated runs.",
       "required": false,
       "default": "never"
     },
     "exclusively": {
       "type": "boolean",
       "label": "Exclusively",
-      "description": "Exclusively",
+      "description": "Pass ``--exclusively`` to deploy only the listed stacks without deploying their dependency stacks.",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -63,7 +63,7 @@
     "hotswap": {
       "type": "boolean",
       "label": "Hotswap",
-      "description": "Hotswap",
+      "description": "Pass ``--hotswap`` for faster deployments of Lambda functions and ECS services without a full CloudFormation update. Recommended for development environments only.",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -71,7 +71,7 @@
     "rollback": {
       "type": "boolean",
       "label": "Rollback",
-      "description": "Rollback",
+      "description": "Pass ``--rollback`` to roll back the stack on deployment failure. Set to False to leave the stack in a failed state for debugging.",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
@@ -79,7 +79,7 @@
     "outputs_file": {
       "type": "string",
       "label": "Outputs File",
-      "description": "Outputs File",
+      "description": "Path where CDK writes stack outputs as JSON via ``--outputs-file``. When None a temporary path under /tmp is used automatically.",
       "required": false,
       "default": null
     },
@@ -93,21 +93,21 @@
     "region": {
       "type": "string",
       "label": "Region",
-      "description": "Region",
+      "description": "AWS region override (e.g. ``us-east-1``).",
       "required": false,
       "default": null
     },
     "cdk_bin": {
       "type": "string",
       "label": "Cdk Bin",
-      "description": "Cdk Bin",
+      "description": "Path or name of the CDK CLI executable. Defaults to ``cdk`` which must be available on PATH (installed via ``npm install -g aws-cdk``).",
       "required": false,
       "default": "cdk"
     },
     "env_vars": {
       "type": "object",
       "label": "Env Vars",
-      "description": "Env Vars",
+      "description": "Additional environment variables to inject into the CDK subprocess. Merged on top of the current process environment.",
       "required": false,
       "default": null,
       "ui:widget": "key-value"
@@ -132,7 +132,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -179,7 +179,7 @@
     "deps": {
       "type": "string",
       "label": "Deps",
-      "description": "Deps",
+      "description": "Dagster asset keys that this asset depends on. Useful when downstream data assets need to declare a dependency on this provisioning asset.",
       "required": false,
       "default": null
     },

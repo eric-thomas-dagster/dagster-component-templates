@@ -44,7 +44,7 @@
     "format": {
       "type": "string",
       "label": "Format",
-      "description": "Output format: ",
+      "description": "Output format: 'parquet', 'csv', or 'json'",
       "required": false,
       "default": "parquet"
     },
@@ -66,14 +66,14 @@
     "aws_region": {
       "type": "string",
       "label": "Aws Region",
-      "description": "AWS region e.g. ",
+      "description": "AWS region e.g. 'us-east-1'",
       "required": false,
       "default": null
     },
     "compression": {
       "type": "string",
       "label": "Compression",
-      "description": "Compression codec. For parquet: ",
+      "description": "Compression codec. For parquet: 'snappy', 'gzip'. For csv: 'gzip'. None = default.",
       "required": false,
       "default": null
     },
@@ -83,7 +83,7 @@
         "type": "string"
       },
       "label": "Partition Cols",
-      "description": "Partition Cols",
+      "description": "Column names to partition by (parquet only)",
       "required": false,
       "default": null,
       "ui:widget": "list"
@@ -98,7 +98,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -155,7 +155,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },

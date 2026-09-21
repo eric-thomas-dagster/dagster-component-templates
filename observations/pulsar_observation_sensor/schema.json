@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.PulsarObservationSensorComponent",
-  "description": "Periodically connect to Pulsar and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
+  "description": "Periodically connect to Pulsar and record an AssetObservation on the target external asset — surfaces health metrics in the Dagster UI without triggering a pipeline run.",
   "category": "observation",
   "icon": "Eye",
   "x-dagster-io": {
@@ -37,7 +37,7 @@
     "admin_url": {
       "type": "string",
       "label": "Admin Url",
-      "description": "Admin Url",
+      "description": "Pulsar admin URL (default: HTTP port of service_url)",
       "required": false,
       "default": null
     },

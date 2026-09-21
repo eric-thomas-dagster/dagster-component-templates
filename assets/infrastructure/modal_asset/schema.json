@@ -19,20 +19,20 @@
     "modal_function": {
       "type": "string",
       "label": "Modal Function",
-      "description": "Modal Function",
+      "description": "Fully-qualified reference to the Modal function in the form ``app_name::function_name`` (SDK lookup) or ``module.path::function_name`` (CLI run). Used as a display label in asset metadata.",
       "required": true
     },
     "app_file": {
       "type": "string",
       "label": "App File",
-      "description": "App File",
+      "description": "Path to the Python file that defines the Modal app (e.g. ``ml/training_app.py``). Required for the CLI fallback path. Also used with the SDK when ``modal_function`` does not embed the app name.",
       "required": false,
       "default": null
     },
     "function_name": {
       "type": "string",
       "label": "Function Name",
-      "description": "Function Name",
+      "description": "Name of the decorated ``@modal.function`` within ``app_file``. Required when using the CLI fallback (``modal run app_file::function_name``).",
       "required": false,
       "default": null
     },
@@ -54,14 +54,14 @@
     "modal_token_id_env_var": {
       "type": "string",
       "label": "Modal Token Id Env Var",
-      "description": "Modal Token Id Env Var",
+      "description": "Name of the environment variable containing the Modal token ID. When set, the component overrides the ``MODAL_TOKEN_ID`` subprocess environment variable or configures the SDK client accordingly.",
       "required": false,
       "default": null
     },
     "modal_token_secret_env_var": {
       "type": "string",
       "label": "Modal Token Secret Env Var",
-      "description": "Modal Token Secret Env Var",
+      "description": "Name of the environment variable containing the Modal token secret. Paired with ``modal_token_id_env_var`` for non-default credential injection.",
       "required": false,
       "default": null,
       "ui:widget": "env_var"
@@ -69,7 +69,7 @@
     "detach": {
       "type": "boolean",
       "label": "Detach",
-      "description": "Detach",
+      "description": "When True, fire-and-forget: the asset completes as soon as the function is dispatched without waiting for it to finish. Metadata will not include return values. Use with care — Dagster will mark the asset as materialised even if the Modal function subsequently fails.",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -77,7 +77,7 @@
     "environment_name": {
       "type": "string",
       "label": "Environment Name",
-      "description": "Environment Name",
+      "description": "Modal environment (workspace namespace) to target. Defaults to the environment configured in the active Modal profile.",
       "required": false,
       "default": null
     },
@@ -94,7 +94,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },

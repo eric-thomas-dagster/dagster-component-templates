@@ -41,7 +41,7 @@
       "type": "string",
       "label": "Execution Timezone",
       "required": false,
-      "default": "UTC",
+      "default": null,
       "description": "IANA timezone (e.g. 'America/New_York'). Applied only in the un-partitioned path — in the partitioned path Dagster uses the partitions_def's timezone."
     },
     "default_status": {

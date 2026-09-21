@@ -19,7 +19,7 @@
     "servers": {
       "type": "string",
       "label": "Servers",
-      "description": "Comma-separated NATS server URLs (e.g., ",
+      "description": "Comma-separated NATS server URLs (e.g., 'nats://localhost:4222')",
       "required": true
     },
     "stream_name": {
@@ -85,7 +85,7 @@
     "minimum_interval_seconds": {
       "type": "integer",
       "label": "Minimum Interval Seconds",
-      "description": "Minimum Interval Seconds",
+      "description": "Minimum time (in seconds) between sensor evaluations",
       "required": false,
       "default": 30
     },
@@ -100,7 +100,7 @@
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "description": "Default Status",
+      "description": "Default status of the sensor (running or stopped)",
       "required": false,
       "default": "running",
       "enum": [

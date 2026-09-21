@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.ExternalServiceBusAsset",
-  "description": "Declare a Service Bus queue or topic as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
+  "description": "Declare a Service Bus queue or topic as an external asset in the Dagster asset graph — makes it visible for lineage without materializing it from Dagster.",
   "category": "external",
   "icon": "Link",
   "x-dagster-io": {
@@ -25,14 +25,14 @@
     "queue_name": {
       "type": "string",
       "label": "Queue Name",
-      "description": "Queue Name",
+      "description": "Queue name (use queue_name OR topic_name)",
       "required": false,
       "default": null
     },
     "topic_name": {
       "type": "string",
       "label": "Topic Name",
-      "description": "Topic Name",
+      "description": "Topic name (use topic_name + subscription_name)",
       "required": false,
       "default": null
     },

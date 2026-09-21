@@ -25,7 +25,7 @@
     "subscription": {
       "type": "string",
       "label": "Subscription",
-      "description": "Subscription",
+      "description": "Pub/Sub subscription name (short name, not full path)",
       "required": true,
       "ui:widget": "code"
     },
@@ -38,7 +38,7 @@
     "minimum_interval_seconds": {
       "type": "integer",
       "label": "Minimum Interval Seconds",
-      "description": "Minimum Interval Seconds",
+      "description": "Minimum time (in seconds) between sensor evaluations",
       "required": false,
       "default": 30
     },
@@ -60,7 +60,7 @@
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "description": "Default Status",
+      "description": "Default status of the sensor (running or stopped)",
       "required": false,
       "default": "running",
       "enum": [

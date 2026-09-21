@@ -59,7 +59,7 @@
     "file_pattern": {
       "type": "string",
       "label": "File Pattern",
-      "description": "Glob-style filename filter (e.g. ",
+      "description": "Glob-style filename filter (e.g. '*.csv')",
       "required": false,
       "default": "*"
     },

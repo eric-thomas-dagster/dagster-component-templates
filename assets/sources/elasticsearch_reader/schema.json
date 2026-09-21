@@ -25,21 +25,21 @@
     "host_env_var": {
       "type": "string",
       "label": "Host Env Var",
-      "description": "Host Env Var",
+      "description": "Env var with Elasticsearch URL. Defaults to ELASTICSEARCH_URL. Set this OR host.",
       "required": false,
       "default": "ELASTICSEARCH_URL"
     },
     "api_key_env_var": {
       "type": "string",
       "label": "Api Key Env Var",
-      "description": "Api Key Env Var",
+      "description": "Environment variable containing Elasticsearch API key (optional)",
       "required": false,
       "default": null
     },
     "query": {
       "type": "object",
       "label": "Query",
-      "description": "Query",
+      "description": "Elasticsearch query DSL (None = match_all)",
       "required": false,
       "default": null,
       "ui:widget": "key-value"
@@ -47,7 +47,7 @@
     "search_text": {
       "type": "string",
       "label": "Search Text",
-      "description": "Search Text",
+      "description": "Simple text search string (uses multi_match query)",
       "required": false,
       "default": null,
       "ui:widget": "textarea"
@@ -58,7 +58,7 @@
         "type": "string"
       },
       "label": "Search Fields",
-      "description": "Search Fields",
+      "description": "Fields to search in for text search (None = all fields)",
       "required": false,
       "default": null,
       "ui:widget": "list"
@@ -76,7 +76,7 @@
         "type": "string"
       },
       "label": "Source Fields",
-      "description": "Source Fields",
+      "description": "Fields to return in results (None = all fields)",
       "required": false,
       "default": null,
       "ui:widget": "list"
@@ -102,7 +102,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -159,7 +159,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -198,7 +198,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },

@@ -31,14 +31,14 @@
     "minimum_interval_seconds": {
       "type": "integer",
       "label": "Minimum Interval Seconds",
-      "description": "Minimum Interval Seconds",
+      "description": "Minimum time (in seconds) between sensor evaluations",
       "required": false,
       "default": 30
     },
     "max_messages_per_poll": {
       "type": "integer",
       "label": "Max Messages Per Poll",
-      "description": "Max Messages Per Poll",
+      "description": "Maximum number of messages to receive per evaluation (1–10, SQS limit)",
       "required": false,
       "default": 10
     },
@@ -67,7 +67,7 @@
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "description": "Default Status",
+      "description": "Default status of the sensor (running or stopped)",
       "required": false,
       "default": "running",
       "enum": [

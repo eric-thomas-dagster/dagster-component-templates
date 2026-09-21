@@ -24,7 +24,7 @@
     "upstream_asset_key": {
       "type": "string",
       "label": "Upstream Asset Key",
-      "description": "Upstream Asset Key",
+      "description": "Asset key of the upstream asset providing a pandas DataFrame with at least the columns referenced by ``id_column`` and ``text_column``.",
       "required": true
     },
     "id_column": {
@@ -45,19 +45,19 @@
     "database_url_env_var": {
       "type": "string",
       "label": "Database Url Env Var",
-      "description": "Database Url Env Var",
+      "description": "Env var containing a PostgreSQL connection string compatible with psycopg2 and the pgvector extension (e.g. ``postgresql://user:pass@host:5432/db``).",
       "required": true
     },
     "target_table": {
       "type": "string",
       "label": "Target Table",
-      "description": "Target Table",
+      "description": "Table to write embeddings into. Created automatically on first run if it does not exist.",
       "required": true
     },
     "if_exists": {
       "type": "string",
       "label": "If Exists",
-      "description": "If Exists",
+      "description": "Behaviour when the target table already contains rows. ``upsert`` — INSERT … ON CONFLICT DO UPDATE; ``replace`` — DROP and recreate the table before inserting.",
       "required": false,
       "default": "upsert",
       "enum": [
@@ -122,7 +122,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -179,7 +179,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -218,7 +218,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },

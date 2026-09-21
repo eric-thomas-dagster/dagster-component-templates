@@ -10,18 +10,34 @@
     }
   },
   "attributes": {
-    "sensor_name": { "type": "string", "label": "Sensor Name", "required": true },
-    "space_id": { "type": "string", "label": "Space ID", "description": "HuggingFace Space id (e.g. 'my-org/my-app')", "required": true },
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "required": true
+    },
+    "space_id": {
+      "type": "string",
+      "label": "Space ID",
+      "description": "HuggingFace Space id (e.g. 'my-org/my-app')",
+      "required": true
+    },
     "target_stages": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Target Stages",
       "description": "Space stages that should fire a RunRequest. Default ['RUNNING'].",
       "required": false,
-      "default": ["RUNNING"],
+      "default": null,
       "ui:widget": "list"
     },
-    "job_name": { "type": "string", "label": "Job Name", "description": "Dagster job to trigger", "required": true },
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job to trigger",
+      "required": true
+    },
     "hf_token_env_var": {
       "type": "string",
       "label": "HF Token Env Var",
@@ -30,8 +46,22 @@
       "default": null,
       "ui:widget": "env_var"
     },
-    "minimum_interval_seconds": { "type": "integer", "label": "Minimum Interval Seconds", "required": false, "default": 60 },
-    "default_status": { "type": "string", "label": "Default Status", "required": false, "default": "running", "enum": ["running", "stopped"] }
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "required": false,
+      "default": 60
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "required": false,
+      "default": "running",
+      "enum": [
+        "running",
+        "stopped"
+      ]
+    }
   },
   "tags": [
     "sensor",

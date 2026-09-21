@@ -19,7 +19,7 @@
     "bootstrap_servers": {
       "type": "string",
       "label": "Bootstrap Servers",
-      "description": "Comma-separated list of Kafka broker addresses (e.g., ",
+      "description": "Comma-separated list of Kafka broker addresses (e.g., 'broker1:9092,broker2:9092')",
       "required": true
     },
     "topic": {
@@ -43,7 +43,7 @@
     "minimum_interval_seconds": {
       "type": "integer",
       "label": "Minimum Interval Seconds",
-      "description": "Minimum Interval Seconds",
+      "description": "Minimum time (in seconds) between sensor evaluations",
       "required": false,
       "default": 30
     },
@@ -64,14 +64,14 @@
     "security_protocol": {
       "type": "string",
       "label": "Security Protocol",
-      "description": "Security Protocol",
+      "description": "Kafka security protocol (PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL)",
       "required": false,
       "default": "PLAINTEXT"
     },
     "sasl_mechanism": {
       "type": "string",
       "label": "Sasl Mechanism",
-      "description": "Sasl Mechanism",
+      "description": "SASL mechanism when using SASL_PLAINTEXT or SASL_SSL (e.g., PLAIN, SCRAM-SHA-256)",
       "required": false,
       "default": null
     },
@@ -101,7 +101,7 @@
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "description": "Default Status",
+      "description": "Default status of the sensor (running or stopped)",
       "required": false,
       "default": "running",
       "enum": [

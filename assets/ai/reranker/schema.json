@@ -68,7 +68,7 @@
     "score_column": {
       "type": "string",
       "label": "Score Column",
-      "description": "Score Column",
+      "description": "Column name for original scores (optional)",
       "required": false,
       "default": "score",
       "x-dagster-widget": "column"
@@ -84,21 +84,21 @@
     "top_n": {
       "type": "integer",
       "label": "Top N",
-      "description": "Top N",
+      "description": "Return only top N results after reranking (None = all)",
       "required": false,
       "default": null
     },
     "rerank_threshold": {
       "type": "number",
       "label": "Rerank Threshold",
-      "description": "Rerank Threshold",
+      "description": "Minimum rerank score threshold (0.0-1.0)",
       "required": false,
       "default": null
     },
     "batch_size": {
       "type": "integer",
       "label": "Batch Size",
-      "description": "Batch Size",
+      "description": "Batch size for reranking (for cross-encoder)",
       "required": false,
       "default": 100
     },
@@ -113,14 +113,14 @@
     "combine_scores": {
       "type": "string",
       "label": "Combine Scores",
-      "description": "Combine with original scores: ",
+      "description": "Combine with original scores: 'weighted', 'multiply', or None",
       "required": false,
       "default": null
     },
     "score_weight": {
       "type": "number",
       "label": "Score Weight",
-      "description": "Score Weight",
+      "description": "Weight for combining scores (0.0-1.0). 0.5 = equal weight.",
       "required": false,
       "default": 0.5
     },
@@ -135,7 +135,7 @@
     "max_chunks_per_doc": {
       "type": "integer",
       "label": "Max Chunks Per Doc",
-      "description": "Max Chunks Per Doc",
+      "description": "Max chunks per document to rerank (for large results)",
       "required": false,
       "default": null
     },
@@ -149,7 +149,7 @@
     "track_costs": {
       "type": "boolean",
       "label": "Track Costs",
-      "description": "Track Costs",
+      "description": "Track API costs (for Cohere)",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
@@ -172,7 +172,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -229,7 +229,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -268,7 +268,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },
@@ -283,7 +283,7 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },

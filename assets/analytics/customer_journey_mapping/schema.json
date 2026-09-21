@@ -24,14 +24,14 @@
     "upstream_asset_key": {
       "type": "string",
       "label": "Source Asset",
-      "description": "Source Asset",
+      "description": "Source asset with customer event/touchpoint data (set via lineage)",
       "required": false,
       "default": null
     },
     "journey_stages": {
       "type": "string",
       "label": "Journey Stages",
-      "description": "Journey Stages",
+      "description": "Ordered list of journey stages to track (optional)",
       "required": false,
       "default": null
     },
@@ -45,14 +45,14 @@
     "conversion_event": {
       "type": "string",
       "label": "Conversion Event",
-      "description": "Event name that indicates conversion (e.g., ",
+      "description": "Event name that indicates conversion (e.g., 'purchase', 'signup')",
       "required": false,
       "default": null
     },
     "time_window_hours": {
       "type": "integer",
       "label": "Time Window Hours",
-      "description": "Time Window Hours",
+      "description": "Maximum time between first and last event in a journey (hours)",
       "required": false,
       "default": 720
     },
@@ -67,7 +67,7 @@
     "customer_id_field": {
       "type": "string",
       "label": "Customer Id Field",
-      "description": "Customer Id Field",
+      "description": "Customer ID column (auto-detected if not specified)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -75,7 +75,7 @@
     "event_field": {
       "type": "string",
       "label": "Event Field",
-      "description": "Event Field",
+      "description": "Event name/type column (auto-detected if not specified)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -83,7 +83,7 @@
     "timestamp_field": {
       "type": "string",
       "label": "Timestamp Field",
-      "description": "Timestamp Field",
+      "description": "Event timestamp column (auto-detected if not specified)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -106,7 +106,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -163,7 +163,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -202,7 +202,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },
@@ -217,7 +217,7 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },

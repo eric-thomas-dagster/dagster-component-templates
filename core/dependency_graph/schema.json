@@ -11,7 +11,7 @@
       "required": true,
       "label": "Dependency Edges",
       "description": "List of edges defining dependencies between assets",
-      "default": [],
+      "default": null,
       "items": {
         "type": "object",
         "properties": {

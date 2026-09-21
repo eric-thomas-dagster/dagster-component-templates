@@ -45,13 +45,7 @@
           "is_valid"
         ]
       },
-      "default": [
-        "area",
-        "length",
-        "centroid",
-        "bounds",
-        "geom_type"
-      ],
+      "default": null,
       "label": "Metrics"
     },
     "projected_crs": {

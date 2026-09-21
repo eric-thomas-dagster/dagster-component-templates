@@ -19,7 +19,7 @@
     "stream_name": {
       "type": "string",
       "label": "Stream Name",
-      "description": "Name of the Redis Stream to monitor (e.g., ",
+      "description": "Name of the Redis Stream to monitor (e.g., 'events:incoming')",
       "required": true
     },
     "job_name": {
@@ -83,7 +83,7 @@
     "minimum_interval_seconds": {
       "type": "integer",
       "label": "Minimum Interval Seconds",
-      "description": "Minimum Interval Seconds",
+      "description": "Minimum time (in seconds) between sensor evaluations",
       "required": false,
       "default": 30
     },
@@ -98,7 +98,7 @@
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "description": "Default Status",
+      "description": "Default status of the sensor (running or stopped)",
       "required": false,
       "default": "running",
       "enum": [

@@ -32,7 +32,7 @@
     "asset_key": {
       "type": "string",
       "label": "Asset Key",
-      "description": "Dagster asset key (e.g. ",
+      "description": "Dagster asset key (e.g. 'matillion/transforms/load_orders')",
       "required": true
     },
     "project": {
@@ -119,7 +119,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },

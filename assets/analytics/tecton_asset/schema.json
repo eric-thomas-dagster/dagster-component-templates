@@ -18,7 +18,7 @@
     "workspace": {
       "type": "string",
       "label": "Workspace",
-      "description": "Tecton workspace name (e.g. ",
+      "description": "Tecton workspace name (e.g. 'production', 'staging').",
       "required": true
     },
     "tecton_api_key_env_var": {
@@ -31,14 +31,14 @@
     "tecton_url_env_var": {
       "type": "string",
       "label": "Tecton Url Env Var",
-      "description": "Tecton Url Env Var",
+      "description": "Name of the environment variable holding the Tecton cluster URL. Defaults to https://app.tecton.ai when not set.",
       "required": false,
       "default": null
     },
     "feature_views": {
       "type": "string",
       "label": "Feature Views",
-      "description": "Feature Views",
+      "description": "Specific feature view names to trigger materialization for. When None all feature views in the workspace are triggered.",
       "required": false,
       "default": null
     },
@@ -68,7 +68,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -125,7 +125,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -164,7 +164,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },

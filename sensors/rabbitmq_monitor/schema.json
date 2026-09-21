@@ -37,7 +37,7 @@
     "port": {
       "type": "integer",
       "label": "Port",
-      "description": "Port",
+      "description": "RabbitMQ AMQP port (default: 5672, TLS: 5671)",
       "required": false,
       "default": 5672
     },
@@ -81,7 +81,7 @@
     "minimum_interval_seconds": {
       "type": "integer",
       "label": "Minimum Interval Seconds",
-      "description": "Minimum Interval Seconds",
+      "description": "Minimum time (in seconds) between sensor evaluations",
       "required": false,
       "default": 30
     },
@@ -96,7 +96,7 @@
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "description": "Default Status",
+      "description": "Default status of the sensor (running or stopped)",
       "required": false,
       "default": "running",
       "enum": [

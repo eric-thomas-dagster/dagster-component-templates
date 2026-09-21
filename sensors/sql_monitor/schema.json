@@ -31,7 +31,7 @@
     "watermark_column": {
       "type": "string",
       "label": "Watermark Column",
-      "description": "Column used to detect new/updated rows (e.g., ",
+      "description": "Column used to detect new/updated rows (e.g., 'updated_at', 'created_at', 'id')",
       "required": true,
       "x-dagster-widget": "column"
     },
@@ -59,7 +59,7 @@
     "minimum_interval_seconds": {
       "type": "integer",
       "label": "Minimum Interval Seconds",
-      "description": "Minimum Interval Seconds",
+      "description": "Minimum time (in seconds) between sensor evaluations",
       "required": false,
       "default": 60
     },
@@ -74,7 +74,7 @@
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "description": "Default Status",
+      "description": "Default status of the sensor (running or stopped)",
       "required": false,
       "default": "running",
       "enum": [

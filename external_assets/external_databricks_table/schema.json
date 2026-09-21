@@ -19,13 +19,13 @@
     "workspace_url": {
       "type": "string",
       "label": "Workspace Url",
-      "description": "Workspace Url",
+      "description": "Databricks workspace URL (e.g. https://myorg.azuredatabricks.net)",
       "required": true
     },
     "catalog": {
       "type": "string",
       "label": "Catalog",
-      "description": "Catalog",
+      "description": "Unity Catalog catalog name (leave blank for Hive Metastore)",
       "required": false,
       "default": null
     },

@@ -24,35 +24,35 @@
     "method": {
       "type": "string",
       "label": "Method",
-      "description": "Method",
+      "description": "Extraction method: llm (GPT/Claude), spacy, or transformer",
       "required": false,
       "default": "spacy"
     },
     "llm_provider": {
       "type": "string",
       "label": "Llm Provider",
-      "description": "Llm Provider",
+      "description": "LLM provider: openai or anthropic (for method=llm)",
       "required": false,
       "default": null
     },
     "llm_model": {
       "type": "string",
       "label": "Llm Model",
-      "description": "Llm Model",
+      "description": "LLM model name (for method=llm)",
       "required": false,
       "default": null
     },
     "spacy_model": {
       "type": "string",
       "label": "Spacy Model",
-      "description": "Spacy Model",
+      "description": "spaCy model: en_core_web_sm, en_core_web_md, en_core_web_lg (for method=spacy)",
       "required": false,
       "default": null
     },
     "transformer_model": {
       "type": "string",
       "label": "Transformer Model",
-      "description": "Transformer Model",
+      "description": "Transformer NER model (for method=transformer)",
       "required": false,
       "default": null
     },
@@ -84,7 +84,7 @@
       "label": "Entity Types",
       "description": "Comma-separated list of entity types to extract",
       "required": false,
-      "default": "person"
+      "default": "person,organization,location,email,phone,product,order_id,date,money"
     },
     "custom_entities": {
       "type": "string",
@@ -96,14 +96,14 @@
     "output_format": {
       "type": "string",
       "label": "Output Format",
-      "description": "Output Format",
+      "description": "Output format: structured (dict per row) or flat (one column per entity type)",
       "required": false,
       "default": "structured"
     },
     "link_entities": {
       "type": "boolean",
       "label": "Link Entities",
-      "description": "Link Entities",
+      "description": "Enable entity linking/resolution (LLM only)",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -119,7 +119,7 @@
     "include_spans": {
       "type": "boolean",
       "label": "Include Spans",
-      "description": "Include Spans",
+      "description": "Include character span positions (start, end)",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -142,7 +142,7 @@
     "temperature": {
       "type": "number",
       "label": "Temperature",
-      "description": "Temperature",
+      "description": "Temperature for LLM (0.0 = deterministic)",
       "required": false,
       "default": 0.0
     },
@@ -170,7 +170,7 @@
     "track_costs": {
       "type": "boolean",
       "label": "Track Costs",
-      "description": "Track Costs",
+      "description": "Track token usage and costs (LLM only)",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
@@ -193,7 +193,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -250,7 +250,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -289,7 +289,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },
@@ -304,7 +304,7 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },

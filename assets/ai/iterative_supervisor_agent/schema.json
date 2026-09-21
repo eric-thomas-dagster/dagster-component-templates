@@ -4,24 +4,84 @@
   "category": "ai",
   "icon": "Sparkles",
   "x-dagster-io": {
-    "inputs": {"type": "none"},
-    "outputs": {"type": "multi_asset", "description": "Emits (max_iterations + 1) assets: N step assets + 1 synthesis."}
+    "inputs": {
+      "type": "none"
+    },
+    "outputs": {
+      "type": "multi_asset",
+      "description": "Emits (max_iterations + 1) assets: N step assets + 1 synthesis."
+    }
   },
   "attributes": {
-    "step_asset_prefix": {"type": "string", "required": false, "default": "agent_step"},
-    "synthesis_asset_name": {"type": "string", "required": true},
-    "task": {"type": "string", "required": true},
-    "tools": {"type": "array", "required": true},
-    "max_iterations": {"type": "integer", "required": false, "default": 5, "minimum": 1, "maximum": 15},
-    "model": {"type": "string", "required": false, "default": "gpt-4o-mini"},
-    "api_key_env_var": {"type": "string", "required": false, "default": "OPENAI_API_KEY"},
-    "api_base_env_var": {"type": "string", "required": false},
-    "temperature": {"type": "number", "required": false, "default": 0.1},
-    "planner_max_tokens": {"type": "integer", "required": false, "default": 400},
-    "tool_max_tokens": {"type": "integer", "required": false, "default": 500},
-    "synthesis_max_tokens": {"type": "integer", "required": false, "default": 600},
-    "synthesis_system_message": {"type": "string", "required": false},
-    "group_name": {"type": "string", "required": false},
-    "kinds": {"type": "array", "required": false}
+    "step_asset_prefix": {
+      "type": "string",
+      "required": false,
+      "default": "agent_step"
+    },
+    "synthesis_asset_name": {
+      "type": "string",
+      "required": true
+    },
+    "task": {
+      "type": "string",
+      "required": true
+    },
+    "tools": {
+      "type": "array",
+      "required": true
+    },
+    "max_iterations": {
+      "type": "integer",
+      "required": false,
+      "default": 5,
+      "minimum": 1,
+      "maximum": 15
+    },
+    "model": {
+      "type": "string",
+      "required": false,
+      "default": null
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "required": false,
+      "default": null
+    },
+    "api_base_env_var": {
+      "type": "string",
+      "required": false
+    },
+    "temperature": {
+      "type": "number",
+      "required": false,
+      "default": 0.1
+    },
+    "planner_max_tokens": {
+      "type": "integer",
+      "required": false,
+      "default": 400
+    },
+    "tool_max_tokens": {
+      "type": "integer",
+      "required": false,
+      "default": 500
+    },
+    "synthesis_max_tokens": {
+      "type": "integer",
+      "required": false,
+      "default": 600
+    },
+    "synthesis_system_message": {
+      "type": "string",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "required": false
+    }
   }
 }

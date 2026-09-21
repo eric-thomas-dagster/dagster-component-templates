@@ -53,7 +53,7 @@
       "type": "object",
       "label": "Query Params",
       "required": false,
-      "default": {},
+      "default": null,
       "description": "Mapping substituted into {placeholder} segments before submission."
     },
     "use_legacy_sql": {

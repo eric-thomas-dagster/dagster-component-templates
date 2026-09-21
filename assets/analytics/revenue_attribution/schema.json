@@ -24,21 +24,21 @@
     "marketing_data_asset_key": {
       "type": "string",
       "label": "Marketing Data Asset",
-      "description": "Marketing Data Asset",
+      "description": "Marketing data asset with spend and campaigns (automatically set via lineage)",
       "required": false,
       "default": null
     },
     "revenue_data_asset_key": {
       "type": "string",
       "label": "Revenue Data Asset",
-      "description": "Revenue Data Asset",
+      "description": "Revenue data asset (Stripe charges/subscriptions) (automatically set via lineage)",
       "required": false,
       "default": null
     },
     "customer_360_asset": {
       "type": "string",
       "label": "Customer 360 Asset",
-      "description": "Customer 360 Asset",
+      "description": "Customer 360 data for enhanced attribution (optional)",
       "required": false,
       "default": null
     },
@@ -52,7 +52,7 @@
     "join_key": {
       "type": "string",
       "label": "Join Key",
-      "description": "Join Key",
+      "description": "Key to join marketing and revenue data (email, customer_id)",
       "required": false,
       "default": "email",
       "x-dagster-widget": "column"
@@ -75,7 +75,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -132,7 +132,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -171,7 +171,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },
@@ -186,7 +186,7 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },

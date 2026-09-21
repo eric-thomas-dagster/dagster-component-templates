@@ -4,36 +4,114 @@
   "category": "transformation",
   "icon": "Workflow",
   "x-dagster-io": {
-    "outputs": {"type": "table", "description": "One or more materialized tables (one per sink)"}
+    "outputs": {
+      "type": "table",
+      "description": "One or more materialized tables (one per sink)"
+    }
   },
   "attributes": {
-    "asset_name":           {"type": "string", "required": true},
-    "database_url":         {"type": "string"},
-    "database_url_env_var": {"type": "string"},
-    "dialect":              {"type": "string", "required": true,
-                             "enum": ["duckdb","postgres","postgresql","snowflake","bigquery","redshift","databricks","mssql","mysql"]},
-
-    "source":               {"type": "object",
-                             "description": "Flat shape (one source, one ops chain, one sink): {upstream_table: 'schema.table'} or {kind: table|sql, ...}. Use 'steps' for multi-source."},
-    "operations":           {"type": "array", "items": {"type": "object"},
-                             "description": "Flat shape: ordered ops applied to 'source'. Supported ops: filter, with_columns, select, drop, group_by, sort, limit, top_n, top_n_per_group, dedup, distinct, union, join, sql."},
-    "output_table":         {"type": "string", "description": "Single-sink table name"},
-    "mode":                 {"type": "string", "enum": ["replace","create_if_not_exists"], "default": "replace"},
-
-    "steps":                {"type": "array", "items": {"type": "object"},
-                             "description": "Multi-step form. Each step: {id, source: {kind: table|ref|sql, ...}, operations: [...]}. Use 'ref' to consume an earlier step. Use 'op: sql' for raw-SQL escape (supports <<self>> and <<step_id>> placeholders)."},
-    "sinks":                {"type": "array", "items": {"type": "object"},
-                             "description": "Multi-step form. Each sink: {from: <step_id>, table: 'schema.table', mode: replace|create_if_not_exists}."},
-
-    "group_name":           {"type": "string"},
-    "deps":                 {"type": "array", "items": {"type": "string"}},
-    "owners":               {"type": "array", "items": {"type": "string"}},
-    "description":          {"type": "string"},
-    "asset_tags":           {"type": "object"},
-    "kinds":                {"type": "array", "items": {"type": "string"}},
-    "automation_condition": {"type": "string",
-                             "description": "Jinja-templated AutomationCondition factory, e.g. \"{{ dg.AutomationCondition.eager() }}\". Dagster's component YAML loader resolves it to the actual AutomationCondition object at load time."},
-    "include_preview_metadata": {"type": "boolean", "default": false},
-    "preview_rows":         {"type": "integer", "default": 25, "minimum": 1, "maximum": 200}
+    "asset_name": {
+      "type": "string",
+      "required": true
+    },
+    "database_url": {
+      "type": "string"
+    },
+    "database_url_env_var": {
+      "type": "string"
+    },
+    "dialect": {
+      "type": "string",
+      "required": true,
+      "enum": [
+        "duckdb",
+        "postgres",
+        "postgresql",
+        "snowflake",
+        "bigquery",
+        "redshift",
+        "databricks",
+        "mssql",
+        "mysql"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "description": "Flat shape (one source, one ops chain, one sink): {upstream_table: 'schema.table'} or {kind: table|sql, ...}. Use 'steps' for multi-source."
+    },
+    "operations": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Flat shape: ordered ops applied to 'source'. Supported ops: filter, with_columns, select, drop, group_by, sort, limit, top_n, top_n_per_group, dedup, distinct, union, join, sql."
+    },
+    "output_table": {
+      "type": "string",
+      "description": "Single-sink table name"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "replace",
+        "create_if_not_exists"
+      ],
+      "default": null
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Multi-step form. Each step: {id, source: {kind: table|ref|sql, ...}, operations: [...]}. Use 'ref' to consume an earlier step. Use 'op: sql' for raw-SQL escape (supports <<self>> and <<step_id>> placeholders)."
+    },
+    "sinks": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Multi-step form. Each sink: {from: <step_id>, table: 'schema.table', mode: replace|create_if_not_exists}."
+    },
+    "group_name": {
+      "type": "string"
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "description": {
+      "type": "string"
+    },
+    "asset_tags": {
+      "type": "object"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "automation_condition": {
+      "type": "string",
+      "description": "Jinja-templated AutomationCondition factory, e.g. \"{{ dg.AutomationCondition.eager() }}\". Dagster's component YAML loader resolves it to the actual AutomationCondition object at load time."
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "default": 25,
+      "minimum": 1,
+      "maximum": 200
+    }
   }
 }

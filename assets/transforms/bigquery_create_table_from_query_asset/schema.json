@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.BigQueryCreateTableFromQueryAssetComponent",
-  "description": "CTAS as a Dagster asset \u2014 CREATE OR REPLACE TABLE / VIEW / MATERIALIZED VIEW from a SELECT statement. The transform layer of any BQ-native ELT pipeline.",
+  "description": "CTAS as a Dagster asset — CREATE OR REPLACE TABLE / VIEW / MATERIALIZED VIEW from a SELECT statement. The transform layer of any BQ-native ELT pipeline.",
   "category": "transformation",
   "icon": "si:googlebigquery",
   "x-dagster-io": {
@@ -68,7 +68,7 @@
       "type": "object",
       "label": "Query Params",
       "required": false,
-      "default": {}
+      "default": null
     },
     "table_options": {
       "type": "object",

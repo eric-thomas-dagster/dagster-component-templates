@@ -44,21 +44,21 @@
     "min_co_occurrence": {
       "type": "integer",
       "label": "Min Co Occurrence",
-      "description": "Min Co Occurrence",
+      "description": "Minimum times products must be purchased together (collaborative filtering)",
       "required": false,
       "default": 3
     },
     "lookback_days": {
       "type": "integer",
       "label": "Lookback Days",
-      "description": "Lookback Days",
+      "description": "Only consider recent purchases (optional, use all data if not set)",
       "required": false,
       "default": null
     },
     "customer_id_field": {
       "type": "string",
       "label": "Customer Id Field",
-      "description": "Customer Id Field",
+      "description": "Customer ID column (auto-detected if not specified)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -66,7 +66,7 @@
     "product_id_field": {
       "type": "string",
       "label": "Product Id Field",
-      "description": "Product Id Field",
+      "description": "Product ID column (auto-detected if not specified)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -74,7 +74,7 @@
     "order_id_field": {
       "type": "string",
       "label": "Order Id Field",
-      "description": "Order Id Field",
+      "description": "Order ID column (auto-detected if not specified)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -82,7 +82,7 @@
     "date_field": {
       "type": "string",
       "label": "Date Field",
-      "description": "Date Field",
+      "description": "Transaction date column (auto-detected if not specified)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -90,7 +90,7 @@
     "quantity_field": {
       "type": "string",
       "label": "Quantity Field",
-      "description": "Quantity Field",
+      "description": "Quantity purchased column (auto-detected if not specified)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -98,7 +98,7 @@
     "product_name_field": {
       "type": "string",
       "label": "Product Name Field",
-      "description": "Product Name Field",
+      "description": "Product name column (optional, for readable output)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -106,7 +106,7 @@
     "category_field": {
       "type": "string",
       "label": "Category Field",
-      "description": "Category Field",
+      "description": "Product category column (optional, for category-based recommendations)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -129,7 +129,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -186,7 +186,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -225,7 +225,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },
@@ -240,7 +240,7 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },

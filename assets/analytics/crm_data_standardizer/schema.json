@@ -24,14 +24,14 @@
     "upstream_asset_key": {
       "type": "string",
       "label": "Source Asset",
-      "description": "Source Asset",
+      "description": "Upstream asset containing raw platform data (automatically set via lineage)",
       "required": false,
       "default": null
     },
     "record_id_field": {
       "type": "string",
       "label": "Record Id Field",
-      "description": "Record Id Field",
+      "description": "Field name for record ID (auto-detected if not provided)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -39,7 +39,7 @@
     "name_field": {
       "type": "string",
       "label": "Name Field",
-      "description": "Name Field",
+      "description": "Field name for name/title (auto-detected if not provided)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -47,7 +47,7 @@
     "email_field": {
       "type": "string",
       "label": "Email Field",
-      "description": "Email Field",
+      "description": "Field name for email (auto-detected if not provided)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -55,7 +55,7 @@
     "filter_status": {
       "type": "string",
       "label": "Filter Status",
-      "description": "Filter Status",
+      "description": "Filter by status/stage (comma-separated)",
       "required": false,
       "default": null
     },
@@ -84,7 +84,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -141,7 +141,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -180,7 +180,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },
@@ -195,7 +195,7 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },

@@ -13,20 +13,20 @@
     "aws_region": {
       "type": "string",
       "label": "Aws Region",
-      "description": "Aws Region",
+      "description": "AWS region (e.g., us-east-1)",
       "required": true
     },
     "aws_access_key_id": {
       "type": "string",
       "label": "Aws Access Key Id",
-      "description": "Aws Access Key Id",
+      "description": "AWS access key ID (optional if using IAM role)",
       "required": false,
       "default": null
     },
     "aws_secret_access_key": {
       "type": "string",
       "label": "Aws Secret Access Key",
-      "description": "Aws Secret Access Key",
+      "description": "AWS secret access key (optional if using IAM role)",
       "required": false,
       "default": null,
       "ui:widget": "password"
@@ -34,7 +34,7 @@
     "aws_session_token": {
       "type": "string",
       "label": "Aws Session Token",
-      "description": "Aws Session Token",
+      "description": "AWS session token for temporary credentials (optional)",
       "required": false,
       "default": null,
       "ui:widget": "password"
@@ -72,7 +72,7 @@
     "filter_by_tags": {
       "type": "string",
       "label": "Filter By Tags",
-      "description": "Comma-separated tag keys to filter entities (e.g., ",
+      "description": "Comma-separated tag keys to filter entities (e.g., 'env,team')",
       "required": false,
       "default": null
     },

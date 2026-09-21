@@ -38,14 +38,14 @@
     "chunking_strategy": {
       "type": "string",
       "label": "Chunking Strategy",
-      "description": "Strategy: ",
+      "description": "Strategy: 'fixed_chars', 'fixed_tokens', 'sentence', 'paragraph', 'semantic', 'recursive'",
       "required": false,
       "default": "fixed_chars"
     },
     "chunk_size": {
       "type": "integer",
       "label": "Chunk Size",
-      "description": "Chunk Size",
+      "description": "Target size of each chunk (characters or tokens depending on strategy)",
       "required": false,
       "default": 1000
     },
@@ -59,7 +59,7 @@
     "separator": {
       "type": "string",
       "label": "Separator",
-      "description": "Separator",
+      "description": "Custom separator for splitting (for recursive strategy)",
       "required": false,
       "default": null
     },
@@ -74,7 +74,7 @@
     "add_metadata": {
       "type": "boolean",
       "label": "Add Metadata",
-      "description": "Add Metadata",
+      "description": "Add metadata to each chunk (index, character positions)",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
@@ -82,7 +82,7 @@
     "output_format": {
       "type": "string",
       "label": "Output Format",
-      "description": "Output format: ",
+      "description": "Output format: 'list' (list of strings), 'dataframe', 'json'",
       "required": false,
       "default": "list"
     },
@@ -120,7 +120,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -177,7 +177,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -216,7 +216,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },

@@ -24,28 +24,28 @@
     "method": {
       "type": "string",
       "label": "Method",
-      "description": "Method",
+      "description": "Classification method: llm (GPT/Claude) or transformer (BERT, RoBERTa)",
       "required": false,
       "default": "llm"
     },
     "llm_provider": {
       "type": "string",
       "label": "Llm Provider",
-      "description": "Llm Provider",
+      "description": "LLM provider: openai or anthropic (for method=llm)",
       "required": false,
       "default": null
     },
     "llm_model": {
       "type": "string",
       "label": "Llm Model",
-      "description": "Llm Model",
+      "description": "LLM model: gpt-4o-mini, gpt-4, claude-3-haiku, claude-3-5-sonnet (for method=llm)",
       "required": false,
       "default": null
     },
     "transformer_model": {
       "type": "string",
       "label": "Transformer Model",
-      "description": "Transformer Model",
+      "description": "Transformer model: bert-base-uncased, distilbert-base-uncased, roberta-base (for method=transformer)",
       "required": false,
       "default": null
     },
@@ -69,26 +69,26 @@
       "label": "Categories",
       "description": "Comma-separated list of ticket categories",
       "required": false,
-      "default": "technical"
+      "default": "technical,billing,account,product,general,other"
     },
     "urgency_levels": {
       "type": "string",
       "label": "Urgency Levels",
       "description": "Comma-separated list of urgency levels",
       "required": false,
-      "default": "low"
+      "default": "low,medium,high,critical"
     },
     "departments": {
       "type": "string",
       "label": "Departments",
-      "description": "Departments",
+      "description": "Comma-separated list of departments for routing (optional)",
       "required": false,
       "default": null
     },
     "classify_sentiment": {
       "type": "boolean",
       "label": "Classify Sentiment",
-      "description": "Classify Sentiment",
+      "description": "Include sentiment classification (positive, neutral, negative)",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
@@ -104,7 +104,7 @@
     "include_reasoning": {
       "type": "boolean",
       "label": "Include Reasoning",
-      "description": "Include Reasoning",
+      "description": "Include reasoning/explanation for classifications (LLM only)",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -112,7 +112,7 @@
     "multi_label": {
       "type": "boolean",
       "label": "Multi Label",
-      "description": "Multi Label",
+      "description": "Allow multiple categories per ticket (e.g., technical+billing)",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -120,7 +120,7 @@
     "confidence_threshold": {
       "type": "number",
       "label": "Confidence Threshold",
-      "description": "Confidence Threshold",
+      "description": "Minimum confidence threshold (0.0-1.0). Below this = 'uncertain'",
       "required": false,
       "default": null
     },
@@ -134,7 +134,7 @@
     "temperature": {
       "type": "number",
       "label": "Temperature",
-      "description": "Temperature",
+      "description": "Temperature for LLM (0.0 = deterministic)",
       "required": false,
       "default": 0.0
     },
@@ -170,7 +170,7 @@
     "track_costs": {
       "type": "boolean",
       "label": "Track Costs",
-      "description": "Track Costs",
+      "description": "Track token usage and costs (LLM only)",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
@@ -178,7 +178,7 @@
     "include_metadata_fields": {
       "type": "string",
       "label": "Include Metadata Fields",
-      "description": "Comma-separated list of metadata fields to include in classification (e.g., ",
+      "description": "Comma-separated list of metadata fields to include in classification (e.g., 'customer_tier,channel')",
       "required": false,
       "default": null
     },
@@ -200,7 +200,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -257,7 +257,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -296,7 +296,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },
@@ -311,7 +311,7 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },

@@ -13,7 +13,7 @@
     "asset_key": {
       "type": "string",
       "label": "Asset Key",
-      "description": "Asset key to attach the freshness policy to (e.g. ",
+      "description": "Asset key to attach the freshness policy to (e.g. 'warehouse/orders')",
       "required": true
     },
     "fail_window_hours": {
@@ -33,7 +33,7 @@
     "deadline_cron": {
       "type": "string",
       "label": "Deadline Cron",
-      "description": "[cron] Cron expression for the materialization deadline (e.g. ",
+      "description": "[cron] Cron expression for the materialization deadline (e.g. '0 10 * * *').",
       "required": false,
       "default": null
     },
@@ -47,7 +47,7 @@
     "timezone": {
       "type": "string",
       "label": "Timezone",
-      "description": "[cron] Timezone for the cron expression (e.g. ",
+      "description": "[cron] Timezone for the cron expression (e.g. 'America/New_York'). Defaults to UTC.",
       "required": false,
       "default": null
     },

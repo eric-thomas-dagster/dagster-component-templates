@@ -37,14 +37,14 @@
     "orient": {
       "type": "string",
       "label": "Orient",
-      "description": "Orient",
+      "description": "pandas JSON orient: 'records', 'index', 'columns', 'values', 'table', or 'split'. Ignored when lines=True (forced to 'records').",
       "required": false,
       "default": "records"
     },
     "lines": {
       "type": "boolean",
       "label": "Lines",
-      "description": "Lines",
+      "description": "Write as JSON Lines format (one JSON object per line). Auto-sets orient to 'records'.",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -59,7 +59,7 @@
     "date_format": {
       "type": "string",
       "label": "Date Format",
-      "description": "Date formatting: ",
+      "description": "Date formatting: 'iso' (ISO 8601) or 'epoch' (milliseconds since epoch).",
       "required": false,
       "default": "iso"
     },
@@ -73,7 +73,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -130,7 +130,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },

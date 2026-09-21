@@ -28,7 +28,7 @@
     "blocking": {
       "type": "boolean",
       "label": "Blocking",
-      "description": "Blocking",
+      "description": "Whether this check is blocking (fails the pipeline)",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"

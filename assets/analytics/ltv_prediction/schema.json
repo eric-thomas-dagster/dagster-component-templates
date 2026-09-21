@@ -37,7 +37,7 @@
     "cohort_analysis": {
       "type": "boolean",
       "label": "Cohort Analysis",
-      "description": "Cohort Analysis",
+      "description": "Include cohort-based analysis (by customer signup month)",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
@@ -53,14 +53,14 @@
     "min_transactions_required": {
       "type": "integer",
       "label": "Min Transactions Required",
-      "description": "Min Transactions Required",
+      "description": "Minimum transactions required to calculate LTV (filters out one-time buyers)",
       "required": false,
       "default": 2
     },
     "customer_id_field": {
       "type": "string",
       "label": "Customer Id Field",
-      "description": "Customer Id Field",
+      "description": "Customer ID column name (auto-detected if not specified)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -68,7 +68,7 @@
     "transaction_date_field": {
       "type": "string",
       "label": "Transaction Date Field",
-      "description": "Transaction Date Field",
+      "description": "Transaction date column (auto-detected if not specified)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -76,7 +76,7 @@
     "amount_field": {
       "type": "string",
       "label": "Amount Field",
-      "description": "Amount Field",
+      "description": "Transaction amount column (auto-detected if not specified)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -99,7 +99,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -156,7 +156,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -195,7 +195,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },
@@ -210,7 +210,7 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },

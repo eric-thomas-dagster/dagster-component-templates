@@ -25,7 +25,7 @@
     "topic": {
       "type": "string",
       "label": "Topic",
-      "description": "Topic",
+      "description": "MQTT topic to subscribe to. Supports wildcards: + (single level), # (multi-level)",
       "required": true
     },
     "job_name": {
@@ -37,14 +37,14 @@
     "broker_port": {
       "type": "integer",
       "label": "Broker Port",
-      "description": "Broker Port",
+      "description": "MQTT broker port (default: 1883, TLS: 8883)",
       "required": false,
       "default": 1883
     },
     "qos": {
       "type": "integer",
       "label": "Qos",
-      "description": "Qos",
+      "description": "MQTT Quality of Service level (0=at most once, 1=at least once, 2=exactly once)",
       "required": false,
       "default": 1
     },
@@ -95,7 +95,7 @@
     "minimum_interval_seconds": {
       "type": "integer",
       "label": "Minimum Interval Seconds",
-      "description": "Minimum Interval Seconds",
+      "description": "Minimum time (in seconds) between sensor evaluations",
       "required": false,
       "default": 60
     },
@@ -110,7 +110,7 @@
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "description": "Default Status",
+      "description": "Default status of the sensor (running or stopped)",
       "required": false,
       "default": "running",
       "enum": [

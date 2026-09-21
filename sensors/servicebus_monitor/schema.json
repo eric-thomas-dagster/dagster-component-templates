@@ -25,7 +25,7 @@
     "fully_qualified_namespace": {
       "type": "string",
       "label": "Fully Qualified Namespace",
-      "description": "Service Bus namespace hostname (e.g., ",
+      "description": "Service Bus namespace hostname (e.g., 'mynamespace.servicebus.windows.net'). Required when not using a connection string.",
       "required": false,
       "default": null
     },
@@ -53,7 +53,7 @@
     "subscription_name": {
       "type": "string",
       "label": "Subscription Name",
-      "description": "Subscription Name",
+      "description": "Name of the topic subscription (required when using topic_name)",
       "required": false,
       "default": null,
       "ui:widget": "code"
@@ -68,7 +68,7 @@
     "minimum_interval_seconds": {
       "type": "integer",
       "label": "Minimum Interval Seconds",
-      "description": "Minimum Interval Seconds",
+      "description": "Minimum time (in seconds) between sensor evaluations",
       "required": false,
       "default": 30
     },
@@ -83,7 +83,7 @@
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "description": "Default Status",
+      "description": "Default status of the sensor (running or stopped)",
       "required": false,
       "default": "running",
       "enum": [

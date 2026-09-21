@@ -24,14 +24,14 @@
     "upstream_asset_key": {
       "type": "string",
       "label": "Source Asset",
-      "description": "Source Asset",
+      "description": "Upstream asset containing raw platform data (automatically set via lineage)",
       "required": false,
       "default": null
     },
     "ticket_id_field": {
       "type": "string",
       "label": "Ticket Id Field",
-      "description": "Ticket Id Field",
+      "description": "Field name for ticket ID (auto-detected if not provided)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -39,7 +39,7 @@
     "status_field": {
       "type": "string",
       "label": "Status Field",
-      "description": "Status Field",
+      "description": "Field name for status (auto-detected if not provided)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -47,28 +47,28 @@
     "filter_status": {
       "type": "string",
       "label": "Filter Status",
-      "description": "Filter Status",
+      "description": "Filter by ticket status (comma-separated)",
       "required": false,
       "default": null
     },
     "filter_priority": {
       "type": "string",
       "label": "Filter Priority",
-      "description": "Filter Priority",
+      "description": "Filter by priority level (comma-separated)",
       "required": false,
       "default": null
     },
     "filter_date_from": {
       "type": "string",
       "label": "Filter Date From",
-      "description": "Filter Date From",
+      "description": "Filter tickets from this date (YYYY-MM-DD)",
       "required": false,
       "default": null
     },
     "filter_date_to": {
       "type": "string",
       "label": "Filter Date To",
-      "description": "Filter Date To",
+      "description": "Filter tickets to this date (YYYY-MM-DD)",
       "required": false,
       "default": null
     },
@@ -90,7 +90,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -147,7 +147,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -186,7 +186,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },
@@ -201,7 +201,7 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },

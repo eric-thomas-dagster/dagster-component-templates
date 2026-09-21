@@ -26,7 +26,7 @@
     "databricks_config_path": {
       "type": "string",
       "label": "Databricks Config Path",
-      "description": "Databricks Config Path",
+      "description": "Path to databricks.yml bundle configuration file (relative to project root)",
       "required": true
     },
     "workspace_host": {

@@ -45,21 +45,21 @@
     "threshold": {
       "type": "number",
       "label": "Threshold",
-      "description": "Threshold",
+      "description": "Detection threshold (Z-score stdevs, IQR multiplier, or absolute threshold)",
       "required": false,
       "default": 3.0
     },
     "moving_average_window": {
       "type": "integer",
       "label": "Moving Average Window",
-      "description": "Moving Average Window",
+      "description": "Window size for moving average method (days/records)",
       "required": false,
       "default": 7
     },
     "group_by": {
       "type": "string",
       "label": "Group By Field",
-      "description": "Group By Field",
+      "description": "Group by field (e.g., customer_id) for per-group anomaly detection",
       "required": false,
       "default": null,
       "x-dagster-widget": "columns"
@@ -67,7 +67,7 @@
     "timestamp_field": {
       "type": "string",
       "label": "Timestamp Field",
-      "description": "Timestamp Field",
+      "description": "Timestamp field for time-series anomaly detection (optional)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -75,7 +75,7 @@
     "id_field": {
       "type": "string",
       "label": "Id Field",
-      "description": "Id Field",
+      "description": "ID field for tracking individual records (auto-detected)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -98,7 +98,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -155,7 +155,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -194,7 +194,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },
@@ -209,7 +209,7 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },

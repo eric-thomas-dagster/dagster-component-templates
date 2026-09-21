@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.SqlObservationSensorComponent",
-  "description": "Periodically connect to SQL and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
+  "description": "Periodically connect to SQL and record an AssetObservation on the target external asset — surfaces health metrics in the Dagster UI without triggering a pipeline run.",
   "category": "observation",
   "icon": "Eye",
   "x-dagster-io": {
@@ -37,7 +37,7 @@
     "watermark_column": {
       "type": "string",
       "label": "Watermark Column",
-      "description": "Watermark Column",
+      "description": "Column for latest value metric (e.g. updated_at). Used to derive the DataVersion in the native path.",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"

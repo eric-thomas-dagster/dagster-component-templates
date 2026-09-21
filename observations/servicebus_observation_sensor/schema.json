@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.ServiceBusObservationSensorComponent",
-  "description": "Periodically connect to Service Bus and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
+  "description": "Periodically connect to Service Bus and record an AssetObservation on the target external asset — surfaces health metrics in the Dagster UI without triggering a pipeline run.",
   "category": "observation",
   "icon": "Eye",
   "x-dagster-io": {
@@ -31,7 +31,7 @@
     "queue_name": {
       "type": "string",
       "label": "Queue Name",
-      "description": "Queue Name",
+      "description": "Queue name (queue_name OR topic_name)",
       "required": false,
       "default": null
     },
@@ -45,7 +45,7 @@
     "subscription_name": {
       "type": "string",
       "label": "Subscription Name",
-      "description": "Subscription Name",
+      "description": "Subscription name (for topics)",
       "required": false,
       "default": null,
       "ui:widget": "code"

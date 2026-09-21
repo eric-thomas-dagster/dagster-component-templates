@@ -19,7 +19,7 @@
     "instance_env_var": {
       "type": "string",
       "label": "Instance Env Var",
-      "description": "Instance Env Var",
+      "description": "Env var with ServiceNow instance name (e.g. mycompany)",
       "required": true
     },
     "username_env_var": {
@@ -38,7 +38,7 @@
     "table": {
       "type": "string",
       "label": "Table",
-      "description": "Table",
+      "description": "ServiceNow table to query (e.g. change_request, incident)",
       "required": true
     },
     "sysparm_query": {
@@ -59,7 +59,7 @@
       "label": "Sysparm Fields",
       "description": "Comma-separated fields to return",
       "required": false,
-      "default": "sys_id"
+      "default": "sys_id,number,state,short_description,sys_updated_on"
     },
     "minimum_interval_seconds": {
       "type": "integer",

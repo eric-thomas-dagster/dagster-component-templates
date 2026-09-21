@@ -54,7 +54,7 @@
     "terraform_bin": {
       "type": "string",
       "label": "Terraform Bin",
-      "description": "Path to the terraform binary (default: ",
+      "description": "Path to the terraform binary (default: 'terraform', assumed to be on PATH)",
       "required": false,
       "default": "terraform"
     },
@@ -85,7 +85,7 @@
     "parallelism": {
       "type": "integer",
       "label": "Parallelism",
-      "description": "Parallelism",
+      "description": "Number of concurrent operations (-parallelism flag)",
       "required": false,
       "default": 10
     },
@@ -100,7 +100,7 @@
     "env_vars": {
       "type": "object",
       "label": "Env Vars",
-      "description": "Env Vars",
+      "description": "Extra environment variables for the Terraform subprocess (e.g. AWS_PROFILE)",
       "required": false,
       "default": null,
       "ui:widget": "key-value"
@@ -118,7 +118,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },

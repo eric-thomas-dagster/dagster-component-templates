@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.ExternalEventHubsAsset",
-  "description": "Declare an Event Hubs event stream as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
+  "description": "Declare an Event Hubs event stream as an external asset in the Dagster asset graph — makes it visible for lineage without materializing it from Dagster.",
   "category": "external",
   "icon": "Link",
   "x-dagster-io": {
@@ -19,7 +19,7 @@
     "namespace": {
       "type": "string",
       "label": "Namespace",
-      "description": "Namespace",
+      "description": "Azure Event Hubs namespace (without .servicebus.windows.net)",
       "required": true
     },
     "eventhub_name": {

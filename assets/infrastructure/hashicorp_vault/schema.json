@@ -13,27 +13,27 @@
     "vault_url_env_var": {
       "type": "string",
       "label": "Vault Url Env Var",
-      "description": "Vault Url Env Var",
+      "description": "Name of the environment variable that holds the Vault base URL (e.g. https://vault.company.com).",
       "required": true
     },
     "token_env_var": {
       "type": "string",
       "label": "Token Env Var",
-      "description": "Token Env Var",
+      "description": "Name of the environment variable holding a Vault token. Use this for token-based authentication.",
       "required": false,
       "default": null
     },
     "role_id_env_var": {
       "type": "string",
       "label": "Role Id Env Var",
-      "description": "Role Id Env Var",
+      "description": "Name of the environment variable holding an AppRole role_id. Must be paired with secret_id_env_var.",
       "required": false,
       "default": null
     },
     "secret_id_env_var": {
       "type": "string",
       "label": "Secret Id Env Var",
-      "description": "Secret Id Env Var",
+      "description": "Name of the environment variable holding an AppRole secret_id. Must be paired with role_id_env_var.",
       "required": false,
       "default": null,
       "ui:widget": "env_var"
@@ -41,7 +41,7 @@
     "namespace": {
       "type": "string",
       "label": "Namespace",
-      "description": "Namespace",
+      "description": "Vault Enterprise namespace. Omit for Vault OSS.",
       "required": false,
       "default": null
     },
@@ -62,21 +62,21 @@
     "secrets": {
       "type": "string",
       "label": "Secrets",
-      "description": "Secrets",
+      "description": "List of secrets to fetch from Vault. Each entry must have: ``path`` (KV v2 path including 'data/' segment), ``key`` (key within the secret dict), and ``env_var`` (name of the environment variable to set).",
       "required": true,
       "ui:widget": "password"
     },
     "commands": {
       "type": "string",
       "label": "Commands",
-      "description": "Commands",
+      "description": "Optional shell commands to run after secrets are fetched. Secrets are injected as environment variables into each subprocess.",
       "required": false,
       "default": null
     },
     "export_to_env": {
       "type": "boolean",
       "label": "Export To Env",
-      "description": "Export To Env",
+      "description": "When True, set the resolved secrets as environment variables on the current process via os.environ. This makes them available to any code running in the same process after this asset executes.",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
@@ -94,7 +94,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },

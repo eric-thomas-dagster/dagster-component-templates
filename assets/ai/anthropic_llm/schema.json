@@ -53,7 +53,7 @@
     "input_column": {
       "type": "string",
       "label": "Input Column",
-      "description": "Input Column",
+      "description": "Column name containing input text (for batch processing)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -69,21 +69,21 @@
     "max_tokens": {
       "type": "integer",
       "label": "Max Tokens",
-      "description": "Max Tokens",
+      "description": "Maximum tokens in response (required by Anthropic API)",
       "required": false,
       "default": 1024
     },
     "temperature": {
       "type": "number",
       "label": "Temperature",
-      "description": "Temperature",
+      "description": "Temperature for response randomness (0.0-1.0). Lower = more deterministic.",
       "required": false,
       "default": 1.0
     },
     "top_p": {
       "type": "number",
       "label": "Top P",
-      "description": "Top P",
+      "description": "Nucleus sampling parameter (0.0-1.0). Alternative to temperature.",
       "required": false,
       "default": null
     },
@@ -97,7 +97,7 @@
     "stream": {
       "type": "boolean",
       "label": "Stream",
-      "description": "Stream",
+      "description": "Use streaming responses (for single prompts only)",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -112,14 +112,14 @@
     "tool_choice": {
       "type": "string",
       "label": "Tool Choice",
-      "description": "Control tool use: ",
+      "description": "Control tool use: 'auto', 'any', 'tool_name', or {'type': 'tool', 'name': 'tool_name'}",
       "required": false,
       "default": null
     },
     "enable_prompt_caching": {
       "type": "boolean",
       "label": "Enable Prompt Caching",
-      "description": "Enable Prompt Caching",
+      "description": "Enable prompt caching to reduce costs for repeated contexts (saves 90% on cached tokens)",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -186,7 +186,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -243,7 +243,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -282,7 +282,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },
@@ -297,7 +297,7 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },

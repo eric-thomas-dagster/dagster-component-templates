@@ -57,13 +57,13 @@
     "start_date": {
       "type": "string",
       "label": "Start Date",
-      "description": "Start Date",
+      "description": "Start date (YYYY-MM-DD format)",
       "required": true
     },
     "end_date": {
       "type": "string",
       "label": "End Date",
-      "description": "End Date",
+      "description": "End date (YYYY-MM-DD format)",
       "required": true
     },
     "base_value": {
@@ -76,14 +76,14 @@
     "noise_level": {
       "type": "number",
       "label": "Noise Level",
-      "description": "Noise Level",
+      "description": "Amount of random noise to add (0.0 = none, 1.0 = high)",
       "required": false,
       "default": 0.1
     },
     "random_state": {
       "type": "integer",
       "label": "Random Seed",
-      "description": "Random Seed",
+      "description": "Random seed for reproducible data generation (leave empty for random)",
       "required": false,
       "default": null
     },
@@ -134,7 +134,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -191,7 +191,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -230,14 +230,14 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },
     "include_preview_metadata": {
       "type": "boolean",
       "label": "Include Preview Metadata",
-      "description": "Include Preview Metadata",
+      "description": "Include a preview of the output data in metadata (first 5 rows as markdown table). Used by builder UIs to render asset shape without warehouse access.",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -245,7 +245,7 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },

@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.ExternalSqlAsset",
-  "description": "Declare an SQL table as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
+  "description": "Declare an SQL table as an external asset in the Dagster asset graph — makes it visible for lineage without materializing it from Dagster.",
   "category": "external",
   "icon": "Link",
   "x-dagster-io": {
@@ -19,7 +19,7 @@
     "table_name": {
       "type": "string",
       "label": "Table Name",
-      "description": "Table Name",
+      "description": "Table name (use schema.table for non-default schemas)",
       "required": true
     },
     "connection_string_env_var": {

@@ -19,7 +19,7 @@
     "account": {
       "type": "string",
       "label": "Account",
-      "description": "Account",
+      "description": "Snowflake account identifier (e.g. myorg-us-east-1)",
       "required": true
     },
     "database": {

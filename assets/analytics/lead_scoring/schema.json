@@ -31,7 +31,7 @@
     "behavioral_data_asset_key": {
       "type": "string",
       "label": "Behavioral Data Asset",
-      "description": "Behavioral Data Asset",
+      "description": "Behavioral/activity data (web visits, email opens, etc.)",
       "required": false,
       "default": ""
     },
@@ -52,14 +52,14 @@
     "fit_weight": {
       "type": "number",
       "label": "Fit Weight",
-      "description": "Fit Weight",
+      "description": "Weight for fit score in combined model (0-1)",
       "required": false,
       "default": 0.4
     },
     "intent_weight": {
       "type": "number",
       "label": "Intent Weight",
-      "description": "Intent Weight",
+      "description": "Weight for intent score in combined model (0-1)",
       "required": false,
       "default": 0.6
     },
@@ -165,7 +165,7 @@
     "calculate_lead_grade": {
       "type": "boolean",
       "label": "Calculate Lead Grade",
-      "description": "Calculate Lead Grade",
+      "description": "Calculate letter grade (A-F) in addition to score",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
@@ -203,7 +203,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -260,7 +260,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -299,7 +299,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },

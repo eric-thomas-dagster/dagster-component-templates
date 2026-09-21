@@ -56,7 +56,7 @@
     "http_path": {
       "type": "string",
       "label": "Http Path",
-      "description": "Http Path",
+      "description": "SQL warehouse HTTP path (from connection details)",
       "required": true
     },
     "check_interval_seconds": {

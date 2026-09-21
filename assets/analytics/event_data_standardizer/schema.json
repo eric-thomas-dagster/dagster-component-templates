@@ -24,14 +24,14 @@
     "upstream_asset_key": {
       "type": "string",
       "label": "Source Asset",
-      "description": "Source Asset",
+      "description": "Upstream asset containing raw platform data (automatically set via lineage)",
       "required": false,
       "default": null
     },
     "event_id_field": {
       "type": "string",
       "label": "Event Id Field",
-      "description": "Event Id Field",
+      "description": "Field name for event ID (auto-detected if not provided)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -39,7 +39,7 @@
     "event_name_field": {
       "type": "string",
       "label": "Event Name Field",
-      "description": "Event Name Field",
+      "description": "Field name for event name (auto-detected if not provided)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -47,7 +47,7 @@
     "user_id_field": {
       "type": "string",
       "label": "User Id Field",
-      "description": "User Id Field",
+      "description": "Field name for user ID (auto-detected if not provided)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -55,7 +55,7 @@
     "timestamp_field": {
       "type": "string",
       "label": "Timestamp Field",
-      "description": "Timestamp Field",
+      "description": "Field name for timestamp (auto-detected if not provided)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -63,28 +63,28 @@
     "filter_event_name": {
       "type": "string",
       "label": "Filter Event Name",
-      "description": "Filter Event Name",
+      "description": "Filter by event name (comma-separated)",
       "required": false,
       "default": null
     },
     "filter_event_type": {
       "type": "string",
       "label": "Filter Event Type",
-      "description": "Filter Event Type",
+      "description": "Filter by event type (comma-separated)",
       "required": false,
       "default": null
     },
     "filter_date_from": {
       "type": "string",
       "label": "Filter Date From",
-      "description": "Filter Date From",
+      "description": "Filter events from this date (YYYY-MM-DD)",
       "required": false,
       "default": null
     },
     "filter_date_to": {
       "type": "string",
       "label": "Filter Date To",
-      "description": "Filter Date To",
+      "description": "Filter events to this date (YYYY-MM-DD)",
       "required": false,
       "default": null
     },
@@ -106,7 +106,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -163,7 +163,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -202,7 +202,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },
@@ -217,7 +217,7 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },

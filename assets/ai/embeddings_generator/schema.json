@@ -51,7 +51,7 @@
     "output_column": {
       "type": "string",
       "label": "Output Column",
-      "description": "Output Column",
+      "description": "Column name for embeddings (list of floats)",
       "required": false,
       "default": "embedding",
       "x-dagster-widget": "column"
@@ -59,14 +59,14 @@
     "batch_size": {
       "type": "integer",
       "label": "Batch Size",
-      "description": "Batch Size",
+      "description": "Batch size for API calls (larger = faster but more memory)",
       "required": false,
       "default": 100
     },
     "normalize_embeddings": {
       "type": "boolean",
       "label": "Normalize Embeddings",
-      "description": "Normalize Embeddings",
+      "description": "Normalize embeddings to unit length (recommended for cosine similarity)",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
@@ -74,14 +74,14 @@
     "dimension_reduction": {
       "type": "string",
       "label": "Dimension Reduction",
-      "description": "Reduce dimensions: ",
+      "description": "Reduce dimensions: 'pca', 'umap', or None",
       "required": false,
       "default": null
     },
     "target_dimensions": {
       "type": "integer",
       "label": "Target Dimensions",
-      "description": "Target Dimensions",
+      "description": "Target dimensions after reduction (e.g., 256)",
       "required": false,
       "default": null
     },
@@ -111,21 +111,21 @@
     "cache_path": {
       "type": "string",
       "label": "Cache Path",
-      "description": "Cache Path",
+      "description": "Path to cache embeddings (parquet format)",
       "required": false,
       "default": null
     },
     "rate_limit_delay": {
       "type": "number",
       "label": "Rate Limit Delay",
-      "description": "Rate Limit Delay",
+      "description": "Delay between batches in seconds (for API rate limits)",
       "required": false,
       "default": 0.0
     },
     "track_costs": {
       "type": "boolean",
       "label": "Track Costs",
-      "description": "Track Costs",
+      "description": "Track API costs (OpenAI, Cohere)",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
@@ -148,7 +148,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -205,7 +205,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -244,7 +244,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },
@@ -259,7 +259,7 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },

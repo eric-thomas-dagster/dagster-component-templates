@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.AbInitioRunAssetComponent",
-  "description": "Submit an Ab Initio graph or job to the EME REST API and wait for completion \u2014 Dagster owns the schedule, Ab Initio executes the work.",
+  "description": "Submit an Ab Initio graph or job to the EME REST API and wait for completion — Dagster owns the schedule, Ab Initio executes the work.",
   "category": "infrastructure",
   "icon": "Server",
   "x-dagster-io": {
@@ -32,13 +32,13 @@
     "asset_key": {
       "type": "string",
       "label": "Asset Key",
-      "description": "Dagster asset key (e.g. ",
+      "description": "Dagster asset key (e.g. 'abinitio/etl/load_orders')",
       "required": true
     },
     "job_path": {
       "type": "string",
       "label": "Job Path",
-      "description": "Job Path",
+      "description": "Ab Initio EME job/graph path (e.g. /prod/etl/load_orders)",
       "required": true
     },
     "eme_url_env_var": {
@@ -74,7 +74,7 @@
     "parameters": {
       "type": "object",
       "label": "Parameters",
-      "description": "Parameters",
+      "description": "Key-value parameters passed to the Ab Initio graph (e.g. AI_START_DATE, AI_INPUT_PATH)",
       "required": false,
       "default": null,
       "ui:widget": "key-value"
@@ -106,7 +106,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },

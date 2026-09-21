@@ -31,28 +31,28 @@
     "method": {
       "type": "string",
       "label": "Method",
-      "description": "Method",
+      "description": "Scoring method: llm, ml (logistic/XGBoost), or rules",
       "required": false,
       "default": "rules"
     },
     "llm_provider": {
       "type": "string",
       "label": "Llm Provider",
-      "description": "Llm Provider",
+      "description": "LLM provider: openai or anthropic (for method=llm)",
       "required": false,
       "default": null
     },
     "llm_model": {
       "type": "string",
       "label": "Llm Model",
-      "description": "Llm Model",
+      "description": "LLM model name (for method=llm)",
       "required": false,
       "default": null
     },
     "ml_model": {
       "type": "string",
       "label": "Ml Model",
-      "description": "Ml Model",
+      "description": "ML model: logistic_regression, xgboost, or random_forest (for method=ml)",
       "required": false,
       "default": null
     },
@@ -76,7 +76,7 @@
       "label": "Priority Levels",
       "description": "Comma-separated priority levels or ",
       "required": false,
-      "default": "P1"
+      "default": "P1,P2,P3,P4"
     },
     "sla_hours": {
       "type": "string",
@@ -88,7 +88,7 @@
     "customer_tier_column": {
       "type": "string",
       "label": "Customer Tier Column",
-      "description": "Column name for customer tier (e.g., ",
+      "description": "Column name for customer tier (e.g., 'customer_tier')",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -96,7 +96,7 @@
     "sentiment_score_column": {
       "type": "string",
       "label": "Sentiment Score Column",
-      "description": "Sentiment Score Column",
+      "description": "Column name for sentiment score (for weighting)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -104,7 +104,7 @@
     "urgency_column": {
       "type": "string",
       "label": "Urgency Column",
-      "description": "Urgency Column",
+      "description": "Column name for urgency level (from classification)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -112,7 +112,7 @@
     "escalation_threshold": {
       "type": "number",
       "label": "Escalation Threshold",
-      "description": "Escalation Threshold",
+      "description": "Priority score threshold for escalation (0-100)",
       "required": false,
       "default": 80.0
     },
@@ -156,7 +156,7 @@
     "temperature": {
       "type": "number",
       "label": "Temperature",
-      "description": "Temperature",
+      "description": "Temperature for LLM (0.0 = deterministic)",
       "required": false,
       "default": 0.0
     },
@@ -184,7 +184,7 @@
     "track_costs": {
       "type": "boolean",
       "label": "Track Costs",
-      "description": "Track Costs",
+      "description": "Track token usage and costs (LLM only)",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
@@ -207,7 +207,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -264,7 +264,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -303,7 +303,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },
@@ -318,7 +318,7 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },

@@ -24,7 +24,7 @@
     "upstream_asset_key": {
       "type": "string",
       "label": "Upstream Asset Key",
-      "description": "Upstream Asset Key",
+      "description": "Asset key of the upstream asset providing a pandas DataFrame. In ``log_metrics`` mode, each row is logged as a W&B run step. In ``log_artifact`` mode, this field is used for lineage only.",
       "required": true
     },
     "wandb_api_key_env_var": {
@@ -43,7 +43,7 @@
     "entity": {
       "type": "string",
       "label": "Entity",
-      "description": "Entity",
+      "description": "W&B entity (team or username). Defaults to the API-key owner.",
       "required": false,
       "default": null
     },
@@ -57,7 +57,7 @@
     "mode": {
       "type": "string",
       "label": "Mode",
-      "description": "Operation mode: ",
+      "description": "Operation mode: \"log_metrics\" or \"log_artifact\".",
       "required": false,
       "default": "log_metrics",
       "enum": [
@@ -100,7 +100,7 @@
     "artifact_type": {
       "type": "string",
       "label": "Artifact Type",
-      "description": "W&B artifact type, e.g. ",
+      "description": "W&B artifact type, e.g. \"dataset\", \"model\", \"evaluation\".",
       "required": false,
       "default": "dataset"
     },
@@ -121,7 +121,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -178,7 +178,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -217,7 +217,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },

@@ -19,7 +19,7 @@
     "slack_token": {
       "type": "string",
       "label": "Slack Token",
-      "description": "Slack Token",
+      "description": "Slack Bot token (use ${SLACK_TOKEN} for env var)",
       "required": true,
       "ui:widget": "password"
     },
@@ -59,7 +59,7 @@
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "description": "Default Status",
+      "description": "Default sensor status (RUNNING or STOPPED)",
       "required": false,
       "default": "running",
       "enum": [

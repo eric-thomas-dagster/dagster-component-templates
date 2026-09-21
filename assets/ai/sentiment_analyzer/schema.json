@@ -24,7 +24,7 @@
     "method": {
       "type": "string",
       "label": "Method",
-      "description": "Method",
+      "description": "Analysis method: llm (GPT/Claude), transformer (local models)",
       "required": false,
       "default": "transformer"
     },
@@ -45,7 +45,7 @@
     "provider": {
       "type": "string",
       "label": "Provider",
-      "description": "Provider",
+      "description": "LLM provider: openai, anthropic (only for method=llm)",
       "required": false,
       "default": null
     },
@@ -60,7 +60,7 @@
     "sentiment_label_column": {
       "type": "string",
       "label": "Sentiment Label Column",
-      "description": "Sentiment Label Column",
+      "description": "Column name for sentiment label (e.g., positive, negative)",
       "required": false,
       "default": "sentiment_label",
       "x-dagster-widget": "column"
@@ -68,7 +68,7 @@
     "sentiment_score_column": {
       "type": "string",
       "label": "Sentiment Score Column",
-      "description": "Sentiment Score Column",
+      "description": "Column name for sentiment confidence score (0.0-1.0)",
       "required": false,
       "default": "sentiment_score",
       "x-dagster-widget": "column"
@@ -78,12 +78,12 @@
       "label": "Sentiment Categories",
       "description": "Comma-separated sentiment categories",
       "required": false,
-      "default": "positive"
+      "default": "positive,negative,neutral"
     },
     "aspect_based": {
       "type": "boolean",
       "label": "Aspect Based",
-      "description": "Aspect Based",
+      "description": "Enable aspect-based sentiment analysis (LLM only)",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -91,14 +91,14 @@
     "aspects": {
       "type": "string",
       "label": "Aspects",
-      "description": "Comma-separated aspects to analyze (e.g., ",
+      "description": "Comma-separated aspects to analyze (e.g., 'quality,price,service')",
       "required": false,
       "default": null
     },
     "detect_emotions": {
       "type": "boolean",
       "label": "Detect Emotions",
-      "description": "Detect Emotions",
+      "description": "Detect specific emotions (joy, anger, sadness, etc.) - LLM only",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -108,12 +108,12 @@
       "label": "Emotion Categories",
       "description": "Comma-separated emotion categories to detect",
       "required": false,
-      "default": "joy"
+      "default": "joy,anger,sadness,fear,surprise"
     },
     "return_reasoning": {
       "type": "boolean",
       "label": "Return Reasoning",
-      "description": "Return Reasoning",
+      "description": "Return reasoning/explanation for sentiment (LLM only)",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -128,14 +128,14 @@
     "confidence_threshold": {
       "type": "number",
       "label": "Confidence Threshold",
-      "description": "Confidence Threshold",
+      "description": "Minimum confidence threshold (0.0-1.0). Below this = 'uncertain'",
       "required": false,
       "default": null
     },
     "temperature": {
       "type": "number",
       "label": "Temperature",
-      "description": "Temperature",
+      "description": "Temperature for LLM (0.0 = deterministic)",
       "required": false,
       "default": 0.0
     },
@@ -164,7 +164,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -221,7 +221,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -260,7 +260,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },
@@ -275,7 +275,7 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },

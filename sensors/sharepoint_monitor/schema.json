@@ -25,7 +25,7 @@
     "library_name": {
       "type": "string",
       "label": "Library Name",
-      "description": "Document library name (e.g. ",
+      "description": "Document library name (e.g. 'Documents' or 'Reports')",
       "required": true
     },
     "tenant_id_env_var": {
@@ -57,7 +57,7 @@
     "file_extension_filter": {
       "type": "string",
       "label": "File Extension Filter",
-      "description": "Filter by extension e.g. ",
+      "description": "Filter by extension e.g. '.xlsx' (empty = all files)",
       "required": false,
       "default": ""
     },

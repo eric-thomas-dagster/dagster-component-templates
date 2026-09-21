@@ -25,14 +25,14 @@
     "prefix": {
       "type": "string",
       "label": "Prefix",
-      "description": "Object prefix to scope monitoring (e.g., ",
+      "description": "Object prefix to scope monitoring (e.g., 'incoming/' or 'data/2024/')",
       "required": false,
       "default": ""
     },
     "blob_pattern": {
       "type": "string",
       "label": "Blob Pattern",
-      "description": "Regex pattern to match object names relative to the prefix (e.g., ",
+      "description": "Regex pattern to match object names relative to the prefix (e.g., '.*\\.parquet$')",
       "required": false,
       "default": ".*"
     },
@@ -45,7 +45,7 @@
     "minimum_interval_seconds": {
       "type": "integer",
       "label": "Minimum Interval Seconds",
-      "description": "Minimum Interval Seconds",
+      "description": "Minimum time (in seconds) between sensor evaluations",
       "required": false,
       "default": 30
     },
@@ -67,7 +67,7 @@
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "description": "Default Status",
+      "description": "Default status of the sensor (running or stopped)",
       "required": false,
       "default": "running",
       "enum": [

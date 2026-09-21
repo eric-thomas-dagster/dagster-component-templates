@@ -25,7 +25,7 @@
     "inventory": {
       "type": "string",
       "label": "Inventory",
-      "description": "Inventory",
+      "description": "Inventory file path, directory, or comma-separated host list (e.g. 'host1,host2,'). When None, ansible-playbook falls back to the inventory configured in ansible.cfg.",
       "required": false,
       "default": null
     },
@@ -47,28 +47,28 @@
     "tags": {
       "type": "string",
       "label": "Tags",
-      "description": "Tags",
+      "description": "Limit execution to tasks with these Ansible tags (--tags).",
       "required": false,
       "default": null
     },
     "skip_tags": {
       "type": "string",
       "label": "Skip Tags",
-      "description": "Skip Tags",
+      "description": "Skip tasks with these Ansible tags (--skip-tags).",
       "required": false,
       "default": null
     },
     "limit": {
       "type": "string",
       "label": "Limit",
-      "description": "Limit",
+      "description": "Further limit the hosts targeted by this play (--limit).",
       "required": false,
       "default": null
     },
     "become": {
       "type": "boolean",
       "label": "Become",
-      "description": "Become",
+      "description": "Enable privilege escalation (--become / sudo).",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -76,14 +76,14 @@
     "become_user": {
       "type": "string",
       "label": "Become User",
-      "description": "Become User",
+      "description": "User to become when privilege escalation is active (--become-user).",
       "required": false,
       "default": null
     },
     "vault_password_file": {
       "type": "string",
       "label": "Vault Password File",
-      "description": "Vault Password File",
+      "description": "Path to a file containing the Ansible Vault password (--vault-password-file).",
       "required": false,
       "default": null,
       "ui:widget": "password"
@@ -91,7 +91,7 @@
     "vault_password_env_var": {
       "type": "string",
       "label": "Vault Password Env Var",
-      "description": "Vault Password Env Var",
+      "description": "Name of an environment variable whose value is the Vault password. The component writes the value to a secure temporary file and passes it as --vault-password-file, then deletes it after the run.",
       "required": false,
       "default": null,
       "ui:widget": "env_var"
@@ -99,14 +99,14 @@
     "ssh_private_key_env_var": {
       "type": "string",
       "label": "Ssh Private Key Env Var",
-      "description": "Ssh Private Key Env Var",
+      "description": "Name of an environment variable containing an SSH private key (PEM). The component writes it to a temp file with 0600 permissions and sets ANSIBLE_PRIVATE_KEY_FILE for the subprocess.",
       "required": false,
       "default": null
     },
     "check_mode": {
       "type": "boolean",
       "label": "Check Mode",
-      "description": "Check Mode",
+      "description": "Run in check (dry-run) mode — no changes are made (--check).",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -114,7 +114,7 @@
     "diff_mode": {
       "type": "boolean",
       "label": "Diff Mode",
-      "description": "Diff Mode",
+      "description": "Show diffs for files that are changed (--diff).",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -161,7 +161,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },

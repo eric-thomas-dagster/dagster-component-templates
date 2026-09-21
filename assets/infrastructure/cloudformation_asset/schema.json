@@ -25,7 +25,7 @@
     "template_file": {
       "type": "string",
       "label": "Template File",
-      "description": "Template File",
+      "description": "Local path to the CloudFormation template (YAML or JSON). Mutually exclusive with template_url.",
       "required": false,
       "default": null,
       "ui:widget": "textarea"
@@ -51,7 +51,10 @@
       "label": "Capabilities",
       "description": "CloudFormation capabilities to acknowledge ",
       "required": false,
-      "default": "[\"CAPABILITY_IAM\""
+      "default": [
+        "CAPABILITY_IAM",
+        "CAPABILITY_NAMED_IAM"
+      ]
     },
     "region_name": {
       "type": "string",
@@ -98,7 +101,7 @@
     "tags": {
       "type": "object",
       "label": "Tags",
-      "description": "Tags",
+      "description": "AWS resource tags to apply to the stack (and all resources it creates).",
       "required": false,
       "default": null,
       "ui:widget": "key-value"
@@ -116,7 +119,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },

@@ -64,9 +64,7 @@
       "items": {
         "type": "string"
       },
-      "default": [
-        "en-US"
-      ]
+      "default": null
     },
     "recognizer_model": {
       "type": "string",

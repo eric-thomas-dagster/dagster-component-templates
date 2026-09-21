@@ -24,20 +24,20 @@
     "upstream_asset_key": {
       "type": "string",
       "label": "Upstream Asset Key",
-      "description": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame with campaign metrics (impressions, clicks, spend)",
       "required": true
     },
     "target_roas": {
       "type": "number",
       "label": "Target Roas",
-      "description": "Target Roas",
+      "description": "Target ROAS for performance comparison (optional)",
       "required": false,
       "default": null
     },
     "target_cpa": {
       "type": "number",
       "label": "Target Cpa",
-      "description": "Target Cpa",
+      "description": "Target CPA for performance comparison (optional)",
       "required": false,
       "default": null
     },
@@ -52,7 +52,7 @@
     "campaign_id_field": {
       "type": "string",
       "label": "Campaign Id Field",
-      "description": "Campaign Id Field",
+      "description": "Campaign ID column (auto-detected)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -60,7 +60,7 @@
     "campaign_name_field": {
       "type": "string",
       "label": "Campaign Name Field",
-      "description": "Campaign Name Field",
+      "description": "Campaign name column (auto-detected)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -68,7 +68,7 @@
     "channel_field": {
       "type": "string",
       "label": "Channel Field",
-      "description": "Channel Field",
+      "description": "Marketing channel column (auto-detected)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -76,7 +76,7 @@
     "spend_field": {
       "type": "string",
       "label": "Spend Field",
-      "description": "Spend Field",
+      "description": "Campaign spend column (auto-detected)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -84,7 +84,7 @@
     "impressions_field": {
       "type": "string",
       "label": "Impressions Field",
-      "description": "Impressions Field",
+      "description": "Impressions column (auto-detected)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -92,7 +92,7 @@
     "clicks_field": {
       "type": "string",
       "label": "Clicks Field",
-      "description": "Clicks Field",
+      "description": "Clicks column (auto-detected)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -100,7 +100,7 @@
     "conversions_field": {
       "type": "string",
       "label": "Conversions Field",
-      "description": "Conversions Field",
+      "description": "Conversions column (auto-detected)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -108,7 +108,7 @@
     "revenue_field": {
       "type": "string",
       "label": "Revenue Field",
-      "description": "Revenue Field",
+      "description": "Revenue column (auto-detected)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -131,7 +131,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -188,7 +188,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -227,7 +227,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },
@@ -242,7 +242,7 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },

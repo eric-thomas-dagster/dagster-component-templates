@@ -19,7 +19,7 @@
     "api_url_env_var": {
       "type": "string",
       "label": "Api Url Env Var",
-      "description": "Api Url Env Var",
+      "description": "Env var with Acceldata API base URL (e.g. https://mycompany.acceldata.io)",
       "required": true
     },
     "api_token_env_var": {
@@ -32,7 +32,7 @@
     "rule_id": {
       "type": "string",
       "label": "Rule Id",
-      "description": "ID of the Acceldata DQ rule to execute. Find in Acceldata UI: Rules \u2192 Rule Details \u2192 ID.",
+      "description": "ID of the Acceldata DQ rule to execute. Find in Acceldata UI: Rules → Rule Details → ID.",
       "required": true
     },
     "poll_interval_seconds": {
@@ -54,7 +54,10 @@
       "label": "Severity Override",
       "description": "Optional — 'WARN' or 'ERROR'. Defaults to ERROR.",
       "required": false,
-      "enum": ["WARN", "ERROR"]
+      "enum": [
+        "WARN",
+        "ERROR"
+      ]
     }
   },
   "tags": [

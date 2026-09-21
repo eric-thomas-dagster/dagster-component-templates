@@ -19,7 +19,7 @@
     "sifflet_tenant_env_var": {
       "type": "string",
       "label": "Sifflet Tenant Env Var",
-      "description": "Env var with Sifflet tenant name (e.g. ",
+      "description": "Env var with Sifflet tenant name (e.g. 'mycompany' from mycompany.siffletdata.com)",
       "required": true
     },
     "api_token_env_var": {
@@ -32,7 +32,7 @@
     "monitor_id": {
       "type": "string",
       "label": "Monitor Id",
-      "description": "UUID of the Sifflet monitor to run. Find in Sifflet UI: Monitor \u2192 Details \u2192 ID.",
+      "description": "UUID of the Sifflet monitor to run. Find in Sifflet UI: Monitor → Details → ID.",
       "required": true
     },
     "poll_interval_seconds": {
@@ -54,7 +54,10 @@
       "label": "Severity Override",
       "description": "Optional — 'WARN' or 'ERROR'. Defaults to ERROR.",
       "required": false,
-      "enum": ["WARN", "ERROR"]
+      "enum": [
+        "WARN",
+        "ERROR"
+      ]
     }
   },
   "tags": [

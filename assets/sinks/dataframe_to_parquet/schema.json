@@ -30,14 +30,14 @@
     "file_path": {
       "type": "string",
       "label": "File Path",
-      "description": "File Path",
+      "description": "Destination file path. Supports env var substitution e.g. ${OUTPUT_DIR}/results.parquet. Also supports s3://bucket/path.parquet and gs://bucket/path.parquet. S3 requires pyarrow and s3fs; GCS requires gcsfs.",
       "required": true,
       "ui:widget": "file"
     },
     "compression": {
       "type": "string",
       "label": "Compression",
-      "description": "Compression codec: ",
+      "description": "Compression codec: 'snappy', 'gzip', 'brotli', or 'none'",
       "required": false,
       "default": "snappy"
     },
@@ -47,7 +47,7 @@
         "type": "string"
       },
       "label": "Partition Cols",
-      "description": "Partition Cols",
+      "description": "Columns to partition by. Creates a directory structure (requires pyarrow).",
       "required": false,
       "default": null,
       "ui:widget": "list"
@@ -70,7 +70,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -127,7 +127,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },

@@ -25,14 +25,14 @@
     "prefix": {
       "type": "string",
       "label": "Prefix",
-      "description": "S3 key prefix to scope monitoring (e.g., ",
+      "description": "S3 key prefix to scope monitoring (e.g., 'incoming/' or 'data/2024/')",
       "required": false,
       "default": ""
     },
     "key_pattern": {
       "type": "string",
       "label": "Key Pattern",
-      "description": "Regex pattern to match object keys (e.g., ",
+      "description": "Regex pattern to match object keys (e.g., '.*\\.parquet$' for Parquet files)",
       "required": false,
       "default": ".*"
     },
@@ -45,14 +45,14 @@
     "minimum_interval_seconds": {
       "type": "integer",
       "label": "Minimum Interval Seconds",
-      "description": "Minimum Interval Seconds",
+      "description": "Minimum time (in seconds) between sensor evaluations",
       "required": false,
       "default": 30
     },
     "region_name": {
       "type": "string",
       "label": "Region Name",
-      "description": "AWS region name (e.g., ",
+      "description": "AWS region name (e.g., 'us-east-1'). Uses default boto3 region if not set.",
       "required": false,
       "default": null
     },
@@ -67,7 +67,7 @@
     "default_status": {
       "type": "string",
       "label": "Default Status",
-      "description": "Default Status",
+      "description": "Default status of the sensor (running or stopped)",
       "required": false,
       "default": "running",
       "enum": [
@@ -98,7 +98,7 @@
     "partition_key_template": {
       "type": "string",
       "label": "Partition Key Template",
-      "description": "Template for the partition key per detected object. Fields: {bucket}, {key}, {prefix}. Default {key} is the bare S3 key. Use s3://{bucket}/{key} for the full URI as the partition key (note: '://' breaks Dagster's filesystem IO manager \u2014 keep the bare key unless you're using a custom IO manager).",
+      "description": "Template for the partition key per detected object. Fields: {bucket}, {key}, {prefix}. Default {key} is the bare S3 key. Use s3://{bucket}/{key} for the full URI as the partition key (note: '://' breaks Dagster's filesystem IO manager — keep the bare key unless you're using a custom IO manager).",
       "required": false,
       "default": "{key}"
     }

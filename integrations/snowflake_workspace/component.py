@@ -563,7 +563,7 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         default_key = f"{self.__class__.__name__}[{self.workspace.account}]"
         return DefsStateConfig.from_args(self.defs_state, default_key=default_key)
 
-    def _create_connection(self) -> SnowflakeConnection:
+    def _create_connection(self, fallback_query_tag_context: Optional[str] = None) -> SnowflakeConnection:
         """Return a raw Snowflake connection.
 
         Delegates to dagster-snowflake's SnowflakeResource.get_connection()
@@ -571,6 +571,18 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         `snowflake.connector.SnowflakeConnection`. We unwrap it and patch
         `.close()` to also __exit__ the CM so downstream code that manages
         its own try/finally still works cleanly.
+
+        SnowflakeResource itself sets a QUERY_TAG session parameter at connect
+        time, but only when a Dagster run is in scope -- it has no visibility
+        into a sensor tick or a defs-state discovery pass, neither of which
+        runs inside a Dagster run. Callers from those two contexts pass
+        `fallback_query_tag_context` (e.g. "observation_sensor", "discovery")
+        so this still tags the session explicitly via ALTER SESSION, mirroring
+        the same mechanism (and JSON shape) dagster_snowflake's own
+        SnowflakeDbtProjectComponent uses for its non-run QUERY_TAG. Callers
+        from inside an asset body should NOT pass this -- SnowflakeResource's
+        own run-scoped tag already covers them, and is more specific (it
+        carries the actual run id and asset key).
         """
         cm = self.workspace.get_connection()
         conn = cm.__enter__()
@@ -586,6 +598,29 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                     pass
 
         conn.close = _patched_close  # type: ignore[method-assign]
+
+        if fallback_query_tag_context is not None:
+            tag = json.dumps(
+                {
+                    # Matches the exact identifier already sent via the `application`
+                    # connection param by the underlying SnowflakeResource
+                    # (SNOWFLAKE_PARTNER_CONNECTION_IDENTIFIER) -- if Snowflake's
+                    # partner-attribution program keys off a specific registered string,
+                    # it's this one, not a casual "dagster".
+                    "vendor": "DagsterLabs_Dagster",
+                    "app": "dagster",
+                    "dagster_component": "snowflake_workspace",
+                    "dagster_context": fallback_query_tag_context,
+                },
+                separators=(",", ":"),
+            )
+            escaped = tag.replace("'", "''")
+            try:
+                conn.cursor().execute(f"ALTER SESSION SET QUERY_TAG = '{escaped}'")
+            except Exception:
+                logging.getLogger(__name__).warning(
+                    "Failed to set fallback QUERY_TAG for %s", fallback_query_tag_context, exc_info=True
+                )
         return conn
 
     def _should_include_entity(self, name: str) -> bool:
@@ -731,7 +766,7 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         so the state file only carries what the current YAML asked for.
         """
         state: Dict[str, Any] = {}
-        conn = self._create_connection()
+        conn = self._create_connection(fallback_query_tag_context="discovery")
         try:
             db = self.workspace.database
             schema_ = self.workspace.schema_
@@ -2696,7 +2731,7 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                 new_alerts   = dict(prev_alerts)
                 new_flows    = dict(prev_flows)
 
-                conn = self._create_connection()
+                conn = self._create_connection(fallback_query_tag_context="observation_sensor")
                 cursor = conn.cursor()
                 events: list = []
 
@@ -3124,7 +3159,7 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                 new_state: Dict[str, list] = dict(prev_state)
                 asset_events: list = []
 
-                conn = _self_for_sensor._create_connection()
+                conn = _self_for_sensor._create_connection(fallback_query_tag_context="dt_refresh_sensor")
                 cursor = conn.cursor()
                 try:
                     try:

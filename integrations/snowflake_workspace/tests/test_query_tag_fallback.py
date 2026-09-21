@@ -71,6 +71,7 @@ def test_create_connection_with_fallback_sets_query_tag():
     assert sql.endswith("'")
     payload = json.loads(sql[len("ALTER SESSION SET QUERY_TAG = '") : -1])
     assert payload == {
+        "vendor": "DagsterLabs_Dagster",
         "app": "dagster",
         "dagster_component": "snowflake_workspace",
         "dagster_context": "observation_sensor",

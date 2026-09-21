@@ -602,6 +602,12 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         if fallback_query_tag_context is not None:
             tag = json.dumps(
                 {
+                    # Matches the exact identifier already sent via the `application`
+                    # connection param by the underlying SnowflakeResource
+                    # (SNOWFLAKE_PARTNER_CONNECTION_IDENTIFIER) -- if Snowflake's
+                    # partner-attribution program keys off a specific registered string,
+                    # it's this one, not a casual "dagster".
+                    "vendor": "DagsterLabs_Dagster",
                     "app": "dagster",
                     "dagster_component": "snowflake_workspace",
                     "dagster_context": fallback_query_tag_context,

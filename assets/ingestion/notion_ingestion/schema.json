@@ -231,7 +231,8 @@
               "base": "postgresql://{username}:{password}@{host}:{port}/{database}"
             }
           }
-        }
+        },
+        "related_env_var_field": "destination_credentials_env_var"
       }
     },
     "destination_credentials_env_var": {

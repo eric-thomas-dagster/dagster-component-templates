@@ -19,7 +19,7 @@
     "database_url": {
       "type": "string",
       "label": "Database Url",
-      "description": "Database Url",
+      "description": "Database connection URL (use ${DB_URL} for env var)",
       "required": true
     },
     "table_name": {
@@ -31,14 +31,14 @@
     "schema_name": {
       "type": "string",
       "label": "Schema Name",
-      "description": "Schema Name",
+      "description": "Database schema name (optional)",
       "required": false,
       "default": ""
     },
     "if_exists": {
       "type": "string",
       "label": "If Exists",
-      "description": "How to behave if table exists: ",
+      "description": "How to behave if table exists: 'fail', 'replace', 'append'",
       "required": false,
       "default": "append",
       "enum": [
@@ -51,30 +51,45 @@
     "aws_region": {
       "type": "string",
       "label": "Aws Region",
-      "description": "Aws Region",
+      "description": "AWS region (optional, uses default if not specified)",
       "required": false,
       "default": ""
     },
     "file_format": {
       "type": "string",
       "label": "File Format",
-      "description": "Expected file format: ",
+      "description": "Expected file format: 'csv', 'json', 'parquet', 'auto' (detect from extension)",
       "required": false,
-      "default": "csv"
+      "default": "csv",
+      "enum": [
+        "csv",
+        "json",
+        "parquet",
+        "auto"
+      ],
+      "ui:widget": "select"
     },
     "csv_delimiter": {
       "type": "string",
       "label": "Csv Delimiter",
-      "description": "Csv Delimiter",
+      "description": "CSV delimiter character (if format is CSV)",
       "required": false,
-      "default": ""
+      "default": ","
     },
     "json_orient": {
       "type": "string",
       "label": "Json Orient",
-      "description": "JSON orientation: ",
+      "description": "JSON orientation: 'records', 'split', 'index', 'columns', 'values'",
       "required": false,
-      "default": "records"
+      "default": "records",
+      "enum": [
+        "records",
+        "split",
+        "index",
+        "columns",
+        "values"
+      ],
+      "ui:widget": "select"
     },
     "column_mapping": {
       "type": "string",
@@ -111,7 +126,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },

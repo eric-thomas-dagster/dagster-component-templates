@@ -19,7 +19,7 @@
     "api_url": {
       "type": "string",
       "label": "Api Url",
-      "description": "Api Url",
+      "description": "Matomo instance URL (e.g., https://analytics.example.com)",
       "required": true
     },
     "api_token": {
@@ -41,9 +41,12 @@
         "type": "string"
       },
       "label": "Reports",
-      "description": "Reports",
+      "description": "List of Matomo report types to extract (e.g., VisitsSummary, Actions, Events, Goals)",
       "required": false,
-      "default": "[\"VisitsSummary\"",
+      "default": [
+        "VisitsSummary",
+        "Actions"
+      ],
       "ui:widget": "list"
     },
     "description": {
@@ -67,7 +70,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -114,14 +117,14 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },
     "destination": {
       "type": "string",
       "label": "Destination",
-      "description": "Optional dlt destination (e.g., ",
+      "description": "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode.",
       "required": false,
       "default": null
     },

@@ -33,7 +33,12 @@
       "label": "Auth Type",
       "description": "'pat' (default, Dremio 24.0+) or 'password'.",
       "required": false,
-      "default": "pat"
+      "default": "pat",
+      "enum": [
+        "pat",
+        "password"
+      ],
+      "ui:widget": "select"
     },
     "auth_token_env_var": {
       "type": "string",
@@ -55,7 +60,12 @@
       "label": "Transport",
       "description": "'rest' (default) or 'flight' (faster, needs pyarrow).",
       "required": false,
-      "default": "rest"
+      "default": "rest",
+      "enum": [
+        "rest",
+        "flight"
+      ],
+      "ui:widget": "select"
     },
     "flight_port": {
       "type": "integer",

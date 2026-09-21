@@ -19,7 +19,7 @@
     "property_id": {
       "type": "string",
       "label": "Property Id",
-      "description": "Google Analytics 4 Property ID (numeric, e.g., ",
+      "description": "Google Analytics 4 Property ID (numeric, e.g., '123456789'). Find in GA4 Admin > Property Settings.",
       "required": true
     },
     "credentials_json": {
@@ -32,21 +32,21 @@
     "project_id": {
       "type": "string",
       "label": "Project Id",
-      "description": "Project Id",
+      "description": "Google Cloud Project ID (for service account)",
       "required": false,
       "default": null
     },
     "client_email": {
       "type": "string",
       "label": "Client Email",
-      "description": "Client Email",
+      "description": "Service account email (alternative to credentials_json)",
       "required": false,
       "default": null
     },
     "private_key": {
       "type": "string",
       "label": "Private Key",
-      "description": "Private Key",
+      "description": "Service account private key (alternative to credentials_json).",
       "required": false,
       "default": null
     },
@@ -61,14 +61,14 @@
     "client_id": {
       "type": "string",
       "label": "Client Id",
-      "description": "Client Id",
+      "description": "OAuth Client ID (if use_oauth=true)",
       "required": false,
       "default": null
     },
     "client_secret": {
       "type": "string",
       "label": "Client Secret",
-      "description": "Client Secret",
+      "description": "OAuth Client Secret (if use_oauth=true)",
       "required": false,
       "default": null,
       "ui:widget": "password"
@@ -76,7 +76,7 @@
     "refresh_token": {
       "type": "string",
       "label": "Refresh Token",
-      "description": "Refresh Token",
+      "description": "OAuth Refresh Token (if use_oauth=true)",
       "required": false,
       "default": null,
       "ui:widget": "password"
@@ -84,35 +84,35 @@
     "dimensions": {
       "type": "string",
       "label": "Dimensions",
-      "description": "Comma-separated list of dimensions (e.g., ",
+      "description": "Comma-separated list of dimensions (e.g., 'date,city,sessionSource')",
       "required": false,
-      "default": "date"
+      "default": "date,sessionSource,sessionMedium,deviceCategory"
     },
     "metrics": {
       "type": "string",
       "label": "Metrics",
-      "description": "Comma-separated list of metrics (e.g., ",
+      "description": "Comma-separated list of metrics (e.g., 'sessions,totalUsers,conversions')",
       "required": false,
-      "default": "sessions"
+      "default": "sessions,totalUsers,screenPageViews,conversions"
     },
     "start_date": {
       "type": "string",
       "label": "Start Date",
-      "description": "Start Date",
+      "description": "Start date for data extraction (YYYY-MM-DD)",
       "required": false,
       "default": "2024-01-01"
     },
     "end_date": {
       "type": "string",
       "label": "End Date",
-      "description": "End Date",
+      "description": "End date for data extraction (YYYY-MM-DD). Defaults to today.",
       "required": false,
       "default": null
     },
     "rows_per_page": {
       "type": "integer",
       "label": "Rows Per Page",
-      "description": "Rows Per Page",
+      "description": "Number of rows per API page (max 100,000)",
       "required": false,
       "default": 10000
     },
@@ -137,7 +137,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -184,14 +184,14 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },
     "destination": {
       "type": "string",
       "label": "Destination",
-      "description": "Optional dlt destination (e.g., ",
+      "description": "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode.",
       "required": false,
       "default": null
     },

@@ -64,7 +64,7 @@
     "batch_size": {
       "type": "integer",
       "label": "Batch Size",
-      "description": "Batch Size",
+      "description": "SQS ReceiveMessage batch size (1-10)",
       "required": false,
       "default": 10
     },
@@ -118,7 +118,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -182,7 +182,7 @@
     "partition_start_date": {
       "type": "string",
       "label": "Partition Start Date",
-      "description": "Partition Start Date",
+      "description": "Partition start date YYYY-MM-DD (required if partition_type != none)",
       "required": false,
       "default": null
     },

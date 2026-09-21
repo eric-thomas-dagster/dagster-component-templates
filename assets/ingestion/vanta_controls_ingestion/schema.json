@@ -36,7 +36,13 @@
       "type": "string",
       "label": "Status",
       "description": "Filter by control status (OK, NEEDS_ATTENTION, DEACTIVATED). Omit for all.",
-      "required": false
+      "required": false,
+      "enum": [
+        "OK",
+        "NEEDS_ATTENTION",
+        "DEACTIVATED"
+      ],
+      "ui:widget": "select"
     },
     "limit": {
       "type": "integer",

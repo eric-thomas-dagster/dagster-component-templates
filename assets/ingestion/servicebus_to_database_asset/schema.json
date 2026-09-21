@@ -25,7 +25,7 @@
     "queue_name": {
       "type": "string",
       "label": "Queue Name",
-      "description": "Queue Name",
+      "description": "Queue name (set queue_name OR topic_name+subscription_name)",
       "required": false,
       "default": null
     },
@@ -39,7 +39,7 @@
     "subscription_name": {
       "type": "string",
       "label": "Subscription Name",
-      "description": "Subscription Name",
+      "description": "Subscription name (required with topic_name)",
       "required": false,
       "default": null,
       "ui:widget": "code"
@@ -111,7 +111,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -175,7 +175,7 @@
     "partition_start_date": {
       "type": "string",
       "label": "Partition Start Date",
-      "description": "Partition Start Date",
+      "description": "Partition start date YYYY-MM-DD (required if partition_type != none)",
       "required": false,
       "default": null
     },

@@ -26,20 +26,20 @@
     "advertiser_ids": {
       "type": "string",
       "label": "Advertiser Ids",
-      "description": "Comma-separated list of TikTok Advertiser IDs (e.g., ",
+      "description": "Comma-separated list of TikTok Advertiser IDs (e.g., '1234567890,9876543210')",
       "required": true
     },
     "app_id": {
       "type": "string",
       "label": "App Id",
-      "description": "App Id",
+      "description": "TikTok App ID (optional, for API versioning)",
       "required": false,
       "default": null
     },
     "secret": {
       "type": "string",
       "label": "Secret",
-      "description": "Secret",
+      "description": "TikTok App Secret (optional, for token refresh). Use ${TIKTOK_SECRET} for env vars.",
       "required": false,
       "default": null,
       "ui:widget": "password"
@@ -49,40 +49,53 @@
       "label": "Resources",
       "description": "Comma-separated list of resources to extract: advertisers, campaigns, ad_groups, ads, videos, images, reports",
       "required": false,
-      "default": "campaigns"
+      "default": "campaigns,reports"
     },
     "start_date": {
       "type": "string",
       "label": "Start Date",
-      "description": "Start Date",
+      "description": "Start date for reports (YYYY-MM-DD). Defaults to 30 days ago.",
       "required": false,
       "default": null
     },
     "end_date": {
       "type": "string",
       "label": "End Date",
-      "description": "End Date",
+      "description": "End date for reports (YYYY-MM-DD). Defaults to today.",
       "required": false,
       "default": null
     },
     "report_type": {
       "type": "string",
       "label": "Report Type",
-      "description": "Report Type",
+      "description": "Report type: BASIC (summary), AUDIENCE (demographics), or PLAYABLE_MATERIAL (creative)",
       "required": false,
-      "default": "BASIC"
+      "default": "BASIC",
+      "enum": [
+        "BASIC",
+        "AUDIENCE",
+        "PLAYABLE_MATERIAL"
+      ],
+      "ui:widget": "select"
     },
     "data_level": {
       "type": "string",
       "label": "Data Level",
       "description": "Data aggregation level: AUCTION_ADVERTISER, AUCTION_CAMPAIGN, AUCTION_ADGROUP, or AUCTION_AD",
       "required": false,
-      "default": "AUCTION_CAMPAIGN"
+      "default": "AUCTION_CAMPAIGN",
+      "enum": [
+        "AUCTION_ADVERTISER",
+        "AUCTION_CAMPAIGN",
+        "AUCTION_ADGROUP",
+        "AUCTION_AD"
+      ],
+      "ui:widget": "select"
     },
     "metrics": {
       "type": "string",
       "label": "Metrics",
-      "description": "Metrics",
+      "description": "Comma-separated list of metrics to retrieve (leave empty for default metrics)",
       "required": false,
       "default": null
     },
@@ -107,7 +120,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -154,14 +167,14 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },
     "destination": {
       "type": "string",
       "label": "Destination",
-      "description": "Optional dlt destination (e.g., ",
+      "description": "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode.",
       "required": false,
       "default": null
     },

@@ -19,7 +19,7 @@
     "platform": {
       "type": "string",
       "label": "Platform",
-      "description": "Platform",
+      "description": "Support platform (zendesk, freshdesk, etc.)",
       "required": true
     },
     "description": {

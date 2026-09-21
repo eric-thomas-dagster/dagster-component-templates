@@ -25,7 +25,7 @@
     "domain": {
       "type": "string",
       "label": "Domain",
-      "description": "Freshdesk domain (e.g., ",
+      "description": "Freshdesk domain (e.g., 'my-company' for my-company.freshdesk.com)",
       "required": true
     },
     "resources": {
@@ -34,9 +34,14 @@
         "type": "string"
       },
       "label": "Resources",
-      "description": "Resources",
+      "description": "Freshdesk resources to extract (tickets, contacts, companies, agents)",
       "required": false,
-      "default": "[\"tickets\"",
+      "default": [
+        "tickets",
+        "contacts",
+        "companies",
+        "agents"
+      ],
       "ui:widget": "list"
     },
     "description": {
@@ -60,7 +65,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -107,14 +112,14 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },
     "destination": {
       "type": "string",
       "label": "Destination",
-      "description": "Optional dlt destination (e.g., ",
+      "description": "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode.",
       "required": false,
       "default": null
     },

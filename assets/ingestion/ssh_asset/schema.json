@@ -31,21 +31,21 @@
     "private_key_env_var": {
       "type": "string",
       "label": "Private Key Env Var",
-      "description": "Private Key Env Var",
+      "description": "Name of the environment variable containing the PEM-encoded SSH private key content (not a file path). The component writes it to a secure temporary file with mode 0600 and deletes it after the run.",
       "required": false,
       "default": null
     },
     "private_key_path_env_var": {
       "type": "string",
       "label": "Private Key Path Env Var",
-      "description": "Private Key Path Env Var",
+      "description": "Name of the environment variable containing the path to an SSH private key file already present on disk. Takes precedence over ``private_key_env_var`` when both are set.",
       "required": false,
       "default": null
     },
     "password_env_var": {
       "type": "string",
       "label": "Password Env Var",
-      "description": "Password Env Var",
+      "description": "Name of the environment variable containing the SSH password. Used as a fallback when no private key option is provided.",
       "required": false,
       "default": null,
       "ui:widget": "env_var"
@@ -60,7 +60,7 @@
     "known_hosts_check": {
       "type": "boolean",
       "label": "Known Hosts Check",
-      "description": "Known Hosts Check",
+      "description": "When False (default), ``AutoAddPolicy`` is applied so the client accepts any host key without prompting. Set to True to use the system known_hosts file and reject unknown host keys — recommended for security-sensitive environments.",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -74,7 +74,7 @@
     "working_dir": {
       "type": "string",
       "label": "Working Dir",
-      "description": "Working Dir",
+      "description": "Remote directory to change into before running commands. Prepended as ``cd <working_dir> && `` to each command.",
       "required": false,
       "default": null
     },
@@ -104,7 +104,7 @@
     "sftp_upload": {
       "type": "object",
       "label": "Sftp Upload",
-      "description": "Sftp Upload",
+      "description": "If provided, upload a local file to the remote host via SFTP before running commands. Expected keys: ``local_path`` (str) and ``remote_path`` (str).",
       "required": false,
       "default": null,
       "ui:widget": "key-value"
@@ -112,7 +112,7 @@
     "sftp_download": {
       "type": "object",
       "label": "Sftp Download",
-      "description": "Sftp Download",
+      "description": "If provided, download a remote file to the local filesystem via SFTP after all commands complete. Expected keys: ``remote_path`` (str) and ``local_path`` (str).",
       "required": false,
       "default": null,
       "ui:widget": "key-value"
@@ -130,7 +130,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },

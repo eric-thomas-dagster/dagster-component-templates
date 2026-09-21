@@ -19,13 +19,13 @@
     "service_url_env_var": {
       "type": "string",
       "label": "Service Url Env Var",
-      "description": "Service Url Env Var",
+      "description": "Env var with Pulsar service URL. Set this OR service_url.",
       "required": true
     },
     "topic": {
       "type": "string",
       "label": "Topic",
-      "description": "Topic",
+      "description": "Pulsar topic (e.g. persistent://public/default/events)",
       "required": true
     },
     "subscription_name": {
@@ -124,7 +124,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -188,7 +188,7 @@
     "partition_start_date": {
       "type": "string",
       "label": "Partition Start Date",
-      "description": "Partition Start Date",
+      "description": "Partition start date YYYY-MM-DD (required if partition_type != none)",
       "required": false,
       "default": null
     },

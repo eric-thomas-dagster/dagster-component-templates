@@ -31,7 +31,7 @@
     "source_table": {
       "type": "string",
       "label": "Source Table",
-      "description": "Source Table",
+      "description": "Source table name (use source_table OR source_query)",
       "required": false,
       "default": null
     },
@@ -45,7 +45,7 @@
     "source_query": {
       "type": "string",
       "label": "Source Query",
-      "description": "Source Query",
+      "description": "Custom SQL query (overrides source_table)",
       "required": false,
       "default": null,
       "ui:widget": "code"
@@ -79,7 +79,7 @@
     "watermark_column": {
       "type": "string",
       "label": "Watermark Column",
-      "description": "Watermark Column",
+      "description": "Incremental watermark column (e.g. updated_at, id)",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -119,7 +119,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -183,7 +183,7 @@
     "partition_start_date": {
       "type": "string",
       "label": "Partition Start Date",
-      "description": "Partition Start Date",
+      "description": "Partition start date YYYY-MM-DD (required if partition_type != none)",
       "required": false,
       "default": null
     },

@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.OAuthRestIngestionComponent",
-  "description": "OAuth2-backed REST GET \u2192 DataFrame with built-in pagination. Covers Concur, Ariba, and any other Bearer-token JSON API.",
+  "description": "OAuth2-backed REST GET → DataFrame with built-in pagination. Covers Concur, Ariba, and any other Bearer-token JSON API.",
   "category": "ingestion",
   "icon": "si:oauth",
   "x-dagster-io": {
@@ -29,7 +29,7 @@
     "oauth_token_resource_key": {
       "type": "string",
       "label": "OAuth Token Resource Key",
-      "description": "Name of an oauth_token_resource \u2014 handles refresh + rotation.",
+      "description": "Name of an oauth_token_resource — handles refresh + rotation.",
       "required": false
     },
     "auth_token_env_var": {
@@ -49,7 +49,15 @@
       "label": "Pagination",
       "description": "'none' | 'next_url' | 'cursor' | 'page' | 'offset'",
       "required": false,
-      "default": "none"
+      "default": "none",
+      "enum": [
+        "none",
+        "next_url",
+        "cursor",
+        "page",
+        "offset"
+      ],
+      "ui:widget": "select"
     },
     "records_path": {
       "type": "string",

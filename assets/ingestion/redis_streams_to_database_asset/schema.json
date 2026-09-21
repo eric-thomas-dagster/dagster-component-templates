@@ -19,19 +19,19 @@
     "redis_url_env_var": {
       "type": "string",
       "label": "Redis Url Env Var",
-      "description": "Redis Url Env Var",
+      "description": "Env var with Redis URL (redis://host:6379/0)",
       "required": true
     },
     "stream_name": {
       "type": "string",
       "label": "Stream Name",
-      "description": "Stream Name",
+      "description": "Redis stream name (key)",
       "required": true
     },
     "consumer_group": {
       "type": "string",
       "label": "Consumer Group",
-      "description": "Consumer Group",
+      "description": "Consumer group name (if using XREADGROUP)",
       "required": false,
       "default": null
     },
@@ -84,7 +84,7 @@
     "block_ms": {
       "type": "integer",
       "label": "Block Ms",
-      "description": "Block Ms",
+      "description": "XREAD block timeout in milliseconds (0 = no block)",
       "required": false,
       "default": 2000
     },
@@ -109,7 +109,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -173,7 +173,7 @@
     "partition_start_date": {
       "type": "string",
       "label": "Partition Start Date",
-      "description": "Partition Start Date",
+      "description": "Partition start date YYYY-MM-DD (required if partition_type != none)",
       "required": false,
       "default": null
     },

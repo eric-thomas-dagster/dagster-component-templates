@@ -78,7 +78,7 @@
     "pull_batch_size": {
       "type": "integer",
       "label": "Pull Batch Size",
-      "description": "Pull Batch Size",
+      "description": "Messages per pull request (max 1000)",
       "required": false,
       "default": 1000
     },
@@ -103,7 +103,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -167,7 +167,7 @@
     "partition_start_date": {
       "type": "string",
       "label": "Partition Start Date",
-      "description": "Partition Start Date",
+      "description": "Partition start date YYYY-MM-DD (required if partition_type != none)",
       "required": false,
       "default": null
     },

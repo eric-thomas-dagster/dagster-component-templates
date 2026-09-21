@@ -27,26 +27,26 @@
       "label": "Resources",
       "description": "Comma-separated list: customers, subscriptions, charges, invoices, products, prices, payment_intents, balance_transactions, events",
       "required": false,
-      "default": "customers"
+      "default": "customers,subscriptions,charges"
     },
     "start_date": {
       "type": "string",
       "label": "Start Date",
-      "description": "Start Date",
+      "description": "Start date for data extraction (YYYY-MM-DD). Defaults to all historical data.",
       "required": false,
       "default": null
     },
     "end_date": {
       "type": "string",
       "label": "End Date",
-      "description": "End Date",
+      "description": "End date for data extraction (YYYY-MM-DD). Defaults to today.",
       "required": false,
       "default": null
     },
     "incremental": {
       "type": "boolean",
       "label": "Incremental",
-      "description": "Incremental",
+      "description": "Use incremental loading (append mode) instead of full refresh",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
@@ -72,7 +72,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -119,14 +119,14 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },
     "destination": {
       "type": "string",
       "label": "Destination",
-      "description": "Optional dlt destination (e.g., ",
+      "description": "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode.",
       "required": false,
       "default": null
     },

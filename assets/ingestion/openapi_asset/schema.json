@@ -80,7 +80,7 @@
       "type": "string",
       "label": "Group Name",
       "required": false,
-      "default": null,
+      "default": "openapi",
       "description": "Dagster asset group name"
     },
     "page_size": {

@@ -19,7 +19,7 @@
     "account_id": {
       "type": "string",
       "label": "Account Id",
-      "description": "Account Id",
+      "description": "Facebook Ads Account ID (format: act_123456789). Find in Ads Manager URL.",
       "required": true
     },
     "access_token": {
@@ -32,14 +32,14 @@
     "app_id": {
       "type": "string",
       "label": "App Id",
-      "description": "App Id",
+      "description": "Facebook App ID (optional, for long-lived tokens)",
       "required": false,
       "default": null
     },
     "app_secret": {
       "type": "string",
       "label": "App Secret",
-      "description": "App Secret",
+      "description": "Facebook App Secret (optional, for long-lived tokens)",
       "required": false,
       "default": null,
       "ui:widget": "password"
@@ -63,12 +63,12 @@
       "label": "Ad States",
       "description": "Comma-separated ad states to extract: ACTIVE, PAUSED, DELETED, ARCHIVED, DISAPPROVED, etc.",
       "required": false,
-      "default": "ACTIVE"
+      "default": "ACTIVE,PAUSED"
     },
     "insights_fields": {
       "type": "string",
       "label": "Insights Fields",
-      "description": "Insights Fields",
+      "description": "Comma-separated list of insights fields to extract (leave empty for defaults)",
       "required": false,
       "default": null
     },
@@ -82,7 +82,7 @@
     "time_increment_days": {
       "type": "integer",
       "label": "Time Increment Days",
-      "description": "Time Increment Days",
+      "description": "Time increment for insights reports in days (1 = daily, 7 = weekly)",
       "required": false,
       "default": 1
     },
@@ -107,7 +107,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -154,14 +154,14 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },
     "destination": {
       "type": "string",
       "label": "Destination",
-      "description": "Optional dlt destination (e.g., ",
+      "description": "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode.",
       "required": false,
       "default": null
     },

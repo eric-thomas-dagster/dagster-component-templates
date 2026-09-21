@@ -19,13 +19,13 @@
     "consumer_key": {
       "type": "string",
       "label": "Consumer Key",
-      "description": "Consumer Key",
+      "description": "Twitter API Consumer Key (API Key). Use ${TWITTER_CONSUMER_KEY} for env vars.",
       "required": true
     },
     "consumer_secret": {
       "type": "string",
       "label": "Consumer Secret",
-      "description": "Consumer Secret",
+      "description": "Twitter API Consumer Secret (API Secret). Use ${TWITTER_CONSUMER_SECRET} for env vars.",
       "required": true,
       "ui:widget": "password"
     },
@@ -46,7 +46,7 @@
     "account_ids": {
       "type": "string",
       "label": "Account Ids",
-      "description": "Comma-separated list of Twitter Ads Account IDs (e.g., ",
+      "description": "Comma-separated list of Twitter Ads Account IDs (e.g., 'abc123,xyz789')",
       "required": true
     },
     "resources": {
@@ -54,19 +54,19 @@
       "label": "Resources",
       "description": "Comma-separated list of resources to extract: accounts, campaigns, line_items, promoted_tweets, tweets, media, analytics",
       "required": false,
-      "default": "campaigns"
+      "default": "campaigns,analytics"
     },
     "start_date": {
       "type": "string",
       "label": "Start Date",
-      "description": "Start Date",
+      "description": "Start date for analytics (YYYY-MM-DD). Defaults to 30 days ago.",
       "required": false,
       "default": null
     },
     "end_date": {
       "type": "string",
       "label": "End Date",
-      "description": "End Date",
+      "description": "End date for analytics (YYYY-MM-DD). Defaults to today.",
       "required": false,
       "default": null
     },
@@ -75,14 +75,28 @@
       "label": "Entity Type",
       "description": "Analytics entity type: ACCOUNT, FUNDING_INSTRUMENT, CAMPAIGN, LINE_ITEM, or PROMOTED_TWEET",
       "required": false,
-      "default": "CAMPAIGN"
+      "default": "CAMPAIGN",
+      "enum": [
+        "ACCOUNT",
+        "FUNDING_INSTRUMENT",
+        "CAMPAIGN",
+        "LINE_ITEM",
+        "PROMOTED_TWEET"
+      ],
+      "ui:widget": "select"
     },
     "granularity": {
       "type": "string",
       "label": "Granularity",
       "description": "Analytics granularity: HOUR, DAY, or TOTAL",
       "required": false,
-      "default": "DAY"
+      "default": "DAY",
+      "enum": [
+        "HOUR",
+        "DAY",
+        "TOTAL"
+      ],
+      "ui:widget": "select"
     },
     "metric_groups": {
       "type": "string",
@@ -96,7 +110,12 @@
       "label": "Placement",
       "description": "Placement type: ALL_ON_TWITTER or PUBLISHER_NETWORK",
       "required": false,
-      "default": "ALL_ON_TWITTER"
+      "default": "ALL_ON_TWITTER",
+      "enum": [
+        "ALL_ON_TWITTER",
+        "PUBLISHER_NETWORK"
+      ],
+      "ui:widget": "select"
     },
     "description": {
       "type": "string",
@@ -119,7 +138,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -166,14 +185,14 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },
     "destination": {
       "type": "string",
       "label": "Destination",
-      "description": "Optional dlt destination (e.g., ",
+      "description": "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode.",
       "required": false,
       "default": null
     },

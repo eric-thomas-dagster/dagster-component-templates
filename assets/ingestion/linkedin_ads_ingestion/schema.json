@@ -26,7 +26,7 @@
     "account_ids": {
       "type": "string",
       "label": "Account Ids",
-      "description": "Comma-separated list of LinkedIn Ad Account IDs (e.g., ",
+      "description": "Comma-separated list of LinkedIn Ad Account IDs (e.g., '123456789,987654321')",
       "required": true
     },
     "resources": {
@@ -34,35 +34,48 @@
       "label": "Resources",
       "description": "Comma-separated list of resources to extract: accounts, campaigns, creatives, campaign_groups, analytics, conversions",
       "required": false,
-      "default": "campaigns"
+      "default": "campaigns,analytics"
     },
     "start_date": {
       "type": "string",
       "label": "Start Date",
-      "description": "Start Date",
+      "description": "Start date for analytics data (YYYY-MM-DD). Defaults to 30 days ago.",
       "required": false,
       "default": null
     },
     "end_date": {
       "type": "string",
       "label": "End Date",
-      "description": "End Date",
+      "description": "End date for analytics data (YYYY-MM-DD). Defaults to today.",
       "required": false,
       "default": null
     },
     "time_granularity": {
       "type": "string",
       "label": "Time Granularity",
-      "description": "Time Granularity",
+      "description": "Analytics time granularity: DAILY, MONTHLY, or ALL (cumulative)",
       "required": false,
-      "default": "DAILY"
+      "default": "DAILY",
+      "enum": [
+        "DAILY",
+        "MONTHLY",
+        "ALL"
+      ],
+      "ui:widget": "select"
     },
     "pivot_by": {
       "type": "string",
       "label": "Pivot By",
       "description": "Analytics pivot dimension: CAMPAIGN, CREATIVE, ACCOUNT, or COMPANY",
       "required": false,
-      "default": null
+      "default": null,
+      "enum": [
+        "CAMPAIGN",
+        "CREATIVE",
+        "ACCOUNT",
+        "COMPANY"
+      ],
+      "ui:widget": "select"
     },
     "description": {
       "type": "string",
@@ -85,7 +98,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -132,14 +145,14 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },
     "destination": {
       "type": "string",
       "label": "Destination",
-      "description": "Optional dlt destination (e.g., ",
+      "description": "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode.",
       "required": false,
       "default": null
     },

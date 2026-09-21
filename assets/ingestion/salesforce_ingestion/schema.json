@@ -32,7 +32,7 @@
     "security_token": {
       "type": "string",
       "label": "Security Token",
-      "description": "Security Token",
+      "description": "Salesforce security token (from Settings > Personal Setup > Reset My Security Token)",
       "required": true,
       "ui:widget": "password"
     },
@@ -42,9 +42,14 @@
         "type": "string"
       },
       "label": "Sf Objects",
-      "description": "Sf Objects",
+      "description": "Salesforce objects to extract (Account, Opportunity, Contact, Lead, Campaign, Task, Event, etc.)",
       "required": false,
-      "default": "[\"Account\"",
+      "default": [
+        "Account",
+        "Opportunity",
+        "Contact",
+        "Lead"
+      ],
       "ui:widget": "list"
     },
     "description": {
@@ -68,7 +73,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -115,14 +120,14 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },
     "destination": {
       "type": "string",
       "label": "Destination",
-      "description": "Optional dlt destination (e.g., ",
+      "description": "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode.",
       "required": false,
       "default": null
     },

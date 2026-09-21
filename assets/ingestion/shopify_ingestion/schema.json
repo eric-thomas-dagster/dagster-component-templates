@@ -19,7 +19,7 @@
     "shop_url": {
       "type": "string",
       "label": "Shop Url",
-      "description": "Shop Url",
+      "description": "Shopify store URL (e.g., https://my-shop.myshopify.com)",
       "required": true
     },
     "private_app_password": {
@@ -35,24 +35,35 @@
         "type": "string"
       },
       "label": "Resources",
-      "description": "Resources",
+      "description": "Shopify resources to extract (customers, orders, products)",
       "required": false,
-      "default": "[\"customers\"",
+      "default": [
+        "customers",
+        "orders",
+        "products"
+      ],
       "ui:widget": "list"
     },
     "start_date": {
       "type": "string",
       "label": "Start Date",
-      "description": "Start Date",
+      "description": "Start date for incremental loading (YYYY-MM-DD)",
       "required": false,
       "default": "2000-01-01"
     },
     "order_status": {
       "type": "string",
       "label": "Order Status",
-      "description": "Order Status",
+      "description": "Filter orders by status (open, closed, cancelled, any)",
       "required": false,
-      "default": "any"
+      "default": "any",
+      "enum": [
+        "open",
+        "closed",
+        "cancelled",
+        "any"
+      ],
+      "ui:widget": "select"
     },
     "description": {
       "type": "string",
@@ -75,7 +86,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -122,14 +133,14 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
       "required": false,
       "default": 25
     },
     "destination": {
       "type": "string",
       "label": "Destination",
-      "description": "Destination",
+      "description": "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode.",
       "required": false,
       "default": null
     },

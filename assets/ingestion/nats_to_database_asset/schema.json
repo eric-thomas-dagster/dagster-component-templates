@@ -19,13 +19,13 @@
     "nats_url_env_var": {
       "type": "string",
       "label": "Nats Url Env Var",
-      "description": "Nats Url Env Var",
+      "description": "Env var with NATS server URL. Set this OR nats_url.",
       "required": true
     },
     "subject": {
       "type": "string",
       "label": "Subject",
-      "description": "Subject",
+      "description": "NATS subject to subscribe to (supports wildcards)",
       "required": true
     },
     "use_jetstream": {
@@ -39,7 +39,7 @@
     "stream_name": {
       "type": "string",
       "label": "Stream Name",
-      "description": "Stream Name",
+      "description": "JetStream stream name (required if use_jetstream=true)",
       "required": false,
       "default": null
     },
@@ -124,7 +124,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -188,7 +188,7 @@
     "partition_start_date": {
       "type": "string",
       "label": "Partition Start Date",
-      "description": "Partition Start Date",
+      "description": "Partition start date YYYY-MM-DD (required if partition_type != none)",
       "required": false,
       "default": null
     },

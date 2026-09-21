@@ -19,7 +19,15 @@
       "label": "Catalog Type",
       "description": "'rest' (default) | 'glue' | 'hive' | 'hadoop' | 'sql'",
       "required": false,
-      "default": "rest"
+      "default": "rest",
+      "enum": [
+        "rest",
+        "glue",
+        "hive",
+        "hadoop",
+        "sql"
+      ],
+      "ui:widget": "select"
     },
     "catalog_name": {
       "type": "string",

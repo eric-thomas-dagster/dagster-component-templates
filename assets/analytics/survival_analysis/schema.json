@@ -54,7 +54,12 @@
       "label": "Method",
       "description": "'kaplan_meier' or 'cox'",
       "required": false,
-      "default": "kaplan_meier"
+      "default": "kaplan_meier",
+      "enum": [
+        "kaplan_meier",
+        "cox"
+      ],
+      "ui:widget": "select"
     },
     "covariate_columns": {
       "type": "array",

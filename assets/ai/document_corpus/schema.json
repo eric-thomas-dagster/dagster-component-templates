@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.DocumentCorpusComponent",
-  "description": "Materialize a directory of documents as a versioned corpus asset \u2014 first-class corpus state, not implicit input.",
+  "description": "Materialize a directory of documents as a versioned corpus asset — first-class corpus state, not implicit input.",
   "category": "source",
   "icon": "DocumentText",
   "x-dagster-io": {
@@ -40,7 +40,7 @@
       "type": "integer",
       "label": "Min Doc Count",
       "required": false,
-      "description": "Asset check fails if fewer docs than this \u2014 guards against empty corpus regressions.",
+      "description": "Asset check fails if fewer docs than this — guards against empty corpus regressions.",
       "default": 1
     },
     "group_name": {
@@ -105,7 +105,7 @@
       "type": "object",
       "label": "Column Lineage",
       "required": false,
-      "description": "Column-level lineage (output col \u2192 list of upstream cols).",
+      "description": "Column-level lineage (output col → list of upstream cols).",
       "default": null,
       "additionalProperties": {
         "type": "array",
@@ -133,7 +133,17 @@
       "label": "Partition Type",
       "required": false,
       "description": "'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | 'dynamic' | 'multi' | None",
-      "default": null
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "dynamic",
+        "multi"
+      ],
+      "ui:widget": "select"
     },
     "partition_start": {
       "type": "string",
@@ -206,7 +216,12 @@
       "label": "Retry Policy Backoff",
       "required": false,
       "description": "Backoff strategy: 'linear' or 'exponential'.",
-      "default": "exponential"
+      "default": "exponential",
+      "enum": [
+        "linear",
+        "exponential"
+      ],
+      "ui:widget": "select"
     }
   }
 }

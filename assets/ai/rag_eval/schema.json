@@ -135,7 +135,7 @@
       "type": "object",
       "label": "Column Lineage",
       "required": false,
-      "description": "Column-level lineage (output col \u2192 list of upstream cols).",
+      "description": "Column-level lineage (output col → list of upstream cols).",
       "default": null,
       "additionalProperties": {
         "type": "array",
@@ -177,7 +177,12 @@
       "label": "Retry Policy Backoff",
       "required": false,
       "description": "Backoff strategy: 'linear' or 'exponential'.",
-      "default": "exponential"
+      "default": "exponential",
+      "enum": [
+        "linear",
+        "exponential"
+      ],
+      "ui:widget": "select"
     }
   }
 }

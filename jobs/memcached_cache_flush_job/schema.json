@@ -21,7 +21,12 @@
       "label": "Default Status",
       "required": false,
       "description": "STOPPED | RUNNING",
-      "default": "STOPPED"
+      "default": "STOPPED",
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ],
+      "ui:widget": "select"
     },
     "tags": {
       "type": "object",

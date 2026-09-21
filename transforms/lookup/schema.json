@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.LookupComponent",
-  "description": "Inline lookup \u2014 left-join an upstream DataFrame against a smaller reference DataFrame, optionally caching the reference per run.",
+  "description": "Inline lookup — left-join an upstream DataFrame against a smaller reference DataFrame, optionally caching the reference per run.",
   "category": "transformation",
   "icon": "ArrowsRightLeft",
   "attributes": {
@@ -39,7 +39,13 @@
       "label": "Multiple Match",
       "description": "When the lookup has multiple matches: 'first' | 'last' | 'all' (cartesian)",
       "required": false,
-      "default": "first"
+      "default": "first",
+      "enum": [
+        "first",
+        "last",
+        "all"
+      ],
+      "ui:widget": "select"
     },
     "rename": {
       "type": "object",

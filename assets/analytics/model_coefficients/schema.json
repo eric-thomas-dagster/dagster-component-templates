@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.ModelCoefficientsComponent",
-  "description": "Fit a linear or logistic regression and emit one row per coefficient (\u03b2 + std error + p-value).",
+  "description": "Fit a linear or logistic regression and emit one row per coefficient (β + std error + p-value).",
   "category": "analytics",
   "icon": "ListOrdered",
   "x-dagster-io": {
@@ -43,7 +43,12 @@
     "model_kind": {
       "type": "string",
       "label": "Model Kind",
-      "required": true
+      "required": true,
+      "enum": [
+        "ols",
+        "logistic"
+      ],
+      "ui:widget": "select"
     },
     "include_preview_metadata": {
       "type": "boolean",

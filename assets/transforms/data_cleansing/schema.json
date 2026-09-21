@@ -32,7 +32,13 @@
       "label": "Null Handling",
       "description": "How to handle nulls: 'keep', 'drop' (drop rows with any null), or 'fill' (fill with null_fill_value)",
       "required": false,
-      "default": "keep"
+      "default": "keep",
+      "enum": [
+        "keep",
+        "drop",
+        "fill"
+      ],
+      "ui:widget": "select"
     },
     "null_fill_value": {
       "type": "string",
@@ -54,7 +60,13 @@
       "label": "Normalize Case",
       "description": "Case normalization: None, ",
       "required": false,
-      "default": null
+      "default": null,
+      "enum": [
+        "upper",
+        "lower",
+        "title"
+      ],
+      "ui:widget": "select"
     },
     "remove_punctuation": {
       "type": "boolean",

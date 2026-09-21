@@ -78,7 +78,12 @@
       "label": "Format",
       "required": false,
       "description": "'csv' or 'json'.",
-      "default": "csv"
+      "default": "csv",
+      "enum": [
+        "csv",
+        "json"
+      ],
+      "ui:widget": "select"
     },
     "column_separator": {
       "type": "string",

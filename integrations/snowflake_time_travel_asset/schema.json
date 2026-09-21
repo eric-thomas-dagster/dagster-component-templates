@@ -50,7 +50,14 @@
     "authenticator": {
       "type": "string",
       "required": false,
-      "description": "Snowflake authenticator: 'SNOWFLAKE_JWT', 'externalbrowser', 'PROGRAMMATIC_ACCESS_TOKEN', 'oauth'."
+      "description": "Snowflake authenticator: 'SNOWFLAKE_JWT', 'externalbrowser', 'PROGRAMMATIC_ACCESS_TOKEN', 'oauth'.",
+      "enum": [
+        "SNOWFLAKE_JWT",
+        "externalbrowser",
+        "PROGRAMMATIC_ACCESS_TOKEN",
+        "oauth"
+      ],
+      "ui:widget": "select"
     },
     "private_key_file": {
       "type": "string",

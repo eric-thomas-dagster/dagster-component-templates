@@ -115,7 +115,12 @@
       "label": "Combine Scores",
       "description": "Combine with original scores: 'weighted', 'multiply', or None",
       "required": false,
-      "default": null
+      "default": null,
+      "enum": [
+        "weighted",
+        "multiply"
+      ],
+      "ui:widget": "select"
     },
     "score_weight": {
       "type": "number",

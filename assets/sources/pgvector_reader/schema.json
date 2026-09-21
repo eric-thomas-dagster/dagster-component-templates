@@ -68,7 +68,13 @@
       "label": "Distance Metric",
       "description": "Distance metric: 'cosine' (<=>), 'l2' (<->), 'inner_product' (<#>)",
       "required": false,
-      "default": "cosine"
+      "default": "cosine",
+      "enum": [
+        "cosine",
+        "l2",
+        "inner_product"
+      ],
+      "ui:widget": "select"
     },
     "embedding_model": {
       "type": "string",

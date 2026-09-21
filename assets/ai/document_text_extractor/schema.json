@@ -26,7 +26,16 @@
       "label": "Extraction Method",
       "description": "Extraction method: 'auto', 'pypdf', 'pdfplumber', 'pytesseract' (OCR), 'docx', 'markdown'",
       "required": false,
-      "default": "auto"
+      "default": "auto",
+      "enum": [
+        "auto",
+        "pypdf",
+        "pdfplumber",
+        "pytesseract",
+        "docx",
+        "markdown"
+      ],
+      "ui:widget": "select"
     },
     "ocr_enabled": {
       "type": "boolean",
@@ -64,7 +73,13 @@
       "label": "Output Format",
       "description": "Output format: 'text', 'json' (with metadata), 'markdown'",
       "required": false,
-      "default": "text"
+      "default": "text",
+      "enum": [
+        "text",
+        "json",
+        "markdown"
+      ],
+      "ui:widget": "select"
     },
     "save_to_file": {
       "type": "boolean",

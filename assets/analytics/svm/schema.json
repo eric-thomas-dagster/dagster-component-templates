@@ -43,12 +43,24 @@
     "task_type": {
       "type": "string",
       "label": "Task Type",
-      "required": true
+      "required": true,
+      "enum": [
+        "classification",
+        "regression"
+      ],
+      "ui:widget": "select"
     },
     "kernel": {
       "type": "string",
       "label": "Kernel",
-      "required": true
+      "required": true,
+      "enum": [
+        "linear",
+        "poly",
+        "rbf",
+        "sigmoid"
+      ],
+      "ui:widget": "select"
     },
     "C": {
       "type": "number",

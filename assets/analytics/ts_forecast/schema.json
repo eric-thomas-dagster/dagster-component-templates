@@ -92,7 +92,12 @@
       "label": "Output Mode",
       "description": "Output mode: 'forecast_only' (only forecasted rows) or 'append' (history + forecast)",
       "required": false,
-      "default": "forecast_only"
+      "default": "forecast_only",
+      "enum": [
+        "forecast_only",
+        "append"
+      ],
+      "ui:widget": "select"
     },
     "group_name": {
       "type": "string",

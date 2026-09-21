@@ -64,7 +64,16 @@
       "label": "Data Type",
       "description": "Redis data type: 'auto', 'string', 'hash', 'list', 'set', 'zset'",
       "required": false,
-      "default": "auto"
+      "default": "auto",
+      "enum": [
+        "auto",
+        "string",
+        "hash",
+        "list",
+        "set",
+        "zset"
+      ],
+      "ui:widget": "select"
     },
     "limit": {
       "type": "integer",

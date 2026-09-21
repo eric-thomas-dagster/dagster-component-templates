@@ -42,7 +42,12 @@
     "method": {
       "type": "string",
       "label": "Method",
-      "required": true
+      "required": true,
+      "enum": [
+        "quantile",
+        "width"
+      ],
+      "ui:widget": "select"
     },
     "suffix": {
       "type": "string",

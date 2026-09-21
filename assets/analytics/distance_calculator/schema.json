@@ -68,7 +68,13 @@
       "label": "Unit",
       "description": "Distance unit: 'km', 'miles', or 'meters'",
       "required": false,
-      "default": "km"
+      "default": "km",
+      "enum": [
+        "km",
+        "miles",
+        "meters"
+      ],
+      "ui:widget": "select"
     },
     "formula": {
       "type": "string",
@@ -76,7 +82,11 @@
       "description": "Distance formula: 'haversine' (fast, less accurate) or 'vincenty' (precise geodesic)",
       "required": false,
       "default": "haversine",
-      "ui:widget": "code"
+      "ui:widget": "select",
+      "enum": [
+        "haversine",
+        "vincenty"
+      ]
     },
     "group_name": {
       "type": "string",

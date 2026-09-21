@@ -50,7 +50,12 @@
       "label": "Task Type",
       "description": "Task type: 'classification' or 'regression'",
       "required": false,
-      "default": "classification"
+      "default": "classification",
+      "enum": [
+        "classification",
+        "regression"
+      ],
+      "ui:widget": "select"
     },
     "max_depth": {
       "type": "integer",
@@ -85,7 +90,12 @@
       "label": "Output Mode",
       "description": "Output mode: 'predictions' or 'feature_importance'",
       "required": false,
-      "default": "predictions"
+      "default": "predictions",
+      "enum": [
+        "predictions",
+        "feature_importance"
+      ],
+      "ui:widget": "select"
     },
     "group_name": {
       "type": "string",

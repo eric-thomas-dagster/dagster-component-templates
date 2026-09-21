@@ -38,7 +38,15 @@
       "label": "Method",
       "description": "Tie-breaking method: 'average', 'min', 'max', 'first', or 'dense'",
       "required": false,
-      "default": "average"
+      "default": "average",
+      "enum": [
+        "average",
+        "min",
+        "max",
+        "first",
+        "dense"
+      ],
+      "ui:widget": "select"
     },
     "ascending": {
       "type": "boolean",

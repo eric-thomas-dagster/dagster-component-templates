@@ -45,7 +45,13 @@
       "label": "Format",
       "description": "Output format: 'parquet', 'csv', or 'json'",
       "required": false,
-      "default": "parquet"
+      "default": "parquet",
+      "enum": [
+        "parquet",
+        "csv",
+        "json"
+      ],
+      "ui:widget": "select"
     },
     "credentials_env_var": {
       "type": "string",

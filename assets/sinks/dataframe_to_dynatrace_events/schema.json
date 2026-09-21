@@ -31,7 +31,17 @@
       "type": "string",
       "label": "Event Type",
       "required": false,
-      "default": "CUSTOM_INFO"
+      "default": "CUSTOM_INFO",
+      "enum": [
+        "CUSTOM_INFO",
+        "CUSTOM_DEPLOYMENT",
+        "CUSTOM_ANNOTATION",
+        "AVAILABILITY_EVENT",
+        "ERROR_EVENT",
+        "PERFORMANCE_EVENT",
+        "RESOURCE_CONTENTION_EVENT"
+      ],
+      "ui:widget": "select"
     },
     "title_column": {
       "type": "string",

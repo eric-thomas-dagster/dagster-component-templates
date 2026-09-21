@@ -62,7 +62,12 @@
       "label": "Na Position",
       "description": "Where to place NaN values: 'first' or 'last'",
       "required": false,
-      "default": "last"
+      "default": "last",
+      "enum": [
+        "first",
+        "last"
+      ],
+      "ui:widget": "select"
     },
     "reset_index": {
       "type": "boolean",

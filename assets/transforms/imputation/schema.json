@@ -32,7 +32,17 @@
       "label": "Strategy",
       "description": "Imputation strategy: 'mean', 'median', 'mode', 'constant', 'forward_fill', 'backward_fill', or 'interpolate'",
       "required": false,
-      "default": "mean"
+      "default": "mean",
+      "enum": [
+        "mean",
+        "median",
+        "mode",
+        "constant",
+        "forward_fill",
+        "backward_fill",
+        "interpolate"
+      ],
+      "ui:widget": "select"
     },
     "fill_value": {
       "type": "string",

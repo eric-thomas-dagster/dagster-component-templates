@@ -50,7 +50,12 @@
       "label": "Task Type",
       "description": "'classification' or 'regression'",
       "required": false,
-      "default": "classification"
+      "default": "classification",
+      "enum": [
+        "classification",
+        "regression"
+      ],
+      "ui:widget": "select"
     },
     "models": {
       "type": "array",

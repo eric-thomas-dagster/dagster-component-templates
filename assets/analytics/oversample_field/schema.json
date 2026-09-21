@@ -39,7 +39,13 @@
       "label": "Method",
       "description": "Oversampling method: 'smote', 'random', or 'adasyn'",
       "required": false,
-      "default": "smote"
+      "default": "smote",
+      "enum": [
+        "smote",
+        "random",
+        "adasyn"
+      ],
+      "ui:widget": "select"
     },
     "sampling_strategy": {
       "type": "string",

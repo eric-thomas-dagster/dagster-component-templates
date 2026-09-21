@@ -26,14 +26,27 @@
       "label": "Security Protocol",
       "description": "Security protocol: PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL",
       "required": false,
-      "default": "PLAINTEXT"
+      "default": "PLAINTEXT",
+      "enum": [
+        "PLAINTEXT",
+        "SSL",
+        "SASL_PLAINTEXT",
+        "SASL_SSL"
+      ],
+      "ui:widget": "select"
     },
     "sasl_mechanism": {
       "type": "string",
       "label": "SASL Mechanism",
       "description": "SASL mechanism: PLAIN, SCRAM-SHA-256, SCRAM-SHA-512",
       "required": false,
-      "default": null
+      "default": null,
+      "enum": [
+        "PLAIN",
+        "SCRAM-SHA-256",
+        "SCRAM-SHA-512"
+      ],
+      "ui:widget": "select"
     },
     "sasl_username_env_var": {
       "type": "string",

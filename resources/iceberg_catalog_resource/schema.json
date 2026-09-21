@@ -4,11 +4,44 @@
   "category": "resource",
   "icon": "si:apacheiceberg",
   "attributes": {
-    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "iceberg"},
-    "catalog_type": {"type": "string", "label": "Catalog Type", "required": false, "default": "rest"},
-    "catalog_name": {"type": "string", "label": "Catalog Name", "required": false, "default": "default"},
-    "catalog_properties": {"type": "object", "label": "Catalog Properties", "required": false, "ui:widget": "key-value"}
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "iceberg"
+    },
+    "catalog_type": {
+      "type": "string",
+      "label": "Catalog Type",
+      "required": false,
+      "default": "rest",
+      "enum": [
+        "rest",
+        "glue",
+        "hive",
+        "hadoop",
+        "sql"
+      ],
+      "ui:widget": "select"
+    },
+    "catalog_name": {
+      "type": "string",
+      "label": "Catalog Name",
+      "required": false,
+      "default": "default"
+    },
+    "catalog_properties": {
+      "type": "object",
+      "label": "Catalog Properties",
+      "required": false,
+      "ui:widget": "key-value"
+    }
   },
-  "tags": ["resource", "iceberg", "lakehouse", "pyiceberg"],
+  "tags": [
+    "resource",
+    "iceberg",
+    "lakehouse",
+    "pyiceberg"
+  ],
   "name": "Iceberg Catalog Resource"
 }

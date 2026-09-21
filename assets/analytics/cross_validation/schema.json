@@ -50,14 +50,27 @@
       "label": "Model Type",
       "description": "Model to evaluate: 'random_forest', 'logistic_regression', 'gradient_boosting', 'decision_tree', 'linear_regression'",
       "required": false,
-      "default": "random_forest"
+      "default": "random_forest",
+      "enum": [
+        "random_forest",
+        "logistic_regression",
+        "gradient_boosting",
+        "decision_tree",
+        "linear_regression"
+      ],
+      "ui:widget": "select"
     },
     "task_type": {
       "type": "string",
       "label": "Task Type",
       "description": "'classification' or 'regression'",
       "required": false,
-      "default": "classification"
+      "default": "classification",
+      "enum": [
+        "classification",
+        "regression"
+      ],
+      "ui:widget": "select"
     },
     "cv_folds": {
       "type": "integer",

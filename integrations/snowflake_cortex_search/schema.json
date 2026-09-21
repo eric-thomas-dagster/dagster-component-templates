@@ -51,7 +51,14 @@
     "authenticator": {
       "type": "string",
       "required": false,
-      "description": "Snowflake authenticator: 'SNOWFLAKE_JWT' (keypair), 'externalbrowser' (SSO), 'PROGRAMMATIC_ACCESS_TOKEN' (PAT), 'oauth'."
+      "description": "Snowflake authenticator: 'SNOWFLAKE_JWT' (keypair), 'externalbrowser' (SSO), 'PROGRAMMATIC_ACCESS_TOKEN' (PAT), 'oauth'.",
+      "enum": [
+        "SNOWFLAKE_JWT",
+        "externalbrowser",
+        "PROGRAMMATIC_ACCESS_TOKEN",
+        "oauth"
+      ],
+      "ui:widget": "select"
     },
     "private_key_file": {
       "type": "string",
@@ -68,7 +75,7 @@
     "service_name": {
       "type": "string",
       "required": true,
-      "description": "Name of the Cortex Search Service to query. Unqualified \u2014 gets resolved to `database.schema_name.service_name`."
+      "description": "Name of the Cortex Search Service to query. Unqualified — gets resolved to `database.schema_name.service_name`."
     },
     "query": {
       "type": "string",

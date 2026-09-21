@@ -136,7 +136,7 @@
       "type": "object",
       "label": "Column Lineage",
       "required": false,
-      "description": "Column-level lineage: output column \u2192 list of upstream columns.",
+      "description": "Column-level lineage: output column → list of upstream columns.",
       "default": null,
       "additionalProperties": {
         "type": "array",
@@ -164,7 +164,17 @@
       "label": "Partition Type",
       "required": false,
       "description": "'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | 'dynamic' | 'multi' | None",
-      "default": null
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "dynamic",
+        "multi"
+      ],
+      "ui:widget": "select"
     },
     "partition_start": {
       "type": "string",
@@ -222,7 +232,7 @@
       "type": "integer",
       "label": "Retry Policy Max Retries",
       "required": false,
-      "description": "Max retries on asset failure (opt-in \u2014 enables a RetryPolicy).",
+      "description": "Max retries on asset failure (opt-in — enables a RetryPolicy).",
       "default": null
     },
     "retry_policy_delay_seconds": {
@@ -237,7 +247,12 @@
       "label": "Retry Policy Backoff",
       "required": false,
       "description": "Backoff strategy: 'linear' or 'exponential'.",
-      "default": "exponential"
+      "default": "exponential",
+      "enum": [
+        "linear",
+        "exponential"
+      ],
+      "ui:widget": "select"
     }
   }
 }

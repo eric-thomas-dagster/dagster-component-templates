@@ -40,7 +40,16 @@
       "label": "Chunking Strategy",
       "description": "Strategy: 'fixed_chars', 'fixed_tokens', 'sentence', 'paragraph', 'semantic', 'recursive'",
       "required": false,
-      "default": "fixed_chars"
+      "default": "fixed_chars",
+      "enum": [
+        "fixed_chars",
+        "fixed_tokens",
+        "sentence",
+        "paragraph",
+        "semantic",
+        "recursive"
+      ],
+      "ui:widget": "select"
     },
     "chunk_size": {
       "type": "integer",
@@ -84,7 +93,13 @@
       "label": "Output Format",
       "description": "Output format: 'list' (list of strings), 'dataframe', 'json'",
       "required": false,
-      "default": "list"
+      "default": "list",
+      "enum": [
+        "list",
+        "dataframe",
+        "json"
+      ],
+      "ui:widget": "select"
     },
     "save_to_file": {
       "type": "boolean",

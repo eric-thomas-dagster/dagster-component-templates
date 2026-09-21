@@ -76,7 +76,12 @@
       "label": "Dimension Reduction",
       "description": "Reduce dimensions: 'pca', 'umap', or None",
       "required": false,
-      "default": null
+      "default": null,
+      "enum": [
+        "pca",
+        "umap"
+      ],
+      "ui:widget": "select"
     },
     "target_dimensions": {
       "type": "integer",

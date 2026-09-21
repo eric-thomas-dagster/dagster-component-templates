@@ -50,7 +50,14 @@
       "label": "Algorithm",
       "description": "Algorithm: 'auto', 'ball_tree', 'kd_tree', 'brute'",
       "required": false,
-      "default": "auto"
+      "default": "auto",
+      "enum": [
+        "auto",
+        "ball_tree",
+        "kd_tree",
+        "brute"
+      ],
+      "ui:widget": "select"
     },
     "metric": {
       "type": "string",

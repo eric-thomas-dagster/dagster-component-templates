@@ -23,7 +23,12 @@
     "target": {
       "type": "string",
       "label": "Target",
-      "required": true
+      "required": true,
+      "enum": [
+        "job",
+        "asset"
+      ],
+      "ui:widget": "select"
     }
   },
   "tags": [

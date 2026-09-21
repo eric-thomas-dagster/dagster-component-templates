@@ -47,7 +47,14 @@
       "type": "string",
       "label": "Provider",
       "description": "LLM provider: 'openai', 'anthropic', 'cohere', or 'huggingface'",
-      "required": true
+      "required": true,
+      "enum": [
+        "openai",
+        "anthropic",
+        "cohere",
+        "huggingface"
+      ],
+      "ui:widget": "select"
     },
     "model": {
       "type": "string",
@@ -97,7 +104,13 @@
       "label": "Response Format",
       "description": "Response format: 'text', 'json', or 'markdown'",
       "required": false,
-      "default": "text"
+      "default": "text",
+      "enum": [
+        "text",
+        "json",
+        "markdown"
+      ],
+      "ui:widget": "select"
     },
     "json_schema": {
       "type": "string",

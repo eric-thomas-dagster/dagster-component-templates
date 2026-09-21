@@ -76,7 +76,12 @@
       "label": "Default Status",
       "required": false,
       "description": "'running' or 'stopped'.",
-      "default": "running"
+      "default": "running",
+      "enum": [
+        "running",
+        "stopped"
+      ],
+      "ui:widget": "select"
     },
     "emit_materialization": {
       "type": "boolean",

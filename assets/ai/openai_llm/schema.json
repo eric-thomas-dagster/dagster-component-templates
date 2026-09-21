@@ -128,7 +128,12 @@
       "label": "Response Format",
       "description": "Response format: 'text' or 'json_object' for structured outputs",
       "required": false,
-      "default": null
+      "default": null,
+      "enum": [
+        "text",
+        "json_object"
+      ],
+      "ui:widget": "select"
     },
     "batch_size": {
       "type": "integer",

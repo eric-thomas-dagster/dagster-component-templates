@@ -39,7 +39,16 @@
       "label": "Orient",
       "description": "pandas JSON orient: 'records', 'index', 'columns', 'values', 'table', or 'split'. Ignored when lines=True (forced to 'records').",
       "required": false,
-      "default": "records"
+      "default": "records",
+      "enum": [
+        "records",
+        "index",
+        "columns",
+        "values",
+        "table",
+        "split"
+      ],
+      "ui:widget": "select"
     },
     "lines": {
       "type": "boolean",
@@ -61,7 +70,12 @@
       "label": "Date Format",
       "description": "Date formatting: 'iso' (ISO 8601) or 'epoch' (milliseconds since epoch).",
       "required": false,
-      "default": "iso"
+      "default": "iso",
+      "enum": [
+        "iso",
+        "epoch"
+      ],
+      "ui:widget": "select"
     },
     "group_name": {
       "type": "string",

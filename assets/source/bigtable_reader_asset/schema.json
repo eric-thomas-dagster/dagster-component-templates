@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.BigtableReaderAssetComponent",
-  "description": "BigtableReaderAssetComponent \u2014 read rows from a Cloud Bigtable table into a DataFrame.",
+  "description": "BigtableReaderAssetComponent — read rows from a Cloud Bigtable table into a DataFrame.",
   "category": "source",
   "attributes": {
     "asset_name": {
@@ -74,7 +74,13 @@
       "label": "Decode Values As",
       "required": false,
       "description": "How to decode cell values. 'utf-8' (default), 'bytes' (keep raw), or 'json' (parse JSON cells).",
-      "default": "utf-8"
+      "default": "utf-8",
+      "enum": [
+        "utf-8",
+        "bytes",
+        "json"
+      ],
+      "ui:widget": "select"
     },
     "description": {
       "type": "string",

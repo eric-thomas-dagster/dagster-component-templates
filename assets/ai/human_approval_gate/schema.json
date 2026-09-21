@@ -55,7 +55,9 @@
       "required": false,
       "description": "Asset owners",
       "default": null,
-      "items": {"type": "string"}
+      "items": {
+        "type": "string"
+      }
     },
     "asset_tags": {
       "type": "object",
@@ -63,7 +65,9 @@
       "required": false,
       "description": "Additional key-value tags",
       "default": null,
-      "additionalProperties": {"type": "string"}
+      "additionalProperties": {
+        "type": "string"
+      }
     },
     "kinds": {
       "type": "array",
@@ -71,7 +75,9 @@
       "required": false,
       "description": "Asset kinds (defaults to ['human', 'approval']).",
       "default": null,
-      "items": {"type": "string"}
+      "items": {
+        "type": "string"
+      }
     },
     "freshness_max_lag_minutes": {
       "type": "integer",
@@ -92,7 +98,17 @@
       "label": "Partition Type",
       "required": false,
       "description": "'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | 'dynamic' | 'multi' | None",
-      "default": null
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "dynamic",
+        "multi"
+      ],
+      "ui:widget": "select"
     },
     "partition_start": {
       "type": "string",
@@ -121,7 +137,9 @@
       "required": false,
       "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name}.",
       "default": null,
-      "items": {"type": "object"}
+      "items": {
+        "type": "object"
+      }
     },
     "retry_policy_max_retries": {
       "type": "integer",
@@ -142,7 +160,12 @@
       "label": "Retry Policy Backoff",
       "required": false,
       "description": "Backoff strategy: 'linear' or 'exponential'.",
-      "default": "exponential"
+      "default": "exponential",
+      "enum": [
+        "linear",
+        "exponential"
+      ],
+      "ui:widget": "select"
     },
     "deps": {
       "type": "array",
@@ -150,7 +173,9 @@
       "required": false,
       "description": "Lineage-only upstream asset keys (no data loaded at runtime).",
       "default": null,
-      "items": {"type": "string"}
+      "items": {
+        "type": "string"
+      }
     }
   }
 }

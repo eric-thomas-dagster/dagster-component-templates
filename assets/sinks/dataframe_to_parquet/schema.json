@@ -39,7 +39,14 @@
       "label": "Compression",
       "description": "Compression codec: 'snappy', 'gzip', 'brotli', or 'none'",
       "required": false,
-      "default": "snappy"
+      "default": "snappy",
+      "enum": [
+        "snappy",
+        "gzip",
+        "brotli",
+        "none"
+      ],
+      "ui:widget": "select"
     },
     "partition_cols": {
       "type": "array",

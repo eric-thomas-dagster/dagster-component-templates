@@ -64,7 +64,13 @@
       "label": "Output Mode",
       "description": "Output mode: 'predictions' (add prediction column), 'coefficients' (feature importance table), 'both' (predictions + eval metrics in metadata)",
       "required": false,
-      "default": "predictions"
+      "default": "predictions",
+      "enum": [
+        "predictions",
+        "coefficients",
+        "both"
+      ],
+      "ui:widget": "select"
     },
     "prediction_column": {
       "type": "string",

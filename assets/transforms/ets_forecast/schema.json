@@ -53,14 +53,24 @@
       "label": "Trend",
       "description": "Trend component: None, ",
       "required": false,
-      "default": "add"
+      "default": "add",
+      "enum": [
+        "add",
+        "mul"
+      ],
+      "ui:widget": "select"
     },
     "seasonal": {
       "type": "string",
       "label": "Seasonal",
       "description": "Seasonal component: None, ",
       "required": false,
-      "default": "add"
+      "default": "add",
+      "enum": [
+        "add",
+        "mul"
+      ],
+      "ui:widget": "select"
     },
     "seasonal_periods": {
       "type": "integer",
@@ -82,7 +92,12 @@
       "label": "Output Mode",
       "description": "Output mode: 'forecast' or 'append'",
       "required": false,
-      "default": "forecast"
+      "default": "forecast",
+      "enum": [
+        "forecast",
+        "append"
+      ],
+      "ui:widget": "select"
     },
     "group_name": {
       "type": "string",

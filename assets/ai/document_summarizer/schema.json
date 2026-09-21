@@ -61,7 +61,14 @@
       "label": "Summary Type",
       "description": "Type: 'concise', 'detailed', 'bullet_points', 'executive'",
       "required": false,
-      "default": "concise"
+      "default": "concise",
+      "enum": [
+        "concise",
+        "detailed",
+        "bullet_points",
+        "executive"
+      ],
+      "ui:widget": "select"
     },
     "max_length": {
       "type": "integer",

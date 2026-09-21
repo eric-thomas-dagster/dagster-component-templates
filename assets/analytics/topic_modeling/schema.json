@@ -75,7 +75,13 @@
       "label": "Output Mode",
       "description": "Output mode: 'dominant_topic' (add dominant_topic column), 'all_topics' (add score per topic), 'topic_table' (return topic-word table)",
       "required": false,
-      "default": "dominant_topic"
+      "default": "dominant_topic",
+      "enum": [
+        "dominant_topic",
+        "all_topics",
+        "topic_table"
+      ],
+      "ui:widget": "select"
     },
     "language": {
       "type": "string",

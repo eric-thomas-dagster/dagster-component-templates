@@ -40,7 +40,13 @@
       "label": "Output Mode",
       "description": "Output mode: 'tags_column' (add column with POS tag list), 'expanded' (one row per token with tag), 'counts' (count of each POS type per row)",
       "required": false,
-      "default": "tags_column"
+      "default": "tags_column",
+      "enum": [
+        "tags_column",
+        "expanded",
+        "counts"
+      ],
+      "ui:widget": "select"
     },
     "output_column": {
       "type": "string",

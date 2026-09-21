@@ -50,7 +50,12 @@
     "test_type": {
       "type": "string",
       "label": "Test Type",
-      "required": true
+      "required": true,
+      "enum": [
+        "independent",
+        "paired"
+      ],
+      "ui:widget": "select"
     },
     "alpha": {
       "type": "number",

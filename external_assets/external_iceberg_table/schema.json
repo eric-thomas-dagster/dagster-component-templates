@@ -32,7 +32,15 @@
     "catalog_type": {
       "type": "string",
       "label": "Catalog Type",
-      "required": false
+      "required": false,
+      "enum": [
+        "rest",
+        "glue",
+        "hive",
+        "hadoop",
+        "sql"
+      ],
+      "ui:widget": "select"
     },
     "owner_engine": {
       "type": "string",

@@ -25,7 +25,15 @@
       "type": "string",
       "label": "Provider",
       "description": "Provider: 'pinecone', 'weaviate', 'chromadb', 'faiss', 'qdrant'",
-      "required": true
+      "required": true,
+      "enum": [
+        "pinecone",
+        "weaviate",
+        "chromadb",
+        "faiss",
+        "qdrant"
+      ],
+      "ui:widget": "select"
     },
     "collection_name": {
       "type": "string",

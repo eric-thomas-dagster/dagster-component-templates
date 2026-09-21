@@ -48,7 +48,12 @@
     "test_type": {
       "type": "string",
       "label": "Test Type",
-      "required": true
+      "required": true,
+      "enum": [
+        "two_sided",
+        "one_sided"
+      ],
+      "ui:widget": "select"
     },
     "include_preview_metadata": {
       "type": "boolean",

@@ -28,7 +28,15 @@
       "label": "Source Kind",
       "description": "Source hint: 'cloudtrail' | 'okta' | 'github' | 'azure' | 'generic'",
       "required": false,
-      "default": "generic"
+      "default": "generic",
+      "enum": [
+        "cloudtrail",
+        "okta",
+        "github",
+        "azure",
+        "generic"
+      ],
+      "ui:widget": "select"
     },
     "event_column": {
       "type": "string",

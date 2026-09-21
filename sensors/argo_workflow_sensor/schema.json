@@ -49,7 +49,12 @@
       "label": "Asset Event Type",
       "required": false,
       "description": "'materialization' (default) or 'observation'. Use 'observation' when paired with argo_workflow_trigger to avoid double-counting materializations on the same asset.",
-      "default": "materialization"
+      "default": "materialization",
+      "enum": [
+        "materialization",
+        "observation"
+      ],
+      "ui:widget": "select"
     },
     "host_env_var": {
       "type": "string",
@@ -84,7 +89,12 @@
       "label": "Default Status",
       "required": false,
       "description": "'running' or 'stopped'.",
-      "default": "running"
+      "default": "running",
+      "enum": [
+        "running",
+        "stopped"
+      ],
+      "ui:widget": "select"
     }
   }
 }

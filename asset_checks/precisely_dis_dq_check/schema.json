@@ -73,7 +73,12 @@
       "label": "Severity",
       "required": false,
       "description": "AssetCheckSeverity for failing checks: 'WARN' or 'ERROR'.",
-      "default": "ERROR"
+      "default": "ERROR",
+      "enum": [
+        "WARN",
+        "ERROR"
+      ],
+      "ui:widget": "select"
     }
   }
 }

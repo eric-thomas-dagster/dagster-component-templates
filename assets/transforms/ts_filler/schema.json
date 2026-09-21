@@ -39,14 +39,30 @@
       "label": "Frequency",
       "description": "Pandas offset alias: 'D' (daily), 'W' (weekly), 'ME' (month-end), 'h' (hourly), 'min' (minute)",
       "required": false,
-      "default": "D"
+      "default": "D",
+      "enum": [
+        "D",
+        "W",
+        "ME",
+        "h",
+        "min"
+      ],
+      "ui:widget": "select"
     },
     "fill_method": {
       "type": "string",
       "label": "Fill Method",
       "description": "Fill method: 'forward_fill', 'backward_fill', 'interpolate', 'zero', 'mean'",
       "required": false,
-      "default": "forward_fill"
+      "default": "forward_fill",
+      "enum": [
+        "forward_fill",
+        "backward_fill",
+        "interpolate",
+        "zero",
+        "mean"
+      ],
+      "ui:widget": "select"
     },
     "value_columns": {
       "type": "array",

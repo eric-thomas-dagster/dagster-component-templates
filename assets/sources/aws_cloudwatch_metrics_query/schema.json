@@ -36,7 +36,15 @@
       "label": "Statistic",
       "required": false,
       "description": "'Average' | 'Sum' | 'Maximum' | 'Minimum' | 'SampleCount'",
-      "default": "Average"
+      "default": "Average",
+      "enum": [
+        "Average",
+        "Sum",
+        "Maximum",
+        "Minimum",
+        "SampleCount"
+      ],
+      "ui:widget": "select"
     },
     "period_seconds": {
       "type": "integer",

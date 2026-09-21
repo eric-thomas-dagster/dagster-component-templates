@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.PivotComponent",
-  "description": "Pivot a DataFrame from long to wide \u2014 rotate row values into column headers with a chosen aggregation.",
+  "description": "Pivot a DataFrame from long to wide — rotate row values into column headers with a chosen aggregation.",
   "category": "transformation",
   "icon": "ArrowsRightLeft",
   "attributes": {
@@ -42,7 +42,17 @@
       "label": "Agg Func",
       "description": "Aggregation when (index, pivot) collides: sum | mean | count | min | max | first | last",
       "required": false,
-      "default": "sum"
+      "default": "sum",
+      "enum": [
+        "sum",
+        "mean",
+        "count",
+        "min",
+        "max",
+        "first",
+        "last"
+      ],
+      "ui:widget": "select"
     },
     "fill_value": {
       "type": "number",

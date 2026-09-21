@@ -48,7 +48,12 @@
       "label": "Algorithm",
       "description": "Clustering algorithm: 'dbscan' (density-based, finds noise) or 'kmeans' (fixed k clusters)",
       "required": false,
-      "default": "dbscan"
+      "default": "dbscan",
+      "enum": [
+        "dbscan",
+        "kmeans"
+      ],
+      "ui:widget": "select"
     },
     "eps_km": {
       "type": "number",

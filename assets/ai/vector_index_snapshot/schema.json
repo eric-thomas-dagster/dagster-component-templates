@@ -47,7 +47,12 @@
       "label": "Embedder Provider",
       "required": false,
       "description": "'chromadb_default' (local ONNX MiniLM, no API key) | 'openai' (needs api_key_env_var)",
-      "default": "chromadb_default"
+      "default": "chromadb_default",
+      "enum": [
+        "chromadb_default",
+        "openai"
+      ],
+      "ui:widget": "select"
     },
     "embedder_model": {
       "type": "string",
@@ -74,7 +79,7 @@
       "type": "string",
       "label": "Dynamic Partition Name",
       "required": false,
-      "description": "Name of the DynamicPartitionsDefinition used to track snapshot ids. Downstream assets bind to a specific snapshot by partition key = snapshot_id, so rollback is 'materialize downstream against the older partition' \u2014 no rebuild.",
+      "description": "Name of the DynamicPartitionsDefinition used to track snapshot ids. Downstream assets bind to a specific snapshot by partition key = snapshot_id, so rollback is 'materialize downstream against the older partition' — no rebuild.",
       "default": "rag_snapshot"
     },
     "group_name": {
@@ -154,7 +159,12 @@
       "label": "Retry Policy Backoff",
       "required": false,
       "description": "Backoff strategy: 'linear' or 'exponential'.",
-      "default": "exponential"
+      "default": "exponential",
+      "enum": [
+        "linear",
+        "exponential"
+      ],
+      "ui:widget": "select"
     },
     "partition_this_asset": {
       "type": "boolean",

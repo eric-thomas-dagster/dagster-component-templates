@@ -74,7 +74,12 @@
       "label": "Output Mode",
       "description": "Output mode: 'samples' (N rows x M variable columns) or 'statistics' (summary stats per variable)",
       "required": false,
-      "default": "samples"
+      "default": "samples",
+      "enum": [
+        "samples",
+        "statistics"
+      ],
+      "ui:widget": "select"
     },
     "group_name": {
       "type": "string",

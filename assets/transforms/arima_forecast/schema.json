@@ -74,7 +74,13 @@
       "label": "Output Mode",
       "description": "Output mode: 'forecast' (only future rows), 'append' (original + forecast), 'fitted' (original + in-sample fitted values)",
       "required": false,
-      "default": "forecast"
+      "default": "forecast",
+      "enum": [
+        "forecast",
+        "append",
+        "fitted"
+      ],
+      "ui:widget": "select"
     },
     "confidence_level": {
       "type": "number",

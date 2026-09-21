@@ -50,7 +50,13 @@
       "label": "Output Mode",
       "description": "Output mode: 'unique' (keep non-duplicates), 'duplicates' (return only duplicate rows), 'all' (return all rows with is_duplicate bool column)",
       "required": false,
-      "default": "unique"
+      "default": "unique",
+      "enum": [
+        "unique",
+        "duplicates",
+        "all"
+      ],
+      "ui:widget": "select"
     },
     "flag_column": {
       "type": "string",

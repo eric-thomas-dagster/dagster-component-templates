@@ -70,7 +70,13 @@
       "label": "System Type",
       "required": false,
       "description": "Db2 system variant: 'luw' (default — Db2 LUW / Community Edition / Warehouse), 'cloud' (Db2 on Cloud DBaaS), or 'iseries' (Db2 for i / AS/400 / IBM i). Drives port defaults + library-list connection params. All three use the same ibm_db_sa SQLAlchemy dialect; the catalog SQL differs (see database_schema_inventory's database_type='db2_iseries').",
-      "default": "luw"
+      "default": "luw",
+      "enum": [
+        "luw",
+        "cloud",
+        "iseries"
+      ],
+      "ui:widget": "select"
     },
     "library_list": {
       "type": "array",

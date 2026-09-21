@@ -33,7 +33,13 @@
       "label": "Operation",
       "description": "Pulumi operation to perform: 'up', 'destroy', or 'preview'.",
       "required": false,
-      "default": "up"
+      "default": "up",
+      "enum": [
+        "up",
+        "destroy",
+        "preview"
+      ],
+      "ui:widget": "select"
     },
     "expect_no_changes": {
       "type": "boolean",

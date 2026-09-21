@@ -40,7 +40,12 @@
       "label": "Input Type",
       "description": "Input type: 'text' (raw invoice text) or 'file' (PDF/image path)",
       "required": false,
-      "default": "text"
+      "default": "text",
+      "enum": [
+        "text",
+        "file"
+      ],
+      "ui:widget": "select"
     },
     "model": {
       "type": "string",

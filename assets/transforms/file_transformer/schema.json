@@ -41,13 +41,28 @@
       "label": "Input Format",
       "description": "Input file format: 'auto', 'csv', 'json', 'parquet', 'excel'",
       "required": false,
-      "default": "auto"
+      "default": "auto",
+      "enum": [
+        "auto",
+        "csv",
+        "json",
+        "parquet",
+        "excel"
+      ],
+      "ui:widget": "select"
     },
     "output_format": {
       "type": "string",
       "label": "Output Format",
       "description": "Output file format: 'csv', 'json', 'parquet', 'excel'",
-      "required": true
+      "required": true,
+      "enum": [
+        "csv",
+        "json",
+        "parquet",
+        "excel"
+      ],
+      "ui:widget": "select"
     },
     "output_directory": {
       "type": "string",
@@ -81,7 +96,15 @@
       "label": "Json Orient",
       "description": "JSON orientation: 'records', 'split', 'index', 'columns', 'values'",
       "required": false,
-      "default": "records"
+      "default": "records",
+      "enum": [
+        "records",
+        "split",
+        "index",
+        "columns",
+        "values"
+      ],
+      "ui:widget": "select"
     },
     "excel_sheet_name": {
       "type": "string",

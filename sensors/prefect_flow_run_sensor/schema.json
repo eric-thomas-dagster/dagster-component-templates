@@ -68,7 +68,12 @@
       "label": "Default Status",
       "required": false,
       "description": "'running' | 'stopped'.",
-      "default": "running"
+      "default": "running",
+      "enum": [
+        "running",
+        "stopped"
+      ],
+      "ui:widget": "select"
     },
     "partition_mode": {
       "type": "string",

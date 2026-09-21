@@ -40,7 +40,13 @@
       "label": "Output Mode",
       "description": "Output mode: 'frequency_table' (word→frequency), 'top_n' (top N words), 'tfidf' (TF-IDF weighted)",
       "required": false,
-      "default": "frequency_table"
+      "default": "frequency_table",
+      "enum": [
+        "frequency_table",
+        "top_n",
+        "tfidf"
+      ],
+      "ui:widget": "select"
     },
     "top_n": {
       "type": "integer",

@@ -48,7 +48,13 @@
       "label": "Provider",
       "description": "Geocoding provider: 'nominatim' (free), 'google' (API key required), 'here' (API key required)",
       "required": false,
-      "default": "nominatim"
+      "default": "nominatim",
+      "enum": [
+        "nominatim",
+        "google",
+        "here"
+      ],
+      "ui:widget": "select"
     },
     "api_key_env_var": {
       "type": "string",

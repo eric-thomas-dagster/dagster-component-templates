@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.SurrogateKeyComponent",
-  "description": "Generate stable surrogate keys \u2014 deterministic SHA-256 hash of business-key columns, or sequential integers.",
+  "description": "Generate stable surrogate keys — deterministic SHA-256 hash of business-key columns, or sequential integers.",
   "category": "transformation",
   "icon": "ArrowsRightLeft",
   "attributes": {
@@ -36,7 +36,13 @@
       "label": "Method",
       "description": "'sha256' (deterministic) | 'md5' | 'sequential' (1..N)",
       "required": false,
-      "default": "sha256"
+      "default": "sha256",
+      "enum": [
+        "sha256",
+        "md5",
+        "sequential"
+      ],
+      "ui:widget": "select"
     },
     "sequential_start": {
       "type": "integer",

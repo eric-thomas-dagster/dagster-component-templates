@@ -75,7 +75,12 @@
       "label": "Method",
       "description": "Solver method: 'linprog' (linear), 'milp' (mixed integer)",
       "required": false,
-      "default": "linprog"
+      "default": "linprog",
+      "enum": [
+        "linprog",
+        "milp"
+      ],
+      "ui:widget": "select"
     },
     "maximize": {
       "type": "boolean",

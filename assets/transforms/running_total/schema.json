@@ -75,7 +75,13 @@
       "label": "Agg Function",
       "description": "Cumulative function to apply: 'sum', 'count', or 'mean'",
       "required": false,
-      "default": "sum"
+      "default": "sum",
+      "enum": [
+        "sum",
+        "count",
+        "mean"
+      ],
+      "ui:widget": "select"
     },
     "group_name": {
       "type": "string",

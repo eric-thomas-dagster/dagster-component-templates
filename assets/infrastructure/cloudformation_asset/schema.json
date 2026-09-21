@@ -82,7 +82,13 @@
       "label": "On Failure",
       "description": "Action on stack creation failure: ROLLBACK, DO_NOTHING, or DELETE.",
       "required": false,
-      "default": "ROLLBACK"
+      "default": "ROLLBACK",
+      "enum": [
+        "ROLLBACK",
+        "DO_NOTHING",
+        "DELETE"
+      ],
+      "ui:widget": "select"
     },
     "timeout_minutes": {
       "type": "integer",

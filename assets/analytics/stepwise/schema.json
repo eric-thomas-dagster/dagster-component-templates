@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.StepwiseComponent",
-  "description": "Sequential forward feature selection \u2014 pick K best features by cross-validated score.",
+  "description": "Sequential forward feature selection — pick K best features by cross-validated score.",
   "category": "analytics",
   "icon": "Filter",
   "x-dagster-io": {
@@ -48,12 +48,22 @@
     "task_type": {
       "type": "string",
       "label": "Task Type",
-      "required": true
+      "required": true,
+      "enum": [
+        "classification",
+        "regression"
+      ],
+      "ui:widget": "select"
     },
     "direction": {
       "type": "string",
       "label": "Direction",
-      "required": true
+      "required": true,
+      "enum": [
+        "forward",
+        "backward"
+      ],
+      "ui:widget": "select"
     },
     "cv": {
       "type": "integer",

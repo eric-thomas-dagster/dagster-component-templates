@@ -46,7 +46,13 @@
     "bucket": {
       "type": "string",
       "label": "Bucket",
-      "required": true
+      "required": true,
+      "enum": [
+        "day",
+        "week",
+        "month"
+      ],
+      "ui:widget": "select"
     },
     "include_preview_metadata": {
       "type": "boolean",

@@ -399,14 +399,7 @@ group_name=group_name,
             # Use explicit lineage, or auto-infer passthrough columns at runtime
             _effective_lineage = column_lineage
             if not _effective_lineage:
-                try:
-                    _upstream_cols = set(upstream.columns)
-                    _effective_lineage = {
-                        col: [col] for col in _col_schema.columns_by_name
-                        if col in _upstream_cols
-                    }
-                except Exception:
-                    pass
+                    _effective_lineage = {col.name: [col.name] for col in _col_schema.columns}
             if _effective_lineage:
                 _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
                 if _upstream_key:

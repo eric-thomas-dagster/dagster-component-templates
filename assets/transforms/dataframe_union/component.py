@@ -405,7 +405,8 @@ class DataframeUnion(Component, Model, Resolvable):
             # Column lineage: each output col flows from every upstream that contained it.
             try:
                 _lineage_deps: dict = {}
-                for out_col in _col_schema.columns_by_name:
+                for _col in _col_schema.columns:
+                    out_col = _col.name
                     deps = []
                     for upstream_key, df in zip(upstream_asset_keys, dfs):
                         if out_col in df.columns:

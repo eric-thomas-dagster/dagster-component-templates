@@ -490,40 +490,10 @@ class DataframeJoin(Component, Model, Resolvable):
                     upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
                 elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
-            # Build column schema metadata
-            from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
-            _col_schema = TableSchema(columns=[
-                TableColumn(name=str(col), type=str(left.dtypes[col]))
-                for col in left.columns
-            ])
-            _metadata = {
-                "dagster/row_count": MetadataValue.int(len(left)),
-                "dagster/column_schema": MetadataValue.table_schema(_col_schema),
-            }
-            # Use explicit lineage, or auto-infer passthrough columns at runtime
-            _effective_lineage = column_lineage
-            if not _effective_lineage:
-                try:
-                    _upstream_cols = set(upstream.columns)
-                    _effective_lineage = {
-                        col: [col] for col in _col_schema.columns_by_name
-                        if col in _upstream_cols
-                    }
-                except Exception:
-                    pass
-            if _effective_lineage:
-                _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
-                if _upstream_key:
-                    _lineage_deps = {}
-                    for out_col, in_cols in _effective_lineage.items():
-                        _lineage_deps[str(out_col)] = [
-                            TableColumnDep(asset_key=_upstream_key, column_name=str(ic))
-                            for ic in in_cols
-                        ]
-                    _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
-                        TableColumnLineage(_lineage_deps)
-                    )
-            context.add_output_metadata(_metadata)
+            # Column schema/lineage metadata is built from the actual join
+            # RESULT (below, right before each return) -- not from `left`
+            # alone, since the joined output has right's columns too and a
+            # different row count.
             if backend == "polars":
                 if pl is None:
                     raise ImportError("polars backend requested but `polars` is not installed.")
@@ -548,6 +518,42 @@ class DataframeJoin(Component, Model, Resolvable):
                     merged_pl = merged_pl.join(nxt_pl, **({"how": pl_how, "suffix": suffixes[1] if len(suffixes) > 1 else "_right"} | ({"on": on} if on else {})))
                 if post_rename or post_drop or post_keep_only:
                     merged_pl = pl.from_pandas(_apply_post_merge(merged_pl.to_pandas()))
+                _merged_for_meta = merged_pl.to_pandas()
+                from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
+                _col_schema = TableSchema(columns=[
+                    TableColumn(name=str(col), type=str(_merged_for_meta.dtypes[col]))
+                    for col in _merged_for_meta.columns
+                ])
+                _metadata = {
+                    "dagster/row_count": MetadataValue.int(len(_merged_for_meta)),
+                    "dagster/column_schema": MetadataValue.table_schema(_col_schema),
+                }
+                _effective_lineage = column_lineage
+                if not _effective_lineage:
+                    try:
+                        _upstream_cols = set(left.columns) | set(right.columns)
+                        for _nxt in extras.values():
+                            if _nxt is not None and hasattr(_nxt, "columns"):
+                                _upstream_cols |= set(_nxt.columns)
+                        _effective_lineage = {
+                            col.name: [col.name] for col in _col_schema.columns
+                            if col.name in _upstream_cols
+                        }
+                    except Exception:
+                        pass
+                if _effective_lineage:
+                    _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
+                    if _upstream_key:
+                        _lineage_deps = {}
+                        for out_col, in_cols in _effective_lineage.items():
+                            _lineage_deps[str(out_col)] = [
+                                TableColumnDep(asset_key=_upstream_key, column_name=str(ic))
+                                for ic in in_cols
+                            ]
+                        _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
+                            TableColumnLineage(_lineage_deps)
+                        )
+                context.add_output_metadata(_metadata)
                 return merged_pl
             else:
                 # If join-key columns have mismatched dtypes between left
@@ -706,6 +712,41 @@ class DataframeJoin(Component, Model, Resolvable):
                         suffixes=tuple(suffixes),
                     )
                 merged = _apply_post_merge(merged)
+                from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
+                _col_schema = TableSchema(columns=[
+                    TableColumn(name=str(col), type=str(merged.dtypes[col]))
+                    for col in merged.columns
+                ])
+                _metadata = {
+                    "dagster/row_count": MetadataValue.int(len(merged)),
+                    "dagster/column_schema": MetadataValue.table_schema(_col_schema),
+                }
+                _effective_lineage = column_lineage
+                if not _effective_lineage:
+                    try:
+                        _upstream_cols = set(left.columns) | set(right.columns)
+                        for _nxt in extras.values():
+                            if _nxt is not None and hasattr(_nxt, "columns"):
+                                _upstream_cols |= set(_nxt.columns)
+                        _effective_lineage = {
+                            col.name: [col.name] for col in _col_schema.columns
+                            if col.name in _upstream_cols
+                        }
+                    except Exception:
+                        pass
+                if _effective_lineage:
+                    _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
+                    if _upstream_key:
+                        _lineage_deps = {}
+                        for out_col, in_cols in _effective_lineage.items():
+                            _lineage_deps[str(out_col)] = [
+                                TableColumnDep(asset_key=_upstream_key, column_name=str(ic))
+                                for ic in in_cols
+                            ]
+                        _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
+                            TableColumnLineage(_lineage_deps)
+                        )
+                context.add_output_metadata(_metadata)
                 return merged
 
         # Two-branch asset decoration so Dagster's `ins=` inference (driven

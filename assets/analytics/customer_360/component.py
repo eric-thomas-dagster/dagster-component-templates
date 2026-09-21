@@ -651,10 +651,13 @@ group_name=group_name,
                 _effective_lineage = column_lineage
                 if not _effective_lineage:
                     try:
-                        _upstream_cols = set(upstream.columns)
+                        _upstream_cols = set()
+                        for _src in (stripe_data, marketing_data, ga4_data, crm_data):
+                            if _src is not None:
+                                _upstream_cols |= set(_src.columns)
                         _effective_lineage = {
-                            col: [col] for col in _col_schema.columns_by_name
-                            if col in _upstream_cols
+                            col.name: [col.name] for col in _col_schema.columns
+                            if col.name in _upstream_cols
                         }
                     except Exception:
                         pass

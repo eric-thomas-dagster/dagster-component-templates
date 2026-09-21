@@ -472,8 +472,8 @@ group_name=group_name,
                 try:
                     _upstream_cols = set(upstream.columns)
                     _effective_lineage = {
-                        col: [col] for col in _col_schema.columns_by_name
-                        if col in _upstream_cols
+                        col.name: [col.name] for col in _col_schema.columns
+                        if col.name in _upstream_cols
                     }
                 except Exception:
                     pass

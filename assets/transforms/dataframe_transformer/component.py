@@ -843,10 +843,12 @@ group_name=group_name,
             _effective_lineage = column_lineage
             if not _effective_lineage:
                 try:
-                    _upstream_cols = set(upstream.columns)
+                    _upstream_cols = set()
+                    for _df in dataframes.values():
+                        _upstream_cols |= set(_df.columns)
                     _effective_lineage = {
-                        col: [col] for col in _col_schema.columns_by_name
-                        if col in _upstream_cols
+                        col.name: [col.name] for col in _col_schema.columns
+                        if col.name in _upstream_cols
                     }
                 except Exception:
                     pass

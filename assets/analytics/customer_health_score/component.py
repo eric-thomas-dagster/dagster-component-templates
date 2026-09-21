@@ -710,18 +710,22 @@ group_name=self.group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def customer_health_asset(context: AssetExecutionContext, **inputs) -> pd.DataFrame:
-            # Filter to current partition if partitioned
+            # Filter each connected input to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key
                 _is_multi = hasattr(_pk, "keys_by_dimension")
                 _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
                 _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
-                if partition_date_column and partition_date_column in upstream.columns and _date_key:
-                    upstream = upstream[upstream[partition_date_column].astype(str) == _date_key]
-                if partition_static_column and partition_static_column in upstream.columns and _static_key:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
-                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
+                for _key, _frame in list(inputs.items()):
+                    if _frame is None:
+                        continue
+                    if partition_date_column and partition_date_column in _frame.columns and _date_key:
+                        _frame = _frame[_frame[partition_date_column].astype(str) == _date_key]
+                    if partition_static_column and partition_static_column in _frame.columns and _static_key:
+                        _frame = _frame[_frame[partition_static_column].astype(str) == _static_key]
+                    elif partition_static_column and partition_static_column in _frame.columns and not _is_multi:
+                        _frame = _frame[_frame[partition_static_column].astype(str) == str(_pk)]
+                    inputs[_key] = _frame
             """Calculate customer health scores from multiple data sources."""
 
             context.log.info(f"Calculating customer health scores for {len(inputs)} data sources...")

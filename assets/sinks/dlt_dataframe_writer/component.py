@@ -614,18 +614,6 @@ group_name=group_name,
             deps=upstream_keys if upstream_keys else None,
         )
         def dlt_writer_asset(context: AssetExecutionContext, **kwargs) -> None:
-            # Filter to current partition if partitioned
-            if context.has_partition_key:
-                _pk = context.partition_key
-                _is_multi = hasattr(_pk, "keys_by_dimension")
-                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
-                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
-                if partition_date_column and partition_date_column in upstream.columns and _date_key:
-                    upstream = upstream[upstream[partition_date_column].astype(str) == _date_key]
-                if partition_static_column and partition_static_column in upstream.columns and _static_key:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
-                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
             """Write DataFrame to destination using dlt."""
 
             # Determine destination (with environment routing if enabled)
@@ -664,6 +652,19 @@ group_name=group_name,
 
             # Get the first (and should be only) upstream DataFrame
             df = list(upstream_assets.values())[0]
+
+            # Filter to current partition if partitioned
+            if context.has_partition_key:
+                _pk = context.partition_key
+                _is_multi = hasattr(_pk, "keys_by_dimension")
+                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
+                if partition_date_column and partition_date_column in df.columns and _date_key:
+                    df = df[df[partition_date_column].astype(str) == _date_key]
+                if partition_static_column and partition_static_column in df.columns and _static_key:
+                    df = df[df[partition_static_column].astype(str) == _static_key]
+                elif partition_static_column and partition_static_column in df.columns and not _is_multi:
+                    df = df[df[partition_static_column].astype(str) == str(_pk)]
 
             if not isinstance(df, pd.DataFrame):
                 raise ValueError(

@@ -418,18 +418,6 @@ group_name=group_name,
             deps=upstream_keys if upstream_keys else None,
         )
         def revenue_attribution_asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
-            # Filter to current partition if partitioned
-            if context.has_partition_key:
-                _pk = context.partition_key
-                _is_multi = hasattr(_pk, "keys_by_dimension")
-                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
-                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
-                if partition_date_column and partition_date_column in upstream.columns and _date_key:
-                    upstream = upstream[upstream[partition_date_column].astype(str) == _date_key]
-                if partition_static_column and partition_static_column in upstream.columns and _static_key:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
-                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
             """Asset that attributes revenue to marketing campaigns."""
 
             context.log.info(f"Calculating revenue attribution using {attribution_model} model")
@@ -446,6 +434,23 @@ group_name=group_name,
                         context.log.warning(f"Could not load {key}: {e}")
             else:
                 upstream_data = kwargs
+
+            # Filter each connected input to current partition if partitioned
+            if context.has_partition_key:
+                _pk = context.partition_key
+                _is_multi = hasattr(_pk, "keys_by_dimension")
+                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
+                for _key, _frame in list(upstream_data.items()):
+                    if _frame is None:
+                        continue
+                    if partition_date_column and partition_date_column in _frame.columns and _date_key:
+                        _frame = _frame[_frame[partition_date_column].astype(str) == _date_key]
+                    if partition_static_column and partition_static_column in _frame.columns and _static_key:
+                        _frame = _frame[_frame[partition_static_column].astype(str) == _static_key]
+                    elif partition_static_column and partition_static_column in _frame.columns and not _is_multi:
+                        _frame = _frame[_frame[partition_static_column].astype(str) == str(_pk)]
+                    upstream_data[_key] = _frame
 
             # Get marketing and revenue data
             marketing_data = upstream_data.get(marketing_asset)

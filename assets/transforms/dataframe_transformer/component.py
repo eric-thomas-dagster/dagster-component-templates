@@ -529,18 +529,6 @@ group_name=group_name,
             retry_policy=_retry_policy,
         )
         def dataframe_transformer_asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
-            # Filter to current partition if partitioned
-            if context.has_partition_key:
-                _pk = context.partition_key
-                _is_multi = hasattr(_pk, "keys_by_dimension")
-                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
-                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
-                if partition_date_column and partition_date_column in upstream.columns and _date_key:
-                    upstream = upstream[upstream[partition_date_column].astype(str) == _date_key]
-                if partition_static_column and partition_static_column in upstream.columns and _static_key:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
-                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
             """Asset that transforms DataFrames from upstream assets.
 
             Upstream DataFrames are automatically loaded by the IO manager
@@ -605,6 +593,21 @@ group_name=group_name,
                 error_msg += "  - CSV File Ingestion (returns DataFrames by default)\n"
                 error_msg += "  - Other DataFrame Transformers\n"
                 raise TypeError(error_msg)
+
+            # Filter each connected input to current partition if partitioned
+            if context.has_partition_key:
+                _pk = context.partition_key
+                _is_multi = hasattr(_pk, "keys_by_dimension")
+                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
+                for _key, _frame in dataframes.items():
+                    if partition_date_column and partition_date_column in _frame.columns and _date_key:
+                        _frame = _frame[_frame[partition_date_column].astype(str) == _date_key]
+                    if partition_static_column and partition_static_column in _frame.columns and _static_key:
+                        _frame = _frame[_frame[partition_static_column].astype(str) == _static_key]
+                    elif partition_static_column and partition_static_column in _frame.columns and not _is_multi:
+                        _frame = _frame[_frame[partition_static_column].astype(str) == str(_pk)]
+                    dataframes[_key] = _frame
 
             # Handle multiple DataFrames
             if len(dataframes) == 1:

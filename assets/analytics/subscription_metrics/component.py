@@ -430,18 +430,6 @@ group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def subscription_metrics_asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
-            # Filter to current partition if partitioned
-            if context.has_partition_key:
-                _pk = context.partition_key
-                _is_multi = hasattr(_pk, "keys_by_dimension")
-                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
-                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
-                if partition_date_column and partition_date_column in upstream.columns and _date_key:
-                    upstream = upstream[upstream[partition_date_column].astype(str) == _date_key]
-                if partition_static_column and partition_static_column in upstream.columns and _static_key:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
-                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
             """Asset that calculates subscription metrics from Stripe data."""
 
             context.log.info(f"Calculating subscription metrics with {calculation_period} granularity")
@@ -453,6 +441,27 @@ group_name=group_name,
                 context.log.info(f"Loaded stripe: {len(stripe_data)} rows")
             if revenue_data is not None:
                 context.log.info(f"Loaded revenue: {len(revenue_data)} rows")
+
+            # Filter each connected input to current partition if partitioned
+            if context.has_partition_key:
+                _pk = context.partition_key
+                _is_multi = hasattr(_pk, "keys_by_dimension")
+                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
+
+                def _filter_partition(_frame):
+                    if _frame is None:
+                        return _frame
+                    if partition_date_column and partition_date_column in _frame.columns and _date_key:
+                        _frame = _frame[_frame[partition_date_column].astype(str) == _date_key]
+                    if partition_static_column and partition_static_column in _frame.columns and _static_key:
+                        _frame = _frame[_frame[partition_static_column].astype(str) == _static_key]
+                    elif partition_static_column and partition_static_column in _frame.columns and not _is_multi:
+                        _frame = _frame[_frame[partition_static_column].astype(str) == str(_pk)]
+                    return _frame
+
+                stripe_data = _filter_partition(stripe_data)
+                revenue_data = _filter_partition(revenue_data)
 
             if stripe_data is None or len(stripe_data) == 0:
                 raise ValueError("Stripe data is required for subscription metrics")

@@ -484,12 +484,18 @@ class DataframeJoin(Component, Model, Resolvable):
                 _is_multi = hasattr(_pk, "keys_by_dimension")
                 _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
                 _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
-                if partition_date_column and partition_date_column in upstream.columns and _date_key:
-                    upstream = upstream[upstream[partition_date_column].astype(str) == _date_key]
-                if partition_static_column and partition_static_column in upstream.columns and _static_key:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
-                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
+                if partition_date_column and partition_date_column in left.columns and _date_key:
+                    left = left[left[partition_date_column].astype(str) == _date_key]
+                if partition_static_column and partition_static_column in left.columns and _static_key:
+                    left = left[left[partition_static_column].astype(str) == _static_key]
+                elif partition_static_column and partition_static_column in left.columns and not _is_multi:
+                    left = left[left[partition_static_column].astype(str) == str(_pk)]
+                if partition_date_column and partition_date_column in right.columns and _date_key:
+                    right = right[right[partition_date_column].astype(str) == _date_key]
+                if partition_static_column and partition_static_column in right.columns and _static_key:
+                    right = right[right[partition_static_column].astype(str) == _static_key]
+                elif partition_static_column and partition_static_column in right.columns and not _is_multi:
+                    right = right[right[partition_static_column].astype(str) == str(_pk)]
             # Column schema/lineage metadata is built from the actual join
             # RESULT (below, right before each return) -- not from `left`
             # alone, since the joined output has right's columns too and a

@@ -441,23 +441,24 @@ group_name=self.group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def product_usage_asset(context: AssetExecutionContext, **inputs) -> pd.DataFrame:
-            # Filter to current partition if partitioned
-            if context.has_partition_key:
-                _pk = context.partition_key
-                _is_multi = hasattr(_pk, "keys_by_dimension")
-                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
-                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
-                if partition_date_column and partition_date_column in upstream.columns and _date_key:
-                    upstream = upstream[upstream[partition_date_column].astype(str) == _date_key]
-                if partition_static_column and partition_static_column in upstream.columns and _static_key:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
-                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
             """Analyze product usage patterns."""
 
             context.log.info(f"Analyzing product usage for past {component.analysis_period_days} days...")
 
             event_data = inputs.get('event_data')
+            # Filter to current partition if partitioned
+            if context.has_partition_key and event_data is not None:
+                _pk = context.partition_key
+                _is_multi = hasattr(_pk, "keys_by_dimension")
+                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
+                if partition_date_column and partition_date_column in event_data.columns and _date_key:
+                    event_data = event_data[event_data[partition_date_column].astype(str) == _date_key]
+                if partition_static_column and partition_static_column in event_data.columns and _static_key:
+                    event_data = event_data[event_data[partition_static_column].astype(str) == _static_key]
+                elif partition_static_column and partition_static_column in event_data.columns and not _is_multi:
+                    event_data = event_data[event_data[partition_static_column].astype(str) == str(_pk)]
+
             events = component._prepare_event_data(event_data)
 
             if events.empty:

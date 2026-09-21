@@ -25,21 +25,23 @@
     "method": {
       "type": "string",
       "label": "Method",
-      "description": "Method",
+      "description": "HTTP method",
       "required": false,
-      "default": "GET"
+      "default": "GET",
+      "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
+      "ui:widget": "select"
     },
     "headers": {
       "type": "string",
       "label": "Headers",
-      "description": "JSON string of HTTP headers (e.g., ",
+      "description": "HTTP headers as a JSON string, e.g. '{\"Authorization\": \"Bearer t\"}'.",
       "required": false,
       "default": null
     },
     "params": {
       "type": "string",
       "label": "Params",
-      "description": "JSON string of query parameters (e.g., ",
+      "description": "Query parameters as a JSON string, e.g. '{\"page\": \"1\"}'.",
       "required": false,
       "default": null
     },
@@ -53,21 +55,23 @@
     "auth_type": {
       "type": "string",
       "label": "Auth Type",
-      "description": "Authentication type: ",
+      "description": "Authentication type — leave empty for no auth.",
       "required": false,
-      "default": null
+      "default": null,
+      "enum": ["basic", "bearer"],
+      "ui:widget": "select"
     },
     "auth_username": {
       "type": "string",
       "label": "Auth Username",
-      "description": "Auth Username",
+      "description": "Username for basic authentication (use ${USERNAME} for an env var).",
       "required": false,
       "default": null
     },
     "auth_password": {
       "type": "string",
       "label": "Auth Password",
-      "description": "Auth Password",
+      "description": "Password for basic authentication (use ${PASSWORD} for an env var).",
       "required": false,
       "default": null,
       "ui:widget": "password"
@@ -75,7 +79,7 @@
     "auth_token": {
       "type": "string",
       "label": "Auth Token",
-      "description": "Auth Token",
+      "description": "Bearer token for authentication (use ${API_TOKEN} for an env var).",
       "required": false,
       "default": null,
       "ui:widget": "password"
@@ -90,14 +94,16 @@
     "output_format": {
       "type": "string",
       "label": "Output Format",
-      "description": "Output format: ",
+      "description": "'dataframe' (parsed JSON in a pandas DataFrame, ready for downstream transforms), 'json' (raw dict/list), 'csv', 'parquet', or 'text'/'html' (raw response body in a 1-row DataFrame).",
       "required": false,
-      "default": "json"
+      "default": "dataframe",
+      "enum": ["dataframe", "json", "csv", "parquet", "text", "html"],
+      "ui:widget": "select"
     },
     "json_path": {
       "type": "string",
       "label": "Json Path",
-      "description": "JSON path to extract data from response (e.g., ",
+      "description": "JSON path to extract data from the response, e.g. 'data.results'.",
       "required": false,
       "default": null
     },
@@ -112,7 +118,7 @@
     "cache_path": {
       "type": "string",
       "label": "Cache Path",
-      "description": "Cache Path",
+      "description": "Path to the cache file (required if Cache Results is enabled).",
       "required": false,
       "default": null
     },

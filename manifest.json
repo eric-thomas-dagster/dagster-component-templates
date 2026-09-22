@@ -36319,15 +36319,17 @@
       "id": "prefect_flow_run",
       "name": "Prefect Flow Run",
       "category": "infrastructure",
-      "description": "Trigger a Prefect deployment and materialize the flow run as a Dagster asset. Optionally waits for completion; flow_run_id + state + a clickable Prefect UI run link land in materialization metadata. Dagster run termination is forwarded as a Prefect flow-run cancellation by default (forward_termination). Optional stream_logs forwards the flow's own Prefect logs into the Dagster run log while waiting, via Prefect's read_logs API \u2014 no shared filesystem or blob store needed. Supports an optional execution_mode='pipes' to delegate to dagster-prefect's official Pipes client instead. Works with local Prefect server + Prefect Cloud.",
+      "description": "Trigger a Prefect deployment and materialize the flow run as a Dagster asset. Optionally waits for completion; flow_run_id + state + a clickable Prefect UI run link land in materialization metadata. Dagster run termination is forwarded as a Prefect flow-run cancellation by default (forward_termination). Optional stream_logs/stream_artifacts forward the flow's own Prefect logs and artifacts into the Dagster run log / event history while waiting, via Prefect's own read_logs/read_artifacts APIs \u2014 no shared filesystem or blob store needed. check_names turns a matching artifact into a real AssetCheckResult. Supports an optional execution_mode='pipes' to delegate to dagster-prefect's official Pipes client instead. Works with local Prefect server + Prefect Cloud.",
       "version": "1.1.0",
       "author": "Dagster Community",
       "path": "assets/infrastructure/prefect_flow_run",
       "tags": [
+        "asset-checks",
         "cancellation",
         "durable-execution",
         "hybrid",
         "log-streaming",
+        "observations",
         "pipes-optional",
         "prefect",
         "workflow-orchestration"
@@ -36348,7 +36350,8 @@
         "evidence": "examples/dagster_orchestrates_prefect.md \u2014 Dagster partitions files, triggers Prefect flow per file, verified end-to-end."
       },
       "produces": [
-        "asset"
+        "asset",
+        "asset_check"
       ],
       "agent_hints": {
         "outputs": "Trigger a Prefect deployment and materialize the flow run as a Dagster asset.",
@@ -52969,9 +52972,51 @@
         "freshness check",
         "status check"
       ]
+    },
+    {
+      "id": "prefect_background_task",
+      "name": "Prefect Background Task",
+      "category": "infrastructure",
+      "description": "Submit a Prefect background task (.delay()) and materialize it as a Dagster asset. Requires a task worker already serving the task (prefect task serve). task_import_path must be importable from wherever this component runs \u2014 background tasks have no by-name trigger API the way deployments do (the official dagster-prefect PipesPrefectTaskClient has the identical requirement). Supports stream_logs/stream_artifacts/check_names the same way prefect_flow_run does. No forward_termination: Prefect's task workers ignore cancellation requests and run to completion regardless.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/prefect_background_task",
+      "tags": [
+        "asset-checks",
+        "durable-execution",
+        "hybrid",
+        "log-streaming",
+        "observations",
+        "prefect",
+        "workflow-orchestration"
+      ],
+      "dependencies": {
+        "pip": [
+          "prefect>=3.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/prefect_background_task/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/prefect_background_task/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/prefect_background_task/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/prefect_background_task/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/prefect_background_task/requirements.txt",
+      "produces": [
+        "asset",
+        "asset_check"
+      ],
+      "agent_hints": {
+        "outputs": "Submit a Prefect background task (.delay()) and materialize it as a Dagster asset.",
+        "requires_pip": [
+          "prefect>=3.0.0"
+        ]
+      },
+      "keywords": [
+        "infra"
+      ],
+      "icon": "si:prefect"
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 994
+  "total": 1024
 }

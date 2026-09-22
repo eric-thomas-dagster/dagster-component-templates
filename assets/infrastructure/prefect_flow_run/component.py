@@ -30,25 +30,64 @@ Two execution modes (`execution_mode`):
     can stream metadata/logs back during the run instead of only a
     terminal-state summary. Opt-in — most flows don't need this.
 
-On `stream_logs` vs. dagster-prefect's Pipes log streaming: Pipes' default
-message reader is a temp file, which only works when the Dagster step and
-the Prefect worker share a filesystem — not true for Dagster+ or any
-worker on separate infrastructure. Without a reachable message reader,
-dagster-prefect's docs say the asset still materializes on success, but
-silently *without* the metadata/logs/checks the flow reported — a quiet
-failure mode, not an error. `stream_logs` sidesteps this by polling
-Prefect's own `read_logs` API (the same store the Prefect UI reads from,
+On `stream_logs`/`stream_artifacts` vs. dagster-prefect's Pipes streaming:
+Pipes' default message reader is a temp file, which only works when the
+Dagster step and the Prefect worker share a filesystem — not true for
+Dagster+ or any worker on separate infrastructure. Without a reachable
+message reader, dagster-prefect's docs say the asset still materializes
+on success, but silently *without* the metadata/logs/checks the flow
+reported — a quiet failure mode, not an error. `stream_logs` and
+`stream_artifacts` sidestep this by polling Prefect's own `read_logs` /
+`read_artifacts` APIs (the same stores the Prefect UI reads from,
 centrally hosted, reachable wherever the Prefect API already is) instead
-of needing any shared filesystem or blob store — it costs one extra API
-call per poll tick, nothing else.
+of needing any shared filesystem or blob store:
+
+  - `stream_logs` forwards the flow's own log lines into the Dagster run
+    log as they're written.
+  - `stream_artifacts` forwards Prefect artifacts (`create_markdown_artifact`,
+    `create_table_artifact`, `create_progress_artifact`, `create_link_artifact`,
+    `create_image_artifact` — calls the flow may already be making, with zero
+    Dagster-awareness needed) as discrete `AssetObservation` events, mapped
+    onto the matching `MetadataValue` type. Combined with `check_names`, an
+    artifact whose key matches a declared check name is reported as a real
+    `AssetCheckResult` instead — see `check_names` below for the convention.
+
+Both cost one extra API call per poll tick; both default off.
 
 Docs: https://docs.prefect.io/latest/develop/deployments/
 """
+import json
 import os
 from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
 from pydantic import Field
+
+
+def _parse_table_artifact_data(data: Any) -> Any:
+    """Prefect table artifacts store `data` as a JSON-encoded STRING (verified
+    against a live server — NOT already a parsed list/dict, unlike e.g.
+    progress artifacts, which come back as a plain int/float). Decode it, or
+    return as-is if it's already structured (defensive against a future
+    Prefect version changing this)."""
+    if isinstance(data, str):
+        try:
+            return json.loads(data)
+        except (TypeError, ValueError):
+            return data
+    return data
+
+
+def _first_table_row(parsed: Any) -> Dict[str, Any]:
+    """Prefect table artifacts are a list of row-dicts even for a single
+    logical row (create_table_artifact(table=[{"passed": True, ...}])) —
+    verified against a live server. Unwrap the first row for the check
+    convention, which only cares about one row's worth of fields."""
+    if isinstance(parsed, list) and parsed and isinstance(parsed[0], dict):
+        return parsed[0]
+    if isinstance(parsed, dict):
+        return parsed
+    return {}
 
 
 def _build_partitions_def(
@@ -144,13 +183,87 @@ def _forward_prefect_log(dagster_log: Any, entry: Any) -> None:
         dagster_log.debug(message)
 
 
+def _artifact_metadata_value(artifact: Any) -> Any:
+    """Map a Prefect Artifact's native `type` onto the matching Dagster MetadataValue.
+
+    Verified against prefect.artifacts: create_markdown_artifact AND
+    create_link_artifact both produce type='markdown' (a link artifact is just
+    markdown `[text](url)` under the hood); create_table_artifact -> 'table';
+    create_progress_artifact -> 'progress'; create_image_artifact -> 'image'.
+    """
+    data = artifact.data
+    if artifact.type == "markdown":
+        return dg.MetadataValue.md(str(data))
+    if artifact.type == "table":
+        return dg.MetadataValue.json(_parse_table_artifact_data(data))
+    if artifact.type == "progress":
+        try:
+            return dg.MetadataValue.float(float(data))
+        except (TypeError, ValueError):
+            return dg.MetadataValue.text(str(data))
+    if artifact.type == "image":
+        return dg.MetadataValue.url(str(data))
+    return dg.MetadataValue.text(str(data))
+
+
+def _forward_prefect_artifact(
+    context: Any, asset_key: Any, artifact: Any, check_names: set,
+) -> Optional[Any]:
+    """Forward one Prefect Artifact. Returns an AssetCheckResult if the
+    artifact's key matches a declared check_names entry (the CALLER is
+    responsible for yielding it — Dagster requires check results to be
+    yielded from the asset function's own body when check_specs are
+    declared; log_event alone doesn't satisfy that, even though it also
+    accepts AssetCheckEvaluation — verified directly against a running
+    materialize() call, not assumed). Plain (non-check) artifacts are
+    logged immediately as an AssetObservation and this returns None —
+    observations aren't part of an op's declared Output arity, so they're
+    safe to emit eagerly from anywhere, including nested calls like this one.
+
+    Check convention (documented on the `check_names` field): the flow writes
+    a table artifact whose key, with dashes read as underscores, matches a
+    declared check name, with `data` containing at least `{"passed": bool}`.
+    Any other keys in `data` become check metadata. Non-table artifacts
+    sharing a check-name key still become observations (the convention only
+    claims table artifacts).
+
+    The dash/underscore translation isn't cosmetic — it's a real, verified
+    conflict between the two systems: Prefect artifact keys must be
+    lowercase letters/digits/dashes (Prefect rejects underscores), while
+    Dagster check names must match `^[A-Za-z0-9_]+$` (Dagster rejects
+    dashes). `check_names` holds valid Dagster identifiers (underscores);
+    the flow's artifact key is its dash-equivalent.
+    """
+    translated_key = artifact.key.replace("-", "_") if artifact.key else None
+    if translated_key and translated_key in check_names and artifact.type == "table":
+        row = _first_table_row(_parse_table_artifact_data(artifact.data))
+        passed = bool(row.get("passed"))
+        extra_metadata = {k: v for k, v in row.items() if k != "passed"}
+        return dg.AssetCheckResult(
+            check_name=translated_key,
+            passed=passed,
+            description=artifact.description,
+            metadata=extra_metadata or None,
+        )
+
+    key = artifact.key or f"prefect_artifact_{artifact.id}"
+    context.log_event(dg.AssetObservation(
+        asset_key=asset_key,
+        metadata={key: _artifact_metadata_value(artifact)},
+    ))
+    return None
+
+
 def _poll_flow_run_until_terminal(
+    context: Any,
+    asset_key: Any,
     flow_run_id: Any,
     timeout_seconds: Optional[int],
     poll_interval_seconds: float,
     forward_termination: bool,
     stream_logs: bool,
-    log: Any,
+    stream_artifacts: bool,
+    check_names: set,
 ):
     """Poll a Prefect flow run (already submitted) until it reaches a terminal state.
 
@@ -163,8 +276,17 @@ def _poll_flow_run_until_terminal(
 
     When `stream_logs`, each tick also pulls new Prefect log rows (via
     `client.read_logs`, cursor = last-seen timestamp) and forwards them into the
-    Dagster run log — see the module docstring for why this exists instead of
+    Dagster run log. When `stream_artifacts`, each tick also pulls Prefect
+    artifacts for this flow run (via `client.read_artifacts` — no timestamp
+    filter exists server-side for artifacts, so we dedup client-side against
+    already-forwarded artifact ids) and forwards each as an AssetObservation
+    (immediately, via log_event) or collects it as an AssetCheckResult for the
+    caller to yield — see the module docstring for why this exists instead of
     relying on dagster-prefect's Pipes message reader.
+
+    Returns (flow_run, collected_check_results) — the caller must yield each
+    collected check result itself (see `_forward_prefect_artifact`'s docstring
+    for why that can't happen from in here).
     """
     import asyncio
     import time as _time
@@ -174,10 +296,13 @@ def _poll_flow_run_until_terminal(
     from prefect.client.orchestration import get_client
 
     log_cursor: Dict[str, Any] = {"after": None}
+    seen_artifact_ids: set = set()
+    collected_checks: List[Any] = []
 
     async def _tick():
         async with get_client() as client:
             fr = await client.read_flow_run(flow_run_id)
+
             new_logs: List[Any] = []
             if stream_logs:
                 from prefect.client.schemas.filters import (
@@ -200,7 +325,20 @@ def _poll_flow_run_until_terminal(
                     # +1us: `after_` is inclusive, so bump past the last-seen
                     # timestamp to avoid re-forwarding the same line next tick.
                     log_cursor["after"] = new_logs[-1].timestamp + timedelta(microseconds=1)
-            return fr, new_logs
+
+            new_artifacts: List[Any] = []
+            if stream_artifacts:
+                from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterFlowRunId
+
+                all_artifacts = await client.read_artifacts(
+                    artifact_filter=ArtifactFilter(
+                        flow_run_id=ArtifactFilterFlowRunId(any_=[flow_run_id]),
+                    ),
+                )
+                new_artifacts = [a for a in all_artifacts if a.id not in seen_artifact_ids]
+                seen_artifact_ids.update(a.id for a in new_artifacts)
+
+            return fr, new_logs, new_artifacts
 
     async def _cancel():
         from prefect.states import Cancelling
@@ -211,11 +349,15 @@ def _poll_flow_run_until_terminal(
     start = _time.monotonic()
     try:
         while True:
-            fr, new_logs = asyncio.run(_tick())
+            fr, new_logs, new_artifacts = asyncio.run(_tick())
             for entry in new_logs:
-                _forward_prefect_log(log, entry)
+                _forward_prefect_log(context.log, entry)
+            for artifact in new_artifacts:
+                check_result = _forward_prefect_artifact(context, asset_key, artifact, check_names)
+                if check_result is not None:
+                    collected_checks.append(check_result)
             if fr.state is not None and fr.state.is_final():
-                return fr
+                return fr, collected_checks
             if timeout_seconds is not None and (_time.monotonic() - start) > timeout_seconds:
                 raise TimeoutError(
                     f"Timed out after {timeout_seconds}s waiting for Prefect flow "
@@ -224,13 +366,13 @@ def _poll_flow_run_until_terminal(
             _time.sleep(poll_interval_seconds)
     except DagsterExecutionInterruptedError:
         if forward_termination:
-            log.info(
+            context.log.info(
                 f"Dagster run terminated — cancelling Prefect flow run {flow_run_id}"
             )
             try:
                 asyncio.run(_cancel())
             except Exception as cancel_err:
-                log.warning(
+                context.log.warning(
                     f"Failed to cancel Prefect flow run {flow_run_id}: {cancel_err}"
                 )
         raise
@@ -280,6 +422,12 @@ def _run_via_pipes(
         context.log.warning(
             "stream_logs is only used in execution_mode='poll'; Pipes streams "
             "logs/metadata through its own message reader instead. Ignoring."
+        )
+    if cfg.stream_artifacts:
+        context.log.warning(
+            "stream_artifacts is only used in execution_mode='poll'; Pipes "
+            "reports metadata/checks through its own message reader instead. "
+            "Ignoring."
         )
 
     api_key = os.environ.get(cfg.api_key_env_var) if cfg.api_key_env_var else None
@@ -341,6 +489,26 @@ class PrefectFlowRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
           asset_name: nightly_report
           deployment_name: "reporting/nightly"
           stream_logs: true
+          api_url: http://127.0.0.1:4200/api
+        ```
+
+    Example — forward the flow's Prefect artifacts as observation metadata,
+    and turn one specific artifact into a real AssetCheckResult. The flow
+    just needs `create_table_artifact(key="row-count-check", table=[{"passed":
+    True, "rows": 1200}])` — a one-row table, Prefect's own artifact table
+    shape — no Dagster-awareness required. Note the artifact key uses DASHES
+    (Prefect's own naming rule) while check_names uses UNDERSCORES (Dagster's
+    own naming rule) — this component translates between them, see the
+    check_names field docs for why both rules exist:
+
+        ```yaml
+        type: dagster_community_components.PrefectFlowRunAssetComponent
+        attributes:
+          asset_name: nightly_report
+          deployment_name: "reporting/nightly"
+          stream_artifacts: true
+          check_names: [row_count_check]
+          wait_for_result: true
           api_url: http://127.0.0.1:4200/api
         ```
 
@@ -456,6 +624,42 @@ class PrefectFlowRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             "extra API call per poll tick; off by default."
         ),
     )
+    stream_artifacts: bool = Field(
+        default=False,
+        description=(
+            "Only in execution_mode='poll'. Forward Prefect artifacts the flow "
+            "creates (create_markdown_artifact, create_table_artifact, "
+            "create_progress_artifact, create_link_artifact, create_image_artifact — "
+            "calls the flow may already be making, no Dagster-awareness required) as "
+            "AssetObservation events with the matching MetadataValue type. Combine "
+            "with check_names to turn specific artifacts into AssetCheckResults "
+            "instead. Costs one extra API call per poll tick; off by default."
+        ),
+    )
+    check_names: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Requires stream_artifacts=True, wait_for_result=True, and "
+            "execution_mode='poll' (validated at build time). Declares these as "
+            "AssetCheckSpecs on the asset. Convention: the flow writes a table "
+            "artifact (create_table_artifact) whose KEY, READ WITH DASHES AS "
+            "UNDERSCORES, matches one of these names — e.g. check_names: "
+            "[row_count_check] matches an artifact key of 'row-count-check'. "
+            "This translation is required, not cosmetic: Prefect artifact keys "
+            "must be lowercase letters/digits/dashes (no underscores allowed), "
+            "while Dagster check names must match ^[A-Za-z0-9_]+$ (no dashes "
+            "allowed) — the two systems' naming rules directly conflict. Pass "
+            "table=[{'passed': bool, ...}] — a one-row table, Prefect's own "
+            "artifact shape (create_table_artifact rejects a bare dict); other "
+            "keys in that row become check metadata. A declared check that gets no matching "
+            "artifact on a given run is reported as passed=False with an "
+            "explanatory description, not silently skipped — Dagster requires "
+            "every declared check to get a result every run, or the whole step "
+            "fails with a confusing engine error instead. This is a convention "
+            "this component defines on top of Prefect's artifacts, not a native "
+            "Prefect concept (Prefect has no pass/fail check primitive)."
+        ),
+    )
 
     # Execution
     execution_mode: str = Field(
@@ -507,6 +711,31 @@ class PrefectFlowRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 f"PrefectFlowRunAssetComponent: execution_mode must be 'poll' or "
                 f"'pipes', got {self.execution_mode!r}."
             )
+        if self.check_names:
+            # A declared AssetCheckSpec that never gets a result yielded for it
+            # doesn't skip quietly — Dagster hard-fails the whole run
+            # (DagsterStepOutputNotFoundError), verified directly. Every
+            # combination below guarantees collected_checks would be empty
+            # (or, in pipes mode, always ignored), so refuse them up front
+            # with a clear message instead of letting every run fail on a
+            # confusing engine error.
+            if not self.stream_artifacts:
+                raise ValueError(
+                    "PrefectFlowRunAssetComponent: check_names requires "
+                    "stream_artifacts=True — that's the only way a check result "
+                    "is ever collected."
+                )
+            if not self.wait_for_result:
+                raise ValueError(
+                    "PrefectFlowRunAssetComponent: check_names requires "
+                    "wait_for_result=True — checks are collected while polling."
+                )
+            if self.execution_mode == "pipes":
+                raise ValueError(
+                    "PrefectFlowRunAssetComponent: check_names is not supported "
+                    "with execution_mode='pipes' — report checks through Pipes' "
+                    "own report_asset_check() instead."
+                )
 
         partitions_def = _build_partitions_def(
             self.partition_type, self.partition_start, self.partition_values,
@@ -524,6 +753,13 @@ class PrefectFlowRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 maximum_lag_minutes=self.freshness_max_lag_minutes,
                 cron_schedule=self.freshness_cron,
             )
+
+        asset_key = dg.AssetKey.from_user_string(self.asset_name)
+        check_names_set = set(self.check_names or [])
+        check_specs = (
+            [dg.AssetCheckSpec(name=n, asset=asset_key) for n in self.check_names]
+            if self.check_names else None
+        )
 
         retry_policy = None
         if self.retry_policy_max_retries is not None:
@@ -554,7 +790,7 @@ class PrefectFlowRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
         @dg.asset(
-            key=dg.AssetKey.from_user_string(self.asset_name),
+            key=asset_key,
             description=self.description or f"Trigger Prefect deployment {self.deployment_name}",
             group_name=self.group_name,
             owners=self.owners or [],
@@ -563,11 +799,19 @@ class PrefectFlowRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             freshness_policy=freshness,
             retry_policy=retry_policy,
             deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
+            check_specs=check_specs,
         )
-        def _flow_run_asset(context: dg.AssetExecutionContext) -> Any:
-            # Return type is `dict` in execution_mode='poll' (see below) or a
-            # `MaterializeResult` in execution_mode='pipes' (_run_via_pipes) —
-            # Dagster dispatches on the runtime value either way.
+        def _flow_run_asset(context: dg.AssetExecutionContext):
+            # No return-type annotation, and this is a generator (has yield
+            # below) rather than a plain `return` function: when check_specs
+            # is set, Dagster's op layer (a) statically rejects a non-Tuple
+            # return annotation for a multi-output op, and (b) at runtime
+            # requires each declared check to be produced via `yield
+            # AssetCheckResult(...)` — log_event alone doesn't satisfy the
+            # output-arity bookkeeping. Both verified directly against a
+            # running materialize() call. Yielding is harmless when
+            # check_specs is None too (the common case), so this shape is
+            # unconditional rather than branching on whether checks are set.
             _apply_env()
             from prefect.deployments import run_deployment
 
@@ -599,7 +843,8 @@ class PrefectFlowRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
             if _self.execution_mode == "pipes":
-                return _run_via_pipes(context, _self, params)
+                yield _run_via_pipes(context, _self, params)
+                return
 
             # execution_mode == "poll": submit without waiting (timeout=0), then
             # poll ourselves so forward_termination can reach the flow_run_id even
@@ -613,15 +858,35 @@ class PrefectFlowRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 poll_interval=_self.poll_interval_seconds,
             )
 
+            collected_checks: List[Any] = []
             if _self.wait_for_result:
-                flow_run = _poll_flow_run_until_terminal(
+                flow_run, collected_checks = _poll_flow_run_until_terminal(
+                    context=context,
+                    asset_key=asset_key,
                     flow_run_id=flow_run.id,
                     timeout_seconds=_self.timeout_seconds,
                     poll_interval_seconds=_self.poll_interval_seconds,
                     forward_termination=_self.forward_termination,
                     stream_logs=_self.stream_logs,
-                    log=context.log,
+                    stream_artifacts=_self.stream_artifacts,
+                    check_names=check_names_set,
                 )
+            reported_names = {c.check_name for c in collected_checks}
+            for missing_name in check_names_set - reported_names:
+                # A declared check MUST get a result every run or Dagster
+                # hard-fails the whole step (DagsterStepOutputNotFoundError,
+                # a confusing engine error) — report an honest, attributable
+                # failure instead of letting that happen.
+                collected_checks.append(dg.AssetCheckResult(
+                    check_name=missing_name,
+                    passed=False,
+                    description=(
+                        f"No Prefect table artifact with key={missing_name!r} and "
+                        f"data containing 'passed' was reported for this flow run."
+                    ),
+                ))
+            for check_result in collected_checks:
+                yield check_result
 
             state = flow_run.state
             state_name = getattr(state, "name", "unknown") if state else "unknown"
@@ -642,7 +907,11 @@ class PrefectFlowRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 "parameters": dg.MetadataValue.json(params),
                 "wait_for_result": dg.MetadataValue.bool(_self.wait_for_result),
             }
-            context.add_output_metadata(result_meta)
+            # output_name is required once check_specs adds extra Out()s to the
+            # op (ambiguous without it) — "result" is @dg.asset's default
+            # primary-output name either way, so this is correct whether or
+            # not check_names is set.
+            context.add_output_metadata(result_meta, output_name="result")
 
             terminal_success = (state_type == "COMPLETED")
             terminal_failure = (state_type in {"FAILED", "CRASHED", "CANCELLED"})
@@ -667,12 +936,12 @@ class PrefectFlowRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     metadata=result_meta,
                 )
 
-            return {
+            yield dg.Output({
                 "flow_run_id": str(flow_run.id),
                 "state_name": state_name,
                 "state_type": state_type,
                 "parameters": params,
                 "terminal_success": terminal_success,
-            }
+            })
 
         return dg.Definitions(assets=[_flow_run_asset])

@@ -16,7 +16,7 @@ Works against:
 
 ## Templating
 
-String parameter values (and `flow_run_name`) support `{partition_key}` and `{run_id}` substitution. Non-string values pass through unchanged.
+String parameter values (and `flow_run_name`) support `{partition_key}`, `{run_id}`, and `{partition_window_start}` / `{partition_window_end}` (ISO 8601, time-window partitions only — empty string otherwise). Non-string values pass through unchanged.
 
 ## Failure semantics
 
@@ -24,8 +24,34 @@ String parameter values (and `flow_run_name`) support `{partition_key}` and `{ru
 - `wait_for_result: true` + `fail_on_flow_run_failure: false`: asset always materializes; inspect state in metadata.
 - `wait_for_result: false`: asset materializes immediately after submitting the flow run; downstream check the state via a sensor or another asset.
 
+## Cancellation
+
+`forward_termination` (default `true`): if the Dagster run is terminated/interrupted while waiting, the Prefect flow run is cancelled via the plain Prefect SDK — no `dagster-prefect` dependency needed. This mirrors `dagster-prefect`'s own Pipes client behavior of the same name, built independently on `client.set_flow_run_state(id, Cancelling())`. Live-verified: a SIGINT mid-wait produces a Prefect flow run that reaches `CANCELLED`, confirmed via the Prefect API.
+
+## Observability without a shared filesystem or blob store
+
+The official `dagster-prefect` Pipes client's default message reader is a temp file — it only works when the Dagster step and the Prefect worker share a filesystem, which isn't true for Dagster+ or any worker on separate infrastructure. Without a reachable reader, `dagster-prefect`'s own docs say the asset still materializes on success, but silently *without* the metadata/logs/checks the flow reported — a quiet failure mode, not an error.
+
+- `stream_logs` (default `false`): forwards the flow's own Prefect log lines into the Dagster run log while waiting, via `read_logs` with a timestamp cursor. Live-verified: INFO/WARNING lines from inside the flow appear in the Dagster run log in near-real-time, each exactly once.
+- `stream_artifacts` (default `false`): forwards Prefect artifacts the flow creates (`create_markdown_artifact`, `create_table_artifact`, `create_progress_artifact`, `create_link_artifact`, `create_image_artifact` — calls the flow may already be making, no Dagster-awareness required) as `AssetObservation` events, mapped onto the matching `MetadataValue` type (markdown → `md`, table → `json`, progress → `float`, image/link → `url`). Live-verified against a real server.
+
+Both cost one extra API call per poll tick; both read from the same store the Prefect UI itself reads from — no S3/GCS bucket, no shared volume.
+
+## Check convention
+
+`check_names` (requires `stream_artifacts: true`, `wait_for_result: true`, `execution_mode: poll` — validated at build time) turns a matching Prefect table artifact into a real `AssetCheckResult`. The flow writes `create_table_artifact(key="row-count-check", table=[{"passed": True, "rows": 1200}])` — a one-row table, Prefect's own artifact shape — and declares `check_names: [row_count_check]`.
+
+The KEY translation is required, not cosmetic: Prefect artifact keys must be lowercase letters/digits/dashes (Prefect rejects underscores), while Dagster check names must match `^[A-Za-z0-9_]+$` (Dagster rejects dashes) — verified directly, these two systems' naming rules conflict. This component translates automatically (dashes read as underscores) so `check_names: [row_count_check]` matches an artifact keyed `row-count-check`.
+
+A declared check that never gets a matching artifact on a given run is reported as `passed=False` with an explanatory description, not silently skipped — verified directly that Dagster hard-fails the whole step (`DagsterStepOutputNotFoundError`, a confusing engine error) if a declared check gets no result at all, so this component always reports *something* for every declared name.
+
+## Pipes mode (`execution_mode: pipes`)
+
+Opt-in delegation to the official `dagster-prefect` package's `PipesPrefectDeploymentClient`. Requires `pip install dagster-prefect` and the flow to open a Pipes session (`open_dagster_pipes()`) — a real code change, unlike the default `poll` mode. Useful when a flow wants to report arbitrary typed metadata or asset checks mid-run through Pipes' own protocol rather than through the artifact convention above. `timeout_seconds`, `fail_on_flow_run_failure`, `stream_logs`, `stream_artifacts`, and `check_names` are all ignored in this mode (logged as warnings) — Pipes has its own equivalents.
+
 ## Related
 
+- [`prefect_background_task`](../prefect_background_task) — the same trigger-and-observe shape for a single Prefect `@task` instead of a whole `@flow`.
 - [`prefect_resource`](../../../resources/prefect_resource) — optional shared connection resource.
 - [`prefect_flow_run_sensor`](../../../sensors/prefect_flow_run_sensor) — react to Prefect flow completions from Dagster.
 
@@ -95,6 +121,7 @@ String parameter values (and `flow_run_name`) support `{partition_key}` and `{ru
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `stream_logs` | `bool` | `false` | Only in execution_mode='poll'. Forward the flow's own Prefect logs into the Dagster run log while waiting, via Prefect's read_logs API — no shared filesystem or blob store required (unlike dagster-prefect's Pipes message… _(full docs in schema.json + component README)_ |
+| `stream_artifacts` | `bool` | `false` | Only in execution_mode='poll'. Forward Prefect artifacts the flow creates (create_markdown_artifact, create_table_artifact, create_progress_artifact, create_link_artifact, create_image_artifact — calls the flow may alrea… _(full docs in schema.json + component README)_ |
 
 ### Other
 
@@ -106,6 +133,7 @@ String parameter values (and `flow_run_name`) support `{partition_key}` and `{ru
 | `ui_url` | `str` | — | Base URL of the Prefect UI, used to build the 'Prefect Run URL' materialization metadata link. Defaults to api_url with its trailing '/api' stripped, which is correct for a local/self-hosted server. Prefect Cloud serves… _(full docs in schema.json + component README)_ |
 | `fail_on_flow_run_failure` | `bool` | `true` | When True and wait_for_result=True, the Dagster asset fails if the Prefect flow run ends in a non-COMPLETED state (FAILED, CRASHED, CANCELLED). When False, the asset always materializes successfully — inspect the state i… _(full docs in schema.json + component README)_ |
 | `forward_termination` | `bool` | `true` | When wait_for_result=True, cancel the Prefect flow run if the Dagster run is terminated/interrupted while waiting. Uses the plain Prefect SDK (no dagster-prefect dependency) — same behavior dagster-prefect's Pipes client… _(full docs in schema.json + component README)_ |
+| `check_names` | `List[str]` | — | Requires stream_artifacts=True, wait_for_result=True, and execution_mode='poll' (validated at build time). Declares these as AssetCheckSpecs on the asset. Convention: the flow writes a table artifact (create_table_artifa… _(full docs in schema.json + component README)_ |
 | `execution_mode` | `str` | `"poll"` | 'poll' (default) — trigger + poll via the plain Prefect SDK, zero flow code changes required. 'pipes' — delegate to dagster-prefect's PipesPrefectDeploymentClient for in-flight metadata/log streaming; requires `pip insta… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | — |
 

@@ -1023,6 +1023,7 @@ _CLASS_PATHS: dict[str, str] = {
     "TectonAssetComponent": "assets/analytics/tecton_asset/component.py",
     "TerraformAssetComponent": "assets/infrastructure/terraform_asset/component.py",
     "TerraformCloudAssetComponent": "assets/infrastructure/terraform_cloud_asset/component.py",
+    "PrefectBackgroundTaskAssetComponent": "assets/infrastructure/prefect_background_task/component.py",
     "PrefectFlowRunAssetComponent": "assets/infrastructure/prefect_flow_run/component.py",
     "PrefectFlowRunSensorComponent": "sensors/prefect_flow_run_sensor/component.py",
     "PrefectResourceComponent": "resources/prefect_resource/component.py",

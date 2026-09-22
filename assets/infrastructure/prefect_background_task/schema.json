@@ -1,6 +1,6 @@
 {
-  "component_type": "dagster_community_components.PrefectFlowRunAssetComponent",
-  "description": "Trigger a Prefect deployment as a Dagster asset. Optionally waits for the flow run to complete. Materialization metadata carries the Prefect flow_run_id, state, state message, and parameters. Works with local Prefect server and Prefect Cloud.",
+  "component_type": "dagster_community_components.PrefectBackgroundTaskAssetComponent",
+  "description": "Submit a Prefect background task (.delay()) as a Dagster asset. Requires a task worker serving the task. task_import_path must be importable from wherever this component runs — background tasks have no by-name trigger API.",
   "category": "infrastructure",
   "icon": "Play",
   "attributes": {
@@ -10,24 +10,24 @@
       "required": true,
       "description": "Dagster asset name (or '/' path)."
     },
-    "deployment_name": {
+    "task_import_path": {
       "type": "string",
-      "label": "Deployment Name",
+      "label": "Task Import Path",
       "required": true,
-      "description": "Prefect deployment name in 'flow_name/deployment_name' format."
+      "description": "'module.path:function_name' of the @task-decorated function to submit."
     },
     "parameters": {
       "type": "object",
       "label": "Parameters",
       "required": false,
-      "description": "Parameters passed to the flow run. String values are templated: {partition_key}, {run_id}, {partition_window_start}, {partition_window_end}.",
+      "description": "Keyword args passed to task.delay(**parameters). Templated: {partition_key}, {run_id}, {partition_window_start}, {partition_window_end}.",
       "default": null
     },
     "wait_for_result": {
       "type": "boolean",
       "label": "Wait For Result",
       "required": false,
-      "description": "Wait for flow completion before materializing.",
+      "description": "Wait for task completion before materializing.",
       "default": true
     },
     "timeout_seconds": {
@@ -43,23 +43,6 @@
       "required": false,
       "description": "Only when wait_for_result=True. Seconds between polls.",
       "default": 5.0
-    },
-    "tags": {
-      "type": "array",
-      "label": "Tags",
-      "required": false,
-      "description": "Prefect tags applied to the created flow run.",
-      "default": null,
-      "items": {
-        "type": "string"
-      }
-    },
-    "flow_run_name": {
-      "type": "string",
-      "label": "Flow Run Name",
-      "required": false,
-      "description": "Optional custom flow run name (templated with {partition_key}, {run_id}).",
-      "default": null
     },
     "api_url": {
       "type": "string",
@@ -82,39 +65,32 @@
       "description": "Prefect UI base URL, for the Prefect Run URL metadata link. Defaults to api_url minus '/api'.",
       "default": null
     },
-    "fail_on_flow_run_failure": {
+    "fail_on_task_run_failure": {
       "type": "boolean",
-      "label": "Fail On Flow Run Failure",
+      "label": "Fail On Task Run Failure",
       "required": false,
-      "description": "Fail the Dagster asset if the Prefect flow ends in FAILED/CRASHED/CANCELLED. Ignored in execution_mode='pipes'.",
-      "default": true
-    },
-    "forward_termination": {
-      "type": "boolean",
-      "label": "Forward Termination",
-      "required": false,
-      "description": "Cancel the Prefect flow run if the Dagster run is terminated while waiting.",
+      "description": "Fail the Dagster asset if the Prefect task run ends in a non-COMPLETED state. Ignored in execution_mode='pipes'.",
       "default": true
     },
     "stream_logs": {
       "type": "boolean",
       "label": "Stream Logs",
       "required": false,
-      "description": "Forward the flow's own Prefect logs into the Dagster run log while waiting (via read_logs, no shared filesystem/blob store needed). execution_mode='poll' only.",
+      "description": "Forward the task's own Prefect logs into the Dagster run log while waiting. execution_mode='poll' only.",
       "default": false
     },
     "stream_artifacts": {
       "type": "boolean",
       "label": "Stream Artifacts",
       "required": false,
-      "description": "Forward Prefect artifacts the flow creates as AssetObservation events (or AssetCheckResults, via check_names). execution_mode='poll' only.",
+      "description": "Forward Prefect artifacts the task creates as AssetObservation events (or AssetCheckResults, via check_names). execution_mode='poll' only.",
       "default": false
     },
     "check_names": {
       "type": "array",
       "label": "Check Names",
       "required": false,
-      "description": "Only with stream_artifacts=true, wait_for_result=true, execution_mode='poll'. Table artifact keys (dashes read as underscores) matching these become AssetCheckResults.",
+      "description": "Only with stream_artifacts=true. Table artifact keys matching these become AssetCheckResults.",
       "default": null,
       "items": {
         "type": "string"
@@ -124,7 +100,7 @@
       "type": "string",
       "label": "Execution Mode",
       "required": false,
-      "description": "'poll' — plain Prefect SDK, no flow code changes. 'pipes' — official dagster-prefect Pipes client (requires pip install dagster-prefect + open_dagster_pipes() in the flow).",
+      "description": "'poll' — plain Prefect SDK, no task code changes. 'pipes' — official dagster-prefect PipesPrefectTaskClient (requires pip install dagster-prefect + a dagster_pipes_params argument on the task).",
       "default": "poll",
       "enum": ["poll", "pipes"],
       "ui:widget": "select"

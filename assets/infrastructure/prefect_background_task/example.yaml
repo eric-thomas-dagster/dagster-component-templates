@@ -1,0 +1,27 @@
+# PrefectBackgroundTaskAssetComponent — submit a Prefect background task
+# (.delay()) as a Dagster asset.
+#
+# Requires a task worker already serving the task (`prefect task serve`).
+# Unlike prefect_flow_run's deployment_name (a name string, no import
+# needed), task_import_path must be importable from wherever this component
+# builds its defs — background tasks have no by-name trigger API.
+
+type: dagster_community_components.PrefectBackgroundTaskAssetComponent
+attributes:
+  asset_name: summarized_doc
+  task_import_path: "my_project.tasks:summarize"
+
+  parameters:
+    doc_id: "{partition_key}"
+
+  # Forward the task's own Prefect logs into the Dagster run log while
+  # waiting — no shared filesystem or blob store needed.
+  stream_logs: true
+
+  # Local Prefect server (default). For Prefect Cloud:
+  # api_url: https://api.prefect.cloud/api/accounts/<acct>/workspaces/<ws>
+  # api_key_env_var: PREFECT_API_KEY
+  api_url: http://127.0.0.1:4200/api
+
+  group_name: prefect
+  kinds: [prefect]

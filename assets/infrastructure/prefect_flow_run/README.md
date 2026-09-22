@@ -8,6 +8,8 @@ Works against:
 - **Local server**: `prefect server start` → default `api_url` `http://127.0.0.1:4200/api`.
 - **Prefect Cloud**: set `api_url` + `api_key_env_var`.
 
+**Requires Prefect 3.0+.** Verified directly: Prefect 2's client schema classes (`LogFilter`, etc.) aren't Pydantic v2 models the way Prefect 3's are — `stream_logs`/`stream_artifacts` won't work against a 2.x server as written.
+
 ## Common shapes
 
 - **Unpartitioned trigger** — cron-driven or one-shot. Set `parameters` inline, `wait_for_result: true`.

@@ -180,12 +180,19 @@ class PrefectFlowRunSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                         ) if wanted_states else None,
                         end_time=FlowRunFilterEndTime(after_=cursor_dt),
                     )
+                    # END_TIME_ASC is not a valid sort value on a real server
+                    # (verified live: 422 "Input should be 'ID_DESC', ...
+                    # 'END_TIME_DESC'" — there's no ASC variant for end_time).
+                    # Every tick of this sensor would have failed against a
+                    # real Prefect instance. Sort DESC instead; latest_end
+                    # below is computed via a running max(), independent of
+                    # iteration order, so no other logic needed to change.
                     return await client.read_flow_runs(
                         flow_filter=flow_filter,
                         deployment_filter=dep_filter,
                         flow_run_filter=run_filter,
                         limit=200,
-                        sort="END_TIME_ASC",
+                        sort="END_TIME_DESC",
                     )
 
             flow_runs = asyncio.run(_fetch())

@@ -1,0 +1,111 @@
+{
+  "component_type": "dagster_community_components.PrefectWorkspaceComponent",
+  "description": "Auto-discover Prefect deployments and emit one triggerable Dagster asset per deployment, with prefect_flow_run's full observability (forward_termination, stream_logs, stream_artifacts) applied uniformly. check_names and Dagster-side scheduling are explicit, per-deployment opt-ins via assets_by_name. StateBackedComponent — discovery cached to disk.",
+  "category": "ingestion",
+  "icon": "si:prefect",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "One triggerable Dagster asset per discovered Prefect deployment. See README for what each materialization does."
+    }
+  },
+  "attributes": {
+    "deployment_selector": {
+      "type": "object",
+      "label": "Deployment Selector",
+      "required": false,
+      "description": "Inclusion/exclusion filter against 'flow_name/deployment_name' strings."
+    },
+    "wait_for_result": {
+      "type": "boolean",
+      "label": "Wait For Result",
+      "required": false,
+      "default": true
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "required": false
+    },
+    "poll_interval_seconds": {
+      "type": "number",
+      "label": "Poll Interval Seconds",
+      "required": false,
+      "default": 5.0
+    },
+    "fail_on_flow_run_failure": {
+      "type": "boolean",
+      "label": "Fail On Flow Run Failure",
+      "required": false,
+      "default": true
+    },
+    "forward_termination": {
+      "type": "boolean",
+      "label": "Forward Termination",
+      "required": false,
+      "default": true
+    },
+    "stream_logs": {
+      "type": "boolean",
+      "label": "Stream Logs",
+      "required": false,
+      "default": false,
+      "description": "Forward each deployment's own Prefect logs into the Dagster run log while waiting. Applies uniformly to every discovered deployment."
+    },
+    "stream_artifacts": {
+      "type": "boolean",
+      "label": "Stream Artifacts",
+      "required": false,
+      "default": false,
+      "description": "Forward each deployment's Prefect artifacts as AssetObservation events. Applies uniformly. Required if any assets_by_name entry sets check_names."
+    },
+    "assets_by_name": {
+      "type": "object",
+      "label": "Assets By Name",
+      "required": false,
+      "description": "Per-deployment overrides keyed by 'flow_name/deployment_name': key, group_name, description, deps, metadata, tags, kinds, owners, check_names, schedule. Nothing here applies globally — see README."
+    },
+    "auto_schedule": {
+      "type": "boolean",
+      "label": "Auto Schedule",
+      "required": false,
+      "default": false,
+      "description": "Master switch for Dagster-side scheduling. A deployment only gets a schedule if it's ALSO named in assets_by_name.<name>.schedule: true — never inferred from Prefect's own schedule state."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "asset_key_prefix": {
+      "type": "array",
+      "label": "Asset Key Prefix",
+      "required": false,
+      "default": ["prefect"]
+    },
+    "compute_kind": {
+      "type": "string",
+      "label": "Compute Kind",
+      "required": false,
+      "default": "prefect"
+    },
+    "poll_interval_seconds_sensor": {
+      "type": "integer",
+      "label": "Sensor Poll Interval Seconds",
+      "required": false,
+      "default": 60
+    },
+    "polling_sensor": {
+      "type": "boolean",
+      "label": "Polling Sensor",
+      "required": false,
+      "default": false,
+      "description": "Watch ALL discovered deployments for completions triggered outside Dagster and emit an AssetObservation on the matching asset."
+    },
+    "defs_state": {
+      "type": "object",
+      "label": "Defs State Config",
+      "required": false
+    }
+  }
+}

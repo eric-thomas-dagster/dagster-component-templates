@@ -4,7 +4,9 @@
 
 Prefect is a **workflow engine**, not a data orchestrator. Framed differently: Prefect is closer to Temporal than to Dagster — both are durable-execution engines for code-centric workflows, and both benefit from being placed into Dagster's asset catalog rather than replacing it. Dagster's role in a Prefect-adopting stack is the connective tissue: give Prefect flows first-class asset identity with lineage, gate downstream data work on their completion, and drive them from Dagster's schedule / sensor / partition model.
 
-The community registry ships **4 Prefect components** covering the trigger + observe + resource-registration surface — the same shape as [Temporal](temporal.md) and [Argo](argo.md).
+The community registry ships **5 Prefect components** covering the trigger + observe + discovery + resource-registration surface — the same shape as [Temporal](temporal.md) and [Argo](argo.md).
+
+**Requires Prefect 3.0+.** Verified directly, not assumed: Prefect 2's `@task` objects have no `.delay()` method at all (background tasks are a Prefect 3 feature), and Prefect 2's client schema classes (`LogFilter`, `ArtifactFilter`, etc.) aren't even Pydantic v2 models the way Prefect 3's are. Prefect 3 was a substantial rewrite — deployment model, client internals, background tasks as a new capability — nothing here works against 2.x unmodified.
 
 ## Positioning — Prefect vs. Temporal vs. Dagster
 
@@ -39,6 +41,7 @@ The pattern is the same in both directions:
 | [`prefect_flow_run`](https://dagster-component-ui.vercel.app/c/prefect_flow_run) | infrastructure | Materializable asset that triggers a Prefect deployment and (optionally) waits for completion. Captures `flow_run_id`, `state`, and a clickable Prefect run link in materialization metadata. `forward_termination` cancels the Prefect run if the Dagster run is interrupted. `stream_logs` / `stream_artifacts` forward the flow's own logs and artifacts (as observations, or as real `AssetCheckResult`s via `check_names`) into Dagster while it waits — no shared filesystem or blob store needed. Optional `execution_mode='pipes'` delegates to the official `dagster-prefect` client instead. Works against local Prefect server and Prefect Cloud. | `live` |
 | [`prefect_background_task`](https://dagster-component-ui.vercel.app/c/prefect_background_task) | infrastructure | Materializable asset that submits a Prefect background task via `.delay()` and (optionally) waits for completion. Same `stream_logs` / `stream_artifacts` / `check_names` observability as `prefect_flow_run`, filtered by `task_run_id` instead of `flow_run_id`. No `forward_termination`: Prefect's task workers run to completion regardless of a cancellation request. `task_import_path` must be importable from wherever this component builds its defs — background tasks have no by-name trigger API the way deployments do. | `code` |
 | [`prefect_flow_run_sensor`](https://dagster-component-ui.vercel.app/c/prefect_flow_run_sensor) | sensor | Dagster sensor watching Prefect's API for flow runs entering terminal states (`Completed` / `Failed` / `Crashed` / `Cancelled`). Launches a Dagster job per new completion. Filters by `flow_name` / `deployment_name` / state list. Bridges Prefect-owned upstream work into the Dagster catalog. | `live` |
+| [`prefect_workspace`](https://dagster-component-ui.vercel.app/c/prefect_workspace) | ingestion | `StateBackedComponent` — auto-discovers every deployment in a Prefect instance via the live API and emits one triggerable asset per deployment, with `prefect_flow_run`'s full observability (`forward_termination`, `stream_logs`, `stream_artifacts`) applied uniformly. `check_names` and Dagster-side scheduling are explicit, per-deployment opt-ins via `assets_by_name` — never global or inferred (Prefect has no native check concept to auto-discover from, and inferring scheduling from Prefect's own paused state would be too implicit). Optional `polling_sensor` observes completions across every discovered deployment at once. Removes the "one YAML block per deployment" tax `prefect_flow_run` has on its own. | `code` |
 
 ### Observability without a shared filesystem or blob store
 
@@ -56,6 +59,8 @@ The pattern is the same in both directions:
 
 **Case D — Task-level, not flow-level.** The unit of work is a single `@task`, not a whole `@flow` — use `prefect_background_task` instead of `prefect_flow_run`. Requires a task worker already serving the task (`prefect task serve`); the tradeoff is `task_import_path` must be importable from wherever Dagster builds its defs, since `.delay()` needs the actual Python function object (deployments avoid this because Prefect resolves them by name).
 
+**Case E — Adopting a whole Prefect instance at once.** Skip hand-writing `prefect_flow_run` per deployment — point `prefect_workspace` at the instance and get a triggerable asset per deployment automatically, with `stream_logs`/`stream_artifacts` observability out of the box. Add `deployment_selector` to scope to a subset; add `polling_sensor` if some of those deployments are also triggered outside Dagster; opt individual deployments into `check_names` or Dagster-side scheduling via `assets_by_name` — both stay explicit, per deployment, never global.
+
 ## Connection / auth — quick reference
 
 | Surface | Setting | Notes |
@@ -65,7 +70,7 @@ The pattern is the same in both directions:
 | Auth: Cloud | `api_key_env_var: PREFECT_API_KEY` | Personal or service account key. |
 | Auth: self-hosted with basic auth | `api_key_env_var: PREFECT_SERVER_API_KEY` | Same field, custom-issued key. |
 
-All 4 components accept the same connection shape — swap `api_url` / `api_key_env_var` to point at Cloud vs. local vs. self-hosted with zero other component-level change.
+All 5 components accept the same connection shape — swap `api_url` / `api_key_env_var` to point at Cloud vs. local vs. self-hosted with zero other component-level change.
 
 ## Where Dagster adds value that Prefect alone doesn't
 
@@ -90,9 +95,9 @@ Both are durable-execution workflow engines that pair with Dagster the same way 
 
 Not competitive with each other — they solve slightly different needs. Both benefit from Dagster's catalog role.
 
-## Design note — no `prefect_workspace` component
+## Design note — revised: `prefect_workspace` does exist now
 
-Prefect deployments are code-defined. A `prefect_workspace`-style discovery component (mirroring `snowflake_workspace` / `hvr_hub_workspace`) would double-report the same objects Dagster-native discovery already finds, and adds no useful lineage — the flows are already Python modules the customer owns. Use `prefect_flow_run` (Dagster owns the schedule) or `prefect_flow_run_sensor` (Prefect owns the schedule) — those cover the real integration points.
+An earlier version of this doc argued against a `prefect_workspace` component: "Prefect deployments are code-defined... the flows are already Python modules the customer owns," implying discovery would be redundant. That reasoning didn't hold up — it's only true if the customer is *also* running something that statically scans their Prefect repo for flow/deployment definitions, which nothing in this registry does. Without that, "the customer owns the code" doesn't help them; they still have to hand-write one `prefect_flow_run` block per deployment, the same problem `mlflow_workspace` / `snowflake_workspace` exist to solve for their own targets. `prefect_workspace` closes that gap the same way.
 
 ## Walkthroughs
 

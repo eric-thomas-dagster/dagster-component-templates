@@ -716,8 +716,7 @@ class PrefectBackgroundTaskAssetComponent(dg.Component, dg.Model, dg.Resolvable)
                         f"data containing 'passed' was reported for this task run."
                     ),
                 ))
-            for check_result in collected_checks:
-                yield check_result
+            yield from collected_checks
 
             state = task_run.state if task_run else None
             state_name = getattr(state, "name", "unknown") if state else "unknown"

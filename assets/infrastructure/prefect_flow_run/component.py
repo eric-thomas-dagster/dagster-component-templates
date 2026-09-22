@@ -885,8 +885,7 @@ class PrefectFlowRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                         f"data containing 'passed' was reported for this flow run."
                     ),
                 ))
-            for check_result in collected_checks:
-                yield check_result
+            yield from collected_checks
 
             state = flow_run.state
             state_name = getattr(state, "name", "unknown") if state else "unknown"

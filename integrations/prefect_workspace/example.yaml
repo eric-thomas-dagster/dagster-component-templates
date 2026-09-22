@@ -1,0 +1,32 @@
+# PrefectWorkspaceComponent — auto-discover every Prefect deployment and
+# emit a triggerable Dagster asset for each, with a Dagster schedule mirrored
+# from any deployment that already has an active cron schedule in Prefect.
+#
+# Point this at a live Prefect instance and get assets back — no hand-written
+# prefect_flow_run block per deployment. Reach for prefect_flow_run directly
+# when one specific deployment needs stream_logs / stream_artifacts /
+# check_names — this component's job is breadth, not per-flow depth.
+
+type: dagster_community_components.PrefectWorkspaceComponent
+attributes:
+  workspace:
+    api_url: http://127.0.0.1:4200/api
+    # For Prefect Cloud:
+    # api_url: https://api.prefect.cloud/api/accounts/<acct>/workspaces/<ws>
+    # api_key_env_var: PREFECT_API_KEY
+
+  # Optional: only discover a subset of deployments.
+  deployment_selector:
+    by_pattern: ["*/production", "*/prod"]
+
+  # Emit a Dagster ScheduleDefinition for deployments with an active cron
+  # schedule in Prefect (the common case) — on by default.
+  auto_schedule: true
+
+  # Sensor watching ALL discovered deployments for completions triggered
+  # outside Dagster (Prefect's own schedule, other application code) and
+  # emitting an AssetObservation on the matching asset. Off by default.
+  polling_sensor: true
+
+  group_name: prefect
+  compute_kind: prefect

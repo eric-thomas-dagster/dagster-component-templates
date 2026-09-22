@@ -1027,6 +1027,7 @@ _CLASS_PATHS: dict[str, str] = {
     "PrefectFlowRunAssetComponent": "assets/infrastructure/prefect_flow_run/component.py",
     "PrefectFlowRunSensorComponent": "sensors/prefect_flow_run_sensor/component.py",
     "PrefectResourceComponent": "resources/prefect_resource/component.py",
+    "PrefectWorkspaceComponent": "integrations/prefect_workspace/component.py",
     "TemporalWorkflowSensorComponent": "sensors/temporal_workflow_sensor/component.py",
     "TemporalWorkflowTriggerComponent": "assets/infrastructure/temporal_workflow_trigger/component.py",
     "TemporalSignalAssetComponent": "assets/infrastructure/temporal_signal_asset/component.py",

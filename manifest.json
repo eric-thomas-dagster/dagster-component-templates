@@ -53014,9 +53014,74 @@
         "infra"
       ],
       "icon": "si:prefect"
+    },
+    {
+      "id": "prefect_workspace",
+      "name": "Prefect Workspace",
+      "component_type": "dagster_community_components.PrefectWorkspaceComponent",
+      "path": "integrations/prefect_workspace",
+      "category": "ingestion",
+      "icon": "si:prefect",
+      "description": "Auto-discover every Prefect deployment via the live API and emit one triggerable Dagster asset per deployment, with a Dagster ScheduleDefinition mirrored from any active cron schedule already configured in Prefect. StateBackedComponent - discovery cached to disk. Optional polling_sensor observes completions across every discovered deployment at once - the auto-discovery equivalent of hand-configuring prefect_flow_run_sensor per deployment. Removes the one-YAML-block-per-deployment tax prefect_flow_run has on its own.",
+      "tags": [
+        "auto-discovery",
+        "durable-execution",
+        "hybrid",
+        "ingestion",
+        "prefect",
+        "state-backed",
+        "workflow-orchestration",
+        "workspace"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/prefect_workspace/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/prefect_workspace/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/prefect_workspace/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/prefect_workspace/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/prefect_workspace/schema.json",
+      "dependencies": {
+        "pip": [
+          "prefect>=3.0.0"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "one_asset_per_prefect_deployment"
+        ],
+        "requires_pip": [
+          "prefect"
+        ],
+        "chains_with": [
+          "prefect_flow_run",
+          "prefect_flow_run_sensor"
+        ],
+        "output_type": "dict"
+      },
+      "produces": [
+        "multi_asset",
+        "schedule",
+        "sensor"
+      ],
+      "stateful": true,
+      "consumes": [
+        "resource:prefect"
+      ],
+      "keywords": [
+        "prefect workspace",
+        "multi asset workspace",
+        "workspace-style component",
+        "discovery",
+        "auto-discover deployments"
+      ],
+      "emitted_assets": {
+        "pattern": "One Dagster asset per Prefect deployment enumerated via read_deployments().",
+        "source_field": "prefect_api.deployments[]",
+        "key_template": "{flow_name}_{deployment_name}"
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1024
+  "total": 1025
 }

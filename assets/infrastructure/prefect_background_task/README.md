@@ -10,6 +10,8 @@ Works against:
 - **Local server**: `prefect server start` → default `api_url` `http://127.0.0.1:4200/api`.
 - **Prefect Cloud**: set `api_url` + `api_key_env_var`.
 
+**Requires Prefect 3.0+ — hard requirement, not a soft preference.** Verified directly: Prefect 2's `@task` objects have no `.delay()` method at all — background tasks are a Prefect 3 feature that doesn't exist in 2.x. (The official `dagster-prefect` package requires the same: `prefect<4,>=3.0`, per its own package metadata.)
+
 ## Observability without a shared filesystem or blob store
 
 `stream_logs` and `stream_artifacts` work exactly like they do on `prefect_flow_run` — see that component's README for the full explanation of why they exist (short version: `dagster-prefect`'s Pipes message reader defaults to a temp file, which silently drops metadata/logs/checks unless the Dagster step and the Prefect worker share a filesystem; polling Prefect's own `read_logs`/`read_artifacts` APIs sidesteps that with no extra infrastructure). Here they filter by `task_run_id` instead of `flow_run_id`.

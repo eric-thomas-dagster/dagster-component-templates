@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.DataframeToCsvComponent",
   "description": "Write a DataFrame to a CSV file.",
   "category": "sink",
-  "icon": "ArrowDownToLine",
+  "icon": "Table",
   "x-dagster-io": {
     "inputs": {
       "type": "dataframe",

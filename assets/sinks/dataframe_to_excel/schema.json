@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.DataframeToExcelComponent",
   "description": "Write a DataFrame to an Excel (.xlsx) file.",
   "category": "sink",
-  "icon": "ArrowDownToLine",
+  "icon": "si:microsoftexcel",
   "x-dagster-io": {
     "inputs": {
       "type": "dataframe",

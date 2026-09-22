@@ -1,5 +1,5 @@
 {
-  "type": "dagster_component_templates.FirestoreWriterComponent",
+  "component_type": "dagster_component_templates.FirestoreWriterComponent",
   "name": "Firestore Writer",
   "category": "sink",
   "description": "Write a DataFrame to a Google Cloud Firestore collection using batch writes with merge or overwrite support",

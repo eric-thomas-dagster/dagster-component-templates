@@ -4,13 +4,13 @@
   "category": "resource",
   "icon": "si:mixpanel",
   "attributes": {
-    "resource_key": {"type": "string", "required": false, "default": "mixpanel"},
-    "project_id": {"type": "string", "required": true, "description": "Mixpanel project ID (required for /import)."},
-    "project_token_env_var": {"type": "string", "required": false, "default": "MIXPANEL_PROJECT_TOKEN"},
-    "service_account_username_env_var": {"type": "string", "required": false, "default": "MIXPANEL_SERVICE_ACCOUNT_USERNAME"},
-    "service_account_secret_env_var": {"type": "string", "required": false, "default": "MIXPANEL_SERVICE_ACCOUNT_SECRET"},
-    "base_url": {"type": "string", "required": false, "default": "https://api.mixpanel.com", "description": "https://api-eu.mixpanel.com for EU residency."},
-    "request_timeout_seconds": {"type": "integer", "required": false, "default": 30}
+    "resource_key": {"label": "Resource Key", "type": "string", "required": false, "default": "mixpanel"},
+    "project_id": {"label": "Project ID", "type": "string", "required": true, "description": "Mixpanel project ID (required for /import)."},
+    "project_token_env_var": {"label": "Project Token Env Var", "type": "string", "required": false, "default": "MIXPANEL_PROJECT_TOKEN"},
+    "service_account_username_env_var": {"label": "Service Account Username Env Var", "type": "string", "required": false, "default": "MIXPANEL_SERVICE_ACCOUNT_USERNAME"},
+    "service_account_secret_env_var": {"label": "Service Account Secret Env Var", "type": "string", "required": false, "default": "MIXPANEL_SERVICE_ACCOUNT_SECRET"},
+    "base_url": {"label": "Base URL", "type": "string", "required": false, "default": "https://api.mixpanel.com", "description": "https://api-eu.mixpanel.com for EU residency."},
+    "request_timeout_seconds": {"label": "Request Timeout Seconds", "type": "integer", "required": false, "default": 30}
   },
   "tags": ["resource", "mixpanel", "product-analytics", "event-tracking", "user-profiles"],
   "name": "Mixpanel Resource"

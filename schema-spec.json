@@ -41,7 +41,13 @@
           "external",
           "observation",
           "check",
-          "integration"
+          "integration",
+          "resource",
+          "io_manager",
+          "jobs",
+          "core",
+          "decorator",
+          "security"
         ]
       },
       "icon": {
@@ -349,6 +355,29 @@
     "resource": {
       "description": "Resource-providing components register a Dagster resource, no asset I/O",
       "x-dagster-io": {}
+    },
+    "io_manager": {
+      "description": "IOManager-providing components register a Dagster IOManager, no asset I/O",
+      "x-dagster-io": {}
+    },
+    "jobs": {
+      "description": "Op-shaped maintenance/action jobs (optionally schedule-backed). No asset data ports.",
+      "x-dagster-io": {}
+    },
+    "core": {
+      "description": "Structural building blocks (asset references, dependency graphs) used to compose a pipeline definition, not standalone data components.",
+      "x-dagster-io": {}
+    },
+    "decorator": {
+      "description": "Wraps/augments an existing asset definition (caching, retries, locks, snapshots, etc.) rather than defining a new data flow.",
+      "outputs": {
+        "type": "any",
+        "description": "The decorated asset's own result, passed through/augmented"
+      }
+    },
+    "security": {
+      "description": "Audit-log and SIEM-oriented ingestion/sink/transformation components. Cuts across the ingestion, sink, and transformation I/O shapes — see the matching category for the concrete contract of a given component.",
+      "x-dagster-io": {}
     }
   },
   "icons": {
@@ -453,6 +482,41 @@
       "Link2",
       "Zap"
     ],
+    "resource": [
+      "Plug",
+      "Server",
+      "Database",
+      "Key"
+    ],
+    "io_manager": [
+      "Save",
+      "HardDrive",
+      "Archive"
+    ],
+    "jobs": [
+      "Play",
+      "Cog",
+      "PlayCircle",
+      "Terminal"
+    ],
+    "core": [
+      "Link",
+      "GitBranch",
+      "Layers"
+    ],
+    "decorator": [
+      "Lock",
+      "Clock",
+      "Shield",
+      "RefreshCw",
+      "Camera"
+    ],
+    "security": [
+      "Shield",
+      "ShieldCheck",
+      "AlertTriangle",
+      "Lock"
+    ],
     "sets": {
       "lucide": {
         "prefix": null,
@@ -469,62 +533,33 @@
     }
   },
   "componentRegistry": {
-    "description": "All component categories and their folder locations within the repository.",
+    "description": "All component categories and their folder locations within the repository. Each folder lists its majority category; a handful of folders contain a small number of components whose own category legitimately differs (e.g. a source-shaped component filed under assets/ingestion) — the authoritative per-component category always comes from that component's own schema.json, not this table.",
     "folders": {
-      "assets/ingestion": {
-        "category": "ingestion",
-        "count": 49
-      },
-      "assets/sources": {
-        "category": "source",
-        "count": 18
-      },
-      "assets/transforms": {
-        "category": "transformation",
-        "count": 38
-      },
-      "assets/sinks": {
-        "category": "sink",
-        "count": 23
-      },
-      "assets/analytics": {
-        "category": "analytics",
-        "count": 69
-      },
-      "assets/ai": {
-        "category": "ai",
-        "count": 34
-      },
-      "assets/infrastructure": {
-        "category": "infrastructure",
-        "count": 16
-      },
-      "assets/dbt": {
-        "category": "dbt",
-        "count": 1
-      },
-      "sensors": {
-        "category": "sensor",
-        "count": 30
-      },
-      "external_assets": {
-        "category": "external",
-        "count": 21
-      },
-      "observations": {
-        "category": "observation",
-        "count": 20
-      },
-      "asset_checks": {
-        "category": "check",
-        "count": 7
-      },
-      "integrations": {
-        "category": "integration",
-        "count": 18
-      }
+      "asset_checks": { "category": "check", "count": 18 },
+      "assets/ai": { "category": "ai", "count": 130 },
+      "assets/analytics": { "category": "analytics", "count": 93 },
+      "assets/data-warehouse": { "category": "integration", "count": 3 },
+      "assets/dbt": { "category": "dbt", "count": 2 },
+      "assets/infrastructure": { "category": "infrastructure", "count": 54 },
+      "assets/ingestion": { "category": "ingestion", "count": 78 },
+      "assets/sinks": { "category": "sink", "count": 73 },
+      "assets/source": { "category": "source", "count": 14 },
+      "assets/sources": { "category": "source", "count": 38 },
+      "assets/transforms": { "category": "transformation", "count": 111 },
+      "core": { "category": "core", "count": 2 },
+      "external_assets": { "category": "external", "count": 32 },
+      "ingestion": { "category": "security", "count": 13 },
+      "integrations": { "category": "integration", "count": 67 },
+      "io_managers": { "category": "io_manager", "count": 33 },
+      "jobs": { "category": "jobs", "count": 60 },
+      "observations": { "category": "observation", "count": 20 },
+      "resources": { "category": "resource", "count": 105 },
+      "schedules": { "category": "infrastructure", "count": 3 },
+      "sensors": { "category": "sensor", "count": 70 },
+      "sinks": { "category": "security", "count": 8 },
+      "transforms": { "category": "transformation", "count": 17 }
     },
-    "totalComponents": 342,
+    "totalComponents": 1044,
     "manifestFile": "manifest.json",
     "manifestDescription": "Full registry of all components with paths and GitHub raw URLs. Updated when new components are added."
   },
@@ -610,6 +645,36 @@
         "left": false,
         "right": false,
         "note": "Platform integration, no data ports"
+      },
+      "resource": {
+        "left": false,
+        "right": false,
+        "note": "Registers a Dagster resource, no data ports"
+      },
+      "io_manager": {
+        "left": false,
+        "right": false,
+        "note": "Registers a Dagster IOManager, no data ports"
+      },
+      "jobs": {
+        "left": false,
+        "right": false,
+        "note": "Op-shaped maintenance/action job, no data ports"
+      },
+      "core": {
+        "left": false,
+        "right": true,
+        "note": "Declares a definition (asset reference, dependency edge) other components can depend on"
+      },
+      "decorator": {
+        "left": true,
+        "right": true,
+        "note": "Wraps an existing asset; passes through/augments its result"
+      },
+      "security": {
+        "left": false,
+        "right": false,
+        "note": "Inherits its structural category's ports (ingestion/sink/transformation); typically no ports for the ingestion-shaped majority"
       }
     }
   },

@@ -8,21 +8,21 @@
     "outputs": {"type": "multi_asset", "description": "Emits 3 assets: research_plan, subtopic_notes, research_brief."}
   },
   "attributes": {
-    "plan_asset_name": {"type": "string", "required": true},
-    "notes_asset_name": {"type": "string", "required": true},
-    "brief_asset_name": {"type": "string", "required": true},
-    "topic": {"type": "string", "required": true},
-    "model": {"type": "string", "required": false, "default": "gpt-4o-mini"},
-    "api_key_env_var": {"type": "string", "required": false, "default": "OPENAI_API_KEY"},
-    "api_base_env_var": {"type": "string", "required": false},
-    "temperature": {"type": "number", "required": false, "default": 0.3},
-    "planner_max_tokens": {"type": "integer", "required": false, "default": 500},
-    "researcher_max_tokens": {"type": "integer", "required": false, "default": 350},
-    "brief_max_tokens": {"type": "integer", "required": false, "default": 1200},
-    "max_subtopics": {"type": "integer", "required": false, "default": 8, "minimum": 1, "maximum": 30},
-    "researcher_system_message": {"type": "string", "required": false},
-    "brief_system_message": {"type": "string", "required": false},
-    "group_name": {"type": "string", "required": false},
-    "kinds": {"type": "array", "required": false}
+    "plan_asset_name": {"label": "Plan Asset Name", "type": "string", "required": true},
+    "notes_asset_name": {"label": "Notes Asset Name", "type": "string", "required": true},
+    "brief_asset_name": {"label": "Brief Asset Name", "type": "string", "required": true},
+    "topic": {"label": "Topic", "type": "string", "required": true},
+    "model": {"label": "Model", "type": "string", "required": false, "default": "gpt-4o-mini"},
+    "api_key_env_var": {"label": "API Key Env Var", "type": "string", "required": false, "default": "OPENAI_API_KEY"},
+    "api_base_env_var": {"label": "API Base Env Var", "type": "string", "required": false},
+    "temperature": {"label": "Temperature", "type": "number", "required": false, "default": 0.3},
+    "planner_max_tokens": {"label": "Planner Max Tokens", "type": "integer", "required": false, "default": 500},
+    "researcher_max_tokens": {"label": "Researcher Max Tokens", "type": "integer", "required": false, "default": 350},
+    "brief_max_tokens": {"label": "Brief Max Tokens", "type": "integer", "required": false, "default": 1200},
+    "max_subtopics": {"label": "Max Subtopics", "type": "integer", "required": false, "default": 8, "minimum": 1, "maximum": 30},
+    "researcher_system_message": {"label": "Researcher System Message", "type": "string", "required": false},
+    "brief_system_message": {"label": "Brief System Message", "type": "string", "required": false},
+    "group_name": {"label": "Group Name", "type": "string", "required": false},
+    "kinds": {"label": "Kinds", "type": "array", "required": false}
   }
 }

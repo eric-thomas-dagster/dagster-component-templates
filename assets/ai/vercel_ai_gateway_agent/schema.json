@@ -12,73 +12,73 @@
     }
   },
   "attributes": {
-    "asset_name": {
+    "asset_name": {"label": "Asset Name", 
       "type": "string",
       "required": true
     },
-    "prompt": {
+    "prompt": {"label": "Prompt", 
       "type": "string",
       "required": true
     },
-    "system_prompt": {
+    "system_prompt": {"label": "System Prompt", 
       "type": "string",
       "required": false
     },
-    "fallback_models": {
+    "fallback_models": {"label": "Fallback Models", 
       "type": "array",
       "required": false,
       "description": "Fallback chain on invocation error."
     },
-    "api_key_env_var": {
+    "api_key_env_var": {"label": "API Key Env Var", 
       "type": "string",
       "required": false,
       "default": "VERCEL_API_TOKEN"
     },
-    "api_base_url": {
+    "api_base_url": {"label": "API Base URL", 
       "type": "string",
       "required": false,
       "default": "https://ai-gateway.vercel.sh/v1"
     },
-    "temperature": {
+    "temperature": {"label": "Temperature", 
       "type": "number",
       "required": false,
       "default": 0.0
     },
-    "max_tokens": {
+    "max_tokens": {"label": "Max Tokens", 
       "type": "integer",
       "required": false,
       "default": 2048
     },
-    "max_iterations": {
+    "max_iterations": {"label": "Max Iterations", 
       "type": "integer",
       "required": false,
       "default": 10
     },
-    "mcp_servers": {
+    "mcp_servers": {"label": "Mcp Servers", 
       "type": "array",
       "required": false
     },
-    "group_name": {
+    "group_name": {"label": "Group Name", 
       "type": "string",
       "required": false
     },
-    "description": {
+    "description": {"label": "Description", 
       "type": "string",
       "required": false
     },
-    "owners": {
+    "owners": {"label": "Owners", 
       "type": "array",
       "required": false
     },
-    "asset_tags": {
+    "asset_tags": {"label": "Asset Tags", 
       "type": "object",
       "required": false
     },
-    "kinds": {
+    "kinds": {"label": "Kinds", 
       "type": "array",
       "required": false
     },
-    "deps": {
+    "deps": {"label": "Deps", 
       "type": "array",
       "required": false
     }

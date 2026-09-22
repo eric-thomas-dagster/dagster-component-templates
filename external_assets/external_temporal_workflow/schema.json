@@ -1,22 +1,22 @@
 {
   "component_type": "dagster_community_components.ExternalTemporalWorkflowAsset",
   "description": "Declare a Temporal Workflow as an external Dagster asset. Pair with temporal_workflow_sensor when Temporal owns the schedule.",
-  "category": "external_assets",
+  "category": "external",
   "icon": "si:temporal",
   "x-dagster-io": {"inputs": {"type": "none"}, "outputs": {"type": "none"}},
   "attributes": {
-    "asset_key": {"type": "string", "required": true},
-    "workflow_type": {"type": "string", "required": false},
-    "workflow_id": {"type": "string", "required": false},
-    "schedule_id": {"type": "string", "required": false},
-    "task_queue": {"type": "string", "required": false},
-    "namespace": {"type": "string", "required": false, "default": "default"},
-    "temporal_ui_url": {"type": "string", "required": false},
-    "group_name": {"type": "string", "required": false, "default": "temporal"},
-    "description": {"type": "string", "required": false},
-    "owners": {"type": "array", "required": false},
-    "tags": {"type": "object", "required": false},
-    "kinds": {"type": "array", "required": false},
-    "deps": {"type": "array", "required": false}
+    "asset_key": {"label": "Asset Key", "type": "string", "required": true},
+    "workflow_type": {"label": "Workflow Type", "type": "string", "required": false},
+    "workflow_id": {"label": "Workflow ID", "type": "string", "required": false},
+    "schedule_id": {"label": "Schedule ID", "type": "string", "required": false},
+    "task_queue": {"label": "Task Queue", "type": "string", "required": false},
+    "namespace": {"label": "Namespace", "type": "string", "required": false, "default": "default"},
+    "temporal_ui_url": {"label": "Temporal Ui URL", "type": "string", "required": false},
+    "group_name": {"label": "Group Name", "type": "string", "required": false, "default": "temporal"},
+    "description": {"label": "Description", "type": "string", "required": false},
+    "owners": {"label": "Owners", "type": "array", "required": false},
+    "tags": {"label": "Tags", "type": "object", "required": false},
+    "kinds": {"label": "Kinds", "type": "array", "required": false},
+    "deps": {"label": "Deps", "type": "array", "required": false}
   }
 }

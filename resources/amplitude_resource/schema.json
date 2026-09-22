@@ -4,10 +4,10 @@
   "category": "resource",
   "icon": "si:amplitude",
   "attributes": {
-    "resource_key": {"type": "string", "required": false, "default": "amplitude"},
-    "api_key_env_var": {"type": "string", "required": false, "default": "AMPLITUDE_API_KEY"},
-    "base_url": {"type": "string", "required": false, "default": "https://api2.amplitude.com", "description": "https://api.eu.amplitude.com for EU projects."},
-    "request_timeout_seconds": {"type": "integer", "required": false, "default": 30}
+    "resource_key": {"label": "Resource Key", "type": "string", "required": false, "default": "amplitude"},
+    "api_key_env_var": {"label": "API Key Env Var", "type": "string", "required": false, "default": "AMPLITUDE_API_KEY"},
+    "base_url": {"label": "Base URL", "type": "string", "required": false, "default": "https://api2.amplitude.com", "description": "https://api.eu.amplitude.com for EU projects."},
+    "request_timeout_seconds": {"label": "Request Timeout Seconds", "type": "integer", "required": false, "default": 30}
   },
   "tags": ["resource", "amplitude", "product-analytics", "event-tracking", "user-properties"],
   "name": "Amplitude Resource"

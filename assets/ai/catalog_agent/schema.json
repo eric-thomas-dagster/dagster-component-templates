@@ -13,106 +13,106 @@
     }
   },
   "attributes": {
-    "step_asset_prefix": {
+    "step_asset_prefix": {"label": "Step Asset Prefix", 
       "type": "string",
       "required": false,
       "default": "catalog_step"
     },
-    "synthesis_asset_name": {
+    "synthesis_asset_name": {"label": "Synthesis Asset Name", 
       "type": "string",
       "required": true
     },
-    "task": {
+    "task": {"label": "Task", 
       "type": "string",
       "required": true
     },
-    "manifest_url": {
+    "manifest_url": {"label": "Manifest URL", 
       "type": "string",
       "required": false
     },
-    "manifest_path": {
+    "manifest_path": {"label": "Manifest Path", 
       "type": "string",
       "required": false
     },
-    "include_categories": {
+    "include_categories": {"label": "Include Categories", 
       "type": "array",
       "required": false
     },
-    "include_tags": {
+    "include_tags": {"label": "Include Tags", 
       "type": "array",
       "required": false
     },
-    "include_ids": {
+    "include_ids": {"label": "Include Ids", 
       "type": "array",
       "required": false
     },
-    "max_catalog_entries": {
+    "max_catalog_entries": {"label": "Max Catalog Entries", 
       "type": "integer",
       "required": false,
       "default": 40
     },
-    "max_iterations": {
+    "max_iterations": {"label": "Max Iterations", 
       "type": "integer",
       "required": false,
       "default": 5,
       "minimum": 1,
       "maximum": 15
     },
-    "model": {
+    "model": {"label": "Model", 
       "type": "string",
       "required": false,
       "default": "gpt-4o-mini"
     },
-    "api_key_env_var": {
+    "api_key_env_var": {"label": "API Key Env Var", 
       "type": "string",
       "required": false,
       "default": "OPENAI_API_KEY"
     },
-    "api_base_env_var": {
+    "api_base_env_var": {"label": "API Base Env Var", 
       "type": "string",
       "required": false
     },
-    "temperature": {
+    "temperature": {"label": "Temperature", 
       "type": "number",
       "required": false,
       "default": 0.1
     },
-    "planner_max_tokens": {
+    "planner_max_tokens": {"label": "Planner Max Tokens", 
       "type": "integer",
       "required": false,
       "default": 600
     },
-    "synthesis_max_tokens": {
+    "synthesis_max_tokens": {"label": "Synthesis Max Tokens", 
       "type": "integer",
       "required": false,
       "default": 800
     },
-    "fail_on_execution_error": {
+    "fail_on_execution_error": {"label": "Fail On Execution Error", 
       "type": "boolean",
       "required": false,
       "default": false
     },
-    "synthesis_system_message": {
+    "synthesis_system_message": {"label": "Synthesis System Message", 
       "type": "string",
       "required": false
     },
-    "group_name": {
+    "group_name": {"label": "Group Name", 
       "type": "string",
       "required": false
     },
-    "owners": {
+    "owners": {"label": "Owners", 
       "type": "array",
       "required": false
     },
-    "tags": {
+    "tags": {"label": "Tags", 
       "type": "object",
       "required": false
     },
-    "kinds": {
+    "kinds": {"label": "Kinds", 
       "type": "array",
       "required": false
     },
-    "partition_type": {
+    "partition_type": {"label": "Partition Type", 
       "type": "string",
       "required": false,
       "enum": [
@@ -126,36 +126,36 @@
       ],
       "ui:widget": "select"
     },
-    "partition_start": {
+    "partition_start": {"label": "Partition Start", 
       "type": "string",
       "required": false
     },
-    "partition_values": {
+    "partition_values": {"label": "Partition Values", 
       "type": "string",
       "required": false
     },
-    "dynamic_partition_name": {
+    "dynamic_partition_name": {"label": "Dynamic Partition Name", 
       "type": "string",
       "required": false
     },
-    "freshness_max_lag_minutes": {
+    "freshness_max_lag_minutes": {"label": "Freshness Max Lag Minutes", 
       "type": "integer",
       "required": false
     },
-    "freshness_cron": {
+    "freshness_cron": {"label": "Freshness Cron", 
       "type": "string",
       "required": false,
       "x-dagster-widget": "cron"
     },
-    "retry_policy_max_retries": {
+    "retry_policy_max_retries": {"label": "Retry Policy Max Retries", 
       "type": "integer",
       "required": false
     },
-    "retry_policy_delay_seconds": {
+    "retry_policy_delay_seconds": {"label": "Retry Policy Delay Seconds", 
       "type": "integer",
       "required": false
     },
-    "retry_policy_backoff": {
+    "retry_policy_backoff": {"label": "Retry Policy Backoff", 
       "type": "string",
       "required": false,
       "default": "exponential",

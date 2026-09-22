@@ -36,36 +36,36 @@
       "description": "Per-column dtype overrides (e.g. {quantity: Int64, unit_price: float64}). Numeric dtypes route through pd.to_numeric.",
       "required": false
     },
-    "group_name": {
+    "group_name": {"label": "Group Name", 
       "type": "string",
       "required": false
     },
-    "description": {
+    "description": {"label": "Description", 
       "type": "string",
       "required": false
     },
-    "owners": {
+    "owners": {"label": "Owners", 
       "type": "array",
       "required": false
     },
-    "asset_tags": {
+    "asset_tags": {"label": "Asset Tags", 
       "type": "object",
       "required": false
     },
-    "kinds": {
+    "kinds": {"label": "Kinds", 
       "type": "array",
       "description": "Defaults to ['inline', 'reference'].",
       "required": false
     },
-    "deps": {
+    "deps": {"label": "Deps", 
       "type": "array",
       "required": false
     },
-    "freshness_max_lag_minutes": {
+    "freshness_max_lag_minutes": {"label": "Freshness Max Lag Minutes", 
       "type": "integer",
       "required": false
     },
-    "freshness_cron": {
+    "freshness_cron": {"label": "Freshness Cron", 
       "type": "string",
       "required": false,
       "x-dagster-widget": "cron"

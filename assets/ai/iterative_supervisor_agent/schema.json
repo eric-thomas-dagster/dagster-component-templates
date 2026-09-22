@@ -13,73 +13,73 @@
     }
   },
   "attributes": {
-    "step_asset_prefix": {
+    "step_asset_prefix": {"label": "Step Asset Prefix", 
       "type": "string",
       "required": false,
       "default": "agent_step"
     },
-    "synthesis_asset_name": {
+    "synthesis_asset_name": {"label": "Synthesis Asset Name", 
       "type": "string",
       "required": true
     },
-    "task": {
+    "task": {"label": "Task", 
       "type": "string",
       "required": true
     },
-    "tools": {
+    "tools": {"label": "Tools", 
       "type": "array",
       "required": true
     },
-    "max_iterations": {
+    "max_iterations": {"label": "Max Iterations", 
       "type": "integer",
       "required": false,
       "default": 5,
       "minimum": 1,
       "maximum": 15
     },
-    "model": {
+    "model": {"label": "Model", 
       "type": "string",
       "required": false,
       "default": null
     },
-    "api_key_env_var": {
+    "api_key_env_var": {"label": "API Key Env Var", 
       "type": "string",
       "required": false,
       "default": null
     },
-    "api_base_env_var": {
+    "api_base_env_var": {"label": "API Base Env Var", 
       "type": "string",
       "required": false
     },
-    "temperature": {
+    "temperature": {"label": "Temperature", 
       "type": "number",
       "required": false,
       "default": 0.1
     },
-    "planner_max_tokens": {
+    "planner_max_tokens": {"label": "Planner Max Tokens", 
       "type": "integer",
       "required": false,
       "default": 400
     },
-    "tool_max_tokens": {
+    "tool_max_tokens": {"label": "Tool Max Tokens", 
       "type": "integer",
       "required": false,
       "default": 500
     },
-    "synthesis_max_tokens": {
+    "synthesis_max_tokens": {"label": "Synthesis Max Tokens", 
       "type": "integer",
       "required": false,
       "default": 600
     },
-    "synthesis_system_message": {
+    "synthesis_system_message": {"label": "Synthesis System Message", 
       "type": "string",
       "required": false
     },
-    "group_name": {
+    "group_name": {"label": "Group Name", 
       "type": "string",
       "required": false
     },
-    "kinds": {
+    "kinds": {"label": "Kinds", 
       "type": "array",
       "required": false
     }

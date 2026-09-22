@@ -1,4 +1,5 @@
 {
+  "component_type": "dagster_component_templates.Neo4jResourceComponent",
   "x-dagster-io": {},
   "x-dagster-provides": [
     "neo4j_resource"

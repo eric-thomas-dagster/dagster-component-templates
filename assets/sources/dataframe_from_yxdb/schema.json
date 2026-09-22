@@ -59,24 +59,24 @@
       "label": "Lineage-Only Deps",
       "required": false
     },
-    "freshness_max_lag_minutes": {
+    "freshness_max_lag_minutes": {"label": "Freshness Max Lag Minutes", 
       "type": "integer",
       "required": false
     },
-    "freshness_cron": {
+    "freshness_cron": {"label": "Freshness Cron", 
       "type": "string",
       "required": false,
       "x-dagster-widget": "cron"
     },
-    "retry_policy_max_retries": {
+    "retry_policy_max_retries": {"label": "Retry Policy Max Retries", 
       "type": "integer",
       "required": false
     },
-    "retry_policy_delay_seconds": {
+    "retry_policy_delay_seconds": {"label": "Retry Policy Delay Seconds", 
       "type": "integer",
       "required": false
     },
-    "retry_policy_backoff": {
+    "retry_policy_backoff": {"label": "Retry Policy Backoff", 
       "type": "string",
       "enum": [
         "exponential",

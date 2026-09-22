@@ -13,17 +13,17 @@
     }
   },
   "attributes": {
-    "asset_name": {
+    "asset_name": {"label": "Asset Name", 
       "type": "string",
       "required": true
     },
-    "database_url": {
+    "database_url": {"label": "Database URL", 
       "type": "string"
     },
-    "database_url_env_var": {
+    "database_url_env_var": {"label": "Database URL Env Var", 
       "type": "string"
     },
-    "dialect": {
+    "dialect": {"label": "Dialect", 
       "type": "string",
       "required": true,
       "enum": [
@@ -38,20 +38,20 @@
         "mysql"
       ]
     },
-    "upstream_table": {
+    "upstream_table": {"label": "Upstream Table", 
       "type": "string",
       "required": true
     },
-    "output_table": {
+    "output_table": {"label": "Output Table", 
       "type": "string",
       "required": true
     },
-    "expression": {
+    "expression": {"label": "Expression", 
       "type": "string",
       "required": true,
       "description": "Formula template with {col} as the column-name placeholder. e.g. 'UPPER(TRIM({col}))'."
     },
-    "columns": {
+    "columns": {"label": "Columns", 
       "type": "array",
       "items": {
         "type": "string"
@@ -59,7 +59,7 @@
       "required": true,
       "x-dagster-widget": "columns"
     },
-    "output_mode": {
+    "output_mode": {"label": "Output Mode", 
       "type": "string",
       "enum": [
         "replace",
@@ -68,15 +68,15 @@
       ],
       "default": "add_suffix"
     },
-    "suffix": {
+    "suffix": {"label": "Suffix", 
       "type": "string",
       "default": "_calc"
     },
-    "prefix": {
+    "prefix": {"label": "Prefix", 
       "type": "string",
       "default": "calc_"
     },
-    "mode": {
+    "mode": {"label": "Mode", 
       "type": "string",
       "enum": [
         "replace",
@@ -84,38 +84,38 @@
       ],
       "default": "replace"
     },
-    "group_name": {
+    "group_name": {"label": "Group Name", 
       "type": "string"
     },
-    "deps": {
+    "deps": {"label": "Deps", 
       "type": "array",
       "items": {
         "type": "string"
       }
     },
-    "owners": {
+    "owners": {"label": "Owners", 
       "type": "array",
       "items": {
         "type": "string"
       }
     },
-    "description": {
+    "description": {"label": "Description", 
       "type": "string"
     },
-    "asset_tags": {
+    "asset_tags": {"label": "Asset Tags", 
       "type": "object"
     },
-    "kinds": {
+    "kinds": {"label": "Kinds", 
       "type": "array",
       "items": {
         "type": "string"
       }
     },
-    "include_preview_metadata": {
+    "include_preview_metadata": {"label": "Include Preview Metadata", 
       "type": "boolean",
       "default": false
     },
-    "preview_rows": {
+    "preview_rows": {"label": "Preview Rows", 
       "type": "integer",
       "default": 25,
       "minimum": 1,

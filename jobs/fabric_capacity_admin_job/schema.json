@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_component_templates.FabricCapacityAdminJobComponent",
   "description": "Pause / resume / scale a Microsoft Fabric capacity via the management REST API. Op-job \u2014 schedule it nightly + weekends to halve Fabric capacity spend.",
-  "category": "infrastructure",
+  "category": "jobs",
   "icon": "Power",
   "x-dagster-io": {
     "supports_partitions": false

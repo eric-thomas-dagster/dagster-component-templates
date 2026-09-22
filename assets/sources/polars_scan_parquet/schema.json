@@ -63,35 +63,35 @@
       "type": "string",
       "label": "Asset Group"
     },
-    "description": {
+    "description": {"label": "Description", 
       "type": "string"
     },
-    "asset_tags": {
+    "asset_tags": {"label": "Asset Tags", 
       "type": "object"
     },
-    "kinds": {
+    "kinds": {"label": "Kinds", 
       "type": "array",
       "items": {
         "type": "string"
       }
     },
-    "owners": {
+    "owners": {"label": "Owners", 
       "type": "array",
       "items": {
         "type": "string"
       }
     },
-    "deps": {
+    "deps": {"label": "Deps", 
       "type": "array",
       "items": {
         "type": "string"
       }
     },
-    "include_preview_metadata": {
+    "include_preview_metadata": {"label": "Include Preview Metadata", 
       "type": "boolean",
       "default": false
     },
-    "preview_rows": {
+    "preview_rows": {"label": "Preview Rows", 
       "type": "integer",
       "default": 25,
       "minimum": 1,

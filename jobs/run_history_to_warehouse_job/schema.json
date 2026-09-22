@@ -4,27 +4,27 @@
   "category": "jobs",
   "icon": "Upload",
   "attributes": {
-    "job_name": {"type": "string", "required": true},
-    "schedule": {"type": "string", "required": false, "default": "*/15 * * * *", "x-dagster-widget": "cron"},
-    "default_status": {"type": "string", "required": false, "default": "stopped", "enum": ["stopped", "running"]},
-    "tags": {"type": "object", "required": false, "default": null},
+    "job_name": {"label": "Job Name", "type": "string", "required": true},
+    "schedule": {"label": "Schedule", "type": "string", "required": false, "default": "*/15 * * * *", "x-dagster-widget": "cron"},
+    "default_status": {"label": "Default Status", "type": "string", "required": false, "default": "stopped", "enum": ["stopped", "running"]},
+    "tags": {"label": "Tags", "type": "object", "required": false, "default": null},
     "warehouse": {"type": "string", "label": "Warehouse Type", "required": true, "enum": ["snowflake", "bigquery", "postgres"]},
 
-    "snowflake_account": {"type": "string", "required": false, "default": null},
-    "snowflake_user": {"type": "string", "required": false, "default": null},
-    "snowflake_password_env": {"type": "string", "required": false, "default": "SNOWFLAKE_PASSWORD"},
-    "snowflake_warehouse": {"type": "string", "required": false, "default": null},
-    "snowflake_database": {"type": "string", "required": false, "default": null},
-    "snowflake_schema": {"type": "string", "required": false, "default": "PUBLIC"},
+    "snowflake_account": {"label": "Snowflake Account", "type": "string", "required": false, "default": null},
+    "snowflake_user": {"label": "Snowflake User", "type": "string", "required": false, "default": null},
+    "snowflake_password_env": {"label": "Snowflake Password Env", "type": "string", "required": false, "default": "SNOWFLAKE_PASSWORD"},
+    "snowflake_warehouse": {"label": "Snowflake Warehouse", "type": "string", "required": false, "default": null},
+    "snowflake_database": {"label": "Snowflake Database", "type": "string", "required": false, "default": null},
+    "snowflake_schema": {"label": "Snowflake Schema", "type": "string", "required": false, "default": "PUBLIC"},
 
-    "bq_project": {"type": "string", "required": false, "default": null},
-    "bq_dataset": {"type": "string", "required": false, "default": null},
+    "bq_project": {"label": "Bq Project", "type": "string", "required": false, "default": null},
+    "bq_dataset": {"label": "Bq Dataset", "type": "string", "required": false, "default": null},
 
-    "postgres_dsn_env": {"type": "string", "required": false, "default": "POSTGRES_DSN"},
-    "postgres_schema": {"type": "string", "required": false, "default": "public"},
+    "postgres_dsn_env": {"label": "Postgres Dsn Env", "type": "string", "required": false, "default": "POSTGRES_DSN"},
+    "postgres_schema": {"label": "Postgres Schema", "type": "string", "required": false, "default": "public"},
 
-    "table": {"type": "string", "required": false, "default": "dagster_run_history"},
-    "initial_lookback_hours": {"type": "integer", "required": false, "default": 48},
-    "batch_limit": {"type": "integer", "required": false, "default": 1000}
+    "table": {"label": "Table", "type": "string", "required": false, "default": "dagster_run_history"},
+    "initial_lookback_hours": {"label": "Initial Lookback Hours", "type": "integer", "required": false, "default": 48},
+    "batch_limit": {"label": "Batch Limit", "type": "integer", "required": false, "default": 1000}
   }
 }

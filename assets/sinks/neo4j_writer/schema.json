@@ -1,5 +1,5 @@
 {
-  "type": "dagster_component_templates.Neo4jWriterComponent",
+  "component_type": "dagster_component_templates.Neo4jWriterComponent",
   "name": "Neo4j Writer",
   "category": "sink",
   "description": "Write a DataFrame to Neo4j as graph nodes using MERGE or CREATE with efficient UNWIND batch processing",

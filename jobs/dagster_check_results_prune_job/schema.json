@@ -4,17 +4,17 @@
   "category": "jobs",
   "icon": "Trash",
   "attributes": {
-    "job_name": {
+    "job_name": {"label": "Job Name", 
       "type": "string",
       "required": true
     },
-    "schedule": {
+    "schedule": {"label": "Schedule", 
       "type": "string",
       "required": false,
       "default": "0 5 * * 0",
       "x-dagster-widget": "cron"
     },
-    "default_status": {
+    "default_status": {"label": "Default Status", 
       "type": "string",
       "required": false,
       "default": "stopped",
@@ -23,7 +23,7 @@
         "running"
       ]
     },
-    "tags": {
+    "tags": {"label": "Tags", 
       "type": "object",
       "required": false,
       "default": null
@@ -38,17 +38,17 @@
         "type": "string"
       }
     },
-    "max_age_days": {
+    "max_age_days": {"label": "Max Age Days", 
       "type": "integer",
       "required": false,
       "default": 30
     },
-    "max_deletes_per_run": {
+    "max_deletes_per_run": {"label": "Max Deletes Per Run", 
       "type": "integer",
       "required": false,
       "default": 5000
     },
-    "dry_run": {
+    "dry_run": {"label": "Dry Run", 
       "type": "boolean",
       "required": false,
       "default": true

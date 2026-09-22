@@ -34,29 +34,29 @@
       ],
       "ui:widget": "select"
     },
-    "wait_for_completion": {
+    "wait_for_completion": {"label": "Wait For Completion", 
       "type": "boolean",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
     },
-    "poll_interval_seconds": {
+    "poll_interval_seconds": {"label": "Poll Interval Seconds", 
       "type": "integer",
       "required": false,
       "default": 30
     },
-    "timeout_seconds": {
+    "timeout_seconds": {"label": "Timeout Seconds", 
       "type": "integer",
       "required": false,
       "default": 3600
     },
-    "polling_sensor": {
+    "polling_sensor": {"label": "Polling Sensor", 
       "type": "boolean",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
     },
-    "observation_interval_seconds": {
+    "observation_interval_seconds": {"label": "Observation Interval Seconds", 
       "type": "integer",
       "required": false,
       "default": 300
@@ -67,7 +67,7 @@
       "required": false,
       "default": null
     },
-    "asset_key_prefix": {
+    "asset_key_prefix": {"label": "Asset Key Prefix", 
       "type": "array",
       "items": {
         "type": "string"
@@ -75,12 +75,12 @@
       "required": false,
       "ui:widget": "list"
     },
-    "group_name": {
+    "group_name": {"label": "Group Name", 
       "type": "string",
       "required": false,
       "default": "informatica_idmc"
     },
-    "kinds": {
+    "kinds": {"label": "Kinds", 
       "type": "array",
       "items": {
         "type": "string"
@@ -92,12 +92,12 @@
       ],
       "ui:widget": "list"
     },
-    "tags": {
+    "tags": {"label": "Tags", 
       "type": "object",
       "required": false,
       "ui:widget": "key-value"
     },
-    "owners": {
+    "owners": {"label": "Owners", 
       "type": "array",
       "items": {
         "type": "string"

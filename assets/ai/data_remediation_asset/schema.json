@@ -8,14 +8,14 @@
     "outputs": {"type": "dataframe", "description": "Remediated DataFrame with actions applied."}
   },
   "attributes": {
-    "asset_name": {"type": "string", "required": true},
-    "upstream_data_key": {"type": "string", "required": true, "description": "Asset key producing the DataFrame to remediate."},
-    "plan_key": {"type": "string", "required": true, "description": "Asset key producing the plan DataFrame (columns: column, action, params, reason)."},
-    "fail_on_unknown_action": {"type": "boolean", "required": false, "default": false, "description": "If True, raise on unrecognized action names."},
-    "group_name": {"type": "string", "required": false},
-    "description": {"type": "string", "required": false},
-    "owners": {"type": "array", "required": false},
-    "tags": {"type": "object", "required": false},
-    "kinds": {"type": "array", "required": false}
+    "asset_name": {"label": "Asset Name", "type": "string", "required": true},
+    "upstream_data_key": {"label": "Upstream Data Key", "type": "string", "required": true, "description": "Asset key producing the DataFrame to remediate."},
+    "plan_key": {"label": "Plan Key", "type": "string", "required": true, "description": "Asset key producing the plan DataFrame (columns: column, action, params, reason)."},
+    "fail_on_unknown_action": {"label": "Fail On Unknown Action", "type": "boolean", "required": false, "default": false, "description": "If True, raise on unrecognized action names."},
+    "group_name": {"label": "Group Name", "type": "string", "required": false},
+    "description": {"label": "Description", "type": "string", "required": false},
+    "owners": {"label": "Owners", "type": "array", "required": false},
+    "tags": {"label": "Tags", "type": "object", "required": false},
+    "kinds": {"label": "Kinds", "type": "array", "required": false}
   }
 }

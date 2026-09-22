@@ -8,18 +8,18 @@
     "outputs": {"type": "multi_asset", "description": "Emits (2 + N) assets: plan, one per MCP tool, and synthesis."}
   },
   "attributes": {
-    "plan_asset_name": {"type": "string", "required": true},
-    "synthesis_asset_name": {"type": "string", "required": true},
-    "task": {"type": "string", "required": true},
-    "tools": {"type": "array", "required": true, "description": "Bounded list of {name, description, server (stdio/http/sse), mcp_tool_name, args_schema_hint}."},
-    "model": {"type": "string", "required": false, "default": "gpt-4o-mini"},
-    "api_key_env_var": {"type": "string", "required": false, "default": "OPENAI_API_KEY"},
-    "api_base_env_var": {"type": "string", "required": false},
-    "temperature": {"type": "number", "required": false, "default": 0.2},
-    "planner_max_tokens": {"type": "integer", "required": false, "default": 500},
-    "synthesis_max_tokens": {"type": "integer", "required": false, "default": 800},
-    "synthesis_system_message": {"type": "string", "required": false},
-    "group_name": {"type": "string", "required": false},
-    "kinds": {"type": "array", "required": false}
+    "plan_asset_name": {"label": "Plan Asset Name", "type": "string", "required": true},
+    "synthesis_asset_name": {"label": "Synthesis Asset Name", "type": "string", "required": true},
+    "task": {"label": "Task", "type": "string", "required": true},
+    "tools": {"label": "Tools", "type": "array", "required": true, "description": "Bounded list of {name, description, server (stdio/http/sse), mcp_tool_name, args_schema_hint}."},
+    "model": {"label": "Model", "type": "string", "required": false, "default": "gpt-4o-mini"},
+    "api_key_env_var": {"label": "API Key Env Var", "type": "string", "required": false, "default": "OPENAI_API_KEY"},
+    "api_base_env_var": {"label": "API Base Env Var", "type": "string", "required": false},
+    "temperature": {"label": "Temperature", "type": "number", "required": false, "default": 0.2},
+    "planner_max_tokens": {"label": "Planner Max Tokens", "type": "integer", "required": false, "default": 500},
+    "synthesis_max_tokens": {"label": "Synthesis Max Tokens", "type": "integer", "required": false, "default": 800},
+    "synthesis_system_message": {"label": "Synthesis System Message", "type": "string", "required": false},
+    "group_name": {"label": "Group Name", "type": "string", "required": false},
+    "kinds": {"label": "Kinds", "type": "array", "required": false}
   }
 }

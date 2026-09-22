@@ -4,10 +4,10 @@
   "category": "resource",
   "icon": "si:sendgrid",
   "attributes": {
-    "resource_key": {"type": "string", "required": false, "default": "sendgrid"},
-    "api_key_env_var": {"type": "string", "required": false, "default": "SENDGRID_API_KEY"},
-    "base_url": {"type": "string", "required": false, "default": "https://api.sendgrid.com", "description": "https://api.eu.sendgrid.com for EU regional subusers."},
-    "request_timeout_seconds": {"type": "integer", "required": false, "default": 60}
+    "resource_key": {"label": "Resource Key", "type": "string", "required": false, "default": "sendgrid"},
+    "api_key_env_var": {"label": "API Key Env Var", "type": "string", "required": false, "default": "SENDGRID_API_KEY"},
+    "base_url": {"label": "Base URL", "type": "string", "required": false, "default": "https://api.sendgrid.com", "description": "https://api.eu.sendgrid.com for EU regional subusers."},
+    "request_timeout_seconds": {"label": "Request Timeout Seconds", "type": "integer", "required": false, "default": 60}
   },
   "tags": ["resource", "sendgrid", "email", "marketing", "reverse-etl", "contact-sync"],
   "name": "SendGrid Resource"

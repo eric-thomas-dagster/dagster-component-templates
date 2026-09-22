@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_component_templates.HttpWebhookJobComponent",
   "description": "POST/GET to an HTTP endpoint as a job \u2014 heartbeats, status pings, fire-and-forget triggers.",
-  "category": "infrastructure",
+  "category": "jobs",
   "icon": "Cog",
   "attributes": {
     "job_name": {

@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.PrefectWorkspaceComponent",
   "description": "Auto-discover Prefect deployments and emit one triggerable Dagster asset per deployment, with prefect_flow_run's full observability (forward_termination, stream_logs, stream_artifacts) applied uniformly. check_names and Dagster-side scheduling are explicit, per-deployment opt-ins via assets_by_name. StateBackedComponent — discovery cached to disk.",
-  "category": "ingestion",
+  "category": "integration",
   "icon": "si:prefect",
   "x-dagster-io": {
     "outputs": {

@@ -1,4 +1,5 @@
 {
+  "component_type": "dagster_component_templates.DynamoDBResourceComponent",
   "x-dagster-io": {},
   "x-dagster-provides": [
     "dynamodb_resource"

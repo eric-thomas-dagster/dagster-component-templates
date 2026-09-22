@@ -2840,7 +2840,7 @@
     {
       "id": "asset_reference",
       "name": "Asset Reference",
-      "category": "infrastructure",
+      "category": "core",
       "description": "Reference an existing asset (dbt, Python, etc.) in a pipeline definition",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -3063,7 +3063,7 @@
     {
       "id": "audit_logs_to_chronicle",
       "name": "AuditLogsToChronicleComponent",
-      "category": "sink",
+      "category": "security",
       "description": "Ship audit-log DataFrame to Google Chronicle (SecOps) via the unstructuredlogentries ingestion API.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -3112,7 +3112,7 @@
     {
       "id": "audit_logs_to_datadog_logs",
       "name": "AuditLogsToDatadogLogsComponent",
-      "category": "sink",
+      "category": "security",
       "description": "Ship audit-log DataFrame to Datadog Logs via /api/v2/logs.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -3159,7 +3159,7 @@
     {
       "id": "audit_logs_to_elastic_security",
       "name": "AuditLogsToElasticSecurityComponent",
-      "category": "sink",
+      "category": "security",
       "description": "Ship audit-log DataFrame to Elastic Security via the bulk indexing API.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -3207,7 +3207,7 @@
     {
       "id": "audit_logs_to_qradar",
       "name": "AuditLogsToQradarComponent",
-      "category": "sink",
+      "category": "security",
       "description": "Ship audit-log DataFrame to IBM QRadar via Syslog (TCP) \u2014 events go to a configured Log Source.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -3254,7 +3254,7 @@
     {
       "id": "audit_logs_to_sentinel",
       "name": "AuditLogsToSentinelComponent",
-      "category": "sink",
+      "category": "security",
       "description": "Ship audit-log DataFrame to Microsoft Sentinel via the Log Analytics Data Collector API.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -3304,7 +3304,7 @@
     {
       "id": "audit_logs_to_splunk",
       "name": "AuditLogsToSplunkComponent",
-      "category": "sink",
+      "category": "security",
       "description": "Ship audit-log DataFrame to Splunk via the HTTP Event Collector (HEC).",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -3354,7 +3354,7 @@
     {
       "id": "audit_logs_to_sumo_logic",
       "name": "AuditLogsToSumoLogicComponent",
-      "category": "sink",
+      "category": "security",
       "description": "Ship audit-log DataFrame to Sumo Logic via an HTTP Hosted Collector.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -3401,7 +3401,7 @@
     {
       "id": "auth0_logs_ingestion",
       "name": "Auth0LogsIngestionComponent",
-      "category": "ingestion",
+      "category": "security",
       "description": "Pull Auth0 tenant logs via the Management API /api/v2/logs endpoint.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -3633,7 +3633,7 @@
     {
       "id": "aws_cloudtrail_ingestion",
       "name": "AwsCloudTrailIngestionComponent",
-      "category": "ingestion",
+      "category": "security",
       "description": "Pull AWS CloudTrail events via the LookupEvents API. Returns a DataFrame per asset materialization.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -4097,7 +4097,7 @@
     {
       "id": "azure_activity_log_ingestion",
       "name": "AzureActivityLogIngestionComponent",
-      "category": "ingestion",
+      "category": "security",
       "description": "Pull Azure Activity Log entries (control-plane audit) via the Monitor REST API.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -7123,60 +7123,9 @@
       ]
     },
     {
-      "id": "coalesce_project",
-      "name": "Coalesce Project",
-      "category": "infrastructure",
-      "description": "Shared Coalesce connection config.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "assets/infrastructure/coalesce_run_asset",
-      "tags": [
-        "infrastructure",
-        "coalesce",
-        "run",
-        "asset"
-      ],
-      "dependencies": {
-        "pip": [
-          "requests>=2.28.0"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/coalesce_run_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/coalesce_run_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/coalesce_run_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/coalesce_run_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/coalesce_run_asset/requirements.txt",
-      "icon": "Server",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
-      },
-      "produces": [
-        "multi_asset"
-      ],
-      "stateful": true,
-      "agent_hints": {
-        "outputs": "Shared Coalesce connection config.",
-        "requires_pip": [
-          "requests>=2.28.0"
-        ]
-      },
-      "consumes": [
-        "resource:coalesce"
-      ],
-      "keywords": [
-        "infra"
-      ],
-      "emitted_assets": {
-        "pattern": "One Dagster asset per Coalesce node/model in the fetched Coalesce project graph. Asset keys mirror the Coalesce node names.",
-        "source_field": "coalesce_api.nodes[].name",
-        "key_template": "{coalesce_node.name}"
-      }
-    },
-    {
       "id": "coalesce_run_asset",
       "name": "Coalesce Project",
-      "category": "integration",
+      "category": "infrastructure",
       "description": "State-backed component that materializes Coalesce nodes as Dagster assets.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -7458,7 +7407,7 @@
       "name": "Cognos Workspace",
       "component_type": "dagster_community_components.CognosWorkspaceComponent",
       "path": "integrations/cognos_workspace",
-      "category": "ingestion",
+      "category": "integration",
       "icon": "AccountTree",
       "description": "Auto-emit one Dagster asset per Cognos Analytics report by enumerating reports in the specified folders via the Cognos REST API. StateBackedComponent \u2014 discovery cached to disk. Materializing an asset runs the underlying report. The workspace-shape peer of the cognos_* low-level components.",
       "tags": [
@@ -8984,7 +8933,7 @@
     {
       "id": "dagster_plus_audit_log_ingestion",
       "name": "DagsterPlusAuditLogIngestionComponent",
-      "category": "ingestion",
+      "category": "security",
       "description": "Pull Dagster+ audit-log entries (logins, deployment changes, permission edits) via the Dagster+ GraphQL API.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -12976,7 +12925,7 @@
     {
       "id": "dataframe_to_security_lake",
       "name": "DataframeToSecurityLakeComponent",
-      "category": "sink",
+      "category": "security",
       "description": "Write an OCSF DataFrame to AWS Security Lake \u2014 Parquet with snappy compression and the canonical region/accountId/eventDay partition layout.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -14460,7 +14409,7 @@
     {
       "id": "dependency_graph",
       "name": "Dependency Graph",
-      "category": "infrastructure",
+      "category": "core",
       "description": "Define dependencies between assets without modifying component schemas",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -20576,7 +20525,7 @@
     {
       "id": "gcp_audit_log_ingestion",
       "name": "GcpAuditLogIngestionComponent",
-      "category": "ingestion",
+      "category": "security",
       "description": "Pull GCP audit logs via the Cloud Logging API. Returns a DataFrame.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -21484,7 +21433,7 @@
     {
       "id": "github_audit_log_ingestion",
       "name": "GithubAuditLogIngestionComponent",
-      "category": "ingestion",
+      "category": "security",
       "description": "Pull GitHub Enterprise / Org audit log via /orgs/:org/audit-log.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -30425,7 +30374,7 @@
       "name": "MLflow Workspace",
       "component_type": "dagster_community_components.MLflowWorkspaceComponent",
       "path": "integrations/mlflow_workspace",
-      "category": "ingestion",
+      "category": "integration",
       "icon": "si:mlflow",
       "description": "Auto-emit Dagster assets for MLflow experiments (recent runs + metrics + params) and registered models (versions). StateBackedComponent \u2014 discovery cached to disk.",
       "tags": [
@@ -32661,7 +32610,7 @@
     {
       "id": "o365_audit_log_ingestion",
       "name": "O365AuditLogIngestionComponent",
-      "category": "ingestion",
+      "category": "security",
       "description": "Pull Microsoft 365 / Office 365 Unified Audit Log entries via the Management Activity API.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -33143,7 +33092,7 @@
     {
       "id": "okta_system_log_ingestion",
       "name": "OktaSystemLogIngestionComponent",
-      "category": "ingestion",
+      "category": "security",
       "description": "Pull Okta System Log events (every authentication, MFA challenge, admin action) via /api/v1/logs.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -40013,7 +39962,7 @@
     {
       "id": "salesforce_event_log_ingestion",
       "name": "SalesforceEventLogIngestionComponent",
-      "category": "ingestion",
+      "category": "security",
       "description": "Pull Salesforce EventLogFile records (login, API access, report exports) via SOQL.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -42354,7 +42303,7 @@
     {
       "id": "siem_event_normalizer",
       "name": "SiemEventNormalizerComponent",
-      "category": "transformation",
+      "category": "security",
       "description": "Normalize heterogeneous audit-log events to a common schema (OCSF or ECS) before shipping to a SIEM.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -42599,7 +42548,7 @@
     {
       "id": "slack_audit_log_ingestion",
       "name": "SlackAuditLogIngestionComponent",
-      "category": "ingestion",
+      "category": "security",
       "description": "Pull Slack Enterprise Grid audit log via /audit/v1/logs (requires audit_logs:read scope).",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -43158,7 +43107,7 @@
     {
       "id": "snowflake_access_history_ingestion",
       "name": "SnowflakeAccessHistoryIngestionComponent",
-      "category": "ingestion",
+      "category": "security",
       "description": "Pull Snowflake access history (every query, every column accessed) from the ACCOUNT_USAGE views.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -48590,7 +48539,7 @@
       "name": "TM1 Workspace",
       "component_type": "dagster_community_components.TM1WorkspaceComponent",
       "path": "integrations/tm1_workspace",
-      "category": "ingestion",
+      "category": "integration",
       "icon": "AccountTree",
       "description": "Auto-emit one Dagster asset per TM1 Cube / Process / Chore by enumerating via the TM1 REST API. StateBackedComponent \u2014 discovery cached to disk, refreshed on explicit trigger. Materializing Process/Chore assets executes them; Cube assets are observational (use tm1_cube_data_ingestion for actual data). The workspace-shape peer of tm1_process_trigger_job / tm1_process_status_sensor / tm1_cube_data_ingestion.",
       "tags": [
@@ -50793,7 +50742,7 @@
       "name": "Weights & Biases Workspace",
       "component_type": "dagster_community_components.WandbWorkspaceComponent",
       "path": "integrations/wandb_workspace",
-      "category": "ingestion",
+      "category": "integration",
       "icon": "si:weightsandbiases",
       "description": "Auto-emit one Dagster asset per Weights & Biases project for a given entity. Materializing fetches recent runs via GraphQL and emits a DataFrame with state / summary metrics / config.",
       "tags": [
@@ -52857,7 +52806,7 @@
       "name": "RPA Queue Concurrency Lock",
       "component_type": "dagster_community_components.RPAQueueConcurrencyLockComponent",
       "path": "assets/infrastructure/rpa_queue_concurrency_lock",
-      "category": "infrastructure",
+      "category": "decorator",
       "icon": "Lock",
       "description": "Cross-run concurrency limit for RPA bots (or any bounded-license resource). Wraps an existing asset with an inner op that acquires + releases a slot in a named pool tracked via Dagster event log. When pool is at max_concurrent, incoming materializations either wait / skip / fail per config. Stale acquires auto-expire after ttl_seconds so a killed run doesn't permanently hold a slot. Modeled on partition_lock_asset pattern.",
       "tags": [
@@ -53048,7 +52997,7 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-09-22",
-        "evidence": "examples/prefect_workspace.md — one component block auto-discovers two live Prefect deployments, mirrors a paused cron into a Dagster schedule, and turns a table artifact into a passing AssetCheckResult, verified end-to-end."
+        "evidence": "examples/prefect_workspace.md \u2014 one component block auto-discovers two live Prefect deployments, mirrors a paused cron into a Dagster schedule, and turns a table artifact into a passing AssetCheckResult, verified end-to-end."
       },
       "agent_hints": {
         "outputs": [
@@ -53084,9 +53033,712 @@
         "source_field": "prefect_api.deployments[]",
         "key_template": "{flow_name}_{deployment_name}"
       }
+    },
+    {
+      "id": "alation_export_job",
+      "name": "AlationExportJobComponent",
+      "category": "jobs",
+      "description": "Op-shaped job that walks the live Dagster asset graph and pushes lineage to Alation Data Catalog via the Integration v2 lineage endpoint.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/alation_export_job",
+      "tags": [
+        "job",
+        "alation",
+        "export"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/alation_export_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/alation_export_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/alation_export_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/alation_export_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/alation_export_job/requirements.txt",
+      "produces": [
+        "job",
+        "schedule"
+      ],
+      "agent_hints": {
+        "outputs": "Op-shaped job that walks the live Dagster asset graph and pushes lineage to Alation Data Catalog via the Integration v2 lineage endpoint.",
+        "requires_pip": [
+          "requests>=2.28"
+        ]
+      },
+      "icon": "Activity"
+    },
+    {
+      "id": "collibra_export_job",
+      "name": "CollibraExportJobComponent",
+      "category": "jobs",
+      "description": "Op-shaped job that walks the live Dagster asset graph and pushes lineage to Collibra Data Intelligence Platform via the import/json-job endpoint.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/collibra_export_job",
+      "tags": [
+        "job",
+        "collibra",
+        "export"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/collibra_export_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/collibra_export_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/collibra_export_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/collibra_export_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/collibra_export_job/requirements.txt",
+      "produces": [
+        "job",
+        "schedule"
+      ],
+      "agent_hints": {
+        "outputs": "Op-shaped job that walks the live Dagster asset graph and pushes lineage to Collibra Data Intelligence Platform via the import/json-job endpoint.",
+        "requires_pip": [
+          "requests>=2.28"
+        ]
+      },
+      "icon": "Activity"
+    },
+    {
+      "id": "dagster_asset_materialization_prune_job",
+      "name": "DagsterAssetMaterializationPruneJobComponent",
+      "category": "jobs",
+      "description": "Op-shaped job that wipes asset materialization history for configured assets, preserving the last N via synthetic re-emission tagged _re_emitted_by_prune_job=true.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/dagster_asset_materialization_prune_job",
+      "tags": [
+        "job",
+        "dagster",
+        "asset",
+        "materialization",
+        "prune"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_asset_materialization_prune_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_asset_materialization_prune_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_asset_materialization_prune_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_asset_materialization_prune_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_asset_materialization_prune_job/requirements.txt",
+      "produces": [
+        "job",
+        "schedule"
+      ],
+      "agent_hints": {
+        "outputs": "Op-shaped job that wipes asset materialization history for configured assets, preserving the last N via synthetic re-emission tagged _re_emitted_by_prune_job=true.",
+        "requires_pip": []
+      },
+      "icon": "Trash"
+    },
+    {
+      "id": "dagster_audit_to_warehouse_job",
+      "name": "DagsterAuditToWarehouseJobComponent",
+      "category": "jobs",
+      "description": "Op-shaped job that pulls Dagster+ audit log entries (who did what, when) via GraphQL and MERGEs them into a warehouse table for compliance / SOC2 retention queries. Dagster+ only.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/dagster_audit_to_warehouse_job",
+      "tags": [
+        "job",
+        "dagster",
+        "audit",
+        "to",
+        "warehouse"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_audit_to_warehouse_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_audit_to_warehouse_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_audit_to_warehouse_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_audit_to_warehouse_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_audit_to_warehouse_job/requirements.txt",
+      "produces": [
+        "job",
+        "schedule"
+      ],
+      "agent_hints": {
+        "outputs": "Op-shaped job that pulls Dagster+ audit log entries (who did what, when) via GraphQL and MERGEs them into a warehouse table for compliance / SOC2 retention queries. Dagster+ only.",
+        "requires_pip": [
+          "requests>=2.28"
+        ]
+      },
+      "icon": "Upload"
+    },
+    {
+      "id": "dagster_check_results_prune_job",
+      "name": "DagsterCheckResultsPruneJobComponent",
+      "category": "jobs",
+      "description": "Op-shaped job that deletes old AssetCheckResult events from the event log. Filters by max_age_days and optional per-asset scoping.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/dagster_check_results_prune_job",
+      "tags": [
+        "job",
+        "dagster",
+        "check",
+        "results",
+        "prune"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_check_results_prune_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_check_results_prune_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_check_results_prune_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_check_results_prune_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_check_results_prune_job/requirements.txt",
+      "produces": [
+        "job",
+        "schedule"
+      ],
+      "agent_hints": {
+        "outputs": "Op-shaped job that deletes old AssetCheckResult events from the event log. Filters by max_age_days and optional per-asset scoping.",
+        "requires_pip": []
+      },
+      "icon": "Trash"
+    },
+    {
+      "id": "dagster_compute_logs_archive_job",
+      "name": "DagsterComputeLogsArchiveJobComponent",
+      "category": "jobs",
+      "description": "Op-shaped job that gzips + archives old Dagster compute log files to S3/GCS/local, then optionally deletes them from primary storage. Frees primary storage without losing audit trail.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/dagster_compute_logs_archive_job",
+      "tags": [
+        "job",
+        "dagster",
+        "compute",
+        "logs",
+        "archive"
+      ],
+      "dependencies": {
+        "pip": [
+          "boto3>=1.34",
+          "google-cloud-storage>=2.10"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_compute_logs_archive_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_compute_logs_archive_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_compute_logs_archive_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_compute_logs_archive_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_compute_logs_archive_job/requirements.txt",
+      "produces": [
+        "job",
+        "schedule"
+      ],
+      "agent_hints": {
+        "outputs": "Op-shaped job that gzips + archives old Dagster compute log files to S3/GCS/local, then optionally deletes them from primary storage. Frees primary storage without losing audit trail.",
+        "requires_pip": [
+          "boto3>=1.34",
+          "google-cloud-storage>=2.10"
+        ]
+      },
+      "icon": "Archive"
+    },
+    {
+      "id": "dagster_run_prune_job",
+      "name": "DagsterRunPruneJobComponent",
+      "category": "jobs",
+      "description": "Op-shaped job that deletes old Dagster runs (+ their event log entries) beyond a configurable retention window. Prunes based on max_age_days AND a keep_last_n_per_job safety net.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/dagster_run_prune_job",
+      "tags": [
+        "job",
+        "dagster",
+        "run",
+        "prune"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_run_prune_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_run_prune_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_run_prune_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_run_prune_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_run_prune_job/requirements.txt",
+      "produces": [
+        "job",
+        "schedule"
+      ],
+      "agent_hints": {
+        "outputs": "Op-shaped job that deletes old Dagster runs (+ their event log entries) beyond a configurable retention window. Prunes based on max_age_days AND a keep_last_n_per_job safety net.",
+        "requires_pip": []
+      },
+      "icon": "Trash"
+    },
+    {
+      "id": "dagster_stale_partition_cleanup_job",
+      "name": "DagsterStalePartitionCleanupJobComponent",
+      "category": "jobs",
+      "description": "Op-shaped job that detects orphaned partition materialization events for assets whose PartitionsDefinition has been re-shaped. Reports by default; opt-in wipe when threshold exceeded.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/dagster_stale_partition_cleanup_job",
+      "tags": [
+        "job",
+        "dagster",
+        "stale",
+        "partition",
+        "cleanup"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_stale_partition_cleanup_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_stale_partition_cleanup_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_stale_partition_cleanup_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_stale_partition_cleanup_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_stale_partition_cleanup_job/requirements.txt",
+      "produces": [
+        "job",
+        "schedule"
+      ],
+      "agent_hints": {
+        "outputs": "Op-shaped job that detects orphaned partition materialization events for assets whose PartitionsDefinition has been re-shaped. Reports by default; opt-in wipe when threshold exceeded.",
+        "requires_pip": []
+      },
+      "icon": "Trash"
+    },
+    {
+      "id": "data360_export_job",
+      "name": "Data360ExportJobComponent",
+      "category": "jobs",
+      "description": "Op-shaped job that walks the live Dagster asset graph and pushes lineage to Precisely Data360 Govern via the Catalog REST endpoint (OAuth2 client-credentials auth).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/data360_export_job",
+      "tags": [
+        "job",
+        "data360",
+        "export"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/data360_export_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/data360_export_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/data360_export_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/data360_export_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/data360_export_job/requirements.txt",
+      "produces": [
+        "job",
+        "schedule"
+      ],
+      "agent_hints": {
+        "outputs": "Op-shaped job that walks the live Dagster asset graph and pushes lineage to Precisely Data360 Govern via the Catalog REST endpoint (OAuth2 client-credentials auth).",
+        "requires_pip": [
+          "requests>=2.28"
+        ]
+      },
+      "icon": "Activity"
+    },
+    {
+      "id": "datahub_export_job",
+      "name": "DataHubExportJobComponent",
+      "category": "jobs",
+      "description": "Op-shaped job that walks the live Dagster asset graph and pushes lineage to DataHub via the Rest.li ingestProposal endpoint.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/datahub_export_job",
+      "tags": [
+        "job",
+        "datahub",
+        "export"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/datahub_export_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/datahub_export_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/datahub_export_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/datahub_export_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/datahub_export_job/requirements.txt",
+      "produces": [
+        "job",
+        "schedule"
+      ],
+      "agent_hints": {
+        "outputs": "Op-shaped job that walks the live Dagster asset graph and pushes lineage to DataHub via the Rest.li ingestProposal endpoint.",
+        "requires_pip": [
+          "requests>=2.28"
+        ]
+      },
+      "icon": "Activity"
+    },
+    {
+      "id": "event_log_to_bigquery_job",
+      "name": "EventLogToBigQueryJobComponent",
+      "category": "jobs",
+      "description": "Op-shaped job that streams new Dagster event log entries into a BigQuery table via insert_rows_json. Cursor-based; only sends new events.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/event_log_to_bigquery_job",
+      "tags": [
+        "job",
+        "event",
+        "log",
+        "to",
+        "bigquery"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-cloud-bigquery>=3.14"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_bigquery_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_bigquery_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_bigquery_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_bigquery_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_bigquery_job/requirements.txt",
+      "produces": [
+        "job",
+        "schedule"
+      ],
+      "agent_hints": {
+        "outputs": "Op-shaped job that streams new Dagster event log entries into a BigQuery table via insert_rows_json. Cursor-based; only sends new events.",
+        "requires_pip": [
+          "google-cloud-bigquery>=3.14"
+        ]
+      },
+      "icon": "Upload"
+    },
+    {
+      "id": "event_log_to_datadog_job",
+      "name": "EventLogToDatadogJobComponent",
+      "category": "jobs",
+      "description": "Op-shaped job that ships new Dagster event log entries to Datadog as log entries via the HTTP intake API. Batches up to 1000 events per POST.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/event_log_to_datadog_job",
+      "tags": [
+        "job",
+        "event",
+        "log",
+        "to",
+        "datadog"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_datadog_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_datadog_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_datadog_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_datadog_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_datadog_job/requirements.txt",
+      "produces": [
+        "job",
+        "schedule"
+      ],
+      "agent_hints": {
+        "outputs": "Op-shaped job that ships new Dagster event log entries to Datadog as log entries via the HTTP intake API. Batches up to 1000 events per POST.",
+        "requires_pip": [
+          "requests>=2.28"
+        ]
+      },
+      "icon": "Upload"
+    },
+    {
+      "id": "event_log_to_s3_job",
+      "name": "EventLogToS3JobComponent",
+      "category": "jobs",
+      "description": "Op-shaped job that streams new Dagster event log entries to S3 as gzipped JSONL batches, partitioned by hour. Cursor-based; only sends new events since prior successful run.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/event_log_to_s3_job",
+      "tags": [
+        "job",
+        "event",
+        "log",
+        "to",
+        "s3"
+      ],
+      "dependencies": {
+        "pip": [
+          "boto3>=1.34"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_s3_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_s3_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_s3_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_s3_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_s3_job/requirements.txt",
+      "produces": [
+        "job",
+        "schedule"
+      ],
+      "agent_hints": {
+        "outputs": "Op-shaped job that streams new Dagster event log entries to S3 as gzipped JSONL batches, partitioned by hour. Cursor-based; only sends new events since prior successful run.",
+        "requires_pip": [
+          "boto3>=1.34"
+        ]
+      },
+      "icon": "Upload"
+    },
+    {
+      "id": "event_log_to_snowflake_job",
+      "name": "EventLogToSnowflakeJobComponent",
+      "category": "jobs",
+      "description": "Op-shaped job that streams new Dagster event log entries into a Snowflake table via INSERT batches. Cursor-based; only sends new events.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/event_log_to_snowflake_job",
+      "tags": [
+        "job",
+        "event",
+        "log",
+        "to",
+        "snowflake"
+      ],
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python>=3.6"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_snowflake_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_snowflake_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_snowflake_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_snowflake_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_snowflake_job/requirements.txt",
+      "produces": [
+        "job",
+        "schedule"
+      ],
+      "agent_hints": {
+        "outputs": "Op-shaped job that streams new Dagster event log entries into a Snowflake table via INSERT batches. Cursor-based; only sends new events.",
+        "requires_pip": [
+          "snowflake-connector-python>=3.6"
+        ]
+      },
+      "icon": "Upload"
+    },
+    {
+      "id": "event_log_to_splunk_job",
+      "name": "EventLogToSplunkJobComponent",
+      "category": "jobs",
+      "description": "Op-shaped job that ships new Dagster event log entries to Splunk via the HTTP Event Collector (HEC). Simpler than dagster_plus_to_siem_job: OSS event log only, single-destination.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/event_log_to_splunk_job",
+      "tags": [
+        "job",
+        "event",
+        "log",
+        "to",
+        "splunk"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_splunk_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_splunk_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_splunk_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_splunk_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_splunk_job/requirements.txt",
+      "produces": [
+        "job",
+        "schedule"
+      ],
+      "agent_hints": {
+        "outputs": "Op-shaped job that ships new Dagster event log entries to Splunk via the HTTP Event Collector (HEC). Simpler than dagster_plus_to_siem_job: OSS event log only, single-destination.",
+        "requires_pip": [
+          "requests>=2.28"
+        ]
+      },
+      "icon": "Upload"
+    },
+    {
+      "id": "openmetadata_export_job",
+      "name": "OpenMetadataExportJobComponent",
+      "category": "jobs",
+      "description": "Op-shaped job that walks the live Dagster asset graph and pushes lineage + metadata to OpenMetadata's REST API (service \u2192 database \u2192 schemas \u2192 tables \u2192 lineage edges). Idempotent PUTs.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/openmetadata_export_job",
+      "tags": [
+        "job",
+        "openmetadata",
+        "export"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/openmetadata_export_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/openmetadata_export_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/openmetadata_export_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/openmetadata_export_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/openmetadata_export_job/requirements.txt",
+      "produces": [
+        "job",
+        "schedule"
+      ],
+      "agent_hints": {
+        "outputs": "Op-shaped job that walks the live Dagster asset graph and pushes lineage + metadata to OpenMetadata's REST API (service \u2192 database \u2192 schemas \u2192 tables \u2192 lineage edges). Idempotent PUTs.",
+        "requires_pip": [
+          "requests>=2.28"
+        ]
+      },
+      "icon": "Activity"
+    },
+    {
+      "id": "purview_export_job",
+      "name": "PurviewExportJobComponent",
+      "category": "jobs",
+      "description": "Op-shaped job that walks the live Dagster asset graph and pushes lineage to Microsoft Purview Data Map (Apache Atlas v2 entity bulk API).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/purview_export_job",
+      "tags": [
+        "job",
+        "purview",
+        "export"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/purview_export_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/purview_export_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/purview_export_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/purview_export_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/purview_export_job/requirements.txt",
+      "produces": [
+        "job",
+        "schedule"
+      ],
+      "agent_hints": {
+        "outputs": "Op-shaped job that walks the live Dagster asset graph and pushes lineage to Microsoft Purview Data Map (Apache Atlas v2 entity bulk API).",
+        "requires_pip": [
+          "requests>=2.28"
+        ]
+      },
+      "icon": "Activity"
+    },
+    {
+      "id": "run_history_to_warehouse_job",
+      "name": "RunHistoryToWarehouseJobComponent",
+      "category": "jobs",
+      "description": "Op-shaped job that MERGEs new/updated Dagster runs into a warehouse table (Snowflake | BigQuery | Postgres). Run-level (one row per run) \u2014 complement to event-log exports.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/run_history_to_warehouse_job",
+      "tags": [
+        "job",
+        "run",
+        "history",
+        "to",
+        "warehouse"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/run_history_to_warehouse_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/run_history_to_warehouse_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/run_history_to_warehouse_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/run_history_to_warehouse_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/run_history_to_warehouse_job/requirements.txt",
+      "produces": [
+        "job",
+        "schedule"
+      ],
+      "agent_hints": {
+        "outputs": "Op-shaped job that MERGEs new/updated Dagster runs into a warehouse table (Snowflake | BigQuery | Postgres). Run-level (one row per run) \u2014 complement to event-log exports.",
+        "requires_pip": []
+      },
+      "icon": "Upload"
+    },
+    {
+      "id": "stuck_run_terminator_job",
+      "name": "StuckRunTerminatorJobComponent",
+      "category": "jobs",
+      "description": "Op-shaped job that force-cancels Dagster runs stuck in STARTING/STARTED/CANCELING beyond a threshold. Universal operational need \u2014 every deployment eventually gets zombie runs after worker crashes.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/stuck_run_terminator_job",
+      "tags": [
+        "job",
+        "stuck",
+        "run",
+        "terminator"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/stuck_run_terminator_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/stuck_run_terminator_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/stuck_run_terminator_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/stuck_run_terminator_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/stuck_run_terminator_job/requirements.txt",
+      "produces": [
+        "job",
+        "schedule"
+      ],
+      "agent_hints": {
+        "outputs": "Op-shaped job that force-cancels Dagster runs stuck in STARTING/STARTED/CANCELING beyond a threshold. Universal operational need \u2014 every deployment eventually gets zombie runs after worker crashes.",
+        "requires_pip": []
+      },
+      "icon": "Activity"
+    },
+    {
+      "id": "webhook_lineage_export_job",
+      "name": "WebhookLineageExportJobComponent",
+      "category": "jobs",
+      "description": "Op-shaped job that walks the live Dagster asset graph and POSTs the raw payload to any HTTP webhook (Slack, internal endpoint, n8n, Zapier). Optional Bearer auth.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/webhook_lineage_export_job",
+      "tags": [
+        "job",
+        "webhook",
+        "lineage",
+        "export"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/webhook_lineage_export_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/webhook_lineage_export_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/webhook_lineage_export_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/webhook_lineage_export_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/webhook_lineage_export_job/requirements.txt",
+      "produces": [
+        "job",
+        "schedule"
+      ],
+      "agent_hints": {
+        "outputs": "Op-shaped job that walks the live Dagster asset graph and POSTs the raw payload to any HTTP webhook (Slack, internal endpoint, n8n, Zapier). Optional Bearer auth.",
+        "requires_pip": [
+          "requests>=2.28"
+        ]
+      },
+      "icon": "Activity"
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1025
+  "total": 1044
 }

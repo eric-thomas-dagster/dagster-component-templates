@@ -16,104 +16,104 @@
       "description": "Dagster asset name.",
       "required": true
     },
-    "prompts": {
+    "prompts": {"label": "Prompts", 
       "type": "object",
       "additionalProperties": {"type": "string"},
       "description": "Mode A: {partition_key: prompt_text} mapping."
     },
-    "template": {
+    "template": {"label": "Template", 
       "type": "string",
       "description": "Mode B: template rendered per topic. `{topic}` / `{partition_key}` substituted. Requires `topics:`."
     },
-    "prompt": {
+    "prompt": {"label": "Prompt", 
       "type": "string",
       "description": "Mode C: unpartitioned single-string prompt."
     },
-    "topics": {
+    "topics": {"label": "Topics", 
       "type": "array",
       "items": {"type": "string"},
       "description": "List of topics. Used by modes B / D / E. In modes D/E, each topic expands into `count_per_topic` variants. Partition keys are `{topic}` when count=1, `{topic}__v{n}` (0-indexed) when >1."
     },
-    "persona": {
+    "persona": {"label": "Persona", 
       "type": "string",
       "enum": ["student", "engineer", "executive", "novice", "expert"],
       "description": "Lever (modes D/E): who's asking. Sets prompt opener persona."
     },
-    "style": {
+    "style": {"label": "Style", 
       "type": "string",
       "enum": ["formal", "casual", "technical", "journalistic"],
       "description": "Lever (modes D/E): register and word-choice."
     },
-    "length": {
+    "length": {"label": "Length", 
       "type": "string",
       "enum": ["short", "medium", "long"],
       "description": "Lever (modes D/E): requested answer length hint."
     },
-    "task_type": {
+    "task_type": {"label": "Task Type", 
       "type": "string",
       "enum": ["question", "instruction", "comparison", "analysis", "explanation", "debate"],
       "description": "Lever (modes D/E): verb + framing of the prompt."
     },
-    "format_hint": {
+    "format_hint": {"label": "Format Hint", 
       "type": "string",
       "enum": ["bullets", "paragraphs", "table", "code"],
       "description": "Lever (modes D/E): requested answer format."
     },
-    "depth": {
+    "depth": {"label": "Depth", 
       "type": "string",
       "enum": ["intro", "intermediate", "advanced"],
       "description": "Lever (modes D/E): assumed background level of the reader."
     },
-    "count_per_topic": {
+    "count_per_topic": {"label": "Count Per Topic", 
       "type": "integer",
       "default": 1,
       "description": "Modes D/E: number of variants per topic. Emits partition keys `{topic}__v{n}` when >1."
     },
-    "seed": {
+    "seed": {"label": "Seed", 
       "type": "integer",
       "default": 42,
       "description": "Reproducibility seed for mode D (composed picking) and mode E (LLM seed hint)."
     },
-    "paraphrase_model": {
+    "paraphrase_model": {"label": "Paraphrase Model", 
       "type": "string",
       "description": "Mode E: LiteLLM model string (e.g. 'gpt-4o-mini', 'claude-haiku-4-5-20251001'). Presence triggers LLM mode."
     },
-    "api_key_env_var": {
+    "api_key_env_var": {"label": "API Key Env Var", 
       "type": "string",
       "description": "Mode E: env var holding the LLM provider's API key."
     },
-    "api_base_env_var": {
+    "api_base_env_var": {"label": "API Base Env Var", 
       "type": "string",
       "description": "Mode E: env var holding a custom API base URL."
     },
-    "system_prompt": {
+    "system_prompt": {"label": "System Prompt", 
       "type": "string",
       "description": "Mode E: override the default paraphraser system prompt."
     },
-    "temperature": {
+    "temperature": {"label": "Temperature", 
       "type": "number",
       "default": 0.7,
       "description": "Mode E: sampling temperature."
     },
-    "max_tokens": {
+    "max_tokens": {"label": "Max Tokens", 
       "type": "integer",
       "default": 300,
       "description": "Mode E: max completion tokens per variant."
     },
-    "include_wrong_variants": {
+    "include_wrong_variants": {"label": "Include Wrong Variants", 
       "type": "boolean",
       "default": false,
       "description": "Mode E: pepper adversarial / under-specified variants (every 3rd) for downstream robustness / eval flows."
     },
-    "description": {"type": "string"},
-    "group_name": {"type": "string", "default": "prompts"},
-    "kinds": {
+    "description": {"label": "Description", "type": "string"},
+    "group_name": {"label": "Group Name", "type": "string", "default": "prompts"},
+    "kinds": {"label": "Kinds", 
       "type": "array",
       "items": {"type": "string"},
       "description": "Asset kinds. Default: ['prompt', 'synthetic']."
     },
-    "tags": {"type": "object", "additionalProperties": {"type": "string"}},
-    "owners": {"type": "array", "items": {"type": "string"}},
-    "deps": {"type": "array", "items": {"type": "string"}}
+    "tags": {"label": "Tags", "type": "object", "additionalProperties": {"type": "string"}},
+    "owners": {"label": "Owners", "type": "array", "items": {"type": "string"}},
+    "deps": {"label": "Deps", "type": "array", "items": {"type": "string"}}
   }
 }

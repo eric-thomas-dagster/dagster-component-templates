@@ -7,28 +7,28 @@
     "outputs": {"type": "table_or_dataframe", "description": "Either materialized to one or more sinks (parquet/table/jdbc) or returned as pandas (sink kind=none)"}
   },
   "attributes": {
-    "asset_name":         {"type": "string", "required": true},
-    "spark_config":       {"type": "object", "description": "SparkConf options (e.g. spark.master, spark.sql.shuffle.partitions)"},
-    "spark_app_name":     {"type": "string", "default": "dagster-pyspark-pipeline"},
+    "asset_name":         {"label": "Asset Name", "type": "string", "required": true},
+    "spark_config":       {"label": "Spark Config", "type": "object", "description": "SparkConf options (e.g. spark.master, spark.sql.shuffle.partitions)"},
+    "spark_app_name":     {"label": "Spark App Name", "type": "string", "default": "dagster-pyspark-pipeline"},
 
-    "source":             {"type": "object",
+    "source":             {"label": "Source", "type": "object",
                            "description": "Top-level single-source shape: {kind: parquet|csv|json|orc|delta|table|jdbc|upstream, ...}"},
-    "operations":         {"type": "array", "items": {"type": "object"},
+    "operations":         {"label": "Operations", "type": "array", "items": {"type": "object"},
                            "description": "Flat shape: PySpark DataFrame ops. Supported: filter, select, drop, rename, with_columns, group_by, sort, limit, distinct, drop_nulls, join, union, sql."},
-    "sink":               {"type": "object",
+    "sink":               {"label": "Sink", "type": "object",
                            "description": "Top-level single-sink shape: {kind: parquet|csv|json|delta|table|jdbc|none, ...}"},
-    "upstream_asset_key": {"type": "string", "description": "Flat shape: when source.kind='upstream'"},
+    "upstream_asset_key": {"label": "Upstream Asset Key", "type": "string", "description": "Flat shape: when source.kind='upstream'"},
 
-    "steps":              {"type": "array", "items": {"type": "object"},
+    "steps":              {"label": "Steps", "type": "array", "items": {"type": "object"},
                            "description": "Multi-step form. Each step: {id, source: {kind: parquet|table|jdbc|upstream|ref|..., ...}, operations: [...]}. 'op: sql' uses createOrReplaceTempView('self' + step ids) + spark.sql(...)."},
-    "sinks":              {"type": "array", "items": {"type": "object"},
+    "sinks":              {"label": "Sinks", "type": "array", "items": {"type": "object"},
                            "description": "Multi-step form. Each sink: {from: <step_id>, kind: parquet|csv|json|delta|table|jdbc|none, path/table/url, mode}."},
 
-    "group_name":         {"type": "string"},
-    "description":        {"type": "string"},
-    "asset_tags":         {"type": "object"},
-    "kinds":              {"type": "array", "items": {"type": "string"}},
-    "owners":             {"type": "array", "items": {"type": "string"}},
-    "deps":               {"type": "array", "items": {"type": "string"}}
+    "group_name":         {"label": "Group Name", "type": "string"},
+    "description":        {"label": "Description", "type": "string"},
+    "asset_tags":         {"label": "Asset Tags", "type": "object"},
+    "kinds":              {"label": "Kinds", "type": "array", "items": {"type": "string"}},
+    "owners":             {"label": "Owners", "type": "array", "items": {"type": "string"}},
+    "deps":               {"label": "Deps", "type": "array", "items": {"type": "string"}}
   }
 }

@@ -16,15 +16,15 @@
     "upstream_table":       {"type": "string", "required": true, "label": "Upstream Table"},
     "output_table":         {"type": "string", "required": true, "label": "Output Table"},
     "predicate":            {"type": "string", "required": true, "label": "SQL Predicate"},
-    "negate":               {"type": "boolean", "default": false},
-    "mode":                 {"type": "string", "enum": ["replace","create_if_not_exists"], "default": "replace"},
-    "group_name":           {"type": "string"},
-    "deps":                 {"type": "array", "items": {"type": "string"}},
-    "owners":               {"type": "array", "items": {"type": "string"}},
-    "description":          {"type": "string"},
-    "asset_tags":           {"type": "object"},
-    "kinds":                {"type": "array", "items": {"type": "string"}},
-    "include_preview_metadata": {"type": "boolean", "default": false},
-    "preview_rows":         {"type": "integer", "default": 25, "minimum": 1, "maximum": 200}
+    "negate":               {"label": "Negate", "type": "boolean", "default": false},
+    "mode":                 {"label": "Mode", "type": "string", "enum": ["replace","create_if_not_exists"], "default": "replace"},
+    "group_name":           {"label": "Group Name", "type": "string"},
+    "deps":                 {"label": "Deps", "type": "array", "items": {"type": "string"}},
+    "owners":               {"label": "Owners", "type": "array", "items": {"type": "string"}},
+    "description":          {"label": "Description", "type": "string"},
+    "asset_tags":           {"label": "Asset Tags", "type": "object"},
+    "kinds":                {"label": "Kinds", "type": "array", "items": {"type": "string"}},
+    "include_preview_metadata": {"label": "Include Preview Metadata", "type": "boolean", "default": false},
+    "preview_rows":         {"label": "Preview Rows", "type": "integer", "default": 25, "minimum": 1, "maximum": 200}
   }
 }

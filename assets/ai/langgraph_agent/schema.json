@@ -113,39 +113,39 @@
       "required": false,
       "default": null
     },
-    "group_name": {
+    "group_name": {"label": "Group Name", 
       "type": "string",
       "required": false
     },
-    "description": {
+    "description": {"label": "Description", 
       "type": "string",
       "required": false
     },
-    "owners": {
+    "owners": {"label": "Owners", 
       "type": "array",
       "required": false
     },
-    "asset_tags": {
+    "asset_tags": {"label": "Asset Tags", 
       "type": "object",
       "required": false
     },
-    "kinds": {
+    "kinds": {"label": "Kinds", 
       "type": "array",
       "required": false
     },
-    "deps": {
+    "deps": {"label": "Deps", 
       "type": "array",
       "required": false
     },
-    "retry_policy_max_retries": {
+    "retry_policy_max_retries": {"label": "Retry Policy Max Retries", 
       "type": "integer",
       "required": false
     },
-    "retry_policy_delay_seconds": {
+    "retry_policy_delay_seconds": {"label": "Retry Policy Delay Seconds", 
       "type": "integer",
       "required": false
     },
-    "retry_policy_backoff": {
+    "retry_policy_backoff": {"label": "Retry Policy Backoff", 
       "type": "string",
       "required": false,
       "default": "exponential",

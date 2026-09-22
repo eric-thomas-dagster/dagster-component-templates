@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.WandbWorkspaceComponent",
   "description": "Auto-emit one Dagster asset per Weights & Biases project for a given entity. StateBackedComponent \u2014 discovery cached to disk. Materializing an asset fetches recent runs via the GraphQL API and emits a DataFrame with run state, summary metrics, and config.",
-  "category": "ingestion",
+  "category": "integration",
   "icon": "AccountTree",
   "x-dagster-io": {
     "outputs": {

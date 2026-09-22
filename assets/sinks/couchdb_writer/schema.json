@@ -1,5 +1,5 @@
 {
-  "type": "dagster_component_templates.CouchdbWriterComponent",
+  "component_type": "dagster_component_templates.CouchdbWriterComponent",
   "name": "CouchDB Writer",
   "category": "sink",
   "description": "Write a DataFrame to an Apache CouchDB database with upsert or insert mode and optional custom document IDs",

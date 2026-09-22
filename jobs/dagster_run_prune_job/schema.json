@@ -6,13 +6,13 @@
   "attributes": {
     "job_name": {"type": "string", "label": "Job Name", "required": true},
     "schedule": {"type": "string", "label": "Schedule", "required": false, "default": "0 4 * * *", "x-dagster-widget": "cron"},
-    "default_status": {"type": "string", "required": false, "default": "stopped", "enum": ["stopped", "running"]},
-    "tags": {"type": "object", "required": false, "default": null},
+    "default_status": {"label": "Default Status", "type": "string", "required": false, "default": "stopped", "enum": ["stopped", "running"]},
+    "tags": {"label": "Tags", "type": "object", "required": false, "default": null},
     "max_age_days": {"type": "integer", "label": "Max Age Days", "description": "Delete runs older than this.", "required": false, "default": 30},
     "keep_last_n_per_job": {"type": "integer", "label": "Keep Last N Per Job", "description": "Safety net: always keep N most recent per job.", "required": false, "default": 10},
     "only_terminal_states": {"type": "boolean", "label": "Only Terminal States", "description": "Only prune SUCCESS/FAILURE/CANCELED runs.", "required": false, "default": true},
     "tags_filter": {"type": "object", "label": "Tags Filter", "description": "Only prune runs matching ALL these tags.", "required": false, "default": null},
     "max_deletes_per_run": {"type": "integer", "label": "Max Deletes Per Run", "description": "Hard cap per tick.", "required": false, "default": 1000},
-    "dry_run": {"type": "boolean", "required": false, "default": false}
+    "dry_run": {"label": "Dry Run", "type": "boolean", "required": false, "default": false}
   }
 }

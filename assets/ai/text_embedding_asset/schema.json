@@ -13,63 +13,63 @@
     }
   },
   "attributes": {
-    "asset_name": {
+    "asset_name": {"label": "Asset Name", 
       "type": "string",
       "required": true
     },
-    "texts": {
+    "texts": {"label": "Texts", 
       "type": "array",
       "required": true,
       "description": "List of literal strings to embed."
     },
-    "api_key_env_var": {
+    "api_key_env_var": {"label": "API Key Env Var", 
       "type": "string",
       "required": false,
       "default": "OPENAI_API_KEY"
     },
-    "api_base_env_var": {
+    "api_base_env_var": {"label": "API Base Env Var", 
       "type": "string",
       "required": false,
       "description": "Custom base URL env var — e.g. for Vercel AI Gateway."
     },
-    "dimensions": {
+    "dimensions": {"label": "Dimensions", 
       "type": "integer",
       "required": false,
       "description": "Only for text-embedding-3-* models."
     },
-    "text_column": {
+    "text_column": {"label": "Text Column", 
       "type": "string",
       "required": false,
       "default": "text",
       "x-dagster-widget": "column"
     },
-    "embedding_column": {
+    "embedding_column": {"label": "Embedding Column", 
       "type": "string",
       "required": false,
       "default": "embedding",
       "x-dagster-widget": "column"
     },
-    "group_name": {
+    "group_name": {"label": "Group Name", 
       "type": "string",
       "required": false
     },
-    "description": {
+    "description": {"label": "Description", 
       "type": "string",
       "required": false
     },
-    "owners": {
+    "owners": {"label": "Owners", 
       "type": "array",
       "required": false
     },
-    "tags": {
+    "tags": {"label": "Tags", 
       "type": "object",
       "required": false
     },
-    "kinds": {
+    "kinds": {"label": "Kinds", 
       "type": "array",
       "required": false
     },
-    "deps": {
+    "deps": {"label": "Deps", 
       "type": "array",
       "required": false
     }

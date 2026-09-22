@@ -1,4 +1,5 @@
 {
+  "component_type": "dagster_component_templates.FirestoreResourceComponent",
   "x-dagster-io": {},
   "x-dagster-provides": [
     "firestore_resource"

@@ -20,12 +20,12 @@
     "output_type":           {"type": "string", "label": "Output Type", "enum": ["polars", "pandas"], "default": "polars"},
     "engine":                {"type": "string", "label": "Read Engine", "enum": ["connectorx", "adbc"], "default": "connectorx"},
     "group_name":            {"type": "string", "label": "Asset Group"},
-    "description":           {"type": "string"},
-    "asset_tags":            {"type": "object"},
-    "kinds":                 {"type": "array", "items": {"type": "string"}},
-    "owners":                {"type": "array", "items": {"type": "string"}},
-    "deps":                  {"type": "array", "items": {"type": "string"}},
-    "include_preview_metadata": {"type": "boolean", "default": false},
-    "preview_rows":          {"type": "integer", "default": 25, "minimum": 1, "maximum": 500}
+    "description":           {"label": "Description", "type": "string"},
+    "asset_tags":            {"label": "Asset Tags", "type": "object"},
+    "kinds":                 {"label": "Kinds", "type": "array", "items": {"type": "string"}},
+    "owners":                {"label": "Owners", "type": "array", "items": {"type": "string"}},
+    "deps":                  {"label": "Deps", "type": "array", "items": {"type": "string"}},
+    "include_preview_metadata": {"label": "Include Preview Metadata", "type": "boolean", "default": false},
+    "preview_rows":          {"label": "Preview Rows", "type": "integer", "default": 25, "minimum": 1, "maximum": 500}
   }
 }

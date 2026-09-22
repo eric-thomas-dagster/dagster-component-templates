@@ -10,45 +10,45 @@
     }
   },
   "attributes": {
-    "asset_name": {
+    "asset_name": {"label": "Asset Name", 
       "type": "string",
       "required": true,
       "description": "Output Dagster asset name"
     },
-    "account": {
+    "account": {"label": "Account", 
       "type": "string",
       "required": true,
       "description": "Snowflake account, e.g. xy12345-abc."
     },
-    "user": {
+    "user": {"label": "User", 
       "type": "string",
       "required": true,
       "description": "Snowflake user (NAME for keypair, LOGIN_NAME for password/SSO/PAT)."
     },
-    "warehouse": {
+    "warehouse": {"label": "Warehouse", 
       "type": "string",
       "required": false
     },
-    "database": {
+    "database": {"label": "Database", 
       "type": "string",
       "required": true,
       "description": "Database containing the entity (or where it will be created)."
     },
-    "schema_name": {
+    "schema_name": {"label": "Schema Name", 
       "type": "string",
       "required": true,
       "description": "Schema for the entity."
     },
-    "role": {
+    "role": {"label": "Role", 
       "type": "string",
       "required": false
     },
-    "password": {
+    "password": {"label": "Password", 
       "type": "string",
       "required": false,
       "description": "Snowflake password. Leave unset for SSO/keypair/PAT."
     },
-    "authenticator": {
+    "authenticator": {"label": "Authenticator", 
       "type": "string",
       "required": false,
       "description": "Snowflake authenticator: 'SNOWFLAKE_JWT' (keypair), 'externalbrowser' (SSO), 'PROGRAMMATIC_ACCESS_TOKEN' (PAT), 'oauth'.",
@@ -60,92 +60,92 @@
       ],
       "ui:widget": "select"
     },
-    "private_key_file": {
+    "private_key_file": {"label": "Private Key File", 
       "type": "string",
       "required": false,
       "description": "PEM private key file path (for SNOWFLAKE_JWT)."
     },
-    "private_key_file_pwd": {
+    "private_key_file_pwd": {"label": "Private Key File Pwd", 
       "type": "string",
       "required": false,
       "description": "Passphrase for encrypted private_key_file."
     },
-    "token": {
+    "token": {"label": "Token", 
       "type": "string",
       "required": false,
       "description": "OAuth/PAT token."
     },
-    "table_name": {
+    "table_name": {"label": "Table Name", 
       "type": "string",
       "required": true,
       "description": "Iceberg table name (unquoted identifier)."
     },
-    "external_volume": {
+    "external_volume": {"label": "External Volume", 
       "type": "string",
       "required": true,
       "description": "Name of the EXTERNAL VOLUME object that points at the cloud-storage location (S3 / GCS / Azure)."
     },
-    "catalog": {
+    "catalog": {"label": "Catalog", 
       "type": "string",
       "required": false,
       "description": "'SNOWFLAKE' for Snowflake-managed Iceberg (default), or the name of a registered external Iceberg catalog (Glue / Polaris / Unity / Tabular)."
     },
-    "base_location": {
+    "base_location": {"label": "Base Location", 
       "type": "string",
       "required": true,
       "description": "Object-storage prefix under the external_volume's root, e.g. 'iceberg/my_table/'."
     },
-    "sql": {
+    "sql": {"label": "SQL", 
       "type": "string",
       "required": false,
       "description": "Optional SELECT body that defines the table data. If unset, the table is created empty (you populate it via INSERT INTO / external writes / Spark)."
     },
-    "columns": {
+    "columns": {"label": "Columns", 
       "type": "array",
       "required": false,
       "description": "Optional explicit column declarations when sql is None, e.g. ['id INT', 'name STRING', 'created_at TIMESTAMP'].",
       "x-dagster-widget": "columns"
     },
-    "cluster_by": {
+    "cluster_by": {"label": "Cluster By", 
       "type": "array",
       "required": false,
       "description": "Columns to CLUSTER BY for performance."
     },
-    "group_name": {
+    "group_name": {"label": "Group Name", 
       "type": "string",
       "required": false
     },
-    "description": {
+    "description": {"label": "Description", 
       "type": "string",
       "required": false
     },
-    "asset_tags": {
+    "asset_tags": {"label": "Asset Tags", 
       "type": "object",
       "required": false
     },
-    "kinds": {
+    "kinds": {"label": "Kinds", 
       "type": "array",
       "required": false
     },
-    "owners": {
+    "owners": {"label": "Owners", 
       "type": "array",
       "required": false
     },
-    "deps": {
+    "deps": {"label": "Deps", 
       "type": "array",
       "required": false
     },
-    "retry_policy_max_retries": {
+    "retry_policy_max_retries": {"label": "Retry Policy Max Retries", 
       "type": "integer",
       "required": false,
       "description": "Max retries on materialization failure. Defines a RetryPolicy. Useful for transient network failures or Snowflake rate-limits."
     },
-    "retry_policy_delay_seconds": {
+    "retry_policy_delay_seconds": {"label": "Retry Policy Delay Seconds", 
       "type": "integer",
       "required": false,
       "description": "Seconds between retries (default 1)."
     },
-    "retry_policy_backoff": {
+    "retry_policy_backoff": {"label": "Retry Policy Backoff", 
       "type": "string",
       "required": false,
       "description": "Backoff strategy: 'linear' or 'exponential'.",

@@ -1,5 +1,5 @@
 {
-  "type": "dagster_component_templates.DependencyGraphComponent",
+  "component_type": "dagster_component_templates.DependencyGraphComponent",
   "name": "Dependency Graph",
   "category": "core",
   "icon": "GitBranch",

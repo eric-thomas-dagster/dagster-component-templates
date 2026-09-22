@@ -1,21 +1,21 @@
 {
   "component_type": "dagster_community_components.ExternalVercelDeploymentAsset",
   "description": "Declare a Vercel project's deployment stream as an external Dagster asset. Pair with vercel_deployment_sensor.",
-  "category": "external_assets",
+  "category": "external",
   "icon": "si:vercel",
   "attributes": {
-    "asset_key": {"type": "string", "required": true},
-    "project_id": {"type": "string", "required": false},
-    "project_name": {"type": "string", "required": false},
-    "target": {"type": "string", "required": false, "default": "production", "enum": ["production", "preview", "development"]},
-    "team_id": {"type": "string", "required": false},
-    "vercel_dashboard_url": {"type": "string", "required": false},
-    "production_url": {"type": "string", "required": false},
-    "group_name": {"type": "string", "required": false, "default": "vercel"},
-    "description": {"type": "string", "required": false},
-    "owners": {"type": "array", "required": false},
-    "tags": {"type": "object", "required": false},
-    "kinds": {"type": "array", "required": false},
-    "deps": {"type": "array", "required": false}
+    "asset_key": {"label": "Asset Key", "type": "string", "required": true},
+    "project_id": {"label": "Project ID", "type": "string", "required": false},
+    "project_name": {"label": "Project Name", "type": "string", "required": false},
+    "target": {"label": "Target", "type": "string", "required": false, "default": "production", "enum": ["production", "preview", "development"]},
+    "team_id": {"label": "Team ID", "type": "string", "required": false},
+    "vercel_dashboard_url": {"label": "Vercel Dashboard URL", "type": "string", "required": false},
+    "production_url": {"label": "Production URL", "type": "string", "required": false},
+    "group_name": {"label": "Group Name", "type": "string", "required": false, "default": "vercel"},
+    "description": {"label": "Description", "type": "string", "required": false},
+    "owners": {"label": "Owners", "type": "array", "required": false},
+    "tags": {"label": "Tags", "type": "object", "required": false},
+    "kinds": {"label": "Kinds", "type": "array", "required": false},
+    "deps": {"label": "Deps", "type": "array", "required": false}
   }
 }

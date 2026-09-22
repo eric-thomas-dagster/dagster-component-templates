@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_component_templates.SynapseSqlPoolAdminJobComponent",
   "description": "Pause / resume / scale a Synapse dedicated SQL pool via the management REST API. Op-job (not an asset) since pause/resume produces no data \u2014 schedule it to halve dedicated SQL pool spend by pausing nightly + on weekends.",
-  "category": "infrastructure",
+  "category": "jobs",
   "icon": "Power",
   "x-dagster-io": {
     "supports_partitions": false

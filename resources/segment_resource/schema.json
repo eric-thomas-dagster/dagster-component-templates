@@ -4,10 +4,10 @@
   "category": "resource",
   "icon": "si:segment",
   "attributes": {
-    "resource_key": {"type": "string", "required": false, "default": "segment"},
-    "write_key_env_var": {"type": "string", "required": false, "default": "SEGMENT_WRITE_KEY"},
-    "base_url": {"type": "string", "required": false, "default": "https://api.segment.io", "description": "https://events.eu1.segmentapis.com for EU regional workspaces."},
-    "request_timeout_seconds": {"type": "integer", "required": false, "default": 30}
+    "resource_key": {"label": "Resource Key", "type": "string", "required": false, "default": "segment"},
+    "write_key_env_var": {"label": "Write Key Env Var", "type": "string", "required": false, "default": "SEGMENT_WRITE_KEY"},
+    "base_url": {"label": "Base URL", "type": "string", "required": false, "default": "https://api.segment.io", "description": "https://events.eu1.segmentapis.com for EU regional workspaces."},
+    "request_timeout_seconds": {"label": "Request Timeout Seconds", "type": "integer", "required": false, "default": 30}
   },
   "tags": ["resource", "segment", "cdp", "event-tracking", "reverse-etl", "customer-data-platform"],
   "name": "Segment Resource"

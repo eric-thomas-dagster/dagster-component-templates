@@ -4,17 +4,17 @@
   "category": "jobs",
   "icon": "Clock",
   "attributes": {
-    "job_name": {
+    "job_name": {"label": "Job Name", 
       "type": "string",
       "required": true
     },
-    "schedule": {
+    "schedule": {"label": "Schedule", 
       "type": "string",
       "required": false,
       "description": "Cron expression (None = no schedule).",
       "x-dagster-widget": "cron"
     },
-    "default_status": {
+    "default_status": {"label": "Default Status", 
       "type": "string",
       "required": false,
       "default": "stopped",
@@ -24,34 +24,34 @@
       ],
       "ui:widget": "select"
     },
-    "tags": {
+    "tags": {"label": "Tags", 
       "type": "object",
       "required": false
     },
-    "dsn_env_var": {
+    "dsn_env_var": {"label": "Dsn Env Var", 
       "type": "string",
       "required": false,
       "default": "SENTRY_DSN"
     },
-    "monitor_slug": {
+    "monitor_slug": {"label": "Monitor Slug", 
       "type": "string",
       "required": true,
       "description": "Stable slug identifying the Sentry monitor."
     },
-    "environment": {
+    "environment": {"label": "Environment", 
       "type": "string",
       "required": false
     },
-    "release": {
+    "release": {"label": "Release", 
       "type": "string",
       "required": false
     },
-    "monitor_config": {
+    "monitor_config": {"label": "Monitor Config", 
       "type": "object",
       "required": false,
       "description": "Sentry monitor_config dict (schedule/checkin_margin/max_runtime/timezone). Auto-creates monitor on first check-in when set."
     },
-    "fail_on_error": {
+    "fail_on_error": {"label": "Fail On Error", 
       "type": "boolean",
       "required": false,
       "default": false

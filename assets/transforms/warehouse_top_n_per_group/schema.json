@@ -13,17 +13,17 @@
     }
   },
   "attributes": {
-    "asset_name": {
+    "asset_name": {"label": "Asset Name", 
       "type": "string",
       "required": true
     },
-    "database_url": {
+    "database_url": {"label": "Database URL", 
       "type": "string"
     },
-    "database_url_env_var": {
+    "database_url_env_var": {"label": "Database URL Env Var", 
       "type": "string"
     },
-    "dialect": {
+    "dialect": {"label": "Dialect", 
       "type": "string",
       "required": true,
       "enum": [
@@ -38,15 +38,15 @@
         "mysql"
       ]
     },
-    "upstream_table": {
+    "upstream_table": {"label": "Upstream Table", 
       "type": "string",
       "required": true
     },
-    "output_table": {
+    "output_table": {"label": "Output Table", 
       "type": "string",
       "required": true
     },
-    "group_by": {
+    "group_by": {"label": "Group By", 
       "type": "array",
       "items": {
         "type": "string"
@@ -54,25 +54,25 @@
       "required": true,
       "x-dagster-widget": "columns"
     },
-    "sort_by": {
+    "sort_by": {"label": "Sort By", 
       "type": "string",
       "required": true,
       "x-dagster-widget": "columns"
     },
-    "n": {
+    "n": {"label": "N", 
       "type": "integer",
       "default": 3,
       "minimum": 1
     },
-    "ascending": {
+    "ascending": {"label": "Ascending", 
       "type": "boolean",
       "default": false
     },
-    "rank_column": {
+    "rank_column": {"label": "Rank Column", 
       "type": "string",
       "x-dagster-widget": "column"
     },
-    "mode": {
+    "mode": {"label": "Mode", 
       "type": "string",
       "enum": [
         "replace",
@@ -80,38 +80,38 @@
       ],
       "default": "replace"
     },
-    "group_name": {
+    "group_name": {"label": "Group Name", 
       "type": "string"
     },
-    "deps": {
+    "deps": {"label": "Deps", 
       "type": "array",
       "items": {
         "type": "string"
       }
     },
-    "owners": {
+    "owners": {"label": "Owners", 
       "type": "array",
       "items": {
         "type": "string"
       }
     },
-    "description": {
+    "description": {"label": "Description", 
       "type": "string"
     },
-    "asset_tags": {
+    "asset_tags": {"label": "Asset Tags", 
       "type": "object"
     },
-    "kinds": {
+    "kinds": {"label": "Kinds", 
       "type": "array",
       "items": {
         "type": "string"
       }
     },
-    "include_preview_metadata": {
+    "include_preview_metadata": {"label": "Include Preview Metadata", 
       "type": "boolean",
       "default": false
     },
-    "preview_rows": {
+    "preview_rows": {"label": "Preview Rows", 
       "type": "integer",
       "default": 25,
       "minimum": 1,

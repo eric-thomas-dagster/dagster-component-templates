@@ -4,11 +4,11 @@
   "category": "resource",
   "icon": "si:customerio",
   "attributes": {
-    "resource_key": {"type": "string", "required": false, "default": "customer_io"},
-    "site_id_env_var": {"type": "string", "required": false, "default": "CUSTOMER_IO_SITE_ID"},
-    "api_key_env_var": {"type": "string", "required": false, "default": "CUSTOMER_IO_API_KEY"},
-    "base_url": {"type": "string", "required": false, "default": "https://track.customer.io", "description": "https://track-eu.customer.io for EU workspaces."},
-    "request_timeout_seconds": {"type": "integer", "required": false, "default": 30}
+    "resource_key": {"label": "Resource Key", "type": "string", "required": false, "default": "customer_io"},
+    "site_id_env_var": {"label": "Site ID Env Var", "type": "string", "required": false, "default": "CUSTOMER_IO_SITE_ID"},
+    "api_key_env_var": {"label": "API Key Env Var", "type": "string", "required": false, "default": "CUSTOMER_IO_API_KEY"},
+    "base_url": {"label": "Base URL", "type": "string", "required": false, "default": "https://track.customer.io", "description": "https://track-eu.customer.io for EU workspaces."},
+    "request_timeout_seconds": {"label": "Request Timeout Seconds", "type": "integer", "required": false, "default": 30}
   },
   "tags": ["resource", "customer-io", "reverse-etl", "customer-engagement", "email", "sms", "push", "in-app"],
   "name": "Customer.io Resource"

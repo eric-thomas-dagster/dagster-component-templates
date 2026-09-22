@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.MultiApproverGateComponent",
   "description": "Quorum-based human approval gate. Extends the base human-approval pattern with N-of-M semantics: required_approvers votes from an approver_allowlist, optional timeout_hours with on_timeout policy (escalate / reject / approve). Works over local FS or any fsspec URI (s3://, gs://, abfs://). Vote-by-file-drop: each approver writes <approval_dir>/<key>.<approver_id>.json. Composes with any downstream that reads asset_check results.",
-  "category": "asset",
+  "category": "ai",
   "icon": "si:handshake",
   "x-dagster-io": {
     "inputs": {

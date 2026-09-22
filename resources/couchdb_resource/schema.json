@@ -1,4 +1,5 @@
 {
+  "component_type": "dagster_component_templates.CouchDBResourceComponent",
   "x-dagster-io": {},
   "x-dagster-provides": [
     "couchdb_resource"

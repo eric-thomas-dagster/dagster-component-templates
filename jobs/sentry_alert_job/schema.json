@@ -4,17 +4,17 @@
   "category": "jobs",
   "icon": "AlertCircle",
   "attributes": {
-    "job_name": {
+    "job_name": {"label": "Job Name", 
       "type": "string",
       "required": true
     },
-    "schedule": {
+    "schedule": {"label": "Schedule", 
       "type": "string",
       "required": false,
       "description": "Cron expression (None = no schedule).",
       "x-dagster-widget": "cron"
     },
-    "default_status": {
+    "default_status": {"label": "Default Status", 
       "type": "string",
       "required": false,
       "default": "stopped",
@@ -24,22 +24,22 @@
       ],
       "ui:widget": "select"
     },
-    "tags": {
+    "tags": {"label": "Tags", 
       "type": "object",
       "required": false,
       "description": "Dagster job tags (not Sentry tags)."
     },
-    "dsn_env_var": {
+    "dsn_env_var": {"label": "Dsn Env Var", 
       "type": "string",
       "required": false,
       "default": "SENTRY_DSN"
     },
-    "message": {
+    "message": {"label": "Message", 
       "type": "string",
       "required": true,
       "description": "Event message text ({now} \u2192 UTC ISO timestamp)."
     },
-    "level": {
+    "level": {"label": "Level", 
       "type": "string",
       "required": false,
       "default": "info",
@@ -53,29 +53,29 @@
       ],
       "ui:widget": "select"
     },
-    "environment": {
+    "environment": {"label": "Environment", 
       "type": "string",
       "required": false
     },
-    "release": {
+    "release": {"label": "Release", 
       "type": "string",
       "required": false
     },
-    "sentry_tags": {
+    "sentry_tags": {"label": "Sentry Tags", 
       "type": "object",
       "required": false,
       "description": "Searchable Sentry tags applied to the event."
     },
-    "sentry_extras": {
+    "sentry_extras": {"label": "Sentry Extras", 
       "type": "object",
       "required": false,
       "description": "Extra (non-indexed) context on the event."
     },
-    "fingerprint": {
+    "fingerprint": {"label": "Fingerprint", 
       "type": "array",
       "required": false
     },
-    "fail_on_error": {
+    "fail_on_error": {"label": "Fail On Error", 
       "type": "boolean",
       "required": false,
       "default": true

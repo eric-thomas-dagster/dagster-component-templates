@@ -1,5 +1,5 @@
 {
-  "type": "dagster_component_templates.RedisWriterComponent",
+  "component_type": "dagster_component_templates.RedisWriterComponent",
   "name": "Redis Writer",
   "category": "sink",
   "description": "Write a DataFrame to Redis as hashes, strings, or list values with optional TTL support",

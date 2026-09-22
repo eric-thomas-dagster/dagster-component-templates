@@ -1,21 +1,21 @@
 {
   "component_type": "dagster_community_components.ExternalCubeMetricAsset",
   "description": "Declare a Cube semantic-layer measure or dimension as an external Dagster asset. Pair with cube_query_asset.",
-  "category": "external_assets",
+  "category": "external",
   "icon": "si:cube",
   "attributes": {
-    "asset_key": {"type": "string", "required": true},
-    "cube_name": {"type": "string", "required": true},
-    "measure_name": {"type": "string", "required": false},
-    "dimension_name": {"type": "string", "required": false},
-    "metric_type": {"type": "string", "required": false},
-    "cube_playground_url": {"type": "string", "required": false},
-    "cube_docs_url": {"type": "string", "required": false},
-    "group_name": {"type": "string", "required": false, "default": "cube"},
-    "description": {"type": "string", "required": false},
-    "owners": {"type": "array", "required": false},
-    "tags": {"type": "object", "required": false},
-    "kinds": {"type": "array", "required": false},
-    "deps": {"type": "array", "required": false}
+    "asset_key": {"label": "Asset Key", "type": "string", "required": true},
+    "cube_name": {"label": "Cube Name", "type": "string", "required": true},
+    "measure_name": {"label": "Measure Name", "type": "string", "required": false},
+    "dimension_name": {"label": "Dimension Name", "type": "string", "required": false},
+    "metric_type": {"label": "Metric Type", "type": "string", "required": false},
+    "cube_playground_url": {"label": "Cube Playground URL", "type": "string", "required": false},
+    "cube_docs_url": {"label": "Cube Docs URL", "type": "string", "required": false},
+    "group_name": {"label": "Group Name", "type": "string", "required": false, "default": "cube"},
+    "description": {"label": "Description", "type": "string", "required": false},
+    "owners": {"label": "Owners", "type": "array", "required": false},
+    "tags": {"label": "Tags", "type": "object", "required": false},
+    "kinds": {"label": "Kinds", "type": "array", "required": false},
+    "deps": {"label": "Deps", "type": "array", "required": false}
   }
 }

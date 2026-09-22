@@ -4,10 +4,10 @@
   "category": "resource",
   "icon": "si:iterable",
   "attributes": {
-    "resource_key": {"type": "string", "required": false, "default": "iterable"},
-    "api_key_env_var": {"type": "string", "required": false, "default": "ITERABLE_API_KEY"},
-    "base_url": {"type": "string", "required": false, "default": "https://api.iterable.com", "description": "https://api.eu.iterable.com for EU workspaces."},
-    "request_timeout_seconds": {"type": "integer", "required": false, "default": 30}
+    "resource_key": {"label": "Resource Key", "type": "string", "required": false, "default": "iterable"},
+    "api_key_env_var": {"label": "API Key Env Var", "type": "string", "required": false, "default": "ITERABLE_API_KEY"},
+    "base_url": {"label": "Base URL", "type": "string", "required": false, "default": "https://api.iterable.com", "description": "https://api.eu.iterable.com for EU workspaces."},
+    "request_timeout_seconds": {"label": "Request Timeout Seconds", "type": "integer", "required": false, "default": 30}
   },
   "tags": ["resource", "iterable", "reverse-etl", "customer-engagement", "email", "sms", "push"],
   "name": "Iterable Resource"

@@ -4,19 +4,19 @@
   "category": "jobs",
   "icon": "Upload",
   "attributes": {
-    "job_name": {"type": "string", "required": true},
-    "schedule": {"type": "string", "required": false, "default": "*/15 * * * *", "x-dagster-widget": "cron"},
-    "default_status": {"type": "string", "required": false, "default": "stopped", "enum": ["stopped", "running"]},
-    "tags": {"type": "object", "required": false, "default": null},
+    "job_name": {"label": "Job Name", "type": "string", "required": true},
+    "schedule": {"label": "Schedule", "type": "string", "required": false, "default": "*/15 * * * *", "x-dagster-widget": "cron"},
+    "default_status": {"label": "Default Status", "type": "string", "required": false, "default": "stopped", "enum": ["stopped", "running"]},
+    "tags": {"label": "Tags", "type": "object", "required": false, "default": null},
     "account": {"type": "string", "label": "Snowflake Account", "description": "e.g. abc12345.us-east-1", "required": true},
-    "user": {"type": "string", "required": true},
-    "password_env": {"type": "string", "required": false, "default": "SNOWFLAKE_PASSWORD"},
+    "user": {"label": "User", "type": "string", "required": true},
+    "password_env": {"label": "Password Env", "type": "string", "required": false, "default": "SNOWFLAKE_PASSWORD"},
     "warehouse": {"type": "string", "label": "Snowflake Warehouse", "required": true},
-    "database": {"type": "string", "required": true},
-    "snowflake_schema": {"type": "string", "required": false, "default": "PUBLIC"},
-    "table": {"type": "string", "required": false, "default": "DAGSTER_EVENTS"},
-    "role": {"type": "string", "required": false, "default": null},
-    "initial_lookback_hours": {"type": "integer", "required": false, "default": 24},
-    "batch_limit": {"type": "integer", "required": false, "default": 5000}
+    "database": {"label": "Database", "type": "string", "required": true},
+    "snowflake_schema": {"label": "Snowflake Schema", "type": "string", "required": false, "default": "PUBLIC"},
+    "table": {"label": "Table", "type": "string", "required": false, "default": "DAGSTER_EVENTS"},
+    "role": {"label": "Role", "type": "string", "required": false, "default": null},
+    "initial_lookback_hours": {"label": "Initial Lookback Hours", "type": "integer", "required": false, "default": 24},
+    "batch_limit": {"label": "Batch Limit", "type": "integer", "required": false, "default": 5000}
   }
 }

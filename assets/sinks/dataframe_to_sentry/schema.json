@@ -4,63 +4,63 @@
   "category": "sink",
   "icon": "AlertCircle",
   "attributes": {
-    "asset_name": {
+    "asset_name": {"label": "Asset Name", 
       "type": "string",
       "required": true
     },
-    "upstream_asset_key": {
+    "upstream_asset_key": {"label": "Upstream Asset Key", 
       "type": "string",
       "required": true
     },
-    "dsn_env_var": {
+    "dsn_env_var": {"label": "Dsn Env Var", 
       "type": "string",
       "required": false,
       "default": "SENTRY_DSN"
     },
-    "environment": {
+    "environment": {"label": "Environment", 
       "type": "string",
       "required": false
     },
-    "release": {
+    "release": {"label": "Release", 
       "type": "string",
       "required": false
     },
-    "message_column": {
+    "message_column": {"label": "Message Column", 
       "type": "string",
       "required": false,
       "default": "message",
       "x-dagster-widget": "column"
     },
-    "level_column": {
+    "level_column": {"label": "Level Column", 
       "type": "string",
       "required": false,
       "x-dagster-widget": "column"
     },
-    "default_level": {
+    "default_level": {"label": "Default Level", 
       "type": "string",
       "required": false,
       "default": "info"
     },
-    "tag_columns": {
+    "tag_columns": {"label": "Tag Columns", 
       "type": "array",
       "required": false,
       "x-dagster-widget": "columns"
     },
-    "extra_columns": {
+    "extra_columns": {"label": "Extra Columns", 
       "type": "array",
       "required": false,
       "x-dagster-widget": "columns"
     },
-    "fingerprint_columns": {
+    "fingerprint_columns": {"label": "Fingerprint Columns", 
       "type": "array",
       "required": false,
       "x-dagster-widget": "columns"
     },
-    "description": {
+    "description": {"label": "Description", 
       "type": "string",
       "required": false
     },
-    "group_name": {
+    "group_name": {"label": "Group Name", 
       "type": "string",
       "required": false,
       "default": "sentry"

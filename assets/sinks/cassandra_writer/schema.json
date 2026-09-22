@@ -1,5 +1,5 @@
 {
-  "type": "dagster_component_templates.CassandraWriterComponent",
+  "component_type": "dagster_component_templates.CassandraWriterComponent",
   "name": "Cassandra Writer",
   "category": "sink",
   "description": "Write a DataFrame to an Apache Cassandra table using prepared INSERT CQL statements in batches",

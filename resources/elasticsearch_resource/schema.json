@@ -1,4 +1,5 @@
 {
+  "component_type": "dagster_component_templates.ElasticsearchResourceComponent",
   "x-dagster-io": {},
   "x-dagster-provides": [
     "elasticsearch_resource"

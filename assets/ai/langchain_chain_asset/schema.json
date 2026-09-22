@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.LangChainChainAssetComponent",
   "description": "Run a LangChain chain over rows from an upstream asset DataFrame and return enriched DataFrame.",
   "category": "ai",
-  "icon": "Sparkles",
+  "icon": "si:langchain",
   "x-dagster-io": {
     "inputs": {
       "type": "dataframe",

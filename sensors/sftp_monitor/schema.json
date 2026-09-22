@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.SftpMonitorSensorComponent",
   "description": "Monitor an SFTP directory for new files.",
   "category": "sensor",
-  "icon": "Radar",
+  "icon": "si:openssh",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",

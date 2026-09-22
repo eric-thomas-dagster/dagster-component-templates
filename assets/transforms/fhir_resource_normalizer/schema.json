@@ -2,6 +2,7 @@
   "component_type": "dagster_component_templates.FhirResourceNormalizerComponent",
   "description": "FhirResourceNormalizerComponent \u2014 flatten FHIR R4/R5 resources to a DataFrame.",
   "category": "transformation",
+  "icon": "HeartPulse",
   "attributes": {
     "asset_name": {
       "type": "string",

@@ -2,6 +2,7 @@
   "component_type": "dagster_component_templates.DataframeExtractFieldComponent",
   "description": "DataframeExtractFieldComponent \u2014 pull a field out of a column of dicts/lists.",
   "category": "transformation",
+  "icon": "Search",
   "attributes": {
     "asset_name": {
       "type": "string",

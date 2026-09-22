@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.DeltaLakePolarsIOManagerComponent",
   "description": "Wrap dagster-deltalake-polars so polars.DataFrame assets persist as Delta tables.",
   "category": "io_manager",
-  "icon": "Save",
+  "icon": "si:delta",
   "x-dagster-io": {
     "outputs": {
       "type": "io_manager",

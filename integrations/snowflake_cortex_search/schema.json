@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.SnowflakeCortexSearchComponent",
   "description": "Query a Snowflake Cortex Search Service and materialize the results as a Dagster asset.",
   "category": "ai",
-  "icon": "Snowflake",
+  "icon": "si:snowflake",
   "x-dagster-io": {
     "outputs": {
       "type": "integration",

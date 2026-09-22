@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.DockerContainerAssetComponent",
   "description": "Run a Docker container as a Dagster asset via dagster-docker.",
   "category": "infrastructure",
-  "icon": "Box",
+  "icon": "si:docker",
   "x-dagster-io": {
     "outputs": {
       "type": "infrastructure",

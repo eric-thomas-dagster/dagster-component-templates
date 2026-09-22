@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.PolarsScanParquetComponent",
   "description": "Read parquet via polars's lazy scanner with predicate + column pushdown.",
   "category": "source",
-  "icon": "FileText",
+  "icon": "si:polars",
   "x-dagster-io": {
     "outputs": {
       "type": "dataframe",

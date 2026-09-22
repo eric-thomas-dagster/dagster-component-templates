@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.DagsterFailuresToOtlpSensorComponent",
   "description": "Push Dagster run failure events as OTLP/HTTP log records. Targets Honeycomb, Datadog OTel-ingest, OTel Collector / Grafana Loki, AWS CloudWatch OTel, etc.",
   "category": "sensor",
-  "icon": "Bell",
+  "icon": "si:opentelemetry",
   "attributes": {
     "sensor_name": {
       "type": "string",

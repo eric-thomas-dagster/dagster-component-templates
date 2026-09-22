@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.DuckDBPolarsIOManagerComponent",
   "description": "Wrap dagster-duckdb-polars's DuckDBPolarsIOManager so polars.DataFrame assets persist to DuckDB.",
   "category": "io_manager",
-  "icon": "Save",
+  "icon": "si:duckdb",
   "x-dagster-io": {
     "outputs": {
       "type": "io_manager",

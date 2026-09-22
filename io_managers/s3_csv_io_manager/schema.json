@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.S3CsvIOManagerComponent",
   "description": "Store DataFrames as CSV files on Amazon S3 (or any S3-compatible endpoint).",
   "category": "io_manager",
-  "icon": "Save",
+  "icon": "si:amazons3",
   "x-dagster-io": {
     "outputs": {
       "type": "IOManager",

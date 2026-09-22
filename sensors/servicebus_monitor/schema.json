@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.ServiceBusMonitorSensorComponent",
   "description": "Component for polling an Azure Service Bus queue or topic subscription.",
   "category": "sensor",
-  "icon": "Radar",
+  "icon": "si:microsoftazure",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",

@@ -2,7 +2,7 @@
   "component_type": "dagster_community_components.QlikComposeWorkflowStatusSensorComponent",
   "description": "Poll a Qlik Compose workflow's state; trigger a Dagster job on transitions into target states (COMPLETED / ERROR / FAILED / STOPPED). Cursor-deduped so downstream fires once per completion.",
   "category": "sensor",
-  "icon": "Bolt",
+  "icon": "si:qlik",
   "attributes": {
     "sensor_name": {
       "type": "string",

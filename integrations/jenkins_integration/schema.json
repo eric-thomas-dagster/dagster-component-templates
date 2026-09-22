@@ -2,7 +2,7 @@
   "component_type": "dagster_community_components.JenkinsIntegrationComponent",
   "description": "Jenkins REST API integration for teams migrating off Jenkins (or living alongside it during the transition). Each declared Jenkins job becomes a daily-partitioned Dagster asset with a retry policy. Ships 5 op-backed jobs (rebuild / disable / enable / stop / reconcile), 2 sensors (external-execution monitor + inbound trigger via Dagster GraphQL), and an hourly reconciliation schedule. demo_mode=true simulates the full REST API lifecycle on stdout so the whole component runs end-to-end with zero external dependencies.",
   "category": "integration",
-  "icon": "Schedule",
+  "icon": "si:jenkins",
   "x-dagster-io": {
     "outputs": {
       "type": "integration",

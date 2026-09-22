@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.MatillionJobSensorComponent",
   "description": "Trigger a Dagster job when a Matillion ETL job run completes.",
   "category": "sensor",
-  "icon": "Radar",
+  "icon": "si:matillion",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",

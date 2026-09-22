@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.DuckDBPySparkIOManagerComponent",
   "description": "Wrap dagster-duckdb-pyspark so PySpark DataFrames persist to DuckDB.",
   "category": "io_manager",
-  "icon": "Save",
+  "icon": "si:duckdb",
   "x-dagster-io": {
     "outputs": {
       "type": "io_manager",

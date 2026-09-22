@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.HelmDeployComponent",
   "description": "Deploy or upgrade a Helm chart as a Dagster asset.",
   "category": "infrastructure",
-  "icon": "Server",
+  "icon": "si:helm",
   "x-dagster-io": {
     "outputs": {
       "type": "MaterializeResult",

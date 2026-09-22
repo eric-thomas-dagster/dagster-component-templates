@@ -2,6 +2,7 @@
   "component_type": "dagster_component_templates.DataframeFlattenNestedColumnsComponent",
   "description": "DataframeFlattenNestedColumnsComponent \u2014 JSON-stringify dict/list columns.",
   "category": "transformation",
+  "icon": "Braces",
   "attributes": {
     "asset_name": {
       "type": "string",

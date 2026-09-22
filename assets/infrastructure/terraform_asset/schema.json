@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.TerraformAssetComponent",
   "description": "Provision infrastructure with Terraform as a Dagster asset.",
   "category": "infrastructure",
-  "icon": "Server",
+  "icon": "si:terraform",
   "x-dagster-io": {
     "outputs": {
       "type": "MaterializeResult",

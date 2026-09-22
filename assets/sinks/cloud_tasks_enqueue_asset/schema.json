@@ -2,6 +2,7 @@
   "component_type": "dagster_component_templates.CloudTasksEnqueueAssetComponent",
   "description": "CloudTasksEnqueueAssetComponent \u2014 enqueue Cloud Tasks from DataFrame rows.",
   "category": "sink",
+  "icon": "si:googlecloud",
   "attributes": {
     "asset_name": {
       "type": "string",

@@ -2,6 +2,7 @@
   "component_type": "dagster_component_templates.CloudDlpInspectAssetComponent",
   "description": "CloudDlpInspectAssetComponent \u2014 scan DataFrame text columns for PII via Cloud DLP.",
   "category": "ai",
+  "icon": "si:googlecloud",
   "attributes": {
     "asset_name": {
       "type": "string",

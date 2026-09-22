@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.MySQLIOManagerComponent",
   "description": "Persist DataFrames to a MySQL/MariaDB schema, one table per asset.",
   "category": "io_manager",
-  "icon": "Save",
+  "icon": "si:mysql",
   "x-dagster-io": {
     "outputs": {
       "type": "IOManager",

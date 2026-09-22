@@ -2,7 +2,7 @@
   "component_type": "dagster_community_components.UiPathOrchestratorIntegrationComponent",
   "description": "UiPath Orchestrator REST API integration — the RPA-domain sibling of runmyjobs_integration / controlm_integration. Each declared Release becomes a daily-partitioned Dagster asset with a retry policy. Ships with 5 ops + jobs (restart / soft-stop / kill / schedule-disable / reconcile), an external-execution monitor sensor, an inbound-trigger sensor, and an hourly reconciliation schedule. demo_mode=true simulates the full REST API lifecycle on stdout so the whole component runs end-to-end with zero external dependencies and zero UiPath licensing.",
   "category": "integration",
-  "icon": "Schedule",
+  "icon": "si:uipath",
   "x-dagster-io": {
     "outputs": {
       "type": "integration",

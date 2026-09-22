@@ -2,6 +2,7 @@
   "component_type": "dagster_component_templates.Iso20022PaymentParserComponent",
   "description": "Iso20022PaymentParserComponent \u2014 parse ISO 20022 payment XML messages to a DataFrame.",
   "category": "transformation",
+  "icon": "Banknote",
   "attributes": {
     "asset_name": {
       "type": "string",

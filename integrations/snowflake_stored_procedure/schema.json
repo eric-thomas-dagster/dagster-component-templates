@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.SnowflakeStoredProcedureComponent",
   "description": "Define a Snowflake STORED PROCEDURE (SQL or Snowpark Python). Materialization runs CREATE OR REPLACE PROCEDURE and (optionally) CALLs it.",
   "category": "integration",
-  "icon": "Snowflake",
+  "icon": "si:snowflake",
   "x-dagster-io": {
     "outputs": {
       "type": "integration",

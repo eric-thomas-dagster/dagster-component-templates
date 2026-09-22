@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.StripeEventSensorComponent",
   "description": "Trigger a run when Stripe emits new events (charges, subscriptions, invoices, etc).",
   "category": "sensor",
-  "icon": "Bell",
+  "icon": "si:stripe",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",

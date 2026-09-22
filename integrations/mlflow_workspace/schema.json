@@ -2,7 +2,7 @@
   "component_type": "dagster_community_components.MLflowWorkspaceComponent",
   "description": "Auto-emit one Dagster asset per MLflow experiment (recent runs + metrics + params) and per registered model (versions). StateBackedComponent — discovery cached to disk. Materializing an experiment asset fetches recent runs; materializing a model asset fetches model version metadata.",
   "category": "ingestion",
-  "icon": "AccountTree",
+  "icon": "si:mlflow",
   "x-dagster-io": {
     "outputs": {
       "type": "integration",

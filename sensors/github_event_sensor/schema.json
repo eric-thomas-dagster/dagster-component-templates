@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.GithubEventSensorComponent",
   "description": "Trigger a run when a GitHub repo has new events (PRs opened/merged, pushes, issues).",
   "category": "sensor",
-  "icon": "Bell",
+  "icon": "si:github",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",

@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.PolarsReadDatabaseComponent",
   "description": "Execute SQL against a database, return polars (compute pushed down via the SQL query itself).",
   "category": "source",
-  "icon": "Database",
+  "icon": "si:polars",
   "x-dagster-io": {
     "outputs": {
       "type": "dataframe",

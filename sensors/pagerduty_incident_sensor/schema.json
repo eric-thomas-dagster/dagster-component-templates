@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.PagerDutyIncidentSensorComponent",
   "description": "Trigger a run when PagerDuty incidents are created or change state.",
   "category": "sensor",
-  "icon": "Bell",
+  "icon": "si:pagerduty",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",

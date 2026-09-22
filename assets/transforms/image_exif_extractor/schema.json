@@ -2,6 +2,7 @@
   "component_type": "dagster_component_templates.ImageExifExtractorComponent",
   "description": "ImageExifExtractorComponent \u2014 pull EXIF + IPTC + XMP-ish metadata from images.",
   "category": "transformation",
+  "icon": "Camera",
   "attributes": {
     "asset_name": {
       "type": "string",

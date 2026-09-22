@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.MQTTMonitorSensorComponent",
   "description": "Component for subscribing to an MQTT broker topic for new messages.",
   "category": "sensor",
-  "icon": "Radar",
+  "icon": "si:mqtt",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",

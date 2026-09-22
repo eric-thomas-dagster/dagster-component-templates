@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.TimescaleDBResourceComponent",
   "description": "Register a TimescaleDB resource.\n\nExample:\n\n    ```yaml\n    type: dagster_community_components.TimescaleDBResourceComponent\n    attributes:\n      resource_key: timescaledb_resource\n      host: localhost\n      port: 5432\n      database: metrics\n      username: postgres\n      password_env_var: TIMESCALEDB_PASSWORD\n    ```\n\nUse the resource's helpers from a regular @asset:\n\n    ```python\n    @asset(required_resource_keys={\"timescaledb_resource\"})\n    def setup_metrics_hypertable(context):\n        ctx.resources.timescaledb_resource.create_hypertable(\"events\", \"ts\")\n        ctx.resources.timescaledb_resource.add_compression_policy(\"events\", \"7 days\")\n        ctx.resources.timescaledb_resource.add_retention_policy(\"events\", \"90 days\")\n    ```",
   "category": "resource",
-  "icon": "Plug",
+  "icon": "si:timescale",
   "attributes": {
     "resource_key": {
       "type": "string",

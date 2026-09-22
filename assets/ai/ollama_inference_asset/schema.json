@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.OllamaInferenceAssetComponent",
   "description": "Shared Ollama connection config for use across multiple components.",
   "category": "ai",
-  "icon": "Sparkles",
+  "icon": "si:ollama",
   "x-dagster-io": {
     "inputs": {
       "type": "dataframe",

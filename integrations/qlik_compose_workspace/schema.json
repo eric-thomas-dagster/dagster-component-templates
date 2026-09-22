@@ -2,7 +2,7 @@
   "component_type": "dagster_community_components.QlikComposeWorkspaceComponent",
   "description": "Auto-emit one Dagster asset per Qlik Compose Workflow / Data Mart across every Project (Data Warehouse). StateBackedComponent — discovery cached to disk. Materializing a Workflow asset runs the workflow to terminal state; Data Mart assets are observational. The workspace-shape peer of the low-level qlik_compose_* components.",
   "category": "integration",
-  "icon": "AccountTree",
+  "icon": "si:qlik",
   "x-dagster-io": {
     "outputs": {
       "type": "integration",

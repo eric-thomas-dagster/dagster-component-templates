@@ -2,6 +2,7 @@
   "component_type": "dagster_component_templates.ImapInboxSourceComponent",
   "description": "ImapInboxSourceComponent \u2014 fetch emails from an IMAP server.",
   "category": "source",
+  "icon": "Inbox",
   "x-dagster-io": {
     "outputs": {
       "type": "dataframe",

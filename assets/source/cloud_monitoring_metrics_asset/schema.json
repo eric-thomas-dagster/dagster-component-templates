@@ -2,6 +2,7 @@
   "component_type": "dagster_component_templates.CloudMonitoringMetricsAssetComponent",
   "description": "CloudMonitoringMetricsAssetComponent \u2014 pull GCP time-series metrics into a DataFrame.",
   "category": "source",
+  "icon": "si:googlecloud",
   "attributes": {
     "asset_name": {
       "type": "string",

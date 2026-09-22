@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.SnowflakeDynamicTableComponent",
   "description": "Define a Snowflake DYNAMIC TABLE as Dagster YAML. Materialization runs CREATE OR REPLACE DYNAMIC TABLE.",
   "category": "integration",
-  "icon": "Snowflake",
+  "icon": "si:snowflake",
   "x-dagster-io": {
     "outputs": {
       "type": "integration",

@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.ClickhousePolarsIOManagerComponent",
   "description": "Wrap dagster-clickhouse-polars's ClickhousePolarsIOManager so polars.DataFrame assets persist to ClickHouse.",
   "category": "io_manager",
-  "icon": "Save",
+  "icon": "si:clickhouse",
   "x-dagster-io": {
     "outputs": {
       "type": "io_manager",

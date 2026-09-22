@@ -2,7 +2,7 @@
   "component_type": "dagster_community_components.QlikReplicateResourceComponent",
   "description": "Shared Qlik Enterprise Manager REST API connection (base URL + auth). Supports session-based (username/password) auth for dev and API-token auth for production. Pairs with qlik_replicate_task_trigger_job (control), qlik_replicate_task_status_sensor (event-drive), and qlik_replicate_task_metrics_ingestion (observability).",
   "category": "resource",
-  "icon": "Server",
+  "icon": "si:qlik",
   "attributes": {
     "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "qlik_replicate_resource", "description": "Resource registration key. Other components reference it via this name."},
     "base_url_env_var": {"type": "string", "label": "Base URL Env Var", "required": true, "description": "Env var with the Enterprise Manager base URL (e.g. https://qlikem.acme.com). No trailing slash, no API path — the resource appends /attunityenterprisemanager/api/v1."},

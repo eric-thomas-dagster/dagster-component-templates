@@ -2,6 +2,7 @@
   "component_type": "dagster_component_templates.LitellmTextToSpeechComponent",
   "description": "LitellmTextToSpeechComponent — multi-provider TTS via LiteLLM.",
   "category": "ai",
+  "icon": "Volume2",
   "attributes": {
     "asset_name": {
       "type": "string",

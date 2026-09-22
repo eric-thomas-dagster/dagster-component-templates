@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.DynatraceResourceComponent",
   "description": "Dynatrace API client wrapper (Environment API v2 + Metrics API v2). Works with SaaS and Managed environments.",
   "category": "resource",
-  "icon": "Activity",
+  "icon": "si:dynatrace",
   "x-dagster-io": {
     "supports_partitions": false
   },

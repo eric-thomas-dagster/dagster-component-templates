@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.K8sJobAssetComponent",
   "description": "Run a Kubernetes Job as a Dagster asset via dagster-k8s.",
   "category": "infrastructure",
-  "icon": "Box",
+  "icon": "si:kubernetes",
   "x-dagster-io": {
     "outputs": {
       "type": "infrastructure",

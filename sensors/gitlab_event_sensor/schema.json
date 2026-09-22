@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.GitlabEventSensorComponent",
   "description": "Trigger a run when a GitLab project has new events (push, merge, issue, comment).",
   "category": "sensor",
-  "icon": "Bell",
+  "icon": "si:gitlab",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",

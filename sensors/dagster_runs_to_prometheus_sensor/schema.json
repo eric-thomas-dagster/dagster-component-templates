@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.DagsterRunsToPrometheusSensorComponent",
   "description": "Push Dagster run lifecycle metrics (duration / count / last-finished) to a Prometheus-compatible endpoint on every run completion. Targets Push Gateway, VictoriaMetrics import, or remote_write.",
   "category": "sensor",
-  "icon": "Bell",
+  "icon": "si:prometheus",
   "attributes": {
     "sensor_name": {
       "type": "string",

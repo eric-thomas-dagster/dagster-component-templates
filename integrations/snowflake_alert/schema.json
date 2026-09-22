@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.SnowflakeAlertComponent",
   "description": "Define a Snowflake ALERT (scheduled conditional action). Materialization runs CREATE OR REPLACE ALERT and resumes it.",
   "category": "integration",
-  "icon": "Snowflake",
+  "icon": "si:snowflake",
   "x-dagster-io": {
     "outputs": {
       "type": "integration",

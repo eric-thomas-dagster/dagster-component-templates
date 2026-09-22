@@ -2,6 +2,7 @@
   "component_type": "dagster_component_templates.CloudDlpPiiCheckComponent",
   "description": "CloudDlpPiiCheckComponent \u2014 pass/fail asset check for PII in a DataFrame.",
   "category": "check",
+  "icon": "si:googlecloud",
   "attributes": {
     "asset_key": {
       "type": "string",

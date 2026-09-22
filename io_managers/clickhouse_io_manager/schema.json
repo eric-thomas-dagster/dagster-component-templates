@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.ClickhouseIOManagerComponent",
   "description": "Wrap dagster-clickhouse-pandas's ClickhousePandasIOManager so DataFrame assets persist to ClickHouse.",
   "category": "io_manager",
-  "icon": "Save",
+  "icon": "si:clickhouse",
   "x-dagster-io": {
     "outputs": {
       "type": "io_manager",

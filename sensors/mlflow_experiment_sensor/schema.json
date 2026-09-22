@@ -2,5 +2,6 @@
   "component_type": "dagster_community_components.MLflowExperimentSensorComponent",
   "description": "Polls an MLflow experiment for new runs and fires a Dagster RunRequest per new run. Cursor-based dedup on run_id.",
   "category": "sensor",
+  "icon": "si:mlflow",
   "attributes": {}
 }

@@ -2,6 +2,7 @@
   "type": "dagster_component_templates.DependencyGraphComponent",
   "name": "Dependency Graph",
   "category": "core",
+  "icon": "GitBranch",
   "description": "Define dependencies between assets without modifying component schemas",
   "version": "1.0.0",
   "author": "Dagster Community",

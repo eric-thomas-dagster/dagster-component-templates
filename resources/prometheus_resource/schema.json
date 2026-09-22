@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.PrometheusResourceComponent",
   "description": "Push metrics to a Prometheus pushgateway via dagster-prometheus.",
   "category": "resource",
-  "icon": "Activity",
+  "icon": "si:prometheus",
   "x-dagster-io": {
     "outputs": {
       "type": "resource",

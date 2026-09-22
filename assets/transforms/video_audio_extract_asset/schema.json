@@ -2,6 +2,7 @@
   "component_type": "dagster_component_templates.VideoAudioExtractAssetComponent",
   "description": "VideoAudioExtractAssetComponent \u2014 pull the audio track from a video as a file.",
   "category": "transformation",
+  "icon": "si:ffmpeg",
   "attributes": {
     "asset_name": {
       "type": "string",

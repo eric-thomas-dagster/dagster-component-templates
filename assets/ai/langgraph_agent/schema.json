@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.LangGraphAgentComponent",
   "description": "Multi-step LangGraph StateGraph as a Dagster asset. Each step is an LLM call over shared state; supports conditional routing.",
   "category": "ai",
-  "icon": "Sparkles",
+  "icon": "si:langgraph",
   "x-dagster-io": {
     "inputs": {
       "type": "none"

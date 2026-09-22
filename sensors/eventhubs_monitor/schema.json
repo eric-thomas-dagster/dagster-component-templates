@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.EventHubsMonitorSensorComponent",
   "description": "Component for monitoring an Azure Event Hub for new events.",
   "category": "sensor",
-  "icon": "Radar",
+  "icon": "si:microsoftazure",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",

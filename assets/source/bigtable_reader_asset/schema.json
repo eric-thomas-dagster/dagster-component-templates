@@ -2,6 +2,7 @@
   "component_type": "dagster_component_templates.BigtableReaderAssetComponent",
   "description": "BigtableReaderAssetComponent — read rows from a Cloud Bigtable table into a DataFrame.",
   "category": "source",
+  "icon": "si:googlebigtable",
   "attributes": {
     "asset_name": {
       "type": "string",

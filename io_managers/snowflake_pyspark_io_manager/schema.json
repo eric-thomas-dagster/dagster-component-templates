@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.SnowflakePySparkIOManagerComponent",
   "description": "Wrap dagster-snowflake-pyspark so PySpark DataFrames persist to Snowflake.",
   "category": "io_manager",
-  "icon": "Save",
+  "icon": "si:snowflake",
   "x-dagster-io": {
     "outputs": {
       "type": "io_manager",

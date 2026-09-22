@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.LakeFSIOManagerComponent",
   "description": "Register an IO manager that stores assets as Parquet files on a lakeFS repository (Git-for-data over S3-compatible storage)",
   "category": "io_manager",
-  "icon": "si:databricks",
+  "icon": "Save",
   "x-dagster-io": {},
   "x-dagster-provides": [
     "io_manager"

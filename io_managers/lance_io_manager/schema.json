@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.LanceIOManagerComponent",
   "description": "Register a LanceDB IO manager for ML-optimised columnar storage ideal for embeddings and vector data",
   "category": "io_manager",
-  "icon": "si:pytorch",
+  "icon": "Save",
   "x-dagster-io": {},
   "x-dagster-provides": [
     "io_manager"

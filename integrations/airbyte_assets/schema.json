@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.AirbyteAssetsComponent",
   "description": "Import each Airbyte connection as a Dagster external asset via dagster-airbyte.",
   "category": "integration",
-  "icon": "Cloud",
+  "icon": "si:airbyte",
   "x-dagster-io": {
     "outputs": {
       "type": "integration",

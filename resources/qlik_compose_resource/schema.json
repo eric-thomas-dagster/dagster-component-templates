@@ -2,7 +2,7 @@
   "component_type": "dagster_community_components.QlikComposeResourceComponent",
   "description": "Shared Qlik Compose REST API connection. Qlik Compose is the data-warehouse automation tool in the Qlik Data Integration platform. Pairs with qlik_compose_workflow_trigger_job / qlik_compose_workflow_status_sensor / qlik_compose_workflow_metrics_ingestion / qlik_compose_workspace.",
   "category": "resource",
-  "icon": "Server",
+  "icon": "si:qlik",
   "attributes": {
     "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "qlik_compose_resource"},
     "base_url_env_var": {"type": "string", "label": "Base URL Env Var", "required": true, "description": "Env var with the Compose base URL (no /api path)."},

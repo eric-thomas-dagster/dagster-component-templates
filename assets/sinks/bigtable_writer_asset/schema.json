@@ -2,6 +2,7 @@
   "component_type": "dagster_component_templates.BigtableWriterAssetComponent",
   "description": "BigtableWriterAssetComponent \u2014 write DataFrame rows to a Cloud Bigtable table.",
   "category": "sink",
+  "icon": "si:googlebigtable",
   "attributes": {
     "asset_name": {
       "type": "string",

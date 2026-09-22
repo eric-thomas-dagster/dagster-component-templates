@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.DataikuAssetComponent",
   "description": "Dataiku DSS scenario component — one Dagster asset per Dataiku scenario.",
   "category": "analytics",
-  "icon": "BarChart2",
+  "icon": "si:dataiku",
   "x-dagster-io": {
     "inputs": {
       "type": "dataframe",

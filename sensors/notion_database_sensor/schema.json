@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.NotionDatabaseSensorComponent",
   "description": "Trigger a run when a Notion database has new or updated rows.",
   "category": "sensor",
-  "icon": "Bell",
+  "icon": "si:notion",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",

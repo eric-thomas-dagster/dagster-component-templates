@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.PulsarMonitorSensorComponent",
   "description": "Component for monitoring an Apache Pulsar topic for new messages.",
   "category": "sensor",
-  "icon": "Radar",
+  "icon": "si:apachepulsar",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",

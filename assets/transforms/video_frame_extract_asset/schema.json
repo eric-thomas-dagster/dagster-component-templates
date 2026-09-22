@@ -2,6 +2,7 @@
   "component_type": "dagster_component_templates.VideoFrameExtractAssetComponent",
   "description": "VideoFrameExtractAssetComponent — pull N frames per video as image files.",
   "category": "transformation",
+  "icon": "si:ffmpeg",
   "attributes": {
     "asset_name": {
       "type": "string",

@@ -2,7 +2,7 @@
   "component_type": "dagster_community_components.JupyterNotebookComponent",
   "description": "Execute a Jupyter notebook (.ipynb) or inline Python code against an upstream DataFrame. Two backends: papermill (notebook-as-pipeline) or exec (inline body).",
   "category": "transformation",
-  "icon": "Notebook",
+  "icon": "si:jupyter",
   "x-dagster-io": {
     "inputs": {
       "type": "dataframe",

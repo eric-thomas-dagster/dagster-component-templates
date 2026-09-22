@@ -2,7 +2,7 @@
   "component_type": "dagster_community_components.TalendCloudWorkspaceComponent",
   "description": "Talend Cloud (TMC) artifacts as Dagster assets. Discovers /workspaces/{id}/executables + optionally POSTs /executions + polls to completion. Fivetran-shape workspace: block for auth + selector for filtering + polling_sensor + freshness_lag_threshold_seconds.",
   "category": "integration",
-  "icon": "Cloud",
+  "icon": "si:talend",
   "x-dagster-io": {
     "outputs": {
       "type": "integration",

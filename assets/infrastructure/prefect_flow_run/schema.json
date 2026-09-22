@@ -2,7 +2,7 @@
   "component_type": "dagster_community_components.PrefectFlowRunAssetComponent",
   "description": "Trigger a Prefect deployment as a Dagster asset. Optionally waits for the flow run to complete. Materialization metadata carries the Prefect flow_run_id, state, state message, and parameters. Works with local Prefect server and Prefect Cloud.",
   "category": "infrastructure",
-  "icon": "Play",
+  "icon": "si:prefect",
   "attributes": {
     "asset_name": {
       "type": "string",

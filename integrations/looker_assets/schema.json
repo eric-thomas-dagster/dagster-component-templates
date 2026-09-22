@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.LookerAssetsComponent",
   "description": "Import Looker LookML views + dashboards as Dagster external assets via dagster-looker.",
   "category": "integration",
-  "icon": "BarChart3",
+  "icon": "si:looker",
   "x-dagster-io": {
     "outputs": {
       "type": "integration",

@@ -2,7 +2,7 @@
   "component_type": "dagster_community_components.PrefectBackgroundTaskAssetComponent",
   "description": "Submit a Prefect background task (.delay()) as a Dagster asset. Requires a task worker serving the task. task_import_path must be importable from wherever this component runs — background tasks have no by-name trigger API.",
   "category": "infrastructure",
-  "icon": "Play",
+  "icon": "si:prefect",
   "attributes": {
     "asset_name": {
       "type": "string",

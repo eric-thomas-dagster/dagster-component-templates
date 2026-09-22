@@ -2,6 +2,7 @@
   "component_type": "dagster_component_templates.SyntheticImageGeneratorComponent",
   "description": "SyntheticImageGeneratorComponent — generate sample PNGs for Vision / OCR demos.",
   "category": "source",
+  "icon": "Wand2",
   "attributes": {
     "asset_name": {
       "type": "string",

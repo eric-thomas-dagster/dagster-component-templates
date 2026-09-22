@@ -2,6 +2,7 @@
   "component_type": "dagster_component_templates.BigqueryDryRunCheckComponent",
   "description": "BigqueryDryRunCheckComponent — cost guardrail for a BigQuery query.",
   "category": "check",
+  "icon": "si:googlebigquery",
   "attributes": {
     "asset_key": {
       "type": "string",

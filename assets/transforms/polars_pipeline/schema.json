@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.PolarsPipelineComponent",
   "description": "Multi-step polars LazyFrame pipeline in a single Dagster asset (query-plan fusion across all steps).",
   "category": "transformation",
-  "icon": "Workflow",
+  "icon": "si:polars",
   "x-dagster-io": {
     "inputs": {
       "type": "dataframe",

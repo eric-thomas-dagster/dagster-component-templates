@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.ZendeskTicketSensorComponent",
   "description": "Trigger a run when Zendesk has new or updated tickets matching a query.",
   "category": "sensor",
-  "icon": "Bell",
+  "icon": "si:zendesk",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",

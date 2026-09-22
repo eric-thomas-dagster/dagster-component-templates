@@ -2,6 +2,7 @@
   "component_type": "dagster_component_templates.BigqueryVectorSearchAssetComponent",
   "description": "BigqueryVectorSearchAssetComponent — k-NN similarity search against a BQ vector column.",
   "category": "source",
+  "icon": "si:googlebigquery",
   "attributes": {
     "asset_name": {
       "type": "string",

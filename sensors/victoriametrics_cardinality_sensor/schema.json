@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.VictoriaMetricsCardinalitySensorComponent",
   "description": "Poll VictoriaMetrics /api/v1/status/tsdb and emit a RunRequest (or warning SkipReason) when totalSeries crosses a threshold.",
   "category": "sensor",
-  "icon": "Eye",
+  "icon": "si:victoriametrics",
   "attributes": {
     "sensor_name": {
       "type": "string",

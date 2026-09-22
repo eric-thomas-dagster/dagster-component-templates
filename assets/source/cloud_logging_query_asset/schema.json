@@ -2,6 +2,7 @@
   "component_type": "dagster_component_templates.CloudLoggingQueryAssetComponent",
   "description": "CloudLoggingQueryAssetComponent \u2014 pull log entries via Cloud Logging filter language.",
   "category": "source",
+  "icon": "si:googlecloud",
   "attributes": {
     "asset_name": {
       "type": "string",

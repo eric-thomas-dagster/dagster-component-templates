@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.LinearIssueSensorComponent",
   "description": "Trigger a run when Linear has new or updated issues matching a team/state filter.",
   "category": "sensor",
-  "icon": "Bell",
+  "icon": "si:linear",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",

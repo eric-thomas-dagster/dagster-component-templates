@@ -2,5 +2,6 @@
   "component_type": "dagster_community_components.MLflowModelInferenceComponent",
   "description": "Loads a registered MLflow model version (any pyfunc flavor) and scores an upstream DataFrame. Per-run metadata: model URI, row count, latency.",
   "category": "ai",
+  "icon": "si:mlflow",
   "attributes": {}
 }

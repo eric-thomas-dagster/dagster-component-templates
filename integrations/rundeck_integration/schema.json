@@ -2,7 +2,7 @@
   "component_type": "dagster_community_components.RundeckIntegrationComponent",
   "description": "Rundeck (OSS / Enterprise) REST API integration. Each declared Rundeck Job becomes a daily-partitioned Dagster asset with a retry policy. Ships with 5 ops + jobs (restart / disable / enable / abort / reconcile), an external-execution monitor sensor, an inbound-trigger sensor, and an hourly reconciliation schedule. demo_mode=true simulates the full REST API lifecycle on stdout so the whole component runs end-to-end with zero external dependencies.",
   "category": "integration",
-  "icon": "Schedule",
+  "icon": "si:rundeck",
   "x-dagster-io": {
     "outputs": {
       "type": "integration",

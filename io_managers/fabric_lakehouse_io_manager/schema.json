@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.FabricLakehouseIOManagerComponent",
   "description": "ConfigurableIOManager: auto-serializes asset DataFrames as Delta tables in a Fabric Lakehouse on OneLake. Asset key becomes the table name (sanitized). Tables auto-register in the Fabric SQL endpoint.",
   "category": "io_manager",
-  "icon": "Database",
+  "icon": "si:microsoftazure",
   "x-dagster-io": {
     "supports_partitions": false
   },

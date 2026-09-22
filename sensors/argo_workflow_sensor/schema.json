@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.ArgoWorkflowSensorComponent",
   "description": "Fire a Dagster job when an Argo Workflow reaches a terminal success phase.\n\nTwo modes — set exactly one of ``workflow_name`` or\n``workflow_template_label``:\n\n  - ``workflow_name`` — watch one specific Workflow by name. Useful\n    when Dagster knows the workflow's name (e.g. it triggered it).\n\n  - ``workflow_template_label`` — list workflows by a label selector\n    like ``workflows.argoproj.io/workflow-template=nightly-agg``\n    and watch the most-recently-completed one. Useful when Argo's\n    scheduler creates workflows on its own cadence and Dagster\n    wants to react to the latest finish.\n\nExample:\n    ```yaml\n    type: dagster_community_components.ArgoWorkflowSensorComponent\n    attributes:\n      sensor_name: argo_nightly_done\n      workflow_template_label: workflows.argoproj.io/workflow-template=nightly-aggregation\n      namespace: argo\n      host_env_var: ARGO_SERVER_URL\n      token_env_var: ARGO_TOKEN\n      job_name: downstream_processing_job\n      asset_key: argo/etl/nightly_aggregation\n    ```",
   "category": "sensor",
-  "icon": "Radar",
+  "icon": "si:argo",
   "attributes": {
     "sensor_name": {
       "type": "string",

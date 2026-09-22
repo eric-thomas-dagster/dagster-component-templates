@@ -2,7 +2,7 @@
   "component_type": "dagster_community_components.PrefectFlowRunSensorComponent",
   "description": "Dagster sensor that polls the Prefect API for flow runs entering a terminal state and launches a Dagster job for each new one. Filters on flow_name / deployment_name / state types. Optionally registers each flow_run as a dynamic partition on a downstream asset.",
   "category": "sensor",
-  "icon": "Eye",
+  "icon": "si:prefect",
   "attributes": {
     "sensor_name": {
       "type": "string",

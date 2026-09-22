@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.TerraformCloudAssetComponent",
   "description": "HCP Terraform (Terraform Cloud) asset component.",
   "category": "infrastructure",
-  "icon": "Server",
+  "icon": "si:terraform",
   "x-dagster-io": {
     "outputs": {
       "type": "MaterializeResult",

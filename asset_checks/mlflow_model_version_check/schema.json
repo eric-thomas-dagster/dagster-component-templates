@@ -2,5 +2,6 @@
   "component_type": "dagster_community_components.MLflowModelVersionCheckComponent",
   "description": "Asset check that verifies an MLflow registered model's state (exists / at required stage / within a freshness window).",
   "category": "check",
+  "icon": "si:mlflow",
   "attributes": {}
 }

@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.NATSMonitorSensorComponent",
   "description": "Component for monitoring a NATS JetStream consumer for new messages.",
   "category": "sensor",
-  "icon": "Radar",
+  "icon": "si:natsio",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",

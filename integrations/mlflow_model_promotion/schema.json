@@ -2,6 +2,7 @@
   "component_type": "dagster_community_components.MLflowModelPromotionComponent",
   "description": "Materializable asset that transitions an MLflow model version between stages (e.g. Staging → Production). Auditable ML CD step in the Dagster asset graph.",
   "category": "integration",
+  "icon": "si:mlflow",
   "x-dagster-io": {
     "outputs": {
       "type": "integration",

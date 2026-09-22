@@ -2,7 +2,7 @@
   "component_type": "dagster_community_components.QlikReplicateWorkspaceComponent",
   "description": "Auto-emit one Dagster asset per Qlik Replicate task by enumerating the workspace via the Qlik Enterprise Manager REST API. StateBackedComponent — discovery is cached to disk and refreshed on explicit trigger, not on every project load. Materializing an asset triggers the underlying task (run / reload / stop) and polls to completion. The workspace-shape peer of the low-level qlik_replicate_task_trigger_job / qlik_replicate_task_status_sensor / qlik_replicate_task_metrics_ingestion components — use this when you want one YAML instead of one-per-task.",
   "category": "integration",
-  "icon": "AccountTree",
+  "icon": "si:qlik",
   "x-dagster-io": {
     "outputs": {
       "type": "integration",

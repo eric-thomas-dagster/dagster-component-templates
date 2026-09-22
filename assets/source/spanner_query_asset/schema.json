@@ -2,6 +2,7 @@
   "component_type": "dagster_component_templates.SpannerQueryAssetComponent",
   "description": "SpannerQueryAssetComponent \u2014 run a SQL query against Cloud Spanner.",
   "category": "source",
+  "icon": "si:googlecloudspanner",
   "attributes": {
     "asset_name": {
       "type": "string",

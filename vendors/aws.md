@@ -81,8 +81,8 @@ The community components below are **complements** — they cover declarative-YA
 
 | Topic | Walkthrough |
 |---|---|
-| 23 external-asset declarations (S3, SQS, Kinesis included) | [`examples/external_assets.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md) |
-| Warehouse migration (Redshift target) | [`examples/warehouse_migration.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/warehouse_migration.md) |
+| 23 external-asset declarations (S3, SQS, Kinesis included) | [`examples/external_assets.md`](https://dagster-component-ui.vercel.app/examples/external_assets) |
+| Warehouse migration (Redshift target) | [`examples/warehouse_migration.md`](https://dagster-component-ui.vercel.app/examples/warehouse_migration) |
 
 ## Connection / auth — quick reference
 
@@ -113,4 +113,4 @@ Components rarely need explicit credential fields; `region:` is the most common 
 
 - Official `dagster-aws` package — preferred for S3, EMR, Redshift, Athena resource + IO-manager paths
 - [boto3 docs](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html)
-- [`examples/external_assets.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md)
+- [`examples/external_assets.md`](https://dagster-component-ui.vercel.app/examples/external_assets)

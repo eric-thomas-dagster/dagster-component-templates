@@ -46,8 +46,8 @@ All 5 components accept the same auth fields — swap the pair to point at Cloud
 
 ## Walkthroughs
 
-- [Temporal Workflow (trio: trigger + external + sensor)](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/temporal_workflow.md) — full E2E via local dev-server + a real Python worker + SWAPI activity.
-- [Temporal Signal + Query](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/temporal_signal_query.md) — long-lived `OrderBatchWorkflow` with `@signal` + `@query` handlers; scripted `query → signal add → query → signal flush → query` sequence with visible state transitions.
+- [Temporal Workflow (trio: trigger + external + sensor)](https://dagster-component-ui.vercel.app/examples/temporal_workflow) — full E2E via local dev-server + a real Python worker + SWAPI activity.
+- [Temporal Signal + Query](https://dagster-component-ui.vercel.app/examples/temporal_signal_query) — long-lived `OrderBatchWorkflow` with `@signal` + `@query` handlers; scripted `query → signal add → query → signal flush → query` sequence with visible state transitions.
 
 ## Where Dagster adds value that Temporal alone doesn't
 

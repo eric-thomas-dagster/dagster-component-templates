@@ -49,7 +49,7 @@ The community components below are **complements, not replacements**. They cover
 
 | Path | Walkthrough |
 |---|---|
-| **Iceberg + Delta lakehouse (local FS)** | [`examples/lakehouse_local.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/lakehouse_local.md) — exercises `dataframe_to_delta_table` + `delta_ingestion` + `delta_lake_io_manager` end-to-end without Databricks |
+| **Iceberg + Delta lakehouse (local FS)** | [`examples/lakehouse_local.md`](https://dagster-component-ui.vercel.app/examples/lakehouse_local) — exercises `dataframe_to_delta_table` + `delta_ingestion` + `delta_lake_io_manager` end-to-end without Databricks |
 | **Pandas → Delta sink** | Covered in `examples/local_transforms.md` |
 
 ## Connection / auth — quick reference

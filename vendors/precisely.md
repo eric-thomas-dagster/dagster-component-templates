@@ -49,7 +49,7 @@ The Precisely data catalog (formerly Infogix). OAuth2 client-credentials (same f
 
 ## Walkthrough
 
-**[`examples/precisely_validation.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/precisely_validation.md)** — Two-component scaffold (external asset + sensor) for the Observe-only case. `setup_precisely_validation_demo.sh` scaffolds a working Dagster project in one command; flip `default_status: running` + set a real `job_run_id` once you have one.
+**[`examples/precisely_validation.md`](https://dagster-component-ui.vercel.app/examples/precisely_validation)** — Two-component scaffold (external asset + sensor) for the Observe-only case. `setup_precisely_validation_demo.sh` scaffolds a working Dagster project in one command; flip `default_status: running` + set a real `job_run_id` once you have one.
 
 ## Connection / auth — quick reference
 

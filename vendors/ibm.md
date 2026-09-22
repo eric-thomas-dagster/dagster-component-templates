@@ -15,16 +15,16 @@ Pairs with the generic SQL components (none of which are IBM-specific but all wo
 | `dataframe_to_table` | DataFrame → Db2 (or any SQLAlchemy target) |
 | `sql_transform` | Templated SQL CTAS / read |
 | `database_schema_inventory` | Catalog discovery — `database_type: db2` for LUW/Cloud; `database_type: db2_iseries` for AS/400 (uses QSYS2.* instead of SYSCAT.*) |
-| `database_tables_migration` / `database_replication` / `database_constraints_migration` / `database_views_migration` | Migrate Db2 → modern warehouse (Snowflake / BigQuery / Databricks / DuckDB). See [`warehouse_migration.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/warehouse_migration.md) |
+| `database_tables_migration` / `database_replication` / `database_constraints_migration` / `database_views_migration` | Migrate Db2 → modern warehouse (Snowflake / BigQuery / Databricks / DuckDB). See [`warehouse_migration.md`](https://dagster-component-ui.vercel.app/examples/warehouse_migration) |
 | `sling_sync` / official `dagster-sling` | Recurring replication (Sling supports Db2 natively, including the i variant) |
 
 ## Walkthroughs
 
 | Path | Walkthrough |
 |---|---|
-| **Db2 LUW** (Docker Community Edition) | [`examples/db2.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/db2.md) — end-to-end against a Docker container |
-| **Db2 for i / AS/400** | [`examples/db2_iseries.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/db2_iseries.md) — config-only (IBM i can't be Docker'd); covers connection differences, library-list semantics, EBCDIC, alternative pyodbc driver path |
-| **Db2 → modern warehouse migration** | [`examples/warehouse_migration.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/warehouse_migration.md) — DDL-first + data-first patterns; same flow applies to Db2-i sources |
+| **Db2 LUW** (Docker Community Edition) | [`examples/db2.md`](https://dagster-component-ui.vercel.app/examples/db2) — end-to-end against a Docker container |
+| **Db2 for i / AS/400** | [`examples/db2_iseries.md`](https://dagster-component-ui.vercel.app/examples/db2_iseries) — config-only (IBM i can't be Docker'd); covers connection differences, library-list semantics, EBCDIC, alternative pyodbc driver path |
+| **Db2 → modern warehouse migration** | [`examples/warehouse_migration.md`](https://dagster-component-ui.vercel.app/examples/warehouse_migration) — DDL-first + data-first patterns; same flow applies to Db2-i sources |
 
 ## Connection / auth — quick reference
 

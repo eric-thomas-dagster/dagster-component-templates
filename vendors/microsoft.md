@@ -72,10 +72,10 @@ The repo's [`examples/`](https://github.com/eric-thomas-dagster/dagster-communit
 
 | Topic | Walkthrough |
 |---|---|
-| Microsoft Graph (OneDrive / Outlook / Teams / SharePoint) | [`examples/msgraph_pipeline.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/msgraph_pipeline.md) |
-| Dynamics 365 (Sales / Customer Service) via OData | [`examples/dynamics365_pipeline.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/dynamics365_pipeline.md) |
-| SAP S/4HANA (OData — same protocol as Dynamics) | [`examples/sap_s4hana_pipeline.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/sap_s4hana_pipeline.md) |
-| External-asset declarations across MS surfaces | [`examples/external_assets.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md) |
+| Microsoft Graph (OneDrive / Outlook / Teams / SharePoint) | [`examples/msgraph_pipeline.md`](https://dagster-component-ui.vercel.app/examples/msgraph_pipeline) |
+| Dynamics 365 (Sales / Customer Service) via OData | [`examples/dynamics365_pipeline.md`](https://dagster-component-ui.vercel.app/examples/dynamics365_pipeline) |
+| SAP S/4HANA (OData — same protocol as Dynamics) | [`examples/sap_s4hana_pipeline.md`](https://dagster-component-ui.vercel.app/examples/sap_s4hana_pipeline) |
+| External-asset declarations across MS surfaces | [`examples/external_assets.md`](https://dagster-component-ui.vercel.app/examples/external_assets) |
 
 ## Connection / auth — quick reference
 

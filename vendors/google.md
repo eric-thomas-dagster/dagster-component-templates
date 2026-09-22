@@ -90,7 +90,7 @@ The community components below complement that:
 | Topic | Walkthrough |
 |---|---|
 | BigQuery query + freshness + dry-run + ML | Covered as patterns in `examples/external_assets.md` + `examples/data_quality_checks.md` |
-| External-asset declarations (BigQuery, GCS, Pub/Sub) | [`examples/external_assets.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md) |
+| External-asset declarations (BigQuery, GCS, Pub/Sub) | [`examples/external_assets.md`](https://dagster-component-ui.vercel.app/examples/external_assets) |
 
 ## Connection / auth — quick reference
 
@@ -119,4 +119,4 @@ Components typically take a `project_id:` (required) and optionally `location:` 
 
 - Official `dagster-gcp` integration — preferred for the core resource + IO-manager + Dataproc paths
 - [BigQuery REST docs](https://cloud.google.com/bigquery/docs/reference/rest)
-- [`examples/external_assets.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md)
+- [`examples/external_assets.md`](https://dagster-component-ui.vercel.app/examples/external_assets)

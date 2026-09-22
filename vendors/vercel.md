@@ -42,8 +42,8 @@ Same one-owner rule as the Temporal / Argo patterns: don't try to "trigger" Verc
 
 ## Walkthroughs
 
-- [Vercel Deployment](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vercel_deployment.md) — sensor + external asset live-validated against a real Vercel project. Observed the `dagster-component-ui` production deployment (commit SHA + branch + URL) in one tick.
-- [Vercel AI Gateway Agent](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vercel_ai_gateway_agent.md) — three-provider demo: same Vercel key routes `openai/gpt-4o-mini`, `anthropic/claude-haiku-4-5`, and `google/gemini-2.5-flash` in one project.
+- [Vercel Deployment](https://dagster-component-ui.vercel.app/examples/vercel_deployment) — sensor + external asset live-validated against a real Vercel project. Observed the `dagster-component-ui` production deployment (commit SHA + branch + URL) in one tick.
+- [Vercel AI Gateway Agent](https://dagster-component-ui.vercel.app/examples/vercel_ai_gateway_agent) — three-provider demo: same Vercel key routes `openai/gpt-4o-mini`, `anthropic/claude-haiku-4-5`, and `google/gemini-2.5-flash` in one project.
 
 ## Where Dagster adds value that Vercel alone doesn't
 

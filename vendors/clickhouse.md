@@ -36,7 +36,7 @@
 
 ## Walkthroughs
 
-**[`examples/clickhouse.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/clickhouse.md)** — single-container Docker walkthrough. `setup_clickhouse_demo.sh` brings up `clickhouse/clickhouse-server` locally, scaffolds a Dagster project with `clickhouse_resource` + `dataframe_to_clickhouse` + `external_clickhouse_table`, and materializes assets end-to-end against the running container.
+**[`examples/clickhouse.md`](https://dagster-component-ui.vercel.app/examples/clickhouse)** — single-container Docker walkthrough. `setup_clickhouse_demo.sh` brings up `clickhouse/clickhouse-server` locally, scaffolds a Dagster project with `clickhouse_resource` + `dataframe_to_clickhouse` + `external_clickhouse_table`, and materializes assets end-to-end against the running container.
 
 ## Connection / auth — quick reference
 

@@ -65,4 +65,4 @@ Same as Postgres:
 
 - [TimescaleDB docs](https://docs.timescale.com/)
 - [`vendors/victoriametrics.md`](victoriametrics.md) / [`vendors/influxdb.md`](influxdb.md) — Postgres-extension-free alternatives
-- [Postgres warehouse migration playbook](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/warehouse_migration.md) — covers Postgres → DuckDB end-to-end; same flow + hypertable awareness applies for Postgres ↔ TimescaleDB
+- [Postgres warehouse migration playbook](https://dagster-component-ui.vercel.app/examples/warehouse_migration) — covers Postgres → DuckDB end-to-end; same flow + hypertable awareness applies for Postgres ↔ TimescaleDB

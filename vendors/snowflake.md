@@ -87,8 +87,8 @@ The community components below are **complements, not replacements** — they co
 
 | Path | Walkthrough |
 |---|---|
-| **Snowflake workspace end-to-end** | [`examples/snowflake_workspace.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/snowflake_workspace.md) |
-| **Sandboxed-account capability probes + auto-skip** | [`examples/snowflake_demo_account_requirements.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/snowflake_demo_account_requirements.md) |
+| **Snowflake workspace end-to-end** | [`examples/snowflake_workspace.md`](https://dagster-component-ui.vercel.app/examples/snowflake_workspace) |
+| **Sandboxed-account capability probes + auto-skip** | [`examples/snowflake_demo_account_requirements.md`](https://dagster-component-ui.vercel.app/examples/snowflake_demo_account_requirements) |
 
 ## Connection / auth — quick reference
 
@@ -119,4 +119,4 @@ See `examples/snowflake_demo_account_requirements.md` for the **partnership-ask 
 
 - [Official `dagster-snowflake` docs](https://docs.dagster.io/integrations/snowflake)
 - [Snowflake REST + SQL docs](https://docs.snowflake.com/)
-- [`examples/snowflake_workspace.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/snowflake_workspace.md)
+- [`examples/snowflake_workspace.md`](https://dagster-component-ui.vercel.app/examples/snowflake_workspace)

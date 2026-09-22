@@ -53020,14 +53020,14 @@
       "name": "Prefect Workspace",
       "component_type": "dagster_community_components.PrefectWorkspaceComponent",
       "path": "integrations/prefect_workspace",
-      "category": "ingestion",
+      "category": "integration",
       "icon": "si:prefect",
       "description": "Auto-discover every Prefect deployment via the live API and emit one triggerable Dagster asset per deployment, with a Dagster ScheduleDefinition mirrored from any active cron schedule already configured in Prefect. StateBackedComponent - discovery cached to disk. Optional polling_sensor observes completions across every discovered deployment at once - the auto-discovery equivalent of hand-configuring prefect_flow_run_sensor per deployment. Removes the one-YAML-block-per-deployment tax prefect_flow_run has on its own.",
       "tags": [
         "auto-discovery",
         "durable-execution",
         "hybrid",
-        "ingestion",
+        "integration",
         "prefect",
         "state-backed",
         "workflow-orchestration",
@@ -53045,6 +53045,11 @@
       },
       "version": "1.0.0",
       "author": "Dagster Community",
+      "validation": {
+        "level": "live",
+        "last_validated": "2026-09-22",
+        "evidence": "examples/prefect_workspace.md — one component block auto-discovers two live Prefect deployments, mirrors a paused cron into a Dagster schedule, and turns a table artifact into a passing AssetCheckResult, verified end-to-end."
+      },
       "agent_hints": {
         "outputs": [
           "one_asset_per_prefect_deployment"

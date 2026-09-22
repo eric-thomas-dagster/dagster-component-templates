@@ -27,6 +27,7 @@ class PrefectResource(dg.ConfigurableResource):
 
     api_url: str = "http://127.0.0.1:4200/api"
     api_key_env_var: Optional[str] = None
+    ui_url: Optional[str] = None
 
     def apply_env(self) -> None:
         """Set PREFECT_API_URL + PREFECT_API_KEY env vars so any subsequent
@@ -36,6 +37,14 @@ class PrefectResource(dg.ConfigurableResource):
             key = os.environ.get(self.api_key_env_var)
             if key:
                 os.environ["PREFECT_API_KEY"] = key
+
+    def run_url(self, flow_run_id) -> str:
+        """Link into the Prefect UI for a flow run. `ui_url` if set, else
+        `api_url` with its trailing `/api` stripped (correct for a
+        local/self-hosted server — Prefect Cloud needs `ui_url` set
+        explicitly, since it serves the UI from a different host)."""
+        base = (self.ui_url or self.api_url).rstrip("/").removesuffix("/api")
+        return f"{base}/runs/flow-run/{flow_run_id}"
 
 
 class PrefectResourceComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -76,6 +85,15 @@ class PrefectResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Env var holding a Prefect Cloud API key. Leave unset for local server.",
     )
+    ui_url: Optional[str] = Field(
+        default=None,
+        description=(
+            "Base URL of the Prefect UI, for building 'Prefect Run URL' links in "
+            "materialization metadata. Defaults to api_url with its trailing '/api' "
+            "stripped, correct for a local/self-hosted server. Prefect Cloud serves "
+            "its UI from a different host — set this explicitly there."
+        ),
+    )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         return dg.Definitions(
@@ -83,6 +101,7 @@ class PrefectResourceComponent(dg.Component, dg.Model, dg.Resolvable):
                 self.resource_key: PrefectResource(
                     api_url=self.api_url,
                     api_key_env_var=self.api_key_env_var,
+                    ui_url=self.ui_url,
                 )
             }
         )

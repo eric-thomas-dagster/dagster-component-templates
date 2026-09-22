@@ -17,6 +17,15 @@ import dagster as dg
 from pydantic import Field
 
 
+def _prefect_run_url(api_url: str, ui_url: Optional[str], flow_run_id) -> str:
+    """Build a link into the Prefect UI for a flow run. Same convention as
+    the prefect_flow_run and prefect_resource components — duplicated here
+    rather than imported, since components in this registry are self-
+    contained (see FIELD_CONVENTIONS.md)."""
+    base = (ui_url or api_url).rstrip("/").removesuffix("/api")
+    return f"{base}/runs/flow-run/{flow_run_id}"
+
+
 class PrefectFlowRunSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     """Sensor that fires when Prefect flow runs enter a terminal state.
 
@@ -70,6 +79,14 @@ class PrefectFlowRunSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     # Connection
     api_url: str = Field(default="http://127.0.0.1:4200/api")
     api_key_env_var: Optional[str] = Field(default=None)
+    ui_url: Optional[str] = Field(
+        default=None,
+        description=(
+            "Base URL of the Prefect UI, for the flow_run_url field included in "
+            "partition_mode='run_config' run_config. Defaults to api_url with its "
+            "trailing '/api' stripped. Prefect Cloud needs this set explicitly."
+        ),
+    )
 
     # Cadence
     minimum_interval_seconds: int = Field(default=30)
@@ -200,6 +217,7 @@ class PrefectFlowRunSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                         run_config={"ops": {"config": {
                             "flow_run_id": str(fr.id),
                             "flow_run_name": str(getattr(fr, "name", "")),
+                            "flow_run_url": _prefect_run_url(_self.api_url, _self.ui_url, fr.id),
                             "state_type": getattr(getattr(fr, "state_type", None), "value", ""),
                             "deployment_name": _self.deployment_name or "",
                             "end_time": fr.end_time.isoformat() if fr.end_time else "",

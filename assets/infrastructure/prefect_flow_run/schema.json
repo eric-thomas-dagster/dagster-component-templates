@@ -20,7 +20,7 @@
       "type": "object",
       "label": "Parameters",
       "required": false,
-      "description": "Parameters passed to the flow run. String values are templated: {partition_key}, {run_id}.",
+      "description": "Parameters passed to the flow run. String values are templated: {partition_key}, {run_id}, {partition_window_start}, {partition_window_end}.",
       "default": null
     },
     "wait_for_result": {
@@ -75,12 +75,42 @@
       "description": "Env var holding a Prefect Cloud API key.",
       "default": null
     },
+    "ui_url": {
+      "type": "string",
+      "label": "UI URL",
+      "required": false,
+      "description": "Prefect UI base URL, for the Prefect Run URL metadata link. Defaults to api_url minus '/api'.",
+      "default": null
+    },
     "fail_on_flow_run_failure": {
       "type": "boolean",
       "label": "Fail On Flow Run Failure",
       "required": false,
-      "description": "Fail the Dagster asset if the Prefect flow ends in FAILED/CRASHED/CANCELLED.",
+      "description": "Fail the Dagster asset if the Prefect flow ends in FAILED/CRASHED/CANCELLED. Ignored in execution_mode='pipes'.",
       "default": true
+    },
+    "forward_termination": {
+      "type": "boolean",
+      "label": "Forward Termination",
+      "required": false,
+      "description": "Cancel the Prefect flow run if the Dagster run is terminated while waiting.",
+      "default": true
+    },
+    "stream_logs": {
+      "type": "boolean",
+      "label": "Stream Logs",
+      "required": false,
+      "description": "Forward the flow's own Prefect logs into the Dagster run log while waiting (via read_logs, no shared filesystem/blob store needed). execution_mode='poll' only.",
+      "default": false
+    },
+    "execution_mode": {
+      "type": "string",
+      "label": "Execution Mode",
+      "required": false,
+      "description": "'poll' — plain Prefect SDK, no flow code changes. 'pipes' — official dagster-prefect Pipes client (requires pip install dagster-prefect + open_dagster_pipes() in the flow).",
+      "default": "poll",
+      "enum": ["poll", "pipes"],
+      "ui:widget": "select"
     },
     "group_name": {
       "type": "string",

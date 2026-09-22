@@ -57,6 +57,13 @@
       "required": false,
       "default": null
     },
+    "ui_url": {
+      "type": "string",
+      "label": "UI URL",
+      "required": false,
+      "description": "Prefect UI base URL, for the flow_run_url field in run_config mode. Defaults to api_url minus '/api'.",
+      "default": null
+    },
     "minimum_interval_seconds": {
       "type": "integer",
       "label": "Minimum Interval Seconds",

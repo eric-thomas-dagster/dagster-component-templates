@@ -22,6 +22,7 @@ Works against:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `api_url` | `str` | `"http://127.0.0.1:4200/api"` | Prefect API URL. Default is local server at :4200. |
+| `ui_url` | `str` | — | Base URL of the Prefect UI, for building 'Prefect Run URL' links in materialization metadata. Defaults to api_url with its trailing '/api' stripped, correct for a local/self-hosted server. Prefect Cloud serves its UI fro… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

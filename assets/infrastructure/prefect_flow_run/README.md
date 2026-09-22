@@ -50,7 +50,7 @@ String parameter values (and `flow_run_name`) support `{partition_key}` and `{ru
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `parameters` | `Dict[str, Any]` | — | Parameters passed to the flow run. String values are templated: `{partition_key}` substitutes the current partition key; `{run_id}` substitutes the Dagster run_id. Non-string values pass through. |
+| `parameters` | `Dict[str, Any]` | — | Parameters passed to the flow run. String values are templated: `{partition_key}` substitutes the current partition key; `{run_id}` substitutes the Dagster run_id; `{partition_window_start}` / `{partition_window_end}` su… _(full docs in schema.json + component README)_ |
 | `timeout_seconds` | `int` | — | Only used when wait_for_result=True. Max seconds to wait for the flow run. None = wait indefinitely. If exceeded, the asset raises. |
 | `poll_interval_seconds` | `float` | `5.0` | Only used when wait_for_result=True. Seconds between polls. |
 
@@ -90,6 +90,12 @@ String parameter values (and `flow_run_name`) support `{partition_key}` and `{ru
 | `retry_policy_delay_seconds` | `int` | — | — |
 | `retry_policy_backoff` | `str` | `"exponential"` | — |
 
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `stream_logs` | `bool` | `false` | Only in execution_mode='poll'. Forward the flow's own Prefect logs into the Dagster run log while waiting, via Prefect's read_logs API — no shared filesystem or blob store required (unlike dagster-prefect's Pipes message… _(full docs in schema.json + component README)_ |
+
 ### Other
 
 | Field | Type | Default | Description |
@@ -97,7 +103,10 @@ String parameter values (and `flow_run_name`) support `{partition_key}` and `{ru
 | `wait_for_result` | `bool` | `true` | Wait for the flow run to reach a terminal state before the Dagster asset finishes materializing. When False, the asset returns immediately after submitting the flow run — use this for fire-and-forget triggers and pair wi… _(full docs in schema.json + component README)_ |
 | `flow_run_name` | `str` | — | Optional flow run name. Templated with `{partition_key}` and `{run_id}` like parameter values. |
 | `api_url` | `str` | `"http://127.0.0.1:4200/api"` | Prefect API URL. Default is local server at :4200. |
-| `fail_on_flow_run_failure` | `bool` | `true` | When True and wait_for_result=True, the Dagster asset fails if the Prefect flow run ends in a non-COMPLETED state (FAILED, CRASHED, CANCELLED). When False, the asset always materializes successfully — inspect the state in the metadata. |
+| `ui_url` | `str` | — | Base URL of the Prefect UI, used to build the 'Prefect Run URL' materialization metadata link. Defaults to api_url with its trailing '/api' stripped, which is correct for a local/self-hosted server. Prefect Cloud serves… _(full docs in schema.json + component README)_ |
+| `fail_on_flow_run_failure` | `bool` | `true` | When True and wait_for_result=True, the Dagster asset fails if the Prefect flow run ends in a non-COMPLETED state (FAILED, CRASHED, CANCELLED). When False, the asset always materializes successfully — inspect the state i… _(full docs in schema.json + component README)_ |
+| `forward_termination` | `bool` | `true` | When wait_for_result=True, cancel the Prefect flow run if the Dagster run is terminated/interrupted while waiting. Uses the plain Prefect SDK (no dagster-prefect dependency) — same behavior dagster-prefect's Pipes client… _(full docs in schema.json + component README)_ |
+| `execution_mode` | `str` | `"poll"` | 'poll' (default) — trigger + poll via the plain Prefect SDK, zero flow code changes required. 'pipes' — delegate to dagster-prefect's PipesPrefectDeploymentClient for in-flight metadata/log streaming; requires `pip insta… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | — |
 
 [//]: # (FIELDS:END)

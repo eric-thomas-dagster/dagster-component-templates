@@ -59,6 +59,7 @@ Same shape as `filesystem_monitor` / `adls_monitor` / `gcs_monitor`:
 | `states` | `List[str]` | `lambda: ['COMPLETED']()` | Prefect state types to react to. Choose from COMPLETED, FAILED, CRASHED, CANCELLED. Default: only COMPLETED (success). |
 | `look_back_minutes` | `int` | `60` | How far back to scan Prefect for terminal flow runs on the FIRST tick (before a cursor is established). Subsequent ticks use the cursor timestamp. |
 | `api_url` | `str` | `"http://127.0.0.1:4200/api"` | — |
+| `ui_url` | `str` | — | Base URL of the Prefect UI, for the flow_run_url field included in partition_mode='run_config' run_config. Defaults to api_url with its trailing '/api' stripped. Prefect Cloud needs this set explicitly. |
 | `dynamic_partitions_name` | `str` | — | — |
 
 [//]: # (FIELDS:END)

@@ -36319,15 +36319,18 @@
       "id": "prefect_flow_run",
       "name": "Prefect Flow Run",
       "category": "infrastructure",
-      "description": "Trigger a Prefect deployment and materialize the flow run as a Dagster asset. Optionally waits for completion; flow_run_id + state land in materialization metadata. Works with local Prefect server + Prefect Cloud.",
-      "version": "1.0.0",
+      "description": "Trigger a Prefect deployment and materialize the flow run as a Dagster asset. Optionally waits for completion; flow_run_id + state + a clickable Prefect UI run link land in materialization metadata. Dagster run termination is forwarded as a Prefect flow-run cancellation by default (forward_termination). Optional stream_logs forwards the flow's own Prefect logs into the Dagster run log while waiting, via Prefect's read_logs API \u2014 no shared filesystem or blob store needed. Supports an optional execution_mode='pipes' to delegate to dagster-prefect's official Pipes client instead. Works with local Prefect server + Prefect Cloud.",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "assets/infrastructure/prefect_flow_run",
       "tags": [
-        "prefect",
-        "workflow-orchestration",
+        "cancellation",
         "durable-execution",
-        "hybrid"
+        "hybrid",
+        "log-streaming",
+        "pipes-optional",
+        "prefect",
+        "workflow-orchestration"
       ],
       "dependencies": {
         "pip": [
@@ -36362,8 +36365,8 @@
       "id": "prefect_flow_run_sensor",
       "name": "Prefect Flow Run Sensor",
       "category": "sensor",
-      "description": "Dagster sensor watching the Prefect API for flow runs in terminal states. Launches a Dagster job per new completion. Filters by flow_name / deployment_name / state types. Bridges Prefect-owned upstream work into Dagster's asset catalog.",
-      "version": "1.0.0",
+      "description": "Dagster sensor watching the Prefect API for flow runs in terminal states. Launches a Dagster job per new completion, with a Prefect UI run link included in run_config mode. Filters by flow_name / deployment_name / state types. Bridges Prefect-owned upstream work into Dagster's asset catalog.",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "sensors/prefect_flow_run_sensor",
       "tags": [
@@ -36407,8 +36410,8 @@
       "id": "prefect_resource",
       "name": "Prefect Resource",
       "category": "resource",
-      "description": "Dagster resource that configures the Prefect Python SDK for a specific Prefect instance (local server or Prefect Cloud). Used by prefect_flow_run + prefect_flow_run_sensor, or referenced directly.",
-      "version": "1.0.0",
+      "description": "Dagster resource that configures the Prefect Python SDK for a specific Prefect instance (local server or Prefect Cloud), including the UI base URL for building Prefect run links. Used by prefect_flow_run + prefect_flow_run_sensor, or referenced directly.",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "resources/prefect_resource",
       "tags": [

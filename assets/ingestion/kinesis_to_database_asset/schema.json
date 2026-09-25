@@ -2,6 +2,8 @@
   "component_type": "dagster_component_templates.KinesisToDatabaseAssetComponent",
   "description": "Read records from a Kinesis Data Stream and write them to a database table.",
   "category": "ingestion",
+
+  "vertical": "streaming",
   "icon": "ArrowUpFromLine",
   "x-dagster-io": {
     "outputs": {

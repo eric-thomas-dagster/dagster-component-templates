@@ -2,6 +2,8 @@
   "component_type": "dagster_component_templates.DatabaseReplicationComponent",
   "description": "Replicate a table between two SQL databases using Sling under the hood. No data lands in Python memory; suitable for any size table.",
   "category": "ingestion",
+
+  "vertical": "database",
   "icon": "ArrowRightLeft",
   "x-dagster-io": {
     "inputs": {
@@ -9,8 +11,8 @@
       "description": "Reads from a source SQL database"
     },
     "outputs": {
-      "type": "asset",
-      "description": "Asset representing the replicated target table"
+      "type": "MaterializeResult",
+      "description": "Asset representing the replicated target table — no data passed through the IO manager"
     }
   },
   "attributes": {

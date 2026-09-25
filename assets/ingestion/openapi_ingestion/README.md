@@ -129,7 +129,7 @@ You will also need the appropriate SQLAlchemy dialect driver for your destinatio
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.OpenAPIAssetComponent
+type: dagster_component_templates.OpenAPIIngestionComponent
 attributes:
   spec_url: "https://api.mycompany.com/openapi.json"
   api_base_url_env_var: API_BASE_URL
@@ -146,7 +146,7 @@ attributes:
 Local file spec with PostgreSQL destination and custom auth header:
 
 ```yaml
-type: dagster_component_templates.OpenAPIAssetComponent
+type: dagster_component_templates.OpenAPIIngestionComponent
 attributes:
   spec_path: "./specs/myapi.yaml"
   api_base_url_env_var: MYAPI_BASE_URL

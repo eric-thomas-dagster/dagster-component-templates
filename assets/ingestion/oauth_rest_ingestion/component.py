@@ -4,7 +4,7 @@ Generic OAuth2-backed REST API → pandas DataFrame. Covers the non-OData side o
 the SAP family (Concur, Ariba) and any other JSON REST API that takes a Bearer
 token: GitHub Enterprise APIs, Atlassian Cloud, Datadog, PagerDuty, etc.
 
-Difference from `rest_api_fetcher`:
+Difference from `rest_api_ingestion`:
 - Built-in OAuth token refresh (paired with `oauth_token_resource`)
 - Native pagination support (next_url / cursor / page / offset / none)
 - Returns a flattened pandas DataFrame, not raw JSON

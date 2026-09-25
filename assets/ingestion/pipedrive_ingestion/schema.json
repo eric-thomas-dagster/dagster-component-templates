@@ -2,6 +2,8 @@
   "component_type": "dagster_component_templates.PipedriveIngestionComponent",
   "description": "Component for ingesting Pipedrive CRM data using dlt.",
   "category": "ingestion",
+
+  "vertical": "crm-sales",
   "icon": "ArrowUpFromLine",
   "x-dagster-io": {
     "outputs": {

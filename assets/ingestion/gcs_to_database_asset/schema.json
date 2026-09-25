@@ -2,6 +2,8 @@
   "component_type": "dagster_component_templates.GCSToDatabaseAssetComponent",
   "description": "Read a file from GCS and write it to a database table.",
   "category": "ingestion",
+
+  "vertical": "cloud-storage",
   "icon": "si:googlecloud",
   "x-dagster-io": {
     "outputs": {

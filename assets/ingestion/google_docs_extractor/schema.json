@@ -1,11 +1,13 @@
 {
   "component_type": "dagster_component_templates.GoogleDocsExtractorComponent",
   "description": "Extract plain text + headings from Google Docs by ID via a service account. Works with an explicit list of doc_ids OR upstream of google_drive_ingestion (filter Drive to application/vnd.google-apps.document, feed IDs here).",
-  "category": "ingestion",
+  "category": "source",
+
+  "vertical": "productivity",
   "icon": "si:googledocs",
   "x-dagster-io": {
     "outputs": {
-      "type": "DataFrame",
+      "type": "dataframe",
       "description": "One row per Doc with id, title, word_count, plus optional `text` and `headings` columns."
     }
   },

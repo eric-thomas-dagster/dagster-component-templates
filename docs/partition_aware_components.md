@@ -18,7 +18,7 @@
 
 | Component class | Path |
 |---|---|
-| `?` | [assets/ingestion/openapi_asset](assets/ingestion/openapi_asset) |
+| `?` | [assets/ingestion/openapi_ingestion](assets/ingestion/openapi_ingestion) |
 | `ABTestAnalysisComponent` | [assets/analytics/ab_test_analysis](assets/analytics/ab_test_analysis) |
 | `ADLSToDatabaseAssetComponent` | [assets/ingestion/adls_to_database_asset](assets/ingestion/adls_to_database_asset) |
 | `AdaptiveResearchBriefComponent` | [assets/ai/adaptive_research_brief](assets/ai/adaptive_research_brief) |
@@ -138,7 +138,7 @@
 | `GoogleAnalyticsIngestionComponent` | [assets/ingestion/google_analytics_ingestion](assets/ingestion/google_analytics_ingestion) |
 | `GoogleSheetsIngestionComponent` | [assets/ingestion/google_sheets_ingestion](assets/ingestion/google_sheets_ingestion) |
 | `GradientBoostingModelComponent` | [assets/analytics/gradient_boosting_model](assets/analytics/gradient_boosting_model) |
-| `GraphQLAssetComponent` | [assets/ingestion/graphql_asset](assets/ingestion/graphql_asset) |
+| `GraphQLIngestionComponent` | [assets/ingestion/graphql_ingestion](assets/ingestion/graphql_ingestion) |
 | `HtmlParserComponent` | [assets/transforms/html_parser](assets/transforms/html_parser) |
 | `HubSpotIngestionComponent` | [assets/ingestion/hubspot_ingestion](assets/ingestion/hubspot_ingestion) |
 | `HumanApprovalGateComponent` | [assets/ai/human_approval_gate](assets/ai/human_approval_gate) |
@@ -248,7 +248,7 @@
 | `RedisWriterComponent` | [assets/sinks/redis_writer](assets/sinks/redis_writer) |
 | `RegexParser` | [assets/transforms/regex_parser](assets/transforms/regex_parser) |
 | `RerankerComponent` | [assets/ai/reranker](assets/ai/reranker) |
-| `RestApiFetcherComponent` | [assets/ingestion/rest_api_fetcher](assets/ingestion/rest_api_fetcher) |
+| `RestApiIngestionComponent` | [assets/ingestion/rest_api_ingestion](assets/ingestion/rest_api_ingestion) |
 | `ResumeExtractorComponent` | [assets/ai/resume_extractor](assets/ai/resume_extractor) |
 | `RevenueAttributionComponent` | [assets/analytics/revenue_attribution](assets/analytics/revenue_attribution) |
 | `ReverseGeocoderComponent` | [assets/analytics/reverse_geocoder](assets/analytics/reverse_geocoder) |

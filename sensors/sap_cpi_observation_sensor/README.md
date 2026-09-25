@@ -8,7 +8,7 @@ Poll the SAP Integration Suite Message Processing Logs (MPL) OData API and emit 
 - You want to **observe** them in Dagster's asset graph: status, message GUID, correlation ID, log timestamps
 - Optionally: trigger downstream Dagster pipelines on iFlow completion
 
-This is the **observation** half of the integration. To **trigger** an iFlow from Dagster, POST to its HTTPS endpoint with the bearer token (use [`rest_api_fetcher`](https://dagster-community-components-cli.vercel.app/c/rest_api_fetcher) or [`oauth_rest_ingestion`](https://dagster-community-components-cli.vercel.app/c/oauth_rest_ingestion)).
+This is the **observation** half of the integration. To **trigger** an iFlow from Dagster, POST to its HTTPS endpoint with the bearer token (use [`rest_api_ingestion`](https://dagster-community-components-cli.vercel.app/c/rest_api_ingestion) or [`oauth_rest_ingestion`](https://dagster-community-components-cli.vercel.app/c/oauth_rest_ingestion)).
 
 ## Setup
 

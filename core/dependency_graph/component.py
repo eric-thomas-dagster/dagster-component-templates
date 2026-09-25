@@ -21,7 +21,7 @@ class DependencyGraphComponent(Component, Model, Resolvable):
 
     Example:
         # Define three assets using different components
-        type: dagster_component_templates.RestApiFetcherComponent
+        type: dagster_component_templates.RestApiIngestionComponent
         attributes:
           asset_name: api_data
           api_url: https://api.example.com/data

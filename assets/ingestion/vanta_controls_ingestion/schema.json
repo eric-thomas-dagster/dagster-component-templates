@@ -1,7 +1,9 @@
 {
   "component_type": "dagster_community_components.VantaControlsIngestionComponent",
   "description": "Ingest Vanta compliance controls (SOC 2, ISO 27001, HIPAA, PCI, etc.) into a pandas DataFrame via GET /v1/controls.",
-  "category": "ingestion",
+  "category": "source",
+
+  "vertical": "security",
   "icon": "Shield",
   "x-dagster-io": {
     "outputs": {

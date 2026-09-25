@@ -208,7 +208,7 @@ CONCEPT_ALIASES: dict[str, list[str]] = {
     "upsert": [
         "polars_pipeline",
         "ml_pipeline",
-        "rest_api_fetcher",
+        "rest_api_ingestion",
         "streaming_consumer",
         "kafka_to_database_asset",
         "kinesis_to_database_asset",
@@ -234,13 +234,13 @@ CONCEPT_ALIASES: dict[str, list[str]] = {
     "idempotent write": [
         "polars_pipeline",
         "ml_pipeline",
-        "rest_api_fetcher",
+        "rest_api_ingestion",
         "warehouse_pipeline",
     ],
     "partition rewrite": [
         "polars_pipeline",
         "ml_pipeline",
-        "rest_api_fetcher",
+        "rest_api_ingestion",
     ],
     "quality gate": [
         "provider_ab_evaluator",
@@ -252,16 +252,16 @@ CONCEPT_ALIASES: dict[str, list[str]] = {
         "provider_ab_evaluator",
     ],
     "freight carrier": [
-        "rest_api_fetcher",  # documented use case in the walkthrough
+        "rest_api_ingestion",  # documented use case in the walkthrough
     ],
     "vendor api": [
-        "rest_api_fetcher",
+        "rest_api_ingestion",
         "oauth_rest_ingestion",
-        "graphql_asset",
-        "openapi_asset",
+        "graphql_ingestion",
+        "openapi_ingestion",
     ],
     "per partition api": [
-        "rest_api_fetcher",
+        "rest_api_ingestion",
     ],
     "human in the loop": [
         "human_approval_gate",
@@ -275,7 +275,7 @@ CONCEPT_ALIASES: dict[str, list[str]] = {
         "polars_pipeline",
         "ml_pipeline",
         "warehouse_pipeline",
-        "rest_api_fetcher",
+        "rest_api_ingestion",
     ],
     "crewai": [
         "agentic_pipeline",

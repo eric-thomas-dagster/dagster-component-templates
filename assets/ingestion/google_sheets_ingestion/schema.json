@@ -2,6 +2,8 @@
   "component_type": "dagster_component_templates.GoogleSheetsIngestionComponent",
   "description": "Component for ingesting Google Sheets data using dlt.",
   "category": "ingestion",
+
+  "vertical": "productivity",
   "icon": "ArrowUpFromLine",
   "x-dagster-io": {
     "outputs": {

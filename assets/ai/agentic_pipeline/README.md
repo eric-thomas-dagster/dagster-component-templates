@@ -831,6 +831,7 @@ Each step (router, specialist, drafter, critic, proposer, arbitrator) picks its 
 | `literal` | Static prompt, quick demos |
 | `file` | Prompt / doc from disk |
 | `url` | Fetch a public document / API response |
+| `database` | Run a SQL query and use the result (rendered as a markdown table) as context |
 | `upstream_asset` | Chain the pipeline downstream of any other Dagster asset |
 
 All string fields on sources support `{partition_key}` substitution — a partitioned pipeline reads a different file / URL / literal per partition.
@@ -856,6 +857,16 @@ All string fields on sources support `{partition_key}` substitution — a partit
 | `kind` | ✅ | `url` |
 | `url` | ✅ | URL to fetch. `{partition_key}` templated. Response body becomes the source text. |
 | `headers` |  | Optional `{header: value}` map. Values `{partition_key}`-templated. |
+
+### `kind: database`
+
+| Field | Required | Description |
+|---|---|---|
+| `kind` | ✅ | `database` |
+| `query` | ✅ | SQL query to run. `{partition_key}` templated. Result is rendered as a markdown table and used as the pipeline's initial input. |
+| `database_url` |  | SQLAlchemy connection URL. Set this OR `database_url_env_var`. |
+| `database_url_env_var` |  | Env var holding the connection URL. |
+| `row_limit` |  | Max rows to render into the table (default 500) — keeps large result sets from blowing out the LLM context window. |
 
 ### `kind: upstream_asset`
 

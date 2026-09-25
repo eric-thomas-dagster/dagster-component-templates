@@ -1,7 +1,9 @@
 {
-  "component_type": "dagster_component_templates.RestApiFetcherComponent",
+  "component_type": "dagster_component_templates.RestApiIngestionComponent",
   "description": "Component for fetching data from REST APIs.",
   "category": "ingestion",
+
+  "vertical": "internal",
   "icon": "ArrowUpFromLine",
   "x-dagster-io": {
     "outputs": {

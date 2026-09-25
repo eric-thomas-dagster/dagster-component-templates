@@ -1,11 +1,13 @@
 {
   "component_type": "dagster_component_templates.GoogleCalendarIngestionComponent",
   "description": "List events from a Google Calendar via a service account. Returns one row per event with summary, time, location, attendees, organizer, html_link.",
-  "category": "ingestion",
+  "category": "source",
+
+  "vertical": "productivity",
   "icon": "si:googlecalendar",
   "x-dagster-io": {
     "outputs": {
-      "type": "DataFrame",
+      "type": "dataframe",
       "description": "One row per event in the time window."
     }
   },

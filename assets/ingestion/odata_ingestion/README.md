@@ -130,13 +130,13 @@ partition_start: '2024-01-01'
 
 ## SAP-specific notes
 
-- **CSRF**: most S/4HANA write APIs require fetching an `x-csrf-token` first. This component is read-only; if you need writes, see `rest_api_fetcher` + a sibling token-fetch step.
+- **CSRF**: most S/4HANA write APIs require fetching an `x-csrf-token` first. This component is read-only; if you need writes, see `rest_api_ingestion` + a sibling token-fetch step.
 - **sap-client header**: pass via `extra_headers: {sap-client: '100'}` to route to a specific client.
 - **basic auth on cloud**: S/4HANA Cloud supports basic auth for "Communication User"-type users; production deployments typically use OAuth 2.0 → bearer token (set `auth_type: bearer`).
 - **Datasphere consumption endpoint**: requires a JWT in `Authorization: Bearer <token>` form fetched from XSUAA. Run a sidecar token-refresh step or feed via `auth_token_env_var`.
 
 ## See also
 
-- [`rest_api_fetcher`](../rest_api_fetcher/) — generic non-OData REST fetcher
-- [`openapi_asset`](../openapi_asset/) — schema-driven ingestion from any OpenAPI service
+- [`rest_api_ingestion`](../rest_api_ingestion/) — generic non-OData REST fetcher
+- [`openapi_ingestion`](../openapi_ingestion/) — schema-driven ingestion from any OpenAPI service
 - SAP-product walkthroughs in `dagster-community-components-cli/examples/`

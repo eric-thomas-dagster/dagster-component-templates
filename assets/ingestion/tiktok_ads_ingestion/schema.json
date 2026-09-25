@@ -2,6 +2,8 @@
   "component_type": "dagster_component_templates.TikTokAdsIngestionComponent",
   "description": "Component for ingesting TikTok Ads data using dlt - returns DataFrames.",
   "category": "ingestion",
+
+  "vertical": "social",
   "icon": "si:tiktok",
   "x-dagster-io": {
     "outputs": {

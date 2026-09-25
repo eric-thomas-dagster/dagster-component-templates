@@ -2,6 +2,8 @@
   "component_type": "dagster_component_templates.PulsarToDatabaseAssetComponent",
   "description": "Consume messages from an Apache Pulsar topic and write to a database table.",
   "category": "ingestion",
+
+  "vertical": "streaming",
   "icon": "ArrowUpFromLine",
   "x-dagster-io": {
     "outputs": {

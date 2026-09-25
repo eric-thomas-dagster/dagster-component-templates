@@ -1,11 +1,13 @@
 {
   "component_type": "dagster_component_templates.DremioIngestionComponent",
   "description": "Run a SQL query against a Dremio cluster (REST or Apache Arrow Flight) and materialize the result as a Dagster asset.",
-  "category": "ingestion",
+  "category": "source",
+
+  "vertical": "database",
   "icon": "si:dremio",
   "x-dagster-io": {
     "outputs": {
-      "type": "Output[DataFrame]",
+      "type": "dataframe",
       "description": "Query result as a pandas DataFrame"
     }
   },

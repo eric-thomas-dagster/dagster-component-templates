@@ -1,7 +1,9 @@
 {
   "component_type": "dagster_community_components.TM1CubeDataIngestionComponent",
   "description": "Materialize a slice of a TM1 cube via MDX as a Dagster DataFrame asset. Two modes: (1) explicit MDX statement executed via /ExecuteMDX, or (2) simplified cube + row_dimensions + column_dimensions + filters, from which an MDX is generated. Foundation for TM1 \u2192 warehouse / dbt / dashboards.",
-  "category": "ingestion",
+  "category": "source",
+
+  "vertical": "productivity",
   "icon": "TableChart",
   "x-dagster-io": {
     "outputs": {

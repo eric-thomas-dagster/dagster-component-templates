@@ -2,6 +2,8 @@
   "component_type": "dagster_component_templates.SalesforceIngestionComponent",
   "description": "Component for ingesting Salesforce CRM data using dlt.",
   "category": "ingestion",
+
+  "vertical": "crm-sales",
   "icon": "si:salesforce",
   "x-dagster-io": {
     "outputs": {

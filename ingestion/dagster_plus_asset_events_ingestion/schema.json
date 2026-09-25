@@ -2,6 +2,8 @@
   "component_type": "dagster_component_templates.DagsterPlusAssetEventsIngestionComponent",
   "description": "Pull Dagster+ asset materialization / observation events via the GraphQL API.",
   "category": "ingestion",
+
+  "vertical": "internal",
   "x-dagster-io": {
     "outputs": {
       "type": "dataframe"

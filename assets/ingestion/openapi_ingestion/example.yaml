@@ -1,4 +1,4 @@
-type: dagster_component_templates.OpenAPIAssetComponent
+type: dagster_component_templates.OpenAPIIngestionComponent
 attributes:
   spec_url: "https://api.mycompany.com/openapi.json"
   api_base_url_env_var: API_BASE_URL

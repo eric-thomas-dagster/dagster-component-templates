@@ -1,7 +1,9 @@
 {
   "component_type": "dagster_component_templates.ServiceNowIngestionComponent",
   "description": "Read records from a ServiceNow table (incident / change_request / sc_request / sys_user / cmdb_ci / custom tables) into a DataFrame asset. Goes through the ServiceNow Table API with pagination, encoded-query filtering, field selection, and basic-auth or bearer-token (OAuth) auth.",
-  "category": "ingestion",
+  "category": "source",
+
+  "vertical": "devops-observability",
   "icon": "Server",
   "x-dagster-io": {
     "outputs": {

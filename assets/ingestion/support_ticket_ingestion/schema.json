@@ -2,6 +2,8 @@
   "component_type": "dagster_component_templates.SupportTicketIngestionComponent",
   "description": "Component for ingesting support ticket data from help desk platforms.",
   "category": "ingestion",
+
+  "vertical": "support",
   "icon": "ArrowUpFromLine",
   "x-dagster-io": {
     "outputs": {

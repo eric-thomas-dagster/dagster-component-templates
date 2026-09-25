@@ -1,11 +1,13 @@
 {
   "component_type": "dagster_component_templates.FirestoreCollectionIngestionComponent",
   "description": "Read a Firestore collection (or subcollection) into a pandas DataFrame.",
-  "category": "ingestion",
+  "category": "source",
+
+  "vertical": "database",
   "icon": "si:firebase",
   "x-dagster-io": {
     "outputs": {
-      "type": "DataFrame",
+      "type": "dataframe",
       "description": "Documents from the Firestore collection with doc id in the `_id` column."
     }
   },

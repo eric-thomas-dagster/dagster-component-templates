@@ -2,6 +2,8 @@
   "component_type": "dagster_component_templates.FreshdeskIngestionComponent",
   "description": "Component for ingesting Freshdesk customer support data using dlt.",
   "category": "ingestion",
+
+  "vertical": "support",
   "icon": "si:freshdesk",
   "x-dagster-io": {
     "outputs": {

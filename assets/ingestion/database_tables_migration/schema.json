@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_component_templates.DatabaseTablesMigrationComponent",
   "description": "DDL-first table migration: build portable CREATE TABLE statements from source INFORMATION_SCHEMA (types + PKs + FKs + NOT NULL + defaults) and execute on target. Emits per-table status DataFrame.",
-  "category": "ingestion",
+  "category": "infrastructure",
   "icon": "Table2",
   "x-dagster-io": {
     "inputs": {"type": "external", "description": "Reads source INFORMATION_SCHEMA for column + constraint metadata"},

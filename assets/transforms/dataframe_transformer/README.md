@@ -18,7 +18,7 @@ This component transforms DataFrames automatically passed from upstream assets v
 
 ```yaml
 # REST API that produces DataFrame
-type: dagster_component_templates.RestApiFetcherComponent
+type: dagster_component_templates.RestApiIngestionComponent
 attributes:
   asset_name: api_data
   api_url: https://api.example.com/sales
@@ -159,7 +159,7 @@ That's it! The IO manager automatically passes the DataFrame.
 
 ```yaml
 # 1. Fetch from API
-type: dagster_component_templates.RestApiFetcherComponent
+type: dagster_component_templates.RestApiIngestionComponent
 attributes:
   asset_name: sales_api
   api_url: https://api.example.com/sales

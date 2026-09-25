@@ -2,6 +2,8 @@
   "component_type": "dagster_component_templates.GitHubIngestionComponent",
   "description": "Component for ingesting GitHub repository data using dlt.",
   "category": "ingestion",
+
+  "vertical": "devops-observability",
   "icon": "si:github",
   "x-dagster-io": {
     "outputs": {

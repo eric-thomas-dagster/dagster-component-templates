@@ -1,11 +1,13 @@
 {
   "component_type": "dagster_component_templates.GongCallsIngestionComponent",
   "description": "Ingest Gong call metadata and transcripts via Gong API v2 and return a pandas DataFrame.",
-  "category": "ingestion",
+  "category": "source",
+
+  "vertical": "crm-sales",
   "icon": "si:gong",
   "x-dagster-io": {
     "outputs": {
-      "type": "DataFrame",
+      "type": "dataframe",
       "description": "DataFrame of call metadata with optional transcript column"
     }
   },

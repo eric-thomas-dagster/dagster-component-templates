@@ -288,7 +288,7 @@ def _build_openapi_defs(
 
 if _HAS_STATE_BACKED:
     @dataclass
-    class OpenAPIAssetComponent(StateBackedComponent, dg.Resolvable):
+    class OpenAPIIngestionComponent(StateBackedComponent, dg.Resolvable):
         """Create one Dagster asset per OpenAPI tag group, backed by a cached spec.
 
         Fetches the OpenAPI spec once (write_state_to_path), then builds assets from
@@ -299,7 +299,7 @@ if _HAS_STATE_BACKED:
 
         Example:
             ```yaml
-            type: dagster_component_templates.OpenAPIAssetComponent
+            type: dagster_component_templates.OpenAPIIngestionComponent
             attributes:
               spec_url: "https://petstore3.swagger.io/api/v3/openapi.json"
               api_base_url_env_var: API_BASE_URL
@@ -330,7 +330,7 @@ if _HAS_STATE_BACKED:
             key_part = (self.spec_url or self.spec_path or "openapi").replace("/", "_").replace(":", "")
             return DefsStateConfig.from_args(
                 self.defs_state,
-                default_key=f"OpenAPIAssetComponent[{key_part}]",
+                default_key=f"OpenAPIIngestionComponent[{key_part}]",
             )
 
         def write_state_to_path(self, state_path: Path) -> None:
@@ -368,7 +368,7 @@ if _HAS_STATE_BACKED:
             )
 
 else:
-    class OpenAPIAssetComponent(dg.Component, dg.Model, dg.Resolvable):  # type: ignore[no-redef]
+    class OpenAPIIngestionComponent(dg.Component, dg.Model, dg.Resolvable):  # type: ignore[no-redef]
         """Fallback: StateBackedComponent not available. Fetches spec on every reload."""
         spec_url: Optional[str] = dg.Field(default=None)
         spec_path: Optional[str] = dg.Field(default=None)

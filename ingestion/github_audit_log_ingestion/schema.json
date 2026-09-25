@@ -2,6 +2,8 @@
   "component_type": "dagster_component_templates.GithubAuditLogIngestionComponent",
   "description": "Pull GitHub Enterprise / Org audit log via /orgs/:org/audit-log.",
   "category": "security",
+
+  "vertical": "security",
   "x-dagster-io": {
     "outputs": {
       "type": "dataframe"

@@ -1,7 +1,9 @@
 {
   "component_type": "dagster_community_components.SentryIssuesIngestionComponent",
   "description": "Ingest issues from a Sentry project via the /api/0/projects/{org}/{project}/issues/ REST endpoint. Handles cursor pagination via the Link header. Returns a DataFrame with flattened issue fields.",
-  "category": "ingestion",
+  "category": "source",
+
+  "vertical": "devops-observability",
   "icon": "AlertCircle",
   "x-dagster-io": {
     "outputs": {

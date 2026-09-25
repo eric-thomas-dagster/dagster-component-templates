@@ -2,6 +2,8 @@
   "component_type": "dagster_component_templates.MQTTToDatabaseAssetComponent",
   "description": "Subscribe to an MQTT topic and write messages to a database table.",
   "category": "ingestion",
+
+  "vertical": "streaming",
   "icon": "ArrowUpFromLine",
   "x-dagster-io": {
     "outputs": {

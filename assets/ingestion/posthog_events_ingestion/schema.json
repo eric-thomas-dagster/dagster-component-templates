@@ -1,7 +1,9 @@
 {
   "component_type": "dagster_community_components.PostHogEventsIngestionComponent",
   "description": "Ingest events from a PostHog project via the /events REST API. Cursor-paginated. Returns a DataFrame with flattened event fields.",
-  "category": "ingestion",
+  "category": "source",
+
+  "vertical": "marketing",
   "icon": "BarChart",
   "x-dagster-io": {
     "outputs": {

@@ -4,7 +4,7 @@
   "category": "ai",
   "icon": "Workflow",
   "x-dagster-io": {
-    "inputs":  {"type": "any",  "description": "Source text — literal, url, file, or upstream_asset (kind = literal|url|file|upstream_asset). Or omit and let an `mcp_call` step drive the pipeline directly."},
+    "inputs":  {"type": "any",  "description": "Source text — literal, url, file, database, or upstream_asset (kind = literal|url|file|database|upstream_asset). Or omit and let an `mcp_call` step drive the pipeline directly."},
     "outputs": {"type": "text", "description": "One or more first-class asset outputs (declared via outputs.assets: [step_ids]); each is a dict `{text, ...op-specific fields}`. Plus optional text / json sinks."}
   },
   "attributes": {
@@ -12,7 +12,7 @@
                            "description": "Prefix for emitted asset names. Each step listed in outputs.assets becomes '{prefix}_{step_id}'."},
 
     "source":             {"type": "object", "required": true, "label": "Source",
-                           "description": "Data source. kind = literal | file | url | upstream_asset. All string fields are {partition_key}-templated."},
+                           "description": "Data source. kind = literal | file | url | database | upstream_asset. All string fields are {partition_key}-templated."},
 
     "steps":              {"type": "array",  "required": true, "label": "Steps", "items": {"type": "object"},
                            "description": "Ordered pipeline steps. Each: {id, op, ...op-specific args}. Two wiring modes (compose per step): (1) legacy `source: <step_id>` reads that step's text into `{text}`; (2) typed `inputs: {port: {from: step_id} | {literal: value}}` — each port becomes a `{port_name}` placeholder in prompt_template / system_prompt (and, for mcp_call, in string tool_args). 16 ops available: llm_call | route | conditional_route | debate | critique_loop (optional `until_score_gte:` for adaptive termination) | synthesize | mcp_call | tool_use_loop | handoff | map (fan-out LLM per item in a list) | extract (structured JSON via output_schema) | classify (text → label from fixed set) | reduce (LLM-fold over chunks) | self_reflect (one-shot draft+critique+revised) | sub_pipeline (invoke inline sub-pipeline as one step) | agent_call (dispatch to a pre-built agent declared in the `agents:` block). LLM ops accept `reasoning_effort` (OpenAI o1/o3 low|medium|high) and `thinking_budget` (Gemini 2.5+ / Anthropic thinking max reasoning tokens); LiteLLM `drop_params` silently drops them for non-reasoning models. Full per-op JSON Schema is published under manifest agent_hints.steps_schemas (discriminated union on `op`)."},

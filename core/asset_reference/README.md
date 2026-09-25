@@ -121,7 +121,7 @@ attributes:
 ---
 
 # 2. Fetch enrichment data from API (new asset)
-type: dagster_component_templates.RestApiFetcherComponent
+type: dagster_component_templates.RestApiIngestionComponent
 attributes:
   asset_name: api_enrichment
   api_url: https://api.example.com/customer-enrichment
@@ -199,7 +199,7 @@ attributes:
 ---
 
 # Add new component-based assets
-type: dagster_component_templates.RestApiFetcherComponent
+type: dagster_component_templates.RestApiIngestionComponent
 attributes:
   asset_name: new_api_data
   api_url: https://api.example.com/v2/data
@@ -357,7 +357,7 @@ attributes:
 
 # Then define new assets
 ---
-type: dagster_component_templates.RestApiFetcherComponent
+type: dagster_component_templates.RestApiIngestionComponent
 # ...
 ```
 

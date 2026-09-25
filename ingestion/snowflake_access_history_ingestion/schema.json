@@ -2,6 +2,8 @@
   "component_type": "dagster_component_templates.SnowflakeAccessHistoryIngestionComponent",
   "description": "Pull Snowflake access history (every query, every column accessed) from the ACCOUNT_USAGE views.",
   "category": "security",
+
+  "vertical": "security",
   "x-dagster-io": {
     "outputs": {
       "type": "dataframe"

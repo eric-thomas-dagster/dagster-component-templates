@@ -2,6 +2,8 @@
   "component_type": "dagster_component_templates.PubSubToDatabaseAssetComponent",
   "description": "Pull messages from a GCP Pub/Sub subscription and write to a database table.",
   "category": "ingestion",
+
+  "vertical": "streaming",
   "icon": "ArrowUpFromLine",
   "x-dagster-io": {
     "outputs": {

@@ -2,7 +2,7 @@
 
 Download a remote archive (ZIP, tar.gz, etc.), extract it to a directory, and emit a `{filename: absolute_path}` dict so downstream assets can reference individual files.
 
-Pairs naturally with `rest_api_fetcher`, which handles JSON/CSV/DataFrame/Parquet responses but doesn't unpack binary archives. Many public datasets ship as bundles:
+Pairs naturally with `rest_api_ingestion`, which handles JSON/CSV/DataFrame/Parquet responses but doesn't unpack binary archives. Many public datasets ship as bundles:
 
 - **MovieLens** — `ml-latest-small.zip` (4 CSVs: movies, ratings, links, tags)
 - **IMDb** — `title.basics.tsv.gz`, `title.ratings.tsv.gz` (gzipped TSV)

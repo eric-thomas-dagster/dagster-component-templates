@@ -10,7 +10,7 @@ Pair with [`oauth_token_resource`](../../../resources/oauth_token_resource/) for
 |---|---|
 | `oauth_rest_ingestion` | JSON REST APIs needing OAuth2 + pagination. Concur, Ariba, GitHub Enterprise, Atlassian Cloud, PagerDuty, etc. |
 | `odata_ingestion` | OData v2/v4 endpoints. S/4HANA, SuccessFactors, Datasphere, Dynamics 365, MS Graph |
-| `rest_api_fetcher` | Single-request fetches without OAuth lifecycle |
+| `rest_api_ingestion` | Single-request fetches without OAuth lifecycle |
 | `airtable_ingestion` / vendor-specific | dlt-supported sources (when the vendor's verified source exists) |
 
 ## Pagination patterns
@@ -153,4 +153,4 @@ The token resource handles refresh + (optional) rotation writeback so the next r
 
 - [`oauth_token_resource`](../../../resources/oauth_token_resource/) — paired token manager
 - [`odata_ingestion`](../odata_ingestion/) — OData-specific sibling
-- [`rest_api_fetcher`](../rest_api_fetcher/) — simpler single-request fetcher
+- [`rest_api_ingestion`](../rest_api_ingestion/) — simpler single-request fetcher

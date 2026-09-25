@@ -153,7 +153,7 @@ pipeline:
   components:
     # Step 1: Generate / ingest user-generated content via synthetic_data_generator's
     # moderation_content schema (folded in from the deprecated content_ingestion).
-    # Swap for a real ingestion component (rest_api_fetcher / kafka_to_database_asset /
+    # Swap for a real ingestion component (rest_api_ingestion / kafka_to_database_asset /
     # file_ingestion / etc.) when you have a real source.
     - id: synthetic_data_generator
       instance_name: raw_content

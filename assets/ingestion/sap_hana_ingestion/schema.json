@@ -1,11 +1,13 @@
 {
   "component_type": "dagster_component_templates.SapHanaIngestionComponent",
   "description": "Query SAP HANA (Cloud or on-premise) and return the result as a Dagster asset (pandas DataFrame).",
-  "category": "ingestion",
+  "category": "source",
+
+  "vertical": "database",
   "icon": "si:sap",
   "x-dagster-io": {
     "outputs": {
-      "type": "Output[DataFrame]",
+      "type": "dataframe",
       "description": "Query result as a pandas DataFrame"
     }
   },

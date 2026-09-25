@@ -2,6 +2,8 @@
   "component_type": "dagster_component_templates.JiraIngestionComponent",
   "description": "Component for ingesting Jira issue tracking data using dlt.",
   "category": "ingestion",
+
+  "vertical": "devops-observability",
   "icon": "si:jira",
   "x-dagster-io": {
     "outputs": {

@@ -204,7 +204,7 @@ user_input → conversation_state → assistant_response → updated_conversatio
 
 ```yaml
 # Step 1: Receive customer message from API
-type: dagster_component_templates.RestApiFetcherComponent
+type: dagster_component_templates.RestApiIngestionComponent
 attributes:
   asset_name: customer_message
   api_url: https://api.example.com/messages/latest

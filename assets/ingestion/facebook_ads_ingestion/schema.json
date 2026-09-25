@@ -2,6 +2,8 @@
   "component_type": "dagster_component_templates.FacebookAdsIngestionComponent",
   "description": "Component for ingesting Facebook Ads data using dlt - returns DataFrames.",
   "category": "ingestion",
+
+  "vertical": "social",
   "icon": "si:facebook",
   "x-dagster-io": {
     "outputs": {

@@ -27,7 +27,7 @@ from dagster import (
 from pydantic import Field
 
 
-class RestApiFetcherComponent(Component, Model, Resolvable):
+class RestApiIngestionComponent(Component, Model, Resolvable):
     """Component for fetching data from REST APIs.
 
     This asset fetches data from REST API endpoints and materializes the results.
@@ -35,7 +35,7 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.RestApiFetcherComponent
+        type: dagster_component_templates.RestApiIngestionComponent
         attributes:
           asset_name: api_data
           api_url: https://api.example.com/data
@@ -327,7 +327,7 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
         preview_rows = self.preview_rows
 
         # Infer kinds from component name if not explicitly set
-        _comp_name = "rest_api_fetcher"  # component directory name
+        _comp_name = "rest_api_ingestion"  # component directory name
         _kind_map = {
             "snowflake": "snowflake", "bigquery": "bigquery", "redshift": "redshift",
             "postgres": "postgres", "postgresql": "postgres", "mysql": "mysql",
@@ -807,7 +807,7 @@ group_name=group_name,
                     kind = (sink.get("kind") or "table").lower()
                     if kind != "table":
                         raise ValueError(
-                            f"rest_api_fetcher sinks: only kind=table is supported "
+                            f"rest_api_ingestion sinks: only kind=table is supported "
                             f"(got {kind!r})"
                         )
                     sink_resource_key = sink.get("resource_key")

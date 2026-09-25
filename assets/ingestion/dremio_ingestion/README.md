@@ -4,7 +4,7 @@ Query a Dremio cluster (OSS or Cloud) via the REST or Arrow Flight API and mater
 
 Dremio is SAP's lakehouse query engine (acquired 2024-25). It federates queries across Iceberg tables, Delta Lake, Snowflake, Postgres, S3, ADLS, etc. — anywhere SQL can land. This component runs a SQL query and returns the result; downstream Dagster components transform / persist as usual.
 
-## Why a dedicated component vs `rest_api_fetcher`
+## Why a dedicated component vs `rest_api_ingestion`
 
 Dremio's REST API requires a 3-step dance (submit → poll → page-results), with PAT vs legacy-password auth. The component handles all of that. The only thing you provide is `host` + auth + SQL.
 

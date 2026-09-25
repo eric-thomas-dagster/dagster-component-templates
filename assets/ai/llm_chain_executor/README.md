@@ -252,7 +252,7 @@ sales_data → sales_insights
 
 ```yaml
 # Step 1: Fetch from REST API
-type: dagster_component_templates.RestApiFetcherComponent
+type: dagster_component_templates.RestApiIngestionComponent
 attributes:
   asset_name: customer_feedback
   api_url: https://api.example.com/feedback

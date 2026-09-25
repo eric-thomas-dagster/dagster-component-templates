@@ -80,7 +80,7 @@ Separate the "what" (components) from the "how" (dependencies). The `DependencyG
 # defs.yaml - Single file defining entire pipeline
 
 # 1. Fetch data from API
-type: dagster_component_templates.RestApiFetcherComponent
+type: dagster_component_templates.RestApiIngestionComponent
 attributes:
   asset_name: sales_api
   api_url: https://api.example.com/sales
@@ -267,7 +267,7 @@ attributes:
 
 ---
 
-type: dagster_component_templates.RestApiFetcherComponent
+type: dagster_component_templates.RestApiIngestionComponent
 attributes:
   asset_name: api_data
   api_url: https://api.example.com/data
@@ -389,7 +389,7 @@ attributes:
 ### 2. Place at End of YAML File
 ```yaml
 # All asset definitions first
-type: dagster_component_templates.RestApiFetcherComponent
+type: dagster_component_templates.RestApiIngestionComponent
 # ...
 
 ---

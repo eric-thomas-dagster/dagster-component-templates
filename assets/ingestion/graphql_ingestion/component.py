@@ -130,7 +130,7 @@ def _build_partitions_def(
     raise ValueError(f"unknown partition_type: {partition_type!r}")
 
 
-class GraphQLAssetComponent(dg.Component, dg.Model, dg.Resolvable):
+class GraphQLIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
     """Execute GraphQL queries and write results to a database.
 
     Each entry in ``queries`` is executed independently and written to a table named
@@ -140,7 +140,7 @@ class GraphQLAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.GraphQLAssetComponent
+        type: dagster_component_templates.GraphQLIngestionComponent
         attributes:
           asset_name: github_data
           endpoint_env_var: GITHUB_GRAPHQL_URL
@@ -447,7 +447,7 @@ class GraphQLAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             owners=self.owners or [],
             tags=_all_tags,
         )
-        def _graphql_asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
+        def _graphql_ingestion(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
             import os
             import requests
             import pandas as pd
@@ -585,7 +585,7 @@ class GraphQLAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             }
             )
 
-        return dg.Definitions(assets=[_graphql_asset])
+        return dg.Definitions(assets=[_graphql_ingestion])
 
 
 def _iter_leaves(obj: Any):

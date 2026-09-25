@@ -1,11 +1,13 @@
 {
   "component_type": "dagster_component_templates.IcebergIngestionComponent",
   "description": "Read from an EXISTING external Apache Iceberg table (Snowflake / Trino / Spark / Flink / Databricks / Polaris / Nessie / Glue / S3 Tables) into a Dagster asset as a pandas DataFrame. Uses pyiceberg. Supports snapshot/branch/time-travel.",
-  "category": "ingestion",
+  "category": "source",
+
+  "vertical": "database",
   "icon": "si:apacheiceberg",
   "x-dagster-io": {
     "outputs": {
-      "type": "Output[DataFrame]"
+      "type": "dataframe"
     }
   },
   "attributes": {

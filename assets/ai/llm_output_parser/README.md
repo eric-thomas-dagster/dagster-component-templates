@@ -344,7 +344,7 @@ generated_code → clean_code
 
 ```yaml
 # Step 1: Fetch data
-type: dagster_component_templates.RestApiFetcherComponent
+type: dagster_component_templates.RestApiIngestionComponent
 attributes:
   asset_name: user_reviews
   api_url: https://api.example.com/reviews

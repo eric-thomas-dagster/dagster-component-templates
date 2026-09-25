@@ -1,11 +1,13 @@
 {
   "component_type": "dagster_component_templates.OAuthRestIngestionComponent",
   "description": "OAuth2-backed REST GET → DataFrame with built-in pagination. Covers Concur, Ariba, and any other Bearer-token JSON API.",
-  "category": "ingestion",
+  "category": "source",
+
+  "vertical": "internal",
   "icon": "si:oauth",
   "x-dagster-io": {
     "outputs": {
-      "type": "Output[DataFrame]",
+      "type": "dataframe",
       "description": "Flattened response records as a pandas DataFrame"
     }
   },

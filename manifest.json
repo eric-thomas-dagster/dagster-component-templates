@@ -723,7 +723,8 @@
         "ingest",
         "read from",
         "upsert"
-      ]
+      ],
+      "vertical": "cloud-storage"
     },
     {
       "id": "agentic_pipeline",
@@ -1822,7 +1823,7 @@
         "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
         "outputs": "DataFrame with columns from Airtable base tables + rows.",
         "side_effects": "Read-only. Requires Airtable API credentials. Rate-limited per Airtable's tier.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to Airtable use its dedicated writer (if available).",
+        "anti_uses": "For generic REST APIs use rest_api_ingestion. For writing back to Airtable use its dedicated writer (if available).",
         "requires_resources": [
           "airtable_resource"
         ],
@@ -1840,7 +1841,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "productivity"
     },
     {
       "id": "airtable_resource",
@@ -2372,8 +2374,8 @@
     {
       "id": "archive_fetcher",
       "name": "Archive Fetcher",
-      "category": "ingestion",
-      "description": "Download a remote archive (zip / tar.gz / tar.bz2 / tar.xz / gz / bz2), extract it, and emit a {filename: absolute_path} dict for downstream consumption. Pairs with rest_api_fetcher for binary/compressed data sources (MovieLens, IMDb, GTFS, Kaggle, USGS).",
+      "category": "source",
+      "description": "Download a remote archive (zip / tar.gz / tar.bz2 / tar.xz / gz / bz2), extract it, and emit a {filename: absolute_path} dict for downstream consumption. Pairs with rest_api_ingestion for binary/compressed data sources (MovieLens, IMDb, GTFS, Kaggle, USGS).",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/ingestion/archive_fetcher",
@@ -2415,7 +2417,8 @@
       "keywords": [
         "ingest",
         "read from"
-      ]
+      ],
+      "vertical": "cloud-storage"
     },
     {
       "id": "argo_workflow_sensor",
@@ -2735,7 +2738,7 @@
         "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
         "outputs": "DataFrame with columns from Asana projects, tasks, users.",
         "side_effects": "Read-only. Requires Asana API credentials. Rate-limited per Asana's tier.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to Asana use its dedicated writer (if available).",
+        "anti_uses": "For generic REST APIs use rest_api_ingestion. For writing back to Asana use its dedicated writer (if available).",
         "requires_resources": [
           "asana_resource"
         ],
@@ -2750,7 +2753,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "productivity"
     },
     {
       "id": "asana_resource",
@@ -3107,7 +3111,8 @@
         "write to",
         "output"
       ],
-      "icon": "ArrowUpFromLine"
+      "icon": "ArrowUpFromLine",
+      "vertical": "security"
     },
     {
       "id": "audit_logs_to_datadog_logs",
@@ -3154,7 +3159,8 @@
         "write to",
         "output"
       ],
-      "icon": "si:datadog"
+      "icon": "si:datadog",
+      "vertical": "security"
     },
     {
       "id": "audit_logs_to_elastic_security",
@@ -3202,7 +3208,8 @@
         "write to",
         "output"
       ],
-      "icon": "si:elastic"
+      "icon": "si:elastic",
+      "vertical": "security"
     },
     {
       "id": "audit_logs_to_qradar",
@@ -3249,7 +3256,8 @@
         "write to",
         "output"
       ],
-      "icon": "ArrowUpFromLine"
+      "icon": "ArrowUpFromLine",
+      "vertical": "security"
     },
     {
       "id": "audit_logs_to_sentinel",
@@ -3299,7 +3307,8 @@
         "write to",
         "output"
       ],
-      "icon": "ArrowUpFromLine"
+      "icon": "ArrowUpFromLine",
+      "vertical": "security"
     },
     {
       "id": "audit_logs_to_splunk",
@@ -3349,7 +3358,8 @@
         "write to",
         "output"
       ],
-      "icon": "si:splunk"
+      "icon": "si:splunk",
+      "vertical": "security"
     },
     {
       "id": "audit_logs_to_sumo_logic",
@@ -3396,7 +3406,8 @@
         "write to",
         "output"
       ],
-      "icon": "ArrowUpFromLine"
+      "icon": "ArrowUpFromLine",
+      "vertical": "security"
     },
     {
       "id": "auth0_logs_ingestion",
@@ -3447,7 +3458,8 @@
         "el",
         "read from"
       ],
-      "icon": "si:auth0"
+      "icon": "si:auth0",
+      "vertical": "security"
     },
     {
       "id": "auto_field",
@@ -3680,7 +3692,8 @@
         "el",
         "read from"
       ],
-      "icon": "si:amazonwebservices"
+      "icon": "si:amazonwebservices",
+      "vertical": "security"
     },
     {
       "id": "aws_cloudwatch_logs_insights_query",
@@ -4145,7 +4158,8 @@
         "el",
         "read from"
       ],
-      "icon": "si:microsoftazure"
+      "icon": "si:microsoftazure",
+      "vertical": "security"
     },
     {
       "id": "azure_blob_parquet_io_manager",
@@ -4984,7 +4998,7 @@
     {
       "id": "bigquery_load_from_gcs_asset",
       "name": "BigQueryLoadFromGcsAssetComponent",
-      "category": "ingestion",
+      "category": "source",
       "description": "Load GCS objects into a BigQuery table via BQ's native load-job API (data never round-trips through the executor). The lake \u2192 warehouse step. Supports parquet, CSV, JSONL, AVRO, ORC, with optional explicit schema, partitioning, and clustering on the destination.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -5048,7 +5062,8 @@
         "ingest",
         "read from"
       ],
-      "icon": "si:googlebigquery"
+      "icon": "si:googlebigquery",
+      "vertical": "cloud-storage"
     },
     {
       "id": "bigquery_ml_predict_asset",
@@ -7175,7 +7190,7 @@
       "name": "Cognos Report Data Ingestion",
       "component_type": "dagster_community_components.CognosReportDataIngestionComponent",
       "path": "assets/ingestion/cognos_report_data_ingestion",
-      "category": "ingestion",
+      "category": "source",
       "icon": "TableChart",
       "description": "Run a Cognos report in CSV or JSON format and materialize the result as a Dagster DataFrame. Foundation for Cognos \u2192 warehouse / dbt pipelines.",
       "tags": [
@@ -7233,7 +7248,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "productivity"
     },
     {
       "id": "cognos_report_run_job",
@@ -8928,7 +8944,8 @@
         "el",
         "read from"
       ],
-      "icon": "favicon:dagster.io"
+      "icon": "favicon:dagster.io",
+      "vertical": "internal"
     },
     {
       "id": "dagster_plus_audit_log_ingestion",
@@ -8978,7 +8995,8 @@
         "el",
         "read from"
       ],
-      "icon": "favicon:dagster.io"
+      "icon": "favicon:dagster.io",
+      "vertical": "security"
     },
     {
       "id": "dagster_plus_run_events_ingestion",
@@ -9027,7 +9045,8 @@
         "el",
         "read from"
       ],
-      "icon": "favicon:dagster.io"
+      "icon": "favicon:dagster.io",
+      "vertical": "internal"
     },
     {
       "id": "dagster_plus_to_siem_job",
@@ -9740,7 +9759,7 @@
       "name": "Database Constraints Migration",
       "component_type": "dagster_component_templates.DatabaseConstraintsMigrationComponent",
       "path": "assets/ingestion/database_constraints_migration",
-      "category": "ingestion",
+      "category": "infrastructure",
       "icon": "Key",
       "description": "Apply PKs, FKs, NOT NULL, DEFAULTs, CHECKs, and UNIQUEs to target tables that already exist (data-first companion to database_tables_migration). Generates ALTER TABLEs from source INFORMATION_SCHEMA. Pre-flight warnings for non-enforcing targets. Status DataFrame per constraint.",
       "tags": [
@@ -9960,7 +9979,8 @@
         "recurring replication",
         "ongoing sync"
       ],
-      "featured": true
+      "featured": true,
+      "vertical": "database"
     },
     {
       "id": "database_schema_inventory",
@@ -10024,7 +10044,7 @@
       "name": "Database Tables Migration",
       "component_type": "dagster_component_templates.DatabaseTablesMigrationComponent",
       "path": "assets/ingestion/database_tables_migration",
-      "category": "ingestion",
+      "category": "infrastructure",
       "icon": "Table2",
       "description": "DDL-first warehouse migration: build portable CREATE TABLE statements from source INFORMATION_SCHEMA (types + PKs + FKs + NOT NULL + DEFAULT + CHECK + UNIQUE) and execute on target. Pre-flight warnings for non-enforcing targets (Snowflake/BigQuery/Redshift). Status DataFrame per table.",
       "tags": [
@@ -10080,7 +10100,7 @@
       "name": "Database View Migration",
       "component_type": "dagster_component_templates.DatabaseViewMigrationComponent",
       "path": "assets/ingestion/database_view_migration",
-      "category": "ingestion",
+      "category": "infrastructure",
       "icon": "Eye",
       "description": "Migrate a single SQL view from source to target with table-ref + function-name substitutions. Reads source DDL, rewrites refs, executes CREATE OR REPLACE VIEW on target. Composable \u2014 one YAML per view.",
       "tags": [
@@ -10129,7 +10149,7 @@
       "name": "Database Views Migration",
       "component_type": "dagster_component_templates.DatabaseViewsMigrationComponent",
       "path": "assets/ingestion/database_views_migration",
-      "category": "ingestion",
+      "category": "infrastructure",
       "icon": "Layers",
       "description": "Bulk-migrate every view in a source schema to a target with shared substitutions. Emits a per-view status DataFrame (schema_name, view_name, status, error_message) for the migration completion report.",
       "tags": [
@@ -12970,7 +12990,8 @@
         "write to",
         "output"
       ],
-      "icon": "ArrowUpFromLine"
+      "icon": "ArrowUpFromLine",
+      "vertical": "security"
     },
     {
       "id": "dataframe_to_segment",
@@ -14239,7 +14260,7 @@
     {
       "id": "delta_ingestion",
       "name": "Delta Lake Ingestion",
-      "category": "ingestion",
+      "category": "source",
       "description": "Read from an EXISTING external Delta Lake table (S3 / ADLS / GCS / Unity Catalog) into a Dagster asset as a pandas DataFrame. Uses delta-rs (no Spark / JVM). Supports version + timestamp time-travel + partition-predicate pushdown.",
       "path": "assets/ingestion/delta_ingestion",
       "tags": [
@@ -14294,7 +14315,8 @@
         "el",
         "read from",
         "upsert"
-      ]
+      ],
+      "vertical": "database"
     },
     {
       "id": "delta_lake_io_manager",
@@ -14857,7 +14879,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "productivity"
     },
     {
       "id": "document_layout_analyzer",
@@ -15273,7 +15296,7 @@
     {
       "id": "dremio_ingestion",
       "name": "Dremio Ingestion",
-      "category": "ingestion",
+      "category": "source",
       "description": "Run a SQL query against a Dremio cluster (REST or Apache Arrow Flight) and materialize the result as a Dagster asset.",
       "path": "assets/ingestion/dremio_ingestion",
       "tags": [
@@ -15319,7 +15342,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "database"
     },
     {
       "id": "drive_time",
@@ -17052,7 +17076,8 @@
         "ingest",
         "read from",
         "upsert"
-      ]
+      ],
+      "vertical": "streaming"
     },
     {
       "id": "expense_report_extractor",
@@ -19085,7 +19110,7 @@
         "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
         "outputs": "DataFrame with columns from Facebook / Meta Ads campaigns, ad sets, insights.",
         "side_effects": "Read-only. Requires Facebook / Meta Ads API credentials. Rate-limited per Facebook / Meta Ads's tier.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to Facebook / Meta Ads use its dedicated writer (if available).",
+        "anti_uses": "For generic REST APIs use rest_api_ingestion. For writing back to Facebook / Meta Ads use its dedicated writer (if available).",
         "requires_resources": [
           "facebook_ads_resource"
         ],
@@ -19101,7 +19126,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "social"
     },
     {
       "id": "facebook_ads_resource",
@@ -19339,7 +19365,7 @@
     {
       "id": "file_ingestion",
       "name": "File Ingestion",
-      "category": "ingestion",
+      "category": "source",
       "description": "Unified tabular-file ingestion \u2014 reads CSV / TSV / JSON / JSONL / Parquet / Excel into a pandas DataFrame. Three input modes: file_path (fixed local or fsspec URI s3://, gs://, az://), from_upstream (resolve from upstream asset's dict), or from_run_config (sensor-injected RunConfig with optional {partition_key} interpolation for dynamic-partition flows).",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -19380,7 +19406,7 @@
         "inputs": "None (root source) \u2014 reads a tabular file from URL or local path.",
         "outputs": "DataFrame with columns from the source file's header row.",
         "side_effects": "None on data (read-only). asset_name becomes the source asset for downstream chains.",
-        "anti_uses": "Not for JSON APIs (use rest_api_fetcher). Not for Excel with multiple sheets unless you set sheet_name.",
+        "anti_uses": "Not for JSON APIs (use rest_api_ingestion). Not for Excel with multiple sheets unless you set sheet_name.",
         "output_type": "pd.DataFrame"
       },
       "produces": [
@@ -19391,7 +19417,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "cloud-storage"
     },
     {
       "id": "file_transformer",
@@ -19679,7 +19706,7 @@
     {
       "id": "firestore_collection_ingestion",
       "name": "Firestore Collection Ingestion",
-      "category": "ingestion",
+      "category": "source",
       "description": "Read a Firestore collection (or subcollection) into a pandas DataFrame; supports where filters, order_by, and limit.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -19731,7 +19758,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "database"
     },
     {
       "id": "firestore_reader",
@@ -20271,7 +20299,7 @@
         "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
         "outputs": "DataFrame with columns from Freshdesk tickets, contacts, agents.",
         "side_effects": "Read-only. Requires Freshdesk API credentials. Rate-limited per Freshdesk's tier.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to Freshdesk use its dedicated writer (if available).",
+        "anti_uses": "For generic REST APIs use rest_api_ingestion. For writing back to Freshdesk use its dedicated writer (if available).",
         "requires_resources": [
           "freshdesk_resource"
         ],
@@ -20287,7 +20315,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "support"
     },
     {
       "id": "freshdesk_resource",
@@ -20572,7 +20601,8 @@
         "el",
         "read from"
       ],
-      "icon": "si:googlecloud"
+      "icon": "si:googlecloud",
+      "vertical": "security"
     },
     {
       "id": "gcp_deployment_manager_asset",
@@ -20952,7 +20982,8 @@
         "ingest",
         "read from",
         "upsert"
-      ]
+      ],
+      "vertical": "cloud-storage"
     },
     {
       "id": "gemini_agent",
@@ -21485,7 +21516,8 @@
         "el",
         "read from"
       ],
-      "icon": "si:github"
+      "icon": "si:github",
+      "vertical": "security"
     },
     {
       "id": "github_event_sensor",
@@ -21588,7 +21620,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "devops-observability"
     },
     {
       "id": "github_resource",
@@ -21740,7 +21773,7 @@
     {
       "id": "gong_calls_ingestion",
       "name": "Gong Calls Ingestion",
-      "category": "ingestion",
+      "category": "source",
       "description": "Ingest Gong call metadata and transcripts via Gong API v2 and return a pandas DataFrame.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -21774,7 +21807,7 @@
         "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
         "outputs": "DataFrame with columns from Gong call recordings, transcripts, participants.",
         "side_effects": "Read-only. Requires Gong API credentials. Rate-limited per Gong's tier.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to Gong use its dedicated writer (if available).",
+        "anti_uses": "For generic REST APIs use rest_api_ingestion. For writing back to Gong use its dedicated writer (if available).",
         "requires_resources": [
           "gong_resource"
         ],
@@ -21790,7 +21823,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "crm-sales"
     },
     {
       "id": "gong_resource",
@@ -21876,7 +21910,7 @@
         "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
         "outputs": "DataFrame with columns from Google Ads campaigns, ad groups, metrics.",
         "side_effects": "Read-only. Requires Google Ads API credentials. Rate-limited per Google Ads's tier.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to Google Ads use its dedicated writer (if available).",
+        "anti_uses": "For generic REST APIs use rest_api_ingestion. For writing back to Google Ads use its dedicated writer (if available).",
         "requires_resources": [
           "google_ads_resource"
         ],
@@ -21892,7 +21926,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "marketing"
     },
     {
       "id": "google_analytics_ingestion",
@@ -21927,7 +21962,7 @@
         "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
         "outputs": "DataFrame with columns from Google Analytics 4 events, sessions, users, page views.",
         "side_effects": "Read-only. Requires Google Analytics 4 API credentials. Rate-limited per Google Analytics 4's tier.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to Google Analytics 4 use its dedicated writer (if available).",
+        "anti_uses": "For generic REST APIs use rest_api_ingestion. For writing back to Google Analytics 4 use its dedicated writer (if available).",
         "requires_resources": [
           "gcp_credentials"
         ],
@@ -21943,7 +21978,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "marketing"
     },
     {
       "id": "google_analytics_resource",
@@ -22051,7 +22087,7 @@
     {
       "id": "google_calendar_ingestion",
       "name": "GoogleCalendarIngestionComponent",
-      "category": "ingestion",
+      "category": "source",
       "description": "List events from a Google Calendar via a service account. Returns one row per event in the configured time window with summary, time, location, organizer, attendees, html_link.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -22086,7 +22122,7 @@
         "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
         "outputs": "DataFrame with columns from Google Calendar events, calendars, attendees.",
         "side_effects": "Read-only. Requires Google Calendar API credentials. Rate-limited per Google Calendar's tier.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to Google Calendar use its dedicated writer (if available).",
+        "anti_uses": "For generic REST APIs use rest_api_ingestion. For writing back to Google Calendar use its dedicated writer (if available).",
         "requires_resources": [
           "gcp_credentials"
         ],
@@ -22104,7 +22140,8 @@
         "el",
         "read from"
       ],
-      "icon": "si:googlecloud"
+      "icon": "si:googlecloud",
+      "vertical": "productivity"
     },
     {
       "id": "google_cloud_functions",
@@ -22296,7 +22333,7 @@
     {
       "id": "google_docs_extractor",
       "name": "GoogleDocsExtractorComponent",
-      "category": "ingestion",
+      "category": "source",
       "description": "Extract plain text + headings from Google Docs by ID via a service account. Works with explicit doc_ids OR upstream of google_drive_ingestion (filter Drive to application/vnd.google-apps.document, feed IDs here).",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -22348,12 +22385,13 @@
         "ingest",
         "read from"
       ],
-      "icon": "si:googlecloud"
+      "icon": "si:googlecloud",
+      "vertical": "productivity"
     },
     {
       "id": "google_drive_ingestion",
       "name": "GoogleDriveIngestionComponent",
-      "category": "ingestion",
+      "category": "source",
       "description": "List (and optionally download) Google Drive files via a service account. Returns a pandas DataFrame, one row per matching file. For Google Sheets use google_sheets_ingestion; for Google Docs text use google_docs_extractor.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -22389,7 +22427,7 @@
         "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
         "outputs": "DataFrame with columns from Google Drive files + metadata (name, mime, owners, sharing).",
         "side_effects": "Read-only. Requires Google Drive API credentials. Rate-limited per Google Drive's tier.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to Google Drive use its dedicated writer (if available).",
+        "anti_uses": "For generic REST APIs use rest_api_ingestion. For writing back to Google Drive use its dedicated writer (if available).",
         "requires_resources": [
           "gcp_credentials"
         ],
@@ -22407,7 +22445,8 @@
         "el",
         "read from"
       ],
-      "icon": "si:googlecloud"
+      "icon": "si:googlecloud",
+      "vertical": "productivity"
     },
     {
       "id": "google_pubsub",
@@ -22508,7 +22547,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "productivity"
     },
     {
       "id": "google_sheets_resource",
@@ -22659,13 +22699,13 @@
       ]
     },
     {
-      "id": "graphql_asset",
-      "name": "GraphQL Asset",
+      "id": "graphql_ingestion",
+      "name": "GraphQL Ingestion",
       "category": "ingestion",
       "description": "Execute GraphQL queries and write results to a database.",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "assets/ingestion/graphql_asset",
+      "path": "assets/ingestion/graphql_ingestion",
       "tags": [
         "ingestion",
         "graphql",
@@ -22678,11 +22718,11 @@
           "sqlalchemy"
         ]
       },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/graphql_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/graphql_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/graphql_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/graphql_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/graphql_asset/requirements.txt",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/graphql_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/graphql_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/graphql_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/graphql_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/graphql_ingestion/requirements.txt",
       "icon": "ArrowUpFromLine",
       "validation": {
         "level": "code",
@@ -22692,7 +22732,7 @@
         "inputs": "None (root ingestion) \u2014 hits a GraphQL endpoint.",
         "outputs": "DataFrame from the query result (flattened per config).",
         "side_effects": "Requires endpoint URL + auth headers.",
-        "anti_uses": "For REST APIs use rest_api_fetcher. For OpenAPI use openapi_asset.",
+        "anti_uses": "For REST APIs use rest_api_ingestion. For OpenAPI use openapi_ingestion.",
         "output_type": "pd.DataFrame"
       },
       "produces": [
@@ -22702,7 +22742,8 @@
         "ingest",
         "read from",
         "vendor api"
-      ]
+      ],
+      "vertical": "internal"
     },
     {
       "id": "great_expectations_check",
@@ -23410,7 +23451,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "marketing"
     },
     {
       "id": "hubspot_object_upsert",
@@ -24025,7 +24067,7 @@
     {
       "id": "iceberg_ingestion",
       "name": "Iceberg Ingestion",
-      "category": "ingestion",
+      "category": "source",
       "description": "Read from an EXISTING external Apache Iceberg table (Snowflake / Trino / Spark / Flink / Databricks / Polaris / Nessie / Glue / S3 Tables) into a Dagster asset as a pandas DataFrame. Uses pyiceberg. Supports snapshot/branch/time-travel.",
       "path": "assets/ingestion/iceberg_ingestion",
       "tags": [
@@ -24084,7 +24126,8 @@
         "el",
         "read from",
         "upsert"
-      ]
+      ],
+      "vertical": "database"
     },
     {
       "id": "iceberg_io_manager",
@@ -24608,7 +24651,8 @@
         "read",
         "load"
       ],
-      "icon": "Database"
+      "icon": "Database",
+      "vertical": "productivity"
     },
     {
       "id": "imputation",
@@ -25377,7 +25421,7 @@
       "name": "JDE Orchestration Output Ingestion",
       "component_type": "dagster_community_components.JDEOrchestrationOutputIngestionComponent",
       "path": "assets/ingestion/jde_orchestration_output_ingestion",
-      "category": "ingestion",
+      "category": "source",
       "icon": "TableChart",
       "description": "Execute a JDE orchestration and emit its row-list output as a Dagster DataFrame. Foundation for JDE \u2192 warehouse pipelines. Handles both flat-list and nested (ServiceRequest1.RowSet) response shapes via output_field.",
       "tags": [
@@ -25435,7 +25479,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "productivity"
     },
     {
       "id": "jde_orchestration_status_sensor",
@@ -25696,7 +25741,7 @@
         "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
         "outputs": "DataFrame with columns from Jira issues, projects, sprints, worklogs.",
         "side_effects": "Read-only. Requires Jira API credentials. Rate-limited per Jira's tier.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to Jira use its dedicated writer (if available).",
+        "anti_uses": "For generic REST APIs use rest_api_ingestion. For writing back to Jira use its dedicated writer (if available).",
         "requires_resources": [
           "jira_resource"
         ],
@@ -25714,7 +25759,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "devops-observability"
     },
     {
       "id": "jira_issue_sensor",
@@ -26420,7 +26466,8 @@
         "ingest",
         "read from",
         "upsert"
-      ]
+      ],
+      "vertical": "streaming"
     },
     {
       "id": "key_vault_resource",
@@ -26678,7 +26725,8 @@
         "ingest",
         "read from",
         "upsert"
-      ]
+      ],
+      "vertical": "streaming"
     },
     {
       "id": "klaviyo_resource",
@@ -27880,7 +27928,7 @@
         "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
         "outputs": "DataFrame with columns from LinkedIn Ads campaigns, ad performance.",
         "side_effects": "Read-only. Requires LinkedIn Ads API credentials. Rate-limited per LinkedIn Ads's tier.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to LinkedIn Ads use its dedicated writer (if available).",
+        "anti_uses": "For generic REST APIs use rest_api_ingestion. For writing back to LinkedIn Ads use its dedicated writer (if available).",
         "requires_resources": [
           "linkedin_ads_resource"
         ],
@@ -27895,7 +27943,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "social"
     },
     {
       "id": "linkedin_ads_resource",
@@ -29568,7 +29617,7 @@
         "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
         "outputs": "DataFrame with columns from Matomo visits, actions, goals.",
         "side_effects": "Read-only. Requires Matomo API credentials. Rate-limited per Matomo's tier.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to Matomo use its dedicated writer (if available).",
+        "anti_uses": "For generic REST APIs use rest_api_ingestion. For writing back to Matomo use its dedicated writer (if available).",
         "requires_resources": [
           "matomo_resource"
         ],
@@ -29584,7 +29633,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "marketing"
     },
     {
       "id": "mcp_tool_call",
@@ -30788,7 +30838,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "database"
     },
     {
       "id": "mongodb_io_manager",
@@ -31265,7 +31316,8 @@
         "ingest",
         "read from",
         "upsert"
-      ]
+      ],
+      "vertical": "streaming"
     },
     {
       "id": "mssql_io_manager",
@@ -32041,7 +32093,8 @@
         "ingest",
         "read from",
         "upsert"
-      ]
+      ],
+      "vertical": "streaming"
     },
     {
       "id": "nearest_neighbors",
@@ -32557,7 +32610,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "productivity"
     },
     {
       "id": "notion_resource",
@@ -32657,12 +32711,13 @@
         "el",
         "read from"
       ],
-      "icon": "ArrowDownToLine"
+      "icon": "ArrowDownToLine",
+      "vertical": "security"
     },
     {
       "id": "oauth_rest_ingestion",
       "name": "OAuth REST Ingestion",
-      "category": "ingestion",
+      "category": "source",
       "description": "OAuth2-backed REST GET \u2192 DataFrame with built-in pagination. Covers Concur, Ariba, and any other Bearer-token JSON API.",
       "path": "assets/ingestion/oauth_rest_ingestion",
       "tags": [
@@ -32687,7 +32742,7 @@
         "inputs": "None (root) \u2014 hits an OAuth2-authed REST API.",
         "outputs": "DataFrame from JSON response.",
         "side_effects": "Handles token refresh. Requires oauth_config (client_id, client_secret, token_url, scopes).",
-        "anti_uses": "For unauthenticated / API-key auth use rest_api_fetcher. For GraphQL use graphql_asset.",
+        "anti_uses": "For unauthenticated / API-key auth use rest_api_ingestion. For GraphQL use graphql_ingestion.",
         "output_type": "pd.DataFrame"
       },
       "version": "1.0.0",
@@ -32707,7 +32762,8 @@
         "el",
         "read from",
         "vendor api"
-      ]
+      ],
+      "vertical": "internal"
     },
     {
       "id": "oauth_token_resource",
@@ -32990,7 +33046,7 @@
     {
       "id": "odata_ingestion",
       "name": "OData Ingestion",
-      "category": "ingestion",
+      "category": "source",
       "description": "Generic OData v2/v4 client. Covers SAP S/4HANA, SuccessFactors, Datasphere, Microsoft Dynamics 365 / Dataverse, MS Graph, SharePoint, Business Central, Oracle Fusion, Epicor, IFS, and any other OData-exposing system.",
       "path": "assets/ingestion/odata_ingestion",
       "tags": [
@@ -33022,7 +33078,7 @@
         "inputs": "None (root source) \u2014 hits an OData endpoint (SAP, Microsoft Graph, Dynamics 365, etc.).",
         "outputs": "DataFrame with columns from the OData entity set.",
         "side_effects": "None on local data. Requires OData endpoint URL + auth.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For SharePoint file lists use msgraph-specific patterns.",
+        "anti_uses": "For generic REST APIs use rest_api_ingestion. For SharePoint file lists use msgraph-specific patterns.",
         "output_type": "pd.DataFrame"
       },
       "version": "1.0.0",
@@ -33041,7 +33097,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "internal"
     },
     {
       "id": "odata_resource",
@@ -33139,7 +33196,8 @@
         "el",
         "read from"
       ],
-      "icon": "si:okta"
+      "icon": "si:okta",
+      "vertical": "security"
     },
     {
       "id": "ollama_inference_asset",
@@ -33396,24 +33454,24 @@
       ]
     },
     {
-      "id": "openapi_asset",
-      "name": "OpenAPI Asset",
+      "id": "openapi_ingestion",
+      "name": "OpenAPI Ingestion",
       "category": "ingestion",
       "description": "Create one Dagster asset per OpenAPI tag group, backed by a cached spec.",
-      "path": "assets/ingestion/openapi_asset",
+      "path": "assets/ingestion/openapi_ingestion",
       "tags": [
         "ingestion",
         "openapi",
         "asset"
       ],
       "icon": "ArrowUpFromLine",
-      "type": "dagster_component_templates.OpenAPIAssetComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/openapi_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/openapi_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/openapi_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/openapi_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/openapi_asset/requirements.txt",
-      "component_type": "dagster_component_templates.OpenAPIAssetComponent",
+      "type": "dagster_component_templates.OpenAPIIngestionComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/openapi_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/openapi_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/openapi_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/openapi_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/openapi_ingestion/requirements.txt",
+      "component_type": "dagster_component_templates.OpenAPIIngestionComponent",
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
@@ -33422,7 +33480,7 @@
         "inputs": "None (root ingestion) \u2014 hits an OpenAPI-spec'd REST endpoint.",
         "outputs": "DataFrame from the response, typed per the OpenAPI schema.",
         "side_effects": "Type safety from the spec. Requires openapi_spec_url + auth.",
-        "anti_uses": "For generic REST use rest_api_fetcher.",
+        "anti_uses": "For generic REST use rest_api_ingestion.",
         "output_type": "pd.DataFrame"
       },
       "version": "1.0.0",
@@ -33443,7 +33501,8 @@
         "ingest",
         "read from",
         "vendor api"
-      ]
+      ],
+      "vertical": "internal"
     },
     {
       "id": "openlineage_emitter",
@@ -34630,7 +34689,7 @@
       "id": "per_row_http_fetcher",
       "name": "Per-Row HTTP Fetcher",
       "category": "transformation",
-      "description": "For each row in an upstream DataFrame, fetch the URL in `url_column` via HTTP and append response body / status / optional parsed JSON. Concurrent via ThreadPoolExecutor. Drop-in for Alteryx's Download tool (per-row HTTP) \u2014 different shape from `rest_api_fetcher` which does one URL per asset.",
+      "description": "For each row in an upstream DataFrame, fetch the URL in `url_column` via HTTP and append response body / status / optional parsed JSON. Concurrent via ThreadPoolExecutor. Drop-in for Alteryx's Download tool (per-row HTTP) \u2014 different shape from `rest_api_ingestion` which does one URL per asset.",
       "path": "assets/transforms/per_row_http_fetcher",
       "tags": [
         "transformation",
@@ -34703,7 +34762,7 @@
         "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
         "outputs": "DataFrame with columns from Personio employees, absences, attendances.",
         "side_effects": "Read-only. Requires Personio API credentials. Rate-limited per Personio's tier.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to Personio use its dedicated writer (if available).",
+        "anti_uses": "For generic REST APIs use rest_api_ingestion. For writing back to Personio use its dedicated writer (if available).",
         "requires_resources": [
           "personio_resource"
         ],
@@ -34718,7 +34777,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "finance-hr"
     },
     {
       "id": "personio_resource",
@@ -35124,7 +35184,7 @@
         "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
         "outputs": "DataFrame with columns from Pinterest Ads campaigns, ad groups, pins.",
         "side_effects": "Read-only. Requires Pinterest Ads API credentials. Rate-limited per Pinterest Ads's tier.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to Pinterest Ads use its dedicated writer (if available).",
+        "anti_uses": "For generic REST APIs use rest_api_ingestion. For writing back to Pinterest Ads use its dedicated writer (if available).",
         "requires_resources": [
           "pinterest_ads_resource"
         ],
@@ -35139,7 +35199,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "social"
     },
     {
       "id": "pipedrive_ingestion",
@@ -35173,7 +35234,7 @@
         "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
         "outputs": "DataFrame with columns from Pipedrive deals, activities, contacts.",
         "side_effects": "Read-only. Requires Pipedrive API credentials. Rate-limited per Pipedrive's tier.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to Pipedrive use its dedicated writer (if available).",
+        "anti_uses": "For generic REST APIs use rest_api_ingestion. For writing back to Pipedrive use its dedicated writer (if available).",
         "requires_resources": [
           "pipedrive_resource"
         ],
@@ -35187,7 +35248,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "crm-sales"
     },
     {
       "id": "pipedrive_resource",
@@ -35966,7 +36028,7 @@
     },
     {
       "name": "PostHog Events Ingestion",
-      "category": "ingestion",
+      "category": "source",
       "description": "Pull events from a PostHog project via the /events REST API. Handles cursor pagination automatically. Returns a pandas DataFrame with flattened event fields (id, event, distinct_id, timestamp, properties.*, person.*).",
       "path": "assets/ingestion/posthog_events_ingestion",
       "tags": [
@@ -36018,7 +36080,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "marketing"
     },
     {
       "id": "precisely_address_verify",
@@ -37010,7 +37073,8 @@
         "ingest",
         "read from",
         "upsert"
-      ]
+      ],
+      "vertical": "streaming"
     },
     {
       "id": "pulsar_monitor",
@@ -37159,7 +37223,8 @@
         "ingest",
         "read from",
         "upsert"
-      ]
+      ],
+      "vertical": "streaming"
     },
     {
       "id": "pulumi_asset",
@@ -37565,7 +37630,7 @@
       "name": "Qlik Compose Workflow Metrics Ingestion",
       "component_type": "dagster_community_components.QlikComposeWorkflowMetricsIngestionComponent",
       "path": "assets/ingestion/qlik_compose_workflow_metrics_ingestion",
-      "category": "ingestion",
+      "category": "source",
       "icon": "TableChart",
       "description": "Emit a DataFrame with per-workflow metrics from Qlik Compose (state, last-run duration, rows loaded, error count). One row per workflow per materialization. Foundation for DW-build observability dashboards.",
       "tags": [
@@ -37622,7 +37687,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "productivity"
     },
     {
       "id": "qlik_compose_workflow_status_sensor",
@@ -37850,7 +37916,7 @@
       "name": "Qlik Replicate Task Metrics Ingestion",
       "component_type": "dagster_community_components.QlikReplicateTaskMetricsIngestionComponent",
       "path": "assets/ingestion/qlik_replicate_task_metrics_ingestion",
-      "category": "ingestion",
+      "category": "source",
       "icon": "TableChart",
       "description": "Poll Qlik Enterprise Manager for per-task metrics (state, latency, throughput, error count) and emit a DataFrame asset. One row per task per materialization. Foundation for CDC observability dashboards and alert-input assets.",
       "tags": [
@@ -37910,7 +37976,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "productivity"
     },
     {
       "id": "qlik_replicate_task_status_sensor",
@@ -38279,7 +38346,8 @@
         "ingest",
         "read from",
         "upsert"
-      ]
+      ],
+      "vertical": "streaming"
     },
     {
       "id": "rag_eval",
@@ -38856,7 +38924,8 @@
         "ingest",
         "read from",
         "upsert"
-      ]
+      ],
+      "vertical": "streaming"
     },
     {
       "id": "redis_writer",
@@ -39176,13 +39245,13 @@
       ]
     },
     {
-      "id": "rest_api_fetcher",
-      "name": "REST API Fetcher",
+      "id": "rest_api_ingestion",
+      "name": "REST API Ingestion",
       "category": "ingestion",
       "description": "Component for fetching data from REST APIs.",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "assets/ingestion/rest_api_fetcher",
+      "path": "assets/ingestion/rest_api_ingestion",
       "tags": [
         "ingestion",
         "rest",
@@ -39196,11 +39265,11 @@
           "pyarrow>=10.0.0"
         ]
       },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/rest_api_fetcher/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/rest_api_fetcher/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/rest_api_fetcher/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/rest_api_fetcher/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/rest_api_fetcher/requirements.txt",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/rest_api_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/rest_api_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/rest_api_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/rest_api_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/rest_api_ingestion/requirements.txt",
       "icon": "ArrowUpFromLine",
       "validation": {
         "level": "live",
@@ -39227,7 +39296,8 @@
         "vendor api",
         "per partition api",
         "backfill"
-      ]
+      ],
+      "vertical": "internal"
     },
     {
       "id": "resume_extractor",
@@ -39957,7 +40027,8 @@
         "ingest",
         "read from",
         "upsert"
-      ]
+      ],
+      "vertical": "cloud-storage"
     },
     {
       "id": "salesforce_event_log_ingestion",
@@ -39994,7 +40065,7 @@
         "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
         "outputs": "DataFrame with columns from Salesforce Event Log login events, API calls, apex traces.",
         "side_effects": "Read-only. Requires Salesforce Event Log API credentials. Rate-limited per Salesforce Event Log's tier.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to Salesforce Event Log use its dedicated writer (if available).",
+        "anti_uses": "For generic REST APIs use rest_api_ingestion. For writing back to Salesforce Event Log use its dedicated writer (if available).",
         "requires_resources": [
           "salesforce_resource"
         ],
@@ -40015,7 +40086,8 @@
         "el",
         "read from"
       ],
-      "icon": "si:salesforce"
+      "icon": "si:salesforce",
+      "vertical": "security"
     },
     {
       "id": "salesforce_ingestion",
@@ -40070,7 +40142,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "crm-sales"
     },
     {
       "id": "salesforce_record_upsert",
@@ -40352,7 +40425,7 @@
     {
       "id": "sap_hana_ingestion",
       "name": "SAP HANA Ingestion",
-      "category": "ingestion",
+      "category": "source",
       "description": "Query SAP HANA (Cloud or on-premise) and return the result as a Dagster asset (pandas DataFrame).",
       "path": "assets/ingestion/sap_hana_ingestion",
       "tags": [
@@ -40404,7 +40477,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "database"
     },
     {
       "id": "sap_hana_resource",
@@ -40465,7 +40539,7 @@
     {
       "id": "sap_rfc_ingestion",
       "name": "SAP RFC Ingestion",
-      "category": "ingestion",
+      "category": "source",
       "description": "Execute an SAP RFC / BAPI / RFC_READ_TABLE and materialize the result as a pandas DataFrame. Classic on-prem R/3 / ECC / S/4HANA integration path. Pairs with sap_rfc_resource.",
       "path": "assets/ingestion/sap_rfc_ingestion",
       "tags": [
@@ -40517,7 +40591,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "finance-hr"
     },
     {
       "id": "sap_rfc_resource",
@@ -41142,7 +41217,7 @@
     },
     {
       "name": "Sentry Issues Ingestion",
-      "category": "ingestion",
+      "category": "source",
       "description": "Pull issues from a Sentry project via the /api/0/projects REST API. Uses Link-header cursor pagination. Returns a pandas DataFrame with flattened issue fields (id, shortId, title, level, status, count, userCount, firstSeen, lastSeen, project.*, metadata.*).",
       "path": "assets/ingestion/sentry_issues_ingestion",
       "tags": [
@@ -41196,7 +41271,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "devops-observability"
     },
     {
       "id": "sentry_monitor_checkin_job",
@@ -41419,14 +41495,15 @@
         "ingest",
         "read from",
         "upsert"
-      ]
+      ],
+      "vertical": "streaming"
     },
     {
       "id": "servicenow_ingestion",
       "name": "ServiceNow Ingestion",
       "component_type": "dagster_component_templates.ServiceNowIngestionComponent",
       "path": "assets/ingestion/servicenow_ingestion",
-      "category": "ingestion",
+      "category": "source",
       "icon": "Server",
       "description": "Read records from any ServiceNow table (incident / change_request / sc_request / sys_user / cmdb_ci / custom tables) into a DataFrame asset. ServiceNow Table API with pagination, encoded-query filtering, field selection, and basic-auth or bearer-token (OAuth) auth.",
       "tags": [
@@ -41456,7 +41533,7 @@
         "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
         "outputs": "DataFrame with columns from ServiceNow incidents, changes, CMDB items.",
         "side_effects": "Read-only. Requires ServiceNow API credentials. Rate-limited per ServiceNow's tier.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to ServiceNow use its dedicated writer (if available).",
+        "anti_uses": "For generic REST APIs use rest_api_ingestion. For writing back to ServiceNow use its dedicated writer (if available).",
         "requires_resources": [
           "servicenow_resource"
         ],
@@ -41478,7 +41555,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "devops-observability"
     },
     {
       "id": "servicenow_record_upsert",
@@ -41854,7 +41932,8 @@
         "ingest",
         "read from",
         "upsert"
-      ]
+      ],
+      "vertical": "cloud-storage"
     },
     {
       "id": "shadow_asset",
@@ -42110,7 +42189,7 @@
         "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
         "outputs": "DataFrame with columns from Shopify orders, products, customers.",
         "side_effects": "Read-only. Requires Shopify API credentials. Rate-limited per Shopify's tier.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to Shopify use its dedicated writer (if available).",
+        "anti_uses": "For generic REST APIs use rest_api_ingestion. For writing back to Shopify use its dedicated writer (if available).",
         "requires_resources": [
           "shopify_resource"
         ],
@@ -42126,7 +42205,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "crm-sales"
     },
     {
       "id": "shopify_product_upsert",
@@ -42346,7 +42426,8 @@
         "transform",
         "reshape"
       ],
-      "icon": "Shuffle"
+      "icon": "Shuffle",
+      "vertical": "security"
     },
     {
       "id": "sifflet_check",
@@ -42598,7 +42679,8 @@
         "el",
         "read from"
       ],
-      "icon": "si:slack"
+      "icon": "si:slack",
+      "vertical": "security"
     },
     {
       "id": "slack_ingestion",
@@ -42650,7 +42732,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "productivity"
     },
     {
       "id": "slack_notification",
@@ -43158,7 +43241,8 @@
         "el",
         "read from"
       ],
-      "icon": "si:snowflake"
+      "icon": "si:snowflake",
+      "vertical": "security"
     },
     {
       "id": "snowflake_alert",
@@ -45240,7 +45324,8 @@
         "ingest",
         "read from",
         "upsert"
-      ]
+      ],
+      "vertical": "database"
     },
     {
       "id": "sql_transform",
@@ -45451,7 +45536,8 @@
         "ingest",
         "read from",
         "upsert"
-      ]
+      ],
+      "vertical": "streaming"
     },
     {
       "id": "ssh_asset",
@@ -45499,7 +45585,8 @@
       "keywords": [
         "ingest",
         "read from"
-      ]
+      ],
+      "vertical": "devops-observability"
     },
     {
       "id": "ssis_workspace",
@@ -45818,7 +45905,8 @@
         "ingest",
         "read from",
         "upsert"
-      ]
+      ],
+      "vertical": "streaming"
     },
     {
       "id": "streaming_run_health_sensor",
@@ -45957,7 +46045,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "finance-hr"
     },
     {
       "id": "stripe_resource",
@@ -46397,7 +46486,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "support"
     },
     {
       "id": "support_ticket_standardizer",
@@ -48097,7 +48187,7 @@
         "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
         "outputs": "DataFrame with columns from TikTok Ads campaigns, ad groups, videos.",
         "side_effects": "Read-only. Requires TikTok Ads API credentials. Rate-limited per TikTok Ads's tier.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to TikTok Ads use its dedicated writer (if available).",
+        "anti_uses": "For generic REST APIs use rest_api_ingestion. For writing back to TikTok Ads use its dedicated writer (if available).",
         "requires_resources": [
           "tiktok_ads_resource"
         ],
@@ -48112,7 +48202,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "social"
     },
     {
       "id": "tile_binning",
@@ -48307,7 +48398,7 @@
       "name": "TM1 Cube Data Ingestion",
       "component_type": "dagster_community_components.TM1CubeDataIngestionComponent",
       "path": "assets/ingestion/tm1_cube_data_ingestion",
-      "category": "ingestion",
+      "category": "source",
       "icon": "TableChart",
       "description": "Materialize a TM1 cube slice via MDX as a Dagster DataFrame. Two modes: explicit MDX or simplified cube + row/column dimensions + filters. Foundation for TM1 \u2192 warehouse / dbt / dashboards pipelines.",
       "tags": [
@@ -48366,7 +48457,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "productivity"
     },
     {
       "id": "tm1_process_status_sensor",
@@ -49449,7 +49541,7 @@
         "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
         "outputs": "DataFrame with columns from Twitter/X Ads campaigns, ad performance.",
         "side_effects": "Read-only. Requires Twitter/X Ads API credentials. Rate-limited per Twitter/X Ads's tier.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to Twitter/X Ads use its dedicated writer (if available).",
+        "anti_uses": "For generic REST APIs use rest_api_ingestion. For writing back to Twitter/X Ads use its dedicated writer (if available).",
         "requires_resources": [
           "twitter_ads_resource"
         ],
@@ -49464,7 +49556,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "social"
     },
     {
       "id": "type_coercer",
@@ -49610,7 +49703,7 @@
     {
       "id": "vanta_controls_ingestion",
       "name": "Vanta Controls Ingestion",
-      "category": "ingestion",
+      "category": "source",
       "description": "Fetches Vanta compliance controls (SOC 2, ISO 27001, HIPAA, PCI) plus status and evidence counts via GET /v1/controls. Returns a flattened pandas DataFrame.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -49649,7 +49742,7 @@
         "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
         "outputs": "DataFrame with columns from Vanta compliance controls + evidence.",
         "side_effects": "Read-only. Requires Vanta API credentials. Rate-limited per Vanta's tier.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to Vanta use its dedicated writer (if available).",
+        "anti_uses": "For generic REST APIs use rest_api_ingestion. For writing back to Vanta use its dedicated writer (if available).",
         "requires_resources": [
           "vanta_resource"
         ],
@@ -49665,7 +49758,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "security"
     },
     {
       "id": "vanta_evidence_response_agent",
@@ -51624,7 +51718,7 @@
         "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
         "outputs": "DataFrame with columns from Workable candidates, jobs, hiring stages.",
         "side_effects": "Read-only. Requires Workable API credentials. Rate-limited per Workable's tier.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to Workable use its dedicated writer (if available).",
+        "anti_uses": "For generic REST APIs use rest_api_ingestion. For writing back to Workable use its dedicated writer (if available).",
         "requires_resources": [
           "workable_resource"
         ],
@@ -51638,7 +51732,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "finance-hr"
     },
     {
       "id": "workday_resource",
@@ -51822,7 +51917,8 @@
         "extract load",
         "el",
         "read from"
-      ]
+      ],
+      "vertical": "support"
     },
     {
       "id": "zendesk_resource",

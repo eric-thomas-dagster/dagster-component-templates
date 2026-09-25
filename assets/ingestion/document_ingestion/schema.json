@@ -2,6 +2,8 @@
   "component_type": "dagster_component_templates.DocumentIngestionComponent",
   "description": "Component for ingesting documents for RAG/Q&A systems.",
   "category": "ingestion",
+
+  "vertical": "productivity",
   "icon": "ArrowUpFromLine",
   "x-dagster-io": {
     "outputs": {

@@ -1,4 +1,4 @@
-type: dagster_component_templates.GraphQLAssetComponent
+type: dagster_component_templates.GraphQLIngestionComponent
 attributes:
   asset_name: github_data
   endpoint_env_var: GITHUB_GRAPHQL_URL

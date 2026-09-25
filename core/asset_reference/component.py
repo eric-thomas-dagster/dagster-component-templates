@@ -34,7 +34,7 @@ class AssetReferenceComponent(Component, Model, Resolvable):
         ---
 
         # New API asset
-        type: dagster_component_templates.RestApiFetcherComponent
+        type: dagster_component_templates.RestApiIngestionComponent
         attributes:
           asset_name: api_enrichment_data
           api_url: https://api.example.com/enrichment

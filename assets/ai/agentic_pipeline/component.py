@@ -218,9 +218,54 @@ def _ingest(
         response.raise_for_status()
         return {"text": response.text, "source_kind": "url", "source_url": url}
 
+    if kind == "database":
+        import os
+        import sqlalchemy
+        import pandas as pd
+
+        database_url = source_config.get("database_url")
+        database_url_env_var = source_config.get("database_url_env_var")
+        if database_url:
+            url = database_url
+        elif database_url_env_var:
+            url = os.environ.get(database_url_env_var)
+            if not url:
+                raise EnvironmentError(f"Env var {database_url_env_var!r} is not set")
+        else:
+            raise ValueError("source kind=database requires 'database_url' or 'database_url_env_var'")
+
+        query = _sub(source_config["query"])
+        row_limit = source_config.get("row_limit", 500)
+
+        engine = sqlalchemy.create_engine(url)
+        try:
+            with engine.begin() as conn:
+                df = pd.read_sql(sqlalchemy.text(query), conn)
+        finally:
+            engine.dispose()
+
+        truncated = len(df) > row_limit
+        if truncated:
+            df = df.head(row_limit)
+
+        cols = list(df.columns)
+        text = (
+            "| " + " | ".join(cols) + " |\n"
+            "| " + " | ".join(["---"] * len(cols)) + " |\n" +
+            "\n".join("| " + " | ".join(str(v) for v in row) + " |" for row in df.itertuples(index=False))
+        )
+        if truncated:
+            text += f"\n\n_(truncated to {row_limit} rows)_"
+
+        return {
+            "text": text,
+            "source_kind": "database",
+            "source_row_count": len(df),
+        }
+
     # upstream_asset ingestion happens outside this function (it's a compute input).
     raise ValueError(
-        f"unknown source kind: {kind!r}. valid: literal | file | url | upstream_asset"
+        f"unknown source kind: {kind!r}. valid: literal | file | url | database | upstream_asset"
     )
 
 
@@ -2800,7 +2845,7 @@ def _do_sub_pipeline(step: dict, state: Dict[str, Any], context) -> Dict[str, An
       steps             — sub-pipeline's step list (same schema as top-level `steps:`)
       output_step_id    — which sub-step's output flows back into this asset's `text`.
                           Defaults to the last step in the sub-pipeline.
-      sub_source        — optional override: `{kind: literal|file|url, ...}`
+      sub_source        — optional override: `{kind: literal|file|url|database, ...}`
                           If unset, source.text = the upstream text from `source:` / `inputs:`.
     """
     materialized_at = _now_iso()
@@ -3470,6 +3515,8 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             "{kind: literal, text: '...'} | "
             "{kind: file, path: '...'} | "
             "{kind: url, url: '...'} | "
+            "{kind: database, query: 'SELECT ...', database_url: '...' or database_url_env_var: '...', row_limit: 500} "
+            "(query result rendered as a markdown table) | "
             "{kind: upstream_asset, upstream_asset_key: '...'}. "
             "All string fields are {partition_key}-templated."
         ),

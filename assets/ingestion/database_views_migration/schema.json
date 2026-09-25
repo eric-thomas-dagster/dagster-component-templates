@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_component_templates.DatabaseViewsMigrationComponent",
   "description": "Bulk-migrate every view in a source schema to a target with optional substitutions. Emits a per-view status DataFrame for the migration completion report.",
-  "category": "ingestion",
+  "category": "infrastructure",
   "icon": "Layers",
   "x-dagster-io": {
     "inputs": {"type": "external", "description": "Reads every view's DDL from source"},

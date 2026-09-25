@@ -1,4 +1,4 @@
-type: dagster_component_templates.RestApiFetcherComponent
+type: dagster_component_templates.RestApiIngestionComponent
 attributes:
   asset_name: api_data
   api_url: https://api.example.com/data

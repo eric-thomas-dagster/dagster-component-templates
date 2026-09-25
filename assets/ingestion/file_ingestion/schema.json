@@ -1,7 +1,9 @@
 {
   "component_type": "dagster_component_templates.FileIngestionComponent",
   "description": "Unified tabular-file ingestion \u2014 reads CSV / TSV / JSON / JSONL / Parquet / Excel into a pandas DataFrame. Three mutually-exclusive input modes: file_path (fixed local or fsspec URI), from_upstream (resolve from upstream asset's dict), or from_run_config (sensor-injected RunConfig with optional {partition_key} interpolation for dynamic-partition flows).",
-  "category": "ingestion",
+  "category": "source",
+
+  "vertical": "cloud-storage",
   "icon": "ArrowUpFromLine",
   "x-dagster-io": {
     "outputs": {

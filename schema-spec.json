@@ -86,6 +86,25 @@
           ]
         ]
       },
+      "vertical": {
+        "type": "string",
+        "description": "Business-domain grouping for ingestion/source/sink/security components that connect to an external system — lets a UI (e.g. an \"Ingestions\" page) group/filter by domain independent of the functional 'category'. Not applicable to generic/protocol components with no single vendor domain (use 'internal').",
+        "enum": [
+          "social",
+          "marketing",
+          "crm-sales",
+          "support",
+          "finance-hr",
+          "productivity",
+          "database",
+          "streaming",
+          "cloud-storage",
+          "devops-observability",
+          "ai-ml",
+          "security",
+          "internal"
+        ]
+      },
       "x-dagster-provides": {
         "type": "array",
         "items": {

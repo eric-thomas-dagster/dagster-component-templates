@@ -2,6 +2,8 @@
   "component_type": "dagster_component_templates.SlackAuditLogIngestionComponent",
   "description": "Pull Slack Enterprise Grid audit log via /audit/v1/logs (requires audit_logs:read scope).",
   "category": "security",
+
+  "vertical": "security",
   "x-dagster-io": {
     "outputs": {
       "type": "dataframe"

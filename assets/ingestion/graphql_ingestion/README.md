@@ -168,7 +168,7 @@ Both strategies respect `max_pages` as a hard cap.
 ### GitHub issues with cursor pagination
 
 ```yaml
-type: dagster_component_templates.GraphQLAssetComponent
+type: dagster_component_templates.GraphQLIngestionComponent
 attributes:
   asset_name: github_data
   endpoint_env_var: GITHUB_GRAPHQL_URL
@@ -199,7 +199,7 @@ attributes:
 ### Multiple queries from the same API
 
 ```yaml
-type: dagster_component_templates.GraphQLAssetComponent
+type: dagster_component_templates.GraphQLIngestionComponent
 attributes:
   asset_name: shopify_data
   endpoint_env_var: SHOPIFY_GRAPHQL_URL

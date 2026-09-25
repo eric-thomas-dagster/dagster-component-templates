@@ -1775,7 +1775,7 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 # `mode: upsert_on_match` + `match: [col, ...]` — partition-rewrite
                 # idempotency (DELETE-then-INSERT keyed by match tuple, in a
                 # transaction). Safe to re-run the same partition. Mirrors the
-                # same primitive in polars_pipeline and rest_api_fetcher.
+                # same primitive in polars_pipeline and rest_api_ingestion.
                 mode = (sink.get("mode") or "").lower() or None
                 match_cols: List[str] = list(sink.get("match") or [])
                 if mode == "upsert_on_match" and not match_cols:

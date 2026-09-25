@@ -1,11 +1,13 @@
 {
   "component_type": "dagster_component_templates.GoogleDriveIngestionComponent",
   "description": "List (and optionally download) Google Drive files via a service account. Returns a pandas DataFrame, one row per matching file. For Google Sheets, prefer google_sheets_ingestion. For Google Docs text, prefer google_docs_extractor. This component handles everything else: PDFs, CSVs, images, arbitrary uploads.",
-  "category": "ingestion",
+  "category": "source",
+
+  "vertical": "productivity",
   "icon": "si:googledrive",
   "x-dagster-io": {
     "outputs": {
-      "type": "DataFrame",
+      "type": "dataframe",
       "description": "One row per matching Drive file with id, name, mimeType, size, modifiedTime, webViewLink, owner_email. Optional `path` and `content` columns when download=true."
     }
   },

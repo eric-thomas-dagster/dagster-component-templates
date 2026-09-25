@@ -1,11 +1,13 @@
 {
   "component_type": "dagster_component_templates.BigQueryLoadFromGcsAssetComponent",
   "description": "Load one or more GCS objects into a BigQuery table using BQ's native load-job API (data never round-trips through the executor \u2014 fast at scale). The lake \u2192 warehouse step at the start of an ELT pipeline. Supports parquet, CSV, JSONL, AVRO, ORC, optional explicit schema, partitioning, and clustering on the destination.",
-  "category": "ingestion",
+  "category": "source",
+
+  "vertical": "cloud-storage",
   "icon": "si:googlebigquery",
   "x-dagster-io": {
     "outputs": {
-      "type": "DataFrame",
+      "type": "dataframe",
       "description": "One-row DataFrame describing the load (rows_loaded, table_size_bytes, input_files, bytes_loaded)."
     }
   },

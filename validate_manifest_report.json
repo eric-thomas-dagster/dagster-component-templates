@@ -3624,8 +3624,8 @@
       "error_class": null
     },
     {
-      "id": "graphql_asset",
-      "path": "assets/ingestion/graphql_asset",
+      "id": "graphql_ingestion",
+      "path": "assets/ingestion/graphql_ingestion",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -5469,8 +5469,8 @@
       "error_class": "ModuleNotFoundError"
     },
     {
-      "id": "openapi_asset",
-      "path": "assets/ingestion/openapi_asset",
+      "id": "openapi_ingestion",
+      "path": "assets/ingestion/openapi_ingestion",
       "status": "SKIP_PROJECT_REQUIRED",
       "warnings": [],
       "error": "Could not find dg.toml or pyproject.toml in .",
@@ -6425,8 +6425,8 @@
       "error_class": null
     },
     {
-      "id": "rest_api_fetcher",
-      "path": "assets/ingestion/rest_api_fetcher",
+      "id": "rest_api_ingestion",
+      "path": "assets/ingestion/rest_api_ingestion",
       "status": "PASS",
       "warnings": [],
       "error": null,

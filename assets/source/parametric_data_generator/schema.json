@@ -2,6 +2,11 @@
   "component_type": "dagster_component_templates.ParametricDataGeneratorComponent",
   "description": "ParametricDataGeneratorComponent \u2014 YAML-driven synthetic data.",
   "category": "source",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe"
+    }
+  },
   "icon": "Wand2",
   "attributes": {
     "asset_name": {

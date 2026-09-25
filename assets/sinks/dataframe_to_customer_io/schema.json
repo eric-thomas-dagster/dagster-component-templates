@@ -2,6 +2,15 @@
   "component_type": "dagster_component_templates.DataframeToCustomerIoComponent",
   "description": "Reverse-ETL sink — batch-POST DataFrame rows to Customer.io via /api/v2/batch (up to 100 ops/batch). Two modes: `identify` (upsert profile attributes) or `event` (bulk-track events).",
   "category": "sink",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true
+    },
+    "outputs": {
+      "type": "MaterializeResult"
+    }
+  },
   "icon": "si:customerio",
   "attributes": {
     "asset_name": {"label": "Asset Name", "type": "string", "required": true},

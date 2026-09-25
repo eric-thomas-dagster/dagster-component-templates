@@ -5,11 +5,11 @@
   "icon": "GitMerge",
   "x-dagster-io": {
     "inputs": {
-      "type": "table",
+      "type": "asset_reference",
       "required": true
     },
     "outputs": {
-      "type": "table"
+      "type": "asset_reference"
     }
   },
   "attributes": {

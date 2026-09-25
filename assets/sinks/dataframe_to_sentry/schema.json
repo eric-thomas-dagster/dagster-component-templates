@@ -2,6 +2,15 @@
   "component_type": "dagster_community_components.DataframeToSentryComponent",
   "description": "Send each row of an upstream DataFrame to Sentry as an event via the official sentry-sdk. Supports level, tags, extras, and grouping fingerprints per row. Common use: pipe Dagster+ run-failure events into Sentry so on-call sees data-pipeline health alongside application errors.",
   "category": "sink",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true
+    },
+    "outputs": {
+      "type": "MaterializeResult"
+    }
+  },
   "icon": "AlertCircle",
   "attributes": {
     "asset_name": {"label": "Asset Name", 

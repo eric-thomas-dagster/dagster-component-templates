@@ -2,6 +2,15 @@
   "component_type": "dagster_component_templates.DataframeToMixpanelComponent",
   "description": "Reverse-ETL sink — POST DataFrame rows to Mixpanel via bulk endpoints. Two modes: `events` (POST /import, service-account auth, up to 2000/batch) or `profiles` (POST /engage#profile-set, project-token auth, up to 50/batch).",
   "category": "sink",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true
+    },
+    "outputs": {
+      "type": "MaterializeResult"
+    }
+  },
   "icon": "si:mixpanel",
   "attributes": {
     "asset_name": {"label": "Asset Name", "type": "string", "required": true},

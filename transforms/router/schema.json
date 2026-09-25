@@ -2,6 +2,15 @@
   "component_type": "dagster_component_templates.RouterComponent",
   "description": "Multi-output conditional split \u2014 emit each output asset with rows matching its predicate. Equivalent to ADF Conditional Split / Informatica Router.",
   "category": "transformation",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true
+    },
+    "outputs": {
+      "type": "dataframe"
+    }
+  },
   "icon": "ArrowsRightLeft",
   "attributes": {
     "upstream_asset_key": {

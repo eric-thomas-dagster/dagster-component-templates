@@ -2,6 +2,11 @@
   "component_type": "dagster_community_components.TemporalQueryAssetComponent",
   "description": "Materialize the live state of a running Temporal workflow via a Query (read-only). Great for long-lived workflows exposing accumulated state.",
   "category": "infrastructure",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult"
+    }
+  },
   "icon": "si:temporal",
   "attributes": {
     "asset_key": {"label": "Asset Key", "type": "string", "required": true},

@@ -2,6 +2,11 @@
   "component_type": "dagster_component_templates.SyntheticPdfGeneratorComponent",
   "description": "SyntheticPdfGeneratorComponent \u2014 generate sample PDFs for OCR / Document AI demos.",
   "category": "source",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe"
+    }
+  },
   "icon": "Wand2",
   "attributes": {
     "asset_name": {

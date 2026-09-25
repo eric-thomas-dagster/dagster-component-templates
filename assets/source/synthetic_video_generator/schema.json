@@ -2,6 +2,11 @@
   "component_type": "dagster_component_templates.SyntheticVideoGeneratorComponent",
   "description": "SyntheticVideoGeneratorComponent \u2014 generate tiny test videos via ffmpeg.",
   "category": "source",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe"
+    }
+  },
   "icon": "Wand2",
   "attributes": {
     "asset_name": {

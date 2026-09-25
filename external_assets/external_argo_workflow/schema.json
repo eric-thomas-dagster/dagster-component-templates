@@ -2,6 +2,11 @@
   "component_type": "dagster_component_templates.ExternalArgoWorkflowAsset",
   "description": "Declare an Argo Workflow as an external Dagster asset.\n\nExample:\n    ```yaml\n    type: dagster_community_components.ExternalArgoWorkflowAsset\n    attributes:\n      asset_key: argo/etl/nightly_aggregation\n      workflow_template: nightly-aggregation\n      namespace: argo\n      argo_ui_url: https://argo.mycompany.com\n      group_name: argo\n    ```",
   "category": "external",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetSpec"
+    }
+  },
   "icon": "ExternalLink",
   "attributes": {
     "asset_key": {

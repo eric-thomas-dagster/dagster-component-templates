@@ -2,6 +2,15 @@
   "component_type": "dagster_community_components.VantaEvidenceResponseAgentComponent",
   "description": "Draft SOC 2 / ISO 27001 evidence responses per Vanta control using an LLM.",
   "category": "ai",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true
+    },
+    "outputs": {
+      "type": "dataframe"
+    }
+  },
   "icon": "Robot",
   "attributes": {
     "asset_name": {

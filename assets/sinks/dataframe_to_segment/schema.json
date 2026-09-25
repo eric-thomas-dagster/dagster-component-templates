@@ -2,6 +2,15 @@
   "component_type": "dagster_component_templates.DataframeToSegmentComponent",
   "description": "Reverse-ETL sink — batch-POST DataFrame rows to Segment via POST /v1/batch. Two modes: `identify` (traits sync) or `track` (event stream). Auto-packs ops under Segment's 500KB per-batch limit.",
   "category": "sink",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true
+    },
+    "outputs": {
+      "type": "MaterializeResult"
+    }
+  },
   "icon": "si:segment",
   "attributes": {
     "asset_name": {"label": "Asset Name", "type": "string", "required": true},

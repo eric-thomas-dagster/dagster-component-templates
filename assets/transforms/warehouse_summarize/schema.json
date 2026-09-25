@@ -5,12 +5,12 @@
   "icon": "Database",
   "x-dagster-io": {
     "inputs": {
-      "type": "table",
+      "type": "asset_reference",
       "required": true,
       "description": "Source table in the warehouse (named by upstream_table)"
     },
     "outputs": {
-      "type": "table",
+      "type": "asset_reference",
       "description": "CTAS-produced table in the same warehouse"
     }
   },

@@ -2,6 +2,11 @@
   "component_type": "dagster_component_templates.VictoriaMetricsQueryAssetComponent",
   "description": "Run a PromQL query against VictoriaMetrics; emit result as a DataFrame.\n\nExample:\n    ```yaml\n    type: dagster_community_components.VictoriaMetricsQueryAssetComponent\n    attributes:\n      asset_name: vm_request_rate_last_24h\n      query: 'sum(rate(http_requests_total[5m])) by (service)'\n      query_range: true\n      range_lookback_minutes: 1440      # 24h\n      step_seconds: 60\n      base_url_env_var: VM_BASE_URL\n    ```",
   "category": "source",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe"
+    }
+  },
   "icon": "si:victoriametrics",
   "attributes": {
     "asset_name": {

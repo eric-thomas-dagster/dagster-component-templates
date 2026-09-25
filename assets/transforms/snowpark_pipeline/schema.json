@@ -4,7 +4,8 @@
   "category": "transformation",
   "icon": "Snowflake",
   "x-dagster-io": {
-    "outputs": {"type": "table_or_dataframe", "description": "Materialized to one or more Snowflake tables, or returned as pandas (sink kind=none)"}
+    "inputs": {"type": "asset_reference", "required": false, "description": "Upstream table(s) referenced by name via source {kind: table|sql|ref} — no data passed; there is no wired-upstream source kind for this component."},
+    "outputs": {"type": "dataframe", "description": "Only when sink kind=none (returned as pandas through the IO manager); the default (sink kind=table) instead materializes directly to Snowflake and downstream components should reference the table by name, not via this port."}
   },
   "attributes": {
     "asset_name":   {"label": "Asset Name", "type": "string", "required": true},

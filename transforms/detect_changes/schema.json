@@ -2,6 +2,15 @@
   "component_type": "dagster_component_templates.DetectChangesComponent",
   "description": "Diff incoming DataFrame against a prior snapshot \u2014 emit rows with a change_type column (insert/update/delete/unchanged).",
   "category": "transformation",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true
+    },
+    "outputs": {
+      "type": "dataframe"
+    }
+  },
   "icon": "ArrowsRightLeft",
   "attributes": {
     "asset_name": {

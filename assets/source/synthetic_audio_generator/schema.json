@@ -2,6 +2,11 @@
   "component_type": "dagster_component_templates.SyntheticAudioGeneratorComponent",
   "description": "SyntheticAudioGeneratorComponent \u2014 generate sample WAV files for audio demos.",
   "category": "source",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe"
+    }
+  },
   "icon": "Wand2",
   "attributes": {
     "asset_name": {

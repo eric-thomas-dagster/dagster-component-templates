@@ -4,8 +4,8 @@
   "category": "transformation",
   "icon": "TrendingUp",
   "x-dagster-io": {
-    "inputs":  {"type": "table", "required": true},
-    "outputs": {"type": "table"}
+    "inputs":  {"type": "asset_reference", "required": true},
+    "outputs": {"type": "asset_reference"}
   },
   "attributes": {
     "asset_name":           {"label": "Asset Name", "type": "string", "required": true},

@@ -2,6 +2,11 @@
   "component_type": "dagster_component_templates.DorisQueryAssetComponent",
   "description": "Run a SQL query against Apache Doris and emit the result as a DataFrame asset.\n\nExample:\n\n    ```yaml\n    type: dagster_community_components.DorisQueryAssetComponent\n    attributes:\n      asset_name: doris_orders_recent\n      query: |\n        SELECT order_id, customer_id, total, order_date\n          FROM analytics.orders\n         WHERE order_date >= CURRENT_DATE - INTERVAL 7 DAY\n      host_env_var: DORIS_FE_HOST\n      query_port: 9030\n      database: analytics\n      username_env_var: DORIS_USER\n      password_env_var: DORIS_PASSWORD\n    ```\n\nPair with ``doris_resource`` if you have multiple Doris assets — they\ncan share one connection via ``connection_string_env_var``. For a\nsingle asset, the env-var fields below are enough.",
   "category": "source",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe"
+    }
+  },
   "icon": "si:apache",
   "attributes": {
     "asset_name": {

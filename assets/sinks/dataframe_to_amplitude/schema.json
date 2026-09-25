@@ -2,6 +2,15 @@
   "component_type": "dagster_component_templates.DataframeToAmplitudeComponent",
   "description": "Reverse-ETL sink — POST DataFrame rows as Amplitude events via HTTP V2 API (POST /2/httpapi, up to 1000/batch). Sets event_type + user_id/device_id + event_properties + user_properties per row.",
   "category": "sink",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true
+    },
+    "outputs": {
+      "type": "MaterializeResult"
+    }
+  },
   "icon": "si:amplitude",
   "attributes": {
     "asset_name": {"label": "Asset Name", "type": "string", "required": true},

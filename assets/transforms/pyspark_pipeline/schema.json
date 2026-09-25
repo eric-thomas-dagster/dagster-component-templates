@@ -4,7 +4,8 @@
   "category": "transformation",
   "icon": "Zap",
   "x-dagster-io": {
-    "outputs": {"type": "table_or_dataframe", "description": "Either materialized to one or more sinks (parquet/table/jdbc) or returned as pandas (sink kind=none)"}
+    "inputs": {"type": "dataframe", "required": false, "description": "Only when a step's source is configured with kind=upstream (real wired input via the IO manager); otherwise this pipeline reads directly from files/tables/jdbc per its own source config and this port is unused."},
+    "outputs": {"type": "dataframe", "description": "Only when sink kind=none (returned as pandas through the IO manager); otherwise (parquet/table/jdbc sink) this materializes directly and downstream components should reference the written location out-of-band, not via this port."}
   },
   "attributes": {
     "asset_name":         {"label": "Asset Name", "type": "string", "required": true},

@@ -2,6 +2,15 @@
   "component_type": "dagster_component_templates.WindowCalculationComponent",
   "description": "Window functions \u2014 PARTITION BY + ORDER BY + (lag, lead, rank, dense_rank, row_number, cumulative sum, moving avg). The full SQL window-function shape, in pandas.",
   "category": "transformation",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true
+    },
+    "outputs": {
+      "type": "dataframe"
+    }
+  },
   "icon": "ArrowsRightLeft",
   "attributes": {
     "asset_name": {

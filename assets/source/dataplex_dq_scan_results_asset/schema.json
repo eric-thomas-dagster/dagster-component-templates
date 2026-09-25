@@ -2,6 +2,11 @@
   "component_type": "dagster_component_templates.DataplexDqScanResultsAssetComponent",
   "description": "DataplexDqScanResultsAssetComponent \u2014 pull the latest Dataplex Data-Quality scan results.",
   "category": "source",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe"
+    }
+  },
   "icon": "si:googlecloud",
   "attributes": {
     "asset_name": {

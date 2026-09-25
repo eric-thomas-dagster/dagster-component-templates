@@ -2,6 +2,11 @@
   "component_type": "dagster_community_components.SparkK8sOperatorAssetComponent",
   "description": "Submit a SparkApplication CRD to the Kubernetes Spark Operator (kubeflow/spark-on-k8s-operator) and materialize on terminal state (COMPLETED / FAILED / SUBMISSION_FAILED). Right for organizations wrapping PySpark ETLs behind a config-driven framework and submitting them to k8s. Requires kubectl on PATH.",
   "category": "infrastructure",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult"
+    }
+  },
   "icon": "PlayArrow",
   "attributes": {
     "asset_name": {"type": "string", "label": "Asset Name", "required": true},

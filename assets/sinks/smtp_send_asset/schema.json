@@ -2,6 +2,15 @@
   "component_type": "dagster_component_templates.SmtpSendAssetComponent",
   "description": "SmtpSendAssetComponent \u2014 send emails via SMTP.",
   "category": "sink",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true
+    },
+    "outputs": {
+      "type": "MaterializeResult"
+    }
+  },
   "icon": "Send",
   "attributes": {
     "asset_name": {

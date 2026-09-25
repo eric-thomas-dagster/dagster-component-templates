@@ -2,6 +2,15 @@
   "component_type": "dagster_component_templates.X12EdiParserComponent",
   "description": "X12EdiParserComponent \u2014 parse ASC X12 EDI envelopes into a flat DataFrame.",
   "category": "transformation",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true
+    },
+    "outputs": {
+      "type": "dataframe"
+    }
+  },
   "icon": "FileCode",
   "attributes": {
     "asset_name": {

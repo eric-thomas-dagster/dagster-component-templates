@@ -2,6 +2,11 @@
   "component_type": "dagster_component_templates.ExternalDorisTableAsset",
   "description": "Declare an Apache Doris table as an external Dagster asset.\n\nExample:\n    ```yaml\n    type: dagster_community_components.ExternalDorisTableAsset\n    attributes:\n      asset_key: doris/analytics/events_realtime\n      database: analytics\n      table: events_realtime\n      fe_host: doris-fe.mycompany.com\n      group_name: doris\n      description: |\n        Real-time events table populated by Routine Load from Kafka.\n    ```",
   "category": "external",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetSpec"
+    }
+  },
   "icon": "si:apache",
   "attributes": {
     "asset_key": {

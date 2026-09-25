@@ -2,6 +2,11 @@
   "component_type": "dagster_component_templates.PreciselyConnectJobTriggerComponent",
   "description": "Trigger a Precisely Connect ETL job-run via the ``/runtask`` endpoint.\n\nExample:\n    ```yaml\n    type: dagster_community_components.PreciselyConnectJobTriggerComponent\n    attributes:\n      asset_name: precisely_load_customers_run\n      job_id: \"abc-123-xyz\"\n      host_env_var: PRECISELY_HOST\n      api_token_env_var: PRECISELY_API_TOKEN\n      parameters:\n        INPUT_FILE: /data/customers.csv\n        BATCH_DATE: \"2026-05-27\"\n    ```\n\nThe returned jobRunId is captured as asset metadata so a paired\n``precisely_job_sensor`` can read it from the latest materialization\nand watch for terminal SUCCESS — closing the submit + watch loop.",
   "category": "infrastructure",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult"
+    }
+  },
   "icon": "PlayCircle",
   "attributes": {
     "asset_key": {

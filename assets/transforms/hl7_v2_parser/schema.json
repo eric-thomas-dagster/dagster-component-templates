@@ -2,6 +2,15 @@
   "component_type": "dagster_component_templates.Hl7V2ParserComponent",
   "description": "Hl7V2ParserComponent \u2014 parse pipe-delimited HL7 v2 messages to a DataFrame.",
   "category": "transformation",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true
+    },
+    "outputs": {
+      "type": "dataframe"
+    }
+  },
   "icon": "HeartPulse",
   "attributes": {
     "asset_name": {

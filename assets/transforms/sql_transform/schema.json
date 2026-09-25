@@ -4,9 +4,14 @@
   "category": "transformation",
   "icon": "Database",
   "x-dagster-io": {
+    "inputs": {
+      "type": "asset_reference",
+      "required": false,
+      "description": "Upstream table(s) referenced by name in the query template — no data passed"
+    },
     "outputs": {
-      "type": "warehouse_table",
-      "description": "A new or replaced table written directly on the warehouse"
+      "type": "asset_reference",
+      "description": "Default mode (return_dataframe=false): a new or replaced table written directly on the warehouse, referenceable by name — no data passed. When return_dataframe=true instead, this asset returns a real pandas DataFrame through the IO manager (a 'dataframe'-typed output) for chaining into downstream pandas transforms."
     }
   },
   "attributes": {

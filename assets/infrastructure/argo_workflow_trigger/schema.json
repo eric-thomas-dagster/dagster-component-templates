@@ -2,6 +2,11 @@
   "component_type": "dagster_component_templates.ArgoWorkflowTriggerComponent",
   "description": "Trigger an Argo Workflow run via the Argo Server REST API.\n\nExample — submit from a WorkflowTemplate with parameters:\n\n    ```yaml\n    type: dagster_community_components.ArgoWorkflowTriggerComponent\n    attributes:\n      asset_key: argo/etl/nightly_aggregation\n      workflow_template: nightly-aggregation\n      namespace: argo\n      parameters:\n        INPUT_DATE: \"2026-05-27\"\n        REGION: us-east-1\n      host_env_var: ARGO_SERVER_URL\n      token_env_var: ARGO_TOKEN\n    ```\n\nThe returned workflow name (Argo generates it server-side, often\nwith a 5-char suffix like `nightly-aggregation-xyz12`) lands in\nasset metadata so a paired ``argo_workflow_sensor`` can pick it up.\n\n**Do NOT pair on the same asset_key as ``external_argo_workflow``** —\nthose represent the same workflow with different schedule ownership.\nPick the Case (A or B) that matches your setup; the components are\nalternatives, not complements.",
   "category": "infrastructure",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult"
+    }
+  },
   "icon": "si:argo",
   "attributes": {
     "asset_key": {

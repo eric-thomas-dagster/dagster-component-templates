@@ -2,6 +2,15 @@
   "component_type": "dagster_component_templates.FixMessageParserComponent",
   "description": "FixMessageParserComponent — parse FIX (Financial Information eXchange) messages.",
   "category": "transformation",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true
+    },
+    "outputs": {
+      "type": "dataframe"
+    }
+  },
   "icon": "Landmark",
   "attributes": {
     "asset_name": {

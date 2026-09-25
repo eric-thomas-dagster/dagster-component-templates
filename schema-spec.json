@@ -110,9 +110,10 @@
             "enum": [
               "dataframe",
               "string",
-              "any"
+              "any",
+              "asset_reference"
             ],
-            "description": "'dataframe' is the most common \u2014 the component receives a pandas DataFrame via the Dagster IO manager."
+            "description": "'dataframe' is the most common \u2014 the component receives a pandas DataFrame via the Dagster IO manager. 'asset_reference' is different in kind, not just name: no object is ever passed \u2014 the component reads its upstream by a literal name typed into its own config (e.g. upstream_table) and only records the dependency via `deps` for lineage. Connecting an asset_reference port should make the canvas fill in that name/deps field, not attempt to pass data \u2014 see core/asset_reference for the canonical example."
           },
           "required": {
             "type": "boolean",
@@ -133,9 +134,10 @@
               "dataframe",
               "MaterializeResult",
               "string",
-              "any"
+              "any",
+              "asset_reference"
             ],
-            "description": "'dataframe' = passes a pandas DataFrame downstream via IO manager. 'MaterializeResult' = terminal sink/ingestion, returns metadata only."
+            "description": "'dataframe' = passes a pandas DataFrame downstream via IO manager. 'MaterializeResult' = terminal sink/ingestion, returns metadata only. 'asset_reference' = declares a named thing (e.g. a warehouse table) other components can depend on by name via their own `deps`/`upstream_table`-style config — no object is ever passed through this port."
           },
           "description": {
             "type": "string",
@@ -365,8 +367,16 @@
       "x-dagster-io": {}
     },
     "core": {
-      "description": "Structural building blocks (asset references, dependency graphs) used to compose a pipeline definition, not standalone data components.",
-      "x-dagster-io": {}
+      "description": "Structural building blocks (asset references, dependency graphs) used to compose a pipeline definition, not standalone data components. Both ports are asset_reference, matching the warehouse_* SQL family (transformation category) that uses the identical deps-only pattern.",
+      "inputs": {
+        "type": "asset_reference",
+        "required": false,
+        "description": "Upstream asset(s) referenced by name via deps — no data passed"
+      },
+      "outputs": {
+        "type": "asset_reference",
+        "description": "This asset's name, referenceable by other components' deps — no data passed"
+      }
     },
     "decorator": {
       "description": "Wraps/augments an existing asset definition (caching, retries, locks, snapshots, etc.) rather than defining a new data flow.",
@@ -662,9 +672,9 @@
         "note": "Op-shaped maintenance/action job, no data ports"
       },
       "core": {
-        "left": false,
+        "left": true,
         "right": true,
-        "note": "Declares a definition (asset reference, dependency edge) other components can depend on"
+        "note": "Both sides are asset_reference (name/lineage) edges, not data-passing ports — it references upstream assets by name via deps, and other components can in turn reference it by name"
       },
       "decorator": {
         "left": true,

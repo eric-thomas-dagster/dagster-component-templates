@@ -2,6 +2,11 @@
   "component_type": "dagster_component_templates.BicepAssetComponent",
   "description": "Deploy a Bicep template as a Dagster asset (compiles via `az bicep build` then deploys via ARM).",
   "category": "infrastructure",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult"
+    }
+  },
   "icon": "Shield",
   "attributes": {
     "asset_name": {

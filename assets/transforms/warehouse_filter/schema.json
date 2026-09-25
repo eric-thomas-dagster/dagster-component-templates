@@ -4,8 +4,8 @@
   "category": "transformation",
   "icon": "Filter",
   "x-dagster-io": {
-    "inputs":  {"type": "table", "required": true, "description": "Source table"},
-    "outputs": {"type": "table", "description": "CTAS-produced table"}
+    "inputs":  {"type": "asset_reference", "required": true, "description": "Source table"},
+    "outputs": {"type": "asset_reference", "description": "CTAS-produced table"}
   },
   "attributes": {
     "asset_name":           {"type": "string", "required": true, "label": "Asset Name"},

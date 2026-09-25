@@ -2,6 +2,15 @@
   "component_type": "dagster_component_templates.DataframeToKlaviyoComponent",
   "description": "Reverse-ETL sink — POST DataFrame rows as Klaviyo profile updates via the async bulk profile-import job endpoint. Two source shapes (upstream_asset_key OR inline source). Reserved fields (email, phone_number, external_id, first_name, ...) land at the top level; everything else nests under `properties`.",
   "category": "sink",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true
+    },
+    "outputs": {
+      "type": "MaterializeResult"
+    }
+  },
   "icon": "si:klaviyo",
   "attributes": {
     "asset_name": {"label": "Asset Name", "type": "string", "required": true},

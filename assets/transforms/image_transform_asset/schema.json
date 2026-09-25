@@ -2,6 +2,15 @@
   "component_type": "dagster_component_templates.ImageTransformAssetComponent",
   "description": "ImageTransformAssetComponent — Pillow-based image resize / crop / format-convert.",
   "category": "transformation",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true
+    },
+    "outputs": {
+      "type": "dataframe"
+    }
+  },
   "icon": "Image",
   "attributes": {
     "asset_name": {

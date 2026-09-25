@@ -2,6 +2,11 @@
   "component_type": "dagster_component_templates.AutomationConditionApplicatorComponent",
   "description": "Apply Dagster AutomationConditions broadly via selection rules with fall-through priority. Six derive strategies (most_frequent / least_frequent / tiered / staggered / any_dep_updated / all_deps_updated), preset shortcuts, explicit cron, Python escape hatch. Three modifiers (label / business_hours_only / min_interval_minutes). Per-asset settings preserved by default; topological cadence propagation through chains.",
   "category": "infrastructure",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult"
+    }
+  },
   "icon": "Workflow",
   "attributes": {
     "preserve_existing": {

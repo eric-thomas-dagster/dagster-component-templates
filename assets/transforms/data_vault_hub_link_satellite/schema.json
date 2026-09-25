@@ -2,6 +2,15 @@
   "component_type": "dagster_community_components.DataVaultHubLinkSatelliteComponent",
   "description": "Take a raw source DataFrame and generate Data Vault 2.0 Hub / Link / Satellite tables with system columns (hash_key, load_date, record_source, hash_diff). Emits 2-3 assets per config: <entity>_hub, <entity>_sat, and optionally <entity>_link. Each asset is independently materializable via SDA — see lineage back to the raw source.",
   "category": "transformation",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true
+    },
+    "outputs": {
+      "type": "dataframe"
+    }
+  },
   "icon": "AccountTree",
   "attributes": {
     "entity": {"type": "string", "label": "Entity Name", "required": true, "description": "Base name — emitted assets are <entity>_hub / _link / _sat."},

@@ -2,6 +2,11 @@
   "component_type": "dagster_community_components.TemporalSignalAssetComponent",
   "description": "Send a Signal to a running Temporal workflow as a Dagster asset. For long-lived workflows that need Dagster-driven state pushes (flush, add, kick, shutdown).",
   "category": "infrastructure",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult"
+    }
+  },
   "icon": "si:temporal",
   "attributes": {
     "asset_key": {"label": "Asset Key", "type": "string", "required": true},

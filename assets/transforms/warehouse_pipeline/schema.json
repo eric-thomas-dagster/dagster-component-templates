@@ -4,9 +4,14 @@
   "category": "transformation",
   "icon": "Workflow",
   "x-dagster-io": {
+    "inputs": {
+      "type": "asset_reference",
+      "required": false,
+      "description": "Upstream table(s) referenced by name in each step — no data passed"
+    },
     "outputs": {
-      "type": "table",
-      "description": "One or more materialized tables (one per sink)"
+      "type": "asset_reference",
+      "description": "One or more materialized tables (one per sink), referenceable by name — no data passed"
     }
   },
   "attributes": {

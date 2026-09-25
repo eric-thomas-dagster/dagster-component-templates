@@ -2,6 +2,17 @@
   "component_type": "dagster_component_templates.LineageToOpenMetadataComponent",
   "description": "Lineage → OpenMetadata sink. Pushes the upstream lineage_graph payload to OpenMetadata via REST API (service → database → schema → table hierarchy + lineage edges).",
   "category": "sink",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dict",
+      "required": true,
+      "description": "Canonical lineage payload from lineage_graph_extractor"
+    },
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Push status + last-pushed hash for change detection"
+    }
+  },
   "icon": "Network",
   "attributes": {
     "asset_name": {"type": "string", "label": "Asset Name", "description": "Output sink asset name.", "required": false, "default": "lineage_to_openmetadata"},

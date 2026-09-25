@@ -4,7 +4,8 @@
   "category": "ai",
   "icon": "Assessment",
   "x-dagster-io": {
-    "outputs": {"type": "table", "description": "One asset with per-provider metrics + winner-by-cost + winner-by-quality + winner-by-value + projected daily savings + recommendation string."}
+    "inputs": {"type": "dict", "required": true, "description": "Per-provider metrics payloads from upstream `candidates` (and optional `evaluator`) assets — cost_usd + latency_ms + tokens_* per candidate."},
+    "outputs": {"type": "dict", "description": "One asset with per-provider metrics + winner-by-cost + winner-by-quality + winner-by-value + projected daily savings + recommendation string."}
   },
   "attributes": {
     "asset_name":         {"type": "string", "required": true, "label": "Asset Name"},

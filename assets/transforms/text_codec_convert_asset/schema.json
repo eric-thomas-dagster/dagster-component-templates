@@ -2,6 +2,15 @@
   "component_type": "dagster_component_templates.TextCodecConvertAssetComponent",
   "description": "TextCodecConvertAssetComponent \u2014 convert text between codecs (ASCII\u2194EBCDIC, etc.).",
   "category": "transformation",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true
+    },
+    "outputs": {
+      "type": "dataframe"
+    }
+  },
   "icon": "Type",
   "attributes": {
     "asset_name": {

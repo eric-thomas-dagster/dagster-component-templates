@@ -4,6 +4,10 @@
   "category": "core",
   "icon": "GitBranch",
   "description": "Define dependencies between assets without modifying component schemas",
+  "x-dagster-io": {
+    "inputs": {"type": "asset_reference", "required": false, "description": "Upstream asset(s) referenced by name in each edge — no data passed"},
+    "outputs": {"type": "asset_reference", "description": "The dependency edges declared here, referenceable by other components' deps — no data passed"}
+  },
   "version": "1.0.0",
   "author": "Dagster Community",
   "attributes": {

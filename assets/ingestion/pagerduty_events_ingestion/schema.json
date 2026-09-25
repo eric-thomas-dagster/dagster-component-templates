@@ -149,7 +149,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None.",
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None. Note: for the incidents resource is filtered by since/until bound to the partition window (see context.partition_time_window in component.py). Other resources are not.",
       "required": false,
       "default": null,
       "enum": [

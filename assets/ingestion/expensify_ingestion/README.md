@@ -8,6 +8,9 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 > **Note:** Expensify's Integration Server API uses a non-standard request shape (credentials and job type inside a JSON body, not headers) -- the exact requestJobDescription fields here are a best-effort mapping from dltHub's reference; verify against Expensify's own Integration Server docs before production use.
 
+
+> **Partition honesty note:** if you set `partition_type`, it controls Dagster's materialization/backfill schedule only. This connector's compute function does not use the partition key to filter the API request, so every partition run re-fetches the same full resource set rather than a bounded window. See `calendly_ingestion` / `pagerduty_events_ingestion` for connectors where the fetch is genuinely bound to the partition.
+
 ## Configuration
 
 | Field | Required | Description |

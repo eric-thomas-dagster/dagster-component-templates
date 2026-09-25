@@ -156,7 +156,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None.",
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None. Note: this connector's compute function does not currently use the partition key to filter the underlying API request -- every partition run re-fetches the same full resource set. Declaring a partition type here controls the materialization/backfill schedule in Dagster, not what data is fetched. If you need the fetch itself narrowed to a date window, this connector does not yet support that (see calendly_ingestion / pagerduty_events_ingestion for connectors where it is genuinely bound).",
       "required": false,
       "default": null,
       "enum": [

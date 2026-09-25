@@ -156,7 +156,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None.",
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None. Note: for the scheduled_events resource is filtered by min_start_time/max_start_time bound to the partition window (see context.partition_time_window in component.py). event_types/organization_memberships are not resource-specific to a time window.",
       "required": false,
       "default": null,
       "enum": [

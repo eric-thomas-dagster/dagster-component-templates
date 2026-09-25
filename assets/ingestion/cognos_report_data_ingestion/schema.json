@@ -2,7 +2,6 @@
   "component_type": "dagster_community_components.CognosReportDataIngestionComponent",
   "description": "Run a Cognos report in CSV or JSON output format and materialize the result as a Dagster DataFrame. Foundation for Cognos \u2192 warehouse / dbt pipelines. Parameter overrides supported.",
   "category": "source",
-
   "vertical": "productivity",
   "icon": "TableChart",
   "x-dagster-io": {
@@ -56,6 +55,21 @@
       "label": "Resource Key",
       "required": false,
       "default": "cognos_resource"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include a markdown preview of the fetched rows in the materialization metadata.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Max rows to include in the preview when include_preview_metadata is True.",
+      "required": false,
+      "default": 25
     }
   }
 }

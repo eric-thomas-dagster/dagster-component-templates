@@ -2,7 +2,6 @@
   "component_type": "dagster_community_components.TM1CubeDataIngestionComponent",
   "description": "Materialize a slice of a TM1 cube via MDX as a Dagster DataFrame asset. Two modes: (1) explicit MDX statement executed via /ExecuteMDX, or (2) simplified cube + row_dimensions + column_dimensions + filters, from which an MDX is generated. Foundation for TM1 \u2192 warehouse / dbt / dashboards.",
   "category": "source",
-
   "vertical": "productivity",
   "icon": "TableChart",
   "x-dagster-io": {
@@ -60,6 +59,21 @@
       "required": false,
       "default": "tm1_resource",
       "description": "Resource key to look up."
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include a markdown preview of the fetched rows in the materialization metadata.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Max rows to include in the preview when include_preview_metadata is True.",
+      "required": false,
+      "default": 25
     }
   }
 }

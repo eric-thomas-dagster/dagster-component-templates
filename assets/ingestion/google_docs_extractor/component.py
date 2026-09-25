@@ -219,6 +219,15 @@ class GoogleDocsExtractorComponent(Component, Model, Resolvable):
         description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5'.",
     )
 
+    include_preview_metadata: bool = Field(
+        default=True,
+        description="Include a markdown preview of the fetched rows in the materialization metadata.",
+    )
+    preview_rows: int = Field(
+        default=10,
+        description="Max rows to include in the preview when include_preview_metadata is True.",
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         freshness_policy = None
         if self.freshness_max_lag_minutes is not None:
@@ -371,7 +380,11 @@ class GoogleDocsExtractorComponent(Component, Model, Resolvable):
             if any(errors):
                 df["_error"] = errors
 
-            preview_md = df.head(10).to_markdown(index=False) if not df.empty else "(empty)"
+            _preview_rows = self.preview_rows
+            preview_md = (
+                (df.sample(min(_preview_rows, len(df))) if len(df) > _preview_rows * 10 else df.head(_preview_rows)).to_markdown(index=False)
+                if self.include_preview_metadata and not df.empty else "(empty)"
+            )
             md = {
                 "rows":         MetadataValue.int(len(df)),
                 "successful":   MetadataValue.int(int(df.get("title", pd.Series(dtype=object)).notna().sum())),

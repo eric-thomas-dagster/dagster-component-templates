@@ -64,6 +64,15 @@ class TM1CubeDataIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
     resource_key: str = Field(default="tm1_resource", description="Resource key to look up.")
 
+    include_preview_metadata: bool = Field(
+        default=False,
+        description="Include a markdown preview of the fetched rows in the materialization metadata.",
+    )
+    preview_rows: int = Field(
+        default=25,
+        description="Max rows to include in the preview when include_preview_metadata is True.",
+    )
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         required_resource_keys = {self.resource_key}
@@ -138,7 +147,17 @@ class TM1CubeDataIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
                 rows.append(row)
 
             df = pd.DataFrame(rows)
-            context.add_output_metadata({
+            _preview_metadata = {}
+            if _self.include_preview_metadata:
+                _prev_df = df.sample(min(_self.preview_rows, len(df))) if len(df) > _self.preview_rows * 10 else df.head(_self.preview_rows)
+                _cols = list(_prev_df.columns)
+                _preview_metadata["preview"] = dg.MetadataValue.md(
+                    "| " + " | ".join(_cols) + " |\n"
+                    "| " + " | ".join(["---"] * len(_cols)) + " |\n" +
+                    "\n".join("| " + " | ".join(str(v) for v in row) + " |" for row in _prev_df.itertuples(index=False))
+                )
+
+            context.add_output_metadata({**_preview_metadata, 
                 "row_count": len(df),
                 "cube": _self.cube,
                 "mdx_preview": dg.MetadataValue.md(f"```sql\n{mdx[:800]}\n```"),

@@ -150,6 +150,21 @@
       "description": "Name for DynamicPartitionsDefinition when partition_type='dynamic'.",
       "required": false,
       "default": null
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include a markdown preview of the fetched messages in the materialization metadata.",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Max rows to include in the preview when include_preview_metadata is True.",
+      "required": false,
+      "default": 5
     }
   },
   "tags": [

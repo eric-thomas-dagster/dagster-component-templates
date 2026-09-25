@@ -62,6 +62,15 @@ class AuditLogsToElasticSecurityComponent(dg.Component, dg.Model, dg.Resolvable)
         description="Name for DynamicPartitionsDefinition when partition_type='dynamic'.",
     )
 
+    include_preview_metadata: bool = Field(
+        default=False,
+        description="Include a markdown preview of the shipped rows in the materialization metadata.",
+    )
+    preview_rows: int = Field(
+        default=25,
+        description="Max rows to include in the preview when include_preview_metadata is True.",
+    )
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         partitions_def = None
         if self.partition_type:
@@ -130,6 +139,17 @@ class AuditLogsToElasticSecurityComponent(dg.Component, dg.Model, dg.Resolvable)
             if isinstance(df, dict):
                 _frames = [v for v in df.values() if isinstance(v, pd.DataFrame)]
                 df = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
+
+            _preview_metadata = {}
+            if _self.include_preview_metadata:
+                _prev_df = df.sample(min(_self.preview_rows, len(df))) if len(df) > _self.preview_rows * 10 else df.head(_self.preview_rows)
+                _cols = list(_prev_df.columns)
+                _preview_metadata["preview"] = dg.MetadataValue.md(
+                    "| " + " | ".join(_cols) + " |\n"
+                    "| " + " | ".join(["---"] * len(_cols)) + " |\n" +
+                    "\n".join("| " + " | ".join(str(v) for v in row) + " |" for row in _prev_df.itertuples(index=False))
+                )
+
             from elasticsearch import Elasticsearch, helpers
             kw = {"verify_certs": _self.verify_certs}
             if _self.api_key_env:
@@ -139,7 +159,7 @@ class AuditLogsToElasticSecurityComponent(dg.Component, dg.Model, dg.Resolvable)
             es = Elasticsearch(_self.es_url, **kw)
             actions = ({"_index": _self.index, "_source": json.loads(row.to_json())} for _, row in df.iterrows())
             success, errors = helpers.bulk(es, actions, raise_on_error=False)
-            return dg.MaterializeResult(metadata={
+            return dg.MaterializeResult(metadata={**_preview_metadata, 
                 "events_sent": dg.MetadataValue.int(int(success)),
                 "errors": dg.MetadataValue.int(len(errors) if isinstance(errors, list) else 0),
                 "index": dg.MetadataValue.text(_self.index),

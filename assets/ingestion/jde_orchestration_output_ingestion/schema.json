@@ -2,7 +2,6 @@
   "component_type": "dagster_community_components.JDEOrchestrationOutputIngestionComponent",
   "description": "Execute a JDE orchestration and emit its row-list output as a Dagster DataFrame. Common pattern: orchestrations that wrap JDE Data Services (table reads) or Business Function calls returning tabular results. Foundation for JDE \u2192 warehouse pipelines.",
   "category": "source",
-
   "vertical": "productivity",
   "icon": "TableChart",
   "x-dagster-io": {
@@ -52,6 +51,21 @@
       "label": "Resource Key",
       "required": false,
       "default": "jde_orchestrator_resource"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include a markdown preview of the fetched rows in the materialization metadata.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Max rows to include in the preview when include_preview_metadata is True.",
+      "required": false,
+      "default": 25
     }
   }
 }

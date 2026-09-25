@@ -2,7 +2,6 @@
   "component_type": "dagster_community_components.QlikReplicateTaskMetricsIngestionComponent",
   "description": "Poll Qlik Enterprise Manager for per-task metrics (state, latency, throughput, error count) and emit a DataFrame asset. One row per task per materialization. Foundation for CDC observability dashboards and alert-input assets.",
   "category": "source",
-
   "vertical": "productivity",
   "icon": "TableChart",
   "x-dagster-io": {
@@ -42,6 +41,21 @@
       "required": false,
       "default": "qlik_replicate_resource",
       "description": "Resource key to look up."
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include a markdown preview of the fetched rows in the materialization metadata.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Max rows to include in the preview when include_preview_metadata is True.",
+      "required": false,
+      "default": 25
     }
   }
 }

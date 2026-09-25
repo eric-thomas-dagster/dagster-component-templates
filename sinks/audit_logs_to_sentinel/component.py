@@ -60,6 +60,15 @@ class AuditLogsToSentinelComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Name for DynamicPartitionsDefinition when partition_type='dynamic'.",
     )
 
+    include_preview_metadata: bool = Field(
+        default=False,
+        description="Include a markdown preview of the shipped rows in the materialization metadata.",
+    )
+    preview_rows: int = Field(
+        default=25,
+        description="Max rows to include in the preview when include_preview_metadata is True.",
+    )
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         partitions_def = None
         if self.partition_type:
@@ -128,6 +137,17 @@ class AuditLogsToSentinelComponent(dg.Component, dg.Model, dg.Resolvable):
             if isinstance(df, dict):
                 _frames = [v for v in df.values() if isinstance(v, pd.DataFrame)]
                 df = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
+
+            _preview_metadata = {}
+            if _self.include_preview_metadata:
+                _prev_df = df.sample(min(_self.preview_rows, len(df))) if len(df) > _self.preview_rows * 10 else df.head(_self.preview_rows)
+                _cols = list(_prev_df.columns)
+                _preview_metadata["preview"] = dg.MetadataValue.md(
+                    "| " + " | ".join(_cols) + " |\n"
+                    "| " + " | ".join(["---"] * len(_cols)) + " |\n" +
+                    "\n".join("| " + " | ".join(str(v) for v in row) + " |" for row in _prev_df.itertuples(index=False))
+                )
+
             import requests, hashlib, hmac, base64, datetime as dt
             key = os.environ[_self.workspace_key_env]
             sent = 0
@@ -150,7 +170,7 @@ class AuditLogsToSentinelComponent(dg.Component, dg.Model, dg.Resolvable):
                 if r.status_code >= 300:
                     raise Exception(f"Sentinel ingestion error: {r.status_code} {r.text[:200]}")
                 sent += len(chunk)
-            return dg.MaterializeResult(metadata={
+            return dg.MaterializeResult(metadata={**_preview_metadata, 
                 "events_sent": dg.MetadataValue.int(sent),
                 "log_type": dg.MetadataValue.text(_self.log_type),
             })

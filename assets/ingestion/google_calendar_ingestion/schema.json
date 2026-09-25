@@ -2,7 +2,6 @@
   "component_type": "dagster_component_templates.GoogleCalendarIngestionComponent",
   "description": "List events from a Google Calendar via a service account. Returns one row per event with summary, time, location, attendees, organizer, html_link.",
   "category": "source",
-
   "vertical": "productivity",
   "icon": "si:googlecalendar",
   "x-dagster-io": {
@@ -149,6 +148,21 @@
       "type": "array",
       "label": "Partition Dimensions",
       "required": false
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include a markdown preview of the fetched rows in the materialization metadata.",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Max rows to include in the preview when include_preview_metadata is True.",
+      "required": false,
+      "default": 10
     }
   },
   "tags": [

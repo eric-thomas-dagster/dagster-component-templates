@@ -218,6 +218,15 @@ class ImapInboxSourceComponent(Component, Model, Resolvable):
         description="Name for DynamicPartitionsDefinition when partition_type='dynamic'.",
     )
 
+    include_preview_metadata: bool = Field(
+        default=True,
+        description="Include a markdown preview of the fetched messages in the materialization metadata.",
+    )
+    preview_rows: int = Field(
+        default=5,
+        description="Max rows to include in the preview when include_preview_metadata is True.",
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         partitions_def = None
         if self.partition_type:
@@ -278,6 +287,8 @@ class ImapInboxSourceComponent(Component, Model, Resolvable):
         mark_read = self.mark_read
         emit_html = self.include_body_html
         fallback = self.fallback_html_to_text
+        include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
 
         @asset(
             key=AssetKey.from_user_string(asset_name),
@@ -371,9 +382,14 @@ class ImapInboxSourceComponent(Component, Model, Resolvable):
                 conn.logout()
 
             df = pd.DataFrame(rows)
-            preview = df.head(5)[
-                [c for c in ("subject", "from", "sent_at", "attachments_count") if c in df.columns]
-            ].to_markdown(index=False) if not df.empty else "(no rows)"
+            if not include_preview:
+                preview = "(preview disabled)"
+            elif df.empty:
+                preview = "(no rows)"
+            else:
+                preview = df.head(preview_rows)[
+                    [c for c in ("subject", "from", "sent_at", "attachments_count") if c in df.columns]
+                ].to_markdown(index=False)
             return Output(
                 value=df,
                 metadata={

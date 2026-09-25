@@ -2,7 +2,6 @@
   "component_type": "dagster_component_templates.GoogleDocsExtractorComponent",
   "description": "Extract plain text + headings from Google Docs by ID via a service account. Works with an explicit list of doc_ids OR upstream of google_drive_ingestion (filter Drive to application/vnd.google-apps.document, feed IDs here).",
   "category": "source",
-
   "vertical": "productivity",
   "icon": "si:googledocs",
   "x-dagster-io": {
@@ -144,6 +143,21 @@
       "type": "array",
       "label": "Partition Dimensions",
       "required": false
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include a markdown preview of the fetched rows in the materialization metadata.",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Max rows to include in the preview when include_preview_metadata is True.",
+      "required": false,
+      "default": 10
     }
   },
   "tags": [

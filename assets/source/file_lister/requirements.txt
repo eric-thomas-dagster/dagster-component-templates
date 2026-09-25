@@ -1,0 +1,7 @@
+pandas>=2.0.0
+fsspec>=2024.0.0
+
+# Optional — install only the protocol(s) you actually list against:
+#   pip install s3fs              # for s3:// URIs
+#   pip install gcsfs             # for gs:// URIs
+#   pip install adlfs             # for abfss:// / abfs:// / az:// URIs

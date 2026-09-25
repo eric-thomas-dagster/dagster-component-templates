@@ -1,0 +1,192 @@
+{
+  "component_type": "dagster_component_templates.FileListerComponent",
+  "name": "File Lister",
+  "description": "List files matching a glob from any fsspec location (S3, GCS, ADLS, local) into a DataFrame of paths, optionally downloading each to a local cache.",
+  "category": "source",
+  "vertical": "cloud-storage",
+  "icon": "FolderSearch",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame with one row per matched file: path, local_path, filename, size, modified_at"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "required": true
+    },
+    "path": {
+      "type": "string",
+      "label": "Path / Glob",
+      "description": "Glob pattern or fsspec URI to list, e.g. 's3://my-bucket/invoices/**/*.pdf', 'gs://my-bucket/audio/*.wav', 'abfss://container@account.dfs.core.windows.net/docs/*.png', or a local path like '/data/incoming/*.pdf'.",
+      "required": true
+    },
+    "download": {
+      "type": "boolean",
+      "label": "Download Files",
+      "description": "Download each matched file to a local cache directory and populate local_path. Set false to list metadata only.",
+      "required": false,
+      "default": true
+    },
+    "download_dir": {
+      "type": "string",
+      "label": "Download Directory",
+      "description": "Local directory to cache downloaded files in. Auto-generated under the system temp dir if unset.",
+      "required": false,
+      "default": null
+    },
+    "max_files": {
+      "type": "integer",
+      "label": "Max Files",
+      "description": "Safety cap on how many matched files to list/download in one materialize. Unset means no cap.",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description of the asset",
+      "required": false,
+      "default": ""
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group name for organization",
+      "required": false,
+      "default": ""
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
+      "required": false,
+      "default": null
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'}",
+      "required": false,
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Asset kinds for the Dagster catalog. Auto-inferred from the path's protocol if not set.",
+      "required": false,
+      "default": null
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes",
+      "description": "Maximum acceptable lag in minutes before the asset is considered stale.",
+      "required": false,
+      "default": null
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5'.",
+      "required": false,
+      "default": null
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include a preview of the output data in metadata (first rows as markdown table).",
+      "required": false,
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Rows to include in the preview metadata when include_preview_metadata is True.",
+      "required": false,
+      "default": 25
+    },
+    "column_lineage": {
+      "type": "object",
+      "label": "Column Lineage",
+      "description": "Column-level lineage: output column → list of upstream columns it derives from.",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values; 'multi' for date × static. Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": ["daily", "weekly", "monthly", "hourly", "static", "multi"],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Partition Static Dim",
+      "description": "Dimension name for the static axis in multi-partitioning.",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Max retries on asset failure. Defines a RetryPolicy.",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Seconds between retries (default 1).",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "required": false,
+      "default": "exponential",
+      "enum": ["linear", "exponential"]
+    }
+  }
+}

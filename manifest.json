@@ -54913,9 +54913,69 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/paylocity_ingestion/requirements.txt",
       "vertical": "finance-hr",
       "icon": "ArrowUpFromLine"
+    },
+    {
+      "id": "file_lister",
+      "name": "File Lister",
+      "category": "source",
+      "description": "List files matching a glob from any fsspec location (S3, GCS, ADLS, local) into a DataFrame of paths, optionally downloading each to a local cache -- the missing upstream for the document/image/audio extractor family.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/source/file_lister",
+      "tags": [
+        "source",
+        "files",
+        "fsspec",
+        "s3",
+        "gcs",
+        "adls",
+        "listing",
+        "documents",
+        "ocr",
+        "audio"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "fsspec"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/file_lister/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/file_lister/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/file_lister/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/file_lister/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/file_lister/requirements.txt",
+      "icon": "FolderSearch",
+      "validation": {
+        "level": "code",
+        "evidence": "Verified end-to-end against a real local Dagster materialization: glob matching (excludes non-matching extensions), download=true (files copied to local cache, local_path populated), download=false (metadata-only, no bytes moved), preview metadata emission. NOT yet run against a real S3/GCS/ADLS account -- live-test before trusting in production.",
+        "last_validated": "2026-09-25"
+      },
+      "agent_hints": {
+        "inputs": "None (root source) -- lists files from object storage or a local path matching a glob.",
+        "outputs": "DataFrame with one row per matched file: path, local_path, filename, size, modified_at. Feed `local_path` into ocr_extractor/document_ai_extractor/image_llm_extractor/audio_transcriber/etc. as their upstream file-path column.",
+        "side_effects": "Downloads matched files to a local cache directory when download=true (the default). Read-only against the source location either way.",
+        "anti_uses": "Not for reading ONE already-known tabular file (CSV/JSON/Parquet) -- use file_ingestion for that. This is for discovering an unknown SET of files (documents/images/audio) matching a pattern.",
+        "output_type": "pd.DataFrame"
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "list files",
+        "bucket listing",
+        "directory listing",
+        "glob",
+        "s3 list",
+        "document source",
+        "ocr source",
+        "audio source"
+      ],
+      "vertical": "cloud-storage"
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1080
+  "total": 1081
 }

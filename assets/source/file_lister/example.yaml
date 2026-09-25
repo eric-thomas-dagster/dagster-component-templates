@@ -1,0 +1,13 @@
+type: dagster_component_templates.FileListerComponent
+attributes:
+  asset_name: incoming_invoices
+  path: s3://my-bucket/invoices/**/*.pdf
+  download: true                # cache each file locally so downstream extractors (ocr_extractor, document_ai_extractor, ...) can open a plain local path
+  # download_dir: /data/cache/incoming_invoices   # auto-generated under the system temp dir if unset
+  # max_files: 500                                # safety cap for a broad glob against a large bucket
+  description: Invoice PDFs landed by the vendor's nightly export
+  group_name: raw_documents
+  # — local path also works, no different from S3/GCS/ADLS —
+  # path: /data/incoming/*.pdf
+  # — metadata-only listing, no bytes moved —
+  # download: false

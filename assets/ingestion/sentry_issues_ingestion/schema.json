@@ -2,7 +2,6 @@
   "component_type": "dagster_community_components.SentryIssuesIngestionComponent",
   "description": "Ingest issues from a Sentry project via the /api/0/projects/{org}/{project}/issues/ REST endpoint. Handles cursor pagination via the Link header. Returns a DataFrame with flattened issue fields.",
   "category": "source",
-
   "vertical": "devops-observability",
   "icon": "AlertCircle",
   "x-dagster-io": {
@@ -12,55 +11,80 @@
     }
   },
   "attributes": {
-    "asset_name": {"label": "Asset Name", 
+    "asset_name": {
+      "label": "Asset Name",
       "type": "string",
       "required": true
     },
-    "organization": {"label": "Organization", 
+    "organization": {
+      "label": "Organization",
       "type": "string",
       "required": true,
       "description": "Sentry org slug."
     },
-    "project": {"label": "Project", 
+    "project": {
+      "label": "Project",
       "type": "string",
       "required": true,
       "description": "Sentry project slug."
     },
-    "api_host": {"label": "API Host", 
+    "api_host": {
+      "label": "API Host",
       "type": "string",
       "required": false,
       "default": "https://sentry.io"
     },
-    "api_token_env_var": {"label": "API Token Env Var", 
+    "api_token_env_var": {
+      "label": "API Token Env Var",
       "type": "string",
       "required": false,
       "default": "SENTRY_AUTH_TOKEN"
     },
-    "query": {"label": "Query", 
+    "query": {
+      "label": "Query",
       "type": "string",
       "required": false,
       "default": "is:unresolved"
     },
-    "stats_period": {"label": "Stats Period", 
+    "stats_period": {
+      "label": "Stats Period",
       "type": "string",
       "required": false,
       "default": "24h"
     },
-    "limit": {"label": "Limit", 
+    "limit": {
+      "label": "Limit",
       "type": "integer",
       "required": false,
       "default": 1000,
       "minimum": 1,
       "maximum": 10000
     },
-    "description": {"label": "Description", 
+    "description": {
+      "label": "Description",
       "type": "string",
       "required": false
     },
-    "group_name": {"label": "Group Name", 
+    "group_name": {
+      "label": "Group Name",
       "type": "string",
       "required": false,
       "default": "sentry"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "required": false,
+      "default": 25
     }
   }
 }

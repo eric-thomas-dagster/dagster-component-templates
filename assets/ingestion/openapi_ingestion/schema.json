@@ -2,7 +2,6 @@
   "component_type": "dagster_component_templates.OpenAPIIngestionComponent",
   "description": "Create one Dagster asset per OpenAPI tag group, backed by a cached spec.",
   "category": "ingestion",
-
   "vertical": "internal",
   "icon": "ArrowUpFromLine",
   "x-dagster-io": {
@@ -100,6 +99,27 @@
     "defs_state": {
       "type": "string",
       "label": "Defs State",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / None for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
       "required": false,
       "default": null
     }

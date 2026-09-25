@@ -119,6 +119,14 @@ class GcpAuditLogIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
             client = gcp_logging.Client(project=_self.project_id)
             end = dt.datetime.utcnow()
             start = end - dt.timedelta(hours=_self.lookback_hours)
+            if context.has_partition_key:
+                # A time-based partition means this run should fetch exactly that
+                # slice, not a rolling lookback_hours window from "now".
+                try:
+                    _window = context.partition_time_window
+                    start, end = _window.start, _window.end
+                except Exception:
+                    pass  # static/dynamic partition -- no natural time window
             time_filter = f'timestamp >= "{start.isoformat()}Z" AND timestamp <= "{end.isoformat()}Z"'
             full_filter = f"({_self.log_filter}) AND ({time_filter})"
             entries = list(client.list_entries(filter_=full_filter, page_size=_self.page_size))

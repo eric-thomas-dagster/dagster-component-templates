@@ -2,7 +2,6 @@
   "component_type": "dagster_community_components.PostHogEventsIngestionComponent",
   "description": "Ingest events from a PostHog project via the /events REST API. Cursor-paginated. Returns a DataFrame with flattened event fields.",
   "category": "source",
-
   "vertical": "marketing",
   "icon": "BarChart",
   "x-dagster-io": {
@@ -12,52 +11,76 @@
     }
   },
   "attributes": {
-    "asset_name": {"label": "Asset Name", 
+    "asset_name": {
+      "label": "Asset Name",
       "type": "string",
       "required": true
     },
-    "project_id": {"label": "Project ID", 
+    "project_id": {
+      "label": "Project ID",
       "type": "string",
       "required": true,
       "description": "PostHog project ID (numeric)."
     },
-    "api_host": {"label": "API Host", 
+    "api_host": {
+      "label": "API Host",
       "type": "string",
       "required": false,
       "default": "https://us.i.posthog.com"
     },
-    "api_key_env_var": {"label": "API Key Env Var", 
+    "api_key_env_var": {
+      "label": "API Key Env Var",
       "type": "string",
       "required": false,
       "default": "POSTHOG_API_KEY"
     },
-    "event": {"label": "Event", 
+    "event": {
+      "label": "Event",
       "type": "string",
       "required": false,
       "description": "Filter by event name (e.g. '$pageview')."
     },
-    "since_days": {"label": "Since Days", 
+    "since_days": {
+      "label": "Since Days",
       "type": "integer",
       "required": false,
       "default": 1,
       "minimum": 1,
       "maximum": 90
     },
-    "limit": {"label": "Limit", 
+    "limit": {
+      "label": "Limit",
       "type": "integer",
       "required": false,
       "default": 1000,
       "minimum": 1,
       "maximum": 10000
     },
-    "description": {"label": "Description", 
+    "description": {
+      "label": "Description",
       "type": "string",
       "required": false
     },
-    "group_name": {"label": "Group Name", 
+    "group_name": {
+      "label": "Group Name",
       "type": "string",
       "required": false,
       "default": "posthog"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "required": false,
+      "default": 25
     }
   }
 }

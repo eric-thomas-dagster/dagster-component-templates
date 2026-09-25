@@ -130,6 +130,14 @@ class O365AuditLogIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
             # 2. List content blobs
             end = dt.datetime.utcnow()
             start = end - dt.timedelta(hours=_self.lookback_hours)
+            if context.has_partition_key:
+                # A time-based partition means this run should fetch exactly that
+                # slice, not a rolling lookback_hours window from "now".
+                try:
+                    _window = context.partition_time_window
+                    start, end = _window.start, _window.end
+                except Exception:
+                    pass  # static/dynamic partition -- no natural time window
             list_url = f"https://manage.office.com/api/v1.0/{_self.tenant_id}/activity/feed/subscriptions/content"
             r = requests.get(list_url, params={
                 "contentType": _self.content_type,

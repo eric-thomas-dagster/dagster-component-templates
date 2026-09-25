@@ -2,7 +2,6 @@
   "component_type": "dagster_component_templates.ServiceNowIngestionComponent",
   "description": "Read records from a ServiceNow table (incident / change_request / sc_request / sys_user / cmdb_ci / custom tables) into a DataFrame asset. Goes through the ServiceNow Table API with pagination, encoded-query filtering, field selection, and basic-auth or bearer-token (OAuth) auth.",
   "category": "source",
-
   "vertical": "devops-observability",
   "icon": "Server",
   "x-dagster-io": {
@@ -179,6 +178,54 @@
       "label": "Preview Rows",
       "required": false,
       "default": 25
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'us,eu,asia'.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition when partition_type='dynamic'.",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "required": false,
+      "default": null
     }
   },
   "tags": [

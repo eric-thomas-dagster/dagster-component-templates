@@ -159,9 +159,17 @@ class DagsterPlusRunEventsIngestionComponent(dg.Component, dg.Model, dg.Resolvab
 
             base_vars = dict(_self.variables or {})
             base_vars["limit"] = _self.page_size
-            if _self.lookback_minutes:
+            if _self.lookback_minutes or context.has_partition_key:
                 end = dt.datetime.utcnow()
-                start = end - dt.timedelta(minutes=_self.lookback_minutes)
+                start = end - dt.timedelta(minutes=_self.lookback_minutes or 60)
+                if context.has_partition_key:
+                    # A time-based partition means this run should fetch exactly
+                    # that slice, not a rolling lookback_minutes window from "now".
+                    try:
+                        _window = context.partition_time_window
+                        start, end = _window.start, _window.end
+                    except Exception:
+                        pass  # static/dynamic partition -- no natural time window
                 # Dagster+ uses unix-seconds floats for time filters in many places
                 base_vars.setdefault("startTime", start.timestamp())
                 base_vars.setdefault("endTime", end.timestamp())

@@ -127,6 +127,12 @@ class SnowflakeAccessHistoryIngestionComponent(dg.Component, dg.Model, dg.Resolv
             try:
                 end = dt.datetime.utcnow()
                 start = end - dt.timedelta(hours=_self.lookback_hours)
+                if context.has_partition_key:
+                    try:
+                        _window = context.partition_time_window
+                        start, end = _window.start, _window.end
+                    except Exception:
+                        pass  # static/dynamic partition -- no natural time window
                 time_col = {
                     "ACCESS_HISTORY": "QUERY_START_TIME",
                     "LOGIN_HISTORY": "EVENT_TIMESTAMP",

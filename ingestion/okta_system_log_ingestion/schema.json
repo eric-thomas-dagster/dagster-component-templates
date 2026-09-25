@@ -2,7 +2,6 @@
   "component_type": "dagster_component_templates.OktaSystemLogIngestionComponent",
   "description": "Pull Okta System Log events (every authentication, MFA challenge, admin action) via /api/v1/logs.",
   "category": "security",
-
   "vertical": "security",
   "x-dagster-io": {
     "outputs": {
@@ -146,6 +145,43 @@
       },
       "label": "Sinks (warehouse writes)",
       "description": "Optional list of sinks that write the fetched DataFrame to a warehouse table via an existing Dagster resource, in addition to returning the DataFrame -- skips needing a separate downstream writer asset. Each: {kind: table, resource_key: <name>, table: <name>, schema: <optional>, if_exists: append|replace, mode: upsert_on_match, match: [col, col]}. mode:upsert_on_match gives partition-rewrite idempotency (DELETE-then-INSERT keyed by match, in a transaction). Auto-detects DuckDB .register() fast path; falls back to SQLAlchemy for postgres/snowflake/bigquery/mysql/mssql. The resource named by resource_key must already be configured elsewhere in the project (e.g. a snowflake_resource or postgres_resource component instance).",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "dynamic"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'us,eu,asia'.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition when partition_type='dynamic'.",
       "required": false,
       "default": null
     }

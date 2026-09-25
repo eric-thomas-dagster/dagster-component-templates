@@ -120,6 +120,14 @@ class AwsCloudTrailIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
             client = session.client("cloudtrail")
             end = dt.datetime.utcnow()
             start = end - dt.timedelta(hours=_self.lookback_hours)
+            if context.has_partition_key:
+                # A time-based partition means this run should fetch exactly that
+                # slice, not a rolling lookback_hours window from "now".
+                try:
+                    _window = context.partition_time_window
+                    start, end = _window.start, _window.end
+                except Exception:
+                    pass  # static/dynamic partition -- no natural time window
             paginator = client.get_paginator("lookup_events")
             attrs = []
             if _self.event_name_filter:

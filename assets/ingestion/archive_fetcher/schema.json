@@ -2,7 +2,6 @@
   "component_type": "dagster_component_templates.ArchiveFetcherComponent",
   "description": "Download a remote archive (zip / tar / tar.gz / tar.bz2 / tar.xz / gz / bz2), extract it, and emit a {filename: absolute_path_or_uri} dict for downstream consumption. Supports local paths and remote URIs (s3://, gs://, abfss://, az://) via fsspec.",
   "category": "source",
-
   "vertical": "cloud-storage",
   "icon": "Archive",
   "x-dagster-io": {
@@ -37,7 +36,15 @@
       "description": "Override for archive format. Auto-detected from URL extension if omitted.",
       "required": false,
       "default": null,
-      "enum": ["zip", "tar", "tar.gz", "tar.bz2", "tar.xz", "gz", "bz2"]
+      "enum": [
+        "zip",
+        "tar",
+        "tar.gz",
+        "tar.bz2",
+        "tar.xz",
+        "gz",
+        "bz2"
+      ]
     },
     "flatten": {
       "type": "boolean",
@@ -70,7 +77,7 @@
     "headers": {
       "type": "object",
       "label": "Headers",
-      "description": "Optional HTTP headers for the download — YAML dict or JSON string. Useful for Authorization, User-Agent, etc.",
+      "description": "Optional HTTP headers for the download \u2014 YAML dict or JSON string. Useful for Authorization, User-Agent, etc.",
       "required": false,
       "default": null
     },
@@ -120,6 +127,43 @@
       "type": "array",
       "label": "Deps",
       "description": "Upstream asset keys (lineage-only)",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "dynamic"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'us,eu,asia'.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition when partition_type='dynamic'.",
       "required": false,
       "default": null
     }

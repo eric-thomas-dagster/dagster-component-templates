@@ -119,6 +119,14 @@ class Auth0LogsIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
             token = os.environ[_self.mgmt_token_env]
             end = dt.datetime.utcnow()
             start = end - dt.timedelta(hours=_self.lookback_hours)
+            if context.has_partition_key:
+                # A time-based partition means this run should fetch exactly that
+                # slice, not a rolling lookback_hours window from "now".
+                try:
+                    _window = context.partition_time_window
+                    start, end = _window.start, _window.end
+                except Exception:
+                    pass  # static/dynamic partition -- no natural time window
             q = f"date:[{start.isoformat()}Z TO {end.isoformat()}Z]"
             if _self.log_type_filter:
                 q += f' AND type:"{_self.log_type_filter}"'

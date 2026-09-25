@@ -213,6 +213,17 @@ class DagsterPlusAuditLogIngestionComponent(dg.Component, dg.Model, dg.Resolvabl
 
             now = dt.datetime.now(dt.timezone.utc)
             after = now - dt.timedelta(minutes=_self.lookback_minutes)
+            if context.has_partition_key:
+                # A time-based partition means this run should fetch exactly that
+                # slice, not a rolling lookback_minutes window from "now". Dagster's
+                # partition_time_window is naive (no tzinfo) -- attach UTC explicitly
+                # so .timestamp() below doesn't misinterpret it as local time.
+                try:
+                    _window = context.partition_time_window
+                    after = _window.start.replace(tzinfo=dt.timezone.utc)
+                    now = _window.end.replace(tzinfo=dt.timezone.utc)
+                except Exception:
+                    pass  # static/dynamic partition -- no natural time window
 
             filters: dict = {
                 "afterDatetime": after.timestamp(),

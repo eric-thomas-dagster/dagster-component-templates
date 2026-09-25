@@ -121,6 +121,14 @@ class AzureActivityLogIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
             client = MonitorManagementClient(DefaultAzureCredential(), sub_id)
             end = dt.datetime.utcnow()
             start = end - dt.timedelta(hours=_self.lookback_hours)
+            if context.has_partition_key:
+                # A time-based partition means this run should fetch exactly that
+                # slice, not a rolling lookback_hours window from "now".
+                try:
+                    _window = context.partition_time_window
+                    start, end = _window.start, _window.end
+                except Exception:
+                    pass  # static/dynamic partition -- no natural time window
             f = f"eventTimestamp ge '{start.isoformat()}Z' and eventTimestamp le '{end.isoformat()}Z'"
             if _self.resource_group_filter:
                 f += f" and resourceGroupName eq '{_self.resource_group_filter}'"

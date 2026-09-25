@@ -2,7 +2,6 @@
   "component_type": "dagster_component_templates.GongCallsIngestionComponent",
   "description": "Ingest Gong call metadata and transcripts via Gong API v2 and return a pandas DataFrame.",
   "category": "source",
-
   "vertical": "crm-sales",
   "icon": "si:gong",
   "x-dagster-io": {
@@ -28,14 +27,16 @@
     "from_date_time": {
       "type": "string",
       "label": "From Date/Time",
-      "description": "Start of the call window (ISO-8601, e.g. '2026-06-01T00:00:00Z')",
-      "required": true
+      "description": "Start of the call window (ISO-8601, e.g. '2026-06-01T00:00:00Z'). Required unless a time-based partition_type is set.",
+      "required": false,
+      "default": null
     },
     "to_date_time": {
       "type": "string",
       "label": "To Date/Time",
-      "description": "End of the call window (ISO-8601, e.g. '2026-07-01T00:00:00Z')",
-      "required": true
+      "description": "End of the call window (ISO-8601, e.g. '2026-07-01T00:00:00Z'). Required unless a time-based partition_type is set.",
+      "required": false,
+      "default": null
     },
     "include_transcript": {
       "type": "boolean",
@@ -73,7 +74,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners — team names (team:revops) or email addresses.",
+      "description": "Asset owners \u2014 team names (team:revops) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -118,6 +119,54 @@
       "description": "Lineage-only upstream asset keys (no data passed at runtime)",
       "required": false,
       "ui:widget": "list"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'us,eu,asia'.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "required": false,
+      "default": null
     }
   },
   "tags": [

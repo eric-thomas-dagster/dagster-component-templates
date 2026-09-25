@@ -485,9 +485,23 @@ class StripeIngestionComponent(Component, Model, Resolvable):
         def stripe_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.stripe_analytics import stripe_source, incremental_stripe_source
 
+            # A time-based partition (daily/weekly/monthly/hourly) means this run should
+            # fetch exactly that slice, not whatever the static start_date/end_date config
+            # says -- otherwise every partition would re-pull the same (open-ended) range.
+            _start_date, _end_date, _incremental = start_date, end_date, incremental
+            if context.has_partition_key:
+                try:
+                    _window = context.partition_time_window
+                    _start_date = _window.start.isoformat()
+                    _end_date = _window.end.isoformat()
+                    _incremental = True
+                except Exception:
+                    pass  # static/dynamic/multi partition -- no natural time window
+
             context.log.info(
                 f"Starting Stripe ingestion: resources={resources_list}, "
-                f"incremental={incremental}, destination={destination or 'duckdb (in-memory)'}"
+                f"incremental={_incremental}, destination={destination or 'duckdb (in-memory)'}"
+                + (f", partition window=[{_start_date}, {_end_date})" if context.has_partition_key and _start_date != start_date else "")
             )
 
             pipeline = dlt.pipeline(
@@ -496,10 +510,10 @@ class StripeIngestionComponent(Component, Model, Resolvable):
                 dataset_name=dataset_name,
             )
 
-            if incremental and start_date:
+            if _incremental and _start_date:
                 source = incremental_stripe_source(
-                    initial_start_date=start_date,
-                    end_date=end_date,
+                    initial_start_date=_start_date,
+                    end_date=_end_date,
                     endpoints=tuple(resources_list),
                 )
             else:
@@ -507,10 +521,10 @@ class StripeIngestionComponent(Component, Model, Resolvable):
                     "stripe_secret_key": api_key,
                     "endpoints": tuple(resources_list),
                 }
-                if start_date:
-                    source_config["start_date"] = start_date
-                if end_date:
-                    source_config["end_date"] = end_date
+                if _start_date:
+                    source_config["start_date"] = _start_date
+                if _end_date:
+                    source_config["end_date"] = _end_date
                 source = stripe_source(**source_config)
 
             load_info = pipeline.run(source)

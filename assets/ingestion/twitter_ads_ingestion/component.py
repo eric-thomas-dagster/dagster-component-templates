@@ -547,12 +547,29 @@ class TwitterAdsIngestionComponent(Component, Model, Resolvable):
             context.log.info(f"Resources to extract: {resources_list}")
 
             from datetime import datetime, timedelta
-            if start_date:
+
+            # A time-based partition (daily/weekly/monthly/hourly) means this run should
+            # fetch exactly that slice, not the static start_date/end_date config --
+            # otherwise every partition would re-pull the same trailing-30-days window.
+            _partition_start_date, _partition_end_date = None, None
+            if context.has_partition_key:
+                try:
+                    _window = context.partition_time_window
+                    _partition_start_date = _window.start.strftime("%Y-%m-%d")
+                    _partition_end_date = _window.end.strftime("%Y-%m-%d")
+                except Exception:
+                    pass  # static/dynamic/multi partition -- no natural time window
+
+            if _partition_start_date:
+                start_date_str = _partition_start_date
+            elif start_date:
                 start_date_str = start_date
             else:
                 start_date_str = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
 
-            if end_date:
+            if _partition_end_date:
+                end_date_str = _partition_end_date
+            elif end_date:
                 end_date_str = end_date
             else:
                 end_date_str = datetime.now().strftime("%Y-%m-%d")

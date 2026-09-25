@@ -484,9 +484,22 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
         def shopify_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.shopify_dlt import shopify_source
 
+            # A time-based partition means this run should start from that partition's
+            # own window, not the static start_date config. Note: shopify_source only
+            # takes a start_date (no end_date) -- dlt's own incremental cursor tracks
+            # forward from there, so this grounds the floor correctly but can't bound
+            # the ceiling the way a true [start, end) range would.
+            _start_date = start_date
+            if context.has_partition_key:
+                try:
+                    _start_date = context.partition_time_window.start.strftime("%Y-%m-%d")
+                except Exception:
+                    pass  # static/dynamic/multi partition -- no natural time window
+
             context.log.info(
                 f"Starting Shopify ingestion: shop={shop_url}, resources={resources_list}, "
                 f"destination={destination or 'duckdb (in-memory)'}"
+                + (f", partition start={_start_date}" if context.has_partition_key else "")
             )
 
             pipeline = dlt.pipeline(
@@ -498,7 +511,7 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
             source = shopify_source(
                 shop_url=shop_url,
                 private_app_password=private_app_password,
-                start_date=start_date,
+                start_date=_start_date,
                 order_status=order_status,
             )
 

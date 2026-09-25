@@ -191,8 +191,13 @@ class GraphQLIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
             "``data_path`` (dot-separated path to the result array in the response)."
         )
     )
-    database_url_env_var: str = Field(
-        description="Env var name holding the SQLAlchemy database connection URL."
+    database_url_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var name holding the SQLAlchemy database connection URL. Set this OR resource_key.",
+    )
+    resource_key: Optional[str] = Field(
+        default=None,
+        description="Key of a registered SQL resource (e.g. postgres_resource) to use for the destination connection instead of database_url_env_var. The resource must expose a connection_string property (e.g. PostgresResource, MongoDBResource); not all resource types do.",
     )
     target_schema: Optional[str] = Field(
         default=None,
@@ -446,6 +451,7 @@ class GraphQLIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
             freshness_policy=_freshness_policy,
             owners=self.owners or [],
             tags=_all_tags,
+            required_resource_keys={self.resource_key} if self.resource_key else set(),
         )
         def _graphql_ingestion(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
             import os
@@ -454,7 +460,21 @@ class GraphQLIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
             from sqlalchemy import create_engine
 
             endpoint = os.environ[self.endpoint_env_var]
-            db_url = os.environ[self.database_url_env_var]
+            if self.resource_key:
+                resource = getattr(context.resources, self.resource_key, None)
+                if resource is None:
+                    raise ValueError(f"Resource {self.resource_key!r} is not registered in this project's Definitions.")
+                db_url = getattr(resource, "connection_string", None)
+                if not db_url:
+                    raise ValueError(
+                        f"Resource {self.resource_key!r} ({type(resource).__name__}) does not expose a "
+                        "'connection_string' property, so it can't be used to determine the database "
+                        "URL automatically. Use database_url_env_var instead."
+                    )
+            elif self.database_url_env_var:
+                db_url = os.environ[self.database_url_env_var]
+            else:
+                raise ValueError("Set 'resource_key' or 'database_url_env_var'.")
 
             headers: dict[str, str] = {"Content-Type": "application/json"}
             if self.api_key_env_var:

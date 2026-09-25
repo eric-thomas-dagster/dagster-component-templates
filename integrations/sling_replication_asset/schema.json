@@ -1,12 +1,12 @@
 {
   "component_type": "dagster_component_templates.SlingReplicationAssetComponent",
   "description": "Run a Sling YAML replication as Dagster assets via dagster-sling.",
-  "category": "integration",
-  "icon": "ArrowRight",
+  "category": "ingestion",
+  "icon": "ArrowRightLeft",
   "x-dagster-io": {
     "outputs": {
-      "type": "integration",
-      "description": "Run a Sling YAML replication as Dagster assets via dagster-sling."
+      "type": "MaterializeResult",
+      "description": "One or more replicated tables materialized via Sling -- no data passed through the IO manager."
     }
   },
   "attributes": {
@@ -32,5 +32,6 @@
     "elt",
     "official"
   ],
-  "name": "SlingReplicationAsset"
+  "name": "SlingReplicationAsset",
+  "vertical": "database"
 }

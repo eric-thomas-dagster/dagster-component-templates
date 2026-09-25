@@ -2,7 +2,6 @@
   "component_type": "dagster_component_templates.SFTPToDatabaseAssetComponent",
   "description": "Download a file from SFTP and write it to a database table.",
   "category": "ingestion",
-
   "vertical": "cloud-storage",
   "icon": "ArrowUpFromLine",
   "x-dagster-io": {
@@ -55,8 +54,9 @@
     "database_url_env_var": {
       "type": "string",
       "label": "Database Url Env Var",
-      "description": "Env var with SQLAlchemy database URL",
-      "required": true
+      "description": "Env var with SQLAlchemy database URL. Set this OR database_url OR resource_key.",
+      "required": false,
+      "default": null
     },
     "table_name": {
       "type": "string",
@@ -126,7 +126,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -231,7 +231,7 @@
       "type": "object",
       "label": "Column Lineage",
       "required": false,
-      "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
+      "description": "Column-level lineage: output column \u2192 list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "partition_start": {
       "type": "string",
@@ -261,10 +261,52 @@
       "required": false,
       "x-dagster-widget": "column"
     },
-    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.", "required": false, "default": null},
-    "partition_dimensions": {"type": "array", "items": {"type": "object"}, "label": "Partition Dimensions", "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.", "required": false, "default": null},
-    "include_preview_metadata": {"type": "boolean", "label": "Include Preview Metadata", "description": "Include sample data preview in metadata", "required": false, "default": true, "ui:widget": "checkbox"},
-    "preview_rows": {"type": "integer", "label": "Preview Rows", "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.", "required": false, "default": 25}
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "required": false,
+      "default": null
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
+      "required": false,
+      "default": 25
+    },
+    "database_url": {
+      "type": "string",
+      "label": "Database Url",
+      "description": "SQLAlchemy database URL. Set this OR database_url_env_var OR resource_key.",
+      "required": false,
+      "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key of a registered SQL resource (e.g. postgres_resource) to use for the destination connection instead of database_url/database_url_env_var. The resource must expose a connection_string property (e.g. PostgresResource, MongoDBResource); not all resource types do.",
+      "required": false,
+      "default": null
+    }
   },
   "tags": [
     "ingestion",

@@ -114,6 +114,39 @@ def _build_partitions_def(
     raise ValueError(f"unknown partition_type: {partition_type!r}")
 
 
+
+def _resolve_db_url(context, resource_key, database_url, database_url_env_var):
+    """Resolve a SQLAlchemy-compatible database URL.
+
+    Precedence: a registered resource (WHERE to connect, e.g. postgres_resource)
+    if resource_key is set and the resource exposes a 'connection_string'
+    property, otherwise a literal database_url, otherwise database_url_env_var.
+    The write mechanics (HOW) are unchanged either way -- this only resolves
+    the URL that sqlalchemy.create_engine() then connects with.
+    """
+    import os
+
+    if resource_key:
+        resource = getattr(context.resources, resource_key, None)
+        if resource is None:
+            raise ValueError(f"Resource {resource_key!r} is not registered in this project's Definitions.")
+        url = getattr(resource, "connection_string", None)
+        if not url:
+            raise ValueError(
+                f"Resource {resource_key!r} ({type(resource).__name__}) does not expose a "
+                "'connection_string' property, so it can't be used to determine the database "
+                "URL automatically. Use database_url / database_url_env_var instead."
+            )
+        return url
+    if database_url:
+        return database_url
+    if database_url_env_var:
+        if database_url_env_var not in os.environ:
+            raise KeyError(f"Env var '{database_url_env_var}' is not set")
+        return os.environ[database_url_env_var]
+    raise ValueError("Set 'resource_key', 'database_url', or 'database_url_env_var'.")
+
+
 class KafkaToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     """Consume messages from a Kafka topic and write them to a database table.
 
@@ -152,6 +185,10 @@ class KafkaToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     topic: str = Field(description="Kafka topic to consume from")
     consumer_group: str = Field(default="dagster-ingestion", description="Kafka consumer group ID")
+    resource_key: Optional[str] = Field(
+        default=None,
+        description="Key of a registered SQL resource (e.g. postgres_resource) to use for the destination connection instead of database_url/database_url_env_var. The resource must expose a connection_string property (e.g. PostgresResource, MongoDBResource); not all resource types do.",
+    )
     table_name: str = Field(description="Destination table name")
     schema_name: Optional[str] = Field(default=None, description="Destination schema name")
     if_exists: str = Field(default="append", description="fail, replace, or append")
@@ -312,6 +349,7 @@ class KafkaToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             kinds={"kafka", "sql"},
             deps=[dg.AssetKey.from_user_string(k) for k in (_self.deps or [])],
             partitions_def=partitions_def,
+            required_resource_keys={_self.resource_key} if _self.resource_key else set(),
         )
         def kafka_to_database_asset(context: AssetExecutionContext, config: KafkaRunConfig):
             import os, json
@@ -328,7 +366,7 @@ class KafkaToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     return os.environ[env_var]
                 raise ValueError(f"Set either '{name}' or '{name}_env_var'")
             bootstrap = _resolve(_self.bootstrap_servers, _self.bootstrap_servers_env_var, "bootstrap_servers")
-            db_url = _resolve(_self.database_url, _self.database_url_env_var, "database_url")
+            db_url = _resolve_db_url(context, _self.resource_key, _self.database_url, _self.database_url_env_var)
             topic = config.topic or _self.topic
             max_msgs = config.max_messages or _self.max_messages
 

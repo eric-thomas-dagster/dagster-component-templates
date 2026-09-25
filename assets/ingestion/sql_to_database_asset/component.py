@@ -135,8 +135,16 @@ class SQLToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     """
 
     asset_name: str = Field(description="Dagster asset name")
-    source_url_env_var: str = Field(description="Env var with source SQLAlchemy database URL")
-    destination_url_env_var: str = Field(description="Env var with destination SQLAlchemy database URL")
+    source_url_env_var: Optional[str] = Field(default=None, description="Env var with source SQLAlchemy database URL. Set this OR source_resource_key.")
+    destination_url_env_var: Optional[str] = Field(default=None, description="Env var with destination SQLAlchemy database URL. Set this OR destination_resource_key.")
+    source_resource_key: Optional[str] = Field(
+        default=None,
+        description="Key of a registered SQL resource to use for the source connection instead of source_url_env_var. The resource must expose a connection_string property (e.g. PostgresResource, MongoDBResource); not all resource types do.",
+    )
+    destination_resource_key: Optional[str] = Field(
+        default=None,
+        description="Key of a registered SQL resource to use for the destination connection instead of destination_url_env_var. The resource must expose a connection_string property (e.g. PostgresResource, MongoDBResource); not all resource types do.",
+    )
     source_table: Optional[str] = Field(default=None, description="Source table name (use source_table OR source_query)")
     source_schema: Optional[str] = Field(default=None, description="Source schema name")
     source_query: Optional[str] = Field(default=None, description="Custom SQL query (overrides source_table)")
@@ -298,14 +306,40 @@ class SQLToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             kinds={"sql"},
             deps=[dg.AssetKey.from_user_string(k) for k in (_self.deps or [])],
             partitions_def=partitions_def,
+            required_resource_keys={
+                k for k in (_self.source_resource_key, _self.destination_resource_key) if k
+            },
         )
         def sql_to_database_asset(context: AssetExecutionContext, config: SQLRunConfig):
             import os
             import pandas as pd
             from sqlalchemy import create_engine, text
 
-            src_url = os.environ[_self.source_url_env_var]
-            dst_url = os.environ[_self.destination_url_env_var]
+            def _resolve_db_url(resource_key, url_env_var, side):
+                """Resolve a SQLAlchemy-compatible database URL: from a registered
+                resource (WHERE to connect) if resource_key is set and the resource
+                exposes 'connection_string', otherwise from url_env_var. The write/
+                read mechanics (HOW) are unchanged either way."""
+                if resource_key:
+                    resource = getattr(context.resources, resource_key, None)
+                    if resource is None:
+                        raise ValueError(f"Resource {resource_key!r} is not registered in this project's Definitions.")
+                    url = getattr(resource, "connection_string", None)
+                    if not url:
+                        raise ValueError(
+                            f"Resource {resource_key!r} ({type(resource).__name__}) does not expose a "
+                            f"'connection_string' property, so it can't be used to determine the {side} "
+                            f"database URL automatically. Use {side}_url_env_var instead."
+                        )
+                    return url
+                if url_env_var:
+                    if url_env_var not in os.environ:
+                        raise KeyError(f"Env var '{url_env_var}' is not set")
+                    return os.environ[url_env_var]
+                raise ValueError(f"Set '{side}_resource_key' or '{side}_url_env_var'.")
+
+            src_url = _resolve_db_url(_self.source_resource_key, _self.source_url_env_var, "source")
+            dst_url = _resolve_db_url(_self.destination_resource_key, _self.destination_url_env_var, "destination")
 
             src_engine = create_engine(src_url)
             dst_engine = create_engine(dst_url)

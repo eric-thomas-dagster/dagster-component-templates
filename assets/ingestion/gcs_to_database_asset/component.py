@@ -114,6 +114,39 @@ def _build_partitions_def(
     raise ValueError(f"unknown partition_type: {partition_type!r}")
 
 
+
+def _resolve_db_url(context, resource_key, database_url, database_url_env_var):
+    """Resolve a SQLAlchemy-compatible database URL.
+
+    Precedence: a registered resource (WHERE to connect, e.g. postgres_resource)
+    if resource_key is set and the resource exposes a 'connection_string'
+    property, otherwise a literal database_url, otherwise database_url_env_var.
+    The write mechanics (HOW) are unchanged either way -- this only resolves
+    the URL that sqlalchemy.create_engine() then connects with.
+    """
+    import os
+
+    if resource_key:
+        resource = getattr(context.resources, resource_key, None)
+        if resource is None:
+            raise ValueError(f"Resource {resource_key!r} is not registered in this project's Definitions.")
+        url = getattr(resource, "connection_string", None)
+        if not url:
+            raise ValueError(
+                f"Resource {resource_key!r} ({type(resource).__name__}) does not expose a "
+                "'connection_string' property, so it can't be used to determine the database "
+                "URL automatically. Use database_url / database_url_env_var instead."
+            )
+        return url
+    if database_url:
+        return database_url
+    if database_url_env_var:
+        if database_url_env_var not in os.environ:
+            raise KeyError(f"Env var '{database_url_env_var}' is not set")
+        return os.environ[database_url_env_var]
+    raise ValueError("Set 'resource_key', 'database_url', or 'database_url_env_var'.")
+
+
 class GCSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     """Read a file from GCS and write it to a database table.
 
@@ -136,7 +169,12 @@ class GCSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Env var pointing to GCP service account JSON path. If unset, uses Application Default Credentials."
     )
-    database_url_env_var: str = Field(description="Env var with SQLAlchemy database URL")
+    database_url: Optional[str] = Field(default=None, description="SQLAlchemy database URL. Set this OR database_url_env_var OR resource_key.")
+    database_url_env_var: Optional[str] = Field(default=None, description="Env var with SQLAlchemy database URL. Set this OR database_url OR resource_key.")
+    resource_key: Optional[str] = Field(
+        default=None,
+        description="Key of a registered SQL resource (e.g. postgres_resource) to use for the destination connection instead of database_url/database_url_env_var. The resource must expose a connection_string property (e.g. PostgresResource, MongoDBResource); not all resource types do.",
+    )
     table_name: str = Field(description="Destination table name")
     schema_name: Optional[str] = Field(default=None, description="Destination schema name")
     if_exists: str = Field(default="append", description="fail, replace, or append")
@@ -292,6 +330,7 @@ class GCSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             kinds={"gcs", "sql"},
             deps=[dg.AssetKey.from_user_string(k) for k in (_self.deps or [])],
             partitions_def=partitions_def,
+            required_resource_keys={_self.resource_key} if _self.resource_key else set(),
         )
         def gcs_to_database_asset(context: AssetExecutionContext, config: GCSObjectConfig):
             import os
@@ -303,7 +342,7 @@ class GCSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             if _self.credentials_env_var:
                 os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", os.environ[_self.credentials_env_var])
 
-            db_url = os.environ[_self.database_url_env_var]
+            db_url = _resolve_db_url(context, _self.resource_key, _self.database_url, _self.database_url_env_var)
 
             object_name = config.object_name
             if context.has_partition_key:

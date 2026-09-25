@@ -2,7 +2,6 @@
   "component_type": "dagster_component_templates.GraphQLIngestionComponent",
   "description": "Execute GraphQL queries and write results to a database.",
   "category": "ingestion",
-
   "vertical": "internal",
   "icon": "ArrowUpFromLine",
   "x-dagster-io": {
@@ -112,7 +111,7 @@
       "type": "object",
       "label": "Column Lineage",
       "required": false,
-      "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
+      "description": "Column-level lineage: output column \u2192 list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "deps": {
       "type": "array",
@@ -159,6 +158,20 @@
       },
       "label": "Partition Dimensions",
       "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "required": false,
+      "default": null
+    },
+    "database_url_env_var": {
+      "type": "string",
+      "label": "Database Url Env Var",
+      "description": "Env var name holding the SQLAlchemy database connection URL. Set this OR resource_key.",
+      "required": false,
+      "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key of a registered SQL resource (e.g. postgres_resource) to use for the destination connection instead of database_url_env_var. The resource must expose a connection_string property (e.g. PostgresResource, MongoDBResource); not all resource types do.",
       "required": false,
       "default": null
     }

@@ -124,6 +124,32 @@ def _build_partitions_def(
     raise ValueError(f"unknown partition_type: {partition_type!r}")
 
 
+def _resolve_db_url(context, resource_key, database_url):
+    """Resolve a SQLAlchemy-compatible database URL.
+
+    Precedence: a registered resource (WHERE to connect, e.g. postgres_resource)
+    if resource_key is set and the resource exposes a 'connection_string'
+    property, otherwise the literal database_url. The write mechanics (HOW)
+    are unchanged either way -- this only resolves the URL that
+    sqlalchemy.create_engine() then connects with.
+    """
+    if resource_key:
+        resource = getattr(context.resources, resource_key, None)
+        if resource is None:
+            raise ValueError(f"Resource {resource_key!r} is not registered in this project's Definitions.")
+        url = getattr(resource, "connection_string", None)
+        if not url:
+            raise ValueError(
+                f"Resource {resource_key!r} ({type(resource).__name__}) does not expose a "
+                "'connection_string' property, so it can't be used to determine the database "
+                "URL automatically. Use database_url instead."
+            )
+        return url
+    if database_url:
+        return database_url
+    raise ValueError("Set 'resource_key' or 'database_url'.")
+
+
 class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
     """
     Component for loading files from S3 into a database table.
@@ -137,8 +163,13 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Name of the asset")
 
     # Database Configuration
-    database_url: str = Field(
-        description="Database connection URL (use ${DB_URL} for env var)"
+    database_url: Optional[str] = Field(
+        default=None,
+        description="Database connection URL (use ${DB_URL} for env var). Set this OR resource_key.",
+    )
+    resource_key: Optional[str] = Field(
+        default=None,
+        description="Key of a registered SQL resource (e.g. postgres_resource) to use for the destination connection instead of database_url. The resource must expose a connection_string property (e.g. PostgresResource, MongoDBResource); not all resource types do.",
     )
     table_name: str = Field(
         description="Name of the database table to write to"
@@ -331,6 +362,7 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
         database_url = self.database_url
+        resource_key = self.resource_key
         table_name = self.table_name
         schema_name = self.schema_name or None
         if_exists = self.if_exists
@@ -456,7 +488,8 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, partitions_def=partitions_def, 
+        @asset(retry_policy=_retry_policy, partitions_def=partitions_def,
+            required_resource_keys={resource_key} if resource_key else set(),
             key=AssetKey.from_user_string(asset_name),
             description=description or f"S3 to Database: {table_name}",
                         owners=owners,
@@ -562,7 +595,7 @@ group_name=group_name,
                     context.log.info(f"Renamed columns: {list(column_mapping.keys())}")
 
                 # Connect to database
-                engine = create_engine(database_url)
+                engine = create_engine(_resolve_db_url(context, resource_key, database_url))
 
                 # Write to database
                 df.to_sql(

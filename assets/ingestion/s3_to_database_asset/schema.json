@@ -2,7 +2,6 @@
   "component_type": "dagster_component_templates.S3ToDatabaseAssetComponent",
   "description": "Component for loading files from S3 into a database table.",
   "category": "ingestion",
-
   "vertical": "cloud-storage",
   "icon": "si:amazons3",
   "x-dagster-io": {
@@ -21,8 +20,9 @@
     "database_url": {
       "type": "string",
       "label": "Database Url",
-      "description": "Database connection URL (use ${DB_URL} for env var)",
-      "required": true
+      "description": "Database connection URL (use ${DB_URL} for env var). Set this OR resource_key.",
+      "required": false,
+      "default": null
     },
     "table_name": {
       "type": "string",
@@ -128,7 +128,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -233,7 +233,7 @@
       "type": "object",
       "label": "Column Lineage",
       "required": false,
-      "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
+      "description": "Column-level lineage: output column \u2192 list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "partition_date_column": {
       "type": "string",
@@ -272,6 +272,13 @@
       },
       "label": "Partition Dimensions",
       "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "required": false,
+      "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key of a registered SQL resource (e.g. postgres_resource) to use for the destination connection instead of database_url. The resource must expose a connection_string property (e.g. PostgresResource, MongoDBResource); not all resource types do.",
       "required": false,
       "default": null
     }

@@ -42883,7 +42883,7 @@
     {
       "id": "sling_replication_asset",
       "name": "SlingReplicationAsset",
-      "category": "integration",
+      "category": "ingestion",
       "description": "Run a Sling YAML replication as Dagster assets via dagster-sling.",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -42932,7 +42932,8 @@
         "source_field": "replication.streams[]",
         "key_template": "{sling_target_table}"
       },
-      "icon": "Link"
+      "icon": "ArrowRightLeft",
+      "vertical": "database"
     },
     {
       "id": "smart_retry",

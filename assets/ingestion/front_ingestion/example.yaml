@@ -1,0 +1,5 @@
+type: dagster_component_templates.FrontIngestionComponent
+attributes:
+  asset_name: front_ingestion
+  api_token: "${FRONT_API_TOKEN}"
+  resources: "conversations,contacts,accounts,teammates,inboxes"

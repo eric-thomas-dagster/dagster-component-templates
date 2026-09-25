@@ -1,0 +1,5 @@
+type: dagster_component_templates.LeverIngestionComponent
+attributes:
+  asset_name: lever_ingestion
+  api_key: "${LEVER_API_KEY}"
+  resources: "opportunities,postings,users,stages"

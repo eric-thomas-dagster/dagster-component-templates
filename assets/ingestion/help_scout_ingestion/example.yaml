@@ -1,0 +1,5 @@
+type: dagster_component_templates.HelpScoutIngestionComponent
+attributes:
+  asset_name: help_scout_ingestion
+  access_token: "${HELPSCOUT_ACCESS_TOKEN}"
+  resources: "conversations,customers,mailboxes,users"

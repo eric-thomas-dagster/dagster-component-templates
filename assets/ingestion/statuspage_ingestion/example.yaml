@@ -1,0 +1,6 @@
+type: dagster_component_templates.StatuspageIngestionComponent
+attributes:
+  asset_name: statuspage_ingestion
+  page_id: "${STATUSPAGE_PAGE_ID}"
+  api_key: "${STATUSPAGE_API_KEY}"
+  resources: "incidents,components"

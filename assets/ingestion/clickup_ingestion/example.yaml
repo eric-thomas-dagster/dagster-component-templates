@@ -1,0 +1,6 @@
+type: dagster_component_templates.ClickUpIngestionComponent
+attributes:
+  asset_name: clickup_ingestion
+  team_id: "${CLICKUP_TEAM_ID}"
+  api_token: "${CLICKUP_API_TOKEN}"
+  resources: "spaces,folders,lists"

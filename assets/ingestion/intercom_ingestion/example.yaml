@@ -1,0 +1,5 @@
+type: dagster_component_templates.IntercomIngestionComponent
+attributes:
+  asset_name: intercom_ingestion
+  access_token: "${INTERCOM_ACCESS_TOKEN}"
+  resources: "contacts,conversations,companies,tags"

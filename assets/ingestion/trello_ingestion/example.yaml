@@ -1,0 +1,6 @@
+type: dagster_component_templates.TrelloIngestionComponent
+attributes:
+  asset_name: trello_ingestion
+  api_key: "${TRELLO_API_KEY}"
+  api_token: "${TRELLO_API_TOKEN}"
+  resources: "boards,cards,lists"

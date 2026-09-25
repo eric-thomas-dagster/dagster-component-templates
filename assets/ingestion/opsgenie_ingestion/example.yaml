@@ -1,0 +1,5 @@
+type: dagster_component_templates.OpsgenieIngestionComponent
+attributes:
+  asset_name: opsgenie_ingestion
+  api_key: "${OPSGENIE_API_KEY}"
+  resources: "alerts,schedules,teams,users"

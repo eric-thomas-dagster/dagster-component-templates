@@ -1,0 +1,6 @@
+type: dagster_component_templates.InsightlyIngestionComponent
+attributes:
+  asset_name: insightly_ingestion
+  pod: "na1"
+  api_key: "${INSIGHTLY_API_KEY}"
+  resources: "contacts,leads,organisations,opportunities,projects"

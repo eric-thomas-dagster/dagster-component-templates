@@ -1,0 +1,5 @@
+type: dagster_component_templates.GmailIngestionComponent
+attributes:
+  asset_name: gmail_ingestion
+  access_token: "${GMAIL_ACCESS_TOKEN}"
+  resources: "messages,labels"

@@ -1,0 +1,5 @@
+type: dagster_component_templates.RippleIngestionComponent
+attributes:
+  asset_name: rippling_ingestion
+  api_token: "${RIPPLING_API_TOKEN}"
+  resources: "workers,departments"

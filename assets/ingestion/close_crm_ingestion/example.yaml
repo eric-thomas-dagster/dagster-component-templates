@@ -1,0 +1,5 @@
+type: dagster_component_templates.CloseCrmIngestionComponent
+attributes:
+  asset_name: close_crm_ingestion
+  api_key: "${CLOSE_API_KEY}"
+  resources: "leads,contacts,activities,opportunities"

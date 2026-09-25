@@ -1,0 +1,5 @@
+type: dagster_component_templates.MailchimpIngestionComponent
+attributes:
+  asset_name: mailchimp_ingestion
+  api_key: "${MAILCHIMP_API_KEY}"
+  resources: "lists,campaigns,automations,reports"

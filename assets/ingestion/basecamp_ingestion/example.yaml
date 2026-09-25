@@ -1,0 +1,6 @@
+type: dagster_component_templates.BasecampIngestionComponent
+attributes:
+  asset_name: basecamp_ingestion
+  account_id: "${BASECAMP_ACCOUNT_ID}"
+  access_token: "${BASECAMP_ACCESS_TOKEN}"
+  resources: "projects"

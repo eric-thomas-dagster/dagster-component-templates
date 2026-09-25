@@ -1,0 +1,6 @@
+type: dagster_component_templates.ActiveCampaignIngestionComponent
+attributes:
+  asset_name: activecampaign_ingestion
+  account: "myaccount"
+  api_token: "${ACTIVECAMPAIGN_API_TOKEN}"
+  resources: "contacts,deals,accounts,lists,campaigns"

@@ -1,0 +1,6 @@
+type: dagster_component_templates.BambooHrIngestionComponent
+attributes:
+  asset_name: bamboohr_ingestion
+  company_domain: "mycompany"
+  api_key: "${BAMBOOHR_API_KEY}"
+  resources: "employees"

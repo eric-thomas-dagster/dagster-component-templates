@@ -1,0 +1,5 @@
+type: dagster_component_templates.NavanIngestionComponent
+attributes:
+  asset_name: navan_ingestion
+  access_token: "${NAVAN_ACCESS_TOKEN}"
+  resources: "trips,expenses"

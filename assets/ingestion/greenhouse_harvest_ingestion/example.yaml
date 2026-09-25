@@ -1,0 +1,5 @@
+type: dagster_component_templates.GreenhouseHarvestIngestionComponent
+attributes:
+  asset_name: greenhouse_harvest_ingestion
+  api_key: "${GREENHOUSE_API_KEY}"
+  resources: "applications,candidates,jobs,job_posts,offers"

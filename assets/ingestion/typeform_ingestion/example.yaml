@@ -1,0 +1,5 @@
+type: dagster_component_templates.TypeformIngestionComponent
+attributes:
+  asset_name: typeform_ingestion
+  access_token: "${TYPEFORM_ACCESS_TOKEN}"
+  resources: "forms"

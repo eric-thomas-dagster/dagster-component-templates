@@ -1,0 +1,5 @@
+type: dagster_component_templates.KlaviyoIngestionComponent
+attributes:
+  asset_name: klaviyo_ingestion
+  api_key: "${KLAVIYO_API_KEY}"
+  resources: "lists,campaigns,flows,profiles,metrics"

@@ -1,0 +1,5 @@
+type: dagster_component_templates.SurveyMonkeyIngestionComponent
+attributes:
+  asset_name: surveymonkey_ingestion
+  access_token: "${SURVEYMONKEY_ACCESS_TOKEN}"
+  resources: "surveys"

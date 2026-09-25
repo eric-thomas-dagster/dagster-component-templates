@@ -1,0 +1,6 @@
+type: dagster_component_templates.ZoomIngestionComponent
+attributes:
+  asset_name: zoom_ingestion
+  access_token: "${ZOOM_ACCESS_TOKEN}"
+  user_id: "me"
+  resources: "users,meetings,webinars"

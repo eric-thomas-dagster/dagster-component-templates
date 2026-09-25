@@ -1,0 +1,6 @@
+type: dagster_component_templates.ConcurIngestionComponent
+attributes:
+  asset_name: concur_ingestion
+  access_token: "${CONCUR_ACCESS_TOKEN}"
+  datacenter_url: "https://us.api.concursolutions.com"
+  resources: "users,expense"

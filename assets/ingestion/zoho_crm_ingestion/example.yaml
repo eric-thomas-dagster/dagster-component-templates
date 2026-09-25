@@ -1,0 +1,5 @@
+type: dagster_component_templates.ZohoCrmIngestionComponent
+attributes:
+  asset_name: zoho_crm_ingestion
+  access_token: "${ZOHO_ACCESS_TOKEN}"
+  resources: "Leads,Contacts,Accounts,Deals"

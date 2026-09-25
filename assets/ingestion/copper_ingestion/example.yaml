@@ -1,0 +1,6 @@
+type: dagster_component_templates.CopperIngestionComponent
+attributes:
+  asset_name: copper_ingestion
+  api_key: "${COPPER_API_KEY}"
+  user_email: "you@company.com"
+  resources: "people,activities,projects"

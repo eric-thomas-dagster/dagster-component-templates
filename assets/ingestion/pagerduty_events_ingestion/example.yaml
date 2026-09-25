@@ -1,0 +1,5 @@
+type: dagster_component_templates.PagerDutyIngestionComponent
+attributes:
+  asset_name: pagerduty_events_ingestion
+  api_token: "${PAGERDUTY_API_TOKEN}"
+  resources: "incidents,services,schedules"

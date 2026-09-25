@@ -1,0 +1,29 @@
+# Statuspage Ingestion
+
+Ingest Atlassian Statuspage incident/component data using dlt's generic REST API source.
+
+Uses dlt's generic REST API source (`dlt.sources.rest_api.rest_api_source`) -- Statuspage has no official dlt-maintained verified-source package, so this follows the same config-driven REST connector pattern as this repo's ad-platform ingestions.
+
+By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Set `destination` to persist directly to any dlt-supported destination. See `../DESTINATIONS.md`.
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| `asset_name` | required | Name of the asset that will hold the data |
+| `page_id` | required | Statuspage page ID. |
+| `api_key` | required | Statuspage API key. Use ${STATUSPAGE_API_KEY} for env vars. |
+| `resources` | optional | Comma-separated list of resources to extract: incidents, components, metrics, subscribers. Default: `incidents,components` |
+
+## Example
+
+```yaml
+type: dagster_component_templates.StatuspageIngestionComponent
+attributes:
+  asset_name: statuspage_ingestion
+  page_id: "${STATUSPAGE_PAGE_ID}"
+  api_key: "${STATUSPAGE_API_KEY}"
+  resources: "incidents,components"
+```
+
+Sourced from dltHub's public REST API connector reference (`https://dlthub.com/context/source/statuspage`). Not yet run against a live account -- validate auth/pagination details against the vendor's current API docs before production use.

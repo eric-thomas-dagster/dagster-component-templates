@@ -1,0 +1,6 @@
+type: dagster_component_templates.OmniIngestionComponent
+attributes:
+  asset_name: omni_ingestion
+  organization: "myorg"
+  api_key: "${OMNI_API_KEY}"
+  resources: "dashboards,models"

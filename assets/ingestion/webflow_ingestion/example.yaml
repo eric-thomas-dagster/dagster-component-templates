@@ -1,0 +1,5 @@
+type: dagster_component_templates.WebflowIngestionComponent
+attributes:
+  asset_name: webflow_ingestion
+  access_token: "${WEBFLOW_ACCESS_TOKEN}"
+  resources: "sites,collections"

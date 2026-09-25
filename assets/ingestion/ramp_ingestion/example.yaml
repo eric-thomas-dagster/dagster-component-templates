@@ -1,0 +1,5 @@
+type: dagster_component_templates.RampIngestionComponent
+attributes:
+  asset_name: ramp_ingestion
+  access_token: "${RAMP_ACCESS_TOKEN}"
+  resources: "transactions,cards"

@@ -1,0 +1,5 @@
+type: dagster_component_templates.DeelIngestionComponent
+attributes:
+  asset_name: deel_ingestion
+  api_token: "${DEEL_API_TOKEN}"
+  resources: "people,contracts"

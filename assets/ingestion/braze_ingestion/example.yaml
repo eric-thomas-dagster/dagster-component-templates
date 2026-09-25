@@ -1,0 +1,6 @@
+type: dagster_component_templates.BrazeIngestionComponent
+attributes:
+  asset_name: braze_ingestion
+  rest_endpoint: "https://rest.iad-01.braze.com"
+  api_key: "${BRAZE_API_KEY}"
+  resources: "segments,campaigns,canvases,content_blocks"

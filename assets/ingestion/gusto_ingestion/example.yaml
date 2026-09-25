@@ -1,0 +1,6 @@
+type: dagster_component_templates.GustoIngestionComponent
+attributes:
+  asset_name: gusto_ingestion
+  company_id: "${GUSTO_COMPANY_ID}"
+  access_token: "${GUSTO_ACCESS_TOKEN}"
+  resources: "employees,payrolls,time_off_requests"

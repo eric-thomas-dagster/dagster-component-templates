@@ -1,0 +1,29 @@
+# BambooHR Ingestion
+
+Ingest BambooHR employee data using dlt's generic REST API source.
+
+Uses dlt's generic REST API source (`dlt.sources.rest_api.rest_api_source`) -- BambooHR has no official dlt-maintained verified-source package, so this follows the same config-driven REST connector pattern as this repo's ad-platform ingestions.
+
+By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Set `destination` to persist directly to any dlt-supported destination. See `../DESTINATIONS.md`.
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| `asset_name` | required | Name of the asset that will hold the data |
+| `company_domain` | required | BambooHR company subdomain (from https://{company_domain}.bamboohr.com). |
+| `api_key` | required | BambooHR API key (HTTP Basic username, blank password). Use ${BAMBOOHR_API_KEY} for env vars. |
+| `resources` | optional | Comma-separated list of resources to extract: employees (directory), changed_employees. Default: `employees` |
+
+## Example
+
+```yaml
+type: dagster_component_templates.BambooHrIngestionComponent
+attributes:
+  asset_name: bamboohr_ingestion
+  company_domain: "mycompany"
+  api_key: "${BAMBOOHR_API_KEY}"
+  resources: "employees"
+```
+
+Sourced from dltHub's public REST API connector reference (`https://dlthub.com/context/source/bamboohr`). Not yet run against a live account -- validate auth/pagination details against the vendor's current API docs before production use.

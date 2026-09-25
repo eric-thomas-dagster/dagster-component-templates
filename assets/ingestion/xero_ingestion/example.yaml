@@ -1,0 +1,7 @@
+type: dagster_component_templates.XeroIngestionComponent
+attributes:
+  asset_name: xero_ingestion
+  client_id: "${XERO_CLIENT_ID}"
+  client_secret: "${XERO_CLIENT_SECRET}"
+  refresh_token: "${XERO_REFRESH_TOKEN}"
+  resources: "Invoices,Contacts"

@@ -1,0 +1,7 @@
+type: dagster_component_templates.ConfluenceIngestionComponent
+attributes:
+  asset_name: confluence_ingestion
+  site_domain: "yoursite"
+  email: "${CONFLUENCE_EMAIL}"
+  api_token: "${CONFLUENCE_API_TOKEN}"
+  resources: "pages,spaces"

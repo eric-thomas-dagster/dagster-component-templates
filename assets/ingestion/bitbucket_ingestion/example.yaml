@@ -1,0 +1,8 @@
+type: dagster_component_templates.BitbucketIngestionComponent
+attributes:
+  asset_name: bitbucket_ingestion
+  workspace: "my-team"
+  email: "${BITBUCKET_EMAIL}"
+  api_token: "${BITBUCKET_API_TOKEN}"
+  repo_slug: "my-repo"
+  resources: "repositories"

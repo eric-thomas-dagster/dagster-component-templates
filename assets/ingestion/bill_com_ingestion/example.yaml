@@ -1,0 +1,8 @@
+type: dagster_component_templates.BillComIngestionComponent
+attributes:
+  asset_name: bill_com_ingestion
+  username: "${BILLCOM_USERNAME}"
+  password: "${BILLCOM_PASSWORD}"
+  organization_id: "${BILLCOM_ORG_ID}"
+  dev_key: "${BILLCOM_DEV_KEY}"
+  resources: "invoices,vendors"

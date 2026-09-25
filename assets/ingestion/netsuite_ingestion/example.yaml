@@ -1,0 +1,9 @@
+type: dagster_component_templates.NetSuiteIngestionComponent
+attributes:
+  asset_name: netsuite_ingestion
+  account_id: "1234567"
+  consumer_key: "${NETSUITE_CONSUMER_KEY}"
+  consumer_secret: "${NETSUITE_CONSUMER_SECRET}"
+  token_id: "${NETSUITE_TOKEN_ID}"
+  token_secret: "${NETSUITE_TOKEN_SECRET}"
+  resources: "customer,invoice"

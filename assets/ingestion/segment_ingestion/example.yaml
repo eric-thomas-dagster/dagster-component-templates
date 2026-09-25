@@ -1,0 +1,5 @@
+type: dagster_component_templates.SegmentIngestionComponent
+attributes:
+  asset_name: segment_ingestion
+  access_token: "${SEGMENT_ACCESS_TOKEN}"
+  resources: "sources,destinations"

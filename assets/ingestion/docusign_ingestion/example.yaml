@@ -1,0 +1,7 @@
+type: dagster_component_templates.DocuSignIngestionComponent
+attributes:
+  asset_name: docusign_ingestion
+  integration_key: "${DOCUSIGN_INTEGRATION_KEY}"
+  user_id: "${DOCUSIGN_USER_ID}"
+  private_key: "${DOCUSIGN_PRIVATE_KEY}"
+  resources: "envelopes"

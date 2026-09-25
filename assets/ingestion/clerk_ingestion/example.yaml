@@ -1,0 +1,5 @@
+type: dagster_component_templates.ClerkIngestionComponent
+attributes:
+  asset_name: clerk_ingestion
+  secret_key: "${CLERK_SECRET_KEY}"
+  resources: "users,organizations"

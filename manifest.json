@@ -54973,9 +54973,612 @@
         "audio source"
       ],
       "vertical": "cloud-storage"
+    },
+    {
+      "id": "bitbucket_ingestion",
+      "name": "BitbucketIngestionComponent",
+      "category": "ingestion",
+      "description": "Ingest Bitbucket Cloud repository data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/bitbucket_ingestion",
+      "tags": [
+        "ingestion",
+        "bitbucket",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/bitbucket_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/bitbucket_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/bitbucket_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/bitbucket_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/bitbucket_ingestion/requirements.txt",
+      "vertical": "devops-observability",
+      "icon": "si:bitbucket"
+    },
+    {
+      "id": "confluence_ingestion",
+      "name": "ConfluenceIngestionComponent",
+      "category": "ingestion",
+      "description": "Ingest Confluence Cloud pages and spaces using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/confluence_ingestion",
+      "tags": [
+        "ingestion",
+        "confluence",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/confluence_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/confluence_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/confluence_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/confluence_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/confluence_ingestion/requirements.txt",
+      "vertical": "productivity",
+      "icon": "si:confluence"
+    },
+    {
+      "id": "dropbox_sign_ingestion",
+      "name": "DropboxSignIngestionComponent",
+      "category": "ingestion",
+      "description": "Ingest Dropbox Sign (formerly HelloSign) e-signature data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/dropbox_sign_ingestion",
+      "tags": [
+        "ingestion",
+        "dropbox_sign",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dropbox_sign_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dropbox_sign_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dropbox_sign_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dropbox_sign_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dropbox_sign_ingestion/requirements.txt",
+      "vertical": "productivity",
+      "icon": "FileSignature"
+    },
+    {
+      "id": "chargebee_ingestion",
+      "name": "ChargebeeIngestionComponent",
+      "category": "ingestion",
+      "description": "Ingest Chargebee subscription billing data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/chargebee_ingestion",
+      "tags": [
+        "ingestion",
+        "chargebee",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/chargebee_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/chargebee_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/chargebee_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/chargebee_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/chargebee_ingestion/requirements.txt",
+      "vertical": "finance-hr",
+      "icon": "Receipt"
+    },
+    {
+      "id": "recurly_ingestion",
+      "name": "RecurlyIngestionComponent",
+      "category": "ingestion",
+      "description": "Ingest Recurly subscription billing data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/recurly_ingestion",
+      "tags": [
+        "ingestion",
+        "recurly",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/recurly_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/recurly_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/recurly_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/recurly_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/recurly_ingestion/requirements.txt",
+      "vertical": "finance-hr",
+      "icon": "Repeat"
+    },
+    {
+      "id": "launchdarkly_ingestion",
+      "name": "LaunchDarklyIngestionComponent",
+      "category": "ingestion",
+      "description": "Ingest LaunchDarkly feature flag and project data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/launchdarkly_ingestion",
+      "tags": [
+        "ingestion",
+        "launchdarkly",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/launchdarkly_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/launchdarkly_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/launchdarkly_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/launchdarkly_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/launchdarkly_ingestion/requirements.txt",
+      "vertical": "devops-observability",
+      "icon": "si:launchdarkly"
+    },
+    {
+      "id": "woocommerce_ingestion",
+      "name": "WooCommerceIngestionComponent",
+      "category": "ingestion",
+      "description": "Ingest WooCommerce store data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/woocommerce_ingestion",
+      "tags": [
+        "ingestion",
+        "woocommerce",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/woocommerce_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/woocommerce_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/woocommerce_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/woocommerce_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/woocommerce_ingestion/requirements.txt",
+      "vertical": "crm-sales",
+      "icon": "si:woocommerce"
+    },
+    {
+      "id": "clerk_ingestion",
+      "name": "ClerkIngestionComponent",
+      "category": "ingestion",
+      "description": "Ingest Clerk user and organization data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/clerk_ingestion",
+      "tags": [
+        "ingestion",
+        "clerk",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/clerk_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/clerk_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/clerk_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/clerk_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/clerk_ingestion/requirements.txt",
+      "vertical": "security",
+      "icon": "KeyRound"
+    },
+    {
+      "id": "workos_ingestion",
+      "name": "WorkOSIngestionComponent",
+      "category": "ingestion",
+      "description": "Ingest WorkOS SSO/directory-sync data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/workos_ingestion",
+      "tags": [
+        "ingestion",
+        "workos",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/workos_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/workos_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/workos_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/workos_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/workos_ingestion/requirements.txt",
+      "vertical": "security",
+      "icon": "Building2"
+    },
+    {
+      "id": "segment_ingestion",
+      "name": "SegmentIngestionComponent",
+      "category": "ingestion",
+      "description": "Ingest Segment CDP workspace configuration data (sources, destinations, catalog) using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/segment_ingestion",
+      "tags": [
+        "ingestion",
+        "segment",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/segment_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/segment_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/segment_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/segment_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/segment_ingestion/requirements.txt",
+      "vertical": "marketing",
+      "icon": "si:segment"
+    },
+    {
+      "id": "statsig_ingestion",
+      "name": "StatsigIngestionComponent",
+      "category": "ingestion",
+      "description": "Ingest Statsig feature gate and experiment configuration data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/statsig_ingestion",
+      "tags": [
+        "ingestion",
+        "statsig",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/statsig_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/statsig_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/statsig_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/statsig_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/statsig_ingestion/requirements.txt",
+      "vertical": "devops-observability",
+      "icon": "FlaskConical"
+    },
+    {
+      "id": "customerio_ingestion",
+      "name": "CustomerIOIngestionComponent",
+      "category": "ingestion",
+      "description": "Ingest Customer.io App API data (campaigns, segments, newsletters) using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/customerio_ingestion",
+      "tags": [
+        "ingestion",
+        "customerio",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/customerio_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/customerio_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/customerio_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/customerio_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/customerio_ingestion/requirements.txt",
+      "vertical": "marketing",
+      "icon": "Mail"
+    },
+    {
+      "id": "quickbooks_ingestion",
+      "name": "QuickBooksIngestionComponent",
+      "category": "ingestion",
+      "description": "Ingest QuickBooks Online accounting data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/quickbooks_ingestion",
+      "tags": [
+        "ingestion",
+        "quickbooks",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/quickbooks_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/quickbooks_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/quickbooks_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/quickbooks_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/quickbooks_ingestion/requirements.txt",
+      "vertical": "finance-hr",
+      "icon": "si:quickbooks"
+    },
+    {
+      "id": "xero_ingestion",
+      "name": "XeroIngestionComponent",
+      "category": "ingestion",
+      "description": "Ingest Xero accounting data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/xero_ingestion",
+      "tags": [
+        "ingestion",
+        "xero",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/xero_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/xero_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/xero_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/xero_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/xero_ingestion/requirements.txt",
+      "vertical": "finance-hr",
+      "icon": "si:xero"
+    },
+    {
+      "id": "bill_com_ingestion",
+      "name": "BillComIngestionComponent",
+      "category": "ingestion",
+      "description": "Ingest Bill.com AP/AR data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/bill_com_ingestion",
+      "tags": [
+        "ingestion",
+        "bill_com",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/bill_com_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/bill_com_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/bill_com_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/bill_com_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/bill_com_ingestion/requirements.txt",
+      "vertical": "finance-hr",
+      "icon": "Receipt"
+    },
+    {
+      "id": "netsuite_ingestion",
+      "name": "NetSuiteIngestionComponent",
+      "category": "ingestion",
+      "description": "Ingest Oracle NetSuite (SuiteTalk REST) data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/netsuite_ingestion",
+      "tags": [
+        "ingestion",
+        "netsuite",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0",
+          "requests-oauthlib>=1.3.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/netsuite_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/netsuite_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/netsuite_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/netsuite_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/netsuite_ingestion/requirements.txt",
+      "vertical": "finance-hr",
+      "icon": "Building2"
+    },
+    {
+      "id": "coupa_ingestion",
+      "name": "CoupaIngestionComponent",
+      "category": "ingestion",
+      "description": "Ingest Coupa procurement data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/coupa_ingestion",
+      "tags": [
+        "ingestion",
+        "coupa",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/coupa_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/coupa_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/coupa_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/coupa_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/coupa_ingestion/requirements.txt",
+      "vertical": "finance-hr",
+      "icon": "ShoppingCart"
+    },
+    {
+      "id": "docusign_ingestion",
+      "name": "DocuSignIngestionComponent",
+      "category": "ingestion",
+      "description": "Ingest DocuSign envelope and template data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/docusign_ingestion",
+      "tags": [
+        "ingestion",
+        "docusign",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0",
+          "pyjwt>=2.8.0",
+          "cryptography>=41.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/docusign_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/docusign_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/docusign_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/docusign_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/docusign_ingestion/requirements.txt",
+      "vertical": "productivity",
+      "icon": "si:docusign"
+    },
+    {
+      "id": "workday_ingestion",
+      "name": "WorkdayIngestionComponent",
+      "category": "ingestion",
+      "description": "Ingest Workday HCM worker data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/workday_ingestion",
+      "tags": [
+        "ingestion",
+        "workday",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/workday_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/workday_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/workday_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/workday_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/workday_ingestion/requirements.txt",
+      "vertical": "finance-hr",
+      "icon": "Building2"
+    },
+    {
+      "id": "linear_ingestion",
+      "name": "LinearIngestionComponent",
+      "category": "ingestion",
+      "description": "Ingest Linear issue-tracker data via Linear's GraphQL API.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/linear_ingestion",
+      "tags": [
+        "ingestion",
+        "linear",
+        "dlt",
+        "graphql"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/linear_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/linear_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/linear_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/linear_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/linear_ingestion/requirements.txt",
+      "vertical": "devops-observability",
+      "icon": "si:linear"
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1081
+  "total": 1101
 }

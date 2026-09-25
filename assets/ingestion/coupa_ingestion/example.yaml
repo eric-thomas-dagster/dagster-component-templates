@@ -1,0 +1,7 @@
+type: dagster_component_templates.CoupaIngestionComponent
+attributes:
+  asset_name: coupa_ingestion
+  instance: "mycompany"
+  client_id: "${COUPA_CLIENT_ID}"
+  client_secret: "${COUPA_CLIENT_SECRET}"
+  resources: "suppliers,purchase_orders"

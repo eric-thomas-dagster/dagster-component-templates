@@ -1,0 +1,6 @@
+type: dagster_component_templates.LaunchDarklyIngestionComponent
+attributes:
+  asset_name: launchdarkly_ingestion
+  api_token: "${LAUNCHDARKLY_API_TOKEN}"
+  project_key: "my-project"
+  resources: "projects"

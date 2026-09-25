@@ -1,0 +1,5 @@
+type: dagster_component_templates.LinearIngestionComponent
+attributes:
+  asset_name: linear_ingestion
+  api_key: "${LINEAR_API_KEY}"
+  resources: "issues,projects,teams"

@@ -1,0 +1,6 @@
+type: dagster_component_templates.ChargebeeIngestionComponent
+attributes:
+  asset_name: chargebee_ingestion
+  site: "mysite"
+  api_key: "${CHARGEBEE_API_KEY}"
+  resources: "customers,subscriptions,invoices"

@@ -1,0 +1,7 @@
+type: dagster_component_templates.WooCommerceIngestionComponent
+attributes:
+  asset_name: woocommerce_ingestion
+  store_url: "https://mystore.com"
+  consumer_key: "${WOOCOMMERCE_CONSUMER_KEY}"
+  consumer_secret: "${WOOCOMMERCE_CONSUMER_SECRET}"
+  resources: "products,orders"

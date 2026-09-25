@@ -1,0 +1,9 @@
+type: dagster_component_templates.WorkdayIngestionComponent
+attributes:
+  asset_name: workday_ingestion
+  base_url: "https://wd2-impl-services1.workday.com/ccx/api/v1/acme_gms1"
+  token_url: "https://wd2-impl-services1.workday.com/ccx/oauth2/acme_gms1/token"
+  client_id: "${WORKDAY_CLIENT_ID}"
+  client_secret: "${WORKDAY_CLIENT_SECRET}"
+  refresh_token: "${WORKDAY_REFRESH_TOKEN}"
+  resources: "workers"

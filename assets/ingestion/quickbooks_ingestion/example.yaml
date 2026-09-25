@@ -1,0 +1,8 @@
+type: dagster_component_templates.QuickBooksIngestionComponent
+attributes:
+  asset_name: quickbooks_ingestion
+  client_id: "${QUICKBOOKS_CLIENT_ID}"
+  client_secret: "${QUICKBOOKS_CLIENT_SECRET}"
+  refresh_token: "${QUICKBOOKS_REFRESH_TOKEN}"
+  realm_id: "${QUICKBOOKS_REALM_ID}"
+  resources: "Customer,Invoice"

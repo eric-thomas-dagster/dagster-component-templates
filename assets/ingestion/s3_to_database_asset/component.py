@@ -480,30 +480,32 @@ group_name=group_name,
             partition_date = None
             partitioned_key = key
             if context.has_partition_key:
-                # Parse partition key as date (format: YYYY-MM-DD)
-                try:
-                    partition_date = datetime.strptime(context.partition_key, "%Y-%m-%d")
-                    context.log.info(f"Processing S3 file for partition {context.partition_key}")
+                context.log.info(f"Processing S3 file for partition {context.partition_key}")
 
-                    # Support partitioned S3 keys with {partition_date} placeholder
-                    # e.g., data/sales_{partition_date}.csv -> data/sales_2024-01-01.csv
-                    if "{partition_date}" in key:
+                # Support partitioned S3 keys with a {partition_date} placeholder for
+                # time-based partitions (e.g. data/sales_{partition_date}.csv ->
+                # data/sales_2024-01-01.csv), independent of whether the key also
+                # uses {partition_key} -- static/dynamic partition keys aren't dates,
+                # so that substitution must not depend on the date parse succeeding.
+                if "{partition_date}" in key:
+                    try:
+                        partition_date = datetime.strptime(context.partition_key, "%Y-%m-%d")
                         partitioned_key = key.replace(
                             "{partition_date}",
                             partition_date.strftime("%Y-%m-%d")
                         )
                         context.log.info(f"Using partitioned S3 key: {partitioned_key}")
-                    elif "{partition_key}" in key:
-                        partitioned_key = key.replace(
-                            "{partition_key}",
-                            context.partition_key
+                    except ValueError:
+                        context.log.warning(
+                            f"Could not parse partition key '{context.partition_key}' as date, "
+                            "using original S3 key"
                         )
-                        context.log.info(f"Using partitioned S3 key: {partitioned_key}")
-                except ValueError:
-                    context.log.warning(
-                        f"Could not parse partition key '{context.partition_key}' as date, "
-                        "using original S3 key"
+                if "{partition_key}" in partitioned_key:
+                    partitioned_key = partitioned_key.replace(
+                        "{partition_key}",
+                        context.partition_key
                     )
+                    context.log.info(f"Using partitioned S3 key: {partitioned_key}")
             else:
                 context.log.info(f"Processing S3 file (non-partitioned)")
 

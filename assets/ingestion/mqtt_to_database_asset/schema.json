@@ -274,7 +274,11 @@
       "label": "Partition Static Column",
       "required": false,
       "x-dagster-widget": "column"
-    }
+    },
+    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.", "required": false, "default": null},
+    "partition_dimensions": {"type": "array", "items": {"type": "object"}, "label": "Partition Dimensions", "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.", "required": false, "default": null},
+    "include_preview_metadata": {"type": "boolean", "label": "Include Preview Metadata", "description": "Include sample data preview in metadata", "required": false, "default": true, "ui:widget": "checkbox"},
+    "preview_rows": {"type": "integer", "label": "Preview Rows", "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.", "required": false, "default": 25}
   },
   "tags": [
     "ingestion",

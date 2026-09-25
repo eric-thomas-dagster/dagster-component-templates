@@ -161,7 +161,7 @@ class RestApiIngestionComponent(Component, Model, Resolvable):
 
     partition_type: Optional[str] = Field(
         default=None,
-        description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None. The partition key is exposed to api_url and params via {partition_key} (always), plus {partition_date} / {partition_date_next} for time-based partitions.",
+        description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None. The partition key is exposed to api_url and params via {partition_key} (always), plus {partition_date} / {partition_date_next} for time-based partitions.",
     )
     partition_start: Optional[str] = Field(
         default=None,
@@ -174,6 +174,10 @@ class RestApiIngestionComponent(Component, Model, Resolvable):
     partition_static_dim: Optional[str] = Field(
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
+    )
+    dynamic_partition_name: Optional[str] = Field(
+        default=None,
+        description="Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
     )
 
     deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
@@ -383,6 +387,7 @@ class RestApiIngestionComponent(Component, Model, Resolvable):
         if self.partition_type:
             from dagster import (
                 DailyPartitionsDefinition,
+                DynamicPartitionsDefinition,
                 HourlyPartitionsDefinition,
                 MonthlyPartitionsDefinition,
                 MultiPartitionsDefinition,
@@ -415,6 +420,10 @@ class RestApiIngestionComponent(Component, Model, Resolvable):
                     "date": DailyPartitionsDefinition(start_date=_start),
                     _dim: StaticPartitionsDefinition(_values),
                 })
+            elif self.partition_type == "dynamic":
+                if not self.dynamic_partition_name:
+                    raise ValueError("partition_type='dynamic' requires dynamic_partition_name.")
+                partitions_def = DynamicPartitionsDefinition(name=self.dynamic_partition_name)
 
 
         # Build retry policy (auto-generated; opt-in via retry_policy_max_retries).

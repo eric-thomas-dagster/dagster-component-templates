@@ -465,7 +465,17 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
 
         # asset_overrides.depends_on merges into the deps list alongside upstream_keys.
         override_deps = _resolve_override_deps(self.asset_overrides, asset_name)
-        combined_deps: List[Any] = list(upstream_keys) + list(override_deps)
+        # upstream_keys are raw user-typed strings (e.g. "marts/fct_orders")
+        # -- convert with the same "/" split _resolve_override_deps already
+        # uses for asset_overrides.depends_on, so a bare string dep isn't
+        # misread as one single-segment name containing a literal "/"
+        # (which Dagster rejects: names must match ^[A-Za-z0-9_]+$). Only
+        # `deps=` needs AssetKey objects; `upstream_keys` itself stays a
+        # plain string list below for context.load_asset_value().
+        upstream_dep_keys: List[AssetKey] = [
+            AssetKey(k.split("/")) if "/" in k else AssetKey(k) for k in upstream_keys
+        ]
+        combined_deps: List[Any] = list(upstream_dep_keys) + list(override_deps)
 
         partitions_def = _build_partitions_def(
             self.partition_type,

@@ -1,0 +1,7 @@
+type: dagster_component_templates.RingCentralIngestionComponent
+attributes:
+  asset_name: ringcentral_ingestion
+  client_id: "${RINGCENTRAL_CLIENT_ID}"
+  client_secret: "${RINGCENTRAL_CLIENT_SECRET}"
+  jwt_token: "${RINGCENTRAL_JWT_TOKEN}"
+  resources: "call_logs,extensions"

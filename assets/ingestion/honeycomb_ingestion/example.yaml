@@ -1,0 +1,5 @@
+type: dagster_component_templates.HoneycombIngestionComponent
+attributes:
+  asset_name: honeycomb_ingestion
+  api_key: "${HONEYCOMB_API_KEY}"
+  resources: "datasets"

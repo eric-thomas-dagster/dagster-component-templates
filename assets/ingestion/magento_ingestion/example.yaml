@@ -1,0 +1,6 @@
+type: dagster_component_templates.MagentoIngestionComponent
+attributes:
+  asset_name: magento_ingestion
+  instance_url: "https://mystore.example.com"
+  admin_token: "${MAGENTO_ADMIN_TOKEN}"
+  resources: "products,orders"

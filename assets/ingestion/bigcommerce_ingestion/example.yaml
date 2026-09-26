@@ -1,0 +1,6 @@
+type: dagster_component_templates.BigCommerceIngestionComponent
+attributes:
+  asset_name: bigcommerce_ingestion
+  store_hash: "abc123def"
+  access_token: "${BIGCOMMERCE_ACCESS_TOKEN}"
+  resources: "products,customers"

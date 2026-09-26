@@ -1,0 +1,6 @@
+type: dagster_component_templates.GrafanaCloudIngestionComponent
+attributes:
+  asset_name: grafana_cloud_ingestion
+  stack_url: "https://mystack.grafana.net"
+  service_account_token: "${GRAFANA_SERVICE_ACCOUNT_TOKEN}"
+  resources: "dashboards,datasources"

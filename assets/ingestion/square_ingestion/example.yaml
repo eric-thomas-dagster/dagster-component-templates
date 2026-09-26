@@ -1,0 +1,5 @@
+type: dagster_component_templates.SquareIngestionComponent
+attributes:
+  asset_name: square_ingestion
+  access_token: "${SQUARE_ACCESS_TOKEN}"
+  resources: "customers,payments"

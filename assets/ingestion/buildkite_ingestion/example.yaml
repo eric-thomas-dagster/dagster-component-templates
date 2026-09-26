@@ -1,0 +1,5 @@
+type: dagster_component_templates.BuildkiteIngestionComponent
+attributes:
+  asset_name: buildkite_ingestion
+  api_token: "${BUILDKITE_API_TOKEN}"
+  resources: "organizations,pipelines"

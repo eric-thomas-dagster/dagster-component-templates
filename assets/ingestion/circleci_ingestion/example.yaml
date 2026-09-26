@@ -1,0 +1,5 @@
+type: dagster_component_templates.CircleCIIngestionComponent
+attributes:
+  asset_name: circleci_ingestion
+  api_token: "${CIRCLECI_API_TOKEN}"
+  resources: "pipelines"

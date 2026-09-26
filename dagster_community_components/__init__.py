@@ -27,6 +27,18 @@ _PACKAGE_ROOT = Path(__file__).resolve().parent
 
 # class name -> component.py path (relative to package root). Generated.
 _CLASS_PATHS: dict[str, str] = {
+    "PayPalIngestionComponent": "assets/ingestion/paypal_ingestion/component.py",
+    "SquareIngestionComponent": "assets/ingestion/square_ingestion/component.py",
+    "BigCommerceIngestionComponent": "assets/ingestion/bigcommerce_ingestion/component.py",
+    "MagentoIngestionComponent": "assets/ingestion/magento_ingestion/component.py",
+    "RingCentralIngestionComponent": "assets/ingestion/ringcentral_ingestion/component.py",
+    "OneDriveIngestionComponent": "assets/ingestion/onedrive_ingestion/component.py",
+    "QualtricsIngestionComponent": "assets/ingestion/qualtrics_ingestion/component.py",
+    "PandaDocIngestionComponent": "assets/ingestion/pandadoc_ingestion/component.py",
+    "HoneycombIngestionComponent": "assets/ingestion/honeycomb_ingestion/component.py",
+    "GrafanaCloudIngestionComponent": "assets/ingestion/grafana_cloud_ingestion/component.py",
+    "CircleCIIngestionComponent": "assets/ingestion/circleci_ingestion/component.py",
+    "BuildkiteIngestionComponent": "assets/ingestion/buildkite_ingestion/component.py",
     "MailchimpResourceComponent": "resources/mailchimp_resource/component.py",
     "MailchimpMemberUpsertComponent": "assets/reverse_etl/mailchimp_member_upsert/component.py",
     "VercelIngestionComponent": "assets/ingestion/vercel_ingestion/component.py",

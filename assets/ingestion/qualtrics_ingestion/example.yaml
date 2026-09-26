@@ -1,0 +1,6 @@
+type: dagster_component_templates.QualtricsIngestionComponent
+attributes:
+  asset_name: qualtrics_ingestion
+  datacenter_id: "iad1"
+  api_token: "${QUALTRICS_API_TOKEN}"
+  resources: "surveys"

@@ -25,3 +25,10 @@ attributes:
   # — start from a preset but tweak it: output_fields always overrides the preset —
   # document_type: invoice
   # output_fields: [invoice_number, vendor, total_amount, po_reference]
+
+  # — mark where a field appears (images only) -- fractional 0-1 coords,
+  #   cropped and sent as a labeled close-up hint alongside the full image.
+  #   Dagster Designer's DocumentExtractorConfigStep has a draw-a-box UI
+  #   that produces this directly; hand-writing it is the fallback. —
+  # field_regions:
+  #   invoice_number: {x: 0.6, y: 0.05, width: 0.3, height: 0.08}

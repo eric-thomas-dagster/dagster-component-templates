@@ -146,6 +146,13 @@
       "required": false,
       "default": 20000
     },
+    "field_regions": {
+      "type": "object",
+      "label": "Field Regions",
+      "description": "Optional per-field bounding boxes (fractional 0-1 x/y/width/height) marking where each field appears on the document -- only meaningful for image documents, silently ignored for PDF/text. Each region is cropped and sent to the LLM as a labeled close-up hint alongside the full image.",
+      "required": false,
+      "default": null
+    },
     "post_process": {
       "type": "string",
       "label": "Post Process",

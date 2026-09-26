@@ -34,6 +34,23 @@ reason, instead of failing silently. The LLM call itself retries up to
 `llm_max_retries` times (default 2, forwarded to litellm's `num_retries`)
 on transient errors before that row is counted as failed.
 
+## Field locations (`field_regions`) -- optional, images only
+
+```yaml
+field_regions:
+  invoice_number: {x: 0.6, y: 0.05, width: 0.3, height: 0.08}   # fractional 0-1 coords
+```
+
+Marks approximately where a field appears on the document. Each region
+gets cropped and sent to the LLM as a labeled close-up alongside the full
+image -- a hint, not a hard constraint, since a region is drawn against
+ONE sample document and a real batch's exact layout can shift. Only
+meaningful for image documents; silently ignored for PDF/text (there's no
+fixed pixel geometry to crop against there). Dagster Designer's
+`DocumentExtractorConfigStep` has a draw-a-box UI (`DocumentAnnotator`)
+that produces this config directly -- hand-writing the fractions is the
+fallback, not the primary way to set this.
+
 ## Two input modes
 
 Exactly one of `upstream_asset_key` or `path` -- mirrors `file_ingestion`'s own `file_path` / `from_upstream` split:
@@ -193,6 +210,7 @@ output_fields: [invoice_number, vendor, total_amount, po_reference]  # your own 
 | `document_type` | `str` | `"custom"` | `'Picks a default output_fields preset: ' + ', '.join(sorted(_PRESET_FIELDS.keys())) + ", or 'custom' (requires output_fields to be set explicitly)."` |
 | `llm_max_retries` | `int` | `2` | Retry a document's LLM call up to this many times on transient errors (rate limits, timeouts) before giving up on that row -- forwarded to litellm's own num_retries. |
 | `max_content_chars` | `int` | `20000` | Truncate extracted document text to this many characters before prompting the LLM -- guards against blowing the model's context window or racking up cost on unusually large text-PDF/text-input rows. Doesn't apply to imag… _(full docs in schema.json + component README)_ |
+| `field_regions` | `Dict[str, Dict[str, float]]` | — | Optional per-field bounding boxes (fractional 0-1 coordinates: x, y, width, height) marking approximately where each field appears on the document, e.g. {'invoice_number': {'x': 0.6, 'y': 0.05, 'width': 0.3, 'height': 0… _(full docs in schema.json + component README)_ |
 | `post_process` | `str` | `"none"` | What to do with each SOURCE file (not the LLM output) once it's been successfully extracted: 'none' (leave in place -- the same files get reprocessed on every materialize, so `path` mode with 'none' is only really safe f… _(full docs in schema.json + component README)_ |
 | `post_process_dir` | `str` | — | Destination directory when post_process='move'. Same fsspec scheme as the source file (local, s3://, gs://, ...). Required when post_process='move'. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
@@ -207,4 +225,4 @@ output_fields: [invoice_number, vendor, total_amount, po_reference]  # your own 
 
 ## Validation
 
-`validation.level: code` — verified end-to-end against a real Dagster materialization (with litellm's `completion` call mocked to avoid real API spend during testing), both input modes: `upstream_asset_key` mode (file_lister → this component) and `path` mode (this component listing files directly, no separate asset). Preset resolution, the `custom` + no `output_fields` error path, the unknown-`document_type` error path, and the both-modes/neither-mode-set error path all behave as documented. Also verified against REAL files (not just mocked content): a real PNG is base64-encoded correctly into a vision content block (decoded bytes checked against the real PNG header), a real digitally-generated PDF has its actual embedded text (via `pdfplumber`) reach the prompt instead of raw PDF bytes, a PDF with no extractable text fails that row cleanly with a clear reason instead of sending empty/garbage content, `llm_max_retries` is forwarded to litellm's `num_retries`, a non-object or malformed LLM JSON response is handled as a clean per-row failure rather than a crash, and `max_content_chars` truncates oversized text content before it reaches the prompt (verified it does not apply to image rows, which go through the vision content block instead). Has NOT been run against a real LLM API call yet — live-test that before trusting it in production, and flip `validation.level` to `live` once confirmed.
+`validation.level: code` — verified end-to-end against a real Dagster materialization (with litellm's `completion` call mocked to avoid real API spend during testing), both input modes: `upstream_asset_key` mode (file_lister → this component) and `path` mode (this component listing files directly, no separate asset). Preset resolution, the `custom` + no `output_fields` error path, the unknown-`document_type` error path, and the both-modes/neither-mode-set error path all behave as documented. Also verified against REAL files (not just mocked content): a real PNG is base64-encoded correctly into a vision content block (decoded bytes checked against the real PNG header), a real digitally-generated PDF has its actual embedded text (via `pdfplumber`) reach the prompt instead of raw PDF bytes, a PDF with no extractable text fails that row cleanly with a clear reason instead of sending empty/garbage content, `llm_max_retries` is forwarded to litellm's `num_retries`, a non-object or malformed LLM JSON response is handled as a clean per-row failure rather than a crash, and `max_content_chars` truncates oversized text content before it reaches the prompt (verified it does not apply to image rows, which go through the vision content block instead). Also verified `field_regions`: a region crop was checked pixel-by-pixel (a red/blue split test image) to confirm the CORRECT area is cropped, sent as an extra labeled content block alongside the full image, with no field_regions set producing exactly the prior (unchanged) message shape. Has NOT been run against a real LLM API call yet — live-test that before trusting it in production, and flip `validation.level` to `live` once confirmed.

@@ -202,6 +202,40 @@ def _extract_file_content(path: str) -> "tuple[Optional[str], Optional[dict]]":
         return fh.read(), None
 
 
+def _crop_region_blocks(path: str, field_regions: Dict[str, Dict[str, float]]) -> List[dict]:
+    """Crop each named field's region out of an image file and return
+    interleaved [text-label, image_url] content blocks for each -- sent
+    alongside the full image as a close-up HINT, not a hard constraint,
+    since a region was drawn against ONE sample document and a real
+    batch's layout can shift. Field-location UI lives in Dagster Designer
+    (its own draw-a-box tool); this is just what consumes the result.
+    """
+    try:
+        from PIL import Image
+    except ImportError:
+        raise ImportError("field_regions requires Pillow: pip install Pillow")
+    import base64
+    import io
+
+    img = Image.open(path)
+    w, h = img.size
+    blocks: List[dict] = []
+    for field, region in field_regions.items():
+        left = int(region["x"] * w)
+        top = int(region["y"] * h)
+        right = int((region["x"] + region["width"]) * w)
+        bottom = int((region["y"] + region["height"]) * h)
+        if right <= left or bottom <= top:
+            continue
+        crop = img.crop((left, top, right, bottom)).convert("RGB")
+        buf = io.BytesIO()
+        crop.save(buf, format="PNG")
+        crop_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+        blocks.append({"type": "text", "text": f"Close-up crop of approximately where '{field}' appears (a hint, not a hard constraint):"})
+        blocks.append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{crop_b64}"}})
+    return blocks
+
+
 def _list_files_direct(path: str, max_files: Optional[int], download: bool, download_dir: Optional[str]) -> "pd.DataFrame":
     """List (and by default download) files matching `path` directly --
     same logic as file_lister's own _list_files, duplicated rather than
@@ -332,6 +366,21 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
         default=20000,
         description="Truncate extracted document text to this many characters before prompting the LLM -- guards against blowing the model's context window or racking up cost on unusually large text-PDF/text-input rows. Doesn't apply to image rows (sent as a vision content block, not text). Set to null to disable.",
     )
+    field_regions: Optional[Dict[str, Dict[str, float]]] = Field(
+        default=None,
+        description=(
+            "Optional per-field bounding boxes (fractional 0-1 coordinates: "
+            "x, y, width, height) marking approximately where each field "
+            "appears on the document, e.g. {'invoice_number': {'x': 0.6, "
+            "'y': 0.05, 'width': 0.3, 'height': 0.08}}. Only meaningful for "
+            "image documents (input_type='file' with an image extension) -- "
+            "silently ignored for PDF/text. Each region is cropped and sent "
+            "to the LLM as a labeled close-up alongside the full image, as "
+            "a HINT, not a hard constraint (a real batch's layout can shift "
+            "slightly from whatever single sample document this was drawn "
+            "against)."
+        ),
+    )
     post_process: str = Field(
         default="none",
         description=(
@@ -440,6 +489,7 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
         batch_size = self.batch_size
         llm_max_retries = self.llm_max_retries
         max_content_chars = self.max_content_chars
+        field_regions = self.field_regions
         post_process = self.post_process
         post_process_dir = self.post_process_dir
 
@@ -559,6 +609,11 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
                                 "Return only a JSON object with the requested fields. Use null for missing fields."
                             )
                             message_content: Any = [{"type": "text", "text": prompt_text}, image_block]
+                            if field_regions:
+                                try:
+                                    message_content += _crop_region_blocks(file_ref, field_regions)
+                                except Exception as e:
+                                    context.log.warning(f"Could not build field-location crops for {file_ref!r}: {e}")
                         else:
                             prompt_text = (
                                 f"Extract the following fields from this {_doc_label} as JSON: {output_fields}\n\n"

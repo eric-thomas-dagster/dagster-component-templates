@@ -118,6 +118,15 @@ def _list_files(path: str, max_files: Optional[int]) -> List[Dict[str, Any]]:
     import fsspec
 
     fs, _, paths = fsspec.get_fs_token_paths(path)
+    # A path with no glob pattern (no `*`/`?`/`[`) that happens to be a
+    # directory resolves to the directory itself, not its contents --
+    # confirmed live: 'a/b/c/' with no `*.png` suffix returns
+    # ['a/b/c'], a single directory entry, not the 7 files inside it.
+    # The natural thing a user types is "point me at this folder", not
+    # a glob -- auto-expand a lone directory result into its immediate
+    # children rather than making every caller remember to append `/*`.
+    if len(paths) == 1 and fs.isdir(paths[0]):
+        paths = [p for p in fs.ls(paths[0], detail=False) if not fs.isdir(p)]
     if max_files is not None:
         paths = paths[:max_files]
     out = []

@@ -55623,7 +55623,8 @@
           "dagster",
           "pandas",
           "litellm",
-          "fsspec"
+          "fsspec",
+          "pdfplumber"
         ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/structured_document_extractor/README.md",
@@ -55634,7 +55635,7 @@
       "icon": "FileSearch",
       "validation": {
         "level": "code",
-        "evidence": "Verified end-to-end against a real local Dagster materialization for BOTH input modes: upstream_asset_key (file_lister -> this component) and path (this component listing files directly, no separate asset) -- litellm.completion mocked to avoid real API spend. Preset resolution, the custom-with-no-output_fields error path, the unknown-document_type error path, and the both-modes/neither-mode-set error path all behave as documented. Also verified post_process (move and delete): successfully-extracted rows' source files are moved/deleted, a failed row's file is left in place for retry, and both post_process='move' without post_process_dir and post_process set with input_type='text' raise the documented validation errors.",
+        "evidence": "Verified end-to-end against a real local Dagster materialization for BOTH input modes: upstream_asset_key (file_lister -> this component) and path (this component listing files directly, no separate asset) -- litellm.completion mocked to avoid real API spend. Preset resolution, the custom-with-no-output_fields error path, the unknown-document_type error path, and the both-modes/neither-mode-set error path all behave as documented. Also verified post_process (move and delete): successfully-extracted rows' source files are moved/deleted, a failed row's file is left in place for retry, and both post_process='move' without post_process_dir and post_process set with input_type='text' raise the documented validation errors. Also verified against REAL files: a real PNG is base64-encoded correctly into a vision content block (decoded bytes checked against the real PNG header, not just mocked), a real digitally-generated PDF has its actual pdfplumber-extracted text reach the prompt instead of raw PDF bytes, a PDF with no extractable text fails that row cleanly (previously this whole file-reading path silently produced garbage for every PDF/image -- opened in text mode with errors='replace' regardless of extension), llm_max_retries is forwarded to litellm's num_retries, and malformed/non-object LLM JSON responses are handled as clean per-row failures.",
         "last_validated": "2026-09-25"
       },
       "agent_hints": {

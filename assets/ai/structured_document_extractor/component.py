@@ -153,6 +153,55 @@ _PRESET_FIELDS: Dict[str, List[str]] = {
 _DOCUMENT_TYPES = sorted(_PRESET_FIELDS.keys()) + ["custom"]
 
 
+_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tiff", ".tif"}
+_MIME_BY_EXT = {
+    ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif",
+    ".webp": "image/webp", ".bmp": "image/bmp", ".tiff": "image/tiff", ".tif": "image/tiff",
+}
+
+
+def _extract_file_content(path: str) -> "tuple[Optional[str], Optional[dict]]":
+    """Read a document/image file for the LLM prompt -- returns
+    (text, image_content_block), exactly one non-None.
+
+    Previously this just opened every file in TEXT mode with
+    errors='replace' regardless of extension, so a real PDF or image got
+    read as raw-bytes-decoded-as-UTF-8 garbage and fed straight into the
+    prompt -- silently not extracting anything real for the component's
+    stated primary use case. Images are base64-encoded into a litellm
+    vision content block (same pattern as image_llm_extractor); PDFs use
+    pdfplumber to pull embedded text (same library as pdf_text_extractor).
+    A PDF with no extractable text (a scanned/photographed page rather
+    than a digitally-generated one) raises rather than silently sending
+    empty content to the LLM -- true OCR-of-scanned-PDFs isn't supported
+    yet (see README); route those through ocr_extractor/document_ai_
+    extractor first, or convert pages to images and use `path` mode here.
+    """
+    import base64
+    ext = Path(path).suffix.lower()
+    if ext in _IMAGE_EXTENSIONS:
+        with open(path, "rb") as f:
+            img_data = base64.b64encode(f.read()).decode("utf-8")
+        mime = _MIME_BY_EXT.get(ext, "image/jpeg")
+        return None, {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{img_data}"}}
+    if ext == ".pdf":
+        try:
+            import pdfplumber
+        except ImportError:
+            raise ImportError("PDF extraction requires pdfplumber: pip install pdfplumber")
+        with pdfplumber.open(path) as pdf:
+            text = "\n".join((page.extract_text() or "") for page in pdf.pages)
+        if not text.strip():
+            raise ValueError(
+                f"No extractable text in {path!r} -- likely a scanned/image-based PDF, "
+                "which isn't OCR'd here (only digitally-generated PDF text and image "
+                "files are supported directly)."
+            )
+        return text, None
+    with open(path, "r", encoding="utf-8", errors="replace") as fh:
+        return fh.read(), None
+
+
 def _list_files_direct(path: str, max_files: Optional[int], download: bool, download_dir: Optional[str]) -> "pd.DataFrame":
     """List (and by default download) files matching `path` directly --
     same logic as file_lister's own _list_files, duplicated rather than
@@ -275,6 +324,10 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
         ),
     )
     batch_size: int = Field(default=5, description="Number of documents per LLM batch")
+    llm_max_retries: int = Field(
+        default=2,
+        description="Retry a document's LLM call up to this many times on transient errors (rate limits, timeouts) before giving up on that row -- forwarded to litellm's own num_retries.",
+    )
     post_process: str = Field(
         default="none",
         description=(
@@ -381,6 +434,7 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
         api_key_env_var = self.api_key_env_var
         document_type = self.document_type
         batch_size = self.batch_size
+        llm_max_retries = self.llm_max_retries
         post_process = self.post_process
         post_process_dir = self.post_process_dir
 
@@ -482,25 +536,34 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
                 for _, row in batch.iterrows():
                     file_ref = str(row[input_column])
                     source_path = str(row["path"]) if has_path_col and pd.notna(row["path"]) else file_ref
-                    content = file_ref
-                    if input_type == "file":
-                        try:
-                            with open(content, "r", encoding="utf-8", errors="replace") as fh:
-                                content = fh.read()
-                        except Exception as e:
-                            context.log.warning(f"Could not read file {content}: {e}")
-
-                    prompt = (
-                        f"Extract the following fields from this {_doc_label} as JSON: {output_fields}\n\n"
-                        f"Document content:\n{content}\n\n"
-                        "Return only a JSON object with the requested fields. Use null for missing fields."
-                    )
                     success = False
                     try:
+                        image_block = None
+                        if input_type == "file":
+                            text_content, image_block = _extract_file_content(file_ref)
+                            content = text_content if text_content is not None else file_ref
+                        else:
+                            content = file_ref
+
+                        if image_block is not None:
+                            prompt_text = (
+                                f"Extract the following fields from this {_doc_label} image as JSON: {output_fields}\n\n"
+                                "Return only a JSON object with the requested fields. Use null for missing fields."
+                            )
+                            message_content: Any = [{"type": "text", "text": prompt_text}, image_block]
+                        else:
+                            prompt_text = (
+                                f"Extract the following fields from this {_doc_label} as JSON: {output_fields}\n\n"
+                                f"Document content:\n{content}\n\n"
+                                "Return only a JSON object with the requested fields. Use null for missing fields."
+                            )
+                            message_content = prompt_text
+
                         resp = completion(
                             model=model,
-                            messages=[{"role": "user", "content": prompt}],
+                            messages=[{"role": "user", "content": message_content}],
                             api_key=os.environ.get(api_key_env_var),
+                            num_retries=llm_max_retries,
                         )
                         raw = resp.choices[0].message.content
                         raw = raw.strip()
@@ -509,9 +572,16 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
                             if raw.startswith("json"):
                                 raw = raw[4:]
                         extracted = json.loads(raw)
+                        if not isinstance(extracted, dict):
+                            raise ValueError(f"LLM returned {type(extracted).__name__}, expected a JSON object")
+                        # Fill any field the LLM omitted with None -- keeps
+                        # every row's dict shape identical regardless of
+                        # what the model chose to include, so the output
+                        # DataFrame always has consistent columns.
+                        extracted = {f: extracted.get(f) for f in output_fields}
                         success = True
                     except Exception as e:
-                        context.log.warning(f"Extraction failed for row: {e}")
+                        context.log.warning(f"Extraction failed for {source_path!r}: {e}")
                         extracted = {f: None for f in output_fields}
                     results.append(extracted)
                     _post_process_rows.append((source_path, success))
@@ -548,12 +618,18 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
                     "post_process_failed": failed,
                 })
 
+            extraction_failures = sum(1 for _, ok in _post_process_rows if not ok)
             context.add_output_metadata({
                 "num_documents": total,
                 "document_type": document_type,
                 "extracted_fields": output_fields,
                 "model": model,
+                "extraction_failures": extraction_failures,
             })
+            if extraction_failures > 0:
+                context.log.warning(
+                    f"{extraction_failures}/{total} row(s) failed extraction (all-None fields) -- see prior warnings for why."
+                )
             if include_preview and len(df) > 0:
                 try:
                     _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)

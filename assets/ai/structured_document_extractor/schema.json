@@ -116,6 +116,13 @@
       "required": false,
       "default": 5
     },
+    "llm_max_retries": {
+      "type": "integer",
+      "label": "LLM Max Retries",
+      "description": "Retry a document's LLM call up to this many times on transient errors (rate limits, timeouts) before giving up on that row -- forwarded to litellm's own num_retries.",
+      "required": false,
+      "default": 2
+    },
     "post_process": {
       "type": "string",
       "label": "Post Process",

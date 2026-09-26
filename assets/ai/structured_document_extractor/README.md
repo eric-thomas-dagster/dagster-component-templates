@@ -6,6 +6,34 @@ Extract structured fields from any document type using an LLM — one component,
 
 Diffed directly against the source: `invoice_extractor`, `receipt_extractor`, `bank_statement_extractor`, `expense_report_extractor`, `purchase_order_extractor`, `shipping_label_extractor`, `contract_extractor`, `legal_document_extractor`, `insurance_claim_extractor`, `medical_record_extractor`, `resume_extractor`, `job_posting_extractor`, and `scientific_paper_extractor` are the same component — identical `upstream_asset_key` / `input_column` / `model` / `api_key_env_var` / `output_fields` / `batch_size` fields, identical LLM-call logic. The only real difference between any two of them is the *default value* of `output_fields` and a docstring. Those 13 components are kept for backward compatibility (existing YAML referencing them keeps working), but new usage should prefer this one.
 
+## How file content actually gets read (`input_type: file`)
+
+Fixed from an earlier version that opened every file in TEXT mode with
+`errors="replace"` regardless of extension — meaning a real PDF or image
+got read as raw-bytes-decoded-as-UTF-8 garbage and fed straight into the
+prompt, silently not extracting anything real. It now branches by
+extension:
+
+- **Images** (`.png` / `.jpg` / `.jpeg` / `.gif` / `.webp` / `.bmp` /
+  `.tiff`) — base64-encoded into a vision content block, so this only
+  works with a vision-capable model (`gpt-4o`, `claude-3-5-sonnet`,
+  `gemini-1.5-pro`, etc.).
+- **PDFs** — text extracted via `pdfplumber`. Works for digitally-
+  generated PDFs (text embedded in the file); a scanned/photographed PDF
+  has no embedded text and that row fails cleanly (see below) rather than
+  silently sending empty content. Route those through `ocr_extractor` or
+  `document_ai_extractor` first, or convert pages to images and use
+  `path` mode here.
+- **Anything else** (`.txt`, `.md`, ...) — read as plain text, as before.
+
+**Failure visibility:** a row that fails for any reason (unreadable file,
+no extractable PDF text, malformed LLM JSON, a non-object JSON response)
+gets all-`None` fields — same as before — but is now also counted in the
+`extraction_failures` output metadata and logged with the specific
+reason, instead of failing silently. The LLM call itself retries up to
+`llm_max_retries` times (default 2, forwarded to litellm's `num_retries`)
+on transient errors before that row is counted as failed.
+
 ## Two input modes
 
 Exactly one of `upstream_asset_key` or `path` -- mirrors `file_ingestion`'s own `file_path` / `from_upstream` split:
@@ -163,6 +191,7 @@ output_fields: [invoice_number, vendor, total_amount, po_reference]  # your own 
 | `download_dir` | `str` | — | When using `path` with download=true: local cache directory. Auto-generated under the system temp dir if unset. |
 | `max_files` | `int` | — | When using `path`: safety cap on how many matched files to process in one materialize. |
 | `document_type` | `str` | `"custom"` | `'Picks a default output_fields preset: ' + ', '.join(sorted(_PRESET_FIELDS.keys())) + ", or 'custom' (requires output_fields to be set explicitly)."` |
+| `llm_max_retries` | `int` | `2` | Retry a document's LLM call up to this many times on transient errors (rate limits, timeouts) before giving up on that row -- forwarded to litellm's own num_retries. |
 | `post_process` | `str` | `"none"` | What to do with each SOURCE file (not the LLM output) once it's been successfully extracted: 'none' (leave in place -- the same files get reprocessed on every materialize, so `path` mode with 'none' is only really safe f… _(full docs in schema.json + component README)_ |
 | `post_process_dir` | `str` | — | Destination directory when post_process='move'. Same fsspec scheme as the source file (local, s3://, gs://, ...). Required when post_process='move'. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
@@ -177,4 +206,4 @@ output_fields: [invoice_number, vendor, total_amount, po_reference]  # your own 
 
 ## Validation
 
-`validation.level: code` — verified end-to-end against a real Dagster materialization (with litellm's `completion` call mocked to avoid real API spend during testing), both input modes: `upstream_asset_key` mode (file_lister → this component) and `path` mode (this component listing files directly, no separate asset). Preset resolution, the `custom` + no `output_fields` error path, the unknown-`document_type` error path, and the both-modes/neither-mode-set error path all behave as documented. Has NOT been run against a real LLM API call yet — live-test that before trusting it in production, and flip `validation.level` to `live` once confirmed.
+`validation.level: code` — verified end-to-end against a real Dagster materialization (with litellm's `completion` call mocked to avoid real API spend during testing), both input modes: `upstream_asset_key` mode (file_lister → this component) and `path` mode (this component listing files directly, no separate asset). Preset resolution, the `custom` + no `output_fields` error path, the unknown-`document_type` error path, and the both-modes/neither-mode-set error path all behave as documented. Also verified against REAL files (not just mocked content): a real PNG is base64-encoded correctly into a vision content block (decoded bytes checked against the real PNG header), a real digitally-generated PDF has its actual embedded text (via `pdfplumber`) reach the prompt instead of raw PDF bytes, a PDF with no extractable text fails that row cleanly with a clear reason instead of sending empty/garbage content, `llm_max_retries` is forwarded to litellm's `num_retries`, and a non-object or malformed LLM JSON response is handled as a clean per-row failure rather than a crash. Has NOT been run against a real LLM API call yet — live-test that before trusting it in production, and flip `validation.level` to `live` once confirmed.

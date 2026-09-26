@@ -1,0 +1,7 @@
+type: dagster_component_templates.DropboxIngestionComponent
+attributes:
+  asset_name: dropbox_ingestion
+  client_id: "${DROPBOX_CLIENT_ID}"
+  client_secret: "${DROPBOX_CLIENT_SECRET}"
+  refresh_token: "${DROPBOX_REFRESH_TOKEN}"
+  folder_path: ""

@@ -27,6 +27,7 @@ _PACKAGE_ROOT = Path(__file__).resolve().parent
 
 # class name -> component.py path (relative to package root). Generated.
 _CLASS_PATHS: dict[str, str] = {
+    "DropboxIngestionComponent": "assets/ingestion/dropbox_ingestion/component.py",
     "BoxIngestionComponent": "assets/ingestion/box_ingestion/component.py",
     "AmplitudeIngestionComponent": "assets/ingestion/amplitude_ingestion/component.py",
     "OktaManagementIngestionComponent": "assets/ingestion/okta_management_ingestion/component.py",

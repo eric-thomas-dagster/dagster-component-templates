@@ -57127,9 +57127,39 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/monday_ingestion/requirements.txt",
       "vertical": "productivity",
       "icon": "si:monday"
+    },
+    {
+      "id": "dropbox_ingestion",
+      "name": "DropboxIngestionComponent",
+      "category": "ingestion",
+      "description": "Ingest Dropbox file/folder listings via a hand-written cursor-paginated fetch (not dlt's rest_api_source -- Dropbox's list_folder endpoint is POST+JSON-body, not GET+query-params).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/dropbox_ingestion",
+      "tags": [
+        "ingestion",
+        "dropbox",
+        "dlt",
+        "cursor-paginated"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dropbox_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dropbox_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dropbox_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dropbox_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dropbox_ingestion/requirements.txt",
+      "vertical": "cloud-storage",
+      "icon": "si:dropbox"
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1153
+  "total": 1154
 }

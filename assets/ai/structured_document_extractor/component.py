@@ -328,6 +328,10 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
         default=2,
         description="Retry a document's LLM call up to this many times on transient errors (rate limits, timeouts) before giving up on that row -- forwarded to litellm's own num_retries.",
     )
+    max_content_chars: Optional[int] = Field(
+        default=20000,
+        description="Truncate extracted document text to this many characters before prompting the LLM -- guards against blowing the model's context window or racking up cost on unusually large text-PDF/text-input rows. Doesn't apply to image rows (sent as a vision content block, not text). Set to null to disable.",
+    )
     post_process: str = Field(
         default="none",
         description=(
@@ -435,6 +439,7 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
         document_type = self.document_type
         batch_size = self.batch_size
         llm_max_retries = self.llm_max_retries
+        max_content_chars = self.max_content_chars
         post_process = self.post_process
         post_process_dir = self.post_process_dir
 
@@ -544,6 +549,9 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
                             content = text_content if text_content is not None else file_ref
                         else:
                             content = file_ref
+
+                        if image_block is None and max_content_chars is not None and len(content) > max_content_chars:
+                            content = content[:max_content_chars]
 
                         if image_block is not None:
                             prompt_text = (

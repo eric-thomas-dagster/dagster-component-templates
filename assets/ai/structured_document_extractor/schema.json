@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_component_templates.StructuredDocumentExtractorComponent",
   "name": "Structured Document Extractor",
-  "description": "Extract structured fields from any document type using an LLM — one component, document_type picks the preset (invoice, receipt, resume, ...) or 'custom' for your own fields.",
+  "description": "Extract structured fields from any document type using an LLM \u2014 one component, document_type picks the preset (invoice, receipt, resume, ...) or 'custom' for your own fields.",
   "category": "ai",
   "icon": "FileSearch",
   "x-dagster-io": {
@@ -64,16 +64,27 @@
       "required": false,
       "default": "custom",
       "enum": [
-        "bank_statement", "contract", "custom", "expense_report", "insurance_claim",
-        "invoice", "job_posting", "legal_document", "medical_record", "purchase_order",
-        "receipt", "resume", "scientific_paper", "shipping_label"
+        "bank_statement",
+        "contract",
+        "custom",
+        "expense_report",
+        "insurance_claim",
+        "invoice",
+        "job_posting",
+        "legal_document",
+        "medical_record",
+        "purchase_order",
+        "receipt",
+        "resume",
+        "scientific_paper",
+        "shipping_label"
       ],
       "ui:widget": "select"
     },
     "input_column": {
       "type": "string",
       "label": "Input Column",
-      "description": "Column with document content (text or file path) — 'local_path' pairs directly with file_lister's output.",
+      "description": "Column with document content (text or file path) \u2014 'local_path' pairs directly with file_lister's output.",
       "required": false,
       "default": "local_path",
       "x-dagster-widget": "column"
@@ -84,7 +95,10 @@
       "description": "Input type: 'text' (raw document text already in the column) or 'file' (read the file at that path).",
       "required": false,
       "default": "file",
-      "enum": ["text", "file"],
+      "enum": [
+        "text",
+        "file"
+      ],
       "ui:widget": "select"
     },
     "model": {
@@ -103,7 +117,9 @@
     },
     "output_fields": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Output Fields",
       "description": "Fields to extract from each document. Overrides the document_type preset when set. Required when document_type='custom'.",
       "required": false,
@@ -123,13 +139,24 @@
       "required": false,
       "default": 2
     },
+    "max_content_chars": {
+      "type": "integer",
+      "label": "Max Content Chars",
+      "description": "Truncate extracted document text to this many characters before prompting the LLM -- guards against blowing the model's context window or racking up cost on unusually large text-PDF/text-input rows. Doesn't apply to image rows (sent as a vision content block, not text). Set to null to disable.",
+      "required": false,
+      "default": 20000
+    },
     "post_process": {
       "type": "string",
       "label": "Post Process",
       "description": "What to do with each SOURCE file once it's been successfully extracted: 'none' (leave in place -- files get reprocessed every run), 'move' (to post_process_dir), or 'delete'. Only applied to successfully-extracted rows; a failed row's file is left in place so the next run retries it. Requires input_type='file'.",
       "required": false,
       "default": "none",
-      "enum": ["none", "move", "delete"],
+      "enum": [
+        "none",
+        "move",
+        "delete"
+      ],
       "ui:widget": "select"
     },
     "post_process_dir": {
@@ -156,7 +183,7 @@
     "owners": {
       "type": "array",
       "label": "Owners",
-      "description": "Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
+      "description": "Asset owners \u2014 list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
       "required": false,
       "default": null
     },
@@ -205,7 +232,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage mapping: output column name → list of upstream column names it was derived from.",
+      "description": "Column-level lineage mapping: output column name \u2192 list of upstream column names it was derived from.",
       "required": false,
       "default": null
     },
@@ -219,10 +246,17 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values; 'multi' for date × static. Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values; 'multi' for date \u00d7 static. Leave empty for unpartitioned.",
       "required": false,
       "default": null,
-      "enum": ["daily", "weekly", "monthly", "hourly", "static", "multi"],
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
       "ui:widget": "select"
     },
     "partition_start": {
@@ -296,7 +330,10 @@
       "description": "Backoff strategy: 'linear' or 'exponential'.",
       "required": false,
       "default": "exponential",
-      "enum": ["linear", "exponential"]
+      "enum": [
+        "linear",
+        "exponential"
+      ]
     }
   }
 }

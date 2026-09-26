@@ -1,0 +1,21 @@
+type: dagster_component_templates.StructuredDocumentExtractorComponent
+attributes:
+  asset_name: invoice_fields
+  upstream_asset_key: incoming_invoices   # e.g. a file_lister asset
+  document_type: invoice                  # picks the invoice preset's output_fields
+  input_column: local_path                # pairs directly with file_lister's output
+  input_type: file
+  model: gpt-4o
+  api_key_env_var: OPENAI_API_KEY
+
+  # — try a different document type: just change document_type, same component —
+  # document_type: resume
+  # document_type: medical_record
+
+  # — anything not covered by a preset: document_type: custom + your own fields —
+  # document_type: custom
+  # output_fields: [permit_number, issuing_authority, expiration_date, conditions]
+
+  # — start from a preset but tweak it: output_fields always overrides the preset —
+  # document_type: invoice
+  # output_fields: [invoice_number, vendor, total_amount, po_reference]

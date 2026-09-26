@@ -1,0 +1,250 @@
+{
+  "component_type": "dagster_component_templates.StructuredDocumentExtractorComponent",
+  "name": "Structured Document Extractor",
+  "description": "Extract structured fields from any document type using an LLM — one component, document_type picks the preset (invoice, receipt, resume, ...) or 'custom' for your own fields.",
+  "category": "ai",
+  "icon": "FileSearch",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame with a column of document text or file paths"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Enriched DataFrame with the extracted fields as new columns"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame with document content",
+      "required": true
+    },
+    "document_type": {
+      "type": "string",
+      "label": "Document Type",
+      "description": "Picks a default output_fields preset, or 'custom' (requires output_fields to be set explicitly).",
+      "required": false,
+      "default": "custom",
+      "enum": [
+        "bank_statement", "contract", "custom", "expense_report", "insurance_claim",
+        "invoice", "job_posting", "legal_document", "medical_record", "purchase_order",
+        "receipt", "resume", "scientific_paper", "shipping_label"
+      ],
+      "ui:widget": "select"
+    },
+    "input_column": {
+      "type": "string",
+      "label": "Input Column",
+      "description": "Column with document content (text or file path) — 'local_path' pairs directly with file_lister's output.",
+      "required": false,
+      "default": "local_path",
+      "x-dagster-widget": "column"
+    },
+    "input_type": {
+      "type": "string",
+      "label": "Input Type",
+      "description": "Input type: 'text' (raw document text already in the column) or 'file' (read the file at that path).",
+      "required": false,
+      "default": "file",
+      "enum": ["text", "file"],
+      "ui:widget": "select"
+    },
+    "model": {
+      "type": "string",
+      "label": "Model",
+      "description": "LLM model name (litellm format)",
+      "required": false,
+      "default": "gpt-4o"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "description": "Environment variable name holding the API key",
+      "required": false,
+      "default": "OPENAI_API_KEY"
+    },
+    "output_fields": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Output Fields",
+      "description": "Fields to extract from each document. Overrides the document_type preset when set. Required when document_type='custom'.",
+      "required": false,
+      "default": null
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "description": "Number of documents per LLM batch",
+      "required": false,
+      "default": 5
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description shown in the Dagster catalog.",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
+      "required": false,
+      "default": null
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'}",
+      "required": false,
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Asset kinds for the Dagster catalog. Auto-inferred from component name if not set.",
+      "required": false,
+      "default": null
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes",
+      "description": "Maximum acceptable lag in minutes before the asset is considered stale.",
+      "required": false,
+      "default": null
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5'.",
+      "required": false,
+      "default": null
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include a preview of the output data in metadata (first rows as markdown table).",
+      "required": false,
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Rows to include in the preview metadata when include_preview_metadata is True.",
+      "required": false,
+      "default": 25
+    },
+    "column_lineage": {
+      "type": "object",
+      "label": "Column Lineage",
+      "description": "Column-level lineage mapping: output column name → list of upstream column names it was derived from.",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values; 'multi' for date × static. Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": ["daily", "weekly", "monthly", "hourly", "static", "multi"],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter upstream DataFrame to the current date partition key.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec. Overrides flat fields when set.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Partition Static Dim",
+      "description": "Dimension name for the static axis in multi-partitioning.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Partition Static Column",
+      "description": "Column used to filter upstream DataFrame to the current static partition dimension.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Max retries on asset failure. Defines a RetryPolicy.",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Seconds between retries (default 1).",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "required": false,
+      "default": "exponential",
+      "enum": ["linear", "exponential"]
+    }
+  }
+}

@@ -5,7 +5,8 @@
   "icon": "si:segment",
   "attributes": {
     "resource_key": {"label": "Resource Key", "type": "string", "required": false, "default": "segment"},
-    "write_key_env_var": {"label": "Write Key Env Var", "type": "string", "required": false, "default": "SEGMENT_WRITE_KEY"},
+    "write_key_env_var": {"label": "Write Key Env Var", "type": "string", "required": false, "default": "SEGMENT_WRITE_KEY", "description": "Tracking API (HTTP Basic), used by dataframe_to_segment and other Tracking-API sinks."},
+    "access_token_env_var": {"label": "Access Token Env Var", "type": "string", "required": false, "default": null, "description": "Config API (Bearer auth) -- a different credential from write_key_env_var. Set this if segment_ingestion (or another Config-API component) will use this resource via resource_key."},
     "base_url": {"label": "Base URL", "type": "string", "required": false, "default": "https://api.segment.io", "description": "https://events.eu1.segmentapis.com for EU regional workspaces."},
     "request_timeout_seconds": {"label": "Request Timeout Seconds", "type": "integer", "required": false, "default": 30}
   },

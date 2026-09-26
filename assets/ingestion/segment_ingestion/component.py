@@ -157,14 +157,15 @@ class SegmentIngestionComponent(Component, Model, Resolvable):
         default=None,
         description=(
             "Optional resource key registered by a SegmentResourceComponent. When set, "
-            "credentials are read from that resource at run time instead of access_token "
-            "above, letting one registered Segment resource serve both this ingestion "
-            "connector and the dataframe_to_segment reverse-ETL sink without configuring "
-            "it twice. CAVEAT: SegmentResourceComponent.write_key_env_var normally holds a "
-            "source Tracking-API write key (for POST /v1/batch), while this connector's "
-            "access_token is a workspace Config-API bearer token (for api.segmentapis.com) "
-            "-- these are different Segment credential types. Only set resource_key if the "
-            "env var it points to actually holds a workspace access token."
+            "credentials are read from that resource's access_token_env_var at run time "
+            "instead of access_token above, letting one registered Segment resource serve "
+            "both this ingestion connector (Config API) and the dataframe_to_segment "
+            "reverse-ETL sink (Tracking API, via the same resource's separate "
+            "write_key_env_var) without configuring Segment twice. Requires the target "
+            "SegmentResourceComponent to have access_token_env_var set -- it's a different "
+            "credential from write_key_env_var (Segment issues Config API workspace access "
+            "tokens and Tracking API source write keys separately), so write_key_env_var "
+            "alone is not enough."
         ),
     )
 
@@ -385,7 +386,15 @@ class SegmentIngestionComponent(Component, Model, Resolvable):
 
             if component.resource_key:
                 _res = getattr(context.resources, component.resource_key)
-                access_token = os.environ.get(_res.write_key_env_var)
+                if not getattr(_res, "access_token_env_var", None):
+                    raise ValueError(
+                        f"SegmentIngestionComponent: the resource registered under "
+                        f"resource_key={component.resource_key!r} has no access_token_env_var "
+                        f"set. This connector needs a Config API workspace access token, which "
+                        f"is a different credential from write_key_env_var (Tracking API) -- "
+                        f"set access_token_env_var on that SegmentResourceComponent."
+                    )
+                access_token = os.environ.get(_res.access_token_env_var)
             else:
                 access_token = component.access_token
 

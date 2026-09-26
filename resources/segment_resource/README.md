@@ -36,6 +36,7 @@ Pairs with **`DataframeToSegmentComponent`**.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `access_token_env_var` | `str` | — | Env var holding a Segment workspace access token (Config API, Bearer auth) -- separate credential from write_key_env_var. Set this if segment_ingestion (or another Config-API component) will use this resource via resource_key. |
 | `request_timeout_seconds` | `int` | `30` | — |
 
 [//]: # (FIELDS:END)

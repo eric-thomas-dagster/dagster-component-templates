@@ -9,9 +9,20 @@ Owns the Segment wire protocol:
   identify/track/page/screen/group/alias ops, up to 500KB total)
 - Response parsing (200 OK on success)
 
+Also optionally holds a workspace access token for Segment's separate
+Config API (api.segmentapis.com, Bearer auth) -- a genuinely different
+credential from the write_key above (Tracking API, api.segment.io,
+HTTP Basic). Segment itself treats these as two unrelated credential
+types issued from two different places in its dashboard; this resource
+just gives both a home so `segment_ingestion` (Config API) and
+`dataframe_to_segment` (Tracking API) can share ONE registered resource
+without conflating the two. `access_token_env_var` is unset by default
+and only required if a component that needs the Config API sets
+`resource_key` to point at this resource.
+
 Docs: https://segment.com/docs/connections/sources/catalog/libraries/server/http-api/#batch
 """
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import dagster as dg
 from pydantic import Field
@@ -24,9 +35,11 @@ class SegmentResource(dg.ConfigurableResource):
     """Segment HTTP API workhorse — auth + typed batch operations."""
 
     write_key_env_var: str = Field(default="SEGMENT_WRITE_KEY",
-        description="Env var holding your Segment Source write key.")
+        description="Env var holding your Segment Source write key (Tracking API, HTTP Basic auth).")
+    access_token_env_var: Optional[str] = Field(default=None,
+        description="Env var holding a Segment workspace access token (Config API, api.segmentapis.com, Bearer auth) -- a different credential from write_key_env_var. Only needed by components that use the Config API, e.g. segment_ingestion.")
     base_url: str = Field(default="https://api.segment.io",
-        description="Segment API base URL. Use https://events.eu1.segmentapis.com for EU regional workspaces.")
+        description="Segment Tracking API base URL. Use https://events.eu1.segmentapis.com for EU regional workspaces.")
     request_timeout_seconds: int = Field(default=30)
 
     def _write_key(self) -> str:
@@ -124,12 +137,15 @@ class SegmentResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     resource_key: str = Field(default="segment")
     write_key_env_var: str = Field(default="SEGMENT_WRITE_KEY")
+    access_token_env_var: Optional[str] = Field(default=None,
+        description="Env var holding a Segment workspace access token (Config API, Bearer auth) -- separate credential from write_key_env_var. Set this if segment_ingestion (or another Config-API component) will use this resource via resource_key.")
     base_url: str = Field(default="https://api.segment.io")
     request_timeout_seconds: int = Field(default=30)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         r = SegmentResource(
             write_key_env_var=self.write_key_env_var,
+            access_token_env_var=self.access_token_env_var,
             base_url=self.base_url,
             request_timeout_seconds=self.request_timeout_seconds,
         )

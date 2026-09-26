@@ -4,6 +4,7 @@ Extract metadata and findings from scientific papers and research articles using
 """
 
 from typing import Any, Dict, List, Optional, Union
+from pathlib import Path
 import pandas as pd
 
 from dagster import (
@@ -123,6 +124,55 @@ def _build_partitions_def(
     raise ValueError(f"unknown partition_type: {partition_type!r}")
 
 
+_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tiff", ".tif"}
+_MIME_BY_EXT = {
+    ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif",
+    ".webp": "image/webp", ".bmp": "image/bmp", ".tiff": "image/tiff", ".tif": "image/tiff",
+}
+
+
+def _extract_file_content(path: str) -> "tuple[Optional[str], Optional[dict]]":
+    """Read a document/image file for the LLM prompt -- returns
+    (text, image_content_block), exactly one non-None.
+
+    Previously this just opened every file in TEXT mode with
+    errors='replace' regardless of extension, so a real PDF or image got
+    read as raw-bytes-decoded-as-UTF-8 garbage and fed straight into the
+    prompt -- silently not extracting anything real for the component's
+    stated primary use case. Images are base64-encoded into a litellm
+    vision content block (same pattern as image_llm_extractor); PDFs use
+    pdfplumber to pull embedded text (same library as pdf_text_extractor).
+    A PDF with no extractable text (a scanned/photographed page rather
+    than a digitally-generated one) raises rather than silently sending
+    empty content to the LLM -- true OCR-of-scanned-PDFs isn't supported
+    yet (see README); route those through ocr_extractor/document_ai_
+    extractor first, or convert pages to images and use `path` mode here.
+    """
+    import base64
+    ext = Path(path).suffix.lower()
+    if ext in _IMAGE_EXTENSIONS:
+        with open(path, "rb") as f:
+            img_data = base64.b64encode(f.read()).decode("utf-8")
+        mime = _MIME_BY_EXT.get(ext, "image/jpeg")
+        return None, {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{img_data}"}}
+    if ext == ".pdf":
+        try:
+            import pdfplumber
+        except ImportError:
+            raise ImportError("PDF extraction requires pdfplumber: pip install pdfplumber")
+        with pdfplumber.open(path) as pdf:
+            text = "\n".join((page.extract_text() or "") for page in pdf.pages)
+        if not text.strip():
+            raise ValueError(
+                f"No extractable text in {path!r} -- likely a scanned/image-based PDF, "
+                "which isn't OCR'd here (only digitally-generated PDF text and image "
+                "files are supported directly)."
+            )
+        return text, None
+    with open(path, "r", encoding="utf-8", errors="replace") as fh:
+        return fh.read(), None
+
+
 class ScientificPaperExtractorComponent(Component, Model, Resolvable):
     """Component for extracting structured data from scientific papers using LLMs.
 
@@ -181,6 +231,14 @@ class ScientificPaperExtractorComponent(Component, Model, Resolvable):
         description="Fields to extract from each scientific paper",
     )
     batch_size: int = Field(default=5, description="Rows per LLM batch")
+    llm_max_retries: int = Field(
+        default=2,
+        description="Retry a document's LLM call up to this many times on transient errors (rate limits, timeouts) before giving up on that row -- forwarded to litellm's own num_retries.",
+    )
+    max_content_chars: Optional[int] = Field(
+        default=20000,
+        description="Truncate extracted document text to this many characters before prompting the LLM -- guards against blowing the model's context window or racking up cost on unusually large text-PDF/text-input rows. Doesn't apply to image rows (sent as a vision content block, not text). Set to null to disable.",
+    )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
         default=None,
@@ -309,6 +367,8 @@ class ScientificPaperExtractorComponent(Component, Model, Resolvable):
         api_key_env_var = self.api_key_env_var
         output_fields = self.output_fields
         batch_size = self.batch_size
+        llm_max_retries = self.llm_max_retries
+        max_content_chars = self.max_content_chars
 
         partitions_def = _build_partitions_def(
             self.partition_type,
@@ -434,6 +494,7 @@ group_name=self.group_name,
             df = upstream.copy()
             results = []
             total = len(df)
+            extraction_failures = 0
             context.log.info(
                 f"Extracting scientific paper fields from {total} rows using {model}"
             )
@@ -444,33 +505,49 @@ group_name=self.group_name,
                     f"Processing batch {i // batch_size + 1}/{(total - 1) // batch_size + 1}"
                 )
                 for _, row in batch.iterrows():
-                    content = str(row[input_column])
-
-                    if input_type == "file":
-                        try:
-                            with open(content, "r", encoding="utf-8", errors="replace") as fh:
-                                content = fh.read()
-                        except Exception as e:
-                            context.log.warning(f"Could not read file {content}: {e}")
-
-                    prompt = (
-                        f"Extract the following fields from this document as JSON: {output_fields}\n\n"
-                        f"Document:\n{content}\n\n"
-                        "Return ONLY a JSON object. Use null for missing fields."
-                    )
+                    file_ref = str(row[input_column])
 
                     try:
+                        image_block = None
+                        if input_type == "file":
+                            text_content, image_block = _extract_file_content(file_ref)
+                            content = text_content if text_content is not None else file_ref
+                        else:
+                            content = file_ref
+
+                        if image_block is None and max_content_chars is not None and len(content) > max_content_chars:
+                            content = content[:max_content_chars]
+
+                        if image_block is not None:
+                            prompt = (
+                                f"Extract the following fields from this scientific paper image as JSON: {output_fields}\n\n"
+                                "Return ONLY a JSON object. Use null for missing fields."
+                            )
+                            message_content: Any = [{"type": "text", "text": prompt}, image_block]
+                        else:
+                            prompt = (
+                                f"Extract the following fields from this document as JSON: {output_fields}\n\n"
+                                f"Document:\n{content}\n\n"
+                                "Return ONLY a JSON object. Use null for missing fields."
+                            )
+                            message_content = prompt
+
                         resp = completion(
                             model=model,
-                            messages=[{"role": "user", "content": prompt}],
+                            messages=[{"role": "user", "content": message_content}],
                             response_format={"type": "json_object"},
                             api_key=os.environ.get(api_key_env_var),
+                            num_retries=llm_max_retries,
                         )
                         raw = resp.choices[0].message.content.strip()
                         extracted = json.loads(raw)
+                        if not isinstance(extracted, dict):
+                            raise ValueError(f"LLM returned {type(extracted).__name__}, expected a JSON object")
+                        extracted = {f: extracted.get(f) for f in output_fields}
                     except Exception as e:
                         context.log.warning(f"Extraction failed: {e}")
                         extracted = {f: None for f in output_fields}
+                        extraction_failures += 1
 
                     results.append(extracted)
 
@@ -484,6 +561,7 @@ group_name=self.group_name,
                     "extracted_fields": MetadataValue.json(output_fields),
                     "model": MetadataValue.text(model),
                     "preview": MetadataValue.md(df.head(3).to_markdown()),
+                    "extraction_failures": MetadataValue.int(extraction_failures),
                 }
             )
             # Build column schema metadata

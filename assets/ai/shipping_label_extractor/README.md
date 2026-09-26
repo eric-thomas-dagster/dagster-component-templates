@@ -83,6 +83,8 @@ The Shipping Label Extractor Component uses a large language model to parse unst
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `llm_max_retries` | `int` | `2` | Retry a document's LLM call up to this many times on transient errors (rate limits, timeouts) before giving up on that row -- forwarded to litellm's own num_retries. |
+| `max_content_chars` | `int` | `20000` | Truncate extracted document text to this many characters before prompting the LLM -- guards against blowing the model's context window or racking up cost on unusually large text-PDF/text-input rows. Doesn't apply to imag… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
@@ -154,3 +156,9 @@ The output DataFrame contains all original columns plus one column per extracted
 - **API authentication errors**: Ensure env var is set correctly
 - **JSON parse errors**: The component uses `response_format: json_object` to minimize parse failures
 - **Slow processing**: Reduce `batch_size` or switch to a faster model
+
+## Validation
+
+`input_type: file` previously opened EVERY file (PDFs, images, plain text -- anything) in TEXT mode with `errors="replace"`, so a real shipping label scan or PDF got decoded as raw-bytes-as-UTF-8 garbage and fed straight into the prompt -- silently not extracting anything real. Backported the same fix already shipped in `structured_document_extractor`: file reading is now routed through a `_extract_file_content()` helper that branches by extension (images -> base64 vision content block, PDFs -> `pdfplumber` text, everything else -> plain text as before), `llm_max_retries` is forwarded to litellm's own `num_retries`, `max_content_chars` truncates oversized text content before it reaches the prompt, and a malformed or non-object LLM JSON response is rejected as a clean per-row failure (all fields `None`) rather than a crash. The file's own `response_format={"type": "json_object"}` kwarg and prompt wording ("Extract the following fields from this document as JSON... Return ONLY a JSON object...") were preserved unchanged.
+
+`validation.level: code` -- verified end-to-end against a real Dagster materialization (`litellm.completion` mocked, no real API spend) with `litellm` monkeypatched at the module level and messages captured directly. Checked against REAL files, not mocked content: a real PNG's bytes are base64-encoded into a vision content block and decode back byte-for-byte identical to the source file (not garbage-decoded text); a real `.txt` file's actual content reaches the prompt string; an oversized text file is truncated to exactly `max_content_chars` before the prompt is built; `num_retries` is forwarded to `completion()` on every call alongside the existing `response_format` kwarg; a non-object JSON response (`[1, 2, 3]`) from the LLM is rejected cleanly, leaving that row's fields all `None` with no exception propagating; and the output DataFrame's metadata carries an `extraction_failures` count matching the number of rows that failed (1 of 4 in the test). Has NOT been run against a real LLM API call -- live-test before trusting in production.

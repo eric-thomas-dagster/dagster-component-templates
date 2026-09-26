@@ -83,6 +83,8 @@ The Resume Extractor Component uses a large language model to parse unstructured
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `llm_max_retries` | `int` | `2` | Retry a document's LLM call up to this many times on transient errors (rate limits, timeouts) before giving up on that row -- forwarded to litellm's own num_retries. |
+| `max_content_chars` | `int` | `20000` | Truncate extracted document text to this many characters before prompting the LLM -- guards against blowing the model's context window or racking up cost on unusually large text-PDF/text-input rows. Doesn't apply to imag… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
@@ -179,3 +181,9 @@ The output DataFrame contains all original columns plus one column per extracted
 - **API authentication errors**: Ensure env var is set correctly
 - **JSON parse errors**: The component uses `response_format: json_object` to minimize parse failures
 - **Slow processing**: Reduce `batch_size` or switch to a faster model
+
+## Validation
+
+`validation.level: code` — this component previously opened EVERY `input_type='file'` row in TEXT mode with `errors="replace"`, regardless of extension, so a real resume PDF or a scanned/photographed resume image got decoded as raw-bytes-as-UTF-8 garbage and fed straight into the LLM prompt — silently not extracting anything real. Backported the same fix already validated on `structured_document_extractor`: images are now base64-encoded into a litellm vision content block, PDFs go through `pdfplumber` for embedded text, and reading is guarded by `max_content_chars` (default 20000) so an unusually long resume/CV can't blow the model's context window. The LLM call itself now retries transient errors up to `llm_max_retries` times (default 2, forwarded to litellm's `num_retries`) before a row is given up on, and a non-object JSON response from the LLM (this component keeps its own `response_format={"type": "json_object"}` kwarg — untouched by this fix) is now rejected and treated as a clean per-row failure instead of silently propagating whatever shape came back.
+
+Verified end-to-end against a real Dagster materialization (`upstream_asset_key` mode, `dagster.materialize`) with `litellm.completion` mocked to avoid real API spend, using REAL files on disk (not just mocked content): a real PNG's captured prompt message contains a base64 `image_url` block that decodes back to the exact original PNG bytes (not garbage-decoded text); a real `.txt` file's actual content reaches the prompt verbatim; an oversized `.txt` file is truncated to `max_content_chars` before the prompt is built; and a fake LLM response that's a JSON array rather than a JSON object is rejected cleanly — that row's fields all come back `None` rather than crashing the run. The output DataFrame's materialization metadata now also carries an `extraction_failures` count, confirmed to match the number of rows that failed for any reason. Has NOT been run against a real LLM API call yet — live-test before trusting it in production, and flip `validation.level` to `live` once confirmed.

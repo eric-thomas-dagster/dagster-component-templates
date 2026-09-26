@@ -72,6 +72,20 @@
       "required": false,
       "default": 5
     },
+    "llm_max_retries": {
+      "type": "integer",
+      "label": "LLM Max Retries",
+      "description": "Retry a document's LLM call up to this many times on transient errors (rate limits, timeouts) before giving up on that row -- forwarded to litellm's own num_retries.",
+      "required": false,
+      "default": 2
+    },
+    "max_content_chars": {
+      "type": "integer",
+      "label": "Max Content Chars",
+      "description": "Truncate extracted document text to this many characters before prompting the LLM -- guards against blowing the model's context window or racking up cost on unusually large text-PDF/text-input rows. Doesn't apply to image rows (sent as a vision content block, not text). Set to null to disable.",
+      "required": false,
+      "default": 20000
+    },
     "group_name": {
       "type": "string",
       "label": "Group Name",

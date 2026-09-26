@@ -83,6 +83,8 @@ The Job Posting Extractor Component uses a large language model to parse unstruc
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `llm_max_retries` | `int` | `2` | Retry a document's LLM call up to this many times on transient errors (rate limits, timeouts) before giving up on that row -- forwarded to litellm's own num_retries. |
+| `max_content_chars` | `int` | `20000` | Truncate extracted document text to this many characters before prompting the LLM -- guards against blowing the model's context window or racking up cost on unusually large text-PDF/text-input rows. Doesn't apply to imag… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
@@ -154,3 +156,14 @@ The output DataFrame contains all original columns plus one column per extracted
 - **API authentication errors**: Ensure env var is set correctly
 - **JSON parse errors**: The component uses `response_format: json_object` to minimize parse failures
 - **Slow processing**: Reduce `batch_size` or switch to a faster model
+
+## Validation
+
+`validation.level: code` — this component previously had the same bug independently discovered and fixed in `structured_document_extractor`: for `input_type='file'`, every file was opened in TEXT mode with `errors='replace'` regardless of extension, so a real job-posting image (a screenshot of a LinkedIn/Indeed listing, a scanned flyer, etc.) got its raw bytes decoded as UTF-8 garbage and fed straight into the prompt — silently not extracting anything real. That's now fixed by branching on file extension via `_extract_file_content` (images → base64 vision content block; PDFs → real embedded text via `pdfplumber`; anything else → plain text). Verified end-to-end against a real Dagster materialization (`dagster.materialize`), with only `litellm.completion` mocked — all files on disk are real:
+- A real PNG (built with Pillow) is base64-encoded into a vision content block, and the decoded base64 payload was checked byte-for-byte against the original PNG file (including its real `\x89PNG\r\n\x1a\n` header) — not garbage-decoded text.
+- A real `.txt` file's actual content (not a mock) reaches the prompt as plain text, alongside the file's own existing `response_format={"type": "json_object"}` kwarg, which the fix preserves rather than replacing with markdown-fence stripping.
+- `llm_max_retries` is forwarded to litellm's own `num_retries` on every `completion()` call (both image and text rows).
+- `max_content_chars` truncates an oversized real text file's content to the configured length before it reaches the prompt; the image row's vision content block is untouched by truncation.
+- A non-dict JSON response from the LLM (e.g. a list) is rejected by `isinstance(extracted, dict)` validation — the row ends up all-`None` rather than crashing the asset, and the output DataFrame's `extraction_failures` metadata key reflects the failure count.
+
+Has NOT been run against a real LLM API call yet — live-test that before trusting it in production, and flip `validation.level` to `live` once confirmed.

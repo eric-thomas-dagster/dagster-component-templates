@@ -123,5 +123,6 @@
     "reverse-etl",
     "upsert"
   ],
-  "name": "Airtable Record Upsert"
+  "name": "Airtable Record Upsert",
+  "vertical": "productivity"
 }

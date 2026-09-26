@@ -106,5 +106,6 @@
     "upsert",
     "crm"
   ],
-  "name": "Pipedrive Person Upsert"
+  "name": "Pipedrive Person Upsert",
+  "vertical": "crm-sales"
 }

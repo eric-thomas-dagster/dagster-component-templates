@@ -4,29 +4,141 @@
   "category": "reverse_etl",
   "icon": "si:pagerduty",
   "x-dagster-io": {
-    "inputs": {"type": "dataframe", "description": "pandas DataFrame from an upstream asset. Each row -> one PagerDuty incident (upserted via key_column/incident_key)."},
-    "outputs": {"type": "sink", "description": "Dagster asset materialization with metadata. No downstream data -- write side effect lands in PagerDuty."}
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one PagerDuty incident (upserted via key_column/incident_key)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata. No downstream data -- write side effect lands in PagerDuty."
+    }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "description": "Asset providing the DataFrame. Mutually exclusive with source."},
-    "source": {"type": "object", "label": "Source", "required": false, "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."},
-    "service_id": {"type": "string", "label": "Service Id", "required": true, "description": "Target PagerDuty service ID (starts with 'P')."},
-    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "pd"},
-    "key_column": {"type": "string", "label": "Key Column", "required": true, "description": "Upstream column holding a stable unique key. Written to each incident's incident_key field -- PagerDuty's server-side dedup marker."},
-    "title_column": {"type": "string", "label": "Title Column", "required": true, "description": "Column holding the incident title."},
-    "details_column": {"type": "string", "label": "Details Column", "required": false, "default": null, "description": "Column holding the incident body/details (plain text)."},
-    "urgency_column": {"type": "string", "label": "Urgency Column", "required": false, "default": null, "description": "Column holding urgency ('high' or 'low'). Defaults to 'high' if unset."},
-    "status_column": {"type": "string", "label": "Status Column", "required": false, "default": null, "description": "Column holding target status per row: 'triggered'/'acknowledged'/'resolved'."},
-    "default_urgency": {"type": "string", "label": "Default Urgency", "required": false, "default": "high", "description": "Urgency fallback when urgency_column unset."},
-    "key_prefix": {"type": "string", "label": "Key Prefix", "required": false, "default": "dagster-", "description": "Prepended to each key_column value to form the PagerDuty incident_key."},
-    "batch_size": {"type": "integer", "label": "Batch Size", "required": false, "default": 100, "description": "Max upstream rows to process per run (safety cap)."},
-    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "pagerduty"},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with source."
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."
+    },
+    "service_id": {
+      "type": "string",
+      "label": "Service Id",
+      "required": true,
+      "description": "Target PagerDuty service ID (starts with 'P')."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "pd"
+    },
+    "key_column": {
+      "type": "string",
+      "label": "Key Column",
+      "required": true,
+      "description": "Upstream column holding a stable unique key. Written to each incident's incident_key field -- PagerDuty's server-side dedup marker."
+    },
+    "title_column": {
+      "type": "string",
+      "label": "Title Column",
+      "required": true,
+      "description": "Column holding the incident title."
+    },
+    "details_column": {
+      "type": "string",
+      "label": "Details Column",
+      "required": false,
+      "default": null,
+      "description": "Column holding the incident body/details (plain text)."
+    },
+    "urgency_column": {
+      "type": "string",
+      "label": "Urgency Column",
+      "required": false,
+      "default": null,
+      "description": "Column holding urgency ('high' or 'low'). Defaults to 'high' if unset."
+    },
+    "status_column": {
+      "type": "string",
+      "label": "Status Column",
+      "required": false,
+      "default": null,
+      "description": "Column holding target status per row: 'triggered'/'acknowledged'/'resolved'."
+    },
+    "default_urgency": {
+      "type": "string",
+      "label": "Default Urgency",
+      "required": false,
+      "default": "high",
+      "description": "Urgency fallback when urgency_column unset."
+    },
+    "key_prefix": {
+      "type": "string",
+      "label": "Key Prefix",
+      "required": false,
+      "default": "dagster-",
+      "description": "Prepended to each key_column value to form the PagerDuty incident_key."
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 100,
+      "description": "Max upstream rows to process per run (safety cap)."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "pagerduty"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
   },
-  "tags": ["pagerduty", "reverse-etl", "upsert", "devops"],
-  "name": "PagerDuty Incident Upsert"
+  "tags": [
+    "pagerduty",
+    "reverse-etl",
+    "upsert",
+    "devops"
+  ],
+  "name": "PagerDuty Incident Upsert",
+  "vertical": "devops-observability"
 }

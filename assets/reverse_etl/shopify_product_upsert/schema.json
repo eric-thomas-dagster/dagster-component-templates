@@ -89,5 +89,6 @@
     "products",
     "e-commerce"
   ],
-  "name": "Shopify Product Upsert"
+  "name": "Shopify Product Upsert",
+  "vertical": "crm-sales"
 }

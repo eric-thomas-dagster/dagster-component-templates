@@ -203,5 +203,6 @@
     "event-tracking",
     "customer-data-platform"
   ],
-  "name": "DataFrame to Segment"
+  "name": "DataFrame to Segment",
+  "vertical": "marketing"
 }

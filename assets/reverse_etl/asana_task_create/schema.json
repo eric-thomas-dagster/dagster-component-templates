@@ -126,5 +126,6 @@
     "create",
     "project-management"
   ],
-  "name": "Asana Task Create"
+  "name": "Asana Task Create",
+  "vertical": "productivity"
 }

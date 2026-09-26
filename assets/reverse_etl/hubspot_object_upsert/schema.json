@@ -107,5 +107,6 @@
     "upsert",
     "crm"
   ],
-  "name": "HubSpot Object Upsert"
+  "name": "HubSpot Object Upsert",
+  "vertical": "marketing"
 }

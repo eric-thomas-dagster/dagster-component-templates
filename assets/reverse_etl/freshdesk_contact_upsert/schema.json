@@ -100,5 +100,6 @@
     "upsert",
     "support"
   ],
-  "name": "Freshdesk Contact Upsert"
+  "name": "Freshdesk Contact Upsert",
+  "vertical": "support"
 }

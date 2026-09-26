@@ -184,5 +184,6 @@
     "marketing",
     "contact-sync"
   ],
-  "name": "DataFrame to SendGrid"
+  "name": "DataFrame to SendGrid",
+  "vertical": "marketing"
 }

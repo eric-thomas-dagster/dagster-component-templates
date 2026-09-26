@@ -208,5 +208,6 @@
     "event-tracking",
     "user-properties"
   ],
-  "name": "DataFrame to Amplitude"
+  "name": "DataFrame to Amplitude",
+  "vertical": "marketing"
 }

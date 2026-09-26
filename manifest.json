@@ -11191,7 +11191,8 @@
         "pattern": "One Dagster asset per component instance \u2014 POSTs each partition's rows to Amplitude.",
         "source_field": "asset_name",
         "key_template": "{asset_name}"
-      }
+      },
+      "vertical": "marketing"
     },
     {
       "id": "dataframe_to_avro",
@@ -11423,7 +11424,8 @@
         "pattern": "One Dagster asset per component instance \u2014 POSTs each partition's rows to Braze.",
         "source_field": "asset_name",
         "key_template": "{asset_name}"
-      }
+      },
+      "vertical": "marketing"
     },
     {
       "id": "dataframe_to_clickhouse",
@@ -11591,7 +11593,8 @@
         "pattern": "One Dagster asset per component instance \u2014 POSTs each partition's rows to Customer.io.",
         "source_field": "asset_name",
         "key_template": "{asset_name}"
-      }
+      },
+      "vertical": "marketing"
     },
     {
       "id": "dataframe_to_databricks",
@@ -12213,7 +12216,8 @@
         "pattern": "One Dagster asset per component instance \u2014 POSTs each partition's rows to Iterable.",
         "source_field": "asset_name",
         "key_template": "{asset_name}"
-      }
+      },
+      "vertical": "marketing"
     },
     {
       "id": "dataframe_to_json",
@@ -12327,7 +12331,8 @@
         "pattern": "One Dagster asset per component instance \u2014 POSTs each partition's rows to Klaviyo.",
         "source_field": "asset_name",
         "key_template": "{asset_name}"
-      }
+      },
+      "vertical": "marketing"
     },
     {
       "id": "dataframe_to_kusto",
@@ -12450,7 +12455,8 @@
         "pattern": "One Dagster asset per component instance \u2014 POSTs each partition's rows to Mixpanel.",
         "source_field": "asset_name",
         "key_template": "{asset_name}"
-      }
+      },
+      "vertical": "marketing"
     },
     {
       "id": "dataframe_to_newrelic_logs",
@@ -13060,7 +13066,8 @@
         "pattern": "One Dagster asset per component instance \u2014 POSTs each partition's rows to Segment.",
         "source_field": "asset_name",
         "key_template": "{asset_name}"
-      }
+      },
+      "vertical": "marketing"
     },
     {
       "id": "dataframe_to_sendgrid",
@@ -13125,7 +13132,8 @@
         "pattern": "One Dagster asset per component instance \u2014 PUTs each partition's rows to SendGrid as contact-import jobs.",
         "source_field": "asset_name",
         "key_template": "{asset_name}"
-      }
+      },
+      "vertical": "marketing"
     },
     {
       "name": "DataFrame to Sentry",
@@ -23525,7 +23533,8 @@
         "batch upsert",
         "sink",
         "write to hubspot"
-      ]
+      ],
+      "vertical": "marketing"
     },
     {
       "id": "hubspot_resource",
@@ -40224,7 +40233,8 @@
         "composite sobjects",
         "sink",
         "write to salesforce"
-      ]
+      ],
+      "vertical": "crm-sales"
     },
     {
       "id": "salesforce_resource",
@@ -41635,7 +41645,8 @@
         "cmdb upsert",
         "sink",
         "write to servicenow"
-      ]
+      ],
+      "vertical": "devops-observability"
     },
     {
       "id": "servicenow_resource",
@@ -42284,7 +42295,8 @@
         "variant sync",
         "sink",
         "write to shopify"
-      ]
+      ],
+      "vertical": "crm-sales"
     },
     {
       "id": "shopify_resource",
@@ -55674,7 +55686,8 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/zendesk_user_upsert/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/zendesk_user_upsert/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/zendesk_user_upsert/requirements.txt",
-      "icon": "si:zendesk"
+      "icon": "si:zendesk",
+      "vertical": "support"
     },
     {
       "id": "intercom_contact_upsert",
@@ -55702,7 +55715,8 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/intercom_contact_upsert/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/intercom_contact_upsert/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/intercom_contact_upsert/requirements.txt",
-      "icon": "si:intercom"
+      "icon": "si:intercom",
+      "vertical": "support"
     },
     {
       "id": "pipedrive_person_upsert",
@@ -55730,7 +55744,8 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/pipedrive_person_upsert/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/pipedrive_person_upsert/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/pipedrive_person_upsert/requirements.txt",
-      "icon": "si:pipedrive"
+      "icon": "si:pipedrive",
+      "vertical": "crm-sales"
     },
     {
       "id": "freshdesk_contact_upsert",
@@ -55758,7 +55773,8 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/freshdesk_contact_upsert/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/freshdesk_contact_upsert/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/freshdesk_contact_upsert/requirements.txt",
-      "icon": "si:freshworks"
+      "icon": "si:freshworks",
+      "vertical": "support"
     },
     {
       "id": "asana_task_create",
@@ -55786,7 +55802,8 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/asana_task_create/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/asana_task_create/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/asana_task_create/requirements.txt",
-      "icon": "si:asana"
+      "icon": "si:asana",
+      "vertical": "productivity"
     },
     {
       "id": "google_sheets_row_upsert",
@@ -55813,7 +55830,8 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/google_sheets_row_upsert/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/google_sheets_row_upsert/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/google_sheets_row_upsert/requirements.txt",
-      "icon": "si:googlesheets"
+      "icon": "si:googlesheets",
+      "vertical": "productivity"
     },
     {
       "id": "airtable_record_upsert",
@@ -55840,7 +55858,8 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/airtable_record_upsert/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/airtable_record_upsert/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/airtable_record_upsert/requirements.txt",
-      "icon": "si:airtable"
+      "icon": "si:airtable",
+      "vertical": "productivity"
     },
     {
       "id": "vercel_ingestion",
@@ -56197,7 +56216,8 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/github_issue_upsert/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/github_issue_upsert/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/github_issue_upsert/requirements.txt",
-      "icon": "si:github"
+      "icon": "si:github",
+      "vertical": "devops-observability"
     },
     {
       "id": "jira_issue_upsert",
@@ -56224,7 +56244,8 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/jira_issue_upsert/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/jira_issue_upsert/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/jira_issue_upsert/requirements.txt",
-      "icon": "si:jira"
+      "icon": "si:jira",
+      "vertical": "devops-observability"
     },
     {
       "id": "notion_database_upsert",
@@ -56250,7 +56271,8 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/notion_database_upsert/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/notion_database_upsert/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/notion_database_upsert/requirements.txt",
-      "icon": "si:notion"
+      "icon": "si:notion",
+      "vertical": "productivity"
     },
     {
       "id": "notion_page_sync",
@@ -56276,7 +56298,8 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/notion_page_sync/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/notion_page_sync/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/notion_page_sync/requirements.txt",
-      "icon": "si:notion"
+      "icon": "si:notion",
+      "vertical": "productivity"
     },
     {
       "id": "pagerduty_incident_upsert",
@@ -56303,7 +56326,8 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/pagerduty_incident_upsert/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/pagerduty_incident_upsert/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/pagerduty_incident_upsert/requirements.txt",
-      "icon": "si:pagerduty"
+      "icon": "si:pagerduty",
+      "vertical": "devops-observability"
     },
     {
       "id": "stripe_customer_upsert",
@@ -56330,7 +56354,8 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/stripe_customer_upsert/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/stripe_customer_upsert/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/stripe_customer_upsert/requirements.txt",
-      "icon": "si:stripe"
+      "icon": "si:stripe",
+      "vertical": "finance-hr"
     },
     {
       "id": "mailchimp_resource",
@@ -56382,7 +56407,8 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/mailchimp_member_upsert/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/mailchimp_member_upsert/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/mailchimp_member_upsert/requirements.txt",
-      "icon": "si:mailchimp"
+      "icon": "si:mailchimp",
+      "vertical": "marketing"
     },
     {
       "id": "paypal_ingestion",
@@ -56796,7 +56822,8 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/greenhouse_candidate_update/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/greenhouse_candidate_update/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/greenhouse_candidate_update/requirements.txt",
-      "icon": "si:greenhouse"
+      "icon": "si:greenhouse",
+      "vertical": "finance-hr"
     },
     {
       "id": "box_ingestion",
@@ -57208,7 +57235,8 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/launchdarkly_segment_update/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/launchdarkly_segment_update/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/launchdarkly_segment_update/requirements.txt",
-      "icon": "si:launchdarkly"
+      "icon": "si:launchdarkly",
+      "vertical": "devops-observability"
     },
     {
       "id": "heap_resource",
@@ -57260,7 +57288,8 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/heap_user_property_sync/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/heap_user_property_sync/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/heap_user_property_sync/requirements.txt",
-      "icon": "si:heap"
+      "icon": "si:heap",
+      "vertical": "marketing"
     },
     {
       "id": "auth0_management_ingestion",

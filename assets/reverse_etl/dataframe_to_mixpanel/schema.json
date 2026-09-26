@@ -190,5 +190,6 @@
     "event-tracking",
     "user-profiles"
   ],
-  "name": "DataFrame to Mixpanel"
+  "name": "DataFrame to Mixpanel",
+  "vertical": "marketing"
 }

@@ -197,5 +197,6 @@
     "push",
     "in-app"
   ],
-  "name": "DataFrame to Customer.io"
+  "name": "DataFrame to Customer.io",
+  "vertical": "marketing"
 }

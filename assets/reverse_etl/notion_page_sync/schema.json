@@ -4,24 +4,108 @@
   "category": "reverse_etl",
   "icon": "si:notion",
   "x-dagster-io": {
-    "inputs": {"type": "dataframe", "description": "pandas DataFrame from an upstream asset. One row (row_index) syncs to the target page's properties/body."},
-    "outputs": {"type": "sink", "description": "Dagster asset materialization with metadata. No downstream data -- write side effect lands in Notion."}
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. One row (row_index) syncs to the target page's properties/body."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata. No downstream data -- write side effect lands in Notion."
+    }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "description": "Asset providing the DataFrame. Mutually exclusive with source."},
-    "source": {"type": "object", "label": "Source", "required": false, "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."},
-    "page_id": {"type": "string", "label": "Page Id", "required": true, "description": "Notion page ID to keep in sync (UUID with or without dashes)."},
-    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "notion_resource"},
-    "properties_map": {"type": "object", "label": "Properties Map", "required": false, "default": {}, "description": "Upstream column -> Notion property name. Leave empty to do a body-only sync via markdown_column.", "ui:widget": "key-value"},
-    "markdown_column": {"type": "string", "label": "Markdown Column", "required": false, "default": null, "description": "Optional column whose value (from row_index) is written to the page body as markdown, replacing the current content."},
-    "row_index": {"type": "integer", "label": "Row Index", "required": false, "default": 0, "description": "Which upstream row to sync from. Defaults to 0 (first row)."},
-    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "notion"},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with source."
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."
+    },
+    "page_id": {
+      "type": "string",
+      "label": "Page Id",
+      "required": true,
+      "description": "Notion page ID to keep in sync (UUID with or without dashes)."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "notion_resource"
+    },
+    "properties_map": {
+      "type": "object",
+      "label": "Properties Map",
+      "required": false,
+      "default": {},
+      "description": "Upstream column -> Notion property name. Leave empty to do a body-only sync via markdown_column.",
+      "ui:widget": "key-value"
+    },
+    "markdown_column": {
+      "type": "string",
+      "label": "Markdown Column",
+      "required": false,
+      "default": null,
+      "description": "Optional column whose value (from row_index) is written to the page body as markdown, replacing the current content."
+    },
+    "row_index": {
+      "type": "integer",
+      "label": "Row Index",
+      "required": false,
+      "default": 0,
+      "description": "Which upstream row to sync from. Defaults to 0 (first row)."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "notion"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
   },
-  "tags": ["notion", "reverse-etl", "sync"],
-  "name": "Notion Page Sync"
+  "tags": [
+    "notion",
+    "reverse-etl",
+    "sync"
+  ],
+  "name": "Notion Page Sync",
+  "vertical": "productivity"
 }

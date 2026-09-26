@@ -194,5 +194,6 @@
     "e-commerce",
     "profile-sync"
   ],
-  "name": "DataFrame to Klaviyo"
+  "name": "DataFrame to Klaviyo",
+  "vertical": "marketing"
 }

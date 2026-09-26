@@ -111,5 +111,6 @@
     "reverse-etl",
     "upsert"
   ],
-  "name": "Google Sheets Row Upsert"
+  "name": "Google Sheets Row Upsert",
+  "vertical": "productivity"
 }

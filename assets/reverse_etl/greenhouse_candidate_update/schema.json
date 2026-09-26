@@ -4,24 +4,110 @@
   "category": "reverse_etl",
   "icon": "si:greenhouse",
   "x-dagster-io": {
-    "inputs": {"type": "dataframe", "description": "pandas DataFrame from an upstream asset. Each row updates one existing Greenhouse candidate (matched via candidate_id_column)."},
-    "outputs": {"type": "sink", "description": "Dagster asset materialization with metadata (rows_updated / rows_errored). No downstream data -- write side effect lands in Greenhouse."}
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row updates one existing Greenhouse candidate (matched via candidate_id_column)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_updated / rows_errored). No downstream data -- write side effect lands in Greenhouse."
+    }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "description": "Asset providing the DataFrame. Mutually exclusive with source."},
-    "source": {"type": "object", "label": "Source", "required": false, "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."},
-    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "greenhouse"},
-    "candidate_id_column": {"type": "string", "label": "Candidate Id Column", "required": true, "description": "Upstream column holding the Greenhouse candidate ID to update (must already exist in Greenhouse)."},
-    "tags_column": {"type": "string", "label": "Tags Column", "required": false, "default": null, "description": "Upstream column holding tags to set. Replaces existing tags, does not merge."},
-    "custom_fields_map": {"type": "object", "label": "Custom Fields Map", "required": false, "default": {}, "description": "Upstream column -> Greenhouse custom field internal name.", "ui:widget": "key-value"},
-    "max_rows": {"type": "integer", "label": "Max Rows", "required": false, "default": 10000, "description": "Overall safety cap on rows per run."},
-    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "greenhouse"},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with source."
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "greenhouse"
+    },
+    "candidate_id_column": {
+      "type": "string",
+      "label": "Candidate Id Column",
+      "required": true,
+      "description": "Upstream column holding the Greenhouse candidate ID to update (must already exist in Greenhouse)."
+    },
+    "tags_column": {
+      "type": "string",
+      "label": "Tags Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding tags to set. Replaces existing tags, does not merge."
+    },
+    "custom_fields_map": {
+      "type": "object",
+      "label": "Custom Fields Map",
+      "required": false,
+      "default": {},
+      "description": "Upstream column -> Greenhouse custom field internal name.",
+      "ui:widget": "key-value"
+    },
+    "max_rows": {
+      "type": "integer",
+      "label": "Max Rows",
+      "required": false,
+      "default": 10000,
+      "description": "Overall safety cap on rows per run."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "greenhouse"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
   },
-  "tags": ["greenhouse", "reverse-etl", "update", "hr", "ats"],
-  "name": "Greenhouse Candidate Update"
+  "tags": [
+    "greenhouse",
+    "reverse-etl",
+    "update",
+    "hr",
+    "ats"
+  ],
+  "name": "Greenhouse Candidate Update",
+  "vertical": "finance-hr"
 }

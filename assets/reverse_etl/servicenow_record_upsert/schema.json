@@ -105,5 +105,6 @@
     "reverse-etl",
     "upsert"
   ],
-  "name": "ServiceNow Record Upsert"
+  "name": "ServiceNow Record Upsert",
+  "vertical": "devops-observability"
 }

@@ -208,5 +208,6 @@
     "push",
     "events"
   ],
-  "name": "DataFrame to Iterable"
+  "name": "DataFrame to Iterable",
+  "vertical": "marketing"
 }

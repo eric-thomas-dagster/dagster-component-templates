@@ -114,5 +114,6 @@
     "upsert",
     "support"
   ],
-  "name": "Zendesk User Upsert"
+  "name": "Zendesk User Upsert",
+  "vertical": "support"
 }

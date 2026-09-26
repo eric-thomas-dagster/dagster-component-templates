@@ -117,5 +117,6 @@
     "upsert",
     "support"
   ],
-  "name": "Intercom Contact Upsert"
+  "name": "Intercom Contact Upsert",
+  "vertical": "support"
 }

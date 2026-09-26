@@ -4,26 +4,120 @@
   "category": "reverse_etl",
   "icon": "si:notion",
   "x-dagster-io": {
-    "inputs": {"type": "dataframe", "description": "pandas DataFrame from an upstream asset. Each row -> one Notion database page (upserted via key_property)."},
-    "outputs": {"type": "sink", "description": "Dagster asset materialization with metadata. No downstream data -- write side effect lands in Notion."}
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one Notion database page (upserted via key_property)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata. No downstream data -- write side effect lands in Notion."
+    }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "description": "Asset providing the DataFrame. Mutually exclusive with source."},
-    "source": {"type": "object", "label": "Source", "required": false, "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."},
-    "database_id": {"type": "string", "label": "Database Id", "required": true, "description": "Notion database ID (UUID)."},
-    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "notion_resource"},
-    "key_property": {"type": "string", "label": "Key Property", "required": true, "description": "Notion property name that uniquely identifies a row (usually the title property). Rows are matched to existing Notion pages by this property's value."},
-    "key_column": {"type": "string", "label": "Key Column", "required": true, "description": "Upstream DataFrame column holding the value that matches key_property."},
-    "properties_map": {"type": "object", "label": "Properties Map", "required": true, "description": "Upstream column -> Notion property name.", "ui:widget": "key-value"},
-    "delete_missing": {"type": "boolean", "label": "Delete Missing", "required": false, "default": false, "description": "If true, archive Notion pages whose key value is NOT in the upstream DataFrame.", "ui:widget": "checkbox"},
-    "batch_size": {"type": "integer", "label": "Batch Size", "required": false, "default": 100, "description": "Max upstream rows to process per run (safety cap)."},
-    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "notion"},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with source."
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."
+    },
+    "database_id": {
+      "type": "string",
+      "label": "Database Id",
+      "required": true,
+      "description": "Notion database ID (UUID)."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "notion_resource"
+    },
+    "key_property": {
+      "type": "string",
+      "label": "Key Property",
+      "required": true,
+      "description": "Notion property name that uniquely identifies a row (usually the title property). Rows are matched to existing Notion pages by this property's value."
+    },
+    "key_column": {
+      "type": "string",
+      "label": "Key Column",
+      "required": true,
+      "description": "Upstream DataFrame column holding the value that matches key_property."
+    },
+    "properties_map": {
+      "type": "object",
+      "label": "Properties Map",
+      "required": true,
+      "description": "Upstream column -> Notion property name.",
+      "ui:widget": "key-value"
+    },
+    "delete_missing": {
+      "type": "boolean",
+      "label": "Delete Missing",
+      "required": false,
+      "default": false,
+      "description": "If true, archive Notion pages whose key value is NOT in the upstream DataFrame.",
+      "ui:widget": "checkbox"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 100,
+      "description": "Max upstream rows to process per run (safety cap)."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "notion"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
   },
-  "tags": ["notion", "reverse-etl", "upsert"],
-  "name": "Notion Database Upsert"
+  "tags": [
+    "notion",
+    "reverse-etl",
+    "upsert"
+  ],
+  "name": "Notion Database Upsert",
+  "vertical": "productivity"
 }

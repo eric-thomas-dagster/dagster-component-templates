@@ -212,5 +212,6 @@
     "catalogs",
     "rest-api"
   ],
-  "name": "DataFrame to Braze"
+  "name": "DataFrame to Braze",
+  "vertical": "marketing"
 }

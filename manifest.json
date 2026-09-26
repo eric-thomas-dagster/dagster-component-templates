@@ -2965,6 +2965,9 @@
           "dagster",
           "pandas",
           "openai-whisper"
+        ],
+        "brew": [
+          "ffmpeg"
         ]
       },
       "produces": [
@@ -15047,6 +15050,10 @@
           "pytesseract>=0.3.10",
           "pdf2image>=1.16.0",
           "Pillow>=9.0.0"
+        ],
+        "brew": [
+          "tesseract",
+          "poppler"
         ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_text_extractor/README.md",
@@ -32890,6 +32897,9 @@
           "pandas",
           "pytesseract",
           "Pillow"
+        ],
+        "brew": [
+          "tesseract"
         ]
       },
       "produces": [

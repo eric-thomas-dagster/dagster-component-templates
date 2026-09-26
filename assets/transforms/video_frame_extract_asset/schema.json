@@ -73,9 +73,9 @@
       "description": "How to choose frames.",
       "default": "every_seconds",
       "enum": [
-        "append",
-        "overwrite",
-        "upsert"
+        "every_seconds",
+        "every_n_frames",
+        "fixed_count"
       ],
       "ui:widget": "select"
     },

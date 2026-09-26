@@ -241,7 +241,10 @@ class VideoFrameExtractAssetComponent(Component, Model, Resolvable):
                     "-vf", vf,
                 ]
                 if mode == "every_n_frames":
-                    cmd.extend(["-vsync", "vfr"])
+                    # -vsync was removed in ffmpeg 9.x (hard "Unrecognized
+                    # option" error, not just a deprecation warning) --
+                    # -fps_mode is its replacement, available since ffmpeg 5.1.
+                    cmd.extend(["-fps_mode", "vfr"])
                 if mode == "fixed_count":
                     cmd.extend(["-vframes", str(fixed_count)])
                 if image_format == "jpg":

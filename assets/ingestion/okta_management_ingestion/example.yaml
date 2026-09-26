@@ -1,0 +1,6 @@
+type: dagster_component_templates.OktaManagementIngestionComponent
+attributes:
+  asset_name: okta_management_ingestion
+  org_url: "https://mycompany.okta.com"
+  api_token: "${OKTA_API_TOKEN}"
+  resources: "users,groups"

@@ -1,0 +1,6 @@
+type: dagster_component_templates.AcuitySchedulingIngestionComponent
+attributes:
+  asset_name: acuity_scheduling_ingestion
+  user_id: "${ACUITY_USER_ID}"
+  api_key: "${ACUITY_API_KEY}"
+  resources: "appointments,clients"

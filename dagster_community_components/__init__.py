@@ -27,6 +27,17 @@ _PACKAGE_ROOT = Path(__file__).resolve().parent
 
 # class name -> component.py path (relative to package root). Generated.
 _CLASS_PATHS: dict[str, str] = {
+    "BoxIngestionComponent": "assets/ingestion/box_ingestion/component.py",
+    "AmplitudeIngestionComponent": "assets/ingestion/amplitude_ingestion/component.py",
+    "OktaManagementIngestionComponent": "assets/ingestion/okta_management_ingestion/component.py",
+    "ConstantContactIngestionComponent": "assets/ingestion/constant_contact_ingestion/component.py",
+    "ConvertKitIngestionComponent": "assets/ingestion/convertkit_ingestion/component.py",
+    "WrikeIngestionComponent": "assets/ingestion/wrike_ingestion/component.py",
+    "AcuitySchedulingIngestionComponent": "assets/ingestion/acuity_scheduling_ingestion/component.py",
+    "ZohoDeskIngestionComponent": "assets/ingestion/zoho_desk_ingestion/component.py",
+    "BrexIngestionComponent": "assets/ingestion/brex_ingestion/component.py",
+    "WebexIngestionComponent": "assets/ingestion/webex_ingestion/component.py",
+    "MondayIngestionComponent": "assets/ingestion/monday_ingestion/component.py",
     "GreenhouseResourceComponent": "resources/greenhouse_resource/component.py",
     "GreenhouseCandidateUpdateComponent": "assets/reverse_etl/greenhouse_candidate_update/component.py",
     "PayPalIngestionComponent": "assets/ingestion/paypal_ingestion/component.py",

@@ -1,0 +1,8 @@
+type: dagster_component_templates.BoxIngestionComponent
+attributes:
+  asset_name: box_ingestion
+  client_id: "${BOX_CLIENT_ID}"
+  client_secret: "${BOX_CLIENT_SECRET}"
+  box_subject_type: "enterprise"
+  box_subject_id: "${BOX_ENTERPRISE_ID}"
+  resources: "folder_items,users"

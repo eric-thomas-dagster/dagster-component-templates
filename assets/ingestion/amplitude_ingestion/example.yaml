@@ -1,0 +1,6 @@
+type: dagster_component_templates.AmplitudeIngestionComponent
+attributes:
+  asset_name: amplitude_ingestion
+  api_key: "${AMPLITUDE_API_KEY}"
+  secret_key: "${AMPLITUDE_SECRET_KEY}"
+  resources: "events_list"

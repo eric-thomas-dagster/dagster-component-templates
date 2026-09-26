@@ -1,0 +1,5 @@
+type: dagster_component_templates.BrexIngestionComponent
+attributes:
+  asset_name: brex_ingestion
+  api_key: "${BREX_API_KEY}"
+  resources: "users,transfers"

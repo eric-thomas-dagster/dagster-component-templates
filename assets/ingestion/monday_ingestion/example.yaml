@@ -1,0 +1,6 @@
+type: dagster_component_templates.MondayIngestionComponent
+attributes:
+  asset_name: monday_ingestion
+  api_token: "${MONDAY_API_TOKEN}"
+  board_id: "1234567890"
+  resources: "boards,users,items"

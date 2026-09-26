@@ -1,0 +1,5 @@
+type: dagster_component_templates.ConvertKitIngestionComponent
+attributes:
+  asset_name: convertkit_ingestion
+  api_key: "${CONVERTKIT_API_KEY}"
+  resources: "subscribers,tags"

@@ -1,0 +1,8 @@
+type: dagster_component_templates.ZohoDeskIngestionComponent
+attributes:
+  asset_name: zoho_desk_ingestion
+  client_id: "${ZOHO_CLIENT_ID}"
+  client_secret: "${ZOHO_CLIENT_SECRET}"
+  refresh_token: "${ZOHO_DESK_REFRESH_TOKEN}"
+  org_id: "${ZOHO_DESK_ORG_ID}"
+  resources: "tickets,contacts"

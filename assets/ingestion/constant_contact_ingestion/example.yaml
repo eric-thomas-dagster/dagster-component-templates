@@ -1,0 +1,7 @@
+type: dagster_component_templates.ConstantContactIngestionComponent
+attributes:
+  asset_name: constant_contact_ingestion
+  client_id: "${CONSTANT_CONTACT_CLIENT_ID}"
+  client_secret: "${CONSTANT_CONTACT_CLIENT_SECRET}"
+  refresh_token: "${CONSTANT_CONTACT_REFRESH_TOKEN}"
+  resources: "contacts,contact_lists"

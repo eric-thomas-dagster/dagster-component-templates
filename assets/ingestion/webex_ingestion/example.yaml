@@ -1,0 +1,5 @@
+type: dagster_component_templates.WebexIngestionComponent
+attributes:
+  asset_name: webex_ingestion
+  bot_token: "${WEBEX_BOT_TOKEN}"
+  resources: "rooms,people"

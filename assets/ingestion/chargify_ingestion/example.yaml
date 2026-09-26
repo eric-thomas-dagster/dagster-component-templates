@@ -1,0 +1,6 @@
+type: dagster_component_templates.ChargifyIngestionComponent
+attributes:
+  asset_name: chargify_ingestion
+  subdomain: "mysite"
+  api_key: "${CHARGIFY_API_KEY}"
+  resources: "subscriptions,customers"

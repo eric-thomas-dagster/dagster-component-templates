@@ -1,0 +1,6 @@
+type: dagster_component_templates.SumoLogicIngestionComponent
+attributes:
+  asset_name: sumo_logic_ingestion
+  access_id: "${SUMOLOGIC_ACCESS_ID}"
+  access_key: "${SUMOLOGIC_ACCESS_KEY}"
+  resources: "collectors"

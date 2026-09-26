@@ -1,0 +1,7 @@
+type: dagster_component_templates.ZuoraIngestionComponent
+attributes:
+  asset_name: zuora_ingestion
+  base_url: "https://rest.na.zuora.com"
+  client_id: "${ZUORA_CLIENT_ID}"
+  client_secret: "${ZUORA_CLIENT_SECRET}"
+  resources: "accounts,subscriptions"

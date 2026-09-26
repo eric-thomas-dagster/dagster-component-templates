@@ -1,0 +1,7 @@
+type: dagster_component_templates.Auth0ManagementIngestionComponent
+attributes:
+  asset_name: auth0_management_ingestion
+  tenant_domain: "mycompany.us.auth0.com"
+  client_id: "${AUTH0_CLIENT_ID}"
+  client_secret: "${AUTH0_CLIENT_SECRET}"
+  resources: "users,roles"

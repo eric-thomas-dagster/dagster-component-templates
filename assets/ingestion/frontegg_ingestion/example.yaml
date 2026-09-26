@@ -1,0 +1,6 @@
+type: dagster_component_templates.FronteggIngestionComponent
+attributes:
+  asset_name: frontegg_ingestion
+  client_id: "${FRONTEGG_CLIENT_ID}"
+  api_key: "${FRONTEGG_API_KEY}"
+  resources: "users,tenants"

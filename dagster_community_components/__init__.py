@@ -27,6 +27,17 @@ _PACKAGE_ROOT = Path(__file__).resolve().parent
 
 # class name -> component.py path (relative to package root). Generated.
 _CLASS_PATHS: dict[str, str] = {
+    "Auth0ManagementIngestionComponent": "assets/ingestion/auth0_management_ingestion/component.py",
+    "ZuoraIngestionComponent": "assets/ingestion/zuora_ingestion/component.py",
+    "AdyenIngestionComponent": "assets/ingestion/adyen_ingestion/component.py",
+    "FreshserviceIngestionComponent": "assets/ingestion/freshservice_ingestion/component.py",
+    "JiraServiceManagementIngestionComponent": "assets/ingestion/jira_service_management_ingestion/component.py",
+    "PaddleIngestionComponent": "assets/ingestion/paddle_ingestion/component.py",
+    "ChargifyIngestionComponent": "assets/ingestion/chargify_ingestion/component.py",
+    "DoceboIngestionComponent": "assets/ingestion/docebo_ingestion/component.py",
+    "FronteggIngestionComponent": "assets/ingestion/frontegg_ingestion/component.py",
+    "PersonaIngestionComponent": "assets/ingestion/persona_ingestion/component.py",
+    "SumoLogicIngestionComponent": "assets/ingestion/sumo_logic_ingestion/component.py",
     "LaunchDarklyResourceComponent": "resources/launchdarkly_resource/component.py",
     "LaunchDarklySegmentUpdateComponent": "assets/reverse_etl/launchdarkly_segment_update/component.py",
     "HeapResourceComponent": "resources/heap_resource/component.py",

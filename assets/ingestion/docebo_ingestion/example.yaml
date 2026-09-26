@@ -1,0 +1,7 @@
+type: dagster_component_templates.DoceboIngestionComponent
+attributes:
+  asset_name: docebo_ingestion
+  subdomain: "mycompany"
+  client_id: "${DOCEBO_CLIENT_ID}"
+  client_secret: "${DOCEBO_CLIENT_SECRET}"
+  resources: "users,courses"

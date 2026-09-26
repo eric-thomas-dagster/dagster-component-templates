@@ -1,0 +1,7 @@
+type: dagster_component_templates.JiraServiceManagementIngestionComponent
+attributes:
+  asset_name: jira_service_management_ingestion
+  site_domain: "mysite"
+  email: "${JSM_EMAIL}"
+  api_token: "${JSM_API_TOKEN}"
+  resources: "servicedesks,requests"

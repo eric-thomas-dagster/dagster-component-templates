@@ -1,0 +1,5 @@
+type: dagster_component_templates.PersonaIngestionComponent
+attributes:
+  asset_name: persona_ingestion
+  api_key: "${PERSONA_API_KEY}"
+  resources: "inquiries,accounts"

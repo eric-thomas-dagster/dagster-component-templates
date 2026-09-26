@@ -1,0 +1,6 @@
+type: dagster_component_templates.FreshserviceIngestionComponent
+attributes:
+  asset_name: freshservice_ingestion
+  domain: "mycompany.freshservice.com"
+  api_key: "${FRESHSERVICE_API_KEY}"
+  resources: "tickets,requesters"

@@ -1,0 +1,5 @@
+type: dagster_component_templates.AdyenIngestionComponent
+attributes:
+  asset_name: adyen_ingestion
+  api_key: "${ADYEN_API_KEY}"
+  resources: "merchants"

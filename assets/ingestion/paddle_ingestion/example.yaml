@@ -1,0 +1,5 @@
+type: dagster_component_templates.PaddleIngestionComponent
+attributes:
+  asset_name: paddle_ingestion
+  api_key: "${PADDLE_API_KEY}"
+  resources: "customers,subscriptions"

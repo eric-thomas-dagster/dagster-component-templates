@@ -1,0 +1,17 @@
+type: dagster_component_templates.VideoSceneSummarizerComponent
+attributes:
+  asset_name: scene_summaries
+  upstream_asset_key: source_videos      # e.g. file_lister, or synthetic_video_generator for testing
+  video_path_column: file_path
+  video_id_column: video_id              # optional -- omit to use row index
+  scene_threshold: 0.4                   # lower catches more/subtler cuts; higher only hard cuts
+  max_scenes_per_video: 10
+  model: gpt-4o
+  api_key_env_var: OPENAI_API_KEY
+
+  # — tune the sensitivity for a specific kind of footage —
+  # scene_threshold: 0.2   # slow pans / dissolves -- catch subtler cuts
+  # scene_threshold: 0.6   # only very hard cuts (news broadcasts, ads)
+
+  # — customize what the LLM looks for —
+  # summary_prompt: "Identify the product shown in this frame and any visible price or promotion text."

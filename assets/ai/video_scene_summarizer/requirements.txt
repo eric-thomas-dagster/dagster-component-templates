@@ -1,0 +1,6 @@
+pandas>=2.0.0
+litellm>=1.30.0
+
+# Requires ffmpeg in PATH (not a pip package):
+#   macOS: brew install ffmpeg
+#   Debian/Ubuntu: apt install ffmpeg

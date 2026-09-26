@@ -50500,6 +50500,63 @@
       "icon": "Shuffle"
     },
     {
+      "id": "video_scene_summarizer",
+      "name": "Video Scene Summarizer",
+      "category": "ai",
+      "description": "Detect scene changes in a video via ffmpeg and summarize each one with a vision-LLM call -- a table of contents for video, one row per scene (timestamp, frame, summary), instead of a fixed-cadence frame dump like video_frame_extract_asset. Falls back to a single first-frame row for a genuinely static clip rather than producing zero rows.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/video_scene_summarizer",
+      "tags": [
+        "ai",
+        "video",
+        "vision",
+        "llm",
+        "scene-detection",
+        "ffmpeg",
+        "summarization"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "litellm"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/video_scene_summarizer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/video_scene_summarizer/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/video_scene_summarizer/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/video_scene_summarizer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/video_scene_summarizer/requirements.txt",
+      "icon": "Film",
+      "validation": {
+        "level": "code",
+        "evidence": "Verified end-to-end against REAL ffmpeg-generated videos (not just mocked content, litellm.completion mocked to avoid real API spend): a real 3-scene video (red->blue->green hard cuts) correctly detects 2 scene boundaries at the right timestamps, extracts real non-empty frame files, and each scene gets a (mocked) LLM summary; a genuinely static video correctly falls back to a single first-frame row instead of producing zero rows; a corrupt/unreadable video is counted as a real error in video_errors output metadata instead of failing the whole run or being silently skipped. Two real ffmpeg compatibility bugs were caught and fixed by this real-file testing (not visible against mocks): -vsync vfr was removed in ffmpeg 9.x (now -fps_mode vfr), and ffmpeg exits nonzero -- not zero -- when the scene filter matches no frames at all (handled explicitly rather than treated as a hard failure).",
+        "last_validated": "2026-09-25"
+      },
+      "agent_hints": {
+        "inputs": "A DataFrame with a column of video file paths (e.g. file_lister's local_path column, or synthetic_video_generator's file_path column).",
+        "outputs": "New DataFrame, one row per detected scene: video_id, source_video, scene_index, timestamp_seconds, frame_path, summary.",
+        "side_effects": "Shells out to ffmpeg for scene detection + frame extraction; calls a vision-LLM provider (OpenAI/Anthropic/etc via LiteLLM) once per detected scene.",
+        "anti_uses": "For a fixed-cadence frame dump (every N seconds/frames) with no LLM call, use video_frame_extract_asset instead. For audio-only transcription, use audio_transcriber/speech_to_text_asset.",
+        "requires_pip": [
+          "litellm"
+        ],
+        "output_type": "pd.DataFrame"
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "video table of contents",
+        "scene detection",
+        "video summarization",
+        "vision llm video",
+        "video understanding",
+        "ffmpeg scene change"
+      ]
+    },
+    {
       "id": "vif",
       "name": "Vif",
       "category": "analytics",

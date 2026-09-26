@@ -1,0 +1,221 @@
+{
+  "component_type": "dagster_component_templates.VideoSceneSummarizerComponent",
+  "name": "Video Scene Summarizer",
+  "description": "Detect scene changes in a video via ffmpeg and summarize each one with a vision-LLM call -- a table of contents for video, one row per scene (timestamp, frame, summary).",
+  "category": "ai",
+  "icon": "Film",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame with a column of video file paths."
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "One row per detected scene: video_id, source_video, scene_index, timestamp_seconds, frame_path, summary."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output asset name.",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream DataFrame asset key providing video file paths.",
+      "required": true
+    },
+    "video_path_column": {
+      "type": "string",
+      "label": "Video Path Column",
+      "description": "Column of video file paths.",
+      "required": false,
+      "default": "file_path",
+      "x-dagster-widget": "column"
+    },
+    "video_id_column": {
+      "type": "string",
+      "label": "Video Id Column",
+      "description": "Optional column to carry forward as `video_id` on each scene row. Default: row index.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "scene_threshold": {
+      "type": "number",
+      "label": "Scene Threshold",
+      "description": "ffmpeg scene-change sensitivity (0-1). Lower catches more/subtler cuts; higher only catches hard cuts.",
+      "required": false,
+      "default": 0.4
+    },
+    "max_scenes_per_video": {
+      "type": "integer",
+      "label": "Max Scenes Per Video",
+      "description": "Safety cap on scenes extracted (and summarized) per video.",
+      "required": false,
+      "default": 10
+    },
+    "output_dir": {
+      "type": "string",
+      "label": "Output Directory",
+      "description": "Filesystem directory for extracted scene frames.",
+      "required": false,
+      "default": "/tmp/video_scenes"
+    },
+    "image_quality": {
+      "type": "integer",
+      "label": "Image Quality",
+      "description": "JPEG quality 1-100 for extracted frames.",
+      "required": false,
+      "default": 85
+    },
+    "model": {
+      "type": "string",
+      "label": "Model",
+      "description": "Vision-capable LLM model name (litellm format).",
+      "required": false,
+      "default": "gpt-4o"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "description": "Environment variable holding the API key.",
+      "required": false,
+      "default": "OPENAI_API_KEY"
+    },
+    "summary_prompt": {
+      "type": "string",
+      "label": "Summary Prompt",
+      "description": "Instruction sent to the vision LLM alongside each scene frame.",
+      "required": false,
+      "default": "Describe what's happening in this video frame in one or two sentences. Be specific about action, setting, and any visible text."
+    },
+    "llm_max_retries": {
+      "type": "integer",
+      "label": "LLM Max Retries",
+      "description": "Retry a scene's LLM call this many times on transient errors before giving up on it.",
+      "required": false,
+      "default": 2
+    },
+    "ffmpeg_binary": {
+      "type": "string",
+      "label": "Ffmpeg Binary",
+      "description": "Path or name of the ffmpeg binary.",
+      "required": false,
+      "default": "ffmpeg"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description shown in the Dagster catalog.",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": null
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Key-value tags applied to the asset in the Dagster catalog.",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Owners",
+      "description": "Asset owners — team names or email addresses.",
+      "required": false,
+      "default": null
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include a preview of the output data in metadata.",
+      "required": false,
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Rows to include in the preview metadata when include_preview_metadata is True.",
+      "required": false,
+      "default": 25
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Max retries on asset failure. Defines a RetryPolicy.",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Seconds between retries (default 1).",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "required": false,
+      "default": "exponential",
+      "enum": ["linear", "exponential"],
+      "ui:widget": "select"
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes",
+      "description": "Maximum acceptable lag in minutes before the asset is considered stale.",
+      "required": false,
+      "default": null
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "description": "Cron schedule string for the freshness policy.",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Partition type: 'daily'/'weekly'/'monthly'/'hourly'/'static'/'dynamic'/None.",
+      "required": false,
+      "default": null,
+      "enum": ["daily", "weekly", "monthly", "hourly", "static", "dynamic"],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "Partition start date (ISO), required for time-based types.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static partitioning.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition.",
+      "required": false,
+      "default": null
+    }
+  }
+}

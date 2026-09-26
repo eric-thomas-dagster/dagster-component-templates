@@ -2,7 +2,7 @@
 
 help:
 	@echo "Available targets:"
-	@echo "  make test              — run pytest (subset that doesn't need optional SDKs)"
+	@echo "  make test              — run pytest across every component's own tests/ dir (repo-wide, not just top-level tests/)"
 	@echo "  make ruff              — run ruff lint on the shipped package + tools"
 	@echo "  make pyright           — run pyright type check on the shipped package + tools"
 	@echo "  make check             — run ruff + pyright + lint-sensors (matches upstream community-integrations 'make check')"
@@ -13,10 +13,16 @@ help:
 	@echo "  make regen-readme-fields — sync each component README's Fields section from its Field() declarations"
 
 test:
-	@if [ -d tests ]; then \
-	  uv run pytest tests/; \
+	@if find . -type d -name tests \
+	    -not -path '*/node_modules/*' -not -path '*/.git/*' \
+	    -not -path '*/.venv/*' -not -path '*/venv/*' -not -path '*/site-packages/*' \
+	    -print0 | grep -qz .; then \
+	  find . -type d -name tests \
+	    -not -path '*/node_modules/*' -not -path '*/.git/*' \
+	    -not -path '*/.venv/*' -not -path '*/venv/*' -not -path '*/site-packages/*' \
+	    -print0 | xargs -0 uv run pytest --continue-on-collection-errors; \
 	else \
-	  echo "no tests/ dir yet — using validate_manifest.py as the L1 test suite"; \
+	  echo "no tests/ dirs yet — using validate_manifest.py as the L1 test suite"; \
 	  $(MAKE) validate-manifest; \
 	fi
 

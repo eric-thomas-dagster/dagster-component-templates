@@ -20,6 +20,8 @@ whole separate component.
 """
 
 from typing import Any, Dict, List, Optional, Union
+from pathlib import Path
+import tempfile
 import pandas as pd
 
 from dagster import (
@@ -151,6 +153,38 @@ _PRESET_FIELDS: Dict[str, List[str]] = {
 _DOCUMENT_TYPES = sorted(_PRESET_FIELDS.keys()) + ["custom"]
 
 
+def _list_files_direct(path: str, max_files: Optional[int], download: bool, download_dir: Optional[str]) -> "pd.DataFrame":
+    """List (and by default download) files matching `path` directly --
+    same logic as file_lister's own _list_files, duplicated rather than
+    imported since community components are standalone files. Used by
+    the `path` input mode below so this component can be the upstream
+    itself instead of requiring a separate file_lister asset -- only
+    needed when the user actually wants a shared, reusable listing asset
+    (e.g. multiple extractors reading the same source); a one-off
+    extraction over a bucket/folder shouldn't need a second component.
+    """
+    import fsspec
+
+    fs, _, paths = fsspec.get_fs_token_paths(path)
+    if len(paths) == 1 and fs.isdir(paths[0]):
+        paths = [p for p in fs.ls(paths[0], detail=False) if not fs.isdir(p)]
+    if max_files is not None:
+        paths = paths[:max_files]
+
+    rows = []
+    for p in paths:
+        filename = p.rsplit("/", 1)[-1]
+        local_path = p
+        if download:
+            cache_dir_p = Path(download_dir) if download_dir else Path(tempfile.gettempdir()) / "structured_document_extractor"
+            cache_dir_p.mkdir(parents=True, exist_ok=True)
+            target = cache_dir_p / filename
+            fs.get(p, str(target))
+            local_path = str(target)
+        rows.append({"path": p, "local_path": local_path, "filename": filename})
+    return pd.DataFrame(rows, columns=["path", "local_path", "filename"])
+
+
 class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
     """Extract structured fields from any document type using an LLM.
 
@@ -178,8 +212,37 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
 
     model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
-    upstream_asset_key: str = Field(
-        description="Upstream asset key providing a DataFrame with document content"
+    upstream_asset_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Upstream asset key providing a DataFrame with document content. "
+            "Mutually exclusive with `path` -- set exactly one. Use this when "
+            "another asset (e.g. file_lister) already lists/produces the "
+            "documents; use `path` when this component should list them itself."
+        ),
+    )
+    path: Optional[str] = Field(
+        default=None,
+        description=(
+            "Glob pattern or fsspec URI to list documents from directly (s3://, "
+            "gs://, abfss:// / abfs:// / az://, or a local path), e.g. "
+            "'s3://my-bucket/invoices/**/*.pdf'. Mutually exclusive with "
+            "`upstream_asset_key` -- set exactly one. No separate file_lister "
+            "asset needed; this becomes a root asset that lists (and by "
+            "default downloads) the files itself, then extracts from them."
+        ),
+    )
+    download: bool = Field(
+        default=True,
+        description="When using `path`: download each matched file to a local cache directory first. Ignored when using `upstream_asset_key`.",
+    )
+    download_dir: Optional[str] = Field(
+        default=None,
+        description="When using `path` with download=true: local cache directory. Auto-generated under the system temp dir if unset.",
+    )
+    max_files: Optional[int] = Field(
+        default=None,
+        description="When using `path`: safety cap on how many matched files to process in one materialize.",
     )
     document_type: str = Field(
         default="custom",
@@ -290,12 +353,24 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
+        direct_path = self.path
+        direct_download = self.download
+        direct_download_dir = self.download_dir
+        direct_max_files = self.max_files
         input_column = self.input_column
         input_type = self.input_type
         model = self.model_id
         api_key_env_var = self.api_key_env_var
         document_type = self.document_type
         batch_size = self.batch_size
+
+        _modes_set = sum(bool(x) for x in (upstream_asset_key, direct_path))
+        if _modes_set != 1:
+            raise ValueError(
+                f"{asset_name}: must set exactly one of `upstream_asset_key` "
+                f"(read from an existing asset) or `path` (list files directly, "
+                f"no separate asset needed) -- got {_modes_set} set."
+            )
 
         if document_type != "custom" and document_type not in _PRESET_FIELDS:
             raise ValueError(
@@ -344,35 +419,11 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
 
         _doc_label = document_type.replace("_", " ") if document_type != "custom" else "document"
 
-        @asset(
-            retry_policy=_retry_policy,
-            key=AssetKey.from_user_string(asset_name),
-            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
-            partitions_def=partitions_def,
-            owners=owners,
-            tags=_all_tags,
-            freshness_policy=_freshness_policy,
-            group_name=self.group_name,
-            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
-        )
-        def _asset(context: AssetExecutionContext, upstream: Any) -> pd.DataFrame:
-            if hasattr(upstream, "value") and hasattr(upstream, "metadata"):
-                upstream = upstream.value
-            if isinstance(upstream, dict):
-                _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
-                upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
-            if context.has_partition_key:
-                _pk = context.partition_key
-                _is_multi = hasattr(_pk, "keys_by_dimension")
-                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
-                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
-                if partition_date_column and partition_date_column in upstream.columns and _date_key:
-                    upstream = upstream[upstream[partition_date_column].astype(str) == _date_key]
-                if partition_static_column and partition_static_column in upstream.columns and _static_key:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
-                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
-
+        def _do_extraction(context: AssetExecutionContext, df: pd.DataFrame) -> pd.DataFrame:
+            """Shared extraction logic for both input modes -- given a
+            DataFrame with `input_column` already populated (file paths or
+            raw text), extract `output_fields` from each row via LLM and
+            return the enriched DataFrame + metadata."""
             import os
             import json
 
@@ -381,7 +432,7 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
             except ImportError:
                 raise ImportError("litellm required: pip install litellm")
 
-            df = upstream.copy()
+            _original_cols = set(df.columns)
             results = []
             total = len(df)
             context.log.info(f"Extracting {_doc_label} fields from {total} rows using {model}")
@@ -446,21 +497,60 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
             }
             _effective_lineage = column_lineage
             if not _effective_lineage:
-                try:
-                    _upstream_cols = set(upstream.columns)
-                    _effective_lineage = {col.name: [col.name] for col in _col_schema.columns if col.name in _upstream_cols}
-                except Exception:
-                    pass
-            if _effective_lineage:
-                _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
-                if _upstream_key:
-                    _lineage_deps = {
-                        str(out_col): [TableColumnDep(asset_key=_upstream_key, column_name=str(ic)) for ic in in_cols]
-                        for out_col, in_cols in _effective_lineage.items()
-                    }
-                    _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(TableColumnLineage(_lineage_deps))
+                _effective_lineage = {col.name: [col.name] for col in _col_schema.columns if col.name in _original_cols}
+            if _effective_lineage and upstream_asset_key:
+                # Only meaningful in upstream mode -- direct-path mode has
+                # no real Dagster asset to link column lineage to (the
+                # files came straight from object storage, not another
+                # asset), so upstream_asset_key is None there and this is
+                # skipped entirely.
+                _upstream_key = AssetKey.from_user_string(upstream_asset_key)
+                _lineage_deps = {
+                    str(out_col): [TableColumnDep(asset_key=_upstream_key, column_name=str(ic)) for ic in in_cols]
+                    for out_col, in_cols in _effective_lineage.items()
+                }
+                _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(TableColumnLineage(_lineage_deps))
             context.add_output_metadata(_metadata)
             return df
+
+        asset_kwargs = dict(
+            retry_policy=_retry_policy,
+            key=AssetKey.from_user_string(asset_name),
+            partitions_def=partitions_def,
+            owners=owners,
+            tags=_all_tags,
+            freshness_policy=_freshness_policy,
+            group_name=self.group_name,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+        )
+
+        if direct_path:
+            @asset(**asset_kwargs)
+            def _asset(context: AssetExecutionContext) -> pd.DataFrame:
+                context.log.info(f"Listing files matching {direct_path!r}")
+                df = _list_files_direct(direct_path, direct_max_files, direct_download, direct_download_dir)
+                context.log.info(f"Found {len(df)} file(s)")
+                return _do_extraction(context, df)
+        else:
+            @asset(ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))}, **asset_kwargs)
+            def _asset(context: AssetExecutionContext, upstream: Any) -> pd.DataFrame:
+                if hasattr(upstream, "value") and hasattr(upstream, "metadata"):
+                    upstream = upstream.value
+                if isinstance(upstream, dict):
+                    _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
+                    upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
+                if context.has_partition_key:
+                    _pk = context.partition_key
+                    _is_multi = hasattr(_pk, "keys_by_dimension")
+                    _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                    _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
+                    if partition_date_column and partition_date_column in upstream.columns and _date_key:
+                        upstream = upstream[upstream[partition_date_column].astype(str) == _date_key]
+                    if partition_static_column and partition_static_column in upstream.columns and _static_key:
+                        upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
+                    elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
+                        upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
+                return _do_extraction(context, upstream.copy())
 
         from dagster import build_column_schema_change_checks
         _schema_checks = build_column_schema_change_checks(assets=[_asset])

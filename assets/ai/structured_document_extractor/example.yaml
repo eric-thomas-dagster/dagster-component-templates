@@ -1,12 +1,16 @@
 type: dagster_component_templates.StructuredDocumentExtractorComponent
 attributes:
   asset_name: invoice_fields
-  upstream_asset_key: incoming_invoices   # e.g. a file_lister asset
+  upstream_asset_key: incoming_invoices   # e.g. a file_lister asset -- mutually exclusive with `path` below
   document_type: invoice                  # picks the invoice preset's output_fields
   input_column: local_path                # pairs directly with file_lister's output
   input_type: file
   model: gpt-4o
   api_key_env_var: OPENAI_API_KEY
+
+  # — no separate file_lister asset needed: list documents directly —
+  # path: s3://my-bucket/invoices/**/*.pdf   # or gs://, abfss://, or a local path
+  # (leave upstream_asset_key unset when using path)
 
   # — try a different document type: just change document_type, same component —
   # document_type: resume

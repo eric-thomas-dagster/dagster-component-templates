@@ -7,8 +7,8 @@
   "x-dagster-io": {
     "inputs": {
       "type": "dataframe",
-      "required": true,
-      "description": "Input DataFrame with a column of document text or file paths"
+      "required": false,
+      "description": "Input DataFrame with a column of document text or file paths -- omit when using `path` (this component lists files itself instead)"
     },
     "outputs": {
       "type": "dataframe",
@@ -25,8 +25,37 @@
     "upstream_asset_key": {
       "type": "string",
       "label": "Upstream Asset Key",
-      "description": "Upstream asset key providing a DataFrame with document content",
-      "required": true
+      "description": "Upstream asset key providing a DataFrame with document content. Mutually exclusive with `path` -- set exactly one.",
+      "required": false,
+      "default": null
+    },
+    "path": {
+      "type": "string",
+      "label": "Path / Glob",
+      "description": "Glob pattern or fsspec URI to list documents from directly (s3://, gs://, abfss:// / abfs:// / az://, or a local path). Mutually exclusive with `upstream_asset_key` -- set exactly one. No separate file_lister asset needed.",
+      "required": false,
+      "default": null
+    },
+    "download": {
+      "type": "boolean",
+      "label": "Download",
+      "description": "When using `path`: download each matched file to a local cache directory first. Ignored when using `upstream_asset_key`.",
+      "required": false,
+      "default": true
+    },
+    "download_dir": {
+      "type": "string",
+      "label": "Download Directory",
+      "description": "When using `path` with download=true: local cache directory. Auto-generated under the system temp dir if unset.",
+      "required": false,
+      "default": null
+    },
+    "max_files": {
+      "type": "integer",
+      "label": "Max Files",
+      "description": "When using `path`: safety cap on how many matched files to process in one materialize.",
+      "required": false,
+      "default": null
     },
     "document_type": {
       "type": "string",

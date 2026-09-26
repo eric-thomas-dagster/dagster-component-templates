@@ -55591,7 +55591,7 @@
       "id": "structured_document_extractor",
       "name": "Structured Document Extractor",
       "category": "ai",
-      "description": "Extract structured fields from any document type using an LLM -- one component, document_type picks the preset (invoice, receipt, resume, ...) or 'custom' for your own fields. Consolidates invoice_extractor/receipt_extractor/bank_statement_extractor/expense_report_extractor/purchase_order_extractor/shipping_label_extractor/contract_extractor/legal_document_extractor/insurance_claim_extractor/medical_record_extractor/resume_extractor/job_posting_extractor/scientific_paper_extractor -- diffed directly, those are the same component with different output_fields defaults. Kept for backward compat; prefer this one for new usage.",
+      "description": "Extract structured fields from any document type using an LLM -- one component, document_type picks the preset (invoice, receipt, resume, ...) or 'custom' for your own fields. Two input modes: upstream_asset_key (read from an existing asset) or path (list files directly, no separate asset needed). Consolidates invoice_extractor/receipt_extractor/bank_statement_extractor/expense_report_extractor/purchase_order_extractor/shipping_label_extractor/contract_extractor/legal_document_extractor/insurance_claim_extractor/medical_record_extractor/resume_extractor/job_posting_extractor/scientific_paper_extractor -- diffed directly, those are the same component with different output_fields defaults. Kept for backward compat; prefer this one for new usage.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/ai/structured_document_extractor",
@@ -55621,7 +55621,7 @@
       "icon": "FileSearch",
       "validation": {
         "level": "code",
-        "evidence": "Verified end-to-end against a real local Dagster materialization chained with file_lister (litellm.completion mocked to avoid real API spend): document_type='invoice' preset resolution produces the correct prompt/output_fields and correct extracted columns, document_type='custom' with no output_fields raises a clear error, an unknown document_type raises a clear error. NOT yet run against a real LLM API call -- live-test before trusting in production.",
+        "evidence": "Verified end-to-end against a real local Dagster materialization for BOTH input modes: upstream_asset_key (file_lister -> this component) and path (this component listing files directly, no separate asset) -- litellm.completion mocked to avoid real API spend. Preset resolution, the custom-with-no-output_fields error path, the unknown-document_type error path, and the both-modes/neither-mode-set error path all behave as documented.",
         "last_validated": "2026-09-25"
       },
       "agent_hints": {

@@ -57680,9 +57680,67 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sumo_logic_ingestion/requirements.txt",
       "vertical": "devops-observability",
       "icon": "Layers"
+    },
+    {
+      "id": "audio_diarized_transcriber",
+      "name": "Audio Diarized Transcriber",
+      "category": "ai",
+      "description": "Transcribe audio AND label who's speaking when -- per file, returns a list of {speaker, start_seconds, end_seconds, text} segments instead of one flat transcript string like every other transcription component in this catalog. Two backends: google_cloud_speech (cloud, native diarization via Speech-to-Text v2, no heavy local install) or pyannote (local pyannote.audio + local Whisper, free after setup but needs your own gated HuggingFace token).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/audio_diarized_transcriber",
+      "tags": [
+        "ai",
+        "audio",
+        "speech-to-text",
+        "transcription",
+        "diarization",
+        "speaker-identification"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "google-cloud-speech",
+          "google-auth"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/audio_diarized_transcriber/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/audio_diarized_transcriber/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/audio_diarized_transcriber/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/audio_diarized_transcriber/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/audio_diarized_transcriber/requirements.txt",
+      "icon": "Mic",
+      "validation": {
+        "level": "code",
+        "evidence": "google_cloud_speech backend verified end-to-end against a REAL generated WAV file (not mocked content) with only the Speech v2 network call mocked: confirmed the real audio file's bytes are read and sent in the request, multi-speaker WordInfo results correctly group into speaker_1/speaker_2 segments with real start/end timings, the transcript_column concatenates segment text in order, and output metadata (diarized_rows/total_segments/backend) is correct. pyannote backend is orchestration-tested only (real ffmpeg segment-cutting against a real audio file, real error paths for a missing pyannote.audio install and a missing HF token) -- NOT run against the real pretrained model, since pyannote's pipeline is a gated HuggingFace model requiring the user's own token and terms acceptance. Neither backend has been run against a real Google Cloud Speech API call or a real pyannote model download yet -- live-test before trusting either in production.",
+        "last_validated": "2026-09-25"
+      },
+      "agent_hints": {
+        "inputs": "A DataFrame with a column of audio file paths (e.g. video_audio_extract_asset's audio_path column, or synthetic_audio_generator's file_path column for testing).",
+        "outputs": "Upstream DataFrame with a segments column added (list of {speaker, start_seconds, end_seconds, text} dicts per row) and a segments_transcript column (plain-text concatenation).",
+        "side_effects": "google_cloud_speech backend: calls the Cloud Speech-to-Text v2 API once per file. pyannote backend: downloads/runs a local pyannote.audio model and a local Whisper model, shells out to ffmpeg to cut speaker turns into separate audio files.",
+        "anti_uses": "For simple whole-file transcription with no speaker attribution, use audio_transcriber/litellm_audio_transcription/speech_to_text_asset instead -- much simpler and cheaper. For video, chain video_audio_extract_asset -> this component.",
+        "requires_pip": [
+          "google-cloud-speech",
+          "google-auth"
+        ],
+        "output_type": "pd.DataFrame"
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "speaker diarization",
+        "who spoke when",
+        "call transcription",
+        "meeting transcription",
+        "speaker identification",
+        "speech to text"
+      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1169
+  "total": 1170
 }

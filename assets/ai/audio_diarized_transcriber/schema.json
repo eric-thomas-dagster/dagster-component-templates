@@ -1,0 +1,316 @@
+{
+  "component_type": "dagster_component_templates.AudioDiarizedTranscriberComponent",
+  "name": "Audio Diarized Transcriber",
+  "description": "Transcribe audio AND label who's speaking when -- per file, returns a list of {speaker, start_seconds, end_seconds, text} segments instead of one flat transcript string. Two backends: google_cloud_speech (cloud, native diarization) or pyannote (local pyannote.audio + local Whisper).",
+  "category": "ai",
+  "icon": "Mic",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame with a column of audio file paths."
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Upstream DataFrame with a segments column (list of {speaker, start_seconds, end_seconds, text} dicts) and a segments_transcript column (plain-text concatenation) added."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Output Dagster asset name"
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true,
+      "description": "Upstream asset key providing a DataFrame of audio file paths -- e.g. video_audio_extract_asset's output, or synthetic_audio_generator for a quick test fixture."
+    },
+    "audio_path_column": {
+      "type": "string",
+      "label": "Audio Path Column",
+      "required": false,
+      "default": "audio_path",
+      "description": "Column containing local audio file paths. Defaults to 'audio_path' to pair directly with video_audio_extract_asset's output_path_column.",
+      "x-dagster-widget": "column"
+    },
+    "output_column": {
+      "type": "string",
+      "label": "Output Column",
+      "required": false,
+      "default": "segments",
+      "description": "Column to write speaker-attributed segments into: a list of {speaker, start_seconds, end_seconds, text} dicts per row, one per contiguous speaker turn, ordered by start_seconds. Speaker labels are 'speaker_1', 'speaker_2', ... (relative numbering per file, not a stable identity across files).",
+      "x-dagster-widget": "column"
+    },
+    "transcript_column": {
+      "type": "string",
+      "label": "Transcript Column",
+      "required": false,
+      "default": null,
+      "description": "Column to write the full plain-text transcript into (all segments' text joined in order, speaker labels omitted). Defaults to '<output_column>_transcript'.",
+      "x-dagster-widget": "column"
+    },
+    "diarization_backend": {
+      "type": "string",
+      "label": "Diarization Backend",
+      "required": false,
+      "default": "google_cloud_speech",
+      "description": "'google_cloud_speech' (default): Cloud Speech-to-Text v2's native diarization, one cloud API call per file, no heavy local install. 'pyannote': local pyannote.audio (diarization) + local Whisper (transcription) -- free after setup, but needs your own HuggingFace token (gated model). See README before choosing this backend.",
+      "enum": ["google_cloud_speech", "pyannote"],
+      "ui:widget": "select"
+    },
+    "credentials": {
+      "type": "object",
+      "label": "Credentials (dict)",
+      "required": false,
+      "default": null,
+      "description": "google_cloud_speech backend: service account JSON as a dict. Falls back to credentials_path, then GOOGLE_APPLICATION_CREDENTIALS."
+    },
+    "credentials_path": {
+      "type": "string",
+      "label": "Credentials Path",
+      "required": false,
+      "default": null,
+      "description": "google_cloud_speech backend: path to a service-account JSON file."
+    },
+    "project_id": {
+      "type": "string",
+      "label": "Project ID",
+      "required": false,
+      "default": null,
+      "description": "google_cloud_speech backend: GCP project ID. Defaults to the one embedded in the credentials."
+    },
+    "location": {
+      "type": "string",
+      "label": "Location",
+      "required": false,
+      "default": "global",
+      "description": "google_cloud_speech backend: recognizer region -- 'global' or a specific region (e.g. 'us-central1')."
+    },
+    "language_codes": {
+      "type": "array",
+      "label": "Language Codes",
+      "required": false,
+      "items": {"type": "string"},
+      "default": ["en-US"],
+      "description": "google_cloud_speech backend: one or more BCP-47 language codes."
+    },
+    "recognizer_model": {
+      "type": "string",
+      "label": "Recognizer Model",
+      "required": false,
+      "default": "latest_long",
+      "description": "google_cloud_speech backend: Speech v2 model -- 'latest_short' / 'latest_long' / 'chirp' / 'chirp_2' / 'phone_call' / 'medical_conversation'."
+    },
+    "min_speaker_count": {
+      "type": "integer",
+      "label": "Min Speaker Count",
+      "required": false,
+      "default": 2,
+      "description": "google_cloud_speech backend: minimum expected speakers."
+    },
+    "max_speaker_count": {
+      "type": "integer",
+      "label": "Max Speaker Count",
+      "required": false,
+      "default": 6,
+      "description": "google_cloud_speech backend: maximum expected speakers."
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "required": false,
+      "default": 3,
+      "description": "google_cloud_speech backend: retries per file on transient API errors."
+    },
+    "rate_limit_delay": {
+      "type": "number",
+      "label": "Rate Limit Delay",
+      "required": false,
+      "default": 0.0,
+      "description": "google_cloud_speech backend: seconds to sleep between files."
+    },
+    "pyannote_pipeline": {
+      "type": "string",
+      "label": "Pyannote Pipeline",
+      "required": false,
+      "default": "pyannote/speaker-diarization-3.1",
+      "description": "pyannote backend: HuggingFace pipeline id. This is a gated model -- accept its terms on huggingface.co with the account that owns hf_token_env_var before first use."
+    },
+    "hf_token_env_var": {
+      "type": "string",
+      "label": "HF Token Env Var",
+      "required": false,
+      "default": "HF_TOKEN",
+      "description": "pyannote backend: env var holding a HuggingFace access token with access to pyannote_pipeline."
+    },
+    "whisper_model_size": {
+      "type": "string",
+      "label": "Whisper Model Size",
+      "required": false,
+      "default": "base",
+      "description": "pyannote backend: local Whisper model size used to transcribe each detected speaker turn.",
+      "enum": ["tiny", "base", "small", "medium", "large"],
+      "ui:widget": "select"
+    },
+    "whisper_language": {
+      "type": "string",
+      "label": "Whisper Language",
+      "required": false,
+      "default": null,
+      "description": "pyannote backend: hint language for Whisper (ISO 639-1, e.g. 'en') to skip auto-detection per segment."
+    },
+    "min_speakers": {
+      "type": "integer",
+      "label": "Min Speakers",
+      "required": false,
+      "default": null,
+      "description": "pyannote backend: minimum expected speakers (omit to let pyannote infer)."
+    },
+    "max_speakers": {
+      "type": "integer",
+      "label": "Max Speakers",
+      "required": false,
+      "default": null,
+      "description": "pyannote backend: maximum expected speakers (omit to let pyannote infer)."
+    },
+    "max_segments_per_file": {
+      "type": "integer",
+      "label": "Max Segments Per File",
+      "required": false,
+      "default": 200,
+      "description": "pyannote backend: safety cap on speaker turns transcribed per file -- guards against a noisy/misdetected file producing thousands of tiny turns and burning huge Whisper runtime."
+    },
+    "min_segment_seconds": {
+      "type": "number",
+      "label": "Min Segment Seconds",
+      "required": false,
+      "default": 0.3,
+      "description": "pyannote backend: speaker turns shorter than this are dropped before transcription -- pyannote frequently emits sub-100ms micro-turns at speaker-change boundaries that are too short for Whisper to transcribe meaningfully."
+    },
+    "ffmpeg_binary": {
+      "type": "string",
+      "label": "Ffmpeg Binary",
+      "required": false,
+      "default": "ffmpeg",
+      "description": "pyannote backend: ffmpeg binary used to cut each speaker turn into its own audio slice."
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "default": null,
+      "description": "Asset description shown in the Dagster catalog.",
+      "ui:widget": "textarea"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null,
+      "description": "Dagster asset group name"
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "items": {"type": "string"},
+      "description": "Lineage-only upstream asset keys (no data passed at runtime)."
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "description": "Additional key-value tags to apply to the asset."
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {"type": "string"},
+      "description": "Asset owners — list of team names or email addresses."
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "default": null,
+      "description": "Max retries on asset failure. Defines a RetryPolicy."
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "default": null,
+      "description": "Seconds between retries (default 1)."
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": ["linear", "exponential"],
+      "ui:widget": "select"
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes",
+      "required": false,
+      "default": null,
+      "description": "Maximum acceptable lag in minutes before the asset is considered stale."
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "required": false,
+      "default": null,
+      "description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5'."
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "required": false,
+      "default": false,
+      "description": "Include a preview of the output data in metadata."
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "required": false,
+      "default": 25,
+      "description": "Rows to include in the preview metadata when include_preview_metadata is True."
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "default": null,
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned."
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "required": false,
+      "default": null,
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types."
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "required": false,
+      "default": null,
+      "description": "Comma-separated values for static partitioning, e.g. 'us,eu,asia'."
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "default": null,
+      "description": "Name for DynamicPartitionsDefinition when partition_type='dynamic'."
+    }
+  },
+  "tags": ["ai", "speech-to-text", "transcription", "diarization", "audio", "speaker-identification"]
+}

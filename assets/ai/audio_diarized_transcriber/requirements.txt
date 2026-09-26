@@ -1,0 +1,14 @@
+pandas>=2.0.0
+
+# google_cloud_speech backend (default):
+google-cloud-speech>=2.20.0
+google-auth>=2.0.0
+
+# pyannote backend (optional, diarization_backend='pyannote'):
+#   pip install pyannote.audio          # also pulls in torch/torchaudio
+#   pip install openai-whisper          # local transcription per speaker turn
+# Also requires ffmpeg in PATH (not a pip package):
+#   macOS: brew install ffmpeg
+#   Debian/Ubuntu: apt install ffmpeg
+# And a HuggingFace token with access to pyannote/speaker-diarization-3.1
+# (gated model -- accept its terms on huggingface.co first).

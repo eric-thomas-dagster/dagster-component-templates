@@ -1,0 +1,15 @@
+type: dagster_component_templates.AudioDiarizedTranscriberComponent
+attributes:
+  asset_name: call_transcripts
+  upstream_asset_key: call_audio_files    # e.g. video_audio_extract_asset, or synthetic_audio_generator for testing
+  audio_path_column: audio_path
+  diarization_backend: google_cloud_speech
+  credentials_path: /path/to/service-account.json
+  min_speaker_count: 2
+  max_speaker_count: 4
+  recognizer_model: latest_long
+
+  # — local backend instead (no cloud call, but needs your own setup) —
+  # diarization_backend: pyannote
+  # hf_token_env_var: HF_TOKEN
+  # whisper_model_size: base

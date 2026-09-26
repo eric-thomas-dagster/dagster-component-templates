@@ -1,0 +1,5 @@
+type: dagster_component_templates.GreenhouseResourceComponent
+attributes:
+  resource_key: greenhouse
+  api_key_env_var: GREENHOUSE_API_KEY
+  on_behalf_of_user_id: "4223"

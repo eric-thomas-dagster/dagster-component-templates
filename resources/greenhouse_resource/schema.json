@@ -1,0 +1,33 @@
+{
+  "component_type": "dagster_component_templates.GreenhouseResourceComponent",
+  "description": "Register a GreenhouseResource (Harvest API key auth) for use by other components, with an update_candidate convenience method.",
+  "category": "resource",
+  "icon": "si:greenhouse",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["greenhouse"],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "greenhouse"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var holding a Greenhouse Harvest API key.",
+      "required": false,
+      "default": "GREENHOUSE_API_KEY",
+      "ui:widget": "env_var"
+    },
+    "on_behalf_of_user_id": {
+      "type": "string",
+      "label": "On Behalf Of User Id",
+      "description": "Greenhouse user ID to attribute write operations to (required by the Harvest API's On-Behalf-Of header).",
+      "required": true
+    }
+  },
+  "tags": ["resource", "greenhouse", "hr", "ats"],
+  "name": "Greenhouse Resource"
+}

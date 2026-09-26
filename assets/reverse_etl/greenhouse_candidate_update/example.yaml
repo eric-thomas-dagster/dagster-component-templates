@@ -1,0 +1,10 @@
+type: dagster_component_templates.GreenhouseCandidateUpdateComponent
+attributes:
+  asset_name: greenhouse_candidate_scores
+  upstream_asset_key: candidate_screening_scores
+  resource_key: greenhouse
+  candidate_id_column: greenhouse_candidate_id
+  tags_column: computed_tags
+  custom_fields_map:
+    screening_score: screening_score
+  group_name: reverse_etl

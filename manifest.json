@@ -56743,9 +56743,63 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/buildkite_ingestion/requirements.txt",
       "vertical": "devops-observability",
       "icon": "si:buildkite"
+    },
+    {
+      "id": "greenhouse_resource",
+      "name": "Greenhouse Resource",
+      "category": "resource",
+      "description": "Register a GreenhouseResource (Harvest API key auth) for use by other components, with an update_candidate convenience method.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/greenhouse_resource",
+      "tags": [
+        "resource",
+        "greenhouse",
+        "hr",
+        "ats"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/greenhouse_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/greenhouse_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/greenhouse_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/greenhouse_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/greenhouse_resource/requirements.txt",
+      "icon": "si:greenhouse"
+    },
+    {
+      "id": "greenhouse_candidate_update",
+      "name": "Greenhouse Candidate Update",
+      "category": "reverse_etl",
+      "description": "Reverse-ETL sink: update existing Greenhouse candidates' tags and/or custom fields via PATCH /v1/candidates/{id}. Update-only, not an upsert -- candidates must already exist in Greenhouse.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/reverse_etl/greenhouse_candidate_update",
+      "tags": [
+        "greenhouse",
+        "reverse-etl",
+        "update",
+        "hr",
+        "ats"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/greenhouse_candidate_update/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/greenhouse_candidate_update/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/greenhouse_candidate_update/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/greenhouse_candidate_update/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/greenhouse_candidate_update/requirements.txt",
+      "icon": "si:greenhouse"
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1140
+  "total": 1142
 }

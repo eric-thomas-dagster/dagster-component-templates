@@ -166,6 +166,10 @@ class ImageLlmExtractorComponent(Component, Model, Resolvable):
         description="Vision-capable model name (litellm format)",
     )
     max_tokens: int = Field(default=500, description="Maximum tokens in LLM response")
+    llm_max_retries: int = Field(
+        default=2,
+        description="Retry an image's LLM call up to this many times on transient errors (rate limits, timeouts) before giving up on that row -- forwarded to litellm's own num_retries.",
+    )
     api_key_env_var: str = Field(
         default="OPENAI_API_KEY",
         description="Environment variable holding the API key",
@@ -301,6 +305,7 @@ class ImageLlmExtractorComponent(Component, Model, Resolvable):
         prompt_prefix = self.prompt_prefix
         model = self.model_id
         max_tokens = self.max_tokens
+        llm_max_retries = self.llm_max_retries
         api_key_env_var = self.api_key_env_var
         input_type = self.input_type
 
@@ -433,8 +438,10 @@ group_name=self.group_name,
             )
 
             results = []
+            extraction_failures = 0
             for path in df[image_column]:
                 path_str = str(path)
+                success = False
                 try:
                     if input_type == "file":
                         with open(path_str, "rb") as f:
@@ -478,6 +485,7 @@ group_name=self.group_name,
                         ],
                         max_tokens=max_tokens,
                         api_key=os.environ.get(api_key_env_var),
+                        num_retries=llm_max_retries,
                     )
                     raw = resp.choices[0].message.content.strip()
                     if raw.startswith("```"):
@@ -485,10 +493,20 @@ group_name=self.group_name,
                         if raw.startswith("json"):
                             raw = raw[4:]
                     extracted = json.loads(raw)
+                    if not isinstance(extracted, dict):
+                        raise ValueError(f"LLM returned {type(extracted).__name__}, expected a JSON object")
+                    # Fill any field the LLM omitted with None -- keeps every
+                    # row's dict shape identical regardless of what the model
+                    # chose to include, so the output DataFrame always has
+                    # consistent columns.
+                    extracted = {f: extracted.get(f) for f in field_names}
+                    success = True
                 except Exception as e:
                     context.log.warning(f"Extraction failed for {path}: {e}")
                     extracted = {f: None for f in field_names}
 
+                if not success:
+                    extraction_failures += 1
                 results.append(extracted)
 
             extracted_df = pd.DataFrame(results)
@@ -498,6 +516,7 @@ group_name=self.group_name,
             context.add_output_metadata(
                 {
                     "row_count": MetadataValue.int(len(df)),
+                    "extraction_failures": MetadataValue.int(extraction_failures),
                     "extracted_fields": field_names,
                     "model": model,
                     "preview": MetadataValue.md(df.head(5).to_markdown()),

@@ -79,6 +79,7 @@ The Image LLM Extractor Component sends each image to a vision-capable large lan
 |---|---|---|---|
 | `prompt_prefix` | `str` | — | Extra instruction prepended to the extraction prompt |
 | `max_tokens` | `int` | `500` | Maximum tokens in LLM response |
+| `llm_max_retries` | `int` | `2` | Retry an image's LLM call up to this many times on transient errors (rate limits, timeouts) before giving up on that row -- forwarded to litellm's own num_retries. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
@@ -152,10 +153,15 @@ attributes:
 | `prompt_prefix` | string | `None` | Extra instruction for the LLM |
 | `model` | string | `gpt-4o-mini` | Vision LLM model name |
 | `max_tokens` | integer | `500` | Max response tokens |
+| `llm_max_retries` | integer | `2` | Retries per image on transient LLM errors (rate limits, timeouts) -- forwarded to litellm's own `num_retries` |
 | `api_key_env_var` | string | `OPENAI_API_KEY` | Env var for API key |
 | `input_type` | string | `file` | `file` or `url` |
 | `group_name` | string | `None` | Asset group |
 
 ## Output
 
-Original DataFrame plus one column per extraction field.
+Original DataFrame plus one column per extraction field, plus an `extraction_failures` count in output metadata.
+
+## Validation notes
+
+Added this session: `llm_max_retries` (forwarded to litellm's `num_retries` -- previously no retry existed on the LLM call at all) and output validation (a non-dict LLM JSON response is now a clean per-row failure instead of an unhandled crash; every requested field is guaranteed present in the output, filled with `None` if the model omitted it, instead of a ragged row shape). Verified against real image files (a real Pillow-generated PNG, base64-decoded back to the exact source bytes) with only `litellm.completion` mocked -- see `tests/`.

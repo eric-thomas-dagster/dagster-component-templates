@@ -1,4 +1,5 @@
 """Pipedrive Resource component."""
+import os
 from typing import Optional
 import dagster as dg
 from dagster import ConfigurableResource
@@ -17,7 +18,7 @@ class PipedriveResource(ConfigurableResource):
     def get_client(self):
         import requests
 
-        api_token = dg.EnvVar(self.api_token_env_var)
+        api_token = os.environ.get(self.api_token_env_var)
         domain = self.company_domain or "api"
         base_url = f"https://{domain}.pipedrive.com/api/v1"
 

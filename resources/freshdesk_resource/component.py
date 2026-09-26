@@ -1,4 +1,5 @@
 """Freshdesk Resource component."""
+import os
 import dagster as dg
 from dagster import ConfigurableResource
 from pydantic import Field
@@ -13,7 +14,7 @@ class FreshdeskResource(ConfigurableResource):
     def get_session(self):
         import requests
 
-        api_key = dg.EnvVar(self.api_key_env_var)
+        api_key = os.environ.get(self.api_key_env_var)
         base_url = f"https://{self.domain}/api/v2"
 
         session = requests.Session()

@@ -1,4 +1,5 @@
 """Personio Resource component."""
+import os
 import dagster as dg
 from dagster import ConfigurableResource
 from pydantic import Field
@@ -13,8 +14,8 @@ class PersonioResource(ConfigurableResource):
     def get_client(self):
         import personio_py
 
-        client_id = dg.EnvVar(self.client_id_env_var)
-        client_secret = dg.EnvVar(self.client_secret_env_var)
+        client_id = os.environ.get(self.client_id_env_var)
+        client_secret = os.environ.get(self.client_secret_env_var)
 
         client = personio_py.Personio(client_id=client_id, client_secret=client_secret)
         client.authenticate()

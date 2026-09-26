@@ -1,0 +1,27 @@
+{
+  "component_type": "dagster_component_templates.MailchimpResourceComponent",
+  "description": "Register a MailchimpResource (API key auth) for use by other components, with a native upsert_member convenience method.",
+  "category": "resource",
+  "icon": "si:mailchimp",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["mailchimp"],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "mailchimp"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var holding a Mailchimp API key (includes the datacenter suffix, e.g. 'abc123-us19').",
+      "required": false,
+      "default": "MAILCHIMP_API_KEY",
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": ["resource", "mailchimp", "marketing"],
+  "name": "Mailchimp Resource"
+}

@@ -56331,9 +56331,61 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/stripe_customer_upsert/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/stripe_customer_upsert/requirements.txt",
       "icon": "si:stripe"
+    },
+    {
+      "id": "mailchimp_resource",
+      "name": "Mailchimp Resource",
+      "category": "resource",
+      "description": "Register a MailchimpResource (API key auth) for use by other components, with a native upsert_member convenience method.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/mailchimp_resource",
+      "tags": [
+        "resource",
+        "mailchimp",
+        "marketing"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mailchimp_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mailchimp_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mailchimp_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mailchimp_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mailchimp_resource/requirements.txt",
+      "icon": "si:mailchimp"
+    },
+    {
+      "id": "mailchimp_member_upsert",
+      "name": "Mailchimp Member Upsert",
+      "category": "reverse_etl",
+      "description": "Reverse-ETL sink: mirror an upstream DataFrame into a Mailchimp audience via the native upsert endpoint. `PUT /lists/{list_id}/members/{subscriber_hash}` atomically creates or updates based on the member's email.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/reverse_etl/mailchimp_member_upsert",
+      "tags": [
+        "mailchimp",
+        "reverse-etl",
+        "upsert",
+        "marketing"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/mailchimp_member_upsert/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/mailchimp_member_upsert/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/mailchimp_member_upsert/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/mailchimp_member_upsert/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/mailchimp_member_upsert/requirements.txt",
+      "icon": "si:mailchimp"
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1126
+  "total": 1128
 }

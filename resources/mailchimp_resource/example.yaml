@@ -1,0 +1,4 @@
+type: dagster_component_templates.MailchimpResourceComponent
+attributes:
+  resource_key: mailchimp
+  api_key_env_var: MAILCHIMP_API_KEY

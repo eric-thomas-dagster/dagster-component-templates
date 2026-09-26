@@ -1,0 +1,12 @@
+type: dagster_component_templates.MailchimpMemberUpsertComponent
+attributes:
+  asset_name: mailchimp_members_mirror
+  upstream_asset_key: dbt_marts_customers
+  resource_key: mailchimp
+  list_id: a1b2c3d4e5
+  email_column: email
+  merge_fields_map:
+    full_name: FNAME
+    plan_tier: PLAN
+  tags_column: segment_tags
+  group_name: reverse_etl

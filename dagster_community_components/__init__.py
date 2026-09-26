@@ -27,6 +27,8 @@ _PACKAGE_ROOT = Path(__file__).resolve().parent
 
 # class name -> component.py path (relative to package root). Generated.
 _CLASS_PATHS: dict[str, str] = {
+    "MailchimpResourceComponent": "resources/mailchimp_resource/component.py",
+    "MailchimpMemberUpsertComponent": "assets/reverse_etl/mailchimp_member_upsert/component.py",
     "VercelIngestionComponent": "assets/ingestion/vercel_ingestion/component.py",
     "MetabaseIngestionComponent": "assets/ingestion/metabase_ingestion/component.py",
     "SmartsheetIngestionComponent": "assets/ingestion/smartsheet_ingestion/component.py",

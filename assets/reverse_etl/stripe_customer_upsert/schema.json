@@ -1,0 +1,31 @@
+{
+  "component_type": "dagster_component_templates.StripeCustomerUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into Stripe customers. Stripe has no native upsert endpoint and neither email nor any custom field is globally unique, so this supports two lookup strategies (match_by: email or metadata) depending on your data's guarantees.",
+  "category": "reverse_etl",
+  "icon": "si:stripe",
+  "x-dagster-io": {
+    "inputs": {"type": "dataframe", "description": "pandas DataFrame from an upstream asset. Each row -> one Stripe customer (upserted via key_column, matched by email or metadata)."},
+    "outputs": {"type": "sink", "description": "Dagster asset materialization with metadata. No downstream data -- write side effect lands in Stripe."}
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "description": "Asset providing the DataFrame. Mutually exclusive with source."},
+    "source": {"type": "object", "label": "Source", "required": false, "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."},
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "stripe"},
+    "key_column": {"type": "string", "label": "Key Column", "required": true, "description": "Upstream column holding a stable unique key. Written to each customer's metadata.dagster_key field; used to search for matches on subsequent runs."},
+    "email_column": {"type": "string", "label": "Email Column", "required": true, "description": "Column holding the customer email."},
+    "name_column": {"type": "string", "label": "Name Column", "required": false, "default": null, "description": "Column holding the customer name."},
+    "description_column": {"type": "string", "label": "Description Column", "required": false, "default": null, "description": "Column holding the customer description."},
+    "extra_metadata_columns": {"type": "array", "items": {"type": "string"}, "label": "Extra Metadata Columns", "required": false, "default": [], "description": "Additional columns whose values get written into the Stripe customer's metadata dict.", "ui:widget": "list"},
+    "metadata_key_field": {"type": "string", "label": "Metadata Key Field", "required": false, "default": "dagster_key", "description": "Name of the metadata field used to store the dedup key."},
+    "match_by": {"type": "string", "label": "Match By", "required": false, "default": "email", "description": "How to match rows to existing customers: 'email' (immediately consistent) or 'metadata' (more precise but eventually consistent, up to 30s+ indexing lag).", "enum": ["email", "metadata"], "ui:widget": "select"},
+    "batch_size": {"type": "integer", "label": "Batch Size", "required": false, "default": 100, "description": "Max upstream rows per run (safety cap)."},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "stripe"},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+  },
+  "tags": ["stripe", "reverse-etl", "upsert", "finance"],
+  "name": "Stripe Customer Upsert"
+}

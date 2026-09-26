@@ -1,0 +1,216 @@
+{
+  "component_type": "dagster_component_templates.DataframeToBrazeComponent",
+  "description": "Reverse-ETL sink \u2014 batch-POST rows to Braze via the REST API. Supports two source shapes (upstream_asset_key OR inline source:) and two endpoints (users_track for user attribute sync, catalogs for custom catalog item upsert). Auth via a shared BrazeResource (recommended) or inline api_key + endpoint.",
+  "category": "reverse_etl",
+  "icon": "si:braze",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "Rows to POST to Braze"
+    },
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Export summary metadata"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name"
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "required": false,
+      "label": "Upstream Asset Key",
+      "description": "Mutually exclusive with source:."
+    },
+    "source": {
+      "type": "object",
+      "required": false,
+      "label": "Inline Source",
+      "description": "Mutually exclusive with upstream_asset_key. Shapes: {kind: sql, resource_key|database_url_env_var, query} | {kind: csv, path, read_csv_kwargs} | {kind: inline, rows}."
+    },
+    "resource_key": {
+      "type": "string",
+      "required": false,
+      "label": "Resource Key",
+      "description": "BrazeResourceComponent key (recommended). Mutually exclusive with inline api_key_env_var + rest_endpoint."
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "required": false,
+      "label": "API Key Env Var",
+      "description": "Inline fallback: env var holding the Braze REST API key. Only used when resource_key is unset."
+    },
+    "rest_endpoint": {
+      "type": "string",
+      "required": false,
+      "label": "REST Endpoint URL",
+      "description": "Inline fallback: region-specific Braze REST URL. Only used when resource_key is unset."
+    },
+    "endpoint": {
+      "type": "string",
+      "enum": [
+        "users_track",
+        "catalogs"
+      ],
+      "default": "users_track",
+      "required": false,
+      "label": "Endpoint"
+    },
+    "catalog_name": {
+      "type": "string",
+      "required": false,
+      "label": "Catalog Name",
+      "description": "Required when endpoint='catalogs'."
+    },
+    "fields_map": {
+      "type": "object",
+      "required": false,
+      "label": "Fields Map",
+      "description": "Explicit source_col -> braze_field mapping. Renames columns inline."
+    },
+    "user_id_column": {
+      "type": "string",
+      "required": false,
+      "default": "external_id",
+      "label": "User ID Column"
+    },
+    "attribute_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "required": false,
+      "label": "Attribute Columns"
+    },
+    "custom_attribute_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "required": false,
+      "label": "Custom Attribute Columns"
+    },
+    "item_id_column": {
+      "type": "string",
+      "required": false,
+      "default": "id",
+      "label": "Item ID Column (catalogs mode)"
+    },
+    "batch_size": {
+      "type": "integer",
+      "required": false,
+      "label": "Batch Size"
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "required": false,
+      "default": 30,
+      "label": "Request Timeout Seconds"
+    },
+    "dry_run": {
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "label": "Dry Run"
+    },
+    "group_name": {
+      "label": "Group Name",
+      "type": "string",
+      "required": false
+    },
+    "description": {
+      "label": "Description",
+      "type": "string",
+      "required": false
+    },
+    "deps": {
+      "label": "Deps",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "required": false
+    },
+    "owners": {
+      "label": "Owners",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "required": false
+    },
+    "asset_tags": {
+      "label": "Asset Tags",
+      "type": "object",
+      "required": false
+    },
+    "kinds": {
+      "label": "Kinds",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "label": "Retry Policy Max Retries",
+      "type": "integer",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "label": "Retry Policy Delay Seconds",
+      "type": "integer",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "label": "Retry Policy Backoff",
+      "type": "string",
+      "required": false,
+      "default": "exponential"
+    },
+    "freshness_max_lag_minutes": {
+      "label": "Freshness Max Lag Minutes",
+      "type": "integer",
+      "required": false
+    },
+    "freshness_cron": {
+      "label": "Freshness Cron",
+      "type": "string",
+      "required": false
+    },
+    "partition_type": {
+      "label": "Partition Type",
+      "type": "string",
+      "required": false
+    },
+    "partition_start": {
+      "label": "Partition Start",
+      "type": "string",
+      "required": false
+    },
+    "partition_values": {
+      "label": "Partition Values",
+      "type": "string",
+      "required": false
+    },
+    "dynamic_partition_name": {
+      "label": "Dynamic Partition Name",
+      "type": "string",
+      "required": false
+    }
+  },
+  "tags": [
+    "sink",
+    "braze",
+    "reverse-etl",
+    "customer-engagement",
+    "marketing-activation",
+    "user-track",
+    "catalogs",
+    "rest-api"
+  ],
+  "name": "DataFrame to Braze"
+}

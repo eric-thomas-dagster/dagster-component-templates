@@ -1,0 +1,194 @@
+{
+  "component_type": "dagster_component_templates.DataframeToMixpanelComponent",
+  "description": "Reverse-ETL sink \u2014 POST DataFrame rows to Mixpanel via bulk endpoints. Two modes: `events` (POST /import, service-account auth, up to 2000/batch) or `profiles` (POST /engage#profile-set, project-token auth, up to 50/batch).",
+  "category": "reverse_etl",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true
+    },
+    "outputs": {
+      "type": "MaterializeResult"
+    }
+  },
+  "icon": "si:mixpanel",
+  "attributes": {
+    "asset_name": {
+      "label": "Asset Name",
+      "type": "string",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "label": "Upstream Asset Key",
+      "type": "string",
+      "required": false
+    },
+    "source": {
+      "label": "Source",
+      "type": "object",
+      "required": false
+    },
+    "resource_key": {
+      "label": "Resource Key",
+      "type": "string",
+      "required": true
+    },
+    "mode": {
+      "label": "Mode",
+      "type": "string",
+      "enum": [
+        "events",
+        "profiles"
+      ],
+      "default": "events",
+      "required": false
+    },
+    "event_column": {
+      "label": "Event Column",
+      "type": "string",
+      "required": false,
+      "description": "Required for mode='events' (or set `default_event`)."
+    },
+    "default_event": {
+      "label": "Default Event",
+      "type": "string",
+      "required": false
+    },
+    "distinct_id_column": {
+      "label": "Distinct ID Column",
+      "type": "string",
+      "required": true
+    },
+    "time_column": {
+      "label": "Time Column",
+      "type": "string",
+      "required": false,
+      "description": "For events mode. Coerced to unix seconds."
+    },
+    "insert_id_column": {
+      "label": "Insert ID Column",
+      "type": "string",
+      "required": false,
+      "description": "For events mode. Dedup key ($insert_id)."
+    },
+    "properties_map": {
+      "label": "Properties Map",
+      "type": "object",
+      "required": false
+    },
+    "property_columns": {
+      "label": "Property Columns",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "required": false
+    },
+    "batch_size": {
+      "label": "Batch Size",
+      "type": "integer",
+      "required": false,
+      "description": "Default 2000 for events, 50 for profiles (Mixpanel maxes)."
+    },
+    "dry_run": {
+      "label": "Dry Run",
+      "type": "boolean",
+      "required": false,
+      "default": false
+    },
+    "group_name": {
+      "label": "Group Name",
+      "type": "string",
+      "required": false
+    },
+    "description": {
+      "label": "Description",
+      "type": "string",
+      "required": false
+    },
+    "deps": {
+      "label": "Deps",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "required": false
+    },
+    "owners": {
+      "label": "Owners",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "required": false
+    },
+    "asset_tags": {
+      "label": "Asset Tags",
+      "type": "object",
+      "required": false
+    },
+    "kinds": {
+      "label": "Kinds",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "label": "Retry Policy Max Retries",
+      "type": "integer",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "label": "Retry Policy Delay Seconds",
+      "type": "integer",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "label": "Retry Policy Backoff",
+      "type": "string",
+      "required": false,
+      "default": "exponential"
+    },
+    "freshness_max_lag_minutes": {
+      "label": "Freshness Max Lag Minutes",
+      "type": "integer",
+      "required": false
+    },
+    "freshness_cron": {
+      "label": "Freshness Cron",
+      "type": "string",
+      "required": false
+    },
+    "partition_type": {
+      "label": "Partition Type",
+      "type": "string",
+      "required": false
+    },
+    "partition_start": {
+      "label": "Partition Start",
+      "type": "string",
+      "required": false
+    },
+    "partition_values": {
+      "label": "Partition Values",
+      "type": "string",
+      "required": false
+    },
+    "dynamic_partition_name": {
+      "label": "Dynamic Partition Name",
+      "type": "string",
+      "required": false
+    }
+  },
+  "tags": [
+    "sink",
+    "mixpanel",
+    "reverse-etl",
+    "product-analytics",
+    "event-tracking",
+    "user-profiles"
+  ],
+  "name": "DataFrame to Mixpanel"
+}

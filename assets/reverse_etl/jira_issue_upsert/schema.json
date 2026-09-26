@@ -1,0 +1,33 @@
+{
+  "component_type": "dagster_component_templates.JiraIssueUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into Jira issues in a target project. Rows are matched to existing issues by a Jira label of the form dagsterkey-<value>; JQL filters by label server-side, so this scales cleanly.",
+  "category": "reverse_etl",
+  "icon": "si:jira",
+  "x-dagster-io": {
+    "inputs": {"type": "dataframe", "description": "pandas DataFrame from an upstream asset. Each row -> one Jira issue (upserted via key_column)."},
+    "outputs": {"type": "sink", "description": "Dagster asset materialization with metadata (rows_created / rows_updated). No downstream data -- write side effect lands in Jira."}
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "description": "Asset providing the DataFrame. Mutually exclusive with source."},
+    "source": {"type": "object", "label": "Source", "required": false, "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."},
+    "project_key": {"type": "string", "label": "Project Key", "required": true, "description": "Target Jira project key (e.g. 'SCRATCH')."},
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "jira"},
+    "key_column": {"type": "string", "label": "Key Column", "required": true, "description": "Upstream column holding a stable unique key. Written to each issue as a dagsterkey-<value> label and matched server-side via JQL on re-runs."},
+    "summary_column": {"type": "string", "label": "Summary Column", "required": true, "description": "Column holding the issue summary (title)."},
+    "description_column": {"type": "string", "label": "Description Column", "required": false, "default": null, "description": "Column holding the issue description (plain text; auto-wrapped as ADF)."},
+    "labels_column": {"type": "string", "label": "Labels Column", "required": false, "default": null, "description": "Column holding labels. Accepts a list, or a comma-separated string."},
+    "transition_column": {"type": "string", "label": "Transition Column", "required": false, "default": null, "description": "Column holding a workflow transition name to apply after upsert (e.g. 'Done', 'In Progress')."},
+    "priority_column": {"type": "string", "label": "Priority Column", "required": false, "default": null, "description": "Column holding priority name (e.g. 'Highest', 'High', 'Medium')."},
+    "issue_type": {"type": "string", "label": "Issue Type", "required": false, "default": "Task", "description": "Issue type to use for new issues."},
+    "default_labels": {"type": "array", "items": {"type": "string"}, "label": "Default Labels", "required": false, "default": [], "description": "Labels always applied on top of labels_column (plus the auto-added dagsterkey-* marker).", "ui:widget": "list"},
+    "batch_size": {"type": "integer", "label": "Batch Size", "required": false, "default": 100, "description": "Max upstream rows to process per run (safety cap)."},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "jira"},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+  },
+  "tags": ["jira", "reverse-etl", "upsert", "devops"],
+  "name": "Jira Issue Upsert"
+}

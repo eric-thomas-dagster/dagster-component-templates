@@ -1,0 +1,121 @@
+{
+  "component_type": "dagster_component_templates.IntercomContactUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into Intercom contacts via search-then-write. Intercom has no single-call native upsert, so this searches /contacts/search by external_id or email, then updates the match or creates a new contact.",
+  "category": "reverse_etl",
+  "icon": "si:intercom",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one Intercom contact (upserted via email/external_id)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_upserted / rows_errored). No downstream data -- write side effect lands in Intercom."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with source."
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "intercom"
+    },
+    "email_column": {
+      "type": "string",
+      "label": "Email Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding the contact's email (used as the match key if set)."
+    },
+    "external_id_column": {
+      "type": "string",
+      "label": "External Id Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding an external_id (used as the match key if set; takes precedence over email)."
+    },
+    "attributes_map": {
+      "type": "object",
+      "label": "Attributes Map",
+      "required": false,
+      "default": {},
+      "description": "Upstream column -> Intercom CORE contact field (e.g. name, phone).",
+      "ui:widget": "key-value"
+    },
+    "custom_attributes_map": {
+      "type": "object",
+      "label": "Custom Attributes Map",
+      "required": false,
+      "default": {},
+      "description": "Upstream column -> Intercom custom_attributes key (must already exist in the workspace).",
+      "ui:widget": "key-value"
+    },
+    "max_rows": {
+      "type": "integer",
+      "label": "Max Rows",
+      "required": false,
+      "default": 10000,
+      "description": "Safety cap on total rows per run."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "intercom"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "intercom",
+    "sink",
+    "reverse-etl",
+    "upsert",
+    "support"
+  ],
+  "name": "Intercom Contact Upsert"
+}

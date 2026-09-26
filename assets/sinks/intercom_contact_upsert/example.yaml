@@ -1,0 +1,11 @@
+type: dagster_component_templates.IntercomContactUpsertComponent
+attributes:
+  asset_name: intercom_contacts_mirror
+  upstream_asset_key: dbt_marts_customers
+  resource_key: intercom
+  email_column: email
+  attributes_map:
+    name: full_name
+  custom_attributes_map:
+    health_score: health_score
+  group_name: reverse_etl

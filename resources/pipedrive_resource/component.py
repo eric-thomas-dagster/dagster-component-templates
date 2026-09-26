@@ -28,6 +28,27 @@ class PipedriveResource(ConfigurableResource):
         session.base_url = base_url  # type: ignore[attr-defined]
         return session
 
+    def upsert_person(self, key_field: str, key_value: str, fields: dict) -> dict:
+        """Pipedrive has no native upsert: searches `/persons/search` by
+        `key_field` (e.g. 'email' or a custom field key), then PUTs the
+        match or POSTs a new person.
+        """
+        session = self.get_client()
+        base_url = session.base_url  # type: ignore[attr-defined]
+        search_resp = session.get(
+            f"{base_url}/persons/search",
+            params={"term": key_value, "fields": key_field, "exact_match": "true"},
+        )
+        search_resp.raise_for_status()
+        items = (search_resp.json().get("data") or {}).get("items") or []
+        if items:
+            person_id = items[0]["item"]["id"]
+            resp = session.put(f"{base_url}/persons/{person_id}", json=fields)
+        else:
+            resp = session.post(f"{base_url}/persons", json=fields)
+        resp.raise_for_status()
+        return resp.json()
+
 
 class PipedriveResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a PipedriveResource for use by other components."""

@@ -27,6 +27,12 @@ _PACKAGE_ROOT = Path(__file__).resolve().parent
 
 # class name -> component.py path (relative to package root). Generated.
 _CLASS_PATHS: dict[str, str] = {
+    "ZendeskUserUpsertComponent": "assets/sinks/zendesk_user_upsert/component.py",
+    "IntercomContactUpsertComponent": "assets/sinks/intercom_contact_upsert/component.py",
+    "PipedrivePersonUpsertComponent": "assets/sinks/pipedrive_person_upsert/component.py",
+    "FreshdeskContactUpsertComponent": "assets/sinks/freshdesk_contact_upsert/component.py",
+    "AsanaTaskCreateComponent": "assets/sinks/asana_task_create/component.py",
+    "GoogleSheetsRowUpsertComponent": "assets/sinks/google_sheets_row_upsert/component.py",
     "BitbucketIngestionComponent": "assets/ingestion/bitbucket_ingestion/component.py",
     "ConfluenceIngestionComponent": "assets/ingestion/confluence_ingestion/component.py",
     "DropboxSignIngestionComponent": "assets/ingestion/dropbox_sign_ingestion/component.py",

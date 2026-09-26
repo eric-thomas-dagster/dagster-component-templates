@@ -1,0 +1,27 @@
+{
+  "component_type": "dagster_component_templates.PipedrivePersonUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into Pipedrive persons via search-then-write. Pipedrive has no native upsert endpoint, so this searches /persons/search by key_field, then updates the match or creates a new person.",
+  "category": "sink",
+  "icon": "si:pipedrive",
+  "x-dagster-io": {
+    "inputs": {"type": "dataframe", "description": "pandas DataFrame from an upstream asset. Each row -> one Pipedrive person (upserted via key_field)."},
+    "outputs": {"type": "sink", "description": "Dagster asset materialization with metadata (rows_upserted / rows_errored). No downstream data -- write side effect lands in Pipedrive."}
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "description": "Asset providing the DataFrame. Mutually exclusive with source."},
+    "source": {"type": "object", "label": "Source", "required": false, "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."},
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "pipedrive_resource"},
+    "key_field": {"type": "string", "label": "Key Field", "required": true, "description": "Pipedrive field key to search on (e.g. 'email', or a custom field hash key). MUST be present in fields_map values."},
+    "key_column": {"type": "string", "label": "Key Column", "required": true, "description": "Upstream column holding the value to match key_field on."},
+    "fields_map": {"type": "object", "label": "Fields Map", "required": true, "description": "Upstream column -> Pipedrive person field key.", "ui:widget": "key-value"},
+    "max_rows": {"type": "integer", "label": "Max Rows", "required": false, "default": 10000, "description": "Safety cap on total rows per run."},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "pipedrive"},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+  },
+  "tags": ["pipedrive", "sink", "reverse-etl", "upsert", "crm"],
+  "name": "Pipedrive Person Upsert"
+}

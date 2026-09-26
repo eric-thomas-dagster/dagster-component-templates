@@ -22,6 +22,25 @@ class FreshdeskResource(ConfigurableResource):
         session.base_url = base_url  # type: ignore[attr-defined]
         return session
 
+    def upsert_contact(self, unique_external_id: str, fields: dict) -> dict:
+        """Freshdesk has no single-call native upsert: lists `/contacts`
+        filtered by `unique_external_id` (a real, documented filter param),
+        then PUTs the match or POSTs a new contact with that external_id set.
+        """
+        session = self.get_session()
+        base_url = session.base_url  # type: ignore[attr-defined]
+        search_resp = session.get(f"{base_url}/contacts", params={"unique_external_id": unique_external_id})
+        search_resp.raise_for_status()
+        matches = search_resp.json() or []
+        body = dict(fields)
+        body["unique_external_id"] = unique_external_id
+        if matches:
+            resp = session.put(f"{base_url}/contacts/{matches[0]['id']}", json=body)
+        else:
+            resp = session.post(f"{base_url}/contacts", json=body)
+        resp.raise_for_status()
+        return resp.json()
+
 
 class FreshdeskResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a FreshdeskResource for use by other components."""

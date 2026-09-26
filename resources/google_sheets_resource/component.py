@@ -22,6 +22,15 @@ class GoogleSheetsResource(ConfigurableResource):
         credentials_json = json.loads(self.gcp_credentials_json or "{}")
         return gspread.service_account_from_dict(credentials_json)
 
+    def open_worksheet(self, spreadsheet_id: str, worksheet_name: str):
+        """Open a worksheet by spreadsheet ID + tab name. Returns a gspread
+        Worksheet -- callers can use its full read/write API directly
+        (get_all_records, append_rows, update, batch_update, etc.).
+        """
+        client = self.get_client()
+        sh = client.open_by_key(spreadsheet_id)
+        return sh.worksheet(worksheet_name)
+
 
 class GoogleSheetsResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a GoogleSheetsResource for use by other components."""

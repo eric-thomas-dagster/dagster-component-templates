@@ -55647,9 +55647,203 @@
         "llm extraction",
         "one component many document types"
       ]
+    },
+    {
+      "id": "zendesk_user_upsert",
+      "name": "Zendesk User Upsert",
+      "category": "sink",
+      "description": "Reverse-ETL sink: mirror an upstream DataFrame into Zendesk end-users via the native create_or_update endpoint. `POST /api/v2/users/create_or_update.json` atomically creates or updates based on matching email.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sinks/zendesk_user_upsert",
+      "tags": [
+        "zendesk",
+        "sink",
+        "reverse-etl",
+        "upsert",
+        "support"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "zenpy>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/zendesk_user_upsert/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/zendesk_user_upsert/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/zendesk_user_upsert/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/zendesk_user_upsert/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/zendesk_user_upsert/requirements.txt",
+      "icon": "si:zendesk"
+    },
+    {
+      "id": "intercom_contact_upsert",
+      "name": "Intercom Contact Upsert",
+      "category": "sink",
+      "description": "Reverse-ETL sink: mirror an upstream DataFrame into Intercom contacts via search-then-write. Intercom has no single-call native upsert, so this searches /contacts/search by external_id or email, then updates the match or creates a new contact.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sinks/intercom_contact_upsert",
+      "tags": [
+        "intercom",
+        "sink",
+        "reverse-etl",
+        "upsert",
+        "support"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/intercom_contact_upsert/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/intercom_contact_upsert/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/intercom_contact_upsert/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/intercom_contact_upsert/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/intercom_contact_upsert/requirements.txt",
+      "icon": "si:intercom"
+    },
+    {
+      "id": "pipedrive_person_upsert",
+      "name": "Pipedrive Person Upsert",
+      "category": "sink",
+      "description": "Reverse-ETL sink: mirror an upstream DataFrame into Pipedrive persons via search-then-write. Pipedrive has no native upsert endpoint, so this searches /persons/search by key_field, then updates the match or creates a new person.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sinks/pipedrive_person_upsert",
+      "tags": [
+        "pipedrive",
+        "sink",
+        "reverse-etl",
+        "upsert",
+        "crm"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pipedrive_person_upsert/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pipedrive_person_upsert/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pipedrive_person_upsert/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pipedrive_person_upsert/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pipedrive_person_upsert/requirements.txt",
+      "icon": "si:pipedrive"
+    },
+    {
+      "id": "freshdesk_contact_upsert",
+      "name": "Freshdesk Contact Upsert",
+      "category": "sink",
+      "description": "Reverse-ETL sink: mirror an upstream DataFrame into Freshdesk contacts via search-then-write. Freshdesk has no single-call native upsert, so this lists /contacts filtered by unique_external_id, then updates the match or creates a new contact.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sinks/freshdesk_contact_upsert",
+      "tags": [
+        "freshdesk",
+        "sink",
+        "reverse-etl",
+        "upsert",
+        "support"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/freshdesk_contact_upsert/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/freshdesk_contact_upsert/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/freshdesk_contact_upsert/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/freshdesk_contact_upsert/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/freshdesk_contact_upsert/requirements.txt",
+      "icon": "si:freshworks"
+    },
+    {
+      "id": "asana_task_create",
+      "name": "Asana Task Create",
+      "category": "sink",
+      "description": "Reverse-ETL sink: create one Asana task per row of an upstream DataFrame. Asana has no upsert concept for tasks -- re-running on the same data creates duplicate tasks. Intended for 'spin up a task per flagged row' patterns (e.g. data-quality failures), not for mirroring a table over time.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sinks/asana_task_create",
+      "tags": [
+        "asana",
+        "sink",
+        "reverse-etl",
+        "create",
+        "project-management"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "asana>=5.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/asana_task_create/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/asana_task_create/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/asana_task_create/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/asana_task_create/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/asana_task_create/requirements.txt",
+      "icon": "si:asana"
+    },
+    {
+      "id": "google_sheets_row_upsert",
+      "name": "Google Sheets Row Upsert",
+      "category": "sink",
+      "description": "Reverse-ETL sink: mirror an upstream DataFrame into a Google Sheets worksheet. Google Sheets has no upsert concept at the API level: this reads the entire worksheet, matches existing rows against key_column locally, updates changed rows in place, and appends new ones.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sinks/google_sheets_row_upsert",
+      "tags": [
+        "google_sheets",
+        "sink",
+        "reverse-etl",
+        "upsert"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "gspread>=5.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/google_sheets_row_upsert/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/google_sheets_row_upsert/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/google_sheets_row_upsert/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/google_sheets_row_upsert/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/google_sheets_row_upsert/requirements.txt",
+      "icon": "si:googlesheets"
+    },
+    {
+      "id": "airtable_record_upsert",
+      "name": "Airtable Record Upsert",
+      "category": "sink",
+      "description": "Reverse-ETL sink: mirror an upstream DataFrame into an Airtable table via the native server-side upsert endpoint. `PATCH /v0/{baseId}/{tableName}?performUpsert[fieldsToMergeOn][]=<field>` atomically creates or updates records based on matching key_fields.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sinks/airtable_record_upsert",
+      "tags": [
+        "airtable",
+        "sink",
+        "reverse-etl",
+        "upsert"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests",
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/airtable_record_upsert/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/airtable_record_upsert/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/airtable_record_upsert/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/airtable_record_upsert/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/airtable_record_upsert/requirements.txt",
+      "icon": "si:airtable"
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1102
+  "total": 1109
 }

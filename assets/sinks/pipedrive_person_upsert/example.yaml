@@ -1,0 +1,11 @@
+type: dagster_component_templates.PipedrivePersonUpsertComponent
+attributes:
+  asset_name: pipedrive_persons_mirror
+  upstream_asset_key: dbt_marts_customers
+  resource_key: pipedrive_resource
+  key_field: email
+  key_column: email
+  fields_map:
+    name: full_name
+    email: email
+  group_name: reverse_etl

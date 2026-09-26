@@ -1,0 +1,12 @@
+type: dagster_component_templates.ZendeskUserUpsertComponent
+attributes:
+  asset_name: zendesk_users_mirror
+  upstream_asset_key: dbt_marts_customers
+  resource_key: zendesk_resource
+  email_column: email
+  name_column: full_name
+  external_id_column: customer_id
+  fields_map:
+    health_score: health_score
+    plan_tier: plan_tier
+  group_name: reverse_etl

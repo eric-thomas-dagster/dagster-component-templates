@@ -1,0 +1,9 @@
+type: dagster_component_templates.AsanaTaskCreateComponent
+attributes:
+  asset_name: asana_dq_failure_tasks
+  upstream_asset_key: dq_check_failures
+  resource_key: asana_resource
+  name_column: failure_summary
+  notes_column: failure_detail
+  project_gids: ["1201234567890"]
+  group_name: reverse_etl

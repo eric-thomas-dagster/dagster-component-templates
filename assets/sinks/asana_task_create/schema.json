@@ -1,0 +1,29 @@
+{
+  "component_type": "dagster_component_templates.AsanaTaskCreateComponent",
+  "description": "Reverse-ETL sink: create one Asana task per row of an upstream DataFrame. Asana has no upsert concept for tasks -- re-running on the same data creates duplicate tasks. Intended for 'spin up a task per flagged row' patterns (e.g. data-quality failures), not for mirroring a table over time.",
+  "category": "sink",
+  "icon": "si:asana",
+  "x-dagster-io": {
+    "inputs": {"type": "dataframe", "description": "pandas DataFrame from an upstream asset. Each row -> one new Asana task."},
+    "outputs": {"type": "sink", "description": "Dagster asset materialization with metadata (rows_created / rows_errored). No downstream data -- write side effect lands in Asana."}
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "description": "Asset providing the DataFrame. Mutually exclusive with source."},
+    "source": {"type": "object", "label": "Source", "required": false, "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."},
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "asana_resource"},
+    "name_column": {"type": "string", "label": "Name Column", "required": true, "description": "Upstream column holding the task name."},
+    "notes_column": {"type": "string", "label": "Notes Column", "required": false, "default": null, "description": "Upstream column holding the task notes/description."},
+    "project_gids": {"type": "array", "items": {"type": "string"}, "label": "Project Gids", "required": false, "default": null, "description": "Asana project GIDs to add every created task to.", "ui:widget": "list"},
+    "assignee_column": {"type": "string", "label": "Assignee Column", "required": false, "default": null, "description": "Upstream column holding an Asana user GID or email to assign the task to."},
+    "custom_fields_map": {"type": "object", "label": "Custom Fields Map", "required": false, "default": {}, "description": "Upstream column -> Asana custom_field GID.", "ui:widget": "key-value"},
+    "max_rows": {"type": "integer", "label": "Max Rows", "required": false, "default": 10000, "description": "Safety cap on total rows per run."},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "asana"},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+  },
+  "tags": ["asana", "sink", "reverse-etl", "create", "project-management"],
+  "name": "Asana Task Create"
+}

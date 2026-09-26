@@ -1,0 +1,10 @@
+type: dagster_component_templates.FreshdeskContactUpsertComponent
+attributes:
+  asset_name: freshdesk_contacts_mirror
+  upstream_asset_key: dbt_marts_customers
+  resource_key: freshdesk_resource
+  external_id_column: customer_id
+  fields_map:
+    name: full_name
+    email: email
+  group_name: reverse_etl

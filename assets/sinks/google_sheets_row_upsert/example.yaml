@@ -1,0 +1,13 @@
+type: dagster_component_templates.GoogleSheetsRowUpsertComponent
+attributes:
+  asset_name: sheets_customers_mirror
+  upstream_asset_key: dbt_marts_customers
+  resource_key: google_sheets_resource
+  spreadsheet_id: "1AbCdEfGhIjKlMnOpQrStUvWxYz"
+  worksheet_name: "Customers"
+  key_column: email
+  fields_map:
+    email: Email
+    name: Name
+    health_score: "Health Score"
+  group_name: reverse_etl

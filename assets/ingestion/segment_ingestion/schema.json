@@ -20,8 +20,16 @@
     "access_token": {
       "type": "string",
       "label": "Access Token",
-      "description": "Segment workspace access token (requires Workspace Owner scope) for the Config API.",
-      "required": true
+      "description": "Segment workspace access token (requires Workspace Owner scope) for the Config API. Required unless resource_key is set.",
+      "required": false,
+      "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional resource key registered by a SegmentResourceComponent. When set, credentials are read from that resource at run time instead of access_token above, letting one registered Segment resource serve both this ingestion connector and the dataframe_to_segment reverse-ETL sink without configuring it twice. CAVEAT: SegmentResourceComponent.write_key_env_var normally holds a source Tracking-API write key (for POST /v1/batch), while this connector's access_token is a workspace Config-API bearer token (for api.segmentapis.com) -- these are different Segment credential types. Only set resource_key if the env var it points to actually holds a workspace access token.",
+      "required": false,
+      "default": null
     },
     "resources": {
       "type": "string",

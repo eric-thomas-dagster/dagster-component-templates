@@ -14,7 +14,8 @@ dlt handles API authentication, pagination, rate limiting, and incremental loadi
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `asset_name` | `str` | yes | Name of the output asset |
-| `property_id` | `str` | yes | GA4 Property ID (numeric, e.g. `123456789`) |
+| `property_id` | `str` | one of property_id (+ credentials) OR resource_key | GA4 Property ID (numeric, e.g. `123456789`) |
+| `resource_key` | `str` | no | Resource key registered by a GoogleAnalyticsResourceComponent. When set, property_id and service-account credentials are read from that resource at run time instead of property_id/credentials_json above. OAuth is not supported through the resource |
 | `credentials_json` | `Optional[str]` | no | Service account JSON as a string (preferred — overrides individual fields) |
 | `project_id` | `Optional[str]` | no | Google Cloud Project ID |
 | `client_email` | `Optional[str]` | no | Service account email |
@@ -64,12 +65,12 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset that will hold the Google Analytics data |
-| `property_id` | `str` | Google Analytics 4 Property ID (numeric, e.g., '123456789'). Find in GA4 Admin > Property Settings. |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `resource_key` | `str` | — | Optional resource key registered by a GoogleAnalyticsResourceComponent. When set, property_id and service-account credentials are read from that resource at run time instead of property_id/credentials_json (and the other… _(full docs in schema.json + component README)_ |
 | `private_key` | `str` | — | Service account private key (alternative to credentials_json). |
 | `client_id` | `str` | — | OAuth Client ID (if use_oauth=true) |
 | `client_secret` | `str` | — | OAuth Client Secret (if use_oauth=true) |
@@ -117,6 +118,7 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `property_id` | `str` | — | Google Analytics 4 Property ID (numeric, e.g., '123456789'). Find in GA4 Admin > Property Settings. Required unless resource_key is set. |
 | `credentials_json` | `str` | — | Service account credentials as JSON string. |
 | `project_id` | `str` | — | Google Cloud Project ID (for service account) |
 | `client_email` | `str` | — | Service account email (alternative to credentials_json) |

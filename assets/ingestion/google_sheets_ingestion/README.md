@@ -14,7 +14,9 @@ dlt handles API authentication, pagination, rate limiting, and incremental loadi
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `asset_name` | `str` | yes | Name of the output asset |
-| `credentials` | `Dict[str, Any]` | yes | Google service account credentials (JSON dict or string) |
+| `credentials` | `Dict[str, Any]` | one of credentials/credentials_path/resource_key OR ambient `GOOGLE_APPLICATION_CREDENTIALS` | Google service account credentials (JSON dict or string) |
+| `credentials_path` | `str` | no | Path to a service-account JSON file, as an alternative to `credentials` |
+| `resource_key` | `str` | no | Resource key registered by a GoogleSheetsResourceComponent. When set, credentials are read from that resource at run time instead of credentials/credentials_path -- lets one Google service-account credential serve both this ingestion connector and the google_sheets_row_upsert reverse-ETL sink |
 | `spreadsheet_id` | `str` | yes | Spreadsheet ID (from the URL between `/d/` and `/edit`) |
 | `sheet_names` | `List[str]` | yes | Sheet/tab names or A1 ranges to extract |
 
@@ -55,6 +57,12 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 | `asset_name` | `str` | Name of the asset to create |
 | `spreadsheet_id` | `str` | Google Sheets spreadsheet ID (from the URL) |
 | `sheet_names` | `List[str]` | List of sheet names or A1 ranges to extract from the spreadsheet |
+
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | — | Optional resource key registered by a GoogleSheetsResourceComponent. When set, credentials are read from that resource at run time instead of credentials/credentials_path above -- lets one Google service-account credenti… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -100,7 +108,7 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `credentials` | `Dict[str, Any]` | — | Google service account credentials JSON (as dict or JSON string). Provide this OR credentials_path OR rely on GOOGLE_APPLICATION_CREDENTIALS. |
-| `credentials_path` | `str` | — | Path to the service-account JSON file. If neither credentials nor credentials_path is set, the component falls back to GOOGLE_APPLICATION_CREDENTIALS in the environment (the standard google-auth convention). |
+| `credentials_path` | `str` | — | Path to the service-account JSON file. If neither credentials nor credentials_path nor resource_key is set, the component falls back to GOOGLE_APPLICATION_CREDENTIALS in the environment (the standard google-auth convention). |
 | `destination` | `str` | — | dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode. |
 | `dataset_name` | `str` | — | Target dataset/schema in the destination. Defaults to the asset name. |
 | `persist_only` | `bool` | `false` | If True with destination set: emit a MaterializeResult and skip DataFrame return. If False: query the destination back into a DataFrame (only meaningful for SQL destinations — non-SQL destinations always emit MaterializeResult). |

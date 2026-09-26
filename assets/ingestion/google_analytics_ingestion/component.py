@@ -159,7 +159,18 @@ class GoogleAnalyticsIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset that will hold the Google Analytics data")
 
-    property_id: str = Field(description="Google Analytics 4 Property ID (numeric, e.g., '123456789'). Find in GA4 Admin > Property Settings.")
+    property_id: Optional[str] = Field(default=None, description="Google Analytics 4 Property ID (numeric, e.g., '123456789'). Find in GA4 Admin > Property Settings. Required unless resource_key is set.")
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a GoogleAnalyticsResourceComponent. When set, "
+            "property_id and service-account credentials are read from that resource at run "
+            "time instead of property_id/credentials_json (and the other credential fields) "
+            "above. OAuth credentials (use_oauth/client_id/client_secret/refresh_token) are not "
+            "supported through the resource -- it only carries service-account JSON creds."
+        ),
+    )
 
     credentials_json: Optional[str] = Field(default=None, description="Service account credentials as JSON string.")
 
@@ -401,8 +412,12 @@ class GoogleAnalyticsIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        property_id = self.property_id
-        credentials_json_str = self.credentials_json
+        if not self.resource_key and not self.property_id:
+            raise ValueError(
+                "GoogleAnalyticsIngestionComponent: supply resource_key (a registered "
+                "GoogleAnalyticsResourceComponent) OR property_id (plus service-account or "
+                "OAuth credentials)."
+            )
         project_id = self.project_id
         client_email = self.client_email
         private_key = self.private_key
@@ -510,10 +525,19 @@ class GoogleAnalyticsIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def google_analytics_ingestion_asset(context: AssetExecutionContext):
             import json
             from dlt.sources.google_analytics import google_analytics
+
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                property_id = _res.property_id
+                credentials_json_str = os.environ.get(_res.gcp_credentials_env_var)
+            else:
+                property_id = component.property_id
+                credentials_json_str = component.credentials_json
 
             context.log.info(
                 f"Starting Google Analytics ingestion: property={property_id}, "
@@ -527,7 +551,15 @@ class GoogleAnalyticsIngestionComponent(Component, Model, Resolvable):
             )
 
             credentials = {}
-            if use_oauth:
+            if component.resource_key:
+                # The resource only carries service-account JSON creds.
+                creds = json.loads(credentials_json_str or "{}")
+                credentials = {
+                    "project_id": creds.get("project_id"),
+                    "client_email": creds.get("client_email"),
+                    "private_key": creds.get("private_key"),
+                }
+            elif use_oauth:
                 credentials = {
                     "client_id": oauth_client_id,
                     "client_secret": oauth_client_secret,

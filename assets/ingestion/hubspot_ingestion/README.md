@@ -14,7 +14,8 @@ dlt handles API authentication, pagination, rate limiting, and incremental loadi
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `asset_name` | `str` | yes | Name of the output asset |
-| `api_key` | `str` | yes | HubSpot Private App access token |
+| `api_key` | `str` | api_key OR resource_key | HubSpot Private App access token |
+| `resource_key` | `str` | no | Resource key registered by a HubSpotResourceComponent. When set, credentials are read from that resource at run time instead of api_key -- lets one HubSpot credential serve both this connector and the hubspot_object_upsert reverse-ETL sink |
 | `resources` | `List[str]` | no | Defaults to `["contacts", "companies", "deals", "tickets"]`. Available: `contacts`, `companies`, `deals`, `tickets`, `products`, `quotes`, `hubspot_events_for_objects` |
 | `include_history` | `bool` | no | Include property change history (default `false`) |
 | `include_custom_props` | `bool` | no | Extract custom CRM properties (default `true`) |
@@ -54,7 +55,13 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `api_key` | `str` | HubSpot Private App API key or access token |
+
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `api_key` | `str` | — | HubSpot Private App API key or access token. Required unless resource_key is set. |
+| `resource_key` | `str` | — | Optional resource key registered by a HubSpotResourceComponent. When set, credentials are read from that resource at run time instead of api_key above -- lets one HubSpot credential serve both this ingestion connector an… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 

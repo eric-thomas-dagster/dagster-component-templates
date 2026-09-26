@@ -14,7 +14,8 @@ dlt handles API authentication, pagination, rate limiting, and incremental loadi
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `asset_name` | `str` | yes | Name of the output asset |
-| `api_key` | `str` | yes | Stripe API Secret Key (`sk_live_...` or `sk_test_...`) |
+| `api_key` | `str` | one of api_key OR resource_key | Stripe API Secret Key (`sk_live_...` or `sk_test_...`) |
+| `resource_key` | `str` | no | Resource key registered by a StripeResourceComponent. When set, credentials are read from that resource at run time instead of api_key -- lets one Stripe credential serve both this connector and the stripe_customer_upsert reverse-ETL sink |
 | `resources` | `str` | no | Comma-separated endpoints — defaults to `"customers,subscriptions,charges"`. Available: `customers`, `subscriptions`, `charges`, `invoices`, `products`, `prices`, `payment_intents`, `balance_transactions`, `events` |
 | `start_date` | `Optional[str]` | no | YYYY-MM-DD start of extraction window (defaults to all historical data) |
 | `end_date` | `Optional[str]` | no | YYYY-MM-DD end of extraction window (defaults to today) |
@@ -55,7 +56,13 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset that will hold the Stripe data |
-| `api_key` | `str` | Stripe API Secret Key. Find in Stripe Dashboard > Developers > API Keys. |
+
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `api_key` | `str` | — | Stripe API Secret Key. Find in Stripe Dashboard > Developers > API Keys. Required unless resource_key is set. |
+| `resource_key` | `str` | — | Optional resource key registered by a StripeResourceComponent. When set, credentials are read from that resource at run time instead of api_key above -- lets one Stripe credential serve both this ingestion connector and… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 

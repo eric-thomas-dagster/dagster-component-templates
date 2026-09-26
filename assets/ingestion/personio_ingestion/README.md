@@ -14,8 +14,9 @@ dlt handles API authentication, pagination, rate limiting, and incremental loadi
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `asset_name` | `str` | yes | Name of the output asset |
-| `client_id` | `str` | yes | Personio API client ID |
-| `client_secret` | `str` | yes | Personio API client secret |
+| `client_id` | `str` | one of client_id/client_secret OR resource_key | Personio API client ID |
+| `client_secret` | `str` | one of client_id/client_secret OR resource_key | Personio API client secret |
+| `resource_key` | `str` | no | Resource key registered by a PersonioResourceComponent. When set, credentials are read from that resource at run time instead of client_id/client_secret |
 | `resources` | `List[str]` | no | Defaults to `["employees", "absences"]`. Available: `employees`, `absences`, `attendances`, `recruiting` |
 
 ## Standard fields
@@ -53,8 +54,14 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `client_id` | `str` | Personio API client ID for authentication |
-| `client_secret` | `str` | Personio API client secret for authentication |
+
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `client_id` | `str` | — | Personio API client ID for authentication. Required unless resource_key is set. |
+| `client_secret` | `str` | — | Personio API client secret for authentication. Required unless resource_key is set. |
+| `resource_key` | `str` | — | Optional resource key registered by a PersonioResourceComponent. When set, credentials are read from that resource at run time instead of client_id/client_secret above -- lets one Personio credential serve both this inge… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 

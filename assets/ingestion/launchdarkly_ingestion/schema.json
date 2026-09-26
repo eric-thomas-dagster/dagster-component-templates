@@ -20,8 +20,16 @@
     "api_token": {
       "type": "string",
       "label": "Api Token",
-      "description": "LaunchDarkly API access token, sent raw in the Authorization header (no 'Bearer ' prefix).",
-      "required": true
+      "description": "LaunchDarkly API access token, sent raw in the Authorization header (no 'Bearer ' prefix). Required unless resource_key is set.",
+      "required": false,
+      "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional resource key registered by a LaunchDarklyResourceComponent. When set, api_token is read from that resource at run time instead of api_token above -- lets one LaunchDarkly credential serve both this ingestion connector and the launchdarkly_segment_update reverse-ETL sink without configuring it twice.",
+      "required": false,
+      "default": null
     },
     "project_key": {
       "type": "string",

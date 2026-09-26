@@ -14,8 +14,9 @@ dlt handles API authentication, pagination, rate limiting, and incremental loadi
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `asset_name` | `str` | yes | Name of the output asset |
-| `shop_url` | `str` | yes | Shopify store URL (e.g. `https://my-shop.myshopify.com`) |
-| `private_app_password` | `str` | yes | Admin API access token from a Shopify Custom App |
+| `shop_url` | `str` | one of shop_url/private_app_password OR resource_key | Shopify store URL (e.g. `https://my-shop.myshopify.com`) |
+| `private_app_password` | `str` | one of shop_url/private_app_password OR resource_key | Admin API access token from a Shopify Custom App |
+| `resource_key` | `str` | no | Resource key registered by a ShopifyResourceComponent. When set, credentials are read from that resource at run time instead of shop_url/private_app_password -- lets one Shopify credential serve both this connector and the shopify_product_upsert reverse-ETL sink |
 | `resources` | `List[str]` | no | Defaults to `["customers", "orders", "products"]` |
 | `start_date` | `Optional[str]` | no | Incremental cursor start (default `"2000-01-01"`) |
 | `order_status` | `Optional[str]` | no | Order status filter — `open`, `closed`, `cancelled`, `any` (default) |
@@ -55,8 +56,12 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `shop_url` | `str` | Shopify store URL (e.g., https://my-shop.myshopify.com) |
-| `private_app_password` | `str` | Shopify Admin API access token |
+
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | — | Optional resource key registered by a ShopifyResourceComponent. When set, credentials are read from that resource at run time instead of shop_url/private_app_password above -- lets one Shopify credential serve both this… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -101,6 +106,8 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `shop_url` | `str` | — | Shopify store URL (e.g., https://my-shop.myshopify.com). Required unless resource_key is set. |
+| `private_app_password` | `str` | — | Shopify Admin API access token. Required unless resource_key is set. |
 | `resources` | `List[str]` | `['customers', 'orders', 'products']` | Shopify resources to extract (customers, orders, products) |
 | `start_date` | `str` | `"2000-01-01"` | Start date for incremental loading (YYYY-MM-DD) |
 | `order_status` | `str` | `"any"` | Filter orders by status (open, closed, cancelled, any) |

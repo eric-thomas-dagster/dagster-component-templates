@@ -156,7 +156,15 @@ class SlackIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    api_token: str = Field(description="Slack API token for authentication (Bot User OAuth Token)")
+    api_token: Optional[str] = Field(default=None, description="Slack API token for authentication (Bot User OAuth Token). Required unless resource_key is set.")
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a SlackResourceComponent. When set, "
+            "credentials are read from that resource at run time instead of api_token above."
+        ),
+    )
 
     resources: List[str] = Field(default=["messages", "channels", "users"], description="Slack resources to extract (messages, channels, users)")
 
@@ -374,7 +382,11 @@ class SlackIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        api_token = self.api_token
+        if not self.resource_key and not self.api_token:
+            raise ValueError(
+                "SlackIngestionComponent: supply resource_key (a registered "
+                "SlackResourceComponent) OR api_token."
+            )
         resources_list = self.resources
         description = self.description or f"Slack data ({', '.join(resources_list)})"
         group_name = self.group_name
@@ -469,9 +481,16 @@ class SlackIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def slack_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.slack import slack_source
+
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                api_token = _res.token
+            else:
+                api_token = component.api_token
 
             context.log.info(
                 f"Starting Slack ingestion: resources={resources_list}, "

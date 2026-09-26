@@ -169,9 +169,22 @@ class GoogleSheetsIngestionComponent(Component, Model, Resolvable):
         default=None,
         description=(
             "Path to the service-account JSON file. If neither credentials nor "
-            "credentials_path is set, the component falls back to "
+            "credentials_path nor resource_key is set, the component falls back to "
             "GOOGLE_APPLICATION_CREDENTIALS in the environment (the standard "
             "google-auth convention)."
+        ),
+    )
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a GoogleSheetsResourceComponent. When "
+            "set, credentials are read from that resource at run time instead of "
+            "credentials/credentials_path above -- lets one Google service-account "
+            "credential serve both this ingestion connector and the "
+            "google_sheets_row_upsert reverse-ETL sink without configuring it twice. If "
+            "unset, falls back to credentials / credentials_path / ambient "
+            "GOOGLE_APPLICATION_CREDENTIALS as before."
         ),
     )
 
@@ -394,18 +407,10 @@ class GoogleSheetsIngestionComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
 
-        # Resolve credentials: explicit dict, then path, then GOOGLE_APPLICATION_CREDENTIALS.
-        credentials = self.credentials
-        if credentials is None:
-            cred_path = self.credentials_path or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-            if cred_path:
-                with open(cred_path, "r") as fh:
-                    credentials = json.load(fh)
-        if credentials is None:
-            raise ValueError(
-                "GoogleSheetsIngestionComponent: provide one of `credentials` (dict), "
-                "`credentials_path` (file path), or set GOOGLE_APPLICATION_CREDENTIALS in the environment."
-            )
+        # Credential resolution (credentials dict / credentials_path / ambient
+        # GOOGLE_APPLICATION_CREDENTIALS / resource_key) happens at runtime inside
+        # the compute function below -- a resource_key can only be resolved from
+        # context.resources, which isn't available from this ComponentLoadContext.
 
         spreadsheet_id = self.spreadsheet_id
         sheet_names = self.sheet_names
@@ -502,6 +507,7 @@ class GoogleSheetsIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def google_sheets_ingestion_asset(context: AssetExecutionContext):
             # Direct google-api-python-client implementation. Original used
@@ -517,6 +523,25 @@ class GoogleSheetsIngestionComponent(Component, Model, Resolvable):
                     "google-api-python-client. Install with: "
                     "pip install google-auth google-api-python-client"
                 )
+
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                credentials = json.loads(_res.gcp_credentials_json)
+            else:
+                # Resolve credentials: explicit dict, then path, then GOOGLE_APPLICATION_CREDENTIALS.
+                credentials = component.credentials
+                if credentials is None:
+                    cred_path = component.credentials_path or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+                    if cred_path:
+                        with open(cred_path, "r") as fh:
+                            credentials = json.load(fh)
+                if credentials is None:
+                    raise ValueError(
+                        "GoogleSheetsIngestionComponent: provide one of `credentials` (dict), "
+                        "`credentials_path` (file path), `resource_key` (a registered "
+                        "GoogleSheetsResourceComponent), or set GOOGLE_APPLICATION_CREDENTIALS "
+                        "in the environment."
+                    )
 
             context.log.info(
                 f"Starting Google Sheets ingestion: spreadsheet_id={spreadsheet_id}, "

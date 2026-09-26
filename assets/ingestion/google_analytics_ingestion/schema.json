@@ -21,8 +21,16 @@
     "property_id": {
       "type": "string",
       "label": "Property Id",
-      "description": "Google Analytics 4 Property ID (numeric, e.g., '123456789'). Find in GA4 Admin > Property Settings.",
-      "required": true
+      "description": "Google Analytics 4 Property ID (numeric, e.g., '123456789'). Find in GA4 Admin > Property Settings. Required unless resource_key is set.",
+      "required": false,
+      "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": null,
+      "description": "Optional resource key registered by a GoogleAnalyticsResourceComponent. When set, property_id and service-account credentials are read from that resource at run time instead of property_id/credentials_json (and the other credential fields) above. OAuth credentials are not supported through the resource."
     },
     "credentials_json": {
       "type": "string",

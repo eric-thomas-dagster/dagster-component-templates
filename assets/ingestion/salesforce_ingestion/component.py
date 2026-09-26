@@ -159,11 +159,24 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    username: str = Field(description="Salesforce username")
+    username: Optional[str] = Field(default=None, description="Salesforce username. Required unless resource_key is set.")
 
-    password: str = Field(description="Salesforce password")
+    password: Optional[str] = Field(default=None, description="Salesforce password. Required unless resource_key is set.")
 
-    security_token: str = Field(description="Salesforce security token (from Settings > Personal Setup > Reset My Security Token)")
+    security_token: Optional[str] = Field(default=None, description="Salesforce security token (from Settings > Personal Setup > Reset My Security Token). Required unless resource_key is set.")
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a SalesforceResourceComponent. When set, "
+            "credentials are read from that resource at run time instead of username/"
+            "password/security_token above -- lets one Salesforce credential serve both this "
+            "ingestion connector and the salesforce_record_upsert reverse-ETL sink without "
+            "configuring it twice. Only meaningful when that resource is configured with "
+            "auth_mode='password' (the ingestion side only supports the password grant, not "
+            "JWT Bearer)."
+        ),
+    )
 
     sf_objects: List[str] = Field(default=["Account", "Opportunity", "Contact", "Lead"], description="Salesforce objects to extract (Account, Opportunity, Contact, Lead, Campaign, Task, Event, etc.)")
 
@@ -381,9 +394,11 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        username = self.username
-        password = self.password
-        security_token = self.security_token
+        if not self.resource_key and not (self.username and self.password and self.security_token):
+            raise ValueError(
+                "SalesforceIngestionComponent: supply resource_key (a registered "
+                "SalesforceResourceComponent) OR all of username/password/security_token."
+            )
         sf_objects = self.sf_objects
         description = self.description or f"Salesforce data ({', '.join(sf_objects)})"
         group_name = self.group_name
@@ -478,9 +493,25 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def salesforce_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.salesforce import salesforce_source
+
+            if component.resource_key:
+                # SalesforceResourceComponent eagerly resolves env vars into the
+                # runtime SalesforceResource's plain attributes at build_defs time
+                # (unlike some other vendor resources, which store the env var
+                # *name* and defer resolution) -- so these are already the real
+                # secret values, not names to look up.
+                _res = getattr(context.resources, component.resource_key)
+                username = _res.username
+                password = _res.password
+                security_token = _res.security_token
+            else:
+                username = component.username
+                password = component.password
+                security_token = component.security_token
 
             context.log.info(
                 f"Starting Salesforce ingestion: objects={sf_objects}, "

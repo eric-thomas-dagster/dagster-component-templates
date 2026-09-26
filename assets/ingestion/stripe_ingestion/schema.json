@@ -21,8 +21,16 @@
     "api_key": {
       "type": "string",
       "label": "Api Key",
-      "description": "Stripe API Secret Key. Use ${STRIPE_API_KEY} for env vars. Find in Stripe Dashboard > Developers > API Keys.",
-      "required": true
+      "description": "Stripe API Secret Key. Use ${STRIPE_API_KEY} for env vars. Find in Stripe Dashboard > Developers > API Keys. Required unless resource_key is set.",
+      "required": false,
+      "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": null,
+      "description": "Optional resource key registered by a StripeResourceComponent. When set, credentials are read from that resource at run time instead of api_key above -- lets one Stripe credential serve both this ingestion connector and the stripe_customer_upsert reverse-ETL sink without configuring it twice."
     },
     "resources": {
       "type": "string",

@@ -14,7 +14,8 @@ dlt handles API authentication, pagination, rate limiting, and incremental loadi
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `asset_name` | `str` | yes | Name of the output asset |
-| `access_token` | `str` | yes | Asana Personal Access Token (`"{{ env('ASANA_ACCESS_TOKEN') }}"`) |
+| `access_token` | `str` | access_token OR resource_key | Asana Personal Access Token (`"{{ env('ASANA_ACCESS_TOKEN') }}"`) |
+| `resource_key` | `str` | no | Resource key registered by an AsanaResourceComponent. When set, credentials are read from that resource at run time instead of access_token -- lets one Asana credential serve both this connector and the asana_task_create reverse-ETL sink |
 | `resources` | `List[str]` | no | Subset of resources — defaults to `["projects", "tasks", "users"]`. Available: `projects`, `tasks`, `users`, `workspaces`, `sections`, `tags`, `teams` |
 
 ## Standard fields
@@ -52,7 +53,12 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `access_token` | `str` | Asana Personal Access Token for API authentication |
+
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | — | Optional resource key registered by an AsanaResourceComponent. When set, credentials are read from that resource at run time instead of access_token above -- lets one Asana credential serve both this ingestion connector… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -97,6 +103,7 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `access_token` | `str` | — | Asana Personal Access Token for API authentication. Required unless resource_key is set. |
 | `resources` | `List[str]` | `['projects', 'tasks', 'users']` | Asana resources to extract (projects, tasks, users, workspaces, sections, tags, teams) |
 | `destination` | `str` | — | dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode. |
 | `dataset_name` | `str` | — | Target dataset/schema in the destination. Defaults to the asset name. |

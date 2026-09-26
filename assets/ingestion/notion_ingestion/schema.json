@@ -21,8 +21,16 @@
     "api_key": {
       "type": "string",
       "label": "Api Key",
-      "description": "Notion Integration Token for API authentication",
-      "required": true
+      "description": "Notion Integration Token for API authentication. Required unless resource_key is set.",
+      "required": false,
+      "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": null,
+      "description": "Optional resource key registered by a NotionResourceComponent. When set, credentials are read from that resource at run time instead of api_key above -- lets one Notion credential serve both this ingestion connector and the notion_database_upsert reverse-ETL sink without configuring it twice."
     },
     "database_ids": {
       "type": "array",

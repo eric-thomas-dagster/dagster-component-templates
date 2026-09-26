@@ -20,8 +20,16 @@
     "api_key": {
       "type": "string",
       "label": "Api Key",
-      "description": "Klaviyo private API key. Use ${KLAVIYO_API_KEY} for env vars.",
-      "required": true
+      "description": "Klaviyo private API key. Use ${KLAVIYO_API_KEY} for env vars. Required unless resource_key is set.",
+      "required": false,
+      "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional resource key registered by a KlaviyoResourceComponent (that component defaults its own resource_key to 'klaviyo', not 'klaviyo_resource'). When set, api_key is read from that resource at run time instead of api_key above -- lets one Klaviyo credential serve both this ingestion connector and the dataframe_to_klaviyo reverse-ETL sink without configuring it twice.",
+      "required": false,
+      "default": null
     },
     "resources": {
       "type": "string",

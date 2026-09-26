@@ -21,21 +21,31 @@
     "domain": {
       "type": "string",
       "label": "Domain",
-      "description": "Jira domain (e.g., your-company.atlassian.net)",
-      "required": true
+      "description": "Jira domain (e.g., your-company.atlassian.net). Required unless resource_key is set.",
+      "required": false,
+      "default": null
     },
     "email": {
       "type": "string",
       "label": "Email",
-      "description": "Email address for Jira authentication",
-      "required": true
+      "description": "Email address for Jira authentication. Required unless resource_key is set.",
+      "required": false,
+      "default": null
     },
     "api_token": {
       "type": "string",
       "label": "Api Token",
-      "description": "Jira API token for authentication",
-      "required": true,
+      "description": "Jira API token for authentication. Required unless resource_key is set.",
+      "required": false,
+      "default": null,
       "ui:widget": "password"
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": null,
+      "description": "Optional resource key registered by a JiraResourceComponent. When set, credentials are read from that resource at run time instead of domain/email/api_token above -- lets one Jira credential serve both this ingestion connector and the jira_issue_upsert reverse-ETL sink without configuring it twice."
     },
     "resources": {
       "type": "array",

@@ -21,9 +21,17 @@
     "access_token": {
       "type": "string",
       "label": "Access Token",
-      "description": "GitHub Personal Access Token for API authentication",
-      "required": true,
+      "description": "GitHub Personal Access Token for API authentication. Required unless resource_key is set.",
+      "required": false,
+      "default": null,
       "ui:widget": "password"
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": null,
+      "description": "Optional resource key registered by a GithubResourceComponent. When set, credentials are read from that resource at run time instead of access_token above -- lets one GitHub credential serve both this ingestion connector and the github_issue_upsert reverse-ETL sink without configuring it twice."
     },
     "owner": {
       "type": "string",

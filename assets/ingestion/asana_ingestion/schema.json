@@ -21,9 +21,17 @@
     "access_token": {
       "type": "string",
       "label": "Access Token",
-      "description": "Asana Personal Access Token for API authentication",
-      "required": true,
+      "description": "Asana Personal Access Token for API authentication. Required unless resource_key is set.",
+      "required": false,
+      "default": null,
       "ui:widget": "password"
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": null,
+      "description": "Optional resource key registered by an AsanaResourceComponent. When set, credentials are read from that resource at run time instead of access_token above -- lets one Asana credential serve both this ingestion connector and the asana_task_create reverse-ETL sink without configuring it twice."
     },
     "resources": {
       "type": "array",

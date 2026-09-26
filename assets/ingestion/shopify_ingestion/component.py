@@ -158,9 +158,20 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    shop_url: str = Field(description="Shopify store URL (e.g., https://my-shop.myshopify.com)")
+    shop_url: Optional[str] = Field(default=None, description="Shopify store URL (e.g., https://my-shop.myshopify.com). Required unless resource_key is set.")
 
-    private_app_password: str = Field(description="Shopify Admin API access token")
+    private_app_password: Optional[str] = Field(default=None, description="Shopify Admin API access token. Required unless resource_key is set.")
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a ShopifyResourceComponent. When set, "
+            "credentials are read from that resource at run time instead of shop_url/"
+            "private_app_password above -- lets one Shopify credential serve both this "
+            "ingestion connector and the shopify_product_upsert reverse-ETL sink without "
+            "configuring it twice."
+        ),
+    )
 
     resources: List[str] = Field(default=["customers", "orders", "products"], description="Shopify resources to extract (customers, orders, products)")
 
@@ -382,8 +393,11 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        shop_url = self.shop_url
-        private_app_password = self.private_app_password
+        if not self.resource_key and not (self.shop_url and self.private_app_password):
+            raise ValueError(
+                "ShopifyIngestionComponent: supply resource_key (a registered "
+                "ShopifyResourceComponent) OR all of shop_url/private_app_password."
+            )
         resources_list = self.resources
         start_date = self.start_date
         order_status = self.order_status
@@ -480,9 +494,22 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def shopify_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.shopify_dlt import shopify_source
+
+            if component.resource_key:
+                # ShopifyResourceComponent eagerly resolves access_token_env_var into
+                # the runtime ShopifyResource's plain `access_token` attribute at
+                # build_defs time -- so this is already the real secret, not a name
+                # to look up.
+                _res = getattr(context.resources, component.resource_key)
+                shop_url = _res.shop_url
+                private_app_password = _res.access_token
+            else:
+                shop_url = component.shop_url
+                private_app_password = component.private_app_password
 
             # A time-based partition means this run should start from that partition's
             # own window, not the static start_date config. Note: shopify_source only

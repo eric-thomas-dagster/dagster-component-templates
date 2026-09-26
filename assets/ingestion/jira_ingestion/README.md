@@ -14,9 +14,10 @@ dlt handles API authentication, pagination, rate limiting, and incremental loadi
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `asset_name` | `str` | yes | Name of the output asset |
-| `domain` | `str` | yes | Jira Cloud domain (e.g. `your-company.atlassian.net`) |
-| `email` | `str` | yes | Atlassian account email |
-| `api_token` | `str` | yes | Atlassian API token |
+| `domain` | `str` | one of domain/email/api_token OR resource_key | Jira Cloud domain (e.g. `your-company.atlassian.net`) |
+| `email` | `str` | one of domain/email/api_token OR resource_key | Atlassian account email |
+| `api_token` | `str` | one of domain/email/api_token OR resource_key | Atlassian API token |
+| `resource_key` | `str` | no | Resource key registered by a JiraResourceComponent. When set, credentials are read from that resource at run time instead of domain/email/api_token -- lets one Jira credential serve both this connector and the jira_issue_upsert reverse-ETL sink |
 | `resources` | `List[str]` | no | Defaults to `["issues", "projects"]`. Available: `issues`, `users`, `projects`, `boards` |
 
 ## Standard fields
@@ -54,9 +55,13 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `domain` | `str` | Jira domain (e.g., your-company.atlassian.net) |
-| `email` | `str` | Email address for Jira authentication |
-| `api_token` | `str` | Jira API token for authentication |
+
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `api_token` | `str` | — | Jira API token for authentication. Required unless resource_key is set. |
+| `resource_key` | `str` | — | Optional resource key registered by a JiraResourceComponent. When set, credentials are read from that resource at run time instead of domain/email/api_token above -- lets one Jira credential serve both this ingestion con… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -101,6 +106,8 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `domain` | `str` | — | Jira domain (e.g., your-company.atlassian.net). Required unless resource_key is set. |
+| `email` | `str` | — | Email address for Jira authentication. Required unless resource_key is set. |
 | `resources` | `List[str]` | `['issues', 'projects']` | Jira resources to extract (issues, users, projects, boards) |
 | `destination` | `str` | — | dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode. |
 | `dataset_name` | `str` | — | Target dataset/schema in the destination. Defaults to the asset name. |

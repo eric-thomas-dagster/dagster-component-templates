@@ -14,7 +14,8 @@ dlt handles API authentication, pagination, rate limiting, and incremental loadi
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `asset_name` | `str` | yes | Name of the output asset |
-| `api_token` | `str` | yes | Slack Bot User OAuth Token (`xoxb-...`) |
+| `api_token` | `str` | one of api_token OR resource_key | Slack Bot User OAuth Token (`xoxb-...`) |
+| `resource_key` | `str` | no | Resource key registered by a SlackResourceComponent. When set, credentials are read from that resource at run time instead of api_token |
 | `resources` | `List[str]` | no | Defaults to `["messages", "channels", "users"]` |
 
 ## Standard fields
@@ -52,7 +53,13 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `api_token` | `str` | Slack API token for authentication (Bot User OAuth Token) |
+
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `api_token` | `str` | — | Slack API token for authentication (Bot User OAuth Token). Required unless resource_key is set. |
+| `resource_key` | `str` | — | Optional resource key registered by a SlackResourceComponent. When set, credentials are read from that resource at run time instead of api_token above. |
 
 ### Catalog metadata
 

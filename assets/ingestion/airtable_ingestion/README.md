@@ -14,7 +14,8 @@ dlt handles API authentication, pagination, rate limiting, and incremental loadi
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `asset_name` | `str` | yes | Name of the output asset |
-| `api_key` | `str` | yes | Airtable API key (use env var: `"{{ env('AIRTABLE_API_KEY') }}"`) |
+| `api_key` | `str` | one of api_key OR resource_key | Airtable API key (use env var: `"{{ env('AIRTABLE_API_KEY') }}"`) |
+| `resource_key` | `str` | no | Resource key registered by an AirtableResourceComponent. When set, credentials are read from that resource at run time instead of api_key -- lets one Airtable credential serve both this connector and the airtable_record_upsert reverse-ETL sink |
 | `base_id` | `str` | yes | Airtable base ID (starts with `app...`) |
 | `table_names` | `List[str]` | yes | Tables to extract from the base |
 
@@ -53,9 +54,15 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `api_key` | `str` | Airtable API key for authentication |
 | `base_id` | `str` | Airtable base ID (starts with 'app') |
 | `table_names` | `List[str]` | List of table names to extract from the base |
+
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `api_key` | `str` | — | Airtable API key for authentication. Required unless resource_key is set. |
+| `resource_key` | `str` | — | Optional resource key registered by an AirtableResourceComponent. When set, credentials are read from that resource at run time instead of api_key above -- lets one Airtable credential serve both this ingestion connector… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 

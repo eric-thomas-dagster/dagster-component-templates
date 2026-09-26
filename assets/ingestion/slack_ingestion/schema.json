@@ -21,9 +21,17 @@
     "api_token": {
       "type": "string",
       "label": "Api Token",
-      "description": "Slack API token for authentication (Bot User OAuth Token)",
-      "required": true,
+      "description": "Slack API token for authentication (Bot User OAuth Token). Required unless resource_key is set.",
+      "required": false,
+      "default": null,
       "ui:widget": "password"
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": null,
+      "description": "Optional resource key registered by a SlackResourceComponent. When set, credentials are read from that resource at run time instead of api_token above."
     },
     "resources": {
       "type": "array",

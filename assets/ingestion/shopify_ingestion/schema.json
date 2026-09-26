@@ -21,15 +21,24 @@
     "shop_url": {
       "type": "string",
       "label": "Shop Url",
-      "description": "Shopify store URL (e.g., https://my-shop.myshopify.com)",
-      "required": true
+      "description": "Shopify store URL (e.g., https://my-shop.myshopify.com). Required unless resource_key is set.",
+      "required": false,
+      "default": null
     },
     "private_app_password": {
       "type": "string",
       "label": "Private App Password",
-      "description": "Shopify Admin API access token",
-      "required": true,
-      "ui:widget": "password"
+      "description": "Shopify Admin API access token. Required unless resource_key is set.",
+      "required": false,
+      "ui:widget": "password",
+      "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": null,
+      "description": "Optional resource key registered by a ShopifyResourceComponent. When set, credentials are read from that resource at run time instead of shop_url/private_app_password -- lets one Shopify credential serve both ingestion and the shopify_product_upsert reverse-ETL sink."
     },
     "resources": {
       "type": "array",

@@ -157,9 +157,19 @@ class FreshdeskIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    api_key: str = Field(description="Freshdesk API key for authentication")
+    api_key: Optional[str] = Field(default=None, description="Freshdesk API key for authentication. Required unless resource_key is set.")
 
-    domain: str = Field(description="Freshdesk domain (e.g., 'my-company' for my-company.freshdesk.com)")
+    domain: Optional[str] = Field(default=None, description="Freshdesk domain (e.g., 'my-company' for my-company.freshdesk.com). Required unless resource_key is set.")
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a FreshdeskResourceComponent. When set, "
+            "credentials are read from that resource at run time instead of api_key/domain "
+            "above -- lets one Freshdesk credential serve both this ingestion connector and "
+            "the freshdesk_contact_upsert reverse-ETL sink without configuring it twice."
+        ),
+    )
 
     resources: List[str] = Field(default=["tickets", "contacts", "companies", "agents"], description="Freshdesk resources to extract (tickets, contacts, companies, agents)")
 
@@ -377,8 +387,11 @@ class FreshdeskIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        api_key = self.api_key
-        domain = self.domain
+        if not self.resource_key and not (self.api_key and self.domain):
+            raise ValueError(
+                "FreshdeskIngestionComponent: supply resource_key (a registered "
+                "FreshdeskResourceComponent) OR all of api_key/domain."
+            )
         resources_list = self.resources
         description = self.description or f"Freshdesk data ({', '.join(resources_list)})"
         group_name = self.group_name
@@ -473,9 +486,18 @@ class FreshdeskIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def freshdesk_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.freshdesk import freshdesk_source
+
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                domain = _res.domain
+                api_key = os.environ.get(_res.api_key_env_var)
+            else:
+                domain = component.domain
+                api_key = component.api_key
 
             context.log.info(
                 f"Starting Freshdesk ingestion: domain={domain}, resources={resources_list}, "

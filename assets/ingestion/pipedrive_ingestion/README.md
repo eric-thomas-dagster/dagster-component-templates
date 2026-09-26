@@ -14,7 +14,8 @@ dlt handles API authentication, pagination, rate limiting, and incremental loadi
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `asset_name` | `str` | yes | Name of the output asset |
-| `api_token` | `str` | yes | Pipedrive API token |
+| `api_token` | `str` | one of api_token OR resource_key | Pipedrive API token |
+| `resource_key` | `str` | no | Resource key registered by a PipedriveResourceComponent. When set, credentials are read from that resource at run time instead of api_token -- lets one Pipedrive credential serve both this connector and the pipedrive_person_upsert reverse-ETL sink |
 | `resources` | `List[str]` | no | Defaults to `["deals", "persons", "organizations", "activities"]` |
 
 ## Standard fields
@@ -52,7 +53,13 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `api_token` | `str` | Pipedrive API token for authentication |
+
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `api_token` | `str` | — | Pipedrive API token for authentication. Required unless resource_key is set. |
+| `resource_key` | `str` | — | Optional resource key registered by a PipedriveResourceComponent. When set, credentials are read from that resource at run time instead of api_token above -- lets one Pipedrive credential serve both this ingestion connec… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 

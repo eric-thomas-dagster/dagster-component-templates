@@ -14,7 +14,8 @@ dlt handles API authentication, pagination, rate limiting, and incremental loadi
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `asset_name` | `str` | yes | Name of the output asset |
-| `api_key` | `str` | yes | Notion Integration Token |
+| `api_key` | `str` | api_key OR resource_key | Notion Integration Token |
+| `resource_key` | `str` | no | Resource key registered by a NotionResourceComponent. When set, credentials are read from that resource at run time instead of api_key -- lets one Notion credential serve both this connector and the notion_database_upsert reverse-ETL sink |
 | `database_ids` | `List[str]` | yes | Notion database IDs to extract |
 
 ## Standard fields
@@ -52,8 +53,14 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `api_key` | `str` | Notion Integration Token for API authentication |
 | `database_ids` | `List[str]` | List of Notion database IDs to extract data from |
+
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `api_key` | `str` | — | Notion Integration Token for API authentication. Required unless resource_key is set. |
+| `resource_key` | `str` | — | Optional resource key registered by a NotionResourceComponent. When set, credentials are read from that resource at run time instead of api_key above -- lets one Notion credential serve both this ingestion connector and… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 

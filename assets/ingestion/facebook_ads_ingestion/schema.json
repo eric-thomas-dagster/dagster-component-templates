@@ -21,14 +21,16 @@
     "account_id": {
       "type": "string",
       "label": "Account Id",
-      "description": "Facebook Ads Account ID (format: act_123456789). Find in Ads Manager URL.",
-      "required": true
+      "description": "Facebook Ads Account ID (format: act_123456789). Find in Ads Manager URL. Required unless resource_key is set.",
+      "required": false,
+      "default": null
     },
     "access_token": {
       "type": "string",
       "label": "Access Token",
-      "description": "Facebook Access Token with ads_read and lead_retrieval permissions. Use ${FACEBOOK_ACCESS_TOKEN} for env vars.",
-      "required": true,
+      "description": "Facebook Access Token with ads_read and lead_retrieval permissions. Use ${FACEBOOK_ACCESS_TOKEN} for env vars. Required unless resource_key is set.",
+      "required": false,
+      "default": null,
       "ui:widget": "password"
     },
     "app_id": {
@@ -45,6 +47,13 @@
       "required": false,
       "default": null,
       "ui:widget": "password"
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": null,
+      "description": "Optional resource key registered by a FacebookAdsResourceComponent. When set, credentials (account_id, access_token, app_id, app_secret) are read from that resource at run time instead of the fields above."
     },
     "resources": {
       "type": "string",

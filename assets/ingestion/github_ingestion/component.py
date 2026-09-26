@@ -162,8 +162,18 @@ class GitHubIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    access_token: str = Field(
-        description="GitHub Personal Access Token for API authentication"
+    access_token: Optional[str] = Field(
+        default=None, description="GitHub Personal Access Token for API authentication. Required unless resource_key is set."
+    )
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a GithubResourceComponent. When set, "
+            "credentials are read from that resource at run time instead of access_token "
+            "above -- lets one GitHub credential serve both this ingestion connector and "
+            "the github_issue_upsert reverse-ETL sink without configuring it twice."
+        ),
     )
 
     owner: str = Field(description="Repository owner (username or organization)")
@@ -391,7 +401,11 @@ class GitHubIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        access_token = self.access_token
+        if not self.resource_key and not self.access_token:
+            raise ValueError(
+                "GitHubIngestionComponent: supply resource_key (a registered "
+                "GithubResourceComponent) OR access_token."
+            )
         owner = self.owner
         repositories = self.repositories
         resources_list = self.resources
@@ -488,9 +502,16 @@ class GitHubIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def github_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.github import github_reactions
+
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                access_token = _res.token
+            else:
+                access_token = component.access_token
 
             context.log.info(
                 f"Starting GitHub ingestion: owner={owner}, repos={repositories}, "

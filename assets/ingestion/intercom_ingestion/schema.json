@@ -20,8 +20,16 @@
     "access_token": {
       "type": "string",
       "label": "Access Token",
-      "description": "Intercom access token (from a private app). Use ${INTERCOM_ACCESS_TOKEN} for env vars.",
-      "required": true
+      "description": "Intercom access token (from a private app). Use ${INTERCOM_ACCESS_TOKEN} for env vars. Required unless resource_key is set.",
+      "required": false,
+      "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional resource key registered by an IntercomResourceComponent. When set, access_token is read from that resource at run time instead of access_token above -- lets one Intercom credential serve both this ingestion connector and the intercom_contact_upsert reverse-ETL sink without configuring it twice.",
+      "required": false,
+      "default": null
     },
     "resources": {
       "type": "string",

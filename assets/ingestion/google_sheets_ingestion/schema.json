@@ -20,9 +20,24 @@
     "credentials": {
       "type": "object",
       "label": "Credentials",
-      "description": "Google service account credentials JSON (as dict or JSON string). Provide this OR credentials_path OR rely on GOOGLE_APPLICATION_CREDENTIALS.",
-      "required": true,
+      "description": "Google service account credentials JSON (as dict or JSON string). Provide this OR credentials_path OR resource_key OR rely on GOOGLE_APPLICATION_CREDENTIALS.",
+      "required": false,
+      "default": null,
       "ui:widget": "key-value"
+    },
+    "credentials_path": {
+      "type": "string",
+      "label": "Credentials Path",
+      "description": "Path to the service-account JSON file. If neither credentials nor credentials_path nor resource_key is set, the component falls back to GOOGLE_APPLICATION_CREDENTIALS in the environment (the standard google-auth convention).",
+      "required": false,
+      "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional resource key registered by a GoogleSheetsResourceComponent. When set, credentials are read from that resource at run time instead of credentials/credentials_path above -- lets one Google service-account credential serve both this ingestion connector and the google_sheets_row_upsert reverse-ETL sink without configuring it twice. If unset, falls back to credentials / credentials_path / ambient GOOGLE_APPLICATION_CREDENTIALS as before.",
+      "required": false,
+      "default": null
     },
     "spreadsheet_id": {
       "type": "string",

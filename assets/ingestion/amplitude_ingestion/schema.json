@@ -20,14 +20,23 @@
     "api_key": {
       "type": "string",
       "label": "Api Key",
-      "description": "Amplitude project API key, used as the HTTP Basic auth username.",
-      "required": true
+      "description": "Amplitude project API key, used as the HTTP Basic auth username. Required unless resource_key is set.",
+      "required": false,
+      "default": null
     },
     "secret_key": {
       "type": "string",
       "label": "Secret Key",
-      "description": "Amplitude project secret key, used as the HTTP Basic auth password.",
-      "required": true
+      "description": "Amplitude project secret key, used as the HTTP Basic auth password. Always required inline -- NOT sourced from resource_key, because AmplitudeResourceComponent only stores an API-key env var and has no secret-key field.",
+      "required": false,
+      "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional resource key registered by an AmplitudeResourceComponent. When set, api_key above is read from that resource at run time -- lets one Amplitude API key serve both this ingestion connector and the dataframe_to_amplitude reverse-ETL sink without configuring it twice. Note: secret_key is NOT covered by this and must still be supplied inline.",
+      "required": false,
+      "default": null
     },
     "eu_residency": {
       "type": "boolean",

@@ -148,7 +148,25 @@ class SegmentIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset that will hold the data")
 
-    access_token: str = Field(description='Segment workspace access token (requires Workspace Owner scope) for the Config API.')
+    access_token: Optional[str] = Field(
+        default=None,
+        description='Segment workspace access token (requires Workspace Owner scope) for the Config API. Required unless resource_key is set.',
+    )
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a SegmentResourceComponent. When set, "
+            "credentials are read from that resource at run time instead of access_token "
+            "above, letting one registered Segment resource serve both this ingestion "
+            "connector and the dataframe_to_segment reverse-ETL sink without configuring "
+            "it twice. CAVEAT: SegmentResourceComponent.write_key_env_var normally holds a "
+            "source Tracking-API write key (for POST /v1/batch), while this connector's "
+            "access_token is a workspace Config-API bearer token (for api.segmentapis.com) "
+            "-- these are different Segment credential types. Only set resource_key if the "
+            "env var it points to actually holds a workspace access token."
+        ),
+    )
 
     resources: str = Field(
         default="sources,destinations",
@@ -291,6 +309,11 @@ class SegmentIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         component = self
+        if not self.resource_key and not self.access_token:
+            raise ValueError(
+                "SegmentIngestionComponent: supply resource_key (a registered "
+                "SegmentResourceComponent) OR access_token."
+            )
         asset_name = self.asset_name
         description = self.description or "Ingest Segment CDP workspace configuration data (sources, destinations, catalog) using dlt's generic REST API source."
         group_name = self.group_name
@@ -353,17 +376,24 @@ class SegmentIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def segment_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.rest_api import rest_api_source
 
             context.log.info(f"Starting Segment ingestion, destination={destination or 'duckdb (in-memory)'}")
 
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                access_token = os.environ.get(_res.write_key_env_var)
+            else:
+                access_token = component.access_token
+
             resources_list = [r.strip() for r in resources.split(",")]
             config = {
                 "client": {
                     "base_url": "https://api.segmentapis.com",
-                    "auth": {"type": "bearer", "token": self.access_token},
+                    "auth": {"type": "bearer", "token": access_token},
                 },
                 "resources": [],
             }

@@ -152,15 +152,42 @@ class WorkdayIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset that will hold the data")
 
-    base_url: str = Field(description='Full Workday REST API base URL for your tenant/datacenter (found in your Workday API client registration).')
+    base_url: Optional[str] = Field(
+        default=None,
+        description='Full Workday REST API base URL for your tenant/datacenter (found in your Workday API client registration). Required unless resource_key is set.',
+    )
 
-    token_url: str = Field(description='Full OAuth2 token endpoint URL for your tenant.')
+    token_url: Optional[str] = Field(
+        default=None,
+        description='Full OAuth2 token endpoint URL for your tenant. Required unless resource_key is set.',
+    )
 
-    client_id: str = Field(description='Workday Integration System User (ISU) OAuth2 client ID.')
+    client_id: Optional[str] = Field(
+        default=None,
+        description='Workday Integration System User (ISU) OAuth2 client ID. Required unless resource_key is set.',
+    )
 
-    client_secret: str = Field(description='Workday OAuth2 client secret.')
+    client_secret: Optional[str] = Field(
+        default=None,
+        description='Workday OAuth2 client secret. Required unless resource_key is set.',
+    )
 
-    refresh_token: str = Field(description='Workday OAuth2 refresh token.')
+    refresh_token: Optional[str] = Field(
+        default=None,
+        description='Workday OAuth2 refresh token. Required unless resource_key is set.',
+    )
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a WorkdayResourceComponent. When set, "
+            "credentials (tenant_url/client_id/client_secret/refresh_token/token_url) are "
+            "read from that resource at run time instead of base_url/token_url/client_id/"
+            "client_secret/refresh_token above -- lets one Workday credential serve both "
+            "this ingestion connector and any other component registered against the same "
+            "resource without configuring it twice."
+        ),
+    )
 
     resources: str = Field(
         default="workers",
@@ -303,6 +330,14 @@ class WorkdayIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         component = self
+        if not self.resource_key and not (
+            self.base_url and self.token_url and self.client_id and self.client_secret and self.refresh_token
+        ):
+            raise ValueError(
+                "WorkdayIngestionComponent: supply resource_key (a registered "
+                "WorkdayResourceComponent) OR all of base_url/token_url/client_id/"
+                "client_secret/refresh_token."
+            )
         asset_name = self.asset_name
         description = self.description or "Ingest Workday HCM worker data using dlt's generic REST API source."
         group_name = self.group_name
@@ -365,6 +400,7 @@ class WorkdayIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def workday_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.rest_api import rest_api_source
@@ -375,13 +411,27 @@ class WorkdayIngestionComponent(Component, Model, Resolvable):
 
             resources_list = [r.strip() for r in resources.split(",")]
 
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                base_url = _res.tenant_url
+                token_url = _res.token_url or f"{_res.tenant_url.rstrip('/')}/token"
+                client_id = os.environ.get(_res.client_id_env_var)
+                client_secret = os.environ.get(_res.client_secret_env_var)
+                refresh_token = os.environ.get(_res.refresh_token_env_var)
+            else:
+                base_url = component.base_url
+                token_url = component.token_url
+                client_id = component.client_id
+                client_secret = component.client_secret
+                refresh_token = component.refresh_token
+
             _token_resp = _requests.post(
-                self.token_url,
+                token_url,
                 data={
                     "grant_type": "refresh_token",
-                    "refresh_token": self.refresh_token,
-                    "client_id": self.client_id,
-                    "client_secret": self.client_secret,
+                    "refresh_token": refresh_token,
+                    "client_id": client_id,
+                    "client_secret": client_secret,
                 },
             )
             _token_resp.raise_for_status()
@@ -389,7 +439,7 @@ class WorkdayIngestionComponent(Component, Model, Resolvable):
 
             config = {
                 "client": {
-                    "base_url": self.base_url.rstrip("/"),
+                    "base_url": base_url.rstrip("/"),
                     "auth": {"type": "bearer", "token": _access_token},
                 },
                 "resources": [],

@@ -14,10 +14,11 @@ dlt handles API authentication, pagination, rate limiting, and incremental loadi
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `asset_name` | `str` | yes | Name of the output asset |
-| `account_id` | `str` | yes | Ad account ID (format `act_123456789`) |
-| `access_token` | `str` | yes | Facebook access token with `ads_read` permissions |
+| `account_id` | `str` | one of account_id/access_token OR resource_key | Ad account ID (format `act_123456789`) |
+| `access_token` | `str` | one of account_id/access_token OR resource_key | Facebook access token with `ads_read` permissions |
 | `app_id` | `Optional[str]` | no | Facebook App ID (optional, for long-lived tokens) |
 | `app_secret` | `Optional[str]` | no | Facebook App Secret (optional, for long-lived tokens) |
+| `resource_key` | `str` | no | Resource key registered by a FacebookAdsResourceComponent. When set, account_id/access_token/app_id/app_secret are read from that resource at run time instead of the fields above |
 | `resources` | `str` | no | Comma-separated resources — `campaigns,ad_sets,ads,creatives,ad_leads,insights` (default: `"insights"`) |
 | `initial_load_past_days` | `int` | no | Days of historical data on first load (default 30) |
 | `ad_states` | `str` | no | Comma-separated ad states to extract (default `"ACTIVE,PAUSED"`) |
@@ -60,8 +61,12 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset that will hold the Facebook Ads data |
-| `account_id` | `str` | Facebook Ads Account ID (format: act_123456789). Find in Ads Manager URL. |
-| `access_token` | `str` | Facebook Access Token with ads_read and lead_retrieval permissions. |
+
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | — | Optional resource key registered by a FacebookAdsResourceComponent. When set, credentials (account_id, access_token, app_id, app_secret) are read from that resource at run time instead of the fields above. |
 
 ### Catalog metadata
 
@@ -106,6 +111,8 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `account_id` | `str` | — | Facebook Ads Account ID (format: act_123456789). Find in Ads Manager URL. Required unless resource_key is set. |
+| `access_token` | `str` | — | Facebook Access Token with ads_read and lead_retrieval permissions. Required unless resource_key is set. |
 | `app_id` | `str` | — | Facebook App ID (optional, for long-lived tokens) |
 | `app_secret` | `str` | — | Facebook App Secret (optional, for long-lived tokens) |
 | `resources` | `str` | `"insights"` | Comma-separated list of resources to extract: campaigns, ad_sets, ads, creatives, ad_leads, insights |

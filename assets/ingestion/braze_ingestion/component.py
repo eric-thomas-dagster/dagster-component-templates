@@ -149,9 +149,19 @@ class BrazeIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset that will hold the data")
 
-    rest_endpoint: str = Field(description='Account-specific Braze REST endpoint (from the Braze dashboard).')
+    rest_endpoint: Optional[str] = Field(default=None, description='Account-specific Braze REST endpoint (from the Braze dashboard). Required unless resource_key is set.')
 
-    api_key: str = Field(description='Braze REST API key. Use ${BRAZE_API_KEY} for env vars.')
+    api_key: Optional[str] = Field(default=None, description='Braze REST API key. Use ${BRAZE_API_KEY} for env vars. Required unless resource_key is set.')
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a BrazeResourceComponent. When set, "
+            "credentials are read from that resource at run time instead of rest_endpoint/"
+            "api_key above -- lets one Braze credential serve both this ingestion connector "
+            "and the dataframe_to_braze reverse-ETL sink without configuring it twice."
+        ),
+    )
 
     resources: str = Field(
         default="segments,campaigns,canvases,content_blocks",
@@ -294,6 +304,11 @@ class BrazeIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         component = self
+        if not self.resource_key and not (self.rest_endpoint and self.api_key):
+            raise ValueError(
+                "BrazeIngestionComponent: supply resource_key (a registered "
+                "BrazeResourceComponent) OR both of rest_endpoint/api_key."
+            )
         asset_name = self.asset_name
         description = self.description or "Ingest Braze marketing automation data using dlt's generic REST API source."
         group_name = self.group_name
@@ -356,17 +371,26 @@ class BrazeIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def braze_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.rest_api import rest_api_source
+
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                rest_endpoint = _res.rest_endpoint
+                api_key = os.environ.get(_res.api_key_env_var)
+            else:
+                rest_endpoint = component.rest_endpoint
+                api_key = component.api_key
 
             context.log.info(f"Starting Braze ingestion, destination={destination or 'duckdb (in-memory)'}")
 
             resources_list = [r.strip() for r in resources.split(",")]
             config = {
                 "client": {
-                    "base_url": self.rest_endpoint,
-                    "auth": {"type": "bearer", "token": self.api_key},
+                    "base_url": rest_endpoint,
+                    "auth": {"type": "bearer", "token": api_key},
                 },
                 "resources": [],
             }

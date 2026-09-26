@@ -158,13 +158,22 @@ class FacebookAdsIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset that will hold the Facebook Ads data")
 
-    account_id: str = Field(description="Facebook Ads Account ID (format: act_123456789). Find in Ads Manager URL.")
+    account_id: Optional[str] = Field(default=None, description="Facebook Ads Account ID (format: act_123456789). Find in Ads Manager URL. Required unless resource_key is set.")
 
-    access_token: str = Field(description="Facebook Access Token with ads_read and lead_retrieval permissions.")
+    access_token: Optional[str] = Field(default=None, description="Facebook Access Token with ads_read and lead_retrieval permissions. Required unless resource_key is set.")
 
     app_id: Optional[str] = Field(default=None, description="Facebook App ID (optional, for long-lived tokens)")
 
     app_secret: Optional[str] = Field(default=None, description="Facebook App Secret (optional, for long-lived tokens)")
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a FacebookAdsResourceComponent. When set, "
+            "credentials (account_id, access_token, app_id, app_secret) are read from that "
+            "resource at run time instead of the fields above."
+        ),
+    )
 
     resources: str = Field(default="insights", description="Comma-separated list of resources to extract: campaigns, ad_sets, ads, creatives, ad_leads, insights")
 
@@ -392,10 +401,11 @@ class FacebookAdsIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        account_id = self.account_id
-        access_token = self.access_token
-        app_id = self.app_id
-        app_secret = self.app_secret
+        if not self.resource_key and not (self.account_id and self.access_token):
+            raise ValueError(
+                "FacebookAdsIngestionComponent: supply resource_key (a registered "
+                "FacebookAdsResourceComponent) OR all of account_id/access_token."
+            )
         resources_str = self.resources
         initial_load_past_days = self.initial_load_past_days
         ad_states_str = self.ad_states
@@ -498,9 +508,22 @@ class FacebookAdsIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def facebook_ads_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.facebook_ads import facebook_ads_source, facebook_insights_source
+
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                account_id = _res.ad_account_id
+                access_token = os.environ.get(_res.access_token_env_var)
+                app_id = os.environ.get(_res.app_id_env_var)
+                app_secret = os.environ.get(_res.app_secret_env_var)
+            else:
+                account_id = component.account_id
+                access_token = component.access_token
+                app_id = component.app_id
+                app_secret = component.app_secret
 
             context.log.info(
                 f"Starting Facebook Ads ingestion: account={account_id}, "

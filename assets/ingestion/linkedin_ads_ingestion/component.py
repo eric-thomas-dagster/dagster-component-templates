@@ -164,8 +164,20 @@ class LinkedInAdsIngestionComponent(Component, Model, Resolvable):
         description="Name of the asset that will hold the LinkedIn Ads data"
     )
 
-    access_token: str = Field(
-        description="LinkedIn OAuth 2.0 Access Token with r_ads and r_ads_reporting permissions. Use ${LINKEDIN_ACCESS_TOKEN} for env vars."
+    access_token: Optional[str] = Field(
+        default=None,
+        description="LinkedIn OAuth 2.0 Access Token with r_ads and r_ads_reporting permissions. Use ${LINKEDIN_ACCESS_TOKEN} for env vars. Required unless resource_key is set."
+    )
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a LinkedInAdsResourceComponent. When set, "
+            "credentials are read from that resource at run time instead of access_token "
+            "above -- lets one LinkedIn Ads credential serve both this ingestion connector "
+            "and any other component registered against the same resource without "
+            "configuring it twice."
+        ),
     )
 
     account_ids: str = Field(
@@ -404,7 +416,11 @@ class LinkedInAdsIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        access_token = self.access_token
+        if not self.resource_key and not self.access_token:
+            raise ValueError(
+                "LinkedInAdsIngestionComponent: supply resource_key (a registered "
+                "LinkedInAdsResourceComponent) OR access_token."
+            )
         account_ids_str = self.account_ids
         resources_str = self.resources
         start_date = self.start_date
@@ -503,9 +519,16 @@ class LinkedInAdsIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def linkedin_ads_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.rest_api import rest_api_source
+
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                access_token = os.environ.get(_res.access_token_env_var)
+            else:
+                access_token = component.access_token
 
             context.log.info(
                 f"Starting LinkedIn Ads ingestion for accounts: {account_ids_str}, "

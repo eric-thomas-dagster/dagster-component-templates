@@ -21,22 +21,32 @@
     "username": {
       "type": "string",
       "label": "Username",
-      "description": "Salesforce username",
-      "required": true
+      "description": "Salesforce username. Required unless resource_key is set.",
+      "required": false,
+      "default": null
     },
     "password": {
       "type": "string",
       "label": "Password",
-      "description": "Salesforce password",
-      "required": true,
-      "ui:widget": "password"
+      "description": "Salesforce password. Required unless resource_key is set.",
+      "required": false,
+      "ui:widget": "password",
+      "default": null
     },
     "security_token": {
       "type": "string",
       "label": "Security Token",
-      "description": "Salesforce security token (from Settings > Personal Setup > Reset My Security Token)",
-      "required": true,
-      "ui:widget": "password"
+      "description": "Salesforce security token (from Settings > Personal Setup > Reset My Security Token). Required unless resource_key is set.",
+      "required": false,
+      "ui:widget": "password",
+      "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": null,
+      "description": "Optional resource key registered by a SalesforceResourceComponent. When set, credentials are read from that resource at run time instead of username/password/security_token -- lets one Salesforce credential serve both ingestion and the salesforce_record_upsert reverse-ETL sink. Only meaningful when that resource is configured with auth_mode='password'."
     },
     "sf_objects": {
       "type": "array",

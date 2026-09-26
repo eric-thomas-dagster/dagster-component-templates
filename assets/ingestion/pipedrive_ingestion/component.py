@@ -155,7 +155,17 @@ class PipedriveIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    api_token: str = Field(description="Pipedrive API token for authentication")
+    api_token: Optional[str] = Field(default=None, description="Pipedrive API token for authentication. Required unless resource_key is set.")
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a PipedriveResourceComponent. When set, "
+            "credentials are read from that resource at run time instead of api_token above "
+            "-- lets one Pipedrive credential serve both this ingestion connector and the "
+            "pipedrive_person_upsert reverse-ETL sink without configuring it twice."
+        ),
+    )
 
     resources: List[str] = Field(default=["deals", "persons", "organizations", "activities"], description="Pipedrive resources to extract (deals, persons, organizations, activities)")
 
@@ -373,7 +383,11 @@ class PipedriveIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        api_token = self.api_token
+        if not self.resource_key and not self.api_token:
+            raise ValueError(
+                "PipedriveIngestionComponent: supply resource_key (a registered "
+                "PipedriveResourceComponent) OR api_token."
+            )
         resources_list = self.resources
         description = self.description or f"Pipedrive data ({', '.join(resources_list)})"
         group_name = self.group_name
@@ -468,9 +482,16 @@ class PipedriveIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def pipedrive_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.pipedrive import pipedrive_source
+
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                api_token = os.environ.get(_res.api_token_env_var)
+            else:
+                api_token = component.api_token
 
             context.log.info(
                 f"Starting Pipedrive ingestion: resources={resources_list}, "

@@ -158,11 +158,22 @@ class JiraIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    domain: str = Field(description="Jira domain (e.g., your-company.atlassian.net)")
+    domain: Optional[str] = Field(default=None, description="Jira domain (e.g., your-company.atlassian.net). Required unless resource_key is set.")
 
-    email: str = Field(description="Email address for Jira authentication")
+    email: Optional[str] = Field(default=None, description="Email address for Jira authentication. Required unless resource_key is set.")
 
-    api_token: str = Field(description="Jira API token for authentication")
+    api_token: Optional[str] = Field(default=None, description="Jira API token for authentication. Required unless resource_key is set.")
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a JiraResourceComponent. When set, "
+            "credentials are read from that resource at run time instead of domain/"
+            "email/api_token above -- lets one Jira credential serve both this "
+            "ingestion connector and the jira_issue_upsert reverse-ETL sink without "
+            "configuring it twice."
+        ),
+    )
 
     resources: List[str] = Field(default=["issues", "projects"], description="Jira resources to extract (issues, users, projects, boards)")
 
@@ -380,9 +391,11 @@ class JiraIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        domain = self.domain
-        email = self.email
-        api_token = self.api_token
+        if not self.resource_key and not (self.domain and self.email and self.api_token):
+            raise ValueError(
+                "JiraIngestionComponent: supply resource_key (a registered "
+                "JiraResourceComponent) OR all of domain/email/api_token."
+            )
         resources_list = self.resources
         description = self.description or f"Jira data ({', '.join(resources_list)})"
         group_name = self.group_name
@@ -477,9 +490,20 @@ class JiraIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def jira_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.jira import jira
+
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                domain = _res.base_url.replace("https://", "").replace("http://", "").rstrip("/")
+                email = _res.email
+                api_token = _res.api_token
+            else:
+                domain = component.domain
+                email = component.email
+                api_token = component.api_token
 
             context.log.info(
                 f"Starting Jira ingestion: domain={domain}, resources={resources_list}, "

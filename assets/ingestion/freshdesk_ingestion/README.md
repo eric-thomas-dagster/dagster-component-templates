@@ -14,8 +14,9 @@ dlt handles API authentication, pagination, rate limiting, and incremental loadi
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `asset_name` | `str` | yes | Name of the output asset |
-| `api_key` | `str` | yes | Freshdesk API key (`"{{ env('FRESHDESK_API_KEY') }}"`) |
-| `domain` | `str` | yes | Freshdesk subdomain (e.g. `my-company` for `my-company.freshdesk.com`) |
+| `api_key` | `str` | one of api_key/domain OR resource_key | Freshdesk API key (`"{{ env('FRESHDESK_API_KEY') }}"`) |
+| `domain` | `str` | one of api_key/domain OR resource_key | Freshdesk subdomain (e.g. `my-company` for `my-company.freshdesk.com`) |
+| `resource_key` | `str` | no | Resource key registered by a FreshdeskResourceComponent. When set, credentials are read from that resource at run time instead of api_key/domain -- lets one Freshdesk credential serve both this connector and the freshdesk_contact_upsert reverse-ETL sink |
 | `resources` | `List[str]` | no | Subset of resources — defaults to `["tickets", "contacts", "companies", "agents"]` |
 
 ## Standard fields
@@ -53,8 +54,13 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `api_key` | `str` | Freshdesk API key for authentication |
-| `domain` | `str` | Freshdesk domain (e.g., 'my-company' for my-company.freshdesk.com) |
+
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `api_key` | `str` | — | Freshdesk API key for authentication. Required unless resource_key is set. |
+| `resource_key` | `str` | — | Optional resource key registered by a FreshdeskResourceComponent. When set, credentials are read from that resource at run time instead of api_key/domain above -- lets one Freshdesk credential serve both this ingestion c… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -99,6 +105,7 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `domain` | `str` | — | Freshdesk domain (e.g., 'my-company' for my-company.freshdesk.com). Required unless resource_key is set. |
 | `resources` | `List[str]` | `['tickets', 'contacts', 'companies', 'agents']` | Freshdesk resources to extract (tickets, contacts, companies, agents) |
 | `destination` | `str` | — | dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode. |
 | `dataset_name` | `str` | — | Target dataset/schema in the destination. Defaults to the asset name. |

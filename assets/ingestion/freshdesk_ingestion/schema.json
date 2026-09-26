@@ -21,14 +21,24 @@
     "api_key": {
       "type": "string",
       "label": "Api Key",
-      "description": "Freshdesk API key for authentication",
-      "required": true
+      "description": "Freshdesk API key for authentication. Required unless resource_key is set.",
+      "required": false,
+      "ui:widget": "password",
+      "default": null
     },
     "domain": {
       "type": "string",
       "label": "Domain",
-      "description": "Freshdesk domain (e.g., 'my-company' for my-company.freshdesk.com)",
-      "required": true
+      "description": "Freshdesk domain (e.g., 'my-company' for my-company.freshdesk.com). Required unless resource_key is set.",
+      "required": false,
+      "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": null,
+      "description": "Optional resource key registered by a FreshdeskResourceComponent. When set, credentials are read from that resource at run time instead of api_key/domain -- lets one Freshdesk credential serve both ingestion and the freshdesk_contact_upsert reverse-ETL sink."
     },
     "resources": {
       "type": "array",

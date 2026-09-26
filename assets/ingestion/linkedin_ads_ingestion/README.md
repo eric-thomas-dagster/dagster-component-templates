@@ -11,7 +11,8 @@ dlt handles authentication, pagination, rate limiting, and incremental loading. 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `asset_name` | `str` | yes | Name of the output asset |
-| `access_token` | `str` | yes | LinkedIn OAuth 2.0 Access Token with `r_ads` and `r_ads_reporting` scopes (use env var: `"${LINKEDIN_ACCESS_TOKEN}"`) |
+| `access_token` | `str` | one of access_token OR resource_key | LinkedIn OAuth 2.0 Access Token with `r_ads` and `r_ads_reporting` scopes (use env var: `"${LINKEDIN_ACCESS_TOKEN}"`) |
+| `resource_key` | `str` | no | Resource key registered by a LinkedInAdsResourceComponent. When set, credentials are read from that resource at run time instead of access_token |
 | `account_ids` | `str` | yes | Comma-separated LinkedIn Ad Account IDs |
 | `resources` | `str` | no | Comma-separated resource list. Default `"campaigns,analytics"`. Available: `accounts`, `campaigns`, `creatives`, `campaign_groups`, `analytics`, `conversions` |
 | `start_date` | `str` | no | Analytics start date (YYYY-MM-DD). Defaults to 30 days ago |
@@ -51,8 +52,13 @@ Credentials come from env vars (`DESTINATION__BIGQUERY__CREDENTIALS__*`) or, for
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset that will hold the LinkedIn Ads data |
-| `access_token` | `str` | LinkedIn OAuth 2.0 Access Token with r_ads and r_ads_reporting permissions. Use ${LINKEDIN_ACCESS_TOKEN} for env vars. |
 | `account_ids` | `str` | Comma-separated list of LinkedIn Ad Account IDs (e.g., '123456789,987654321') |
+
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | — | Optional resource key registered by a LinkedInAdsResourceComponent. When set, credentials are read from that resource at run time instead of access_token above -- lets one LinkedIn Ads credential serve both this ingestio… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -97,6 +103,7 @@ Credentials come from env vars (`DESTINATION__BIGQUERY__CREDENTIALS__*`) or, for
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `access_token` | `str` | — | LinkedIn OAuth 2.0 Access Token with r_ads and r_ads_reporting permissions. Use ${LINKEDIN_ACCESS_TOKEN} for env vars. Required unless resource_key is set. |
 | `resources` | `str` | `"campaigns,analytics"` | Comma-separated list of resources to extract: accounts, campaigns, creatives, campaign_groups, analytics, conversions |
 | `start_date` | `str` | — | Start date for analytics data (YYYY-MM-DD). Defaults to 30 days ago. |
 | `end_date` | `str` | — | End date for analytics data (YYYY-MM-DD). Defaults to today. |

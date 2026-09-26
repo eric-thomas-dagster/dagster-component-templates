@@ -157,9 +157,20 @@ class PersonioIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    client_id: str = Field(description="Personio API client ID for authentication")
+    client_id: Optional[str] = Field(default=None, description="Personio API client ID for authentication. Required unless resource_key is set.")
 
-    client_secret: str = Field(description="Personio API client secret for authentication")
+    client_secret: Optional[str] = Field(default=None, description="Personio API client secret for authentication. Required unless resource_key is set.")
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a PersonioResourceComponent. When set, "
+            "credentials are read from that resource at run time instead of client_id/"
+            "client_secret above -- lets one Personio credential serve both this ingestion "
+            "connector and any other component reading from the same Personio account "
+            "without configuring it twice."
+        ),
+    )
 
     resources: List[str] = Field(default=["employees", "absences"], description="Personio resources to extract (employees, absences, attendances, recruiting)")
 
@@ -377,8 +388,11 @@ class PersonioIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        client_id = self.client_id
-        client_secret = self.client_secret
+        if not self.resource_key and not (self.client_id and self.client_secret):
+            raise ValueError(
+                "PersonioIngestionComponent: supply resource_key (a registered "
+                "PersonioResourceComponent) OR all of client_id/client_secret."
+            )
         resources_list = self.resources
         description = self.description or f"Personio data ({', '.join(resources_list)})"
         group_name = self.group_name
@@ -473,9 +487,18 @@ class PersonioIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def personio_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.personio import personio_source
+
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                client_id = os.environ.get(_res.client_id_env_var)
+                client_secret = os.environ.get(_res.client_secret_env_var)
+            else:
+                client_id = component.client_id
+                client_secret = component.client_secret
 
             context.log.info(
                 f"Starting Personio ingestion: resources={resources_list}, "

@@ -158,7 +158,17 @@ class StripeIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset that will hold the Stripe data")
 
-    api_key: str = Field(description="Stripe API Secret Key. Find in Stripe Dashboard > Developers > API Keys.")
+    api_key: Optional[str] = Field(default=None, description="Stripe API Secret Key. Find in Stripe Dashboard > Developers > API Keys. Required unless resource_key is set.")
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a StripeResourceComponent. When set, "
+            "credentials are read from that resource at run time instead of api_key above -- "
+            "lets one Stripe credential serve both this ingestion connector and the "
+            "stripe_customer_upsert reverse-ETL sink without configuring it twice."
+        ),
+    )
 
     resources: str = Field(default="customers,subscriptions,charges", description="Comma-separated list: customers, subscriptions, charges, invoices, products, prices, payment_intents, balance_transactions, events")
 
@@ -382,7 +392,11 @@ class StripeIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        api_key = self.api_key
+        if not self.resource_key and not self.api_key:
+            raise ValueError(
+                "StripeIngestionComponent: supply resource_key (a registered "
+                "StripeResourceComponent) OR api_key."
+            )
         resources_str = self.resources
         start_date = self.start_date
         end_date = self.end_date
@@ -481,9 +495,16 @@ class StripeIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def stripe_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.stripe_analytics import stripe_source, incremental_stripe_source
+
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                api_key = _res.api_key
+            else:
+                api_key = component.api_key
 
             # A time-based partition (daily/weekly/monthly/hourly) means this run should
             # fetch exactly that slice, not whatever the static start_date/end_date config

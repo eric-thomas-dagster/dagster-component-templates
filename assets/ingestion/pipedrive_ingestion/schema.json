@@ -21,9 +21,17 @@
     "api_token": {
       "type": "string",
       "label": "Api Token",
-      "description": "Pipedrive API token for authentication",
-      "required": true,
-      "ui:widget": "password"
+      "description": "Pipedrive API token for authentication. Required unless resource_key is set.",
+      "required": false,
+      "ui:widget": "password",
+      "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": null,
+      "description": "Optional resource key registered by a PipedriveResourceComponent. When set, credentials are read from that resource at run time instead of api_token -- lets one Pipedrive credential serve both ingestion and the pipedrive_person_upsert reverse-ETL sink."
     },
     "resources": {
       "type": "array",

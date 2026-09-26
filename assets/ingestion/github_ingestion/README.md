@@ -11,7 +11,8 @@ dlt handles API authentication, pagination, rate limiting, and incremental loadi
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `asset_name` | `str` | yes | Name of the output asset |
-| `access_token` | `str` | yes | GitHub Personal Access Token (use env var interpolation: `"{{ env('GITHUB_ACCESS_TOKEN') }}"`) |
+| `access_token` | `str` | access_token OR resource_key | GitHub Personal Access Token (use env var interpolation: `"{{ env('GITHUB_ACCESS_TOKEN') }}"`) |
+| `resource_key` | `str` | no | Resource key registered by a GithubResourceComponent. When set, credentials are read from that resource at run time instead of access_token -- lets one GitHub credential serve both this connector and the github_issue_upsert reverse-ETL sink |
 | `owner` | `str` | yes | Repository owner (username or organization) |
 | `repositories` | `List[str]` | yes | List of repository names to extract from |
 | `resources` | `List[str]` | no | Subset of resources to extract — defaults to `["issues", "pull_requests"]`. Available: `issues`, `pull_requests`, `comments`, `reactions` |
@@ -49,9 +50,14 @@ Credentials come from env vars (`DESTINATION__SNOWFLAKE__CREDENTIALS__*`) or, fo
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `access_token` | `str` | GitHub Personal Access Token for API authentication |
 | `owner` | `str` | Repository owner (username or organization) |
 | `repositories` | `List[str]` | List of repository names to extract data from |
+
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | — | Optional resource key registered by a GithubResourceComponent. When set, credentials are read from that resource at run time instead of access_token above -- lets one GitHub credential serve both this ingestion connector… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -96,6 +102,7 @@ Credentials come from env vars (`DESTINATION__SNOWFLAKE__CREDENTIALS__*`) or, fo
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `access_token` | `str` | — | GitHub Personal Access Token for API authentication. Required unless resource_key is set. |
 | `resources` | `List[str]` | `['issues', 'pull_requests']` | GitHub resources to extract (issues, pull_requests, comments, reactions) |
 | `destination` | `str` | — | dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode. |
 | `dataset_name` | `str` | — | Target dataset/schema in the destination. Defaults to the asset name. |

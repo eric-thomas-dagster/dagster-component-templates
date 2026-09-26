@@ -157,7 +157,17 @@ class HubSpotIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    api_key: str = Field(description="HubSpot Private App API key or access token")
+    api_key: Optional[str] = Field(default=None, description="HubSpot Private App API key or access token. Required unless resource_key is set.")
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a HubSpotResourceComponent. When set, "
+            "credentials are read from that resource at run time instead of api_key "
+            "above -- lets one HubSpot credential serve both this ingestion connector and "
+            "the hubspot_object_upsert reverse-ETL sink without configuring it twice."
+        ),
+    )
 
     resources: List[str] = Field(default=["contacts", "companies", "deals", "tickets"], description="HubSpot resources to extract (contacts, companies, deals, tickets, products, quotes, hubspot_events_for_objects)")
 
@@ -379,7 +389,11 @@ class HubSpotIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        api_key = self.api_key
+        if not self.resource_key and not self.api_key:
+            raise ValueError(
+                "HubSpotIngestionComponent: supply resource_key (a registered "
+                "HubSpotResourceComponent) OR api_key."
+            )
         resources_list = self.resources
         include_history = self.include_history
         include_custom_props = self.include_custom_props
@@ -476,9 +490,16 @@ class HubSpotIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def hubspot_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.hubspot import hubspot
+
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                api_key = _res.access_token
+            else:
+                api_key = component.api_key
 
             context.log.info(
                 f"Starting HubSpot ingestion: resources={resources_list}, "

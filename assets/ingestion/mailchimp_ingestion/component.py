@@ -148,7 +148,20 @@ class MailchimpIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset that will hold the data")
 
-    api_key: str = Field(description="Mailchimp API key. The datacenter suffix (e.g. 'us19') is parsed from it automatically. Use ${MAILCHIMP_API_KEY} for env vars.")
+    api_key: Optional[str] = Field(
+        default=None,
+        description="Mailchimp API key. The datacenter suffix (e.g. 'us19') is parsed from it automatically. Use ${MAILCHIMP_API_KEY} for env vars. Required unless resource_key is set.",
+    )
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a MailchimpResourceComponent. When set, "
+            "credentials are read from that resource at run time instead of api_key above "
+            "-- lets one Mailchimp credential serve both this ingestion connector and the "
+            "mailchimp_member_upsert reverse-ETL sink without configuring it twice."
+        ),
+    )
 
     resources: str = Field(
         default="lists,campaigns,automations,reports",
@@ -291,6 +304,11 @@ class MailchimpIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         component = self
+        if not self.resource_key and not self.api_key:
+            raise ValueError(
+                "MailchimpIngestionComponent: supply resource_key (a registered "
+                "MailchimpResourceComponent) OR api_key."
+            )
         asset_name = self.asset_name
         description = self.description or "Ingest Mailchimp marketing data using dlt's generic REST API source."
         group_name = self.group_name
@@ -353,20 +371,27 @@ class MailchimpIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def mailchimp_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.rest_api import rest_api_source
 
             context.log.info(f"Starting Mailchimp ingestion, destination={destination or 'duckdb (in-memory)'}")
 
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                api_key = _res.api_key
+            else:
+                api_key = component.api_key
+
             resources_list = [r.strip() for r in resources.split(",")]
-            if "-" not in self.api_key:
+            if "-" not in api_key:
                 raise ValueError("Mailchimp api_key must include the datacenter suffix, e.g. 'abc123-us19'.")
-            datacenter = self.api_key.rsplit("-", 1)[-1]
+            datacenter = api_key.rsplit("-", 1)[-1]
             config = {
                 "client": {
                     "base_url": f"https://{datacenter}.api.mailchimp.com/3.0",
-                    "auth": {"type": "bearer", "token": self.api_key},
+                    "auth": {"type": "bearer", "token": api_key},
                 },
                 "resources": [],
             }

@@ -21,8 +21,16 @@
     "api_key": {
       "type": "string",
       "label": "Api Key",
-      "description": "Airtable API key for authentication",
-      "required": true
+      "description": "Airtable API key for authentication Required unless resource_key is set.",
+      "required": false,
+      "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": null,
+      "description": "Optional resource key registered by an AirtableResourceComponent. When set, credentials are read from that resource at run time instead of api_key above -- lets one Airtable credential serve both this ingestion connector and the airtable_record_upsert reverse-ETL sink without configuring it twice."
     },
     "base_id": {
       "type": "string",

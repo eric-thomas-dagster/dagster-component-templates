@@ -21,8 +21,16 @@
     "api_key": {
       "type": "string",
       "label": "Api Key",
-      "description": "HubSpot Private App API key or access token",
-      "required": true
+      "description": "HubSpot Private App API key or access token. Required unless resource_key is set.",
+      "required": false,
+      "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": null,
+      "description": "Optional resource key registered by a HubSpotResourceComponent. When set, credentials are read from that resource at run time instead of api_key above -- lets one HubSpot credential serve both this ingestion connector and the hubspot_object_upsert reverse-ETL sink without configuring it twice."
     },
     "resources": {
       "type": "array",

@@ -158,7 +158,17 @@ class AirtableIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    api_key: str = Field(description="Airtable API key for authentication")
+    api_key: Optional[str] = Field(default=None, description="Airtable API key for authentication. Required unless resource_key is set.")
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by an AirtableResourceComponent. When set, "
+            "credentials are read from that resource at run time instead of api_key above -- "
+            "lets one Airtable credential serve both this ingestion connector and the "
+            "airtable_record_upsert reverse-ETL sink without configuring it twice."
+        ),
+    )
 
     base_id: str = Field(description="Airtable base ID (starts with 'app')")
 
@@ -378,7 +388,11 @@ class AirtableIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        api_key = self.api_key
+        if not self.resource_key and not self.api_key:
+            raise ValueError(
+                "AirtableIngestionComponent: supply resource_key (a registered "
+                "AirtableResourceComponent) OR api_key."
+            )
         base_id = self.base_id
         table_names = self.table_names
         description = self.description or f"Airtable data ({', '.join(table_names)})"
@@ -474,9 +488,16 @@ class AirtableIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def airtable_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.airtable import airtable_source
+
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                api_key = _res.api_key
+            else:
+                api_key = component.api_key
 
             context.log.info(
                 f"Starting Airtable ingestion: base_id={base_id}, tables={table_names}, "

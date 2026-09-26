@@ -21,15 +21,24 @@
     "client_id": {
       "type": "string",
       "label": "Client Id",
-      "description": "Personio API client ID for authentication",
-      "required": true
+      "description": "Personio API client ID for authentication. Required unless resource_key is set.",
+      "required": false,
+      "default": null
     },
     "client_secret": {
       "type": "string",
       "label": "Client Secret",
-      "description": "Personio API client secret for authentication",
-      "required": true,
-      "ui:widget": "password"
+      "description": "Personio API client secret for authentication. Required unless resource_key is set.",
+      "required": false,
+      "ui:widget": "password",
+      "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": null,
+      "description": "Optional resource key registered by a PersonioResourceComponent. When set, credentials are read from that resource at run time instead of client_id/client_secret."
     },
     "resources": {
       "type": "array",

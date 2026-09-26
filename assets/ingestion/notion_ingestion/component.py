@@ -155,7 +155,17 @@ class NotionIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    api_key: str = Field(description="Notion Integration Token for API authentication")
+    api_key: Optional[str] = Field(default=None, description="Notion Integration Token for API authentication. Required unless resource_key is set.")
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a NotionResourceComponent. When set, "
+            "credentials are read from that resource at run time instead of api_key "
+            "above -- lets one Notion credential serve both this ingestion connector and "
+            "the notion_database_upsert reverse-ETL sink without configuring it twice."
+        ),
+    )
 
     database_ids: List[str] = Field(description="List of Notion database IDs to extract data from")
 
@@ -373,7 +383,11 @@ class NotionIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        api_key = self.api_key
+        if not self.resource_key and not self.api_key:
+            raise ValueError(
+                "NotionIngestionComponent: supply resource_key (a registered "
+                "NotionResourceComponent) OR api_key."
+            )
         database_ids = self.database_ids
         description = self.description or f"Notion data ({len(database_ids)} databases)"
         group_name = self.group_name
@@ -468,9 +482,16 @@ class NotionIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def notion_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.notion import notion_databases
+
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                api_key = _res.token
+            else:
+                api_key = component.api_key
 
             context.log.info(
                 f"Starting Notion ingestion: databases={database_ids}, "

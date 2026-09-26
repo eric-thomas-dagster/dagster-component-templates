@@ -149,7 +149,17 @@ class LaunchDarklyIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset that will hold the data")
 
-    api_token: str = Field(description="LaunchDarkly API access token, sent raw in the Authorization header (no 'Bearer ' prefix).")
+    api_token: Optional[str] = Field(default=None, description="LaunchDarkly API access token, sent raw in the Authorization header (no 'Bearer ' prefix). Required unless resource_key is set.")
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a LaunchDarklyResourceComponent. When set, "
+            "api_token is read from that resource at run time instead of api_token above -- "
+            "lets one LaunchDarkly credential serve both this ingestion connector and the "
+            "launchdarkly_segment_update reverse-ETL sink without configuring it twice."
+        ),
+    )
 
     project_key: Optional[str] = Field(default=None, description='Project key. Required for environments/flags/segments resources; not needed for projects.')
 
@@ -294,6 +304,11 @@ class LaunchDarklyIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         component = self
+        if not self.resource_key and not self.api_token:
+            raise ValueError(
+                "LaunchDarklyIngestionComponent: supply resource_key (a registered "
+                "LaunchDarklyResourceComponent) OR api_token."
+            )
         asset_name = self.asset_name
         description = self.description or "Ingest LaunchDarkly feature flag and project data using dlt's generic REST API source."
         group_name = self.group_name
@@ -356,9 +371,20 @@ class LaunchDarklyIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def launchdarkly_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.rest_api import rest_api_source
+
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                # LaunchDarklyResource stores the already-resolved token as a plain
+                # `api_token` attribute (the ResourceComponent takes api_token_env_var
+                # and resolves it via dg.EnvVar at resource-construction time) --
+                # NOT an `_env_var`-suffixed attribute, unlike the other vendors here.
+                api_token = _res.api_token
+            else:
+                api_token = component.api_token
 
             context.log.info(f"Starting LaunchDarkly ingestion, destination={destination or 'duckdb (in-memory)'}")
 
@@ -366,7 +392,7 @@ class LaunchDarklyIngestionComponent(Component, Model, Resolvable):
             config = {
                 "client": {
                     "base_url": "https://app.launchdarkly.com/api/v2",
-                    "auth": {"type": "api_key", "api_key": self.api_token, "name": "Authorization", "location": "header"},
+                    "auth": {"type": "api_key", "api_key": api_token, "name": "Authorization", "location": "header"},
                 },
                 "resources": [],
             }

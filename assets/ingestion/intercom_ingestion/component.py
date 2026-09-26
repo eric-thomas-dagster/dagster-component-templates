@@ -148,7 +148,17 @@ class IntercomIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset that will hold the data")
 
-    access_token: str = Field(description='Intercom access token (from a private app). Use ${INTERCOM_ACCESS_TOKEN} for env vars.')
+    access_token: Optional[str] = Field(default=None, description='Intercom access token (from a private app). Use ${INTERCOM_ACCESS_TOKEN} for env vars. Required unless resource_key is set.')
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by an IntercomResourceComponent. When set, "
+            "access_token is read from that resource at run time instead of access_token "
+            "above -- lets one Intercom credential serve both this ingestion connector and "
+            "the intercom_contact_upsert reverse-ETL sink without configuring it twice."
+        ),
+    )
 
     resources: str = Field(
         default="contacts,conversations,companies,tags",
@@ -291,6 +301,11 @@ class IntercomIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         component = self
+        if not self.resource_key and not self.access_token:
+            raise ValueError(
+                "IntercomIngestionComponent: supply resource_key (a registered "
+                "IntercomResourceComponent) OR access_token."
+            )
         asset_name = self.asset_name
         description = self.description or "Ingest Intercom support data using dlt's generic REST API source."
         group_name = self.group_name
@@ -353,9 +368,16 @@ class IntercomIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def intercom_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.rest_api import rest_api_source
+
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                access_token = os.environ.get(_res.api_token_env_var)
+            else:
+                access_token = component.access_token
 
             context.log.info(f"Starting Intercom ingestion, destination={destination or 'duckdb (in-memory)'}")
 
@@ -363,7 +385,7 @@ class IntercomIngestionComponent(Component, Model, Resolvable):
             config = {
                 "client": {
                     "base_url": "https://api.intercom.io",
-                    "auth": {"type": "bearer", "token": self.access_token},
+                    "auth": {"type": "bearer", "token": access_token},
                 },
                 "resources": [],
             }

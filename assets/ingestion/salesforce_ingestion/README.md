@@ -14,9 +14,10 @@ dlt handles API authentication, pagination, rate limiting, and incremental loadi
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `asset_name` | `str` | yes | Name of the output asset |
-| `username` | `str` | yes | Salesforce username |
-| `password` | `str` | yes | Salesforce password |
-| `security_token` | `str` | yes | Salesforce security token |
+| `username` | `str` | one of username/password/security_token OR resource_key | Salesforce username |
+| `password` | `str` | one of username/password/security_token OR resource_key | Salesforce password |
+| `security_token` | `str` | one of username/password/security_token OR resource_key | Salesforce security token |
+| `resource_key` | `str` | no | Resource key registered by a SalesforceResourceComponent. When set, credentials are read from that resource at run time instead of username/password/security_token -- lets one Salesforce credential serve both this connector and the salesforce_record_upsert reverse-ETL sink. Only meaningful when that resource uses `auth_mode: password` (this ingestion component doesn't support JWT Bearer). |
 | `sf_objects` | `List[str]` | no | Objects to extract — defaults to `["Account", "Opportunity", "Contact", "Lead"]`. Any standard or custom (`__c`) object is supported. |
 
 ## Standard fields
@@ -54,9 +55,14 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `username` | `str` | Salesforce username |
-| `password` | `str` | Salesforce password |
-| `security_token` | `str` | Salesforce security token (from Settings > Personal Setup > Reset My Security Token) |
+
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `username` | `str` | — | Salesforce username. Required unless resource_key is set. |
+| `password` | `str` | — | Salesforce password. Required unless resource_key is set. |
+| `resource_key` | `str` | — | Optional resource key registered by a SalesforceResourceComponent. When set, credentials are read from that resource at run time instead of username/password/security_token above -- lets one Salesforce credential serve b… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -101,6 +107,7 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `security_token` | `str` | — | Salesforce security token (from Settings > Personal Setup > Reset My Security Token). Required unless resource_key is set. |
 | `sf_objects` | `List[str]` | `['Account', 'Opportunity', 'Contact', 'Lead']` | Salesforce objects to extract (Account, Opportunity, Contact, Lead, Campaign, Task, Event, etc.) |
 | `destination` | `str` | — | dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode. |
 | `dataset_name` | `str` | — | Target dataset/schema in the destination. Defaults to the asset name. |

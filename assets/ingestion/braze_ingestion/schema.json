@@ -20,14 +20,23 @@
     "rest_endpoint": {
       "type": "string",
       "label": "Rest Endpoint",
-      "description": "Account-specific Braze REST endpoint (from the Braze dashboard).",
-      "required": true
+      "description": "Account-specific Braze REST endpoint (from the Braze dashboard). Required unless resource_key is set.",
+      "required": false,
+      "default": null
     },
     "api_key": {
       "type": "string",
       "label": "Api Key",
-      "description": "Braze REST API key. Use ${BRAZE_API_KEY} for env vars.",
-      "required": true
+      "description": "Braze REST API key. Use ${BRAZE_API_KEY} for env vars. Required unless resource_key is set.",
+      "required": false,
+      "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional resource key registered by a BrazeResourceComponent. When set, credentials are read from that resource at run time instead of rest_endpoint/api_key above -- lets one Braze credential serve both this ingestion connector and the dataframe_to_braze reverse-ETL sink without configuring it twice.",
+      "required": false,
+      "default": null
     },
     "resources": {
       "type": "string",

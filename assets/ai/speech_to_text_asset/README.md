@@ -96,6 +96,8 @@ attributes:
 | `enable_word_time_offsets` | `bool` | `false` | — |
 | `enable_speaker_diarization` | `bool` | `false` | — |
 | `diarization_speaker_count` | `int` | — | — |
+| `word_offsets_output_column` | `str` | — | Column to write per-word timing into when enable_word_time_offsets=True: a list of {word, start_seconds, end_seconds} dicts per row. Defaults to '<output_column>_words'. Has no effect unless enable_word_time_offsets is set. |
+| `diarization_output_column` | `str` | — | Column to write speaker-attributed segments into when enable_speaker_diarization=True: a list of {speaker, start_seconds, end_seconds, text} dicts per row, one per contiguous run of words from the same speaker (speaker l… _(full docs in schema.json + component README)_ |
 | `rate_limit_delay` | `float` | `0.0` | — |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 
@@ -114,7 +116,10 @@ language_codes: [en-US, es-US, fr-FR]
 ```yaml
 enable_speaker_diarization: true
 diarization_speaker_count: 2          # min/max
+diarization_output_column: transcript_speakers   # optional, defaults to '<output_column>_speakers'
 ```
+
+Writes a list of `{speaker, start_seconds, end_seconds, text}` dicts per row -- one per contiguous run of words from the same speaker (`speaker_1`, `speaker_2`, ... per Speech v2's own numbering). Earlier versions of this component set `enable_speaker_diarization` on the request but never read the per-word speaker labels back out of the response, so the feature silently did nothing; this is now fixed and verified against the real `google-cloud-speech` response types. `enable_word_time_offsets` (a separate, also previously-dead field) writes per-word timings to `word_offsets_output_column` (defaults to `<output_column>_words`) the same way.
 
 ## Required SA roles
 

@@ -96,6 +96,20 @@
       "required": false,
       "default": null
     },
+    "word_offsets_output_column": {
+      "type": "string",
+      "label": "Word Offsets Output Column",
+      "required": false,
+      "default": null,
+      "description": "Column to write per-word timing into when enable_word_time_offsets=True: a list of {word, start_seconds, end_seconds} dicts per row. Defaults to '<output_column>_words'."
+    },
+    "diarization_output_column": {
+      "type": "string",
+      "label": "Diarization Output Column",
+      "required": false,
+      "default": null,
+      "description": "Column to write speaker-attributed segments into when enable_speaker_diarization=True: a list of {speaker, start_seconds, end_seconds, text} dicts per row. Defaults to '<output_column>_speakers'."
+    },
     "rate_limit_delay": {
       "type": "number",
       "label": "Rate Limit Delay",

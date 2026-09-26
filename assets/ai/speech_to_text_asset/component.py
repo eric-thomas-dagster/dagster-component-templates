@@ -61,6 +61,26 @@ class SpeechToTextAssetComponent(Component, Model, Resolvable):
     enable_speaker_diarization: bool = Field(default=False)
     diarization_speaker_count: Optional[int] = Field(default=None)
 
+    word_offsets_output_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "Column to write per-word timing into when enable_word_time_offsets=True: "
+            "a list of {word, start_seconds, end_seconds} dicts per row. Defaults to "
+            "'<output_column>_words'. Has no effect unless enable_word_time_offsets is set."
+        ),
+    )
+    diarization_output_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "Column to write speaker-attributed segments into when "
+            "enable_speaker_diarization=True: a list of {speaker, start_seconds, "
+            "end_seconds, text} dicts per row, one per contiguous run of words from "
+            "the same speaker (speaker labels are Speech v2's own numbering, e.g. "
+            "'1', '2', ...). Defaults to '<output_column>_speakers'. Has no effect "
+            "unless enable_speaker_diarization is set."
+        ),
+    )
+
     rate_limit_delay: float = Field(default=0.0)
     max_retries: int = Field(default=3)
 
@@ -178,6 +198,8 @@ class SpeechToTextAssetComponent(Component, Model, Resolvable):
         enable_word_offsets = self.enable_word_time_offsets
         enable_diarization = self.enable_speaker_diarization
         diarization_count = self.diarization_speaker_count
+        word_offsets_col = self.word_offsets_output_column or f"{output_column}_words"
+        diarization_col = self.diarization_output_column or f"{output_column}_speakers"
         rate_limit_delay = self.rate_limit_delay
         max_retries = self.max_retries
 
@@ -223,7 +245,11 @@ class SpeechToTextAssetComponent(Component, Model, Resolvable):
 
             features = cs.RecognitionFeatures(
                 enable_automatic_punctuation=enable_auto_punct,
-                enable_word_time_offsets=enable_word_offsets,
+                # Diarization's per-word speaker_label only comes back when
+                # word-level output is requested -- force it on even if the
+                # user only set enable_speaker_diarization, otherwise `words`
+                # comes back empty and diarization silently produces nothing.
+                enable_word_time_offsets=enable_word_offsets or enable_diarization,
             )
             if enable_diarization:
                 features.diarization_config = cs.SpeakerDiarizationConfig(
@@ -240,6 +266,9 @@ class SpeechToTextAssetComponent(Component, Model, Resolvable):
             df = upstream.copy().reset_index(drop=True)
             transcripts: List[Optional[str]] = [None] * len(df)
             errors: List[Optional[str]] = [None] * len(df)
+            word_offsets_rows: List[Optional[List[Dict[str, Any]]]] = [None] * len(df)
+            diarization_rows: List[Optional[List[Dict[str, Any]]]] = [None] * len(df)
+            diarized_row_count = 0
 
             for i, row in df.iterrows():
                 ref = row[audio_column]
@@ -288,28 +317,84 @@ class SpeechToTextAssetComponent(Component, Model, Resolvable):
 
                 # Concatenate all alternatives' top transcripts.
                 pieces = []
+                all_words: List[Any] = []
                 for r in resp.results:
                     if r.alternatives:
                         pieces.append(r.alternatives[0].transcript)
+                        all_words.extend(r.alternatives[0].words)
                 transcripts[i] = " ".join(p.strip() for p in pieces if p).strip() or None
+
+                # enable_word_time_offsets / enable_speaker_diarization both
+                # populate per-word WordInfo entries (start_offset/end_offset/
+                # speaker_label) on the response -- previously requested via
+                # `features` above but never read back here, so both were
+                # silently no-ops. start_offset/end_offset come back as
+                # datetime.timedelta (proto-plus auto-conversion).
+                if enable_word_offsets and all_words:
+                    word_offsets_rows[i] = [
+                        {
+                            "word": w.word,
+                            "start_seconds": w.start_offset.total_seconds(),
+                            "end_seconds": w.end_offset.total_seconds(),
+                        }
+                        for w in all_words
+                    ]
+                if enable_diarization and all_words:
+                    segments: List[Dict[str, Any]] = []
+                    current_speaker = None
+                    current_words: List[str] = []
+                    current_start = None
+                    current_end = None
+                    for w in all_words:
+                        label = w.speaker_label or "1"
+                        if label != current_speaker:
+                            if current_speaker is not None:
+                                segments.append({
+                                    "speaker": f"speaker_{current_speaker}",
+                                    "start_seconds": current_start,
+                                    "end_seconds": current_end,
+                                    "text": " ".join(current_words).strip(),
+                                })
+                            current_speaker = label
+                            current_words = []
+                            current_start = w.start_offset.total_seconds()
+                        current_words.append(w.word)
+                        current_end = w.end_offset.total_seconds()
+                    if current_speaker is not None:
+                        segments.append({
+                            "speaker": f"speaker_{current_speaker}",
+                            "start_seconds": current_start,
+                            "end_seconds": current_end,
+                            "text": " ".join(current_words).strip(),
+                        })
+                    if segments:
+                        diarization_rows[i] = segments
+                        diarized_row_count += 1
                 if rate_limit_delay > 0:
                     time.sleep(rate_limit_delay)
 
             df[output_column] = transcripts
             if any(errors):
                 df[f"{output_column}_error"] = errors
+            if enable_word_offsets:
+                df[word_offsets_col] = word_offsets_rows
+            if enable_diarization:
+                df[diarization_col] = diarization_rows
 
             ok = sum(1 for t in transcripts if t)
             preview_md = df[[c for c in df.columns if c != audio_column]].head(5).to_markdown(index=False) or ""
+            _metadata = {
+                "rows":         MetadataValue.int(len(df)),
+                "transcribed":  MetadataValue.int(ok),
+                "model":        MetadataValue.text(model_name),
+                "languages":    MetadataValue.json(language_codes),
+                "preview":      MetadataValue.md(preview_md),
+            }
+            if enable_diarization:
+                _metadata["diarized_rows"] = MetadataValue.int(diarized_row_count)
             return Output(
                 value=df,
-                metadata={
-                    "rows":         MetadataValue.int(len(df)),
-                    "transcribed":  MetadataValue.int(ok),
-                    "model":        MetadataValue.text(model_name),
-                    "languages":    MetadataValue.json(language_codes),
-                    "preview":      MetadataValue.md(preview_md),
-                },
+                metadata=_metadata,
             )
 
         return Definitions(assets=[_asset])

@@ -1,0 +1,18 @@
+type: dagster_component_templates.AutoMLAssetComponent
+attributes:
+  asset_name: wine_quality_automl
+  upstream_asset_key: wine_features    # a DataFrame asset -- e.g. dataframe_from_csv, or ml_pipeline's own output
+  target_column: quality
+  task_type: classification
+  state_path: /tmp/automl_state/wine_quality.json   # or s3://my-bucket/automl_state/wine_quality.json
+  time_budget_seconds: 60
+  estimator_list: [lgbm, rf, xgboost, extra_tree]
+
+  # — re-tune on a schedule instead of relying on a one-off flag —
+  # max_state_age_hours: 168   # re-search at most once a week; every other run is a cheap refit
+
+  # — force one fresh search right now (e.g. after a known data/schema change) —
+  # refresh_search: true
+
+  # — also persist the fitted model for use outside this asset —
+  # model_output_path: /tmp/automl_state/wine_quality_model.joblib

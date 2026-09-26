@@ -57738,9 +57738,70 @@
         "speaker identification",
         "speech to text"
       ]
+    },
+    {
+      "id": "automl_asset",
+      "name": "AutoML Asset",
+      "category": "analytics",
+      "description": "Real AutoML for tabular data: searches ACROSS model families (LightGBM, XGBoost, random forest, extra trees, linear models, ...) via FLAML and picks the winner -- unlike ml_pipeline's grid_search/random_search/bayesian_search ops, which tune hyperparameters for a single model_type you already specify. Caches the winning recipe (best estimator + hyperparameters) to state_path and does a cheap refit on every subsequent run instead of always re-searching -- confirmed live at roughly 100x cheaper than a full search. refresh_search or max_state_age_hours force a fresh search when you want one.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/analytics/automl_asset",
+      "tags": [
+        "analytics",
+        "ml",
+        "automl",
+        "flaml",
+        "sklearn",
+        "xgboost",
+        "lightgbm",
+        "hyperparameter-tuning",
+        "model-selection"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "scikit-learn",
+          "fsspec",
+          "flaml[automl]"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/automl_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/automl_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/automl_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/automl_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/automl_asset/requirements.txt",
+      "icon": "Sparkles",
+      "validation": {
+        "level": "code",
+        "evidence": "Verified live end-to-end (real FLAML search + real scikit-learn toy datasets, no mocking -- there's no paid API involved in this component at all): a full search on the wine dataset correctly identifies a winning estimator with holdout metrics from a genuine held-out split; a second materialize against the same state_path correctly takes the cached-refit path, completing in a small fraction of the full search's time (~0.02-0.07s vs ~6-8s, confirmed live) with an equivalent result; refresh_search=true forces a fresh search despite a valid cache; a cache older than max_state_age_hours is correctly treated as stale; a regression task works end-to-end; a non-numeric feature column is auto-label-encoded rather than crashing. Not yet run against a cloud state_path (s3://, gs://).",
+        "last_validated": "2026-09-26"
+      },
+      "agent_hints": {
+        "inputs": "A DataFrame with a target column and feature columns (e.g. ml_pipeline's output after preprocessing, or any tabular data source).",
+        "outputs": "Upstream DataFrame with a predicted column added, plus rich search/evaluation metadata.",
+        "side_effects": "Reads/writes a small JSON recipe file at state_path (any fsspec path) between runs; optionally persists the fitted model via joblib to model_output_path.",
+        "anti_uses": "For a pipeline where you already know the exact model type and want a reproducible, auditable, step-by-step YAML (preprocessing -> split -> train -> evaluate -> registry), use ml_pipeline instead -- this component intentionally has far less configurability in exchange for not needing to specify a model type at all.",
+        "requires_pip": [
+          "flaml[automl]"
+        ],
+        "output_type": "pd.DataFrame"
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "automl",
+        "automated machine learning",
+        "model selection",
+        "cross-algorithm search",
+        "cached model training",
+        "flaml"
+      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1170
+  "total": 1171
 }

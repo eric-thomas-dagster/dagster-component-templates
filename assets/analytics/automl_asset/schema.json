@@ -1,0 +1,240 @@
+{
+  "component_type": "dagster_component_templates.AutoMLAssetComponent",
+  "name": "AutoML Asset",
+  "description": "Real AutoML for tabular data: searches across model families (LightGBM, XGBoost, random forest, extra trees, linear models, ...) via FLAML and picks the winner -- unlike ml_pipeline's grid_search/random_search/bayesian_search ops, which tune hyperparameters for a single model_type you already specify. Caches the winning recipe and does a cheap refit on every subsequent run instead of always re-searching.",
+  "category": "analytics",
+  "icon": "Sparkles",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame with a target column and feature columns."
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Upstream DataFrame with a predictions column added."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Output Dagster asset name"
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true,
+      "description": "Upstream asset key providing a DataFrame"
+    },
+    "target_column": {
+      "type": "string",
+      "label": "Target Column",
+      "required": true,
+      "description": "Column to predict",
+      "x-dagster-widget": "column"
+    },
+    "feature_columns": {
+      "type": "array",
+      "label": "Feature Columns",
+      "required": false,
+      "items": {"type": "string"},
+      "description": "Feature columns to train on. Defaults to every column except target_column. Non-numeric columns are auto-label-encoded (see README)."
+    },
+    "task_type": {
+      "type": "string",
+      "label": "Task Type",
+      "required": true,
+      "description": "'classification' or 'regression'",
+      "enum": ["classification", "regression"],
+      "ui:widget": "select"
+    },
+    "state_path": {
+      "type": "string",
+      "label": "State Path",
+      "required": true,
+      "description": "fsspec path (local or cloud -- s3://, gs://, etc.) where the winning AutoML recipe is cached between runs. Required -- this is what makes repeated materializes cheap instead of always re-searching."
+    },
+    "refresh_search": {
+      "type": "boolean",
+      "label": "Refresh Search",
+      "required": false,
+      "default": false,
+      "description": "Force a full fresh search even if a cached recipe exists at state_path (and overwrite it with the new result). Use for a one-off re-tune; for automatic periodic re-tuning use max_state_age_hours instead."
+    },
+    "max_state_age_hours": {
+      "type": "number",
+      "label": "Max State Age Hours",
+      "required": false,
+      "default": null,
+      "description": "If the cached recipe is older than this, treat it as stale and run a fresh full search instead of a cheap refit. None (default) never auto-expires the cache."
+    },
+    "time_budget_seconds": {
+      "type": "integer",
+      "label": "Time Budget Seconds",
+      "required": false,
+      "default": 60,
+      "description": "Wall-clock budget for a full search (ignored for a cached cheap refit, which always takes well under a second regardless of this value)."
+    },
+    "estimator_list": {
+      "type": "array",
+      "label": "Estimator List",
+      "required": false,
+      "items": {"type": "string"},
+      "default": null,
+      "description": "Restrict the search to these FLAML estimator names (e.g. ['lgbm', 'rf', 'xgboost']). None (default) lets FLAML choose from its full built-in set for the task type."
+    },
+    "metric": {
+      "type": "string",
+      "label": "Metric",
+      "required": false,
+      "default": null,
+      "description": "FLAML search metric (e.g. 'accuracy', 'f1', 'r2', 'rmse'). None (default) uses FLAML's own default for task_type."
+    },
+    "test_size": {
+      "type": "number",
+      "label": "Test Size",
+      "required": false,
+      "default": 0.2,
+      "description": "Held-out fraction for the honest evaluation metrics in output metadata (never used for the search itself)."
+    },
+    "random_state": {
+      "type": "integer",
+      "label": "Random State",
+      "required": false,
+      "default": 42,
+      "description": "Random seed for the train/test split and FLAML's own internal splits."
+    },
+    "output_column": {
+      "type": "string",
+      "label": "Output Column",
+      "required": false,
+      "default": "predicted",
+      "description": "Column to write predictions into (on ALL input rows, using the final fitted model).",
+      "x-dagster-widget": "column"
+    },
+    "model_output_path": {
+      "type": "string",
+      "label": "Model Output Path",
+      "required": false,
+      "default": null,
+      "description": "Optional fsspec path to also persist the final fitted model via joblib (e.g. for use outside this asset). None (default) skips this."
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "default": null,
+      "description": "Asset description shown in the Dagster catalog.",
+      "ui:widget": "textarea"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null,
+      "description": "Dagster asset group name"
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "items": {"type": "string"},
+      "description": "Lineage-only upstream asset keys (no data passed at runtime)."
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "description": "Additional key-value tags to apply to the asset."
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {"type": "string"},
+      "description": "Asset owners — list of team names or email addresses."
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "required": false,
+      "default": false,
+      "description": "Include a preview of the output data in metadata."
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "required": false,
+      "default": 25,
+      "description": "Rows to include in the preview metadata when include_preview_metadata is True."
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "default": null,
+      "description": "Max retries on asset failure. Defines a RetryPolicy."
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "default": null,
+      "description": "Seconds between retries (default 1)."
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": ["linear", "exponential"],
+      "ui:widget": "select"
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes",
+      "required": false,
+      "default": null,
+      "description": "Maximum acceptable lag in minutes before the asset is considered stale."
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "required": false,
+      "default": null,
+      "description": "Cron schedule string for the freshness policy."
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "default": null,
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None."
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "required": false,
+      "default": null,
+      "description": "Partition start date (ISO), required for time-based types."
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "required": false,
+      "default": null,
+      "description": "Comma-separated values for static partitioning."
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "default": null,
+      "description": "Name for DynamicPartitionsDefinition."
+    }
+  },
+  "tags": ["analytics", "ml", "automl", "flaml", "sklearn", "xgboost", "lightgbm", "hyperparameter-tuning", "model-selection"]
+}

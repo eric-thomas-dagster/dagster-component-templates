@@ -1,0 +1,15 @@
+pandas>=2.0.0
+scikit-learn>=1.0.0
+fsspec>=2024.0.0
+"flaml[automl]"
+
+# On macOS, flaml[automl] pulls in xgboost/lightgbm, which need the
+# OpenMP runtime -- confirmed live that flaml.automl fails to import
+# without it:
+#   brew install libomp
+
+# Optional, only if model_output_path or a cloud state_path is set:
+#   pip install joblib          # model_output_path (also a flaml[automl] transitive dep already)
+#   pip install s3fs            # state_path / model_output_path on s3://
+#   pip install gcsfs            # state_path / model_output_path on gs://
+#   pip install adlfs            # state_path / model_output_path on abfss:// / abfs:// / az://

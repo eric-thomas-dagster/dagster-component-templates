@@ -1,0 +1,30 @@
+{
+  "component_type": "dagster_component_templates.LaunchDarklySegmentUpdateComponent",
+  "description": "Reverse-ETL sink: sync a computed cohort into a LaunchDarkly segment's target list via a semantic patch, adding or removing context keys per row.",
+  "category": "reverse_etl",
+  "icon": "si:launchdarkly",
+  "x-dagster-io": {
+    "inputs": {"type": "dataframe", "description": "pandas DataFrame from an upstream asset. Each row adds or removes one context key from a LaunchDarkly segment."},
+    "outputs": {"type": "sink", "description": "Dagster asset materialization with metadata (rows_added / rows_removed / rows_errored). No downstream data -- write side effect lands in LaunchDarkly."}
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "description": "Asset providing the DataFrame. Mutually exclusive with source."},
+    "source": {"type": "object", "label": "Source", "required": false, "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."},
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "launchdarkly"},
+    "project_key": {"type": "string", "label": "Project Key", "required": true, "description": "LaunchDarkly project key."},
+    "env_key": {"type": "string", "label": "Env Key", "required": true, "description": "LaunchDarkly environment key (e.g. production, staging)."},
+    "segment_key": {"type": "string", "label": "Segment Key", "required": true, "description": "LaunchDarkly segment key to update."},
+    "context_key_column": {"type": "string", "label": "Context Key Column", "required": true, "description": "Upstream column holding the context key to add/remove."},
+    "in_segment_column": {"type": "string", "label": "In Segment Column", "required": false, "default": null, "description": "Upstream boolean-ish column: if false, that row's key is removed instead of added. If unset, every row is added."},
+    "context_kind": {"type": "string", "label": "Context Kind", "required": false, "default": "user", "description": "LaunchDarkly context kind these keys belong to."},
+    "max_rows": {"type": "integer", "label": "Max Rows", "required": false, "default": 10000, "description": "Overall safety cap on rows per run."},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "launchdarkly"},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+  },
+  "tags": ["launchdarkly", "reverse-etl", "segment", "devops-observability"],
+  "name": "LaunchDarkly Segment Update"
+}

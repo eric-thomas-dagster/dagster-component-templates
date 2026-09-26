@@ -1,0 +1,27 @@
+{
+  "component_type": "dagster_component_templates.HeapResourceComponent",
+  "description": "Register a HeapResource for use by other components, with an add_user_properties convenience method. Heap's public API is write-only -- there is no read/list endpoint, so this resource exists purely for reverse-ETL.",
+  "category": "resource",
+  "icon": "si:heap",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["heap"],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "heap"
+    },
+    "app_id_env_var": {
+      "type": "string",
+      "label": "App Id Env Var",
+      "description": "Env var holding your Heap environment ID (App ID).",
+      "required": false,
+      "default": "HEAP_APP_ID",
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": ["resource", "heap", "marketing"],
+  "name": "Heap Resource"
+}

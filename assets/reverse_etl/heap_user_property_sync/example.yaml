@@ -1,0 +1,10 @@
+type: dagster_component_templates.HeapUserPropertySyncComponent
+attributes:
+  asset_name: heap_user_properties_sync
+  upstream_asset_key: dbt_marts_customers
+  resource_key: heap
+  identity_column: email
+  properties_map:
+    plan_tier: plan_tier
+    health_score: health_score
+  group_name: reverse_etl

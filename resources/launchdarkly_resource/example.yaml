@@ -1,0 +1,4 @@
+type: dagster_component_templates.LaunchDarklyResourceComponent
+attributes:
+  resource_key: launchdarkly
+  api_token_env_var: LAUNCHDARKLY_API_TOKEN

@@ -27,6 +27,10 @@ _PACKAGE_ROOT = Path(__file__).resolve().parent
 
 # class name -> component.py path (relative to package root). Generated.
 _CLASS_PATHS: dict[str, str] = {
+    "LaunchDarklyResourceComponent": "resources/launchdarkly_resource/component.py",
+    "LaunchDarklySegmentUpdateComponent": "assets/reverse_etl/launchdarkly_segment_update/component.py",
+    "HeapResourceComponent": "resources/heap_resource/component.py",
+    "HeapUserPropertySyncComponent": "assets/reverse_etl/heap_user_property_sync/component.py",
     "DropboxIngestionComponent": "assets/ingestion/dropbox_ingestion/component.py",
     "BoxIngestionComponent": "assets/ingestion/box_ingestion/component.py",
     "AmplitudeIngestionComponent": "assets/ingestion/amplitude_ingestion/component.py",

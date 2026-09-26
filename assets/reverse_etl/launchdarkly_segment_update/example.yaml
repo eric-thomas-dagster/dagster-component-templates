@@ -1,0 +1,11 @@
+type: dagster_component_templates.LaunchDarklySegmentUpdateComponent
+attributes:
+  asset_name: launchdarkly_beta_testers_sync
+  upstream_asset_key: computed_beta_cohort
+  resource_key: launchdarkly
+  project_key: my-project
+  env_key: production
+  segment_key: beta-testers
+  context_key_column: user_key
+  in_segment_column: is_beta_tester
+  group_name: reverse_etl

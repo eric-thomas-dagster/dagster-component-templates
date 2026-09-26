@@ -57157,9 +57157,113 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dropbox_ingestion/requirements.txt",
       "vertical": "cloud-storage",
       "icon": "si:dropbox"
+    },
+    {
+      "id": "launchdarkly_resource",
+      "name": "LaunchDarkly Resource",
+      "category": "resource",
+      "description": "Register a LaunchDarklyResource (API token auth) for use by other components, with an add_segment_targets convenience method for segment-based feature-flag targeting.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/launchdarkly_resource",
+      "tags": [
+        "resource",
+        "launchdarkly",
+        "devops-observability"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/launchdarkly_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/launchdarkly_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/launchdarkly_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/launchdarkly_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/launchdarkly_resource/requirements.txt",
+      "icon": "si:launchdarkly"
+    },
+    {
+      "id": "launchdarkly_segment_update",
+      "name": "LaunchDarkly Segment Update",
+      "category": "reverse_etl",
+      "description": "Reverse-ETL sink: sync a computed cohort into a LaunchDarkly segment's target list via a semantic patch, adding or removing context keys per row.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/reverse_etl/launchdarkly_segment_update",
+      "tags": [
+        "launchdarkly",
+        "reverse-etl",
+        "segment",
+        "devops-observability"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/launchdarkly_segment_update/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/launchdarkly_segment_update/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/launchdarkly_segment_update/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/launchdarkly_segment_update/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/launchdarkly_segment_update/requirements.txt",
+      "icon": "si:launchdarkly"
+    },
+    {
+      "id": "heap_resource",
+      "name": "Heap Resource",
+      "category": "resource",
+      "description": "Register a HeapResource for use by other components, with an add_user_properties convenience method. Heap's public API is write-only -- there is no read/list endpoint, so this resource exists purely for reverse-ETL.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/heap_resource",
+      "tags": [
+        "resource",
+        "heap",
+        "marketing"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/heap_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/heap_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/heap_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/heap_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/heap_resource/requirements.txt",
+      "icon": "si:heap"
+    },
+    {
+      "id": "heap_user_property_sync",
+      "name": "Heap User Property Sync",
+      "category": "reverse_etl",
+      "description": "Reverse-ETL sink: push computed user properties from an upstream DataFrame into Heap via add_user_properties. Heap's API is write-only with no read-back or dedup concept -- this calls the endpoint once per row every run.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/reverse_etl/heap_user_property_sync",
+      "tags": [
+        "heap",
+        "reverse-etl",
+        "sync",
+        "marketing"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/heap_user_property_sync/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/heap_user_property_sync/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/heap_user_property_sync/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/heap_user_property_sync/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/heap_user_property_sync/requirements.txt",
+      "icon": "si:heap"
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1154
+  "total": 1158
 }

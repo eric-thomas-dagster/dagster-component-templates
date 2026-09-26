@@ -1,0 +1,4 @@
+type: dagster_component_templates.HeapResourceComponent
+attributes:
+  resource_key: heap
+  app_id_env_var: HEAP_APP_ID

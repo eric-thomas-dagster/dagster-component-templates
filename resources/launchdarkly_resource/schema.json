@@ -1,0 +1,27 @@
+{
+  "component_type": "dagster_component_templates.LaunchDarklyResourceComponent",
+  "description": "Register a LaunchDarklyResource (API token auth) for use by other components, with an add_segment_targets convenience method for segment-based feature-flag targeting.",
+  "category": "resource",
+  "icon": "si:launchdarkly",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["launchdarkly"],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "launchdarkly"
+    },
+    "api_token_env_var": {
+      "type": "string",
+      "label": "API Token Env Var",
+      "description": "Env var holding a LaunchDarkly API access token.",
+      "required": false,
+      "default": "LAUNCHDARKLY_API_TOKEN",
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": ["resource", "launchdarkly", "devops-observability"],
+  "name": "LaunchDarkly Resource"
+}

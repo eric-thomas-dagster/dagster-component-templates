@@ -11,6 +11,8 @@ attributes:
   # — no separate file_lister asset needed: list documents directly —
   # path: s3://my-bucket/invoices/**/*.pdf   # or gs://, abfss://, or a local path
   # (leave upstream_asset_key unset when using path)
+  # post_process: move                      # or 'delete' -- default 'none' reprocesses every run
+  # post_process_dir: s3://my-bucket/invoices/_processed/  # required for 'move'
 
   # — try a different document type: just change document_type, same component —
   # document_type: resume

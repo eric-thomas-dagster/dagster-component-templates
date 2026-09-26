@@ -116,6 +116,22 @@
       "required": false,
       "default": 5
     },
+    "post_process": {
+      "type": "string",
+      "label": "Post Process",
+      "description": "What to do with each SOURCE file once it's been successfully extracted: 'none' (leave in place -- files get reprocessed every run), 'move' (to post_process_dir), or 'delete'. Only applied to successfully-extracted rows; a failed row's file is left in place so the next run retries it. Requires input_type='file'.",
+      "required": false,
+      "default": "none",
+      "enum": ["none", "move", "delete"],
+      "ui:widget": "select"
+    },
+    "post_process_dir": {
+      "type": "string",
+      "label": "Post Process Directory",
+      "description": "Destination directory when post_process='move'. Same fsspec scheme as the source file. Required when post_process='move'.",
+      "required": false,
+      "default": null
+    },
     "description": {
       "type": "string",
       "label": "Description",

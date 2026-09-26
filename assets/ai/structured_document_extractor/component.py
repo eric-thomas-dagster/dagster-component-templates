@@ -275,6 +275,24 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
         ),
     )
     batch_size: int = Field(default=5, description="Number of documents per LLM batch")
+    post_process: str = Field(
+        default="none",
+        description=(
+            "What to do with each SOURCE file (not the LLM output) once it's "
+            "been successfully extracted: 'none' (leave in place -- the same "
+            "files get reprocessed on every materialize, so `path` mode with "
+            "'none' is only really safe for a fixed, one-off batch), 'move' "
+            "(move to post_process_dir, so future runs only see new files), "
+            "or 'delete' (remove permanently). Only ever applied to rows that "
+            "extracted successfully -- a row that failed keeps its source "
+            "file in place so the next run retries it. Requires "
+            "input_type='file' (there's no file to act on for raw-text rows)."
+        ),
+    )
+    post_process_dir: Optional[str] = Field(
+        default=None,
+        description="Destination directory when post_process='move'. Same fsspec scheme as the source file (local, s3://, gs://, ...). Required when post_process='move'.",
+    )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
         default=None,
@@ -363,6 +381,8 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
         api_key_env_var = self.api_key_env_var
         document_type = self.document_type
         batch_size = self.batch_size
+        post_process = self.post_process
+        post_process_dir = self.post_process_dir
 
         _modes_set = sum(bool(x) for x in (upstream_asset_key, direct_path))
         if _modes_set != 1:
@@ -370,6 +390,16 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
                 f"{asset_name}: must set exactly one of `upstream_asset_key` "
                 f"(read from an existing asset) or `path` (list files directly, "
                 f"no separate asset needed) -- got {_modes_set} set."
+            )
+
+        if post_process not in ("none", "move", "delete"):
+            raise ValueError(f"{asset_name}: post_process must be 'none', 'move', or 'delete', got {post_process!r}.")
+        if post_process == "move" and not post_process_dir:
+            raise ValueError(f"{asset_name}: post_process='move' requires post_process_dir.")
+        if post_process != "none" and input_type != "file":
+            raise ValueError(
+                f"{asset_name}: post_process={post_process!r} requires input_type='file' "
+                f"-- there's no source file to act on when input_type='text'."
             )
 
         if document_type != "custom" and document_type not in _PRESET_FIELDS:
@@ -434,6 +464,15 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
 
             _original_cols = set(df.columns)
             results = []
+            # One entry per row, aligned with `results` -- the fsspec path to
+            # act on for post_process (prefers the original source `path`
+            # column when present, e.g. file_lister/`_list_files_direct`'s
+            # own output, over `input_column`, which in `path` mode with
+            # download=true is a local cache copy, not the real source
+            # location that needs to stop showing up in future listings)
+            # and whether extraction actually succeeded for that row.
+            _post_process_rows: list[tuple[str, bool]] = []
+            has_path_col = "path" in df.columns
             total = len(df)
             context.log.info(f"Extracting {_doc_label} fields from {total} rows using {model}")
 
@@ -441,7 +480,9 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
                 batch = df.iloc[i: i + batch_size]
                 context.log.info(f"Processing batch {i // batch_size + 1}/{(total - 1) // batch_size + 1}")
                 for _, row in batch.iterrows():
-                    content = str(row[input_column])
+                    file_ref = str(row[input_column])
+                    source_path = str(row["path"]) if has_path_col and pd.notna(row["path"]) else file_ref
+                    content = file_ref
                     if input_type == "file":
                         try:
                             with open(content, "r", encoding="utf-8", errors="replace") as fh:
@@ -454,6 +495,7 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
                         f"Document content:\n{content}\n\n"
                         "Return only a JSON object with the requested fields. Use null for missing fields."
                     )
+                    success = False
                     try:
                         resp = completion(
                             model=model,
@@ -467,14 +509,44 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
                             if raw.startswith("json"):
                                 raw = raw[4:]
                         extracted = json.loads(raw)
+                        success = True
                     except Exception as e:
                         context.log.warning(f"Extraction failed for row: {e}")
                         extracted = {f: None for f in output_fields}
                     results.append(extracted)
+                    _post_process_rows.append((source_path, success))
 
             extracted_df = pd.DataFrame(results)
             for col in extracted_df.columns:
                 df[col] = extracted_df[col].values
+
+            if post_process != "none":
+                import fsspec
+
+                moved, deleted, failed = 0, 0, 0
+                for source_path, success in _post_process_rows:
+                    if not success:
+                        continue
+                    try:
+                        fs, _, [resolved] = fsspec.get_fs_token_paths(source_path)
+                        if post_process == "delete":
+                            fs.rm(resolved)
+                            deleted += 1
+                        else:
+                            filename = resolved.rsplit("/", 1)[-1]
+                            dest_fs, _, [dest_dir] = fsspec.get_fs_token_paths(post_process_dir)
+                            dest_fs.makedirs(dest_dir, exist_ok=True)
+                            fs.mv(resolved, f"{dest_dir.rstrip('/')}/{filename}")
+                            moved += 1
+                    except Exception as e:
+                        failed += 1
+                        context.log.warning(f"post_process={post_process!r} failed for {source_path!r}: {e}")
+                context.log.info(f"post_process={post_process!r}: moved={moved} deleted={deleted} failed={failed}")
+                context.add_output_metadata({
+                    "post_process_moved": moved,
+                    "post_process_deleted": deleted,
+                    "post_process_failed": failed,
+                })
 
             context.add_output_metadata({
                 "num_documents": total,

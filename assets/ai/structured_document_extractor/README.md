@@ -39,7 +39,11 @@ attributes:
   # download: true                         # default -- caches files locally first
   # download_dir: /data/cache/invoice_fields
   # max_files: 500                         # safety cap for a broad glob
+  post_process: move                       # or 'delete' -- 'none' (default) reprocesses
+  post_process_dir: s3://my-bucket/invoices/_processed/  # required for 'move'
 ```
+
+Without `post_process`, `path` mode reprocesses the same files on every materialize (there's no listing checkpoint), so set it to `move` or `delete` so a run only ever sees new files. Works in `upstream_asset_key` mode too, acting on whichever file each row actually came from (the upstream's own `path` column when it has one, e.g. file_lister's output, else `input_column`). Only ever applied to rows that extracted successfully; a failed row's file is left in place so the next run retries it.
 
 Switch document types by changing one field — no new component to find or install:
 
@@ -159,6 +163,8 @@ output_fields: [invoice_number, vendor, total_amount, po_reference]  # your own 
 | `download_dir` | `str` | — | When using `path` with download=true: local cache directory. Auto-generated under the system temp dir if unset. |
 | `max_files` | `int` | — | When using `path`: safety cap on how many matched files to process in one materialize. |
 | `document_type` | `str` | `"custom"` | `'Picks a default output_fields preset: ' + ', '.join(sorted(_PRESET_FIELDS.keys())) + ", or 'custom' (requires output_fields to be set explicitly)."` |
+| `post_process` | `str` | `"none"` | What to do with each SOURCE file (not the LLM output) once it's been successfully extracted: 'none' (leave in place -- the same files get reprocessed on every materialize, so `path` mode with 'none' is only really safe f… _(full docs in schema.json + component README)_ |
+| `post_process_dir` | `str` | — | Destination directory when post_process='move'. Same fsspec scheme as the source file (local, s3://, gs://, ...). Required when post_process='move'. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when include_preview_metadata is True. |

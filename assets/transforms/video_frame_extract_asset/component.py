@@ -51,9 +51,15 @@ class VideoFrameExtractAssetComponent(Component, Model, Resolvable):
 
     output_dir: str = Field(default="/tmp/extracted_frames")
     output_filename_template: str = Field(
-        default="{video_basename}_f{frame_index:04d}.jpg",
+        default="{video_basename}_{video_row_index}_f{frame_index:04d}.jpg",
         description=(
-            "Filename template. Supports `{video_basename}`, `{frame_index}`, and any source column."
+            "Filename template. Supports `{video_basename}`, `{video_row_index}` (the "
+            "row's position in the upstream batch -- always unique within one "
+            "materialize, unlike video_basename, which two videos can share if they "
+            "come from different source directories), `{frame_index}`, and any source "
+            "column. Dropping `{video_row_index}` from a custom template re-introduces "
+            "a real risk: two videos sharing a basename in the same batch would "
+            "silently overwrite each other's frame files."
         ),
     )
     image_format: Literal["jpg", "png"] = Field(default="jpg")
@@ -235,7 +241,15 @@ class VideoFrameExtractAssetComponent(Component, Model, Resolvable):
                     # Use thumbnail filter then trim to fixed_count via separate -vframes
                     vf = "thumbnail"
 
-                pattern = os.path.join(output_dir, f"{video_basename}_f%04d.{image_format}")
+                # `_{i}_` disambiguates videos that share a basename (e.g.
+                # 'clip.mp4' from two different source directories in the
+                # same batch) -- without it, the second video's frames
+                # silently overwrite the first's on disk, corrupting the
+                # first video's already-recorded file_path rows with no
+                # error. Confirmed live against video_scene_summarizer's
+                # identical pattern before this fix.
+                file_prefix = f"{video_basename}_{i}_f"
+                pattern = os.path.join(output_dir, f"{file_prefix}%04d.{image_format}")
                 cmd: List[str] = [
                     ffmpeg_binary, "-y", "-i", src,
                     "-vf", vf,
@@ -261,19 +275,20 @@ class VideoFrameExtractAssetComponent(Component, Model, Resolvable):
 
                 # Collect emitted frames
                 for fname in sorted(os.listdir(output_dir)):
-                    if not fname.startswith(f"{video_basename}_f"):
+                    if not fname.startswith(file_prefix):
                         continue
                     if not fname.endswith(f".{image_format}"):
                         continue
                     fpath = os.path.join(output_dir, fname)
                     # frame index from filename
                     try:
-                        frame_index = int(fname.replace(f"{video_basename}_f", "").split(".")[0])
+                        frame_index = int(fname.replace(file_prefix, "").split(".")[0])
                     except ValueError:
                         frame_index = -1
                     # Optionally rename to honor template
                     row_dict = {c: row[c] for c in df.columns}
                     row_dict["video_basename"] = video_basename
+                    row_dict["video_row_index"] = i
                     row_dict["frame_index"] = frame_index
                     try:
                         target = filename_tpl.format(**row_dict)

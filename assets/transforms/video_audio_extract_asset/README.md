@@ -68,7 +68,7 @@ sample_videos               ← synthetic_video_generator
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `output_dir` | `str` | `"/tmp/extracted_audio"` | — |
-| `output_filename_template` | `str` | — | Filename template (no dir). Supports `{<column>}` + `{row_index}`. Default: <video_basename>.<target_format>. |
+| `output_filename_template` | `str` | — | Filename template (no dir). Supports `{<column>}` + `{row_index}`. Default: <video_basename>_<row_index>.<target_format> -- row_index is included by default because video_basename alone isn't unique across a batch (two v… _(full docs in schema.json + component README)_ |
 | `output_path_column` | `Union[str, int]` | `"audio_path"` | — |
 | `target_format` | `Literal['wav', 'mp3', 'flac', 'ogg', 'aac', 'opus']` | `"wav"` | Output codec / extension. |
 
@@ -124,3 +124,8 @@ This component reads or writes local filesystem paths. Behavior across deploymen
 1. **Return bytes as the asset value** instead of writing a file. The default `PickledObjectFilesystemIOManager` (and the Dagster+ Serverless S3-backed IO manager) serialize binary data fine. Downstream ops read the bytes from the IO manager regardless of pod / run.
 2. **Use a cloud-storage sink** for cross-run persistence: [`dataframe_to_s3`](https://github.com/eric-thomas-dagster/dagster-component-templates/tree/main/assets/sinks/dataframe_to_s3), [`dataframe_to_gcs`](https://github.com/eric-thomas-dagster/dagster-component-templates/tree/main/assets/sinks/dataframe_to_gcs), [`dataframe_to_adls`](https://github.com/eric-thomas-dagster/dagster-component-templates/tree/main/assets/sinks/dataframe_to_adls).
 3. **Mount a shared volume** (k8s PVC / Cloud Run volumes) if you genuinely need a shared filesystem path across pods.
+## Validation notes
+
+Fixed this session, verified live against real ffmpeg-generated videos with audio tracks: two videos sharing a filename (e.g. `clip.mp4` from two different source directories) in the same batch used to silently overwrite each other's extracted audio file on disk, since the default output filename depended only on `video_basename`. Fixed by including `{row_index}` (the row's position in the batch, always unique) in the default filename fallback. A custom `output_filename_template` that omits `{row_index}` re-introduces this risk -- documented on the field itself.
+
+Also added committed test coverage for this component for the first time this session -- see `tests/`: real audio-track extraction, a missing source file recorded as a per-row error rather than crashing the run, the basename-collision fix, and `sample_rate`/`channels` actually applied to the real output file.

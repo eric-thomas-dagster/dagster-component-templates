@@ -42,7 +42,7 @@
       "type": "string",
       "label": "Output Filename Template",
       "required": false,
-      "description": "Filename template (no dir). Supports `{<column>}` + `{row_index}`. Default: <video_basename>.<target_format>."
+      "description": "Filename template (no dir). Supports `{<column>}` + `{row_index}`. Default: <video_basename>_<row_index>.<target_format> -- row_index is included by default because video_basename alone isn't unique across a batch (two videos named the same from different source directories would otherwise silently overwrite each other's extracted audio file on disk). A custom template that omits {row_index} re-introduces that risk."
     },
     "output_path_column": {
       "type": "string",

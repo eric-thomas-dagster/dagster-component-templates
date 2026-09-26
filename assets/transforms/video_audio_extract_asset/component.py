@@ -49,7 +49,11 @@ class VideoAudioExtractAssetComponent(Component, Model, Resolvable):
         default=None,
         description=(
             "Filename template (no dir). Supports `{<column>}` + `{row_index}`. "
-            "Default: <video_basename>.<target_format>."
+            "Default: <video_basename>_<row_index>.<target_format> -- row_index is "
+            "included by default because video_basename alone isn't unique across a "
+            "batch (two videos named the same from different source directories "
+            "would otherwise silently overwrite each other's extracted audio file on "
+            "disk). A custom template that omits {row_index} re-introduces that risk."
         ),
     )
     output_path_column: Union[str, int] = Field(default="audio_path")
@@ -223,13 +227,21 @@ class VideoAudioExtractAssetComponent(Component, Model, Resolvable):
                 base = os.path.splitext(os.path.basename(src))[0]
                 row_dict = {c: row[c] for c in df.columns}
                 row_dict["row_index"] = i
+                # {row_index} in the fallback disambiguates videos that
+                # share a basename (e.g. 'clip.mp4' from two different
+                # source directories in the same batch) -- without it, the
+                # second video's audio track silently overwrites the
+                # first's on disk, corrupting the first row's already-
+                # recorded audio_path. Confirmed live against
+                # video_frame_extract_asset's identical pattern before
+                # this fix.
                 if filename_tpl:
                     try:
                         fname = filename_tpl.format(**row_dict)
                     except (KeyError, IndexError):
-                        fname = f"{base}.{target_format}"
+                        fname = f"{base}_{i}.{target_format}"
                 else:
-                    fname = f"{base}.{target_format}"
+                    fname = f"{base}_{i}.{target_format}"
                 out_path = os.path.join(output_dir, fname)
 
                 cmd: List[str] = [ffmpeg_binary, "-y", "-i", src, "-vn"]

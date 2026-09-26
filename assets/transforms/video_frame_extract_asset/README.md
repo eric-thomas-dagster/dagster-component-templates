@@ -67,7 +67,7 @@ attributes:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `output_dir` | `str` | `"/tmp/extracted_frames"` | — |
-| `output_filename_template` | `str` | `"{video_basename}_f{frame_index:04d}.jpg"` | Filename template. Supports `{video_basename}`, `{frame_index}`, and any source column. |
+| `output_filename_template` | `str` | `"{video_basename}_{video_row_index}_f{frame_index:04d}.jpg"` | Filename template. Supports `{video_basename}`, `{video_row_index}` (the row's position in the upstream batch -- always unique within one materialize, unlike video_basename, which two videos can share if they come from d… _(full docs in schema.json + component README)_ |
 | `mode` | `Literal['every_seconds', 'every_n_frames', 'fixed_count']` | `"every_seconds"` | How to choose frames. |
 
 ### Other
@@ -120,3 +120,12 @@ This component reads or writes local filesystem paths. Behavior across deploymen
 1. **Return bytes as the asset value** instead of writing a file. The default `PickledObjectFilesystemIOManager` (and the Dagster+ Serverless S3-backed IO manager) serialize binary data fine. Downstream ops read the bytes from the IO manager regardless of pod / run.
 2. **Use a cloud-storage sink** for cross-run persistence: [`dataframe_to_s3`](https://github.com/eric-thomas-dagster/dagster-component-templates/tree/main/assets/sinks/dataframe_to_s3), [`dataframe_to_gcs`](https://github.com/eric-thomas-dagster/dagster-component-templates/tree/main/assets/sinks/dataframe_to_gcs), [`dataframe_to_adls`](https://github.com/eric-thomas-dagster/dagster-component-templates/tree/main/assets/sinks/dataframe_to_adls).
 3. **Mount a shared volume** (k8s PVC / Cloud Run volumes) if you genuinely need a shared filesystem path across pods.
+## Validation notes
+
+Fixed this session, verified live against real ffmpeg-generated videos (a corrupt-file / no-real-media check was not needed -- the goal was reproducing real ffmpeg behavior, not error handling):
+
+- `every_n_frames` mode crashed outright on ffmpeg 9.x (`-vsync` removed, replaced by `-fps_mode`) -- confirmed against the installed ffmpeg 9.0.2, fixed, re-verified producing real frame files.
+- `schema.json`'s `mode` dropdown had a copy-pasted `append`/`overwrite`/`upsert` enum instead of the component's real values (`every_seconds`/`every_n_frames`/`fixed_count`) -- cosmetic (builder-UI only), fixed.
+- **Real data-corruption bug**: two videos sharing a filename (e.g. `clip.mp4` from two different source directories) in the same batch would silently overwrite each other's extracted frame files on disk, since the output filename only depended on `video_basename` -- confirmed live that the second video's frame file overwrote the first's, corrupting the first row's already-recorded `file_path`. Fixed by adding `{video_row_index}` (the row's position in the batch, always unique) to both the internal extraction pattern and the default `output_filename_template`. A custom template that omits `{video_row_index}` re-introduces this risk -- documented on the field itself.
+
+See `tests/` for the committed regression tests covering both fixes.

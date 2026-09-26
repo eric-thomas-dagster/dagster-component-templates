@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.VideoFrameExtractAssetComponent",
-  "description": "VideoFrameExtractAssetComponent — pull N frames per video as image files.",
+  "description": "VideoFrameExtractAssetComponent \u2014 pull N frames per video as image files.",
   "category": "transformation",
   "x-dagster-io": {
     "inputs": {
@@ -50,8 +50,8 @@
       "type": "string",
       "label": "Output Filename Template",
       "required": false,
-      "description": "Filename template. Supports `{video_basename}`, `{frame_index}`, and any source column.",
-      "default": "{video_basename}_f{frame_index:04d}.jpg"
+      "description": "Filename template. Supports `{video_basename}`, `{video_row_index}` (the row's position in the upstream batch -- always unique within one materialize, unlike video_basename, which two videos can share if they come from different source directories), `{frame_index}`, and any source column. Dropping `{video_row_index}` from a custom template re-introduces a real risk: two videos sharing a basename in the same batch would silently overwrite each other's frame files.",
+      "default": "{video_basename}_{video_row_index}_f{frame_index:04d}.jpg"
     },
     "image_format": {
       "type": "string",
@@ -63,7 +63,7 @@
       "type": "integer",
       "label": "Image Quality",
       "required": false,
-      "description": "JPEG quality 1–100 (PNG ignores).",
+      "description": "JPEG quality 1\u2013100 (PNG ignores).",
       "default": 85
     },
     "mode": {

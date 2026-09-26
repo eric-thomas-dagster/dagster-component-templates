@@ -276,7 +276,17 @@ class VideoSceneSummarizerComponent(Component, Model, Resolvable):
                     continue
                 video_basename = os.path.splitext(os.path.basename(src))[0]
                 video_id = str(row[video_id_column]) if video_id_column and video_id_column in df.columns else f"v{i}"
-                pattern = os.path.join(output_dir, f"{video_basename}_scene%03d.jpg")
+                # `_{i}_` disambiguates videos that share a basename (e.g.
+                # 'clip.mp4' from two different source directories in the
+                # same batch) -- without it, the second video's frames
+                # silently overwrite the first's on disk (both write to
+                # output_dir/clip_sceneNNN.jpg), corrupting the first
+                # video's already-recorded frame_path rows with no error.
+                # Confirmed live: two same-named videos in one batch
+                # produced a row whose frame_path pointed to a file that
+                # had since been overwritten by the other video's frame.
+                file_prefix = f"{video_basename}_{i}_scene"
+                pattern = os.path.join(output_dir, f"{file_prefix}%03d.jpg")
 
                 try:
                     timestamps = _detect_scenes(ffmpeg_binary, src, pattern, scene_threshold, max_scenes, image_quality)
@@ -287,13 +297,13 @@ class VideoSceneSummarizerComponent(Component, Model, Resolvable):
 
                 frame_paths = sorted(
                     p for p in [os.path.join(output_dir, f) for f in os.listdir(output_dir)]
-                    if os.path.basename(p).startswith(f"{video_basename}_scene") and p.endswith(".jpg")
+                    if os.path.basename(p).startswith(file_prefix) and p.endswith(".jpg")
                 )
                 if not frame_paths:
                     # No scene changes detected (common for short/static
                     # clips) -- still emit ONE row from the first frame
                     # rather than silently producing nothing for this video.
-                    fallback_path = os.path.join(output_dir, f"{video_basename}_scene000.jpg")
+                    fallback_path = os.path.join(output_dir, f"{file_prefix}000.jpg")
                     try:
                         _extract_first_frame(ffmpeg_binary, src, fallback_path, image_quality)
                         frame_paths = [fallback_path]

@@ -1,0 +1,7 @@
+type: dagster_component_templates.TalkdeskIngestionComponent
+attributes:
+  asset_name: talkdesk_ingestion
+  account_subdomain: "mycompany"
+  client_id: "${TALKDESK_CLIENT_ID}"
+  client_secret: "${TALKDESK_CLIENT_SECRET}"
+  resources: "contacts,campaigns"

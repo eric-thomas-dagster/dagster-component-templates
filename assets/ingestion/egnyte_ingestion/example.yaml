@@ -1,0 +1,6 @@
+type: dagster_component_templates.EgnyteIngestionComponent
+attributes:
+  asset_name: egnyte_ingestion
+  domain: "mycompany"
+  access_token: "${EGNYTE_ACCESS_TOKEN}"
+  resources: "users,groups"

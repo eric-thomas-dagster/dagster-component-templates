@@ -1,0 +1,8 @@
+type: dagster_component_templates.DynamicsCrmIngestionComponent
+attributes:
+  asset_name: dynamics_crm_ingestion
+  org_url: "https://myorg.crm.dynamics.com"
+  tenant_id: "${DYNAMICS_TENANT_ID}"
+  client_id: "${DYNAMICS_CLIENT_ID}"
+  client_secret: "${DYNAMICS_CLIENT_SECRET}"
+  resources: "accounts,contacts"

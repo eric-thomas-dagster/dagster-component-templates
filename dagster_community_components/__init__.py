@@ -27,6 +27,17 @@ _PACKAGE_ROOT = Path(__file__).resolve().parent
 
 # class name -> component.py path (relative to package root). Generated.
 _CLASS_PATHS: dict[str, str] = {
+    "VercelIngestionComponent": "assets/ingestion/vercel_ingestion/component.py",
+    "MetabaseIngestionComponent": "assets/ingestion/metabase_ingestion/component.py",
+    "SmartsheetIngestionComponent": "assets/ingestion/smartsheet_ingestion/component.py",
+    "ProductboardIngestionComponent": "assets/ingestion/productboard_ingestion/component.py",
+    "FullstoryIngestionComponent": "assets/ingestion/fullstory_ingestion/component.py",
+    "TogglTrackIngestionComponent": "assets/ingestion/toggl_track_ingestion/component.py",
+    "DynamicsCrmIngestionComponent": "assets/ingestion/dynamics_crm_ingestion/component.py",
+    "PendoIngestionComponent": "assets/ingestion/pendo_ingestion/component.py",
+    "EgnyteIngestionComponent": "assets/ingestion/egnyte_ingestion/component.py",
+    "TalkdeskIngestionComponent": "assets/ingestion/talkdesk_ingestion/component.py",
+    "OptimizelyIngestionComponent": "assets/ingestion/optimizely_ingestion/component.py",
     "ZendeskUserUpsertComponent": "assets/sinks/zendesk_user_upsert/component.py",
     "IntercomContactUpsertComponent": "assets/sinks/intercom_contact_upsert/component.py",
     "PipedrivePersonUpsertComponent": "assets/sinks/pipedrive_person_upsert/component.py",

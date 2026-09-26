@@ -1,0 +1,5 @@
+type: dagster_component_templates.ProductboardIngestionComponent
+attributes:
+  asset_name: productboard_ingestion
+  access_token: "${PRODUCTBOARD_ACCESS_TOKEN}"
+  resources: "notes,features"

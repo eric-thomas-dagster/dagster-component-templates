@@ -1,0 +1,5 @@
+type: dagster_component_templates.FullstoryIngestionComponent
+attributes:
+  asset_name: fullstory_ingestion
+  api_key: "${FULLSTORY_API_KEY}"
+  resources: "users,segments"

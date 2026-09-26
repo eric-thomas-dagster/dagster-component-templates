@@ -1,0 +1,5 @@
+type: dagster_component_templates.OptimizelyIngestionComponent
+attributes:
+  asset_name: optimizely_ingestion
+  access_token: "${OPTIMIZELY_ACCESS_TOKEN}"
+  resources: "projects"

@@ -1,0 +1,5 @@
+type: dagster_component_templates.SmartsheetIngestionComponent
+attributes:
+  asset_name: smartsheet_ingestion
+  access_token: "${SMARTSHEET_ACCESS_TOKEN}"
+  resources: "sheets,users"

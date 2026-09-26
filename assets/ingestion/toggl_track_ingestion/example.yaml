@@ -1,0 +1,5 @@
+type: dagster_component_templates.TogglTrackIngestionComponent
+attributes:
+  asset_name: toggl_track_ingestion
+  api_token: "${TOGGL_API_TOKEN}"
+  resources: "time_entries"

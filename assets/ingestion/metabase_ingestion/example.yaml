@@ -1,0 +1,6 @@
+type: dagster_component_templates.MetabaseIngestionComponent
+attributes:
+  asset_name: metabase_ingestion
+  instance_url: "https://metabase.mycompany.com"
+  api_key: "${METABASE_API_KEY}"
+  resources: "databases,cards,collections"

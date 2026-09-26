@@ -3,7 +3,7 @@
   "description": "Ingest Help Scout support data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "support",
-  "icon": "ArrowUpFromLine",
+  "icon": "si:helpscout",
   "x-dagster-io": {
     "outputs": {
       "type": "dataframe",
@@ -234,5 +234,5 @@
     "dlt",
     "rest_api"
   ],
-  "name": "HelpScoutIngestionComponent"
+  "name": "Help Scout Ingestion"
 }

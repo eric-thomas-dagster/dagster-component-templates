@@ -246,5 +246,5 @@
     "dlt",
     "rest_api"
   ],
-  "name": "Auth0ManagementIngestionComponent"
+  "name": "Auth0 (Management API) Ingestion"
 }

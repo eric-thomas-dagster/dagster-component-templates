@@ -3,7 +3,7 @@
   "description": "Ingest Zoho CRM records using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "crm-sales",
-  "icon": "ArrowUpFromLine",
+  "icon": "si:zoho",
   "x-dagster-io": {
     "outputs": {
       "type": "dataframe",
@@ -234,5 +234,5 @@
     "dlt",
     "rest_api"
   ],
-  "name": "ZohoCrmIngestionComponent"
+  "name": "Zoho CRM Ingestion"
 }

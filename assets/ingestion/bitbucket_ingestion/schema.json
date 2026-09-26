@@ -253,5 +253,5 @@
     "dlt",
     "rest_api"
   ],
-  "name": "BitbucketIngestionComponent"
+  "name": "Bitbucket Ingestion"
 }

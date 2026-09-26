@@ -3,7 +3,7 @@
   "description": "Ingest Atlassian Statuspage incident/component data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "devops-observability",
-  "icon": "ArrowUpFromLine",
+  "icon": "si:statuspage",
   "x-dagster-io": {
     "outputs": {
       "type": "dataframe",
@@ -240,5 +240,5 @@
     "dlt",
     "rest_api"
   ],
-  "name": "StatuspageIngestionComponent"
+  "name": "Statuspage Ingestion"
 }

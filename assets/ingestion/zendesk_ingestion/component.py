@@ -158,11 +158,22 @@ class ZendeskIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    subdomain: str = Field(description="Zendesk subdomain (e.g., 'my-company' for my-company.zendesk.com)")
+    subdomain: Optional[str] = Field(default=None, description="Zendesk subdomain (e.g., 'my-company' for my-company.zendesk.com). Required unless resource_key is set.")
 
-    email: str = Field(description="Email address for Zendesk authentication")
+    email: Optional[str] = Field(default=None, description="Email address for Zendesk authentication. Required unless resource_key is set.")
 
-    api_token: str = Field(description="Zendesk API token for authentication")
+    api_token: Optional[str] = Field(default=None, description="Zendesk API token for authentication. Required unless resource_key is set.")
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a ZendeskResourceComponent. When set, "
+            "credentials are read from that resource at run time instead of subdomain/"
+            "email/api_token above -- lets one Zendesk credential serve both this "
+            "ingestion connector and the zendesk_user_upsert reverse-ETL sink without "
+            "configuring it twice."
+        ),
+    )
 
     resources: List[str] = Field(default=["tickets", "users", "organizations", "groups"], description="Zendesk resources to extract (tickets, users, organizations, groups)")
 
@@ -380,9 +391,11 @@ class ZendeskIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        subdomain = self.subdomain
-        email = self.email
-        api_token = self.api_token
+        if not self.resource_key and not (self.subdomain and self.email and self.api_token):
+            raise ValueError(
+                "ZendeskIngestionComponent: supply resource_key (a registered "
+                "ZendeskResourceComponent) OR all of subdomain/email/api_token."
+            )
         resources_list = self.resources
         description = self.description or f"Zendesk data ({', '.join(resources_list)})"
         group_name = self.group_name
@@ -469,7 +482,7 @@ class ZendeskIngestionComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, partitions_def=partitions_def, 
+        @asset(retry_policy=_retry_policy, partitions_def=partitions_def,
             key=AssetKey.from_user_string(asset_name),
             description=description,
             owners=owners,
@@ -477,9 +490,20 @@ class ZendeskIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def zendesk_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.zendesk import zendesk_support
+
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                subdomain = _res.subdomain
+                email = _res.email
+                api_token = _res.api_token
+            else:
+                subdomain = component.subdomain
+                email = component.email
+                api_token = component.api_token
 
             context.log.info(
                 f"Starting Zendesk ingestion: subdomain={subdomain}, resources={resources_list}, "

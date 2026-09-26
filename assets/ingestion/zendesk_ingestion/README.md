@@ -14,9 +14,10 @@ dlt handles API authentication, pagination, rate limiting, and incremental loadi
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `asset_name` | `str` | yes | Name of the output asset |
-| `subdomain` | `str` | yes | Zendesk subdomain (e.g. `my-company` for `my-company.zendesk.com`) |
-| `email` | `str` | yes | Zendesk admin email |
-| `api_token` | `str` | yes | Zendesk API token |
+| `subdomain` | `str` | one of subdomain/email/api_token OR resource_key | Zendesk subdomain (e.g. `my-company` for `my-company.zendesk.com`) |
+| `email` | `str` | one of subdomain/email/api_token OR resource_key | Zendesk admin email |
+| `api_token` | `str` | one of subdomain/email/api_token OR resource_key | Zendesk API token |
+| `resource_key` | `str` | no | Resource key registered by a ZendeskResourceComponent. When set, credentials are read from that resource at run time instead of subdomain/email/api_token -- lets one Zendesk credential serve both this connector and the zendesk_user_upsert reverse-ETL sink |
 | `resources` | `List[str]` | no | Defaults to `["tickets", "users", "organizations", "groups"]` |
 
 ## Standard fields
@@ -54,9 +55,13 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `subdomain` | `str` | Zendesk subdomain (e.g., 'my-company' for my-company.zendesk.com) |
-| `email` | `str` | Email address for Zendesk authentication |
-| `api_token` | `str` | Zendesk API token for authentication |
+
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `api_token` | `str` | — | Zendesk API token for authentication. Required unless resource_key is set. |
+| `resource_key` | `str` | — | Optional resource key registered by a ZendeskResourceComponent. When set, credentials are read from that resource at run time instead of subdomain/email/api_token above -- lets one Zendesk credential serve both this inge… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -101,6 +106,8 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `subdomain` | `str` | — | Zendesk subdomain (e.g., 'my-company' for my-company.zendesk.com). Required unless resource_key is set. |
+| `email` | `str` | — | Email address for Zendesk authentication. Required unless resource_key is set. |
 | `resources` | `List[str]` | `['tickets', 'users', 'organizations', 'groups']` | Zendesk resources to extract (tickets, users, organizations, groups) |
 | `destination` | `str` | — | dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode. |
 | `dataset_name` | `str` | — | Target dataset/schema in the destination. Defaults to the asset name. |

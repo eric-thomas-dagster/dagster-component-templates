@@ -252,5 +252,5 @@
     "dlt",
     "rest_api"
   ],
-  "name": "DynamicsCrmIngestionComponent"
+  "name": "Microsoft Dynamics 365 (Dataverse) Ingestion"
 }

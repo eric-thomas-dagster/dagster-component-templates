@@ -3,7 +3,7 @@
   "description": "Ingest Greenhouse recruiting data using dlt's generic REST API source (Harvest API).",
   "category": "ingestion",
   "vertical": "finance-hr",
-  "icon": "ArrowUpFromLine",
+  "icon": "si:greenhouse",
   "x-dagster-io": {
     "outputs": {
       "type": "dataframe",
@@ -234,5 +234,5 @@
     "dlt",
     "rest_api"
   ],
-  "name": "GreenhouseHarvestIngestionComponent"
+  "name": "Greenhouse Ingestion"
 }

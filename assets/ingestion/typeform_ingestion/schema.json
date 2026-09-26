@@ -3,7 +3,7 @@
   "description": "Ingest Typeform forms and responses using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "productivity",
-  "icon": "ArrowUpFromLine",
+  "icon": "si:typeform",
   "x-dagster-io": {
     "outputs": {
       "type": "dataframe",
@@ -241,5 +241,5 @@
     "dlt",
     "rest_api"
   ],
-  "name": "TypeformIngestionComponent"
+  "name": "Typeform Ingestion"
 }

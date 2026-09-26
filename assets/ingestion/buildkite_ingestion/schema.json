@@ -241,5 +241,5 @@
     "dlt",
     "rest_api"
   ],
-  "name": "BuildkiteIngestionComponent"
+  "name": "Buildkite Ingestion"
 }

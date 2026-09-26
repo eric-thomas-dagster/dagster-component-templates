@@ -3,7 +3,7 @@
   "description": "Ingest Calendly scheduling data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "productivity",
-  "icon": "ArrowUpFromLine",
+  "icon": "si:calendly",
   "x-dagster-io": {
     "outputs": {
       "type": "dataframe",
@@ -241,5 +241,5 @@
     "dlt",
     "rest_api"
   ],
-  "name": "CalendlyIngestionComponent"
+  "name": "Calendly Ingestion"
 }

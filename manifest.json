@@ -21916,7 +21916,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_ads_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_ads_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_ads_ingestion/requirements.txt",
-      "icon": "si:googlecloud",
+      "icon": "si:googleads",
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
@@ -22538,7 +22538,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_sheets_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_sheets_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_sheets_ingestion/requirements.txt",
-      "icon": "si:googlecloud",
+      "icon": "si:googlesheets",
       "validation": {
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/google_sheets.md",
@@ -35194,7 +35194,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/pinterest_ads_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/pinterest_ads_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/pinterest_ads_ingestion/requirements.txt",
-      "icon": "ArrowUpFromLine",
+      "icon": "si:pinterest",
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
@@ -53858,7 +53858,7 @@
     },
     {
       "id": "mailchimp_ingestion",
-      "name": "MailchimpIngestionComponent",
+      "name": "Mailchimp Ingestion",
       "category": "ingestion",
       "description": "Ingest Mailchimp marketing data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -53888,7 +53888,7 @@
     },
     {
       "id": "klaviyo_ingestion",
-      "name": "KlaviyoIngestionComponent",
+      "name": "Klaviyo Ingestion",
       "category": "ingestion",
       "description": "Ingest Klaviyo marketing data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -53918,7 +53918,7 @@
     },
     {
       "id": "activecampaign_ingestion",
-      "name": "ActiveCampaignIngestionComponent",
+      "name": "ActiveCampaign Ingestion",
       "category": "ingestion",
       "description": "Ingest ActiveCampaign marketing/CRM data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -53948,7 +53948,7 @@
     },
     {
       "id": "braze_ingestion",
-      "name": "BrazeIngestionComponent",
+      "name": "Braze Ingestion",
       "category": "ingestion",
       "description": "Ingest Braze marketing automation data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -53978,7 +53978,7 @@
     },
     {
       "id": "close_crm_ingestion",
-      "name": "CloseCrmIngestionComponent",
+      "name": "Close CRM Ingestion",
       "category": "ingestion",
       "description": "Ingest Close CRM data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54008,7 +54008,7 @@
     },
     {
       "id": "copper_ingestion",
-      "name": "CopperIngestionComponent",
+      "name": "Copper CRM Ingestion",
       "category": "ingestion",
       "description": "Ingest Copper CRM data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54038,7 +54038,7 @@
     },
     {
       "id": "zoho_crm_ingestion",
-      "name": "ZohoCrmIngestionComponent",
+      "name": "Zoho CRM Ingestion",
       "category": "ingestion",
       "description": "Ingest Zoho CRM records using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54064,11 +54064,11 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/zoho_crm_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/zoho_crm_ingestion/requirements.txt",
       "vertical": "crm-sales",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:zoho"
     },
     {
       "id": "insightly_ingestion",
-      "name": "InsightlyIngestionComponent",
+      "name": "Insightly Ingestion",
       "category": "ingestion",
       "description": "Ingest Insightly CRM data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54098,7 +54098,7 @@
     },
     {
       "id": "intercom_ingestion",
-      "name": "IntercomIngestionComponent",
+      "name": "Intercom Ingestion",
       "category": "ingestion",
       "description": "Ingest Intercom support data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54128,7 +54128,7 @@
     },
     {
       "id": "help_scout_ingestion",
-      "name": "HelpScoutIngestionComponent",
+      "name": "Help Scout Ingestion",
       "category": "ingestion",
       "description": "Ingest Help Scout support data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54154,11 +54154,11 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/help_scout_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/help_scout_ingestion/requirements.txt",
       "vertical": "support",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:helpscout"
     },
     {
       "id": "front_ingestion",
-      "name": "FrontIngestionComponent",
+      "name": "Front Ingestion",
       "category": "ingestion",
       "description": "Ingest Front support/inbox data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54188,7 +54188,7 @@
     },
     {
       "id": "gusto_ingestion",
-      "name": "GustoIngestionComponent",
+      "name": "Gusto Ingestion",
       "category": "ingestion",
       "description": "Ingest Gusto HR/payroll data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54214,11 +54214,11 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gusto_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gusto_ingestion/requirements.txt",
       "vertical": "finance-hr",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:gusto"
     },
     {
       "id": "greenhouse_harvest_ingestion",
-      "name": "GreenhouseHarvestIngestionComponent",
+      "name": "Greenhouse Ingestion",
       "category": "ingestion",
       "description": "Ingest Greenhouse recruiting data using dlt's generic REST API source (Harvest API).",
       "version": "1.0.0",
@@ -54244,11 +54244,11 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/greenhouse_harvest_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/greenhouse_harvest_ingestion/requirements.txt",
       "vertical": "finance-hr",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:greenhouse"
     },
     {
       "id": "lever_ingestion",
-      "name": "LeverIngestionComponent",
+      "name": "Lever Ingestion",
       "category": "ingestion",
       "description": "Ingest Lever recruiting data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54278,7 +54278,7 @@
     },
     {
       "id": "bamboohr_ingestion",
-      "name": "BambooHrIngestionComponent",
+      "name": "BambooHR Ingestion",
       "category": "ingestion",
       "description": "Ingest BambooHR employee data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54308,7 +54308,7 @@
     },
     {
       "id": "trello_ingestion",
-      "name": "TrelloIngestionComponent",
+      "name": "Trello Ingestion",
       "category": "ingestion",
       "description": "Ingest Trello boards/cards data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54338,7 +54338,7 @@
     },
     {
       "id": "clickup_ingestion",
-      "name": "ClickUpIngestionComponent",
+      "name": "ClickUp Ingestion",
       "category": "ingestion",
       "description": "Ingest ClickUp project management data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54368,7 +54368,7 @@
     },
     {
       "id": "calendly_ingestion",
-      "name": "CalendlyIngestionComponent",
+      "name": "Calendly Ingestion",
       "category": "ingestion",
       "description": "Ingest Calendly scheduling data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54394,11 +54394,11 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/calendly_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/calendly_ingestion/requirements.txt",
       "vertical": "productivity",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:calendly"
     },
     {
       "id": "typeform_ingestion",
-      "name": "TypeformIngestionComponent",
+      "name": "Typeform Ingestion",
       "category": "ingestion",
       "description": "Ingest Typeform forms and responses using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54424,11 +54424,11 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/typeform_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/typeform_ingestion/requirements.txt",
       "vertical": "productivity",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:typeform"
     },
     {
       "id": "webflow_ingestion",
-      "name": "WebflowIngestionComponent",
+      "name": "Webflow Ingestion",
       "category": "ingestion",
       "description": "Ingest Webflow CMS data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54454,11 +54454,11 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/webflow_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/webflow_ingestion/requirements.txt",
       "vertical": "productivity",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:webflow"
     },
     {
       "id": "surveymonkey_ingestion",
-      "name": "SurveyMonkeyIngestionComponent",
+      "name": "SurveyMonkey Ingestion",
       "category": "ingestion",
       "description": "Ingest SurveyMonkey surveys and responses using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54484,11 +54484,11 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/surveymonkey_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/surveymonkey_ingestion/requirements.txt",
       "vertical": "productivity",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:surveymonkey"
     },
     {
       "id": "opsgenie_ingestion",
-      "name": "OpsgenieIngestionComponent",
+      "name": "Opsgenie Ingestion",
       "category": "ingestion",
       "description": "Ingest Opsgenie alerting/on-call data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54518,7 +54518,7 @@
     },
     {
       "id": "statuspage_ingestion",
-      "name": "StatuspageIngestionComponent",
+      "name": "Statuspage Ingestion",
       "category": "ingestion",
       "description": "Ingest Atlassian Statuspage incident/component data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54544,11 +54544,11 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/statuspage_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/statuspage_ingestion/requirements.txt",
       "vertical": "devops-observability",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:statuspage"
     },
     {
       "id": "pagerduty_events_ingestion",
-      "name": "PagerDutyIngestionComponent",
+      "name": "PagerDuty Ingestion",
       "category": "ingestion",
       "description": "Ingest PagerDuty incidents/services/schedules using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54578,7 +54578,7 @@
     },
     {
       "id": "basecamp_ingestion",
-      "name": "BasecampIngestionComponent",
+      "name": "Basecamp Ingestion",
       "category": "ingestion",
       "description": "Ingest Basecamp projects/todos data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54604,11 +54604,11 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/basecamp_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/basecamp_ingestion/requirements.txt",
       "vertical": "productivity",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:basecamp"
     },
     {
       "id": "zoom_ingestion",
-      "name": "ZoomIngestionComponent",
+      "name": "Zoom Ingestion",
       "category": "ingestion",
       "description": "Ingest Zoom meetings/webinars/users data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54638,7 +54638,7 @@
     },
     {
       "id": "rippling_ingestion",
-      "name": "RippleIngestionComponent",
+      "name": "Rippling Ingestion",
       "category": "ingestion",
       "description": "Ingest Rippling HR/workforce data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54668,7 +54668,7 @@
     },
     {
       "id": "deel_ingestion",
-      "name": "DeelIngestionComponent",
+      "name": "Deel Ingestion",
       "category": "ingestion",
       "description": "Ingest Deel global payroll/contractor data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54698,7 +54698,7 @@
     },
     {
       "id": "adp_workforce_now_ingestion",
-      "name": "AdpWorkforceNowIngestionComponent",
+      "name": "ADP Workforce Now Ingestion",
       "category": "ingestion",
       "description": "Ingest ADP Workforce Now HR data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54728,7 +54728,7 @@
     },
     {
       "id": "concur_ingestion",
-      "name": "ConcurIngestionComponent",
+      "name": "SAP Concur Ingestion",
       "category": "ingestion",
       "description": "Ingest SAP Concur travel/expense data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54758,7 +54758,7 @@
     },
     {
       "id": "expensify_ingestion",
-      "name": "ExpensifyIngestionComponent",
+      "name": "Expensify Ingestion",
       "category": "ingestion",
       "description": "Ingest Expensify expense report data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54784,11 +54784,11 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/expensify_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/expensify_ingestion/requirements.txt",
       "vertical": "finance-hr",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:expensify"
     },
     {
       "id": "ramp_ingestion",
-      "name": "RampIngestionComponent",
+      "name": "Ramp Ingestion",
       "category": "ingestion",
       "description": "Ingest Ramp corporate card/spend data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54818,7 +54818,7 @@
     },
     {
       "id": "navan_ingestion",
-      "name": "NavanIngestionComponent",
+      "name": "Navan Ingestion",
       "category": "ingestion",
       "description": "Ingest Navan (travel & expense) data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54848,7 +54848,7 @@
     },
     {
       "id": "omni_ingestion",
-      "name": "OmniIngestionComponent",
+      "name": "Omni Ingestion",
       "category": "ingestion",
       "description": "Ingest Omni BI account metadata (dashboards, models, queries) using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54878,7 +54878,7 @@
     },
     {
       "id": "gmail_ingestion",
-      "name": "GmailIngestionComponent",
+      "name": "Gmail Ingestion",
       "category": "ingestion",
       "description": "Ingest Gmail messages/labels metadata via the Gmail API using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54908,7 +54908,7 @@
     },
     {
       "id": "paylocity_ingestion",
-      "name": "PaylocityIngestionComponent",
+      "name": "Paylocity Ingestion",
       "category": "ingestion",
       "description": "Ingest Paylocity payroll/HR data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -54998,7 +54998,7 @@
     },
     {
       "id": "bitbucket_ingestion",
-      "name": "BitbucketIngestionComponent",
+      "name": "Bitbucket Ingestion",
       "category": "ingestion",
       "description": "Ingest Bitbucket Cloud repository data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -55028,7 +55028,7 @@
     },
     {
       "id": "confluence_ingestion",
-      "name": "ConfluenceIngestionComponent",
+      "name": "Confluence Ingestion",
       "category": "ingestion",
       "description": "Ingest Confluence Cloud pages and spaces using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -55058,7 +55058,7 @@
     },
     {
       "id": "dropbox_sign_ingestion",
-      "name": "DropboxSignIngestionComponent",
+      "name": "Dropbox Sign Ingestion",
       "category": "ingestion",
       "description": "Ingest Dropbox Sign (formerly HelloSign) e-signature data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -55088,7 +55088,7 @@
     },
     {
       "id": "chargebee_ingestion",
-      "name": "ChargebeeIngestionComponent",
+      "name": "Chargebee Ingestion",
       "category": "ingestion",
       "description": "Ingest Chargebee subscription billing data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -55118,7 +55118,7 @@
     },
     {
       "id": "recurly_ingestion",
-      "name": "RecurlyIngestionComponent",
+      "name": "Recurly Ingestion",
       "category": "ingestion",
       "description": "Ingest Recurly subscription billing data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -55148,7 +55148,7 @@
     },
     {
       "id": "launchdarkly_ingestion",
-      "name": "LaunchDarklyIngestionComponent",
+      "name": "LaunchDarkly Ingestion",
       "category": "ingestion",
       "description": "Ingest LaunchDarkly feature flag and project data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -55178,7 +55178,7 @@
     },
     {
       "id": "woocommerce_ingestion",
-      "name": "WooCommerceIngestionComponent",
+      "name": "WooCommerce Ingestion",
       "category": "ingestion",
       "description": "Ingest WooCommerce store data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -55208,7 +55208,7 @@
     },
     {
       "id": "clerk_ingestion",
-      "name": "ClerkIngestionComponent",
+      "name": "Clerk Ingestion",
       "category": "ingestion",
       "description": "Ingest Clerk user and organization data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -55238,7 +55238,7 @@
     },
     {
       "id": "workos_ingestion",
-      "name": "WorkOSIngestionComponent",
+      "name": "WorkOS Ingestion",
       "category": "ingestion",
       "description": "Ingest WorkOS SSO/directory-sync data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -55268,7 +55268,7 @@
     },
     {
       "id": "segment_ingestion",
-      "name": "SegmentIngestionComponent",
+      "name": "Segment Ingestion",
       "category": "ingestion",
       "description": "Ingest Segment CDP workspace configuration data (sources, destinations, catalog) using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -55298,7 +55298,7 @@
     },
     {
       "id": "statsig_ingestion",
-      "name": "StatsigIngestionComponent",
+      "name": "Statsig Ingestion",
       "category": "ingestion",
       "description": "Ingest Statsig feature gate and experiment configuration data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -55328,7 +55328,7 @@
     },
     {
       "id": "customerio_ingestion",
-      "name": "CustomerIOIngestionComponent",
+      "name": "Customer.io Ingestion",
       "category": "ingestion",
       "description": "Ingest Customer.io App API data (campaigns, segments, newsletters) using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -55358,7 +55358,7 @@
     },
     {
       "id": "quickbooks_ingestion",
-      "name": "QuickBooksIngestionComponent",
+      "name": "QuickBooks Online Ingestion",
       "category": "ingestion",
       "description": "Ingest QuickBooks Online accounting data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -55388,7 +55388,7 @@
     },
     {
       "id": "xero_ingestion",
-      "name": "XeroIngestionComponent",
+      "name": "Xero Ingestion",
       "category": "ingestion",
       "description": "Ingest Xero accounting data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -55418,7 +55418,7 @@
     },
     {
       "id": "bill_com_ingestion",
-      "name": "BillComIngestionComponent",
+      "name": "Bill.com Ingestion",
       "category": "ingestion",
       "description": "Ingest Bill.com AP/AR data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -55448,7 +55448,7 @@
     },
     {
       "id": "netsuite_ingestion",
-      "name": "NetSuiteIngestionComponent",
+      "name": "NetSuite Ingestion",
       "category": "ingestion",
       "description": "Ingest Oracle NetSuite (SuiteTalk REST) data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -55479,7 +55479,7 @@
     },
     {
       "id": "coupa_ingestion",
-      "name": "CoupaIngestionComponent",
+      "name": "Coupa Ingestion",
       "category": "ingestion",
       "description": "Ingest Coupa procurement data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -55509,7 +55509,7 @@
     },
     {
       "id": "docusign_ingestion",
-      "name": "DocuSignIngestionComponent",
+      "name": "DocuSign Ingestion",
       "category": "ingestion",
       "description": "Ingest DocuSign envelope and template data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -55541,7 +55541,7 @@
     },
     {
       "id": "workday_ingestion",
-      "name": "WorkdayIngestionComponent",
+      "name": "Workday Ingestion",
       "category": "ingestion",
       "description": "Ingest Workday HCM worker data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -55571,7 +55571,7 @@
     },
     {
       "id": "linear_ingestion",
-      "name": "LinearIngestionComponent",
+      "name": "Linear Ingestion",
       "category": "ingestion",
       "description": "Ingest Linear issue-tracker data via Linear's GraphQL API.",
       "version": "1.0.0",
@@ -55864,7 +55864,7 @@
     },
     {
       "id": "vercel_ingestion",
-      "name": "VercelIngestionComponent",
+      "name": "Vercel Ingestion",
       "category": "ingestion",
       "description": "Ingest Vercel deployment, project, and domain data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -55894,7 +55894,7 @@
     },
     {
       "id": "metabase_ingestion",
-      "name": "MetabaseIngestionComponent",
+      "name": "Metabase Ingestion",
       "category": "ingestion",
       "description": "Ingest Metabase database, card (question), and collection metadata using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -55924,7 +55924,7 @@
     },
     {
       "id": "smartsheet_ingestion",
-      "name": "SmartsheetIngestionComponent",
+      "name": "Smartsheet Ingestion",
       "category": "ingestion",
       "description": "Ingest Smartsheet sheet metadata, users, reports, and (optionally) one sheet's row data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -55954,7 +55954,7 @@
     },
     {
       "id": "productboard_ingestion",
-      "name": "ProductboardIngestionComponent",
+      "name": "Productboard Ingestion",
       "category": "ingestion",
       "description": "Ingest Productboard notes, features, components, and objectives using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -55984,7 +55984,7 @@
     },
     {
       "id": "fullstory_ingestion",
-      "name": "FullstoryIngestionComponent",
+      "name": "Fullstory Ingestion",
       "category": "ingestion",
       "description": "Ingest Fullstory user, segment, and settings data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -56014,7 +56014,7 @@
     },
     {
       "id": "toggl_track_ingestion",
-      "name": "TogglTrackIngestionComponent",
+      "name": "Toggl Track Ingestion",
       "category": "ingestion",
       "description": "Ingest Toggl Track time entries, projects, and clients using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -56044,7 +56044,7 @@
     },
     {
       "id": "dynamics_crm_ingestion",
-      "name": "DynamicsCrmIngestionComponent",
+      "name": "Microsoft Dynamics 365 (Dataverse) Ingestion",
       "category": "ingestion",
       "description": "Ingest Microsoft Dynamics 365 CRM data (accounts, contacts, opportunities, leads) via the Dataverse Web API (OData v4) using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -56074,7 +56074,7 @@
     },
     {
       "id": "pendo_ingestion",
-      "name": "PendoIngestionComponent",
+      "name": "Pendo Ingestion",
       "category": "ingestion",
       "description": "Ingest Pendo product analytics metadata (features, guides, accounts) using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -56104,7 +56104,7 @@
     },
     {
       "id": "egnyte_ingestion",
-      "name": "EgnyteIngestionComponent",
+      "name": "Egnyte Ingestion",
       "category": "ingestion",
       "description": "Ingest Egnyte file/folder listings, users, and groups using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -56134,7 +56134,7 @@
     },
     {
       "id": "talkdesk_ingestion",
-      "name": "TalkdeskIngestionComponent",
+      "name": "Talkdesk Ingestion",
       "category": "ingestion",
       "description": "Ingest Talkdesk contact center data (contacts, campaigns, users) using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -56164,7 +56164,7 @@
     },
     {
       "id": "optimizely_ingestion",
-      "name": "OptimizelyIngestionComponent",
+      "name": "Optimizely (Feature Experimentation) Ingestion",
       "category": "ingestion",
       "description": "Ingest Optimizely Feature/Web Experimentation data (projects, experiments, audiences) using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -56413,7 +56413,7 @@
     },
     {
       "id": "paypal_ingestion",
-      "name": "PayPalIngestionComponent",
+      "name": "PayPal Ingestion",
       "category": "ingestion",
       "description": "Ingest PayPal transaction and invoice data (REST API, not Braintree) using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -56443,7 +56443,7 @@
     },
     {
       "id": "square_ingestion",
-      "name": "SquareIngestionComponent",
+      "name": "Square Ingestion",
       "category": "ingestion",
       "description": "Ingest Square customer, catalog, and payment data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -56473,7 +56473,7 @@
     },
     {
       "id": "bigcommerce_ingestion",
-      "name": "BigCommerceIngestionComponent",
+      "name": "BigCommerce Ingestion",
       "category": "ingestion",
       "description": "Ingest BigCommerce product, customer, and category data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -56503,7 +56503,7 @@
     },
     {
       "id": "magento_ingestion",
-      "name": "MagentoIngestionComponent",
+      "name": "Magento / Adobe Commerce Ingestion",
       "category": "ingestion",
       "description": "Ingest Magento/Adobe Commerce product, order, and customer data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -56533,7 +56533,7 @@
     },
     {
       "id": "ringcentral_ingestion",
-      "name": "RingCentralIngestionComponent",
+      "name": "RingCentral Ingestion",
       "category": "ingestion",
       "description": "Ingest RingCentral call logs, messages, and extension data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -56563,7 +56563,7 @@
     },
     {
       "id": "onedrive_ingestion",
-      "name": "OneDriveIngestionComponent",
+      "name": "OneDrive / SharePoint (Microsoft Graph) Ingestion",
       "category": "ingestion",
       "description": "Ingest OneDrive/SharePoint file listings via Microsoft Graph (app-only auth) using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -56593,7 +56593,7 @@
     },
     {
       "id": "qualtrics_ingestion",
-      "name": "QualtricsIngestionComponent",
+      "name": "Qualtrics Ingestion",
       "category": "ingestion",
       "description": "Ingest Qualtrics survey and mailing list data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -56623,7 +56623,7 @@
     },
     {
       "id": "pandadoc_ingestion",
-      "name": "PandaDocIngestionComponent",
+      "name": "PandaDoc Ingestion",
       "category": "ingestion",
       "description": "Ingest PandaDoc document, template, and folder data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -56653,7 +56653,7 @@
     },
     {
       "id": "honeycomb_ingestion",
-      "name": "HoneycombIngestionComponent",
+      "name": "Honeycomb Ingestion",
       "category": "ingestion",
       "description": "Ingest Honeycomb dataset metadata using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -56683,7 +56683,7 @@
     },
     {
       "id": "grafana_cloud_ingestion",
-      "name": "GrafanaCloudIngestionComponent",
+      "name": "Grafana Cloud Ingestion",
       "category": "ingestion",
       "description": "Ingest Grafana Cloud dashboard and datasource metadata using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -56713,7 +56713,7 @@
     },
     {
       "id": "circleci_ingestion",
-      "name": "CircleCIIngestionComponent",
+      "name": "CircleCI Ingestion",
       "category": "ingestion",
       "description": "Ingest CircleCI pipeline and workflow data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -56743,7 +56743,7 @@
     },
     {
       "id": "buildkite_ingestion",
-      "name": "BuildkiteIngestionComponent",
+      "name": "Buildkite Ingestion",
       "category": "ingestion",
       "description": "Ingest Buildkite organization, pipeline, and build data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -56828,7 +56828,7 @@
     },
     {
       "id": "box_ingestion",
-      "name": "BoxIngestionComponent",
+      "name": "Box Ingestion",
       "category": "ingestion",
       "description": "Ingest Box file/folder listings and users using dlt's generic REST API source, authenticated via Client Credentials Grant (service account).",
       "version": "1.0.0",
@@ -56858,7 +56858,7 @@
     },
     {
       "id": "amplitude_ingestion",
-      "name": "AmplitudeIngestionComponent",
+      "name": "Amplitude Ingestion",
       "category": "ingestion",
       "description": "Ingest Amplitude event definitions and cohort metadata using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -56888,7 +56888,7 @@
     },
     {
       "id": "okta_management_ingestion",
-      "name": "OktaManagementIngestionComponent",
+      "name": "Okta (Management API) Ingestion",
       "category": "ingestion",
       "description": "Ingest Okta org data (users, groups, apps) via the Management API using dlt's generic REST API source. Distinct from okta_system_log_ingestion, which covers audit/system logs only.",
       "version": "1.0.0",
@@ -56918,7 +56918,7 @@
     },
     {
       "id": "constant_contact_ingestion",
-      "name": "ConstantContactIngestionComponent",
+      "name": "Constant Contact Ingestion",
       "category": "ingestion",
       "description": "Ingest Constant Contact contact and list data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -56948,7 +56948,7 @@
     },
     {
       "id": "convertkit_ingestion",
-      "name": "ConvertKitIngestionComponent",
+      "name": "ConvertKit (Kit) Ingestion",
       "category": "ingestion",
       "description": "Ingest ConvertKit (rebranded 'Kit') subscriber, broadcast, and tag data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -56978,7 +56978,7 @@
     },
     {
       "id": "wrike_ingestion",
-      "name": "WrikeIngestionComponent",
+      "name": "Wrike Ingestion",
       "category": "ingestion",
       "description": "Ingest Wrike task, folder, and contact data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -57008,7 +57008,7 @@
     },
     {
       "id": "acuity_scheduling_ingestion",
-      "name": "AcuitySchedulingIngestionComponent",
+      "name": "Acuity Scheduling Ingestion",
       "category": "ingestion",
       "description": "Ingest Acuity Scheduling appointment, client, and calendar data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -57038,7 +57038,7 @@
     },
     {
       "id": "zoho_desk_ingestion",
-      "name": "ZohoDeskIngestionComponent",
+      "name": "Zoho Desk Ingestion",
       "category": "ingestion",
       "description": "Ingest Zoho Desk ticket, contact, and agent data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -57068,7 +57068,7 @@
     },
     {
       "id": "brex_ingestion",
-      "name": "BrexIngestionComponent",
+      "name": "Brex Ingestion",
       "category": "ingestion",
       "description": "Ingest Brex user, location, vendor, and transfer data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -57098,7 +57098,7 @@
     },
     {
       "id": "webex_ingestion",
-      "name": "WebexIngestionComponent",
+      "name": "Webex Ingestion",
       "category": "ingestion",
       "description": "Ingest Cisco Webex room, meeting, and people data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -57128,7 +57128,7 @@
     },
     {
       "id": "monday_ingestion",
-      "name": "MondayIngestionComponent",
+      "name": "monday.com Ingestion",
       "category": "ingestion",
       "description": "Ingest monday.com board/item/user data via its GraphQL API.",
       "version": "1.0.0",
@@ -57158,7 +57158,7 @@
     },
     {
       "id": "dropbox_ingestion",
-      "name": "DropboxIngestionComponent",
+      "name": "Dropbox Ingestion",
       "category": "ingestion",
       "description": "Ingest Dropbox file/folder listings via a hand-written cursor-paginated fetch (not dlt's rest_api_source -- Dropbox's list_folder endpoint is POST+JSON-body, not GET+query-params).",
       "version": "1.0.0",
@@ -57294,7 +57294,7 @@
     },
     {
       "id": "auth0_management_ingestion",
-      "name": "Auth0ManagementIngestionComponent",
+      "name": "Auth0 (Management API) Ingestion",
       "category": "ingestion",
       "description": "Ingest Auth0 org data (users, roles, organizations) via the Management API using dlt's generic REST API source. Distinct from auth0_logs_ingestion, which covers audit/log-stream data only.",
       "version": "1.0.0",
@@ -57324,7 +57324,7 @@
     },
     {
       "id": "zuora_ingestion",
-      "name": "ZuoraIngestionComponent",
+      "name": "Zuora Ingestion",
       "category": "ingestion",
       "description": "Ingest Zuora subscription billing data (accounts, subscriptions, invoices) using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -57354,7 +57354,7 @@
     },
     {
       "id": "adyen_ingestion",
-      "name": "AdyenIngestionComponent",
+      "name": "Adyen Ingestion",
       "category": "ingestion",
       "description": "Ingest Adyen merchant and store data via the Management API using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -57384,7 +57384,7 @@
     },
     {
       "id": "freshservice_ingestion",
-      "name": "FreshserviceIngestionComponent",
+      "name": "Freshservice Ingestion",
       "category": "ingestion",
       "description": "Ingest Freshservice ITSM ticket, requester, agent, and asset data using dlt's generic REST API source. Distinct product from Freshdesk.",
       "version": "1.0.0",
@@ -57414,7 +57414,7 @@
     },
     {
       "id": "jira_service_management_ingestion",
-      "name": "JiraServiceManagementIngestionComponent",
+      "name": "Jira Service Management Ingestion",
       "category": "ingestion",
       "description": "Ingest Jira Service Management service desk, request, and organization data using dlt's generic REST API source. Distinct product surface from core Jira.",
       "version": "1.0.0",
@@ -57444,7 +57444,7 @@
     },
     {
       "id": "paddle_ingestion",
-      "name": "PaddleIngestionComponent",
+      "name": "Paddle Ingestion",
       "category": "ingestion",
       "description": "Ingest Paddle (merchant-of-record billing) customer, subscription, and transaction data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -57474,7 +57474,7 @@
     },
     {
       "id": "chargify_ingestion",
-      "name": "ChargifyIngestionComponent",
+      "name": "Chargify (Maxio Advanced Billing) Ingestion",
       "category": "ingestion",
       "description": "Ingest Chargify/Maxio Advanced Billing subscription, customer, and invoice data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -57504,7 +57504,7 @@
     },
     {
       "id": "docebo_ingestion",
-      "name": "DoceboIngestionComponent",
+      "name": "Docebo Ingestion",
       "category": "ingestion",
       "description": "Ingest Docebo LMS user, course, and enrollment data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -57534,7 +57534,7 @@
     },
     {
       "id": "frontegg_ingestion",
-      "name": "FronteggIngestionComponent",
+      "name": "Frontegg Ingestion",
       "category": "ingestion",
       "description": "Ingest Frontegg (auth-as-a-service) user and tenant data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -57564,7 +57564,7 @@
     },
     {
       "id": "persona_ingestion",
-      "name": "PersonaIngestionComponent",
+      "name": "Persona Ingestion",
       "category": "ingestion",
       "description": "Ingest Persona identity-verification inquiry, account, and case data using dlt's generic REST API source.",
       "version": "1.0.0",
@@ -57594,7 +57594,7 @@
     },
     {
       "id": "sumo_logic_ingestion",
-      "name": "SumoLogicIngestionComponent",
+      "name": "Sumo Logic Ingestion",
       "category": "ingestion",
       "description": "Ingest Sumo Logic collector and source metadata using dlt's generic REST API source. Log/message search data requires an async job/poll pattern not implemented here -- this connector covers collector/source metadata only.",
       "version": "1.0.0",

@@ -254,5 +254,5 @@
     "dlt",
     "rest_api"
   ],
-  "name": "SumoLogicIngestionComponent"
+  "name": "Sumo Logic Ingestion"
 }

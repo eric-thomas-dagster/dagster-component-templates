@@ -241,5 +241,5 @@
     "dlt",
     "rest_api"
   ],
-  "name": "OptimizelyIngestionComponent"
+  "name": "Optimizely (Feature Experimentation) Ingestion"
 }

@@ -241,5 +241,5 @@
     "dlt",
     "rest_api"
   ],
-  "name": "ConcurIngestionComponent"
+  "name": "SAP Concur Ingestion"
 }

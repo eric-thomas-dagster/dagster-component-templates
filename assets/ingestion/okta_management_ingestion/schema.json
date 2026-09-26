@@ -240,5 +240,5 @@
     "dlt",
     "rest_api"
   ],
-  "name": "OktaManagementIngestionComponent"
+  "name": "Okta (Management API) Ingestion"
 }

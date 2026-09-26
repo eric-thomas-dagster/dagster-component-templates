@@ -2,7 +2,6 @@
   "component_type": "dagster_component_templates.ZendeskIngestionComponent",
   "description": "Component for ingesting Zendesk customer support data using dlt.",
   "category": "ingestion",
-
   "vertical": "support",
   "icon": "si:zendesk",
   "x-dagster-io": {
@@ -21,21 +20,31 @@
     "subdomain": {
       "type": "string",
       "label": "Subdomain",
-      "description": "Zendesk subdomain (e.g., 'my-company' for my-company.zendesk.com)",
-      "required": true
+      "description": "Zendesk subdomain (e.g., 'my-company' for my-company.zendesk.com) Required unless resource_key is set.",
+      "required": false,
+      "default": null
     },
     "email": {
       "type": "string",
       "label": "Email",
-      "description": "Email address for Zendesk authentication",
-      "required": true
+      "description": "Email address for Zendesk authentication Required unless resource_key is set.",
+      "required": false,
+      "default": null
     },
     "api_token": {
       "type": "string",
       "label": "Api Token",
-      "description": "Zendesk API token for authentication",
-      "required": true,
-      "ui:widget": "password"
+      "description": "Zendesk API token for authentication Required unless resource_key is set.",
+      "required": false,
+      "ui:widget": "password",
+      "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": null,
+      "description": "Optional resource key registered by a ZendeskResourceComponent. When set, credentials are read from that resource at run time instead of subdomain/email/api_token -- lets one Zendesk credential serve both ingestion and the zendesk_user_upsert reverse-ETL sink."
     },
     "resources": {
       "type": "array",
@@ -74,7 +83,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -121,14 +130,14 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
       "required": false,
       "default": 25
     },
     "destination": {
       "type": "string",
       "label": "Destination",
-      "description": "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode.",
+      "description": "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB \u2192 DataFrame mode.",
       "required": false,
       "default": null,
       "enum": [
@@ -307,7 +316,7 @@
       "type": "object",
       "label": "Column Lineage",
       "required": false,
-      "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
+      "description": "Column-level lineage: output column \u2192 list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "partition_date_column": {
       "type": "string",

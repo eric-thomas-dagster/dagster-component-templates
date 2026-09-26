@@ -3,7 +3,7 @@
   "description": "Ingest Basecamp projects/todos data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "productivity",
-  "icon": "ArrowUpFromLine",
+  "icon": "si:basecamp",
   "x-dagster-io": {
     "outputs": {
       "type": "dataframe",
@@ -240,5 +240,5 @@
     "dlt",
     "rest_api"
   ],
-  "name": "BasecampIngestionComponent"
+  "name": "Basecamp Ingestion"
 }

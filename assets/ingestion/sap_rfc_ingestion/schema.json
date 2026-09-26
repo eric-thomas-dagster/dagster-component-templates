@@ -2,7 +2,6 @@
   "component_type": "dagster_component_templates.SapRFCIngestionComponent",
   "description": "Execute an SAP RFC / BAPI / RFC_READ_TABLE and materialize the result as a pandas DataFrame. Classic on-prem R/3 / ECC / S/4HANA integration path. Pairs with sap_rfc_resource.",
   "category": "source",
-
   "vertical": "finance-hr",
   "icon": "si:sap",
   "x-dagster-io": {
@@ -28,9 +27,8 @@
       "required": false,
       "default": "read_table",
       "enum": [
-        "append",
-        "overwrite",
-        "upsert"
+        "read_table",
+        "bapi"
       ],
       "ui:widget": "select"
     },

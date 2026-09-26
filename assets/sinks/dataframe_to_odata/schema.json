@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.DataframeToODataComponent",
-  "description": "Sink — write a pandas DataFrame to an OData v2/v4 entity set via POST / PATCH / DELETE.",
+  "description": "Sink \u2014 write a pandas DataFrame to an OData v2/v4 entity set via POST / PATCH / DELETE.",
   "category": "sink",
   "icon": "si:odata",
   "x-dagster-io": {
@@ -53,9 +53,9 @@
       "required": false,
       "default": "insert",
       "enum": [
-        "append",
-        "overwrite",
-        "upsert"
+        "insert",
+        "upsert",
+        "delete"
       ],
       "ui:widget": "select"
     },
@@ -259,5 +259,5 @@
     "dynamics365",
     "msgraph"
   ],
-  "name": "Dataframe → OData"
+  "name": "Dataframe \u2192 OData"
 }

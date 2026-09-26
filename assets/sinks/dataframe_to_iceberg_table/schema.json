@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.DataframeToIcebergTableComponent",
-  "description": "Write a pandas DataFrame to an EXISTING Iceberg table (append or overwrite). For Iceberg tables shared with other engines — Snowflake, Trino, Spark, Flink, Databricks.",
+  "description": "Write a pandas DataFrame to an EXISTING Iceberg table (append or overwrite). For Iceberg tables shared with other engines \u2014 Snowflake, Trino, Spark, Flink, Databricks.",
   "category": "sink",
   "icon": "si:apacheiceberg",
   "x-dagster-io": {
@@ -64,15 +64,14 @@
       "default": "append",
       "enum": [
         "append",
-        "overwrite",
-        "upsert"
+        "overwrite"
       ],
       "ui:widget": "select"
     },
     "overwrite_filter": {
       "type": "string",
       "label": "Overwrite Filter",
-      "description": "Iceberg expression — supports {partition_key}",
+      "description": "Iceberg expression \u2014 supports {partition_key}",
       "required": false,
       "ui:widget": "code"
     },
@@ -198,5 +197,5 @@
     "pyiceberg",
     "external-table"
   ],
-  "name": "Dataframe → Iceberg Table"
+  "name": "Dataframe \u2192 Iceberg Table"
 }

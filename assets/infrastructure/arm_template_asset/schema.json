@@ -70,9 +70,8 @@
       "required": false,
       "default": "Incremental",
       "enum": [
-        "append",
-        "overwrite",
-        "upsert"
+        "Incremental",
+        "Complete"
       ],
       "ui:widget": "select"
     },

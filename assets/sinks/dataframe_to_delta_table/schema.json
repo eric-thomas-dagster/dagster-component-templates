@@ -45,7 +45,9 @@
       "enum": [
         "append",
         "overwrite",
-        "upsert"
+        "merge",
+        "error",
+        "ignore"
       ],
       "ui:widget": "select"
     },

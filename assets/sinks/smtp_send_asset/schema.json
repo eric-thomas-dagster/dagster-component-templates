@@ -77,9 +77,8 @@
       "description": "'per_row': one email per upstream row, using row fields in templates. 'summary': one email per run, with all rows rendered in the body via summary_template.",
       "default": "per_row",
       "enum": [
-        "append",
-        "overwrite",
-        "upsert"
+        "per_row",
+        "summary"
       ],
       "ui:widget": "select"
     },

@@ -49,9 +49,8 @@
       "description": "`latest`: most recent job only. `history`: all jobs since `since_iso`.",
       "default": "latest",
       "enum": [
-        "append",
-        "overwrite",
-        "upsert"
+        "latest",
+        "history"
       ],
       "ui:widget": "select"
     },

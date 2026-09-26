@@ -31,9 +31,8 @@
       "required": false,
       "description": "`string`: convert a column of Python str values in place. `file`: read each file path's bytes, recode, write a new file.",
       "enum": [
-        "append",
-        "overwrite",
-        "upsert"
+        "string",
+        "file"
       ],
       "ui:widget": "select"
     },

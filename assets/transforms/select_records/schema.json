@@ -30,9 +30,11 @@
       "label": "Mode",
       "required": true,
       "enum": [
-        "append",
-        "overwrite",
-        "upsert"
+        "range",
+        "head",
+        "tail",
+        "indices",
+        "expression"
       ],
       "ui:widget": "select"
     },
@@ -134,7 +136,7 @@
       "type": "object",
       "label": "Column Lineage",
       "required": false,
-      "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
+      "description": "Column-level lineage: output column \u2192 list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "partition_type": {
       "type": "string",

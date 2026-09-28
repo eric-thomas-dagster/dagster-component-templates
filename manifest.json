@@ -26251,12 +26251,16 @@
       "id": "k_means_clustering",
       "name": "K-Means Clustering",
       "category": "analytics",
-      "description": "Cluster records using K-means and assign cluster IDs.",
+      "description": "Cluster records using K-means and assign cluster IDs. Supports `source: {kind: warehouse_query}` direct-SQL ingestion (DuckDB and other databases) alongside `upstream_asset_key`, and `execution_mode: sql` -- trains AND predicts server-side via BigQuery `CREATE MODEL...OPTIONS(model_type='KMEANS')` + `ML.PREDICT`. BigQuery-ONLY: Snowflake ML has no clustering function and Databricks has no natural predict-against-a-served-endpoint story for clustering (no stable label space).",
       "path": "assets/analytics/k_means_clustering",
       "tags": [
         "analytics",
         "means",
-        "clustering"
+        "clustering",
+        "warehouse query",
+        "duckdb",
+        "bigquery",
+        "sql execution mode"
       ],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/k_means_clustering/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/k_means_clustering/component.py",
@@ -26266,16 +26270,16 @@
       "icon": "BarChart2",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/iris_unsupervised.md",
-        "last_validated": "2026-05-06"
+        "evidence": "Original python-mode: https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/iris_unsupervised.md . source/execution_mode additions (added 2026-09-28): source: warehouse_query live-verified against real DuckDB. execution_mode='sql' is structural-only -- generated SQL asserted against BigQuery ML-function documentation (confirmed centroid_id/nearest_centroids_distance output column names), not run against a live warehouse account.",
+        "last_validated": "2026-09-28"
       },
       "agent_hints": {
-        "inputs": "DataFrame with numeric feature columns.",
-        "outputs": "DataFrame + a NEW `cluster` column (integer id per row).",
-        "side_effects": "Adds one column. Requires sklearn. Feature scaling matters \u2014 chain feature_scaler.",
+        "inputs": "DataFrame with numeric feature columns (upstream_asset_key), or a SQL FROM-source (source: {kind: warehouse_query}).",
+        "outputs": "DataFrame + a NEW `cluster` column (integer id per row). execution_mode='sql' writes directly to output_table in the warehouse instead.",
+        "side_effects": "Adds one column. Requires scikit-learn. Feature scaling matters \u2014 chain feature_scaler. execution_mode='sql' runs CREATE MODEL in the target warehouse.",
         "anti_uses": "For hierarchical or density-based clustering use spatial_cluster. For diagnostics use k_centroids_diagnostics.",
         "requires_pip": [
-          "sklearn"
+          "scikit-learn"
         ],
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame"
@@ -26295,7 +26299,11 @@
       ],
       "keywords": [
         "report",
-        "aggregate"
+        "aggregate",
+        "warehouse query",
+        "duckdb",
+        "sql execution mode",
+        "bigquery ml"
       ]
     },
     {

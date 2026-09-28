@@ -7,7 +7,9 @@ Works with visual dependency drawing - just connect DataFrame-producing assets!
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 import json
+import string as _string_module
 
+import numpy as np
 import pandas as pd
 from dagster import (
     AssetKey,
@@ -327,6 +329,87 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         description='JSON mapping of string replacements: {"column_name": {"old": "new", "pattern": "replacement"}}'
     )
 
+    # JSON list: [{"column", "find", "replace"}] -- REPLACE(col, find, replace),
+    # chainable (multiple ops on the same column apply in order). Distinct
+    # from string_replace's per-column dict-of-dicts shape -- this is the
+    # ordered-list shape the SQL backend (SqlTransformerComponent) already
+    # uses, kept parallel so the frontend can send either backend the same
+    # payload shape for this op.
+    replace_ops: Optional[str] = Field(
+        default=None,
+        description='JSON list of REPLACE ops: [{"column": "name", "find": "Mr.", "replace": ""}]. Multiple ops on the same column chain in order.',
+    )
+    # JSON list: [{"column", "delimiter", "into"}] -- into is a comma-separated
+    # list of new column names, filled left-to-right from the split parts.
+    split_ops: Optional[str] = Field(
+        default=None,
+        description='JSON list of split ops: [{"column": "full_name", "delimiter": " ", "into": "first_name,last_name"}].',
+    )
+    # JSON list: [{"kind", "orderBy", "partitionBy", "orderAsc", "into"}].
+    # kind in {rank, dense_rank, row_number}.
+    window_ops: Optional[str] = Field(
+        default=None,
+        description='JSON list of window ops: [{"kind": "rank", "orderBy": "amount", "partitionBy": "customer_id", "orderAsc": false, "into": "amount_rank"}]. kind: rank, dense_rank, row_number.',
+    )
+    # JSON list: [{"column", "operator", "value", "into", "partitionBy"}] --
+    # count of rows matching the condition, optionally within a partition.
+    count_match_ops: Optional[str] = Field(
+        default=None,
+        description='JSON list of count-matching ops: [{"column": "status", "operator": "equals", "value": "completed", "into": "completed_count", "partitionBy": "customer_id"}].',
+    )
+    # JSON list: [{"branches": [{"column","operator","value","then"}], "else", "into"}].
+    case_when_ops: Optional[str] = Field(
+        default=None,
+        description='JSON list of case-when ops: [{"branches": [{"column": "amount", "operator": "greater_than", "value": "100", "then": "large"}], "else": "small", "into": "size_bucket"}].',
+    )
+    # JSON list: [{"columns" (csv), "separator", "into"}].
+    concat_ops: Optional[str] = Field(
+        default=None,
+        description='JSON list of concat ops: [{"columns": "first_name,last_name", "separator": " ", "into": "full_name"}].',
+    )
+    # JSON list: [{"column", "part", "into"}]. part in {year, month, day, dayofweek, hour}.
+    date_extract_ops: Optional[str] = Field(
+        default=None,
+        description='JSON list of date-extract ops: [{"column": "created_at", "part": "year", "into": "created_year"}]. part: year, month, day, dayofweek, hour.',
+    )
+    # JSON list: [{"column", "start" (1-based), "length"|null, "into"}].
+    substring_ops: Optional[str] = Field(
+        default=None,
+        description='JSON list of substring ops: [{"column": "sku", "start": 1, "length": 3, "into": "sku_prefix"}]. start is 1-based; omit length to take the rest of the string.',
+    )
+    # JSON list: [{"column", "op": round|floor|ceil|abs, "digits", "into"}].
+    numeric_ops: Optional[str] = Field(
+        default=None,
+        description='JSON list of numeric ops: [{"column": "price", "op": "round", "digits": 2, "into": "price_rounded"}]. op: round, floor, ceil, abs.',
+    )
+    # JSON: {"n" | "fraction", "random"}. n takes precedence over fraction.
+    sample_config: Optional[str] = Field(
+        default=None,
+        description='JSON sample config: {"n": 1000, "random": true} or {"fraction": 0.1, "random": true}. n takes precedence when both are set.',
+    )
+    # JSON list: [{"column", "boundaries" (csv), "labels" (csv), "into"}].
+    bin_ops: Optional[str] = Field(
+        default=None,
+        description='JSON list of binning ops: [{"column": "age", "boundaries": "18,35,50", "labels": "young,mid,senior,elder", "into": "age_bucket"}].',
+    )
+    # JSON: {"subsetCols" (csv), "keep": first|last}. An alternative to the
+    # blanket drop_duplicates flag above -- dedupes on a specific column
+    # subset instead of every column.
+    dedupe_subset: Optional[str] = Field(
+        default=None,
+        description='JSON dedupe config: {"subsetCols": "customer_id,order_date", "keep": "first"}.',
+    )
+    # JSON list: [{"column", "partitionBy", "orderBy", "orderAsc", "into"}].
+    cumsum_ops: Optional[str] = Field(
+        default=None,
+        description='JSON list of cumulative-sum ops: [{"column": "amount", "partitionBy": "customer_id", "orderBy": "order_date", "into": "running_total"}].',
+    )
+    # JSON list: [{"column", "direction": ffill|bfill, "partitionBy", "orderBy"}].
+    fill_direction_ops: Optional[str] = Field(
+        default=None,
+        description='JSON list of fill-direction ops: [{"column": "price", "direction": "ffill", "partitionBy": "sku", "orderBy": "date"}]. direction: ffill (forward-fill) or bfill (backward-fill), applied in place.',
+    )
+
     # Calculated columns
     calculated_columns: Optional[Union[str, int]] = Field(
         default=None,
@@ -398,7 +481,11 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
 
     # Field validators to handle Dagster Components auto-deserializing JSON strings
     @field_validator('rename_columns', 'agg_functions', 'string_operations', 'string_replace',
-                     'calculated_columns', 'pivot_config', 'unpivot_config', mode='before')
+                     'calculated_columns', 'pivot_config', 'unpivot_config',
+                     'replace_ops', 'split_ops', 'window_ops', 'count_match_ops',
+                     'case_when_ops', 'concat_ops', 'date_extract_ops', 'substring_ops',
+                     'numeric_ops', 'sample_config', 'bin_ops', 'dedupe_subset',
+                     'cumsum_ops', 'fill_direction_ops', mode='before')
     @classmethod
     def convert_dict_to_json_string(cls, v):
         """Convert dict to JSON string if needed.
@@ -450,6 +537,28 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         calculated_columns_str = self.calculated_columns
         pivot_config_str = self.pivot_config
         unpivot_config_str = self.unpivot_config
+        replace_ops_str = self.replace_ops
+        split_ops_str = self.split_ops
+        window_ops_str = self.window_ops
+        count_match_ops_str = self.count_match_ops
+        case_when_ops_str = self.case_when_ops
+        concat_ops_str = self.concat_ops
+        date_extract_ops_str = self.date_extract_ops
+        substring_ops_str = self.substring_ops
+        numeric_ops_str = self.numeric_ops
+        sample_config_str = self.sample_config
+        bin_ops_str = self.bin_ops
+        dedupe_subset_str = self.dedupe_subset
+        cumsum_ops_str = self.cumsum_ops
+        fill_direction_ops_str = self.fill_direction_ops
+        # Bare `self.` attribute -- the closure below previously referenced
+        # this as a bare local name with no assignment anywhere in scope,
+        # which raises NameError the moment _effective_lineage's auto-infer
+        # branch produces anything truthy (i.e. almost every real run with
+        # at least one passthrough column) -- confirmed by reading the
+        # closure body, not run live (no test harness for this component
+        # exists in this checkout yet).
+        upstream_asset_key = self.upstream_asset_key
         description = self.description or "Transform DataFrames from upstream assets"
         group_name = self.group_name
         include_preview = self.include_preview_metadata
@@ -721,25 +830,35 @@ group_name=group_name,
                     context.log.error(f"Aggregation failed: {e}")
                     raise
 
-            # String operations
+            # String operations. `column` of "*" or empty/missing -- applies
+            # to every object(string)-dtype column instead of requiring each
+            # one named individually, matching data_cleansing's own
+            # auto-detect behavior (df.select_dtypes(include="object")).
             if string_operations_str:
                 try:
                     operations = json.loads(string_operations_str)
                     for op in operations:
                         col = op.get('column')
                         operation = op.get('operation')
-
-                        if col in df.columns:
+                        target_cols = (
+                            list(df.select_dtypes(include=['object', 'string']).columns)
+                            if not col or col == '*'
+                            else [col] if col in df.columns else []
+                        )
+                        for c in target_cols:
                             if operation == 'upper':
-                                df[col] = df[col].astype(str).str.upper()
+                                df[c] = df[c].astype(str).str.upper()
                             elif operation == 'lower':
-                                df[col] = df[col].astype(str).str.lower()
+                                df[c] = df[c].astype(str).str.lower()
                             elif operation in ['trim', 'strip']:
-                                df[col] = df[col].astype(str).str.strip()
+                                df[c] = df[c].astype(str).str.strip()
                             elif operation == 'title':
-                                df[col] = df[col].astype(str).str.title()
-
-                            context.log.info(f"Applied '{operation}' to column '{col}'")
+                                df[c] = df[c].astype(str).str.title()
+                            elif operation == 'remove_punctuation':
+                                _punct_table = str.maketrans('', '', _string_module.punctuation)
+                                df[c] = df[c].astype(str).str.translate(_punct_table)
+                        if target_cols:
+                            context.log.info(f"Applied '{operation}' to column(s) {target_cols}")
                 except Exception as e:
                     context.log.error(f"String operations failed: {e}")
                     raise
@@ -755,6 +874,344 @@ group_name=group_name,
                                 context.log.info(f"Replaced '{old_val}' with '{new_val}' in column '{col}'")
                 except Exception as e:
                     context.log.error(f"String replace failed: {e}")
+                    raise
+
+            # Replace ops -- REPLACE(col, find, replace), chainable (same
+            # ordered-list shape as SqlTransformerComponent's replace_ops,
+            # distinct from string_replace's per-column dict-of-dicts above).
+            if replace_ops_str:
+                try:
+                    replace_ops = json.loads(replace_ops_str)
+                    by_col: Dict[str, List[dict]] = {}
+                    for op in replace_ops:
+                        col = op.get('column')
+                        if col and op.get('find') is not None:
+                            by_col.setdefault(col, []).append(op)
+                    for col, ops in by_col.items():
+                        if col in df.columns:
+                            for op in ops:
+                                df[col] = df[col].astype(str).str.replace(
+                                    str(op.get('find', '')), str(op.get('replace', '')), regex=False,
+                                )
+                            context.log.info(f"Applied {len(ops)} replace op(s) to column '{col}'")
+                except Exception as e:
+                    context.log.error(f"replace_ops failed: {e}")
+                    raise
+
+            # Split ops -- splits a column on a delimiter into `into`'s
+            # comma-separated target column names, left-to-right.
+            if split_ops_str:
+                try:
+                    split_ops = json.loads(split_ops_str)
+                    for op in split_ops:
+                        col = op.get('column')
+                        delim = op.get('delimiter')
+                        into = op.get('into')
+                        if col in df.columns and delim and into:
+                            targets = [t.strip() for t in str(into).split(',') if t.strip()]
+                            parts = df[col].astype(str).str.split(delim, expand=True)
+                            for idx, t in enumerate(targets):
+                                df[t] = parts[idx] if idx in parts.columns else None
+                            context.log.info(f"Split '{col}' by '{delim}' into {targets}")
+                except Exception as e:
+                    context.log.error(f"split_ops failed: {e}")
+                    raise
+
+            # Numeric ops -- round / floor / ceil / abs into a new column.
+            if numeric_ops_str:
+                try:
+                    numeric_ops = json.loads(numeric_ops_str)
+                    for op in numeric_ops:
+                        col = op.get('column')
+                        into = op.get('into')
+                        kind = str(op.get('op', 'round')).lower()
+                        digits = int(op.get('digits', 0))
+                        if col in df.columns and into:
+                            numeric_col = pd.to_numeric(df[col], errors='coerce')
+                            if kind == 'floor':
+                                df[into] = np.floor(numeric_col)
+                            elif kind == 'ceil':
+                                df[into] = np.ceil(numeric_col)
+                            elif kind == 'abs':
+                                df[into] = numeric_col.abs()
+                            else:
+                                df[into] = numeric_col.round(digits)
+                    context.log.info(f"Applied {len(numeric_ops)} numeric op(s)")
+                except Exception as e:
+                    context.log.error(f"numeric_ops failed: {e}")
+                    raise
+
+            # Date extract ops -- EXTRACT(part FROM col) equivalent.
+            if date_extract_ops_str:
+                try:
+                    date_extract_ops = json.loads(date_extract_ops_str)
+                    for op in date_extract_ops:
+                        col = op.get('column')
+                        part = str(op.get('part', 'year')).lower()
+                        into = op.get('into')
+                        if col in df.columns and into:
+                            dt = pd.to_datetime(df[col], errors='coerce')
+                            if part == 'month':
+                                df[into] = dt.dt.month
+                            elif part == 'day':
+                                df[into] = dt.dt.day
+                            elif part == 'dayofweek':
+                                df[into] = dt.dt.dayofweek
+                            elif part == 'hour':
+                                df[into] = dt.dt.hour
+                            else:
+                                df[into] = dt.dt.year
+                    context.log.info(f"Applied {len(date_extract_ops)} date-extract op(s)")
+                except Exception as e:
+                    context.log.error(f"date_extract_ops failed: {e}")
+                    raise
+
+            # Substring ops -- 1-based start (matches SQL SUBSTRING semantics),
+            # omit length to take the rest of the string.
+            if substring_ops_str:
+                try:
+                    substring_ops = json.loads(substring_ops_str)
+                    for op in substring_ops:
+                        col = op.get('column')
+                        into = op.get('into')
+                        start = int(op.get('start', 1))
+                        length = op.get('length')
+                        if col in df.columns and into:
+                            s = df[col].astype(str)
+                            start0 = max(start - 1, 0)
+                            if length is None or length == '':
+                                df[into] = s.str.slice(start0)
+                            else:
+                                df[into] = s.str.slice(start0, start0 + int(length))
+                    context.log.info(f"Applied {len(substring_ops)} substring op(s)")
+                except Exception as e:
+                    context.log.error(f"substring_ops failed: {e}")
+                    raise
+
+            # Concat ops -- col1 || sep || col2 || sep || col3 ..., row-wise.
+            if concat_ops_str:
+                try:
+                    concat_ops = json.loads(concat_ops_str)
+                    for op in concat_ops:
+                        cols = [c.strip() for c in str(op.get('columns', '')).split(',') if c.strip()]
+                        cols = [c for c in cols if c in df.columns]
+                        sep = str(op.get('separator', ''))
+                        into = op.get('into')
+                        if cols and into:
+                            df[into] = df[cols].astype(str).apply(lambda row: sep.join(row), axis=1)
+                    context.log.info(f"Applied {len(concat_ops)} concat op(s)")
+                except Exception as e:
+                    context.log.error(f"concat_ops failed: {e}")
+                    raise
+
+            # Case-when ops -- CASE WHEN cond1 THEN t1 WHEN cond2 THEN t2 ELSE e END.
+            if case_when_ops_str:
+                try:
+                    case_when_ops = json.loads(case_when_ops_str)
+                    for op in case_when_ops:
+                        into = op.get('into')
+                        branches = op.get('branches') or []
+                        else_val = op.get('else')
+                        if not into or not branches:
+                            continue
+                        conditions = []
+                        choices = []
+                        for b in branches:
+                            col = b.get('column')
+                            operator = str(b.get('operator', 'equals'))
+                            val = b.get('value')
+                            then = b.get('then')
+                            if col not in df.columns or val is None:
+                                continue
+                            if operator == 'not_equals':
+                                cond = df[col].astype(str) != str(val)
+                            elif operator == 'greater_than':
+                                cond = pd.to_numeric(df[col], errors='coerce') > float(val)
+                            elif operator == 'less_than':
+                                cond = pd.to_numeric(df[col], errors='coerce') < float(val)
+                            elif operator == 'contains':
+                                cond = df[col].astype(str).str.contains(str(val), na=False)
+                            else:
+                                cond = df[col].astype(str) == str(val)
+                            conditions.append(cond)
+                            choices.append(then)
+                        if conditions:
+                            df[into] = np.select(conditions, choices, default=else_val)
+                    context.log.info(f"Applied {len(case_when_ops)} case-when op(s)")
+                except Exception as e:
+                    context.log.error(f"case_when_ops failed: {e}")
+                    raise
+
+            # Bin/bucket ops -- CASE WHEN col <= b1 THEN L0 WHEN col <= b2 THEN L1 ... END.
+            if bin_ops_str:
+                try:
+                    bin_ops = json.loads(bin_ops_str)
+                    for op in bin_ops:
+                        col = op.get('column')
+                        into = op.get('into')
+                        bounds_str = op.get('boundaries', '')
+                        labels_str = op.get('labels', '')
+                        if col not in df.columns or not into or not bounds_str:
+                            continue
+                        bounds = [float(x.strip()) for x in bounds_str.split(',') if x.strip()]
+                        labels = [x.strip() for x in labels_str.split(',') if x.strip()] or None
+                        edges = [-np.inf] + bounds + [np.inf]
+                        if labels and len(labels) != len(edges) - 1:
+                            labels = None
+                        df[into] = pd.cut(pd.to_numeric(df[col], errors='coerce'), bins=edges, labels=labels)
+                    context.log.info(f"Applied {len(bin_ops)} binning op(s)")
+                except Exception as e:
+                    context.log.error(f"bin_ops failed: {e}")
+                    raise
+
+            # Dedupe on a specific column subset -- alternative to the
+            # blanket drop_duplicates flag above (dedupes on ALL columns).
+            if dedupe_subset_str:
+                try:
+                    dedupe_cfg = json.loads(dedupe_subset_str)
+                    subset_cols = [c.strip() for c in str(dedupe_cfg.get('subsetCols', '')).split(',') if c.strip()]
+                    subset_cols = [c for c in subset_cols if c in df.columns]
+                    keep = dedupe_cfg.get('keep', 'first')
+                    keep = keep if keep in ('first', 'last') else 'first'
+                    if subset_cols:
+                        before = len(df)
+                        df = df.drop_duplicates(subset=subset_cols, keep=keep)
+                        context.log.info(f"Deduped on {subset_cols} (keep={keep}): {before} → {len(df)} rows")
+                except Exception as e:
+                    context.log.error(f"dedupe_subset failed: {e}")
+                    raise
+
+            # Cumulative sum -- SUM(col) OVER (PARTITION BY ... ORDER BY ...).
+            if cumsum_ops_str:
+                try:
+                    cumsum_ops = json.loads(cumsum_ops_str)
+                    for op in cumsum_ops:
+                        col = op.get('column')
+                        into = op.get('into')
+                        order_by = op.get('orderBy') or op.get('order_by')
+                        partition_by = op.get('partitionBy') or op.get('partition_by') or ''
+                        order_asc = bool(op.get('orderAsc', op.get('order_asc', True)))
+                        if col not in df.columns or not into or not order_by or order_by not in df.columns:
+                            continue
+                        sorted_df = df.sort_values(by=order_by, ascending=order_asc)
+                        parts = [p.strip() for p in partition_by.split(',') if p.strip() and p.strip() in df.columns]
+                        cum = sorted_df.groupby(parts)[col].cumsum() if parts else sorted_df[col].cumsum()
+                        df.loc[sorted_df.index, into] = cum
+                    context.log.info(f"Applied {len(cumsum_ops)} cumulative-sum op(s)")
+                except Exception as e:
+                    context.log.error(f"cumsum_ops failed: {e}")
+                    raise
+
+            # Fill-direction ops -- forward/backward fill within a partition,
+            # in row order, applied in place (same column name).
+            if fill_direction_ops_str:
+                try:
+                    fill_direction_ops = json.loads(fill_direction_ops_str)
+                    for op in fill_direction_ops:
+                        col = op.get('column')
+                        direction = str(op.get('direction', 'ffill')).lower()
+                        order_by = op.get('orderBy') or op.get('order_by')
+                        partition_by = op.get('partitionBy') or op.get('partition_by') or ''
+                        if col not in df.columns:
+                            continue
+                        backward = direction in ('bfill', 'backward')
+                        work = df.sort_values(by=order_by) if order_by and order_by in df.columns else df
+                        parts = [p.strip() for p in partition_by.split(',') if p.strip() and p.strip() in df.columns]
+                        # .fillna(method=...) was removed in pandas 3.x -- use
+                        # the direct .ffill()/.bfill() accessors instead,
+                        # which also work directly on a SeriesGroupBy (no
+                        # equivalent groupby(...).fillna(method=...) exists).
+                        if parts:
+                            grouped = work.groupby(parts)[col]
+                            filled = grouped.bfill() if backward else grouped.ffill()
+                        else:
+                            filled = work[col].bfill() if backward else work[col].ffill()
+                        df.loc[work.index, col] = filled
+                    context.log.info(f"Applied {len(fill_direction_ops)} fill-direction op(s)")
+                except Exception as e:
+                    context.log.error(f"fill_direction_ops failed: {e}")
+                    raise
+
+            # Window ops -- RANK/DENSE_RANK/ROW_NUMBER OVER (PARTITION BY... ORDER BY...).
+            if window_ops_str:
+                try:
+                    window_ops = json.loads(window_ops_str)
+                    for op in window_ops:
+                        kind = str(op.get('kind', 'rank')).lower()
+                        order_by = op.get('orderBy') or op.get('order_by')
+                        into = op.get('into')
+                        partition_by = op.get('partitionBy') or op.get('partition_by') or ''
+                        order_asc = bool(op.get('orderAsc', op.get('order_asc', True)))
+                        if not order_by or not into or order_by not in df.columns:
+                            continue
+                        parts = [p.strip() for p in partition_by.split(',') if p.strip() and p.strip() in df.columns]
+                        sorted_df = df.sort_values(by=order_by, ascending=order_asc)
+                        if kind == 'row_number':
+                            result = (sorted_df.groupby(parts).cumcount() + 1) if parts else pd.Series(
+                                range(1, len(sorted_df) + 1), index=sorted_df.index,
+                            )
+                        else:
+                            method = 'dense' if kind == 'dense_rank' else 'min'
+                            result = (
+                                sorted_df.groupby(parts)[order_by].rank(method=method, ascending=order_asc)
+                                if parts else sorted_df[order_by].rank(method=method, ascending=order_asc)
+                            )
+                        df.loc[sorted_df.index, into] = result
+                    context.log.info(f"Applied {len(window_ops)} window op(s)")
+                except Exception as e:
+                    context.log.error(f"window_ops failed: {e}")
+                    raise
+
+            # Count-matching ops -- COUNT(CASE WHEN cond THEN 1 END) OVER (PARTITION BY ...).
+            if count_match_ops_str:
+                try:
+                    count_match_ops = json.loads(count_match_ops_str)
+                    for op in count_match_ops:
+                        col = op.get('column')
+                        operator = str(op.get('operator', 'equals'))
+                        val = op.get('value')
+                        into = op.get('into')
+                        if col not in df.columns or not into or val is None or str(val).strip() == '':
+                            continue
+                        if operator == 'not_equals':
+                            cond = df[col].astype(str) != str(val)
+                        elif operator == 'greater_than':
+                            cond = pd.to_numeric(df[col], errors='coerce') > float(val)
+                        elif operator == 'less_than':
+                            cond = pd.to_numeric(df[col], errors='coerce') < float(val)
+                        elif operator == 'contains':
+                            cond = df[col].astype(str).str.contains(str(val), na=False)
+                        else:
+                            cond = df[col].astype(str) == str(val)
+                        partition_by = op.get('partitionBy') or op.get('partition_by') or ''
+                        parts = [p.strip() for p in partition_by.split(',') if p.strip() and p.strip() in df.columns]
+                        if parts:
+                            df[into] = cond.groupby([df[p] for p in parts]).transform('sum')
+                        else:
+                            df[into] = int(cond.sum())
+                    context.log.info(f"Applied {len(count_match_ops)} count-matching op(s)")
+                except Exception as e:
+                    context.log.error(f"count_match_ops failed: {e}")
+                    raise
+
+            # Sample -- applied after all other row-shaping ops, before the
+            # final column selection (mirrors SqlTransformerComponent's own
+            # "sample before LIMIT" ordering).
+            if sample_config_str:
+                try:
+                    sample_cfg = json.loads(sample_config_str)
+                    n = sample_cfg.get('n')
+                    fraction = sample_cfg.get('fraction')
+                    random_flag = bool(sample_cfg.get('random', True))
+                    before = len(df)
+                    if n:
+                        n = min(int(n), len(df))
+                        df = df.sample(n=n) if random_flag else df.head(n)
+                    elif fraction:
+                        df = df.sample(frac=float(fraction)) if random_flag else df.head(int(len(df) * float(fraction)))
+                    context.log.info(f"Sampled {before} → {len(df)} rows")
+                except Exception as e:
+                    context.log.error(f"sample_config failed: {e}")
                     raise
 
             # Calculated columns

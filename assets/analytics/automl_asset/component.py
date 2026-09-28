@@ -56,6 +56,36 @@ from dagster import (
 from pydantic import ConfigDict, Field
 
 
+def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
+    """Execute SQL via a Dagster resource that exposes .get_engine() (SQLAlchemy)
+    OR .get_connection() (DB-API), or a bare SQLAlchemy engine built from
+    `database_url_env_var` when no Dagster resource is registered. Same
+    helper, same contract, as every other dual-ingestion component in this
+    repo (e.g. logistic_regression_model, churn_prediction)."""
+    sql = source_config["sql"]
+    resource_key = source_config.get("resource_key")
+    if resource_key:
+        resource = getattr(context.resources, resource_key)
+        if hasattr(resource, "get_engine"):
+            return pd.read_sql(sql, resource.get_engine())
+        if hasattr(resource, "get_connection"):
+            with resource.get_connection() as conn:
+                return pd.read_sql(sql, conn)
+        raise ValueError(
+            f"resource {resource_key!r} must expose .get_engine() (SQLAlchemy) "
+            f"or .get_connection() (DB-API); got {type(resource).__name__}"
+        )
+    env_var = source_config.get("database_url_env_var")
+    if env_var:
+        import os
+        from sqlalchemy import create_engine
+        url = os.environ.get(env_var, "")
+        if not url:
+            raise ValueError(f"database_url_env_var {env_var!r} is unset")
+        return pd.read_sql(sql, create_engine(url))
+    raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
+
+
 def _build_partitions_def(
     partition_type, partition_start, partition_values, dynamic_partition_name,
 ):
@@ -229,7 +259,18 @@ class AutoMLAssetComponent(Component, Model, Resolvable):
     model_config = ConfigDict(populate_by_name=True)
 
     asset_name: str = Field(description="Output Dagster asset name")
-    upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
+    upstream_asset_key: Optional[str] = Field(
+        default=None,
+        description="Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one.",
+    )
+    source: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Pull rows directly via SQL instead of from an upstream asset: "
+            "{kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. "
+            "Mutually exclusive with `upstream_asset_key` -- set exactly one."
+        ),
+    )
 
     target_column: str = Field(description="Column to predict")
     feature_columns: Optional[List[str]] = Field(
@@ -297,6 +338,8 @@ class AutoMLAssetComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         if self.task_type not in ("classification", "regression"):
             raise ValueError(f"AutoMLAssetComponent: task_type must be 'classification' or 'regression', got {self.task_type!r}.")
+        if bool(self.upstream_asset_key) == bool(self.source):
+            raise ValueError("AutoMLAssetComponent: set exactly one of `upstream_asset_key` or `source`.")
 
         partitions_def = _build_partitions_def(
             self.partition_type, self.partition_start, self.partition_values, self.dynamic_partition_name,
@@ -317,7 +360,8 @@ class AutoMLAssetComponent(Component, Model, Resolvable):
             )
 
         asset_name = self.asset_name
-        upstream_key = AssetKey.from_user_string(self.upstream_asset_key)
+        upstream_asset_key = self.upstream_asset_key
+        source_cfg = self.source
         target_column = self.target_column
         feature_columns = self.feature_columns
         task_type = self.task_type
@@ -334,7 +378,7 @@ class AutoMLAssetComponent(Component, Model, Resolvable):
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
 
-        @asset(
+        _asset_kwargs: Dict[str, Any] = dict(
             key=AssetKey.from_user_string(asset_name),
             description=self.description or f"AutoML ({task_type}) predicting {target_column} via FLAML, with cached-recipe cheap refits.",
             group_name=self.group_name,
@@ -342,12 +386,20 @@ class AutoMLAssetComponent(Component, Model, Resolvable):
             tags=self.tags or None,
             owners=self.owners or None,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])] or None,
-            ins={"upstream": AssetIn(key=upstream_key)},
             retry_policy=retry_policy,
             freshness_policy=freshness_policy,
             partitions_def=partitions_def,
         )
-        def _asset(context: AssetExecutionContext, upstream: Any):
+        if upstream_asset_key:
+            _asset_kwargs["ins"] = {"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))}
+        if source_cfg and source_cfg.get("resource_key"):
+            _asset_kwargs["required_resource_keys"] = {source_cfg["resource_key"]}
+
+        @asset(**_asset_kwargs)
+        def _asset(context: AssetExecutionContext, **kwargs):
+            upstream = kwargs.get("upstream")
+            if upstream is None:
+                upstream = _ingest_warehouse_query(source_cfg, context)
             # Defensive Output/MaterializeResult unwrap -- same convention
             # as every other component in this repo.
             if hasattr(upstream, "value") and hasattr(upstream, "metadata"):
@@ -465,7 +517,14 @@ class AutoMLAssetComponent(Component, Model, Resolvable):
                     joblib.dump(automl.model.estimator, f)
                 context.log.info(f"automl_asset: fitted model persisted to {model_output_path!r}.")
 
+            from dagster import TableSchema, TableColumn
+            _col_schema = TableSchema(columns=[
+                TableColumn(name=str(col), type=str(df.dtypes[col]))
+                for col in df.columns
+            ])
             metadata: Dict[str, Any] = {
+                "dagster/row_count": MetadataValue.int(len(df)),
+                "dagster/column_schema": MetadataValue.table_schema(_col_schema),
                 "rows": MetadataValue.int(len(df)),
                 "search_mode": MetadataValue.text(search_mode),
                 "best_estimator": MetadataValue.text(automl.best_estimator or ""),
@@ -487,4 +546,6 @@ class AutoMLAssetComponent(Component, Model, Resolvable):
                     context.log.warning(f"preview emission failed: {e}")
             return Output(value=df, metadata=metadata)
 
-        return Definitions(assets=[_asset])
+        from dagster import build_column_schema_change_checks
+        _schema_checks = build_column_schema_change_checks(assets=[_asset])
+        return Definitions(assets=[_asset], asset_checks=list(_schema_checks))

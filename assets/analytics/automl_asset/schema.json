@@ -25,8 +25,14 @@
     "upstream_asset_key": {
       "type": "string",
       "label": "Upstream Asset Key",
-      "required": true,
-      "description": "Upstream asset key providing a DataFrame"
+      "required": false,
+      "description": "Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one."
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one."
     },
     "target_column": {
       "type": "string",

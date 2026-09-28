@@ -34,3 +34,18 @@ requires_flaml_automl = pytest.mark.skipif(
     not _flaml_automl_available(),
     reason='requires flaml[automl] (pip install "flaml[automl]"; on macOS also `brew install libomp`)',
 )
+
+
+def _duckdb_available() -> bool:
+    try:
+        import duckdb  # noqa: F401
+        import dagster_duckdb  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+requires_duckdb = pytest.mark.skipif(
+    not _duckdb_available(),
+    reason="requires duckdb + dagster-duckdb (pip install duckdb dagster-duckdb)",
+)

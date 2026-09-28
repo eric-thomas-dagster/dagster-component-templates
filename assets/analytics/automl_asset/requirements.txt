@@ -3,6 +3,11 @@ scikit-learn>=1.0.0
 fsspec>=2024.0.0
 "flaml[automl]"
 
+# source: {kind: warehouse_query, resource_key: ...} against DuckDB (via a registered Dagster resource):
+#   pip install dagster-duckdb duckdb
+# source: {kind: warehouse_query, database_url_env_var: ...} (bare SQLAlchemy, no Dagster resource):
+#   pip install sqlalchemy duckdb duckdb-engine
+
 # On macOS, flaml[automl] pulls in xgboost/lightgbm, which need the
 # OpenMP runtime -- confirmed live that flaml.automl fails to import
 # without it:

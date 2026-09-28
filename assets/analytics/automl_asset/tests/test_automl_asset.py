@@ -13,7 +13,7 @@ import dagster as dg
 import pandas as pd
 import pytest
 
-from .conftest import load_component_module, requires_flaml_automl
+from .conftest import load_component_module, requires_duckdb, requires_flaml_automl
 
 pytestmark = requires_flaml_automl
 
@@ -234,3 +234,44 @@ def test_missing_target_column_raises_clearly(mod, wine_df, tmp_path):
 
     result = dg.materialize([asset_def, data_in], raise_on_error=False)
     assert not result.success
+
+
+def test_mutual_exclusivity_guard(mod):
+    with pytest.raises(ValueError, match="set exactly one"):
+        mod.AutoMLAssetComponent(
+            asset_name="x", target_column="target", task_type="classification",
+            state_path="/tmp/unused_state.json",
+        ).build_defs(context=None)
+
+    with pytest.raises(ValueError, match="set exactly one"):
+        mod.AutoMLAssetComponent(
+            asset_name="x", upstream_asset_key="data_in",
+            source={"kind": "warehouse_query", "resource_key": "r", "sql": "SELECT 1"},
+            target_column="target", task_type="classification",
+            state_path="/tmp/unused_state.json",
+        ).build_defs(context=None)
+
+
+@requires_duckdb
+def test_source_warehouse_query_against_real_duckdb(mod, wine_df, tmp_path):
+    import duckdb
+    from dagster_duckdb import DuckDBResource
+
+    db_path = str(tmp_path / "wine.duckdb")
+    conn = duckdb.connect(db_path)
+    conn.register("df_view", wine_df)
+    conn.execute("CREATE TABLE wine AS SELECT * FROM df_view")
+    conn.close()
+
+    component = mod.AutoMLAssetComponent(
+        asset_name="automl_sql_source",
+        source={"kind": "warehouse_query", "resource_key": "duckdb_resource", "sql": "SELECT * FROM wine"},
+        target_column="target", task_type="classification",
+        state_path=str(tmp_path / "state.json"), time_budget_seconds=3,
+    )
+    defs = component.build_defs(context=None)
+    asset_def = list(defs.assets)[0]
+    result = dg.materialize([asset_def], resources={"duckdb_resource": DuckDBResource(database=db_path)})
+    assert result.success
+    df_out = result.output_for_node("automl_sql_source")
+    assert "predicted" in df_out.columns

@@ -24,8 +24,14 @@
     "upstream_asset_key": {
       "type": "string",
       "label": "Upstream Asset Key",
-      "description": "Upstream asset key providing a DataFrame",
-      "required": true
+      "description": "Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one.",
+      "required": false
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Also required (with execution_mode='sql') to name the FROM-source for the server-side training/prediction query. Mutually exclusive with `upstream_asset_key` -- set exactly one."
     },
     "target_column": {
       "type": "string",
@@ -65,6 +71,40 @@
       "description": "Maximum number of solver iterations",
       "required": false,
       "default": 1000
+    },
+    "execution_mode": {
+      "type": "string",
+      "label": "Execution Mode",
+      "required": false,
+      "default": "python",
+      "enum": [
+        "python",
+        "sql"
+      ],
+      "description": "'python' (default): fits a real scikit-learn LogisticRegression locally. 'sql': trains AND predicts server-side via a warehouse-native ML surface -- BigQuery CREATE MODEL, Snowflake CREATE SNOWFLAKE.ML.CLASSIFICATION. Databricks is predict-ONLY (no CREATE MODEL statement exists) -- model_name must be an already-served Model Serving endpoint for that dialect. Requires `source`, `sql_dialect`, `output_table`, and `model_name`."
+    },
+    "sql_dialect": {
+      "type": "string",
+      "label": "SQL Dialect",
+      "required": false,
+      "enum": [
+        "snowflake",
+        "bigquery",
+        "databricks"
+      ],
+      "description": "Required when execution_mode='sql'."
+    },
+    "output_table": {
+      "type": "string",
+      "label": "Output Table",
+      "required": false,
+      "description": "Required when execution_mode='sql'. Destination table the predictions are written to."
+    },
+    "model_name": {
+      "type": "string",
+      "label": "Model Name",
+      "required": false,
+      "description": "Required when execution_mode='sql'. For snowflake/bigquery: the model identifier this component creates. For databricks: an already-served Model Serving endpoint name -- this dialect trains nothing."
     },
     "output_predictions": {
       "type": "boolean",

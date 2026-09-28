@@ -28975,13 +28975,19 @@
       "id": "logistic_regression_model",
       "name": "Logistic Regression",
       "category": "analytics",
-      "description": "Fit a logistic regression classifier and output predictions.",
+      "description": "Fit a logistic regression classifier and output predictions. Supports `source: {kind: warehouse_query}` direct-SQL ingestion (DuckDB and other databases) alongside `upstream_asset_key`, and `execution_mode: sql` -- trains AND predicts server-side via a warehouse-native ML surface: BigQuery `CREATE MODEL...OPTIONS(model_type='LOGISTIC_REG')`, Snowflake `CREATE SNOWFLAKE.ML.CLASSIFICATION`. Databricks is predict-ONLY (no CREATE MODEL statement exists there) -- model_name must be an already-served Model Serving endpoint, queried via `ai_query()`.",
       "path": "assets/analytics/logistic_regression_model",
       "tags": [
         "analytics",
         "logistic",
         "regression",
-        "model"
+        "model",
+        "warehouse query",
+        "duckdb",
+        "snowflake",
+        "bigquery",
+        "databricks",
+        "sql execution mode"
       ],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/logistic_regression_model/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/logistic_regression_model/component.py",
@@ -28991,13 +28997,13 @@
       "icon": "BarChart2",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/titanic_complete.md",
-        "last_validated": "2026-05-06"
+        "evidence": "Original python-mode: https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/titanic_complete.md . source/execution_mode additions (added 2026-09-28): source: warehouse_query live-verified against real DuckDB. execution_mode='sql' is structural-only for all 3 dialects (bigquery/snowflake/databricks) -- generated SQL asserted against each platform's documented ML-function/ai_query syntax, not run against a live warehouse account.",
+        "last_validated": "2026-09-28"
       },
       "agent_hints": {
-        "inputs": "DataFrame with numeric feature columns AND a binary target column.",
-        "outputs": "DataFrame with test-set rows + columns: ground truth (target_column), predictions, and probabilities.",
-        "side_effects": "sklearn dependency. Uses test_size for held-out split; the OUTPUT is the test set only, not the full input.",
+        "inputs": "DataFrame with numeric feature columns AND a binary target column (upstream_asset_key), or a SQL FROM-source (source: {kind: warehouse_query}).",
+        "outputs": "The FULL upstream DataFrame (not just the held-out test split) with predicted_class and/or predicted_proba_<class> columns added, fit on an internal train/test split. execution_mode='sql' writes directly to output_table in the warehouse instead.",
+        "side_effects": "sklearn dependency for python mode. execution_mode='sql' runs CREATE MODEL/CREATE SNOWFLAKE.ML.CLASSIFICATION or ai_query in the target warehouse.",
         "anti_uses": "Target must be binary/0-1. Not for regression (use linear_regression_model). Feature columns must be numeric \u2014 one-hot encode categoricals FIRST.",
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame"
@@ -29017,7 +29023,14 @@
       ],
       "keywords": [
         "report",
-        "aggregate"
+        "aggregate",
+        "warehouse query",
+        "duckdb",
+        "sql execution mode",
+        "create model",
+        "bigquery ml",
+        "snowflake cortex",
+        "ai_query"
       ]
     },
     {

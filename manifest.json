@@ -38426,6 +38426,66 @@
       ]
     },
     {
+      "id": "rag_grounding_check",
+      "name": "RAG Grounding Check",
+      "category": "ai",
+      "description": "Verify RAG-generated answers are actually grounded in their retrieved source chunks -- rag_eval's sibling for generation faithfulness rather than retrieval quality. Deterministic n-gram overlap + fabricated-number detection by default (free, no API key), with an opt-in mode='llm_judge' for nuanced cases a fixed overlap score can't catch. Attached asset check fails on regression vs the prior materialization, mirroring rag_eval's cross-materialization design. Supports upstream_asset_key (e.g. rag_pipeline's own generate-step output) or source: {kind: warehouse_query} direct-SQL ingestion.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/rag_grounding_check",
+      "tags": [
+        "ai",
+        "rag",
+        "grounding",
+        "hallucination",
+        "eval",
+        "quality",
+        "asset-check",
+        "litellm",
+        "warehouse query",
+        "duckdb"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas>=1.5.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rag_grounding_check/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rag_grounding_check/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rag_grounding_check/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rag_grounding_check/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rag_grounding_check/requirements.txt",
+      "icon": "Check",
+      "validation": {
+        "level": "code",
+        "evidence": "Live-verified, nothing mocked: mode='overlap' scoring on genuinely-grounded and genuinely-ungrounded (fabricated-detail) answers, including a regression test for a real false positive found live ('Q3' misread as the number '3' before a word-boundary fix); cross-materialization regression detection (mirrors rag_eval exactly) -- a first 'good' materialization passes, a second 'bad' one correctly detects the drop and fails; source: {kind: warehouse_query} against a real DuckDB database; max_fabrication_rate/mutual-exclusivity/invalid-mode validation guards. Mocked (no free/local backend exists): mode='llm_judge' -- litellm.completion is mocked, prompt construction/JSON parsing/score-mapping logic verified for real.",
+        "last_validated": "2026-09-28"
+      },
+      "agent_hints": {
+        "inputs": "Query/answer/sources rows via upstream_asset_key (e.g. rag_pipeline's generate-step output) or source: {kind: warehouse_query, resource_key, sql}.",
+        "outputs": "Upstream rows with grounding_score, grounded, fabricated_numbers (and judge_reasoning for mode='llm_judge') columns added, plus mean_grounding_score/fabrication_rate metadata.",
+        "side_effects": "None on data -- attaches an asset_check that fails on quality regression, an absolute floor, or excess fabrication rate.",
+        "anti_uses": "For retrieval quality (did we fetch the right chunks), use rag_eval instead; this one only checks whether an already-generated answer is supported by its already-retrieved sources.",
+        "requires_pip": [
+          "litellm"
+        ],
+        "output_type": "pd.DataFrame"
+      },
+      "produces": [
+        "asset",
+        "asset_check"
+      ],
+      "keywords": [
+        "rag grounding",
+        "hallucination detection",
+        "faithfulness",
+        "fabricated statistics",
+        "llm judge",
+        "grounding check",
+        "genai"
+      ]
+    },
+    {
       "id": "rag_pipeline",
       "name": "RAG Pipeline",
       "category": "ai",
@@ -57883,5 +57943,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1172
+  "total": 1173
 }

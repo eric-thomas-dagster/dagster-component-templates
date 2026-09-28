@@ -1,0 +1,9 @@
+pandas>=1.5.0
+
+# mode='overlap' (default): no extra deps -- pure stdlib regex/tokenization.
+
+# mode='llm_judge':
+#   pip install litellm
+
+# source: {kind: warehouse_query} against DuckDB:
+#   pip install dagster-duckdb duckdb

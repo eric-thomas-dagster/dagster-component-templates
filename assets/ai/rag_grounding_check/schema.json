@@ -1,0 +1,169 @@
+{
+  "component_type": "dagster_component_templates.RagGroundingCheckComponent",
+  "name": "RAG Grounding Check",
+  "description": "Verify RAG-generated answers are actually grounded in their retrieved source chunks -- rag_eval's sibling for generation faithfulness rather than retrieval quality. Deterministic n-gram overlap + fabricated-number detection by default (free, no API key), with an opt-in mode='llm_judge' for nuanced cases. Attached asset check fails on regression vs the prior materialization, mirroring rag_eval.",
+  "category": "ai",
+  "icon": "Check",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": false,
+      "description": "Query/answer/sources rows, either from an upstream asset (upstream_asset_key) or a direct SQL query (source) -- e.g. rag_pipeline's generate-step output."
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Upstream rows with grounding_score, grounded, fabricated_numbers (and judge_reasoning for mode='llm_judge') columns added."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Output Dagster asset name"
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Upstream asset key providing a DataFrame of query/answer/sources rows (e.g. rag_pipeline's output). Mutually exclusive with `source` -- set exactly one."
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one."
+    },
+    "query_column": {
+      "type": "string",
+      "label": "Query Column",
+      "required": false,
+      "default": "query",
+      "description": "Column containing the original query."
+    },
+    "answer_column": {
+      "type": "string",
+      "label": "Answer Column",
+      "required": false,
+      "default": "answer",
+      "description": "Column containing the generated answer to check."
+    },
+    "sources_column": {
+      "type": "string",
+      "label": "Sources Column",
+      "required": false,
+      "default": "sources",
+      "description": "Column containing the retrieved source chunks the answer should be grounded in -- a list of {text: ...} dicts (rag_pipeline's native shape), a list of strings, or a single pre-joined string."
+    },
+    "mode": {
+      "type": "string",
+      "label": "Mode",
+      "required": false,
+      "default": "overlap",
+      "enum": ["overlap", "llm_judge"],
+      "description": "'overlap' (default): deterministic n-gram overlap + fabricated-number check -- free, no API key. 'llm_judge': any litellm-supported model judges groundedness -- costs money per row, catches paraphrased claims overlap scoring can't."
+    },
+    "ngram_size": {
+      "type": "integer",
+      "label": "N-gram Size",
+      "required": false,
+      "default": 3,
+      "description": "N-gram size for mode='overlap' scoring (default: trigrams)."
+    },
+    "per_row_grounded_threshold": {
+      "type": "number",
+      "label": "Per-Row Grounded Threshold",
+      "required": false,
+      "default": 0.3,
+      "description": "Per-row grounding_score at or above this is marked grounded=True in the output column."
+    },
+    "llm_model": {
+      "type": "string",
+      "label": "LLM Model",
+      "required": false,
+      "default": "gpt-4o-mini",
+      "description": "litellm model name for mode='llm_judge'."
+    },
+    "llm_api_key_env_var": {
+      "type": "string",
+      "label": "LLM API Key Env Var",
+      "required": false,
+      "default": "OPENAI_API_KEY",
+      "description": "Environment variable holding the API key for mode='llm_judge'."
+    },
+    "llm_max_retries": {
+      "type": "integer",
+      "label": "LLM Max Retries",
+      "required": false,
+      "default": 2,
+      "description": "Retries on transient LLM failures for mode='llm_judge'."
+    },
+    "llm_prompt_prefix": {
+      "type": "string",
+      "label": "LLM Prompt Prefix",
+      "required": false,
+      "description": "Optional text prepended to every mode='llm_judge' prompt (e.g. domain context)."
+    },
+    "min_grounding_score_threshold": {
+      "type": "number",
+      "label": "Min Grounding Score Threshold",
+      "required": false,
+      "default": 0.5,
+      "description": "Absolute minimum mean grounding_score across the batch. Asset check fails below this."
+    },
+    "regression_pct_threshold": {
+      "type": "number",
+      "label": "Regression Pct Threshold",
+      "required": false,
+      "default": 10.0,
+      "description": "Max allowed drop (percentage points) in mean grounding_score vs the immediately-prior materialization. Mirrors rag_eval's regression check."
+    },
+    "max_fabrication_rate": {
+      "type": "number",
+      "label": "Max Fabrication Rate",
+      "required": false,
+      "description": "If set, asset check fails when the fraction of rows with at least one fabricated number exceeds this (0.0-1.0). None (default) skips this check."
+    },
+    "group_name": { "type": "string", "label": "Group Name", "required": false, "description": "Dagster asset group name" },
+    "description": { "type": "string", "label": "Description", "required": false, "description": "Asset description shown in the Dagster catalog." },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "items": { "type": "string" },
+      "description": "Lineage-only upstream asset keys (no data passed at runtime)."
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": { "type": "string" },
+      "description": "Asset owners -- list of team names or email addresses."
+    },
+    "asset_tags": { "type": "object", "label": "Asset Tags", "required": false, "description": "Additional key-value tags to apply to the asset." },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "required": false,
+      "items": { "type": "string" },
+      "description": "Asset kinds for the Dagster catalog. Auto-inferred if unset."
+    },
+    "include_preview_metadata": { "type": "boolean", "label": "Include Preview Metadata", "required": false, "default": false, "description": "Include a preview of the output data in metadata." },
+    "preview_rows": { "type": "integer", "label": "Preview Rows", "required": false, "default": 25, "description": "Rows to include in the preview metadata when include_preview_metadata is True." },
+    "retry_policy_max_retries": { "type": "integer", "label": "Retry Policy Max Retries", "required": false, "description": "Max retries on asset failure. Defines a RetryPolicy." },
+    "retry_policy_delay_seconds": { "type": "integer", "label": "Retry Policy Delay Seconds", "required": false, "description": "Seconds between retries (default 1)." },
+    "retry_policy_backoff": { "type": "string", "label": "Retry Policy Backoff", "required": false, "default": "exponential", "description": "Backoff strategy: 'linear' or 'exponential'." },
+    "freshness_max_lag_minutes": { "type": "integer", "label": "Freshness Max Lag Minutes", "required": false, "description": "Maximum acceptable lag in minutes before the asset is considered stale." },
+    "freshness_cron": { "type": "string", "label": "Freshness Cron", "required": false, "description": "Cron schedule string for the freshness policy." },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "enum": ["daily", "weekly", "monthly", "hourly", "static", "dynamic"],
+      "description": "Partition type."
+    },
+    "partition_start": { "type": "string", "label": "Partition Start", "required": false, "description": "Partition start date (ISO), required for time-based types." },
+    "partition_values": { "type": "string", "label": "Partition Values", "required": false, "description": "Comma-separated values for static partitioning." },
+    "dynamic_partition_name": { "type": "string", "label": "Dynamic Partition Name", "required": false, "description": "Name for DynamicPartitionsDefinition." }
+  }
+}

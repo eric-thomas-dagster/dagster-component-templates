@@ -1,0 +1,12 @@
+type: dagster_component_templates.RagGroundingCheckComponent
+attributes:
+  asset_name: support_bot_grounding
+  upstream_asset_key: support_bot_answers
+  query_column: query
+  answer_column: answer
+  sources_column: sources
+  mode: overlap
+  min_grounding_score_threshold: 0.5
+  regression_pct_threshold: 10.0
+  max_fabrication_rate: 0.1
+  group_name: rag_state

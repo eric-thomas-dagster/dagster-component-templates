@@ -160,7 +160,14 @@ class TextClassifierComponent(Component, Model, Resolvable):
     model_id: str = Field(
         alias="model",
         description="Model name")
-    categories: List[str] = Field(description="List of categories to classify into")
+    categories: List[Union[str, int]] = Field(
+        description=(
+            "List of categories to classify into. Accepts int too: dagster-components runs every "
+            "string attribute through Jinja2's NativeTemplate for {{ }} templating support, which "
+            "coerces any purely-numeric-looking value (e.g. a year like 2024) back to int regardless "
+            "of how it was quoted in YAML -- List[str] alone would reject that at load time."
+        )
+    )
     classification_task: str = Field(default="classification", description="Task description")
     include_confidence: bool = Field(default=True, description="Include confidence scores")
     include_reasoning: bool = Field(default=False, description="Include reasoning")
@@ -404,7 +411,10 @@ group_name=group_name,
             if input_column not in df.columns:
                 raise ValueError(f"Input column '{input_column}' not found. Available: {list(df.columns)}")
 
-            categories = list(categories_list)
+            # Normalize to str regardless of what came through the Jinja
+            # native-type coercion above -- keeps the prompt text and the
+            # `', '.join(categories)` below correct either way.
+            categories = [str(c) for c in categories_list]
 
             # Expand environment variables in API key
             expanded_api_key = None

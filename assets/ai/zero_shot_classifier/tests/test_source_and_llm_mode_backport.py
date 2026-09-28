@@ -77,6 +77,41 @@ def test_mode_llm_calls_litellm_completion(mod):
     assert df_out["predicted_label"].tolist() == ["billing"]
 
 
+def test_int_candidate_labels_are_normalized_to_str(mod):
+    """dagster-components runs every string attribute through Jinja2's
+    NativeTemplate for {{ }} templating, which coerces a purely-numeric-
+    looking label (e.g. a year) back to int regardless of YAML quoting --
+    candidate_labels=[2024, 2025] is exactly what a real project sees.
+    Without normalizing back to str, `category not in candidate_labels`
+    would silently reject every real match (the LLM always returns a JSON
+    string, never an int)."""
+    df = pd.DataFrame({"body": ["schedule for next season"]})
+    component = mod.ZeroShotClassifierComponent(
+        asset_name="classified_llm",
+        upstream_asset_key="raw",
+        text_column="body",
+        candidate_labels=[2024, 2025],
+        mode="llm",
+        llm_model="gpt-4o-mini",
+    )
+    defs = component.build_defs(load_context=None)
+    asset_def = list(defs.assets)[0]
+
+    @dg.asset(name="raw")
+    def raw():
+        return df
+
+    fake_message = MagicMock()
+    fake_message.content = '{"category": "2024"}'
+    fake_resp = MagicMock()
+    fake_resp.choices = [MagicMock(message=fake_message)]
+    with patch("litellm.completion", return_value=fake_resp):
+        result = dg.materialize([asset_def, raw])
+    assert result.success
+    df_out = result.output_for_node("classified_llm")
+    assert df_out["predicted_label"].tolist() == ["2024"]
+
+
 def test_mutual_exclusivity_guard(mod):
     with pytest.raises(ValueError, match="set exactly one"):
         mod.ZeroShotClassifierComponent(

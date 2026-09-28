@@ -163,9 +163,14 @@ class ImageClassifierComponent(Component, Model, Resolvable):
         default="openai/clip-vit-base-patch32",
         description="HuggingFace model ID or 'resnet50'/'efficientnet'",
     )
-    candidate_labels: Optional[List[str]] = Field(
+    candidate_labels: Optional[List[Union[str, int]]] = Field(
         default=None,
-        description="For CLIP zero-shot, restrict to these labels",
+        description=(
+            "For CLIP zero-shot, restrict to these labels. Accepts int too: dagster-components "
+            "runs every string attribute through Jinja2's NativeTemplate for {{ }} templating "
+            "support, which coerces a purely-numeric-looking label (e.g. a year like 2024) back "
+            "to int regardless of how it was quoted in YAML."
+        ),
     )
     device: str = Field(
         default="cpu",
@@ -299,7 +304,9 @@ class ImageClassifierComponent(Component, Model, Resolvable):
         top_k = self.top_k
         all_predictions_column = self.all_predictions_column
         model_name = self.model_name
-        candidate_labels = self.candidate_labels
+        # Normalize to str regardless of Jinja's native-type coercion above --
+        # CLIPProcessor's `text=` argument needs real strings to tokenize.
+        candidate_labels = [str(c) for c in self.candidate_labels] if self.candidate_labels else None
         device = self.device
 
         partitions_def = _build_partitions_def(

@@ -198,8 +198,13 @@ class ZeroShotClassifierComponent(Component, Model, Resolvable):
         ),
     )
     text_column: Union[str, int] = Field(description="Column containing text to classify")
-    candidate_labels: List[str] = Field(
-        description="Categories to classify into e.g. ['positive', 'negative', 'neutral']"
+    candidate_labels: List[Union[str, int]] = Field(
+        description=(
+            "Categories to classify into e.g. ['positive', 'negative', 'neutral']. Accepts int "
+            "too: dagster-components runs every string attribute through Jinja2's NativeTemplate "
+            "for {{ }} templating support, which coerces a purely-numeric-looking label (e.g. a "
+            "year like 2024) back to int regardless of how it was quoted in YAML."
+        )
     )
     mode: str = Field(
         default="zero_shot",
@@ -367,7 +372,11 @@ class ZeroShotClassifierComponent(Component, Model, Resolvable):
         upstream_asset_key = self.upstream_asset_key
         source_cfg = self.source
         text_column = self.text_column
-        candidate_labels = self.candidate_labels
+        # Normalize to str regardless of Jinja's native-type coercion above --
+        # both the HF zero-shot pipeline and the `category not in
+        # candidate_labels` check below need every label to be the same type
+        # as what actually comes back from the model.
+        candidate_labels = [str(c) for c in self.candidate_labels]
         mode = self.mode
         model_name = self.model_name
         llm_model = self.llm_model

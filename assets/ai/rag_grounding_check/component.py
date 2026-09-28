@@ -59,23 +59,36 @@ def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
     """Execute SQL via a Dagster resource that exposes .get_engine() (SQLAlchemy)
     OR .get_connection() (DB-API) -- works out of the box with duckdb_resource,
     postgres_resource, snowflake_resource, bigquery_resource, and any custom
-    resource implementing the same duck-typed interface."""
-    resource_key = source_config["resource_key"]
+    resource implementing the same duck-typed interface. Falls back to a bare
+    SQLAlchemy engine via `database_url_env_var` when no Dagster resource is
+    registered -- same dual pattern already used by this repo's reverse_etl
+    components (e.g. greenhouse_candidate_update)."""
     sql = source_config["sql"]
-    resource = getattr(context.resources, resource_key)
-    if hasattr(resource, "get_engine"):
-        return pd.read_sql(sql, resource.get_engine())
-    if hasattr(resource, "get_connection"):
-        # get_connection() is a @contextmanager (confirmed live against
-        # dagster_duckdb.DuckDBResource) -- calling it without `with` hands
-        # back a _GeneratorContextManager, not a connection, and pd.read_sql
-        # fails with AttributeError. Must be entered via `with`.
-        with resource.get_connection() as conn:
-            return pd.read_sql(sql, conn)
-    raise ValueError(
-        f"resource {resource_key!r} must expose .get_engine() (SQLAlchemy) "
-        f"or .get_connection() (DB-API); got {type(resource).__name__}"
-    )
+    resource_key = source_config.get("resource_key")
+    if resource_key:
+        resource = getattr(context.resources, resource_key)
+        if hasattr(resource, "get_engine"):
+            return pd.read_sql(sql, resource.get_engine())
+        if hasattr(resource, "get_connection"):
+            # get_connection() is a @contextmanager (confirmed live against
+            # dagster_duckdb.DuckDBResource) -- calling it without `with` hands
+            # back a _GeneratorContextManager, not a connection, and pd.read_sql
+            # fails with AttributeError. Must be entered via `with`.
+            with resource.get_connection() as conn:
+                return pd.read_sql(sql, conn)
+        raise ValueError(
+            f"resource {resource_key!r} must expose .get_engine() (SQLAlchemy) "
+            f"or .get_connection() (DB-API); got {type(resource).__name__}"
+        )
+    env_var = source_config.get("database_url_env_var")
+    if env_var:
+        import os
+        from sqlalchemy import create_engine
+        url = os.environ.get(env_var, "")
+        if not url:
+            raise ValueError(f"database_url_env_var {env_var!r} is unset")
+        return pd.read_sql(sql, create_engine(url))
+    raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
 
 
 def _build_partitions_def(partition_type, partition_start, partition_values, dynamic_partition_name):
@@ -263,7 +276,9 @@ class RagGroundingCheckComponent(Component, Model, Resolvable):
             "Pull rows directly via SQL instead of from an upstream asset: "
             "{kind: warehouse_query, resource_key: <registered resource>, sql: <query>}. "
             "resource_key must point at a resource exposing .get_engine() (SQLAlchemy) or "
-            ".get_connection() (DB-API). Mutually exclusive with `upstream_asset_key` -- set "
+            ".get_connection() (DB-API); alternatively set `database_url_env_var` to a bare "
+            "SQLAlchemy connection string from an environment variable when no Dagster "
+            "resource is registered. Mutually exclusive with `upstream_asset_key` -- set "
             "exactly one."
         ),
     )
@@ -388,7 +403,7 @@ class RagGroundingCheckComponent(Component, Model, Resolvable):
         )
         if self.upstream_asset_key:
             asset_kwargs["ins"] = {"upstream": AssetIn(key=AssetKey.from_user_string(self.upstream_asset_key))}
-        if source_cfg:
+        if source_cfg and source_cfg.get("resource_key"):
             asset_kwargs["required_resource_keys"] = {source_cfg["resource_key"]}
 
         @asset(**asset_kwargs)

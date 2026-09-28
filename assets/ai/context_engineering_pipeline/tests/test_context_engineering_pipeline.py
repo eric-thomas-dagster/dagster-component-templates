@@ -26,6 +26,7 @@ from .conftest import (
     load_component_module,
     requires_chromadb,
     requires_duckdb,
+    requires_duckdb_engine,
     requires_sentence_transformers,
     requires_transformers,
 )
@@ -148,6 +149,53 @@ def test_source_warehouse_query_against_real_duckdb(mod, tmp_path):
     df_out = result.output_for_node("support_kb_sql_source")
     assert len(df_out) == 2
     assert set(df_out["ticket_id"]) == {1, 2}
+
+
+@requires_duckdb
+@requires_duckdb_engine
+def test_source_database_url_env_var_fallback_no_dagster_resource(mod, tmp_path, monkeypatch):
+    """source: {kind: warehouse_query, database_url_env_var: ...} must work with
+    NO Dagster resource registered at all -- a bare SQLAlchemy connection string
+    from an env var, mirroring the reverse_etl components' existing fallback."""
+    import duckdb
+
+    db_path = str(tmp_path / "tickets.duckdb")
+    conn = duckdb.connect(db_path)
+    conn.execute(
+        "CREATE TABLE tickets AS SELECT * FROM (VALUES "
+        "(1, 'Refund my duplicate charge please')) AS t(ticket_id, body)"
+    )
+    conn.close()
+    monkeypatch.setenv("CEP_TEST_DB_URL", f"duckdb:///{db_path}")
+
+    component = mod.ContextEngineeringPipelineComponent(
+        asset_name="support_kb_env_source",
+        source={"kind": "warehouse_query", "database_url_env_var": "CEP_TEST_DB_URL", "sql": "SELECT * FROM tickets"},
+        id_column="ticket_id",
+        text_column="body",
+        steps=[{"id": "chunks", "op": "chunk", "chunk_size": 200}],
+    )
+    defs = component.build_defs(context=None)
+    asset_def = list(defs.assets)[0]
+    result = dg.materialize([asset_def])
+    assert result.success
+    df_out = result.output_for_node("support_kb_env_source")
+    assert len(df_out) == 1
+
+
+def test_source_requires_resource_key_or_database_url_env_var(mod, monkeypatch):
+    monkeypatch.delenv("CEP_TEST_DB_URL_UNSET", raising=False)
+    component = mod.ContextEngineeringPipelineComponent(
+        asset_name="x",
+        source={"kind": "warehouse_query", "sql": "SELECT 1"},
+        id_column="id",
+        text_column="t",
+        steps=[{"id": "c", "op": "chunk"}],
+    )
+    defs = component.build_defs(context=None)
+    asset_def = list(defs.assets)[0]
+    result = dg.materialize([asset_def], raise_on_error=False)
+    assert not result.success
 
 
 # ── max_source_rows guardrail ─────────────────────────────────────────────

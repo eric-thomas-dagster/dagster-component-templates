@@ -55,6 +55,15 @@ def _duckdb_available() -> bool:
         return False
 
 
+def _duckdb_engine_available() -> bool:
+    try:
+        import duckdb  # noqa: F401
+        import duckdb_engine  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
 requires_sentence_transformers = pytest.mark.skipif(
     not _sentence_transformers_available(),
     reason="requires sentence-transformers (pip install sentence-transformers)",
@@ -69,4 +78,8 @@ requires_chromadb = pytest.mark.skipif(
 requires_duckdb = pytest.mark.skipif(
     not _duckdb_available(),
     reason="requires duckdb + dagster-duckdb (pip install duckdb dagster-duckdb)",
+)
+requires_duckdb_engine = pytest.mark.skipif(
+    not _duckdb_engine_available(),
+    reason="requires duckdb + duckdb-engine (pip install duckdb duckdb-engine) for the bare-SQLAlchemy database_url_env_var path",
 )

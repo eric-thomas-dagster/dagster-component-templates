@@ -159,6 +159,48 @@ def _evaluate_holdout(model, test_df: "pd.DataFrame", target: str, features: Lis
     return metrics
 
 
+def _confusion_matrix_metadata(y_true, y_pred) -> Dict[str, Any]:
+    """Classification only. JSON-shaped ({labels, matrix}) rather than a
+    markdown table -- a builder UI can render this as a real heatmap; a
+    markdown table can only ever be text. Labels are stringified (values
+    can be numpy int64/bool/etc., none of which survive JSON as-is) and
+    explicitly sorted so row/column order is deterministic across runs
+    rather than whatever set-iteration order Python happens to produce."""
+    from sklearn.metrics import confusion_matrix
+    labels = sorted({str(v) for v in y_true} | {str(v) for v in y_pred})
+    y_true_str = [str(v) for v in y_true]
+    y_pred_str = [str(v) for v in y_pred]
+    matrix = confusion_matrix(y_true_str, y_pred_str, labels=labels)
+    return {"labels": labels, "matrix": matrix.tolist()}
+
+
+def _feature_importance_metadata(
+    model, test_df: "pd.DataFrame", target: str, features: List[str], task_type: str, random_state: int,
+) -> Dict[str, Any]:
+    """Permutation importance rather than a model-specific attribute
+    (.feature_importances_ / .coef_) on purpose: FLAML can hand back any of
+    a dozen+ estimator types depending on what won the search, and not all
+    of them expose the same attribute (or any -- e.g. KNN has neither).
+    Permutation importance only needs .predict(), which every one of
+    FLAML's estimators (and the AutoML wrapper itself) has, so this works
+    identically regardless of which model actually won. Computed against
+    the SAME held-out test split _evaluate_holdout already uses -- never
+    training data, which would overstate importance for anything prone to
+    memorizing it."""
+    from sklearn.inspection import permutation_importance
+    scoring = "accuracy" if task_type == "classification" else "r2"
+    result = permutation_importance(
+        model, test_df[features], test_df[target],
+        n_repeats=5, random_state=random_state, scoring=scoring,
+    )
+    order = sorted(range(len(features)), key=lambda i: result.importances_mean[i], reverse=True)
+    return {
+        "feature": [features[i] for i in order],
+        "importance_mean": [round(float(result.importances_mean[i]), 5) for i in order],
+        "importance_std": [round(float(result.importances_std[i]), 5) for i in order],
+    }
+
+
 class AutoMLAssetComponent(Component, Model, Resolvable):
     """Real AutoML for tabular data: searches across model families via
     FLAML, caches the winning recipe, and does a cheap refit against that
@@ -397,6 +439,23 @@ class AutoMLAssetComponent(Component, Model, Resolvable):
 
             holdout_metrics = _evaluate_holdout(automl, test_df, target_column, _features, task_type)
 
+            confusion_matrix_data: Optional[Dict[str, Any]] = None
+            if task_type == "classification":
+                try:
+                    confusion_matrix_data = _confusion_matrix_metadata(
+                        test_df[target_column], automl.predict(test_df[_features]),
+                    )
+                except Exception as e:
+                    context.log.warning(f"automl_asset: confusion matrix computation failed: {e}")
+
+            feature_importance_data: Optional[Dict[str, Any]] = None
+            try:
+                feature_importance_data = _feature_importance_metadata(
+                    automl, test_df, target_column, _features, task_type, random_state,
+                )
+            except Exception as e:
+                context.log.warning(f"automl_asset: feature importance computation failed: {e}")
+
             df[output_column] = automl.predict(df[_features])
 
             if model_output_path:
@@ -416,6 +475,10 @@ class AutoMLAssetComponent(Component, Model, Resolvable):
             }
             for k, v in holdout_metrics.items():
                 metadata[f"holdout_{k}"] = MetadataValue.float(round(v, 4))
+            if confusion_matrix_data is not None:
+                metadata["confusion_matrix"] = MetadataValue.json(confusion_matrix_data)
+            if feature_importance_data is not None:
+                metadata["feature_importance"] = MetadataValue.json(feature_importance_data)
             if include_preview and len(df) > 0:
                 try:
                     _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)

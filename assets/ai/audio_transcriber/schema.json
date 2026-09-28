@@ -141,7 +141,8 @@
       "type": "string",
       "label": "Audio Path Column",
       "description": "Column containing local audio file paths",
-      "required": true,
+      "required": false,
+      "default": "audio_path",
       "x-dagster-widget": "column"
     },
     "output_column": {

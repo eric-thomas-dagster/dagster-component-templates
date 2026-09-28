@@ -202,7 +202,15 @@ class AudioTranscriberComponent(Component, Model, Resolvable):
             "reflects the data distribution; otherwise head() is used."
         ),
     )
-    audio_path_column: Union[str, int] = Field(description="Column containing local audio file paths")
+    audio_path_column: Union[str, int] = Field(
+        default="audio_path",
+        description=(
+            "Column containing local audio file paths. Defaults to 'audio_path' to pair "
+            "directly with video_audio_extract_asset's output_path_column -- same default "
+            "audio_diarized_transcriber already uses; this component had none, the one real "
+            "inconsistency across the whole video/audio component family."
+        ),
+    )
     output_column: Union[str, int] = Field(default="transcription", description="Column to write transcribed text")
     language_column: Optional[Union[str, int]] = Field(
         default=None,

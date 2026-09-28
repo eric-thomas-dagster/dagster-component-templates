@@ -1,17 +1,17 @@
-component_type: text_preprocessing
-description: Clean and normalize customer support ticket text for downstream NLP modeling.
-
-asset_name: support_tickets_clean_text
-upstream_asset_key: support_tickets_raw
-text_column: ticket_body
-output_column: cleaned_text
-normalize_case: true
-remove_punctuation: true
-remove_numbers: false
-remove_stopwords: true
-language: english
-stem: false
-lemmatize: true
-min_token_length: 3
-output_tokens: false
-group_name: nlp_pipeline
+type: dagster_component_templates.TextPreprocessingComponent
+attributes:
+  description: Clean and normalize customer support ticket text for downstream NLP modeling.
+  asset_name: support_tickets_clean_text
+  upstream_asset_key: support_tickets_raw
+  text_column: ticket_body
+  output_column: cleaned_text
+  normalize_case: true
+  remove_punctuation: true
+  remove_numbers: false
+  remove_stopwords: true
+  language: english
+  stem: false
+  lemmatize: true
+  min_token_length: 3
+  output_tokens: false
+  group_name: nlp_pipeline

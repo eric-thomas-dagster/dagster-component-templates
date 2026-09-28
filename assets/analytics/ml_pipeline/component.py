@@ -25,7 +25,12 @@ Example (Wine ML pipeline in one component):
         - {id: scaled,  op: scale, method: standard}
         - {id: split,   op: split, test_size: 0.2, stratify_column: quality, random_state: 42}
         - {id: trained, op: train, model_type: decision_tree, task_type: classification, params: {max_depth: 6}}
-        - {id: preds,   op: predict, model: trained, on: scaled}
+        # input: split (not scaled) -- 'split' is the step whose OWN output
+        # carries the split column; predicting off 'scaled' would lose it,
+        # making a leakage-safe evaluate downstream (filter to split=='test'
+        # first) impossible. See the `evaluate`/`confusion_matrix` gotcha
+        # documented in README.md.
+        - {id: preds,   op: predict, model: trained, input: split}
         - {id: imp,     op: importance, model: trained}
         - {id: cv,      op: cross_validate, source: scaled, model_type: decision_tree,
                         task_type: classification, params: {max_depth: 6}, cv: 5}
@@ -40,15 +45,32 @@ Standardization — that's the point. Every ML pipeline in the org uses
 the same YAML shape, the same ops, the same output conventions.
 Reviewers, tests, and CI can validate against ONE schema.
 
-Op coverage:
+Op coverage (36 ops total -- see README.md's "Op menu" for the full
+categorized list):
 
-- Ingestion:      url | file | upstream_asset | dataframe (Python-source only)
-- Feature eng:    scale, impute, one_hot_encode, label_encode, tile_binning,
-                  outlier_clip, filter, select
-- Split:          split
-- Model train:    train (model_type enum OR sklearn_class escape hatch)
-- Evaluation:    predict, predict_proba, importance, cross_validate
-- Sinks:          csv_sinks (parquet_sinks + table_sinks are follow-ups)
+- Ingestion:          url | file | upstream_asset | warehouse_query | dataframe
+- Preprocessing (9):  impute, scale, one_hot_encode, label_encode, tile_binning,
+                      outlier_clip, missing_indicator, quantile_transformer,
+                      power_transformer
+- Feature gen (5):    date_features, polynomial_features, pca, tfidf,
+                      hashing_vectorizer
+- Feature select (5): variance_threshold, correlation_filter,
+                      mutual_info_selection, filter, select
+- Time-series (2):    lag_features, rolling_window
+- Split + train (5):  split, train, grid_search, random_search, bayesian_search
+- Evaluate (7):       predict, predict_proba, evaluate, confusion_matrix,
+                      importance, cross_validate, shap_values
+- Persist + Registry (3): save_model, register_model, load_model
+- Sinks:              csv_sinks, parquet_sinks, table_sinks
+
+**Gotcha**: `evaluate`/`confusion_matrix`/`shap_values` do NOT auto-filter
+to a `split`-column test subset -- if you `predict` on the full
+(train+test) frame and hand that straight to `evaluate`, you'll get
+metrics computed partly or fully on rows the model was fit on. Insert a
+`filter` step (`predicate: "split == 'test'"`) between `predict` and
+`evaluate` when you want honest held-out metrics, exactly as this
+docstring's own example does NOT currently need to (it has no
+`evaluate`/`confusion_matrix` step), but README.md's fuller example does.
 
 Model type coverage:
 
@@ -434,7 +456,13 @@ class _ExperimentTracker:
         if not params or not self._active:
             return
         prefixed = {f"{step_id}.{k}": v for k, v in params.items()}
-        if self.mlflow:
+        # FIX (2026-09-28): `experiment_tracking.mlflow.log_params: false`
+        # was documented as a way to opt OUT of param logging to mlflow
+        # specifically, but this branch never checked it -- always fired
+        # whenever mlflow was active. Defaults to True (unset) so existing
+        # pipelines that never set this flag keep their current behavior.
+        # wandb has no such documented flag, so its branch is unguarded.
+        if self.mlflow and self.cfg.get("mlflow", {}).get("log_params", True) is not False:
             try:
                 self.mlflow.log_params({k: str(v) for k, v in prefixed.items()})
             except Exception as e:  # noqa: BLE001
@@ -449,7 +477,9 @@ class _ExperimentTracker:
         if not metrics or not self._active:
             return
         prefixed = {f"{step_id}.{k}": float(v) for k, v in metrics.items() if isinstance(v, (int, float))}
-        if self.mlflow:
+        # FIX (2026-09-28): same gap as log_params -- `log_metrics: false`
+        # was documented but never actually checked.
+        if self.mlflow and self.cfg.get("mlflow", {}).get("log_metrics", True) is not False:
             try:
                 self.mlflow.log_metrics(prefixed)
             except Exception as e:  # noqa: BLE001
@@ -459,6 +489,24 @@ class _ExperimentTracker:
                 self.wandb.log(prefixed)
             except Exception as e:  # noqa: BLE001
                 self.log.warning(f"wandb.log failed: {e}")
+
+    def log_artifact_df(self, step_id: str, df) -> None:
+        """Log a step's output DataFrame as an mlflow table artifact, when
+        `experiment_tracking.mlflow.log_artifacts: true`. FIX (2026-09-28):
+        `log_artifacts` was documented in this component's Field description
+        as a real config option since before this fix, but had NO
+        implementation anywhere in the file -- setting it had zero effect.
+        wandb has no documented log_artifacts flag (its own artifact API --
+        wandb.Artifact -- is a different shape and left to the user's own
+        code, same as log_model already notes for wandb)."""
+        if not self._active or not self.mlflow:
+            return
+        if not self.cfg.get("mlflow", {}).get("log_artifacts", False):
+            return
+        try:
+            self.mlflow.log_table(data=df, artifact_file=f"{step_id}.json")
+        except Exception as e:  # noqa: BLE001
+            self.log.warning(f"mlflow.log_table failed for step {step_id!r}: {e}")
 
     def log_model(self, step_id: str, model, features: list):
         if not self._active:
@@ -725,6 +773,13 @@ def _do_grid_search(df, step: dict, target: str, features: list, context):
     gs = GridSearchCV(cls(**base_params), param_grid=param_grid, cv=cv, scoring=scoring, n_jobs=n_jobs, refit=True)
     gs.fit(train_df[features], train_df[target])
     context.log.info(f"grid_search: best_params={gs.best_params_}, best_score={gs.best_score_:.4f}")
+    # FIX (2026-09-28): best_score_ used to be logged to console only, then
+    # discarded -- never reached step metadata or the experiment tracker,
+    # contradicting the README's claim that experiment_tracking "logs the
+    # best params + best CV score automatically." Stashed on the returned
+    # estimator (a plain object -- safe to set arbitrary attributes on) so
+    # _run_step's metadata block can read it back.
+    gs.best_estimator_._ml_pipeline_best_cv_score = float(gs.best_score_)
     return gs.best_estimator_
 
 
@@ -748,6 +803,7 @@ def _do_random_search(df, step: dict, target: str, features: list, context):
     )
     rs.fit(train_df[features], train_df[target])
     context.log.info(f"random_search: best_params={rs.best_params_}, best_score={rs.best_score_:.4f}")
+    rs.best_estimator_._ml_pipeline_best_cv_score = float(rs.best_score_)
     return rs.best_estimator_
 
 
@@ -818,6 +874,7 @@ def _do_bayesian_search(df, step: dict, target: str, features: list, context):
     # Refit on the full train set with the best params.
     best = cls(**{**base_params, **study.best_params})
     best.fit(train_df[features], train_df[target])
+    best._ml_pipeline_best_cv_score = float(study.best_value)
     return best
 
 
@@ -1386,6 +1443,10 @@ def _run_step(step: dict, state: Dict[str, Any], target: str, features: list, co
         source_id = step.get("source") or _last_frame_id(state)
         model = _MODEL_TRAIN_OPS[op](state[source_id], step, target, features, context)
         state[step_id] = model
+        # Remember which frame trained this model, so register_model can
+        # look up the RIGHT sample frame later (see the __model_source_frame__
+        # read below) instead of grabbing whatever ran most recently.
+        state.setdefault("__model_source_frame__", {})[step_id] = source_id
         context.log.info(f"step {step_id!r} ({op}) → model {type(model).__name__}")
     elif op in _MODEL_APPLY_OPS:
         model_id = step["model"]
@@ -1396,12 +1457,24 @@ def _run_step(step: dict, state: Dict[str, Any], target: str, features: list, co
     elif op in _MODEL_ONLY_OPS:
         model_id = step["model"]
         # Give register_model access to a sample frame for snowflake-ml
-        # signature inference — pick the most-recent frame in state.
-        # No-op for backend='mlflow' since sklearn flavor doesn't need it.
+        # signature inference — the frame that actually trained `model_id`
+        # (via __model_source_frame__, populated when the MODEL_TRAIN_OPS
+        # step ran), NOT "whatever frame ran most recently in the pipeline".
+        # FIX (2026-09-28): the old code did exactly that
+        # (state[_last_frame_id(state)]) -- a realistic pipeline like
+        # `train -> predict -> importance -> register_model` would grab
+        # importance's output (columns `feature`/`importance`) as the
+        # "sample", not the real feature frame -- wrong schema, likely a
+        # crash or a mis-registered model signature. No-op for
+        # backend='mlflow' since sklearn flavor doesn't need it.
         if op == "register_model":
             try:
                 step = dict(step)  # shallow copy so we don't mutate caller's dict
-                step["_sample_frame"] = state[_last_frame_id(state)]
+                source_frame_id = state.get("__model_source_frame__", {}).get(model_id)
+                if source_frame_id is not None and source_frame_id in state:
+                    step["_sample_frame"] = state[source_frame_id]
+                else:
+                    step["_sample_frame"] = state[_last_frame_id(state)]
             except ValueError:
                 pass  # no frame in state — snowflake path will build a dummy
         df = _MODEL_ONLY_OPS[op](state[model_id], step, target, features, context)
@@ -1432,9 +1505,21 @@ def _run_step(step: dict, state: Dict[str, Any], target: str, features: list, co
         params = _extract_model_params(step, result)
         step_meta["model_class"] = type(result).__name__
         step_meta.update(params)
+        # FIX (2026-09-28): grid_search/random_search/bayesian_search compute
+        # a best CV score, but it used to be logged to console only and never
+        # reach here -- contradicting the README's "logs the best params +
+        # best CV score automatically" claim. See the
+        # _ml_pipeline_best_cv_score attribute stashed on the fitted
+        # estimator by each search op.
+        best_cv_score = getattr(result, "_ml_pipeline_best_cv_score", None)
+        if best_cv_score is not None:
+            step_meta["best_cv_score"] = float(best_cv_score)
         if tracker:
             tracker.log_params(step_id, params)
-            tracker.log_metrics(step_id, {"fit_seconds": elapsed})
+            _fit_metrics = {"fit_seconds": elapsed}
+            if best_cv_score is not None:
+                _fit_metrics["best_cv_score"] = float(best_cv_score)
+            tracker.log_metrics(step_id, _fit_metrics)
             tracker.log_model(step_id, result, features)
     elif op == "evaluate":
         # `evaluate` returns a DataFrame with (metric, value) columns.
@@ -1461,6 +1546,9 @@ def _run_step(step: dict, state: Dict[str, Any], target: str, features: list, co
     elif isinstance(result, pd.DataFrame):
         step_meta["rows"] = int(len(result))
         step_meta["cols"] = int(len(result.columns))
+
+    if tracker and isinstance(result, pd.DataFrame):
+        tracker.log_artifact_df(step_id, result)
 
     _step_meta(state, step_id, **step_meta)
 
@@ -1626,7 +1714,16 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             src = step.get("source")
             if isinstance(src, str) and src != "source" and src in step_by_id:
                 deps.append(src)
-            elif src is None and op in _FRAME_OPS:
+            elif src is None and (op in _FRAME_OPS or op in _MODEL_TRAIN_OPS):
+                # FIX (2026-09-28): this used to check only `op in _FRAME_OPS`,
+                # despite the comment above already claiming "FRAME_OPS +
+                # MODEL_TRAIN_OPS" coverage. A train/grid_search/random_search/
+                # bayesian_search step that omits `source:` (the documented
+                # "defaults to most recent frame" behavior) got ZERO recorded
+                # dependency -- a can_subset materialization that didn't
+                # happen to pull in the upstream prep steps via another path
+                # would silently train on whatever frame was left in state
+                # (often the raw, unsplit source), not the intended one.
                 p = _prev_frame_id(step_index)
                 if p and p != "source":
                     deps.append(p)
@@ -1834,8 +1931,16 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     qualified = f"{schema}.{table}" if schema else table
                     if mode == "upsert_on_match":
                         # DELETE keyed by match tuple, then INSERT — in a single
-                        # transaction. Uses SQLAlchemy; works on postgres / snowflake /
-                        # bigquery / mysql / mssql / duckdb-via-sqlalchemy / …
+                        # transaction. Uses SQLAlchemy's row-value-constructor
+                        # `(col1, col2) IN ((v1, v2), ...)` DELETE syntax.
+                        # CONFIRMED-COMPATIBLE (row-value IN supported as-is):
+                        # postgres, mysql, snowflake, duckdb-via-sqlalchemy.
+                        # NOT confirmed, and likely need dialect-specific handling
+                        # before trusting this in production: MSSQL/T-SQL has no
+                        # row-value-constructor IN syntax at all; BigQuery requires
+                        # explicit STRUCT(...) wrapping rather than bare parenthesized
+                        # tuples. Verify with a live test against those two backends
+                        # specifically before relying on this mode there.
                         from sqlalchemy import text as _sa_text
                         distinct = df_to_write[match_cols].drop_duplicates()
                         match_tuple = ", ".join(match_cols)

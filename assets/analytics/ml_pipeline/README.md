@@ -23,8 +23,12 @@ attributes:
     - {id: trained, op: grid_search,
                     sklearn_class: "xgboost.XGBClassifier", task_type: classification,
                     param_grid: {n_estimators: [100, 300], max_depth: [4, 6, 8]}, cv: 5}
-    - {id: preds,   op: predict, model: trained, input: scaled}
-    - {id: metrics, op: evaluate, model: trained, input: preds, task_type: classification}
+    # input: split (not scaled) -- 'split' is the step whose OWN output
+    # carries the split column, needed by the very next step to filter to
+    # held-out rows before evaluating. See "Avoiding train/test leakage" below.
+    - {id: preds,      op: predict, model: trained, input: split}
+    - {id: test_preds, op: filter, source: preds, predicate: "split == 'test'"}
+    - {id: metrics,    op: evaluate, model: trained, input: test_preds, task_type: classification}
     - {id: imp,     op: importance, model: trained}
     - {id: saved,   op: save_model, model: trained, path: "/models/churn_{partition_key}.joblib"}
   outputs:
@@ -34,7 +38,13 @@ attributes:
          schema: ml_output, partition_column: prediction_date, if_exists: append}
 ```
 
-## Op menu (30 total)
+## Avoiding train/test leakage
+
+**`predict`/`predict_proba`/`evaluate`/`confusion_matrix`/`shap_values` do NOT auto-filter by the `split` column** that `split` creates -- only the train-family ops (`train`/`grid_search`/`random_search`/`bayesian_search`) filter to `split == 'train'` internally. If you `predict` on the full frame and hand that straight to `evaluate`, the resulting accuracy/f1/rmse/etc. is computed partly or fully on rows the model was already fit on -- no error, no warning, just an inflated, meaningless number.
+
+The fix, shown in the quick example above: insert a `filter` step (`predicate: "split == 'test'"`) between `predict` and `evaluate`/`confusion_matrix`. Also make sure `predict`'s own `input:` actually has the `split` column available -- that's the `split` step's own output, not whatever ran before it (e.g. `scaled`), since the `split` column only gets added there.
+
+## Op menu (36 total)
 
 **Preprocessing** (9): `impute`, `scale`, `one_hot_encode`, `label_encode`, `tile_binning`, `outlier_clip`, `missing_indicator`, `quantile_transformer`, `power_transformer`
 
@@ -218,6 +228,10 @@ experiment_tracking:
 
 **Metric prefixing** — every step's metrics are logged as `{step_id}.{metric_name}` so multiple `evaluate` steps (train + validation + test) can share a run without collisions. Example logged names: `tuned.n_estimators`, `tuned.max_depth`, `metrics.accuracy`, `metrics.f1`, `cv.cv_mean_test_score`.
 
+**Fine-grained mlflow toggles** — `mlflow.log_params: false` / `log_metrics: false` opt OUT of those specific calls (both default `true`); `mlflow.log_artifacts: true` opts IN to logging every step's output DataFrame as an `mlflow.log_table` artifact (default `false` -- this can get large fast on a long pipeline, so it's opt-in, not opt-out like params/metrics). None of these three have a wandb equivalent — wandb logging is unconditional for params/metrics, and `log_model`/`log_artifacts`-style automatic uploads are deliberately left to your own code there (wandb storage quotas are easy to blow through with auto-uploads).
+
+**`grid_search`/`random_search`/`bayesian_search` also log `best_cv_score`** (both to step metadata and, when a tracker is active, as a metric) — the winning cross-validation score the search actually optimized for, not just the refit estimator's params.
+
 ## Rich metadata (emitted on every step listed in `outputs.assets`)
 
 Every step emits a bundle of typed `MetadataValue`s so Dagster+ Insights can turn them into dashboards + alerts.
@@ -245,6 +259,10 @@ Promote any of these to a Dagster+ Insights custom metric via the UI — one cli
 - `kmeans` — sklearn KMeans (clustering)
 
 **Escape hatch** (`sklearn_class: "..."`): any estimator with `.fit()` / `.predict()` — XGBoost, LightGBM, HistGradientBoosting, catboost, any custom class.
+
+## Known limitations
+
+**`feature_columns:` is a single static list, frozen at component-definition time.** Every `train`/`grid_search`/`random_search`/`bayesian_search`/`predict`/`evaluate`/`cross_validate` step uses the same, unchanging `feature_columns:` you declared at the top level. Ops that CHANGE the column set mid-pipeline (`one_hot_encode`, `pca`, `tfidf`, `hashing_vectorizer`, `correlation_filter`, `variance_threshold`, `mutual_info_selection`) don't reconcile with it automatically -- if you use any of these, you're responsible for keeping `feature_columns:` in sync yourself (e.g. listing the post-encoding column names). There's no validation today that catches drift between what a feature-generating/selecting op actually produced and what `feature_columns:` still says.
 
 ## Sources — where the data comes from
 

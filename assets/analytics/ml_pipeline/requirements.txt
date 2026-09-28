@@ -1,6 +1,5 @@
 pandas
 scikit-learn
-requests
 joblib
 # Optional deps enabled by specific ops:
 #   shap                    — required by the `shap_values` op

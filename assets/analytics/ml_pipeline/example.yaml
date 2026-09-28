@@ -46,8 +46,13 @@ attributes:
         n_estimators: {type: int,   low: 50,  high: 300}
         max_depth:    {type: int,   low: 3,   high: 15}
         min_samples_split: {type: int, low: 2, high: 10}
-    - {id: preds,   op: predict, model: tuned, input: scaled}
-    - {id: metrics, op: evaluate, model: tuned, input: preds, task_type: classification}
+    # input: split (not scaled) -- 'split' is the step whose OWN output
+    # carries the split column, which the very next step needs to filter
+    # to held-out rows before evaluating (evaluate/confusion_matrix don't
+    # auto-filter by split -- see README.md's "Avoiding train/test leakage").
+    - {id: preds,      op: predict, model: tuned, input: split}
+    - {id: test_preds, op: filter, source: preds, predicate: "split == 'test'"}
+    - {id: metrics,    op: evaluate, model: tuned, input: test_preds, task_type: classification}
     - {id: imp,     op: importance, model: tuned}
     - {id: cv,      op: cross_validate, source: scaled,
                     model_type: random_forest, task_type: classification,

@@ -30153,7 +30153,7 @@
       "category": "analytics",
       "author": "Dagster Community",
       "version": "1.2.0",
-      "description": "End-to-end ML pipeline in one YAML \u2014 30 ops covering feature engineering, hyperparameter tuning (grid / random / bayesian via Optuna), evaluation, interpretability, model persistence, and Model Registry integration (register_model / load_model, backend: mlflow or snowflake) for train-once/predict-often MLOps. Any sklearn / XGBoost / LightGBM estimator via `sklearn_class:` escape hatch. Opt-in `experiment_tracking:` block auto-logs params / metrics / model artifacts to MLflow and/or Weights & Biases. Rich per-step MetadataValue (elapsed_seconds, model_class, hyperparams, CV mean/std, evaluate metrics, top feature) on emitted assets \u2014 promote to Dagster+ Insights. Warehouse-connected via any Dagster resource. Partition-aware. Supports dbt-style per-step resume (`can_subset=True`) \u2014 materializing a subset of outputs runs only the transitively-needed steps.",
+      "description": "End-to-end ML pipeline in one YAML \u2014 36 ops covering feature engineering, hyperparameter tuning (grid / random / bayesian via Optuna), evaluation, interpretability, model persistence, and Model Registry integration (register_model / load_model, backend: mlflow or snowflake) for train-once/predict-often MLOps. Any sklearn / XGBoost / LightGBM estimator via `sklearn_class:` escape hatch. Opt-in `experiment_tracking:` block auto-logs params / metrics / model artifacts to MLflow and/or Weights & Biases. Rich per-step MetadataValue (elapsed_seconds, model_class, hyperparams, CV mean/std, evaluate metrics, top feature) on emitted assets \u2014 promote to Dagster+ Insights. Warehouse-connected via any Dagster resource. Partition-aware. Supports dbt-style per-step resume (`can_subset=True`) \u2014 materializing a subset of outputs runs only the transitively-needed steps.",
       "tags": [
         "analytics",
         "ml",
@@ -30179,7 +30179,6 @@
         "pip": [
           "pandas",
           "scikit-learn",
-          "requests",
           "joblib"
         ]
       },
@@ -30201,14 +30200,13 @@
         "requires_pip": [
           "pandas",
           "scikit-learn",
-          "requests",
           "joblib"
         ]
       },
       "validation": {
         "level": "live",
-        "last_validated": "2026-08-07",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/wine_ml_pipeline_component.md"
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/wine_ml_pipeline_component.md . Follow-up code audit (added 2026-09-28): this component had exactly ONE test before this date, covering only the warehouse_query/table_sink path -- not one of the 36 ops was exercised. A full code-reading audit (not doc-driven) of every op found and fixed 3 real bugs, now covered by 8 new committed tests: (1) the shipped quick example (README.md) and example.yaml both fed predict/evaluate the pre-split 'scaled' frame instead of 'split' (the step that actually carries the split column), and evaluate/confusion_matrix/predict never auto-filter by split -- meaning the shipped examples' own accuracy numbers were computed partly or fully on rows the model was fit on; fixed both examples and added a documented 'Avoiding train/test leakage' pattern (filter to split=='test' between predict and evaluate). (2) can_subset's dependency-closure computation only covered _FRAME_OPS despite its own comment claiming _FRAME_OPS + _MODEL_TRAIN_OPS coverage -- a sourceless train/grid_search/random_search/bayesian_search step (the shape both shipped examples use) got zero recorded dependency, so a partial materialization could silently train on the raw unsplit/unscaled frame instead of the intended one; fixed. (3) register_model's sample-frame lookup for Snowflake Registry schema inference grabbed whatever frame ran most recently in the pipeline instead of the frame that actually trained the model being registered (e.g. a train -> predict -> importance -> register_model pipeline would wrongly grab importance's feature/importance columns); fixed via a new __model_source_frame__ tracking dict. Also fixed: grid_search/random_search/bayesian_search's best CV score was computed and logged to console only, never reaching Dagster metadata or the experiment tracker (contradicted this component's own docs); experiment_tracking.mlflow.log_params/log_metrics were documented as opt-out toggles but never actually checked; log_artifacts was documented as a real option with zero implementation anywhere (now a real mlflow.log_table call, gated behind the flag, default off). Also removed an unused `requests` dependency (the url/file ingestion path uses pd.read_csv via fsspec, never requests).",
+        "last_validated": "2026-09-28"
       },
       "keywords": [
         "report",

@@ -58,6 +58,7 @@ Model type coverage:
   — any sklearn-compatible estimator (or any estimator with .fit / .predict).
 - `params:` dict is forwarded to the model constructor unchanged.
 """
+import contextlib
 import importlib
 import re
 from io import StringIO
@@ -173,8 +174,12 @@ def _ingest(source_config: dict, context, partition_key: Optional[str] = None) -
             engine = resource.get_engine()
             return pd.read_sql(sql, engine)
         if hasattr(resource, "get_connection"):
-            conn = resource.get_connection()
-            return pd.read_sql(sql, conn)
+            # get_connection() is a @contextmanager (confirmed live against
+            # dagster_duckdb.DuckDBResource) -- calling it without `with`
+            # hands back a _GeneratorContextManager, not a connection, and
+            # pd.read_sql fails with AttributeError. Must be entered via `with`.
+            with resource.get_connection() as conn:
+                return pd.read_sql(sql, conn)
         raise ValueError(
             f"resource {resource_key!r} must expose .get_engine() (SQLAlchemy) "
             f"or .get_connection() (DB-API); got {type(resource).__name__}"
@@ -1776,6 +1781,14 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 # idempotency (DELETE-then-INSERT keyed by match tuple, in a
                 # transaction). Safe to re-run the same partition. Mirrors the
                 # same primitive in polars_pipeline and rest_api_ingestion.
+                # NOTE (confirmed live): this mode issues a SQLAlchemy text()
+                # DELETE with named params, so it requires a resource exposing
+                # .get_engine() (SQLAlchemy) -- a resource that only exposes a
+                # raw DB-API .get_connection() (e.g. dagster_duckdb's
+                # DuckDBResource) will fail with
+                # `_duckdb.InvalidInputException: Please provide either a
+                # DuckDBPyStatement or a string`. Plain (non-upsert) table_sinks
+                # work fine against either resource kind.
                 mode = (sink.get("mode") or "").lower() or None
                 match_cols: List[str] = list(sink.get("match") or [])
                 if mode == "upsert_on_match" and not match_cols:
@@ -1802,36 +1815,56 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
 
                 resource = getattr(context.resources, resource_key)
                 if hasattr(resource, "get_engine"):
-                    engine = resource.get_engine()
+                    conn_ctx = contextlib.nullcontext(resource.get_engine())
                 elif hasattr(resource, "get_connection"):
-                    engine = resource.get_connection()
+                    # get_connection() is a @contextmanager (confirmed live
+                    # against dagster_duckdb.DuckDBResource) -- calling it
+                    # without `with` hands back a _GeneratorContextManager,
+                    # not a connection/engine, and every use below
+                    # (.begin()/.execute()/to_sql()) fails. Must be entered
+                    # via `with`; nullcontext above makes both resource kinds
+                    # share the same `with ... as engine:` code path.
+                    conn_ctx = resource.get_connection()
                 else:
                     raise ValueError(
                         f"resource {resource_key!r} must expose .get_engine() or .get_connection()"
                     )
 
-                qualified = f"{schema}.{table}" if schema else table
-                if mode == "upsert_on_match":
-                    # DELETE keyed by match tuple, then INSERT — in a single
-                    # transaction. Uses SQLAlchemy; works on postgres / snowflake /
-                    # bigquery / mysql / mssql / duckdb-via-sqlalchemy / …
-                    from sqlalchemy import text as _sa_text
-                    distinct = df_to_write[match_cols].drop_duplicates()
-                    match_tuple = ", ".join(match_cols)
-                    if len(distinct) > 0:
-                        placeholders = ", ".join(
-                            "(" + ", ".join(f":v{i}_{j}" for j in range(len(match_cols))) + ")"
-                            for i in range(len(distinct))
-                        )
-                        params = {}
-                        for i, row in enumerate(distinct.itertuples(index=False)):
-                            for j, v in enumerate(row):
-                                params[f"v{i}_{j}"] = v
-                        # engine may be a Connection or Engine; both support .begin()
-                        tx = engine.begin() if hasattr(engine, "begin") else None
-                        if tx is not None:
-                            with tx as _conn:
-                                _conn.execute(
+                with conn_ctx as engine:
+                    qualified = f"{schema}.{table}" if schema else table
+                    if mode == "upsert_on_match":
+                        # DELETE keyed by match tuple, then INSERT — in a single
+                        # transaction. Uses SQLAlchemy; works on postgres / snowflake /
+                        # bigquery / mysql / mssql / duckdb-via-sqlalchemy / …
+                        from sqlalchemy import text as _sa_text
+                        distinct = df_to_write[match_cols].drop_duplicates()
+                        match_tuple = ", ".join(match_cols)
+                        if len(distinct) > 0:
+                            placeholders = ", ".join(
+                                "(" + ", ".join(f":v{i}_{j}" for j in range(len(match_cols))) + ")"
+                                for i in range(len(distinct))
+                            )
+                            params = {}
+                            for i, row in enumerate(distinct.itertuples(index=False)):
+                                for j, v in enumerate(row):
+                                    params[f"v{i}_{j}"] = v
+                            # engine may be a Connection or Engine; both support .begin()
+                            tx = engine.begin() if hasattr(engine, "begin") else None
+                            if tx is not None:
+                                with tx as _conn:
+                                    _conn.execute(
+                                        _sa_text(
+                                            f"DELETE FROM {qualified} "
+                                            f"WHERE ({match_tuple}) IN ({placeholders})"
+                                        ),
+                                        params,
+                                    )
+                                    df_to_write.to_sql(
+                                        table, _conn, schema=schema,
+                                        if_exists="append", index=False,
+                                    )
+                            else:
+                                engine.execute(
                                     _sa_text(
                                         f"DELETE FROM {qualified} "
                                         f"WHERE ({match_tuple}) IN ({placeholders})"
@@ -1839,39 +1872,27 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                                     params,
                                 )
                                 df_to_write.to_sql(
-                                    table, _conn, schema=schema,
+                                    table, engine, schema=schema,
                                     if_exists="append", index=False,
                                 )
                         else:
-                            engine.execute(
-                                _sa_text(
-                                    f"DELETE FROM {qualified} "
-                                    f"WHERE ({match_tuple}) IN ({placeholders})"
-                                ),
-                                params,
-                            )
                             df_to_write.to_sql(
                                 table, engine, schema=schema,
                                 if_exists="append", index=False,
                             )
+                        context.log.info(
+                            f"table_sink {from_id!r} → {qualified} "
+                            f"(via {resource_key}, upsert_on_match({','.join(match_cols)}), "
+                            f"{len(df_to_write)} rows)"
+                        )
                     else:
                         df_to_write.to_sql(
-                            table, engine, schema=schema,
-                            if_exists="append", index=False,
+                            table, engine, schema=schema, if_exists=if_exists, index=False,
                         )
-                    context.log.info(
-                        f"table_sink {from_id!r} → {qualified} "
-                        f"(via {resource_key}, upsert_on_match({','.join(match_cols)}), "
-                        f"{len(df_to_write)} rows)"
-                    )
-                else:
-                    df_to_write.to_sql(
-                        table, engine, schema=schema, if_exists=if_exists, index=False,
-                    )
-                    context.log.info(
-                        f"table_sink {from_id!r} → {qualified} "
-                        f"(via {resource_key}, {if_exists})"
-                    )
+                        context.log.info(
+                            f"table_sink {from_id!r} → {qualified} "
+                            f"(via {resource_key}, {if_exists})"
+                        )
 
             # Determine which asset outputs to emit. In subset mode only emit
             # the outputs the caller selected (plus any transitively-built ones

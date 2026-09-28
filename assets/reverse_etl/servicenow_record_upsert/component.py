@@ -186,11 +186,11 @@ class ServiceNowRecordUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
                         engine = resource.get_engine()
                         return pd.read_sql(query, engine)
                     if hasattr(resource, "get_connection"):
-                        conn = resource.get_connection()
-                        # DuckDB fast path
-                        if hasattr(conn, "execute") and hasattr(conn, "df"):
-                            return conn.execute(query).df()
-                        return pd.read_sql(query, conn)
+                        with resource.get_connection() as conn:
+                            # DuckDB fast path
+                            if hasattr(conn, "execute") and hasattr(conn, "df"):
+                                return conn.execute(query).df()
+                            return pd.read_sql(query, conn)
                     raise ValueError(
                         f"source kind=sql: resource {rk!r} must expose "
                         ".get_engine() or .get_connection()"

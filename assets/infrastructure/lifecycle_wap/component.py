@@ -571,7 +571,27 @@ def _sql_get_engine(cfg: Dict[str, Any], context):
         if hasattr(resource, "get_engine"):
             return resource.get_engine()
         if hasattr(resource, "get_connection"):
-            return resource.get_connection()
+            # Unlike the other resource_key ingestion sites in this repo, this
+            # one genuinely can't be fixed with a `with` wrapper: the returned
+            # value must stay open and reusable across _sql_write_staging AND
+            # the later _sql_publish call (engine.begin(), df.to_sql(...,
+            # engine), SQLAlchemy text() DDL) -- a get_connection() resource
+            # (confirmed live against dagster_duckdb.DuckDBResource) hands
+            # back a raw DB-API connection via a @contextmanager, which is
+            # both (a) only valid inside a `with` block, so it can't outlive
+            # this function call, and (b) not SQLAlchemy-API-compatible even
+            # if kept open -- `conn.execute(sqlalchemy.text(...))` fails with
+            # `_duckdb.InvalidInputException` against a raw duckdb connection
+            # (confirmed live in the same investigation). Fail clearly instead
+            # of silently misusing the context manager only to crash later.
+            raise ValueError(
+                f"lifecycle_wap: resource {rk!r} exposes only .get_connection() "
+                f"(a raw DB-API connection, e.g. dagster_duckdb.DuckDBResource) -- "
+                f"the sql write backend needs a real SQLAlchemy Engine (engine.begin(), "
+                f"df.to_sql(engine), SQLAlchemy text() DDL for publish/quarantine/discard), "
+                f"which a raw DB-API connection can't provide. Use a resource exposing "
+                f".get_engine() instead, or use write kind='filesystem'/'iceberg'/'delta'."
+            )
         raise ValueError(f"lifecycle_wap: resource {rk!r} must expose get_engine() or get_connection()")
     raise ValueError("lifecycle_wap: sql write requires database_url_env_var OR resource_key")
 

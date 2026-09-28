@@ -101,10 +101,10 @@ class MailchimpMemberUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
                     if hasattr(resource, "get_engine"):
                         return pd.read_sql(query, resource.get_engine())
                     if hasattr(resource, "get_connection"):
-                        conn = resource.get_connection()
-                        if hasattr(conn, "execute") and hasattr(conn, "df"):
-                            return conn.execute(query).df()
-                        return pd.read_sql(query, conn)
+                        with resource.get_connection() as conn:
+                            if hasattr(conn, "execute") and hasattr(conn, "df"):
+                                return conn.execute(query).df()
+                            return pd.read_sql(query, conn)
                     raise ValueError(f"source kind=sql: resource {rk!r} must expose .get_engine() or .get_connection()")
                 env = src.get("database_url_env_var")
                 if env:

@@ -966,8 +966,12 @@ group_name=group_name,
                     context.log.error(f"date_extract_ops failed: {e}")
                     raise
 
-            # Substring ops -- 1-based start (matches SQL SUBSTRING semantics),
-            # omit length to take the rest of the string.
+            # Substring ops -- 1-based start (matches SQL SUBSTRING semantics)
+            # for positive values; a NEGATIVE start means "N characters from
+            # the end" (Python/pandas slice convention -- start=-3 is the
+            # last 3 characters onward, matching s[-3:]), which .str.slice()
+            # already handles natively once passed through unclamped. Omit
+            # length to take the rest of the string.
             if substring_ops_str:
                 try:
                     substring_ops = json.loads(substring_ops_str)
@@ -978,9 +982,18 @@ group_name=group_name,
                         length = op.get('length')
                         if col in df.columns and into:
                             s = df[col].astype(str)
-                            start0 = max(start - 1, 0)
+                            start0 = (start - 1) if start >= 0 else start
                             if length is None or length == '':
                                 df[into] = s.str.slice(start0)
+                            elif start0 < 0:
+                                stop0 = start0 + int(length)
+                                # If length overshoots past the end (stop
+                                # would land at/after index 0 in "from the
+                                # end" terms), that's not a valid negative
+                                # stop anymore -- take through the end
+                                # instead of misreading it as an absolute
+                                # small positive index.
+                                df[into] = s.str.slice(start0) if stop0 >= 0 else s.str.slice(start0, stop0)
                             else:
                                 df[into] = s.str.slice(start0, start0 + int(length))
                     context.log.info(f"Applied {len(substring_ops)} substring op(s)")

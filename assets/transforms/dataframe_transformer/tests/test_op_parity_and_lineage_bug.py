@@ -168,3 +168,20 @@ def test_count_match_ops_and_sample_config(mod):
     )
     assert len(out) == 2
     assert set(out["n_a"].tolist()) <= {0, 2}
+
+
+def test_substring_ops_negative_start_extracts_from_the_end(mod):
+    # start=-3 -- Python/pandas slice convention (s[-3:]), verified against
+    # a real duckdb execution of the SQL-mode equivalent while building this
+    # (both backends must agree on this convention since Designer's UI can
+    # route the same op payload to either one).
+    df = pd.DataFrame({"code": ["CHI-202425-001", "NYC-202426-042"]})
+    out = _materialize(
+        mod, df,
+        substring_ops=json.dumps([
+            {"column": "code", "start": -3, "into": "last3"},
+            {"column": "code", "start": -5, "length": 3, "into": "mid"},
+        ]),
+    )
+    assert out["last3"].tolist() == ["001", "042"]
+    assert out["mid"].tolist() == ["5-0", "6-0"]

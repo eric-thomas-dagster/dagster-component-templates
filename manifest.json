@@ -27892,29 +27892,34 @@
       "id": "linear_regression_model",
       "name": "Linear Regression",
       "category": "analytics",
-      "description": "Fit a linear regression model and output predictions and/or model coefficients.",
+      "description": "Fit a linear regression model and output predictions and/or model coefficients. Supports `source: {kind: warehouse_query}` direct-SQL ingestion (DuckDB and other databases) alongside `upstream_asset_key`, and `execution_mode: sql` -- trains AND predicts server-side via BigQuery `CREATE MODEL...OPTIONS(model_type='LINEAR_REG')` (a genuine algorithmic match) or predict-ONLY on Databricks via `ai_query()` against an already-served model. Snowflake ML has no generic regression function at all, so it isn't offered as a sql_dialect here.",
       "path": "assets/analytics/linear_regression_model",
       "tags": [
         "analytics",
         "linear",
         "regression",
-        "model"
+        "model",
+        "warehouse query",
+        "duckdb",
+        "bigquery",
+        "databricks",
+        "sql execution mode"
       ],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/linear_regression_model/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/linear_regression_model/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/linear_regression_model/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/linear_regression_model/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/linear_regression_model/requirements.txt",
-      "icon": "si:linear",
+      "icon": "BarChart2",
       "validation": {
         "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
-        "last_validated": "2026-05-08"
+        "evidence": "Original python-mode: https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md . source/execution_mode additions (added 2026-09-28): source: warehouse_query live-verified against real DuckDB. execution_mode='sql' is structural-only for both dialects -- generated SQL asserted against BigQuery documentation and Databricks' ai_query() syntax, not run against a live warehouse account.",
+        "last_validated": "2026-09-28"
       },
       "agent_hints": {
-        "inputs": "DataFrame with numeric feature columns AND a numeric target column.",
-        "outputs": "DataFrame with test-set rows + columns: ground truth, predictions, residuals.",
-        "side_effects": "sklearn dependency. OUTPUT is the test set only, not the full input.",
+        "inputs": "DataFrame with numeric feature columns AND a numeric target column (upstream_asset_key), or a SQL FROM-source (source: {kind: warehouse_query}).",
+        "outputs": "output_mode='predictions'/'both' (default): the FULL upstream DataFrame (not just the test split, confirmed by reading the code) with a prediction column added -- no residuals column exists. output_mode='coefficients': a separate {feature, coefficient, intercept} DataFrame. execution_mode='sql' writes directly to output_table in the warehouse instead (predictions only, no coefficients equivalent server-side).",
+        "side_effects": "scikit-learn dependency. execution_mode='sql' runs CREATE MODEL or ai_query in the target warehouse.",
         "anti_uses": "Target must be numeric/continuous. For binary classification use logistic_regression_model. Feature columns must be numeric \u2014 one-hot encode categoricals FIRST.",
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame"
@@ -27932,13 +27937,14 @@
         "asset",
         "asset_check"
       ],
-      "consumes": [
-        "resource:linear"
-      ],
       "keywords": [
-        "linear tickets",
         "report",
-        "aggregate"
+        "aggregate",
+        "warehouse query",
+        "duckdb",
+        "sql execution mode",
+        "bigquery ml",
+        "ai_query"
       ]
     },
     {

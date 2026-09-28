@@ -14,10 +14,131 @@ from dagster import (
     Definitions,
     MetadataValue,
     Model,
+    Output,
     Resolvable,
     asset,
 )
 from pydantic import Field
+
+
+def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
+    """Execute SQL via a Dagster resource that exposes .get_engine() (SQLAlchemy)
+    OR .get_connection() (DB-API), or a bare SQLAlchemy engine built from
+    `database_url_env_var` when no Dagster resource is registered."""
+    sql = source_config["sql"]
+    resource_key = source_config.get("resource_key")
+    if resource_key:
+        resource = getattr(context.resources, resource_key)
+        if hasattr(resource, "get_engine"):
+            return pd.read_sql(sql, resource.get_engine())
+        if hasattr(resource, "get_connection"):
+            with resource.get_connection() as conn:
+                return pd.read_sql(sql, conn)
+        raise ValueError(
+            f"resource {resource_key!r} must expose .get_engine() (SQLAlchemy) "
+            f"or .get_connection() (DB-API); got {type(resource).__name__}"
+        )
+    env_var = source_config.get("database_url_env_var")
+    if env_var:
+        import os
+        from sqlalchemy import create_engine
+        url = os.environ.get(env_var, "")
+        if not url:
+            raise ValueError(f"database_url_env_var {env_var!r} is unset")
+        return pd.read_sql(sql, create_engine(url))
+    raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
+
+
+# ── execution_mode='sql' ────────────────────────────────────────────────
+# Only 2 dialects here, not 3 -- unlike the classifier family, Snowflake
+# ML has NO generic regression function at all (SNOWFLAKE.ML.FORECAST is
+# time-series-specific, not a general linear fit -- confirmed in the
+# broader audit), so there is no honest Snowflake mapping for plain linear
+# regression and it's not offered as an option.
+#   - bigquery:   CREATE MODEL ... OPTIONS(model_type='LINEAR_REG') is a
+#                 real, exact algorithmic match + ML.PREDICT.
+#   - databricks: predict-ONLY via ai_query() against an already-served
+#                 model -- no CREATE MODEL statement exists at all.
+# validation.level: code -- no live warehouse credential in this dev
+# environment; the generated SQL is asserted structurally, not executed.
+
+_SQL_MODEL_DIALECTS = ("bigquery", "databricks")
+
+
+def _build_sql_mode_statements(
+    dialect: str, source_sql: str, output_table: str, model_name: str,
+    target_column: str, feature_columns: List[str], test_size: float,
+) -> List[str]:
+    if dialect not in _SQL_MODEL_DIALECTS:
+        raise ValueError(
+            f"unsupported sql_dialect: {dialect!r}. Valid: {_SQL_MODEL_DIALECTS} "
+            f"(snowflake has no generic regression function in Snowflake ML)."
+        )
+
+    if dialect == "bigquery":
+        feat_csv = ", ".join(feature_columns)
+        return [
+            f"CREATE OR REPLACE MODEL `{model_name}`\n"
+            f"OPTIONS(model_type='LINEAR_REG', input_label_cols=['{target_column}'], "
+            f"data_split_method='RANDOM', data_split_eval_fraction={test_size}) AS\n"
+            f"SELECT {feat_csv}, {target_column}\n"
+            f"FROM ({source_sql})",
+
+            f"CREATE OR REPLACE TABLE {output_table} AS\n"
+            f"SELECT * FROM ML.PREDICT(MODEL `{model_name}`, (SELECT * FROM ({source_sql})))",
+        ]
+
+    # databricks: predict-only against an already-served endpoint (model_name
+    # is that endpoint's name here, not something this statement creates).
+    feat_struct = ", ".join(f"'{c}', src.{c}" for c in feature_columns)
+    return [
+        f"CREATE OR REPLACE TABLE {output_table} AS\n"
+        f"SELECT src.*, ai_query('{model_name}', named_struct({feat_struct})) AS predicted\n"
+        f"FROM ({source_sql}) AS src"
+    ]
+
+
+def _run_sql_mode(context, source_cfg: dict, statements: List[str], output_table: str) -> Output:
+    resource_key = source_cfg.get("resource_key")
+    if resource_key:
+        resource = getattr(context.resources, resource_key)
+        if hasattr(resource, "get_engine"):
+            engine = resource.get_engine()
+            with engine.begin() as conn:
+                for stmt in statements:
+                    conn.exec_driver_sql(stmt)
+                row_count = conn.exec_driver_sql(f"SELECT COUNT(*) FROM {output_table}").scalar()
+        elif hasattr(resource, "get_connection"):
+            with resource.get_connection() as conn:
+                for stmt in statements:
+                    conn.execute(stmt)
+                row_count = conn.execute(f"SELECT COUNT(*) FROM {output_table}").fetchone()[0]
+        else:
+            raise ValueError(f"resource {resource_key!r} must expose .get_engine() or .get_connection().")
+    else:
+        env_var = source_cfg.get("database_url_env_var")
+        if not env_var:
+            raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
+        import os
+        from sqlalchemy import create_engine
+        url = os.environ.get(env_var, "")
+        if not url:
+            raise ValueError(f"database_url_env_var {env_var!r} is unset")
+        engine = create_engine(url)
+        with engine.begin() as conn:
+            for stmt in statements:
+                conn.exec_driver_sql(stmt)
+            row_count = conn.exec_driver_sql(f"SELECT COUNT(*) FROM {output_table}").scalar()
+
+    return Output(
+        value=None,
+        metadata={
+            "dagster/row_count": MetadataValue.int(row_count),
+            "execution_mode": MetadataValue.text("sql"),
+            "output_table": MetadataValue.text(output_table),
+            "generated_sql": MetadataValue.md("\n\n".join(f"```sql\n{s}\n```" for s in statements)),
+        },
+    )
 
 
 def _build_partitions_def(
@@ -126,7 +247,47 @@ class LinearRegressionModelComponent(Component, Model, Resolvable):
     """Fit a linear regression model and output predictions and/or model coefficients."""
 
     asset_name: str = Field(description="Output Dagster asset name")
-    upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
+    upstream_asset_key: Optional[str] = Field(
+        default=None,
+        description="Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one.",
+    )
+    source: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Pull rows directly via SQL instead of from an upstream asset: "
+            "{kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. "
+            "Also required (with execution_mode='sql') to name the FROM-source for the "
+            "server-side training/prediction query. Mutually exclusive with `upstream_asset_key` -- set exactly one."
+        ),
+    )
+    execution_mode: str = Field(
+        default="python",
+        description=(
+            "'python' (default): fits a real scikit-learn LinearRegression locally. "
+            "'sql': trains AND predicts server-side via BigQuery "
+            "`CREATE MODEL...OPTIONS(model_type='LINEAR_REG')` + `ML.PREDICT` (a real, exact "
+            "algorithmic match), or Databricks predict-ONLY via `ai_query()` against an "
+            "already-served model_name endpoint. Snowflake has no generic regression function "
+            "in Snowflake ML, so it is not offered as a sql_dialect here. Requires `source`, "
+            "`sql_dialect`, `output_table`, and `model_name`."
+        ),
+    )
+    sql_dialect: Optional[str] = Field(
+        default=None,
+        description=f"Required when execution_mode='sql'. One of: {_SQL_MODEL_DIALECTS} (no Snowflake option -- see execution_mode description).",
+    )
+    output_table: Optional[str] = Field(
+        default=None,
+        description="Required when execution_mode='sql'. Destination table the predictions are written to.",
+    )
+    model_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "Required when execution_mode='sql'. For bigquery: the identifier this component "
+            "creates the model under. For databricks: the name of an already-served Model "
+            "Serving endpoint -- this dialect trains nothing."
+        ),
+    )
     target_column: Union[str, int] = Field(description="Column name of the target variable to predict")
     feature_columns: List[Union[str, int]] = Field(description="List of column names to use as features")
     test_size: float = Field(default=0.2, description="Fraction of data to hold out for evaluation")
@@ -269,6 +430,11 @@ class LinearRegressionModelComponent(Component, Model, Resolvable):
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
+        source_cfg = self.source
+        execution_mode = self.execution_mode
+        sql_dialect = self.sql_dialect
+        output_table = self.output_table
+        model_name = self.model_name
         target_column = self.target_column
         feature_columns = self.feature_columns
         model_path = self.model_path
@@ -278,6 +444,24 @@ class LinearRegressionModelComponent(Component, Model, Resolvable):
         prediction_column = self.prediction_column
         normalize = self.normalize
         group_name = self.group_name
+
+        if bool(upstream_asset_key) == bool(source_cfg):
+            raise ValueError("LinearRegressionModelComponent: set exactly one of `upstream_asset_key` or `source`.")
+        if execution_mode not in ("python", "sql"):
+            raise ValueError(f"LinearRegressionModelComponent: execution_mode must be 'python' or 'sql', got {execution_mode!r}.")
+        if execution_mode == "sql":
+            if not source_cfg:
+                raise ValueError("LinearRegressionModelComponent: execution_mode='sql' requires `source` (a SQL FROM-source).")
+            if sql_dialect not in _SQL_MODEL_DIALECTS:
+                raise ValueError(f"LinearRegressionModelComponent: execution_mode='sql' requires sql_dialect to be one of {_SQL_MODEL_DIALECTS}.")
+            if not output_table:
+                raise ValueError("LinearRegressionModelComponent: execution_mode='sql' requires `output_table`.")
+            if not model_name:
+                raise ValueError("LinearRegressionModelComponent: execution_mode='sql' requires `model_name`.")
+            if not feature_columns:
+                raise ValueError("LinearRegressionModelComponent: execution_mode='sql' requires `feature_columns`.")
+            if output_mode not in ("predictions", "both"):
+                raise ValueError("LinearRegressionModelComponent: execution_mode='sql' only supports output_mode='predictions' or 'both' (no server-side coefficients equivalent).")
 
         partitions_def = _build_partitions_def(
             self.partition_type,
@@ -357,17 +541,37 @@ class LinearRegressionModelComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, 
+        _asset_kwargs: Dict[str, Any] = dict(
+            retry_policy=_retry_policy,
             key=AssetKey.from_user_string(asset_name),
-            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
             partitions_def=partitions_def,
-                        owners=owners,
+            owners=owners,
             tags=_all_tags,
             freshness_policy=_freshness_policy,
-group_name=group_name,
+            group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def _asset(context: AssetExecutionContext, upstream: Any) -> pd.DataFrame:
+        if upstream_asset_key:
+            _asset_kwargs["ins"] = {"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))}
+        if source_cfg and source_cfg.get("resource_key"):
+            _asset_kwargs["required_resource_keys"] = {source_cfg["resource_key"]}
+
+        if execution_mode == "sql":
+            @asset(**_asset_kwargs)
+            def _sql_asset(context: AssetExecutionContext):
+                statements = _build_sql_mode_statements(
+                    sql_dialect, source_cfg["sql"], output_table, model_name,
+                    target_column, list(feature_columns), test_size,
+                )
+                return _run_sql_mode(context, source_cfg, statements, output_table)
+
+            return Definitions(assets=[_sql_asset])
+
+        @asset(**_asset_kwargs)
+        def _asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
+            upstream = kwargs.get("upstream")
+            if upstream is None:
+                upstream = _ingest_warehouse_query(source_cfg, context)
             # Defensive Output/MaterializeResult unwrap — see summarize for the rationale.
             # Tolerates upstream authors who annotate `-> Output` or
             # return `Output(value=df, ...)` / `MaterializeResult(value=df)`.

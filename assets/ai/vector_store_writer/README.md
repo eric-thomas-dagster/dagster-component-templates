@@ -8,6 +8,15 @@ Write embeddings to vector databases (Pinecone, ChromaDB, Qdrant, FAISS) with me
 
 Store vector embeddings for semantic search and RAG systems. Supports ChromaDB (local), Pinecone (cloud), Qdrant, and FAISS.
 
+## Ingestion
+
+Two ways to get embeddings in, set exactly one:
+
+- **`upstream_asset_key`**: the usual Dagster way -- point at any asset producing a DataFrame with `embedding_column`.
+- **`source: {kind: warehouse_query, resource_key: ..., sql: ...}`**: pull rows directly via SQL -- e.g. embeddings already computed and stored in a warehouse table, indexed without an intermediate Dagster asset. Works out of the box with `duckdb_resource` and any resource exposing `.get_engine()` (SQLAlchemy) or `.get_connection()` (DB-API).
+
+This mirrors `context_engineering_pipeline`'s dual-ingestion design, so this component can be used standalone (asset-by-asset, for finer-grained lineage/control) with the same source flexibility as the bundled pipeline.
+
 **Compatible with:**
 - Embedding Generator (with `output_format: dataframe`)
 - Any asset producing DataFrame with embedding column
@@ -59,7 +68,6 @@ Returns a dictionary with status information:
 | `asset_name` | `str` | Name of the asset |
 | `provider` | `str` | Provider: 'pinecone', 'weaviate', 'chromadb', 'faiss', 'qdrant' |
 | `collection_name` | `str` | Collection/index name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with embeddings to write |
 
 ### Connection
 
@@ -122,6 +130,8 @@ Returns a dictionary with status information:
 | `metadata_columns` | `List[str]` | — | Additional metadata columns |
 | `upsert` | `bool` | `true` | Upsert if exists |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
+| `upstream_asset_key` | `str` | — | Upstream asset key providing a DataFrame with embeddings to write. Mutually exclusive with `source` -- set exactly one. |
+| `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset -- e.g. embeddings already computed and stored in a warehouse table: {kind: warehouse_query, resource_key: <registered resource>, sql: <query>}. resource_key m… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

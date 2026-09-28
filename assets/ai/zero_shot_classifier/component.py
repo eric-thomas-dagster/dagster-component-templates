@@ -22,6 +22,29 @@ from dagster import (
 from pydantic import Field
 
 
+def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
+    """Execute SQL via a Dagster resource that exposes .get_engine() (SQLAlchemy)
+    OR .get_connection() (DB-API) -- works out of the box with duckdb_resource,
+    postgres_resource, snowflake_resource, bigquery_resource, and any custom
+    resource implementing the same duck-typed interface."""
+    resource_key = source_config["resource_key"]
+    sql = source_config["sql"]
+    resource = getattr(context.resources, resource_key)
+    if hasattr(resource, "get_engine"):
+        return pd.read_sql(sql, resource.get_engine())
+    if hasattr(resource, "get_connection"):
+        # get_connection() is a @contextmanager (confirmed live against
+        # dagster_duckdb.DuckDBResource) -- calling it without `with` hands
+        # back a _GeneratorContextManager, not a connection, and pd.read_sql
+        # fails with AttributeError. Must be entered via `with`.
+        with resource.get_connection() as conn:
+            return pd.read_sql(sql, conn)
+    raise ValueError(
+        f"resource {resource_key!r} must expose .get_engine() (SQLAlchemy) "
+        f"or .get_connection() (DB-API); got {type(resource).__name__}"
+    )
+
+
 def _build_partitions_def(
     partition_type,
     partition_start,
@@ -145,14 +168,55 @@ class ZeroShotClassifierComponent(Component, Model, Resolvable):
     """
 
     asset_name: str = Field(description="Output Dagster asset name")
-    upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
+    upstream_asset_key: Optional[str] = Field(
+        default=None,
+        description="Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one.",
+    )
+    source: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Pull rows directly via SQL instead of from an upstream asset: "
+            "{kind: warehouse_query, resource_key: <registered resource>, sql: <query>}. "
+            "resource_key must point at a resource exposing .get_engine() (SQLAlchemy) or "
+            ".get_connection() (DB-API). Mutually exclusive with `upstream_asset_key` -- set "
+            "exactly one."
+        ),
+    )
     text_column: Union[str, int] = Field(description="Column containing text to classify")
     candidate_labels: List[str] = Field(
         description="Categories to classify into e.g. ['positive', 'negative', 'neutral']"
     )
+    mode: str = Field(
+        default="zero_shot",
+        description=(
+            "'zero_shot' (default): HuggingFace zero-shot classification -- local, free, no "
+            "API key. 'llm': any litellm-supported model judges the category via a real "
+            "completion call -- costs money per row, but can apply real judgment a fixed "
+            "zero-shot label set can't (nuanced/ambiguous categories, multi-factor rules "
+            "described in a prompt). model_name/output_scores/multi_label/batch_size are "
+            "zero_shot-only; use llm_model/llm_api_key_env_var/llm_max_retries/llm_prompt_prefix "
+            "for mode='llm'."
+        ),
+    )
     model_name: str = Field(
         default="facebook/bart-large-mnli",
-        description="HuggingFace zero-shot classification model",
+        description="HuggingFace zero-shot classification model (mode='zero_shot' only).",
+    )
+    llm_model: str = Field(
+        default="gpt-4o-mini",
+        description="litellm model name for mode='llm' (e.g. 'gpt-4o-mini', 'claude-3-5-haiku-latest', 'ollama/llama3').",
+    )
+    llm_api_key_env_var: str = Field(
+        default="OPENAI_API_KEY",
+        description="Environment variable holding the API key for mode='llm'.",
+    )
+    llm_max_retries: int = Field(
+        default=2,
+        description="Retries on transient LLM failures for mode='llm' (forwarded to litellm's num_retries).",
+    )
+    llm_prompt_prefix: Optional[str] = Field(
+        default=None,
+        description="Optional text prepended to every mode='llm' classification prompt (e.g. domain context or classification rules).",
     )
     output_column: Union[str, int] = Field(
         default="predicted_label", description="Column name for the top predicted label"
@@ -286,13 +350,26 @@ class ZeroShotClassifierComponent(Component, Model, Resolvable):
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
+        source_cfg = self.source
         text_column = self.text_column
         candidate_labels = self.candidate_labels
+        mode = self.mode
         model_name = self.model_name
+        llm_model = self.llm_model
+        llm_api_key_env_var = self.llm_api_key_env_var
+        llm_max_retries = self.llm_max_retries
+        llm_prompt_prefix = self.llm_prompt_prefix
         output_column = self.output_column
         output_scores = self.output_scores
         multi_label = self.multi_label
         batch_size = self.batch_size
+
+        if bool(upstream_asset_key) == bool(source_cfg):
+            raise ValueError(
+                "ZeroShotClassifierComponent: set exactly one of `upstream_asset_key` or `source`."
+            )
+        if mode not in ("zero_shot", "llm"):
+            raise ValueError(f"ZeroShotClassifierComponent: mode must be 'zero_shot' or 'llm', got {mode!r}.")
 
         partitions_def = _build_partitions_def(
             self.partition_type,
@@ -372,17 +449,26 @@ class ZeroShotClassifierComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, 
+        _asset_kwargs: Dict[str, Any] = dict(
+            retry_policy=_retry_policy,
             key=AssetKey.from_user_string(asset_name),
-            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
             partitions_def=partitions_def,
-                        owners=owners,
+            owners=owners,
             tags=_all_tags,
             freshness_policy=_freshness_policy,
-group_name=self.group_name,
+            group_name=self.group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def _asset(context: AssetExecutionContext, upstream: Any) -> pd.DataFrame:
+        if upstream_asset_key:
+            _asset_kwargs["ins"] = {"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))}
+        if source_cfg:
+            _asset_kwargs["required_resource_keys"] = {source_cfg["resource_key"]}
+
+        @asset(**_asset_kwargs)
+        def _asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
+            upstream = kwargs.get("upstream")
+            if upstream is None:
+                upstream = _ingest_warehouse_query(source_cfg, context)
             # Defensive Output/MaterializeResult unwrap — see summarize for the rationale.
             # Tolerates upstream authors who annotate `-> Output` or
             # return `Output(value=df, ...)` / `MaterializeResult(value=df)`.
@@ -407,39 +493,82 @@ group_name=self.group_name,
                     upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
                 elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
-            try:
-                from transformers import pipeline
-            except ImportError:
-                raise ImportError("transformers required: pip install transformers torch")
-
-            context.log.info(
-                f"Loading zero-shot classifier '{model_name}' for {len(upstream)} rows"
-            )
-            classifier = pipeline("zero-shot-classification", model=model_name)
 
             df = upstream.copy()
             texts = df[text_column].fillna("").astype(str).tolist()
-            results = []
 
-            for i in range(0, len(texts), batch_size):
-                batch = texts[i : i + batch_size]
+            if mode == "zero_shot":
+                try:
+                    from transformers import pipeline
+                except ImportError:
+                    raise ImportError("transformers required: pip install transformers torch")
+
                 context.log.info(
-                    f"Classifying batch {i // batch_size + 1}/{(len(texts) - 1) // batch_size + 1}"
+                    f"Loading zero-shot classifier '{model_name}' for {len(upstream)} rows"
                 )
-                batch_results = classifier(
-                    batch, candidate_labels=candidate_labels, multi_label=multi_label
-                )
-                if isinstance(batch_results, dict):
-                    batch_results = [batch_results]
-                results.extend(batch_results)
+                classifier = pipeline("zero-shot-classification", model=model_name)
 
-            df[output_column] = [r["labels"][0] for r in results]
+                results = []
+                for i in range(0, len(texts), batch_size):
+                    batch = texts[i : i + batch_size]
+                    context.log.info(
+                        f"Classifying batch {i // batch_size + 1}/{(len(texts) - 1) // batch_size + 1}"
+                    )
+                    batch_results = classifier(
+                        batch, candidate_labels=candidate_labels, multi_label=multi_label
+                    )
+                    if isinstance(batch_results, dict):
+                        batch_results = [batch_results]
+                    results.extend(batch_results)
 
-            if output_scores:
-                for label in candidate_labels:
-                    df[f"score_{label}"] = [
-                        dict(zip(r["labels"], r["scores"])).get(label, 0.0) for r in results
-                    ]
+                df[output_column] = [r["labels"][0] for r in results]
+
+                if output_scores:
+                    for label in candidate_labels:
+                        df[f"score_{label}"] = [
+                            dict(zip(r["labels"], r["scores"])).get(label, 0.0) for r in results
+                        ]
+
+            elif mode == "llm":
+                import json
+                import os
+                try:
+                    from litellm import completion
+                except ImportError:
+                    raise ImportError("litellm required for mode='llm': pip install litellm")
+
+                context.log.info(f"Classifying {len(texts)} rows via litellm model '{llm_model}'")
+                categories: List[Optional[str]] = []
+                for text in texts:
+                    prompt_parts = []
+                    if llm_prompt_prefix:
+                        prompt_parts.append(llm_prompt_prefix)
+                    prompt_parts.append(
+                        f"Classify the following text into exactly one of these categories: {candidate_labels}\n\n"
+                        f"Text:\n{text}\n\n"
+                        'Return only a JSON object like {"category": "<one of the listed categories>"}.'
+                    )
+                    try:
+                        resp = completion(
+                            model=llm_model,
+                            messages=[{"role": "user", "content": "\n\n".join(prompt_parts)}],
+                            api_key=os.environ.get(llm_api_key_env_var),
+                            num_retries=llm_max_retries,
+                        )
+                        raw = resp.choices[0].message.content.strip()
+                        if raw.startswith("```"):
+                            raw = raw.split("```")[1]
+                            if raw.startswith("json"):
+                                raw = raw[4:]
+                        parsed = json.loads(raw)
+                        category = parsed.get("category") if isinstance(parsed, dict) else None
+                        if category not in candidate_labels:
+                            category = None
+                    except Exception as e:
+                        context.log.warning(f"classify (llm): failed for a row: {e}")
+                        category = None
+                    categories.append(category)
+                df[output_column] = categories
 
             label_counts = df[output_column].value_counts().to_dict()
             context.log.info(f"Classification complete: {label_counts}")
@@ -447,7 +576,8 @@ group_name=self.group_name,
             context.add_output_metadata(
                 {
                     "num_rows": len(df),
-                    "model": model_name,
+                    "mode": mode,
+                    "model": model_name if mode == "zero_shot" else llm_model,
                     "labels": candidate_labels,
                     "label_distribution": label_counts,
                     "preview": MetadataValue.md(df.head(5).to_markdown()),

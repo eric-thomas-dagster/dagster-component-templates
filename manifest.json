@@ -14763,7 +14763,7 @@
       "id": "document_chunker",
       "name": "Document Chunker",
       "category": "ai",
-      "description": "Component for splitting documents into chunks for embeddings and RAG.",
+      "description": "Component for splitting documents into chunks for embeddings and RAG. Supports `source: {kind: warehouse_query}` direct-SQL ingestion (works against DuckDB and other databases) alongside `upstream_asset_key`.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/ai/document_chunker",
@@ -14786,8 +14786,8 @@
       "icon": "Sparkles",
       "validation": {
         "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/nlp_utilities.md",
-        "last_validated": "2026-05-08"
+        "evidence": "Live-verified (added 2026-09-28, part of a backport giving this component parity with context_engineering_pipeline): source: {kind: warehouse_query} against a real DuckDB database via dagster-duckdb, and the original upstream_asset_key path, both via dg.materialize. See https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/nlp_utilities.md for the original chunking-strategy validation.",
+        "last_validated": "2026-09-28"
       },
       "produces": [
         "asset",
@@ -14798,7 +14798,9 @@
       },
       "keywords": [
         "llm",
-        "genai"
+        "genai",
+        "warehouse query",
+        "duckdb"
       ]
     },
     {
@@ -16556,7 +16558,7 @@
       "id": "embeddings_generator",
       "name": "Embeddings Generator",
       "category": "ai",
-      "description": "Component for generating text embeddings for RAG and semantic search.",
+      "description": "Component for generating text embeddings for RAG and semantic search. Supports `provider: litellm` (universal gateway across every litellm-supported provider) and `source: {kind: warehouse_query}` direct-SQL ingestion, alongside the original providers and `upstream_asset_key`.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/ai/embeddings_generator",
@@ -16581,8 +16583,8 @@
       "icon": "Sparkles",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_search.md",
-        "last_validated": "2026-05-06"
+        "evidence": "Live-verified (added 2026-09-28, part of a backport giving this component parity with context_engineering_pipeline): source: {kind: warehouse_query} against a real DuckDB database with real sentence-transformers embeddings; provider='litellm' with litellm.embedding mocked (no free/local litellm backend exists), request/response handling verified for real.",
+        "last_validated": "2026-09-28"
       },
       "produces": [
         "asset",
@@ -16595,7 +16597,10 @@
         "vector embedding",
         "embed text",
         "llm",
-        "genai"
+        "genai",
+        "litellm",
+        "warehouse query",
+        "duckdb"
       ]
     },
     {
@@ -49984,7 +49989,7 @@
       "id": "vector_store_writer",
       "name": "Vector Store Writer",
       "category": "ai",
-      "description": "Component for writing embeddings to vector stores.",
+      "description": "Component for writing embeddings to vector stores. Supports `source: {kind: warehouse_query}` direct-SQL ingestion (e.g. embeddings already computed and stored in a warehouse table) alongside `upstream_asset_key`.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/ai/vector_store_writer",
@@ -50012,8 +50017,8 @@
       "icon": "Sparkles",
       "validation": {
         "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vector_rag.md",
-        "last_validated": "2026-05-08"
+        "evidence": "Live-verified (added 2026-09-28, part of a backport giving this component parity with context_engineering_pipeline): source: {kind: warehouse_query} against a real DuckDB database, writing real embeddings into a real ChromaDB collection via dg.materialize.",
+        "last_validated": "2026-09-28"
       },
       "produces": [
         "asset",
@@ -50024,7 +50029,9 @@
       },
       "keywords": [
         "llm",
-        "genai"
+        "genai",
+        "warehouse query",
+        "duckdb"
       ]
     },
     {
@@ -52102,7 +52109,7 @@
       "id": "zero_shot_classifier",
       "name": "Zero Shot Classifier",
       "category": "ai",
-      "description": "Component for zero-shot text classification using HuggingFace transformers.",
+      "description": "Component for zero-shot text classification using HuggingFace transformers. Supports `mode: llm` (a litellm-backed judge, for nuanced/ambiguous categories a fixed zero-shot label set can't handle) and `source: {kind: warehouse_query}` direct-SQL ingestion, alongside the original zero-shot-only mode and `upstream_asset_key`.",
       "path": "assets/ai/zero_shot_classifier",
       "tags": [
         "ai",
@@ -52120,8 +52127,8 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/zero_shot_classifier/requirements.txt",
       "validation": {
         "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/local_nlp.md",
-        "last_validated": "2026-05-08"
+        "evidence": "Live-verified (added 2026-09-28, part of a backport giving this component parity with context_engineering_pipeline): source: {kind: warehouse_query} against a real DuckDB database with a real HuggingFace zero-shot classification; mode='llm' with litellm.completion mocked (no free/local litellm backend exists), request/response handling and category validation verified for real.",
+        "last_validated": "2026-09-28"
       },
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -52143,7 +52150,11 @@
       },
       "keywords": [
         "llm",
-        "genai"
+        "genai",
+        "litellm",
+        "llm judge",
+        "warehouse query",
+        "duckdb"
       ]
     },
     {

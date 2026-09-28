@@ -24,8 +24,14 @@
     "upstream_asset_key": {
       "type": "string",
       "label": "Upstream Asset Key",
-      "description": "Upstream asset key providing a DataFrame",
-      "required": true
+      "description": "Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one.",
+      "required": false
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "description": "Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource>, sql: <query>}. resource_key must point at a resource exposing .get_engine() (SQLAlchemy) or .get_connection() (DB-API). Mutually exclusive with `upstream_asset_key` -- set exactly one.",
+      "required": false
     },
     "text_column": {
       "type": "string",
@@ -45,12 +51,46 @@
       "required": true,
       "ui:widget": "list"
     },
+    "mode": {
+      "type": "string",
+      "label": "Mode",
+      "description": "'zero_shot' (default): HuggingFace zero-shot classification -- local, free, no API key. 'llm': any litellm-supported model judges the category via a real completion call -- costs money per row, but can apply real judgment a fixed zero-shot label set can't.",
+      "required": false,
+      "default": "zero_shot"
+    },
     "model_name": {
       "type": "string",
       "label": "Model Name",
-      "description": "HuggingFace zero-shot classification model",
+      "description": "HuggingFace zero-shot classification model (mode='zero_shot' only).",
       "required": false,
       "default": "facebook/bart-large-mnli"
+    },
+    "llm_model": {
+      "type": "string",
+      "label": "LLM Model",
+      "description": "litellm model name for mode='llm' (e.g. 'gpt-4o-mini', 'claude-3-5-haiku-latest', 'ollama/llama3').",
+      "required": false,
+      "default": "gpt-4o-mini"
+    },
+    "llm_api_key_env_var": {
+      "type": "string",
+      "label": "LLM API Key Env Var",
+      "description": "Environment variable holding the API key for mode='llm'.",
+      "required": false,
+      "default": "OPENAI_API_KEY"
+    },
+    "llm_max_retries": {
+      "type": "integer",
+      "label": "LLM Max Retries",
+      "description": "Retries on transient LLM failures for mode='llm' (forwarded to litellm's num_retries).",
+      "required": false,
+      "default": 2
+    },
+    "llm_prompt_prefix": {
+      "type": "string",
+      "label": "LLM Prompt Prefix",
+      "description": "Optional text prepended to every mode='llm' classification prompt (e.g. domain context or classification rules).",
+      "required": false
     },
     "output_column": {
       "type": "string",
@@ -93,7 +133,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -150,7 +190,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -189,7 +229,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },

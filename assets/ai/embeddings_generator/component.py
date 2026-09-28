@@ -25,6 +25,29 @@ from dagster import (
 from pydantic import ConfigDict, Field
 
 
+def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
+    """Execute SQL via a Dagster resource that exposes .get_engine() (SQLAlchemy)
+    OR .get_connection() (DB-API) -- works out of the box with duckdb_resource,
+    postgres_resource, snowflake_resource, bigquery_resource, and any custom
+    resource implementing the same duck-typed interface."""
+    resource_key = source_config["resource_key"]
+    sql = source_config["sql"]
+    resource = getattr(context.resources, resource_key)
+    if hasattr(resource, "get_engine"):
+        return pd.read_sql(sql, resource.get_engine())
+    if hasattr(resource, "get_connection"):
+        # get_connection() is a @contextmanager (confirmed live against
+        # dagster_duckdb.DuckDBResource) -- calling it without `with` hands
+        # back a _GeneratorContextManager, not a connection, and pd.read_sql
+        # fails with AttributeError. Must be entered via `with`.
+        with resource.get_connection() as conn:
+            return pd.read_sql(sql, conn)
+    raise ValueError(
+        f"resource {resource_key!r} must expose .get_engine() (SQLAlchemy) "
+        f"or .get_connection() (DB-API); got {type(resource).__name__}"
+    )
+
+
 def _build_partitions_def(
     partition_type,
     partition_start,
@@ -169,7 +192,7 @@ class EmbeddingsGeneratorComponent(Component, Model, Resolvable):
     )
 
     provider: str = Field(
-        description="Embedding provider: openai, cohere, sentence_transformers, huggingface"
+        description="Embedding provider: openai, cohere, sentence_transformers, huggingface, litellm"
     )
 
     model_id: str = Field(
@@ -327,7 +350,20 @@ class EmbeddingsGeneratorComponent(Component, Model, Resolvable):
         ),
     )
 
-    upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame with text to embed")
+    upstream_asset_key: Optional[str] = Field(
+        default=None,
+        description="Upstream asset key providing a DataFrame with text to embed. Mutually exclusive with `source` -- set exactly one.",
+    )
+    source: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Pull rows directly via SQL instead of from an upstream asset: "
+            "{kind: warehouse_query, resource_key: <registered resource>, sql: <query>}. "
+            "resource_key must point at a resource exposing .get_engine() (SQLAlchemy) or "
+            ".get_connection() (DB-API). Mutually exclusive with `upstream_asset_key` -- set "
+            "exactly one."
+        ),
+    )
 
     retry_policy_max_retries: Optional[int] = Field(
 
@@ -382,6 +418,12 @@ class EmbeddingsGeneratorComponent(Component, Model, Resolvable):
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
+        source_cfg = self.source
+
+        if bool(upstream_asset_key) == bool(source_cfg):
+            raise ValueError(
+                "EmbeddingsGeneratorComponent: set exactly one of `upstream_asset_key` or `source`."
+            )
 
         # Approximate costs per 1M tokens (as of 2024)
         COST_PER_1M_TOKENS = {
@@ -470,18 +512,27 @@ class EmbeddingsGeneratorComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, 
+        _asset_kwargs: Dict[str, Any] = dict(
+            retry_policy=_retry_policy,
             key=AssetKey.from_user_string(asset_name),
             description=description,
             partitions_def=partitions_def,
-                        owners=owners,
+            owners=owners,
             tags=_all_tags,
             freshness_policy=_freshness_policy,
-group_name=group_name,
-            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
+            group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def embeddings_generator_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        if upstream_asset_key:
+            _asset_kwargs["ins"] = {"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))}
+        if source_cfg:
+            _asset_kwargs["required_resource_keys"] = {source_cfg["resource_key"]}
+
+        @asset(**_asset_kwargs)
+        def embeddings_generator_asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
+            upstream = kwargs.get("upstream")
+            if upstream is None:
+                upstream = _ingest_warehouse_query(source_cfg, context)
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key
@@ -671,6 +722,32 @@ group_name=group_name,
 
                 except ImportError:
                     raise ImportError("Hugging Face package not installed. Install with: pip install huggingface-hub")
+
+            elif provider == "litellm":
+                # Universal gateway -- one interface across OpenAI, Azure, Bedrock,
+                # Vertex, Ollama (local), VoyageAI, Mistral, and everything else
+                # litellm supports, instead of a separate SDK integration per
+                # provider. `model` is litellm's own "<provider>/<model>" format,
+                # e.g. "azure/my-embed-deployment", "ollama/nomic-embed-text",
+                # "bedrock/amazon.titan-embed-text-v2:0".
+                try:
+                    import litellm
+                except ImportError:
+                    raise ImportError("litellm not installed. Install with: pip install litellm")
+
+                for i in range(0, len(texts), batch_size):
+                    batch = texts[i:i + batch_size]
+                    context.log.info(f"Processing batch {i // batch_size + 1}/{(len(texts) - 1) // batch_size + 1}")
+
+                    response = litellm.embedding(model=model, input=batch, api_key=expanded_api_key)
+                    embeddings.extend([d["embedding"] for d in response.data])
+
+                    if hasattr(response, "usage") and response.usage:
+                        total_tokens += getattr(response.usage, "total_tokens", 0) or 0
+
+                    if rate_limit_delay > 0:
+                        import time
+                        time.sleep(rate_limit_delay)
 
             else:
                 raise ValueError(f"Unsupported provider: {provider}")

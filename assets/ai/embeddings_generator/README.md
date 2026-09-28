@@ -2,15 +2,28 @@
 
 > **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
 
-Generate vector embeddings for text using OpenAI, Cohere, Sentence Transformers, or Hugging Face. Supports batch processing, dimension reduction, similarity computation, and cost tracking.
+Generate vector embeddings for text using OpenAI, Cohere, Sentence Transformers, Hugging Face, or litellm. Supports batch processing, dimension reduction, similarity computation, and cost tracking.
 
 ## Purpose
 
 The Embeddings Generator Component creates dense vector representations of text that capture semantic meaning. These embeddings are essential for RAG systems, semantic search, clustering, and recommendation engines.
 
+## `provider: litellm`
+
+A universal gateway across every provider litellm supports (Azure, Bedrock, Vertex, Ollama, VoyageAI, Mistral, and more) instead of a separate SDK integration per provider -- useful when you need a provider not covered by the dedicated openai/cohere branches, or want one consistent interface across all of them. `model` follows litellm's own `"<provider>/<model>"` naming, e.g. `"azure/my-embed-deployment"`, `"ollama/nomic-embed-text"`, `"bedrock/amazon.titan-embed-text-v2:0"`.
+
+## Ingestion
+
+Two ways to get the source text in, set exactly one:
+
+- **`upstream_asset_key`**: the usual Dagster way -- point at any asset producing a DataFrame with `input_column`.
+- **`source: {kind: warehouse_query, resource_key: ..., sql: ...}`**: pull rows directly via SQL, no upstream asset required. Works out of the box with `duckdb_resource` and any resource exposing `.get_engine()` (SQLAlchemy) or `.get_connection()` (DB-API).
+
+Both additions mirror `context_engineering_pipeline`'s design, so this component can be used standalone (asset-by-asset, for finer-grained lineage/control) with the same capabilities as the bundled pipeline.
+
 ## Features
 
-- **Multiple Providers**: OpenAI, Cohere, Sentence Transformers (local), Hugging Face
+- **Multiple Providers**: OpenAI, Cohere, Sentence Transformers (local), Hugging Face, litellm
 - **Batch Processing**: Efficient processing of large datasets
 - **Dimension Reduction**: PCA and UMAP for smaller embeddings
 - **Cosine Similarity**: Compute pairwise similarities
@@ -270,9 +283,8 @@ Use embeddings with:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset that will hold the embeddings |
-| `provider` | `str` | Embedding provider: openai, cohere, sentence_transformers, huggingface |
+| `provider` | `str` | Embedding provider: openai, cohere, sentence_transformers, huggingface, litellm |
 | `model` | `str` | Model name (e.g., 'text-embedding-3-small', 'embed-english-v3.0', 'all-MiniLM-L6-v2') |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with text to embed |
 
 ### Connection
 
@@ -348,6 +360,8 @@ Use embeddings with:
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
+| `upstream_asset_key` | `str` | — | Upstream asset key providing a DataFrame with text to embed. Mutually exclusive with `source` -- set exactly one. |
+| `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource>, sql: <query>}. resource_key must point at a resource exposing .get_engine() (SQLAlchemy) or .get_… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

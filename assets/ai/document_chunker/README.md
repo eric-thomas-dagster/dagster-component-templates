@@ -6,6 +6,15 @@ Split documents into chunks for RAG (Retrieval Augmented Generation) and embeddi
 
 The Document Chunker Component prepares long documents for vector embeddings and retrieval by splitting them into appropriately-sized chunks. It preserves metadata and provides multiple chunking strategies optimized for different use cases.
 
+## Ingestion
+
+Two ways to get the raw documents in, set exactly one:
+
+- **`upstream_asset_key`**: the usual Dagster way -- point at any asset producing a DataFrame with `source_column`.
+- **`source: {kind: warehouse_query, resource_key: ..., sql: ...}`**: pull rows directly via SQL, no upstream asset required. Works out of the box with `duckdb_resource` and any resource exposing `.get_engine()` (SQLAlchemy) or `.get_connection()` (DB-API) -- `postgres_resource`, `snowflake_resource`, `bigquery_resource`, etc.
+
+This mirrors `context_engineering_pipeline`'s dual-ingestion design, so this component can be used standalone (asset-by-asset, for finer-grained lineage/control) with the same source flexibility as the bundled pipeline.
+
 ## Features
 
 - **Multiple Strategies**: Fixed, recursive, semantic, sentence-based, token-aware
@@ -256,7 +265,6 @@ Process chunks with:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset that will hold the chunked data |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with document text to chunk |
 
 ### Execution
 
@@ -327,6 +335,8 @@ Process chunks with:
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
+| `upstream_asset_key` | `str` | — | Upstream asset key providing a DataFrame with document text to chunk. Mutually exclusive with `source` -- set exactly one. |
+| `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource>, sql: <query>}. resource_key must point at a resource exposing .get_engine() (SQLAlchemy) or .get_… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

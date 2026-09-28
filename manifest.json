@@ -1992,14 +1992,20 @@
       "id": "anomaly_detection",
       "name": "Anomaly Detection",
       "category": "analytics",
-      "description": "Component for detecting anomalies in data.",
+      "description": "Component for detecting anomalies in data. Supports `source: {kind: warehouse_query}` direct-SQL ingestion (DuckDB and other databases) alongside `upstream_asset_key`, and `execution_mode: sql` -- the same z_score/iqr/moving_average/threshold statistics run as ONE query via portable SQL window functions (AVG/STDDEV/PERCENTILE_CONT or QUANTILE_CONT OVER (...)) executed by the warehouse itself, on any of 6 dialects (snowflake, bigquery, databricks, postgres, redshift, duckdb) -- no vendor-specific ML function needed since these are genuinely portable statistics.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/analytics/anomaly_detection",
       "tags": [
         "analytics",
         "anomaly",
-        "detection"
+        "detection",
+        "warehouse query",
+        "duckdb",
+        "snowflake",
+        "bigquery",
+        "databricks",
+        "sql execution mode"
       ],
       "dependencies": {
         "pip": []
@@ -2012,13 +2018,13 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/anomaly_detection/requirements.txt",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/stocks_anomaly.md",
-        "last_validated": "2026-05-06"
+        "evidence": "Original python-mode: https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/stocks_anomaly.md . source/execution_mode additions (added 2026-09-28): live-verified for real against DuckDB -- source: warehouse_query ingestion, and execution_mode='sql' for all 4 detection methods, with results asserted to numerically match the existing python-mode computation (not just structurally). Confirmed live along the way that DuckDB has no PERCENTILE_CONT function (uses QUANTILE_CONT instead) -- fixed before shipping. snowflake/bigquery/databricks/postgres/redshift dialects are structural-only (standard/documented syntax, not run against a live account of any of the five).",
+        "last_validated": "2026-09-28"
       },
       "agent_hints": {
-        "inputs": "DataFrame with a numeric column to score.",
-        "outputs": "Same columns + `is_anomaly` (bool) and/or `anomaly_score` columns.",
-        "side_effects": "Adds columns; does not remove rows. Downstream filter for is_anomaly=True to isolate anomalies.",
+        "inputs": "DataFrame with a numeric column to score (upstream_asset_key), or a SQL FROM-source (source: {kind: warehouse_query}).",
+        "outputs": "Same columns + `is_anomaly` (bool) and/or `anomaly_score` columns. execution_mode='sql' writes directly to output_table in the warehouse instead.",
+        "side_effects": "Adds columns; does not remove rows. Downstream filter for is_anomaly=True to isolate anomalies. execution_mode='sql' runs CREATE OR REPLACE TABLE in the target warehouse.",
         "anti_uses": "Not for outlier CLIPPING (use outlier_clipper). This flags; outlier_clipper trims values.",
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame"
@@ -2029,7 +2035,13 @@
       ],
       "keywords": [
         "report",
-        "aggregate"
+        "aggregate",
+        "warehouse query",
+        "duckdb",
+        "sql execution mode",
+        "z-score",
+        "iqr",
+        "moving average"
       ]
     },
     {

@@ -25,6 +25,181 @@ from dagster import (
 from pydantic import Field
 
 
+def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
+    """Execute SQL via a Dagster resource that exposes .get_engine() (SQLAlchemy)
+    OR .get_connection() (DB-API), or a bare SQLAlchemy engine built from
+    `database_url_env_var` when no Dagster resource is registered."""
+    sql = source_config["sql"]
+    resource_key = source_config.get("resource_key")
+    if resource_key:
+        resource = getattr(context.resources, resource_key)
+        if hasattr(resource, "get_engine"):
+            return pd.read_sql(sql, resource.get_engine())
+        if hasattr(resource, "get_connection"):
+            # get_connection() is a @contextmanager (confirmed live against
+            # dagster_duckdb.DuckDBResource) -- calling it without `with` hands
+            # back a _GeneratorContextManager, not a connection, and pd.read_sql
+            # fails with AttributeError. Must be entered via `with`.
+            with resource.get_connection() as conn:
+                return pd.read_sql(sql, conn)
+        raise ValueError(
+            f"resource {resource_key!r} must expose .get_engine() (SQLAlchemy) "
+            f"or .get_connection() (DB-API); got {type(resource).__name__}"
+        )
+    env_var = source_config.get("database_url_env_var")
+    if env_var:
+        import os
+        from sqlalchemy import create_engine
+        url = os.environ.get(env_var, "")
+        if not url:
+            raise ValueError(f"database_url_env_var {env_var!r} is unset")
+        return pd.read_sql(sql, create_engine(url))
+    raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
+
+
+# ── execution_mode='sql' ────────────────────────────────────────────────
+# Generates ONE server-side query implementing the same z_score/iqr/
+# moving_average/threshold math as the python path, via portable SQL
+# window functions (AVG/STDDEV/PERCENTILE_CONT OVER (...)) -- these are
+# genuinely ANSI-ish statistics, not vendor ML, so this runs on any of
+# the 6 listed dialects without needing a warehouse-native AI function.
+# validation.level: code -- no live warehouse credential in this dev
+# environment, so this is structurally tested (the emitted SQL is
+# asserted, not executed) rather than run for real.
+
+_SQL_DIALECTS = ("snowflake", "bigquery", "databricks", "postgres", "redshift", "duckdb")
+
+
+def _sql_window(partition_by: Optional[str] = None, order_by: Optional[str] = None, frame: Optional[str] = None) -> str:
+    parts = []
+    if partition_by:
+        parts.append(f"PARTITION BY {partition_by}")
+    if order_by:
+        parts.append(f"ORDER BY {order_by}")
+    if frame:
+        parts.append(frame)
+    return f"OVER ({' '.join(parts)})" if parts else "OVER ()"
+
+
+def _sql_percentile_cont(dialect: str, metric_col: str, p: float, partition_by: Optional[str] = None) -> str:
+    """PERCENTILE_CONT syntax genuinely differs by dialect:
+    - BigQuery: analytic-only, positional-arg form `PERCENTILE_CONT(x, p) OVER (...)`.
+    - DuckDB: no PERCENTILE_CONT function at all -- confirmed live
+      (`Catalog Error: Aggregate Function with name percentile_cont does not
+      exist`); uses `QUANTILE_CONT(x, p) OVER (...)` instead (confirmed live).
+    - Everything else here (Snowflake, Databricks, Postgres, Redshift): the
+      ANSI aggregate form, `PERCENTILE_CONT(p) WITHIN GROUP (ORDER BY x)`,
+      windowed via `OVER (...)`."""
+    window = _sql_window(partition_by=partition_by)
+    if dialect == "bigquery":
+        return f"PERCENTILE_CONT({metric_col}, {p}) {window}"
+    if dialect == "duckdb":
+        return f"QUANTILE_CONT({metric_col}, {p}) {window}"
+    return f"PERCENTILE_CONT({p}) WITHIN GROUP (ORDER BY {metric_col}) {window}"
+
+
+def _build_sql_mode_query(
+    dialect: str, source_sql: str, output_table: str, metric_col: str,
+    detection_method: str, threshold: float, group_by_field: Optional[str],
+    timestamp_col: Optional[str], ma_window: int,
+) -> str:
+    if dialect not in _SQL_DIALECTS:
+        raise ValueError(f"unsupported sql_dialect: {dialect!r}. Valid: {_SQL_DIALECTS}")
+    part = group_by_field
+
+    if detection_method == "z_score":
+        mean_expr = f"AVG(src.{metric_col}) {_sql_window(partition_by=part)}"
+        std_expr = f"STDDEV(src.{metric_col}) {_sql_window(partition_by=part)}"
+        return (
+            f"CREATE OR REPLACE TABLE {output_table} AS\n"
+            f"SELECT src.*,\n"
+            f"       ABS((src.{metric_col} - {mean_expr}) / NULLIF({std_expr}, 0)) AS anomaly_score,\n"
+            f"       ABS((src.{metric_col} - {mean_expr}) / NULLIF({std_expr}, 0)) > {threshold} AS is_anomaly\n"
+            f"FROM ({source_sql}) AS src"
+        )
+
+    if detection_method == "iqr":
+        q1_expr = _sql_percentile_cont(dialect, f"src.{metric_col}", 0.25, part)
+        q3_expr = _sql_percentile_cont(dialect, f"src.{metric_col}", 0.75, part)
+        return (
+            f"CREATE OR REPLACE TABLE {output_table} AS\n"
+            f"WITH bounds AS (\n"
+            f"  SELECT src.*, {q1_expr} AS q1, {q3_expr} AS q3\n"
+            f"  FROM ({source_sql}) AS src\n"
+            f")\n"
+            f"SELECT *,\n"
+            f"       GREATEST((q1 - {threshold}*(q3-q1) - {metric_col}) / NULLIF(q3-q1, 0),\n"
+            f"                ({metric_col} - q3 - {threshold}*(q3-q1)) / NULLIF(q3-q1, 0), 0) AS anomaly_score,\n"
+            f"       ({metric_col} < q1 - {threshold}*(q3-q1) OR {metric_col} > q3 + {threshold}*(q3-q1)) AS is_anomaly\n"
+            f"FROM bounds"
+        )
+
+    if detection_method == "moving_average":
+        if not timestamp_col:
+            raise ValueError("execution_mode='sql' with detection_method='moving_average' requires timestamp_field.")
+        frame = f"ROWS BETWEEN {max(ma_window - 1, 0)} PRECEDING AND CURRENT ROW"
+        mavg_expr = f"AVG(src.{metric_col}) OVER (ORDER BY src.{timestamp_col} {frame})"
+        mstd_expr = f"STDDEV(src.{metric_col}) OVER (ORDER BY src.{timestamp_col} {frame})"
+        return (
+            f"CREATE OR REPLACE TABLE {output_table} AS\n"
+            f"SELECT src.*,\n"
+            f"       ABS(src.{metric_col} - {mavg_expr}) / NULLIF({mstd_expr} + 0.0001, 0) AS anomaly_score,\n"
+            f"       (ABS(src.{metric_col} - {mavg_expr}) / NULLIF({mstd_expr} + 0.0001, 0)) > {threshold} AS is_anomaly\n"
+            f"FROM ({source_sql}) AS src"
+        )
+
+    if detection_method == "threshold":
+        return (
+            f"CREATE OR REPLACE TABLE {output_table} AS\n"
+            f"SELECT src.*,\n"
+            f"       src.{metric_col} / {threshold} AS anomaly_score,\n"
+            f"       src.{metric_col} > {threshold} AS is_anomaly\n"
+            f"FROM ({source_sql}) AS src"
+        )
+
+    raise ValueError(f"execution_mode='sql' does not support detection_method={detection_method!r}.")
+
+
+def _run_sql_mode(context, source_cfg: dict, sql: str, output_table: str) -> Any:
+    resource_key = source_cfg.get("resource_key")
+    if resource_key:
+        resource = getattr(context.resources, resource_key)
+        if hasattr(resource, "get_engine"):
+            engine = resource.get_engine()
+            with engine.begin() as conn:
+                conn.exec_driver_sql(sql)
+                row_count = conn.exec_driver_sql(f"SELECT COUNT(*) FROM {output_table}").scalar()
+        elif hasattr(resource, "get_connection"):
+            with resource.get_connection() as conn:
+                conn.execute(sql)
+                row_count = conn.execute(f"SELECT COUNT(*) FROM {output_table}").fetchone()[0]
+        else:
+            raise ValueError(f"resource {resource_key!r} must expose .get_engine() or .get_connection().")
+    else:
+        env_var = source_cfg.get("database_url_env_var")
+        if not env_var:
+            raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
+        import os
+        from sqlalchemy import create_engine
+        url = os.environ.get(env_var, "")
+        if not url:
+            raise ValueError(f"database_url_env_var {env_var!r} is unset")
+        engine = create_engine(url)
+        with engine.begin() as conn:
+            conn.exec_driver_sql(sql)
+            row_count = conn.exec_driver_sql(f"SELECT COUNT(*) FROM {output_table}").scalar()
+
+    return Output(
+        value=None,
+        metadata={
+            "dagster/row_count": MetadataValue.int(row_count),
+            "execution_mode": MetadataValue.text("sql"),
+            "output_table": MetadataValue.text(output_table),
+            "generated_sql": MetadataValue.md(f"```sql\n{sql}\n```"),
+        },
+    )
+
+
 def _build_partitions_def(
     partition_type,
     partition_start,
@@ -161,8 +336,40 @@ class AnomalyDetectionComponent(Component, Model, Resolvable):
         description="Name of the asset to create"
     )
 
-    upstream_asset_key: str = Field(
-        description="Upstream asset key providing a DataFrame to analyze for anomalies"
+    upstream_asset_key: Optional[str] = Field(
+        default=None,
+        description="Upstream asset key providing a DataFrame to analyze for anomalies. Mutually exclusive with `source` -- set exactly one.",
+    )
+    source: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Pull rows directly via SQL instead of from an upstream asset: "
+            "{kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. "
+            "Also required (with `execution_mode='sql'`) to name the FROM-source for the "
+            "server-side query. Mutually exclusive with `upstream_asset_key` -- set exactly one."
+        ),
+    )
+    execution_mode: str = Field(
+        default="python",
+        description=(
+            "'python' (default): pulls rows into a DataFrame and computes z_score/iqr/"
+            "moving_average/threshold locally -- works with any source, but data leaves "
+            "the database and the corpus must fit in memory. "
+            "'sql': the same statistics run as ONE query via portable SQL window functions "
+            "(AVG/STDDEV/PERCENTILE_CONT OVER (...)) executed by the warehouse itself -- "
+            "these are genuinely portable ANSI-ish statistics, not vendor-specific ML, so "
+            "this works on any of the 6 sql_dialect values below without needing a "
+            "warehouse-native AI function. Requires `source` (a SQL FROM-source), "
+            "`sql_dialect`, and `output_table`."
+        ),
+    )
+    sql_dialect: Optional[str] = Field(
+        default=None,
+        description=f"Required when execution_mode='sql'. One of: {_SQL_DIALECTS}.",
+    )
+    output_table: Optional[str] = Field(
+        default=None,
+        description="Required when execution_mode='sql'. Destination table the scored rows are written to, in the same database.",
     )
 
     detection_method: str = Field(
@@ -319,6 +526,10 @@ class AnomalyDetectionComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
+        source_cfg = self.source
+        execution_mode = self.execution_mode
+        sql_dialect = self.sql_dialect
+        output_table = self.output_table
         detection_method = self.detection_method
         metric_column = self.metric_column
         threshold = self.threshold
@@ -330,6 +541,20 @@ class AnomalyDetectionComponent(Component, Model, Resolvable):
         group_name = self.group_name
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
+
+        if bool(upstream_asset_key) == bool(source_cfg):
+            raise ValueError("AnomalyDetectionComponent: set exactly one of `upstream_asset_key` or `source`.")
+        if execution_mode not in ("python", "sql"):
+            raise ValueError(f"AnomalyDetectionComponent: execution_mode must be 'python' or 'sql', got {execution_mode!r}.")
+        if execution_mode == "sql":
+            if not source_cfg:
+                raise ValueError("AnomalyDetectionComponent: execution_mode='sql' requires `source` (a SQL FROM-source).")
+            if sql_dialect not in _SQL_DIALECTS:
+                raise ValueError(f"AnomalyDetectionComponent: execution_mode='sql' requires sql_dialect to be one of {_SQL_DIALECTS}.")
+            if not output_table:
+                raise ValueError("AnomalyDetectionComponent: execution_mode='sql' requires `output_table`.")
+            if not metric_column:
+                raise ValueError("AnomalyDetectionComponent: execution_mode='sql' requires `metric_column` (no auto-detection without a DataFrame).")
 
         partitions_def = _build_partitions_def(
             self.partition_type,
@@ -409,18 +634,38 @@ class AnomalyDetectionComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, 
+        _asset_kwargs: Dict[str, Any] = dict(
+            retry_policy=_retry_policy,
             key=AssetKey.from_user_string(asset_name),
             description=description,
             partitions_def=partitions_def,
-                        owners=owners,
+            owners=owners,
             tags=_all_tags,
             freshness_policy=_freshness_policy,
-group_name=group_name,
-            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
+            group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def anomaly_detection_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        if upstream_asset_key:
+            _asset_kwargs["ins"] = {"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))}
+        if source_cfg and source_cfg.get("resource_key"):
+            _asset_kwargs["required_resource_keys"] = {source_cfg["resource_key"]}
+
+        if execution_mode == "sql":
+            @asset(**_asset_kwargs)
+            def _sql_asset(context: AssetExecutionContext):
+                sql = _build_sql_mode_query(
+                    sql_dialect, source_cfg["sql"], output_table, metric_column,
+                    detection_method, threshold, group_by_field, timestamp_field, ma_window,
+                )
+                return _run_sql_mode(context, source_cfg, sql, output_table)
+
+            return Definitions(assets=[_sql_asset])
+
+        @asset(**_asset_kwargs)
+        def anomaly_detection_asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
+            upstream = kwargs.get("upstream")
+            if upstream is None:
+                upstream = _ingest_warehouse_query(source_cfg, context)
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key

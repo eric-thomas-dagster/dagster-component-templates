@@ -10,6 +10,37 @@ Identify unusual patterns using proven statistical techniques:
 - **Moving Average**: Time-series deviation detection
 - **Threshold**: Simple threshold-based alerts
 
+## Ingestion
+
+Two ways to get the rows in, set exactly one:
+
+- **`upstream_asset_key`**: the usual Dagster way -- point at any asset producing a DataFrame with `metric_column`.
+- **`source: {kind: warehouse_query, resource_key: ..., sql: ...}`**: pull rows directly via SQL, no upstream asset required. Works out of the box with `duckdb_resource` and any resource exposing `.get_engine()`/`.get_connection()`, or a bare SQLAlchemy connection string via `database_url_env_var` when no Dagster resource is registered.
+
+## `execution_mode: sql` -- the same statistics, computed server-side
+
+All four detection methods (z_score, iqr, moving_average, threshold) are genuinely portable statistics -- `AVG`/`STDDEV`/`PERCENTILE_CONT` window functions -- not vendor-specific ML, so `execution_mode: sql` runs them as ONE query via the warehouse's own engine on any of 6 dialects (`snowflake`, `bigquery`, `databricks`, `postgres`, `redshift`, `duckdb`), instead of pulling the whole table into memory first:
+
+```yaml
+type: dagster_component_templates.AnomalyDetectionComponent
+attributes:
+  asset_name: transaction_anomalies_sql
+  source:
+    kind: warehouse_query
+    resource_key: snowflake_resource
+    sql: "SELECT * FROM raw.transactions"
+  execution_mode: sql
+  sql_dialect: snowflake
+  output_table: analytics.transaction_anomalies
+  detection_method: z_score
+  metric_column: amount
+  threshold: 3.0
+```
+
+Requires `source` (there must be a SQL FROM-clause to compute over -- `upstream_asset_key` doesn't have one), `sql_dialect`, `output_table`, and `metric_column` (no auto-detection is possible without a DataFrame to inspect). `moving_average` additionally requires `timestamp_field`.
+
+Two dialect-specific quirks worth knowing: BigQuery's `PERCENTILE_CONT` is analytic-only (`PERCENTILE_CONT(x, p) OVER (...)`, positional args) rather than the ANSI aggregate form other dialects use; DuckDB has no `PERCENTILE_CONT` at all and uses `QUANTILE_CONT(x, p) OVER (...)` instead (confirmed live) -- both are handled automatically based on `sql_dialect`.
+
 ## Use Cases
 
 - **Fraud Detection**: Unusual transaction amounts or patterns
@@ -161,7 +192,6 @@ Simple comparison to fixed value.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame to analyze for anomalies |
 
 ### Catalog metadata
 
@@ -202,10 +232,20 @@ Simple comparison to fixed value.
 | `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
 | `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
 
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `output_table` | `str` | — | Required when execution_mode='sql'. Destination table the scored rows are written to, in the same database. |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `upstream_asset_key` | `str` | — | Upstream asset key providing a DataFrame to analyze for anomalies. Mutually exclusive with `source` -- set exactly one. |
+| `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Also required (with `execution_mode='sql'`) to… _(full docs in schema.json + component README)_ |
+| `execution_mode` | `str` | `"python"` | 'python' (default): pulls rows into a DataFrame and computes z_score/iqr/moving_average/threshold locally -- works with any source, but data leaves the database and the corpus must fit in memory. 'sql': the same statisti… _(full docs in schema.json + component README)_ |
+| `sql_dialect` | `str` | — | `f"Required when execution_mode='sql'. One of: {_SQL_DIALECTS}."` |
 | `detection_method` | `str` | `"z_score"` | Method: z_score, iqr, moving_average, threshold |
 | `metric_column` | `Union[str, int]` | — | Column containing metric to analyze for anomalies |
 | `threshold` | `float` | `3.0` | Detection threshold (Z-score stdevs, IQR multiplier, or absolute threshold) |
@@ -268,3 +308,11 @@ attributes:
 `deps` draws lineage edges in the Dagster asset graph without loading data at runtime. Use it to express that this asset depends on upstream tables or assets produced by other components.
 
 Dependencies can also be wired externally via `map_resolved_asset_specs()` in `definitions.py` — the same approach used by [Dagster Designer](https://github.com/eric-thomas-dagster/dagster_designer).
+
+## Validation
+
+`validation.level: code` for the `source`/`execution_mode` additions.
+
+**Live-verified (nothing mocked)**: `source: {kind: warehouse_query}` against a real DuckDB database; `execution_mode: sql` for all four detection methods (z_score, iqr, moving_average, threshold), generated and executed for real against DuckDB (one of the 6 supported dialects), with results asserted to **numerically match** the existing python-mode computation, not just structurally resemble it. Along the way, confirmed live that DuckDB has no `PERCENTILE_CONT` function at all (`Catalog Error: ... Did you mean "pi"?`) and requires `QUANTILE_CONT` instead — fixed before this shipped.
+
+**Structural only, not executed (no live warehouse credentials in this environment)**: `snowflake`, `bigquery`, `databricks`, `postgres`, `redshift` dialects — the `PERCENTILE_CONT`/`STDDEV`/window-function syntax is standard/documented for each, but not run against a real account of any of the five.

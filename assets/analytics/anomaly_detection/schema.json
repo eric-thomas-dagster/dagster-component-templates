@@ -24,8 +24,14 @@
     "upstream_asset_key": {
       "type": "string",
       "label": "Upstream Asset Key",
-      "description": "Upstream asset key providing a DataFrame to analyze for anomalies",
-      "required": true
+      "description": "Upstream asset key providing a DataFrame to analyze for anomalies. Mutually exclusive with `source` -- set exactly one.",
+      "required": false
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Also required (with execution_mode='sql') to name the FROM-source for the server-side query. Mutually exclusive with `upstream_asset_key` -- set exactly one."
     },
     "detection_method": {
       "type": "string",
@@ -55,6 +61,37 @@
       "description": "Window size for moving average method (days/records)",
       "required": false,
       "default": 7
+    },
+    "execution_mode": {
+      "type": "string",
+      "label": "Execution Mode",
+      "required": false,
+      "default": "python",
+      "enum": [
+        "python",
+        "sql"
+      ],
+      "description": "'python' (default): pulls rows into a DataFrame and computes locally. 'sql': the same z_score/iqr/moving_average/threshold statistics run as ONE query via portable SQL window functions executed by the warehouse itself -- no vendor-specific AI function needed. Requires `source`, `sql_dialect`, and `output_table`."
+    },
+    "sql_dialect": {
+      "type": "string",
+      "label": "SQL Dialect",
+      "required": false,
+      "enum": [
+        "snowflake",
+        "bigquery",
+        "databricks",
+        "postgres",
+        "redshift",
+        "duckdb"
+      ],
+      "description": "Required when execution_mode='sql'."
+    },
+    "output_table": {
+      "type": "string",
+      "label": "Output Table",
+      "required": false,
+      "description": "Required when execution_mode='sql'. Destination table the scored rows are written to, in the same database."
     },
     "group_by": {
       "type": "string",
@@ -98,7 +135,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -155,7 +192,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -194,7 +231,7 @@
     "column_lineage": {
       "type": "object",
       "label": "Column Lineage",
-      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
     },
@@ -209,7 +246,7 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
       "required": false,
       "default": 25
     },

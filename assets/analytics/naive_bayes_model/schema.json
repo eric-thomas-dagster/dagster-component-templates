@@ -24,8 +24,46 @@
     "upstream_asset_key": {
       "type": "string",
       "label": "Upstream Asset Key",
-      "description": "Upstream asset key providing a DataFrame",
-      "required": true
+      "description": "Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one.",
+      "required": false
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Also required (with execution_mode='sql') to name the FROM-source for the server-side prediction query. Mutually exclusive with `upstream_asset_key` -- set exactly one."
+    },
+    "execution_mode": {
+      "type": "string",
+      "label": "Execution Mode",
+      "required": false,
+      "default": "python",
+      "enum": [
+        "python",
+        "sql"
+      ],
+      "description": "'python' (default): fits a real scikit-learn GaussianNB locally. 'sql': predicts server-side via Databricks ai_query() against an already-served Model Serving endpoint -- Databricks-ONLY and predict-only (trains nothing), since BigQuery ML has no NAIVE_BAYES model type and Snowflake's ML.CLASSIFICATION is AutoML that never guarantees Naive Bayes specifically. Requires `source`, `sql_dialect='databricks'`, `output_table`, and `model_name` (the endpoint name)."
+    },
+    "sql_dialect": {
+      "type": "string",
+      "label": "SQL Dialect",
+      "required": false,
+      "enum": [
+        "databricks"
+      ],
+      "description": "Required when execution_mode='sql'. Only databricks is offered."
+    },
+    "output_table": {
+      "type": "string",
+      "label": "Output Table",
+      "required": false,
+      "description": "Required when execution_mode='sql'. Destination table the predictions are written to."
+    },
+    "model_name": {
+      "type": "string",
+      "label": "Model Name",
+      "required": false,
+      "description": "Required when execution_mode='sql'. The name of an already-served Databricks Model Serving endpoint -- this dialect trains nothing."
     },
     "target_column": {
       "type": "string",
@@ -48,7 +86,7 @@
     "task_type": {
       "type": "string",
       "label": "Task Type",
-      "description": "Task type: 'classification' or 'regression'",
+      "description": "Task type: 'classification' or 'regression'. GaussianNB has no regression variant -- 'regression' always raises.",
       "required": false,
       "default": "classification",
       "enum": [
@@ -56,20 +94,6 @@
         "regression"
       ],
       "ui:widget": "select"
-    },
-    "n_estimators": {
-      "type": "integer",
-      "label": "N Estimators",
-      "description": "Number of trees in the forest",
-      "required": false,
-      "default": 100
-    },
-    "max_depth": {
-      "type": "integer",
-      "label": "Max Depth",
-      "description": "Maximum depth of each tree (None = unlimited)",
-      "required": false,
-      "default": null
     },
     "test_size": {
       "type": "number",
@@ -85,24 +109,28 @@
       "required": false,
       "default": 42
     },
-    "output_mode": {
+    "model_path": {
       "type": "string",
-      "label": "Output Mode",
-      "description": "Output mode: 'predictions' or 'feature_importance'",
+      "label": "Model Path",
+      "description": "If set, joblib-dump the trained model to this path after fit. Supports local paths and any fsspec URL (s3://, gs://, abfs://). Downstream `model_score` component loads this path to predict on new data.",
       "required": false,
-      "default": "predictions",
-      "enum": [
-        "predictions",
-        "feature_importance"
-      ],
-      "ui:widget": "select"
+      "default": null
     },
-    "n_jobs": {
-      "type": "integer",
-      "label": "N Jobs",
-      "description": "Number of parallel jobs (-1 = use all CPUs)",
+    "output_predictions": {
+      "type": "boolean",
+      "label": "Output Predictions",
+      "description": "Add a `predicted` column to the output",
       "required": false,
-      "default": -1
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "output_probabilities": {
+      "type": "boolean",
+      "label": "Output Probabilities",
+      "description": "Add `predicted_proba_<class>` columns per class",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
     },
     "group_name": {
       "type": "string",
@@ -281,9 +309,13 @@
   },
   "tags": [
     "analytics",
-    "random",
-    "forest",
-    "model"
+    "naive",
+    "bayes",
+    "model",
+    "warehouse query",
+    "duckdb",
+    "databricks",
+    "sql execution mode"
   ],
-  "name": "Random Forest"
+  "name": "Naive Bayes"
 }

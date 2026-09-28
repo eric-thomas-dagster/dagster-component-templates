@@ -14,10 +14,126 @@ from dagster import (
     Definitions,
     MetadataValue,
     Model,
+    Output,
     Resolvable,
     asset,
 )
 from pydantic import Field
+
+
+def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
+    """Execute SQL via a Dagster resource that exposes .get_engine() (SQLAlchemy)
+    OR .get_connection() (DB-API), or a bare SQLAlchemy engine built from
+    `database_url_env_var` when no Dagster resource is registered."""
+    sql = source_config["sql"]
+    resource_key = source_config.get("resource_key")
+    if resource_key:
+        resource = getattr(context.resources, resource_key)
+        if hasattr(resource, "get_engine"):
+            return pd.read_sql(sql, resource.get_engine())
+        if hasattr(resource, "get_connection"):
+            with resource.get_connection() as conn:
+                return pd.read_sql(sql, conn)
+        raise ValueError(
+            f"resource {resource_key!r} must expose .get_engine() (SQLAlchemy) "
+            f"or .get_connection() (DB-API); got {type(resource).__name__}"
+        )
+    env_var = source_config.get("database_url_env_var")
+    if env_var:
+        import os
+        from sqlalchemy import create_engine
+        url = os.environ.get(env_var, "")
+        if not url:
+            raise ValueError(f"database_url_env_var {env_var!r} is unset")
+        return pd.read_sql(sql, create_engine(url))
+    raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
+
+
+# ── execution_mode='sql' ────────────────────────────────────────────────
+# Databricks-ONLY, and predict-only -- unlike every other component in this
+# family, BigQuery and Snowflake are deliberately NOT offered here, for the
+# same reason `decision_tree_model` was skipped entirely from this whole
+# initiative: neither has a genuine per-algorithm match for Gaussian Naive
+# Bayes. BigQuery ML has no NAIVE_BAYES model type at all. Snowflake's
+# `SNOWFLAKE.ML.CLASSIFICATION` is AutoML -- it picks its own algorithm
+# internally and never guarantees (or even exposes) Naive Bayes specifically.
+# Offering either as "train a Naive Bayes here" would be the same misleading
+# "exact equivalent" framing this session's discipline explicitly avoids.
+#   - databricks: predict-only via `ai_query('served_endpoint', ...)` against
+#     an already-served Model Serving endpoint -- honest regardless of
+#     algorithm, since this branch never claims to train or BE any specific
+#     algorithm in every other component either; it just calls whatever was
+#     already deployed.
+# validation.level: code -- no live Databricks workspace in this dev
+# environment; the generated SQL is asserted structurally, not executed.
+
+_SQL_MODEL_DIALECTS = ("databricks",)
+
+
+def _build_sql_mode_statements(
+    dialect: str, source_sql: str, output_table: str, model_name: str,
+    feature_columns: List[str],
+) -> List[str]:
+    if dialect not in _SQL_MODEL_DIALECTS:
+        raise ValueError(
+            f"unsupported sql_dialect: {dialect!r}. Valid: {_SQL_MODEL_DIALECTS} "
+            f"(BigQuery ML has no NAIVE_BAYES model type; Snowflake's "
+            f"SNOWFLAKE.ML.CLASSIFICATION is AutoML and never guarantees Naive "
+            f"Bayes specifically -- neither is a genuine per-algorithm match, "
+            f"same reasoning decision_tree_model was skipped for entirely)."
+        )
+
+    # databricks: predict-only against an already-served endpoint (model_name
+    # is that endpoint's name here, not something this statement creates).
+    feat_struct = ", ".join(f"'{c}', src.{c}" for c in feature_columns)
+    return [
+        f"CREATE OR REPLACE TABLE {output_table} AS\n"
+        f"SELECT src.*, ai_query('{model_name}', named_struct({feat_struct})) AS predicted\n"
+        f"FROM ({source_sql}) AS src"
+    ]
+
+
+def _run_sql_mode(context, source_cfg: dict, statements: List[str], output_table: str) -> Output:
+    resource_key = source_cfg.get("resource_key")
+    if resource_key:
+        resource = getattr(context.resources, resource_key)
+        if hasattr(resource, "get_engine"):
+            engine = resource.get_engine()
+            with engine.begin() as conn:
+                for stmt in statements:
+                    conn.exec_driver_sql(stmt)
+                row_count = conn.exec_driver_sql(f"SELECT COUNT(*) FROM {output_table}").scalar()
+        elif hasattr(resource, "get_connection"):
+            with resource.get_connection() as conn:
+                for stmt in statements:
+                    conn.execute(stmt)
+                row_count = conn.execute(f"SELECT COUNT(*) FROM {output_table}").fetchone()[0]
+        else:
+            raise ValueError(f"resource {resource_key!r} must expose .get_engine() or .get_connection().")
+    else:
+        env_var = source_cfg.get("database_url_env_var")
+        if not env_var:
+            raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
+        import os
+        from sqlalchemy import create_engine
+        url = os.environ.get(env_var, "")
+        if not url:
+            raise ValueError(f"database_url_env_var {env_var!r} is unset")
+        engine = create_engine(url)
+        with engine.begin() as conn:
+            for stmt in statements:
+                conn.exec_driver_sql(stmt)
+            row_count = conn.exec_driver_sql(f"SELECT COUNT(*) FROM {output_table}").scalar()
+
+    return Output(
+        value=None,
+        metadata={
+            "dagster/row_count": MetadataValue.int(row_count),
+            "execution_mode": MetadataValue.text("sql"),
+            "output_table": MetadataValue.text(output_table),
+            "generated_sql": MetadataValue.md("\n\n".join(f"```sql\n{s}\n```" for s in statements)),
+        },
+    )
 
 
 def _build_partitions_def(
@@ -126,12 +242,47 @@ class NaiveBayesModelComponent(Component, Model, Resolvable):
     """Fit a Gaussian Naive Bayes classifier. Classification only (no regression variant)."""
 
     asset_name: str = Field(description="Output Dagster asset name")
-    upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
+    upstream_asset_key: Optional[str] = Field(
+        default=None,
+        description="Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one.",
+    )
+    source: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Pull rows directly via SQL instead of from an upstream asset: "
+            "{kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. "
+            "Also required (with execution_mode='sql') to name the FROM-source for the "
+            "server-side prediction query. Mutually exclusive with `upstream_asset_key` -- set exactly one."
+        ),
+    )
+    execution_mode: str = Field(
+        default="python",
+        description=(
+            "'python' (default): fits a real scikit-learn GaussianNB locally. "
+            "'sql': predicts server-side via Databricks `ai_query()` against an "
+            "already-served Model Serving endpoint -- Databricks-ONLY and "
+            "predict-only (trains nothing), since BigQuery ML has no NAIVE_BAYES "
+            "model type and Snowflake's ML.CLASSIFICATION is AutoML that never "
+            "guarantees Naive Bayes specifically. Requires `source`, "
+            "`sql_dialect='databricks'`, `output_table`, and `model_name` (the "
+            "endpoint name)."
+        ),
+    )
+    sql_dialect: Optional[str] = Field(
+        default=None,
+        description=f"Required when execution_mode='sql'. Only {_SQL_MODEL_DIALECTS} is offered.",
+    )
+    output_table: Optional[str] = Field(
+        default=None,
+        description="Required when execution_mode='sql'. Destination table the predictions are written to.",
+    )
+    model_name: Optional[str] = Field(
+        default=None,
+        description="Required when execution_mode='sql'. The name of an already-served Databricks Model Serving endpoint -- this dialect trains nothing.",
+    )
     target_column: Union[str, int] = Field(description="Column name of the target variable")
     feature_columns: List[Union[str, int]] = Field(description="List of column names to use as features")
-    task_type: str = Field(default="classification", description="Task type: 'classification' or 'regression'")
-    n_estimators: int = Field(default=100, description="Number of trees in the forest")
-    max_depth: Optional[int] = Field(default=None, description="Maximum depth of each tree (None = unlimited)")
+    task_type: str = Field(default="classification", description="Task type: 'classification' or 'regression'. GaussianNB has no regression variant -- 'regression' always raises.")
     test_size: float = Field(default=0.2, description="Fraction of data to hold out for evaluation")
     random_state: int = Field(default=42, description="Random seed for reproducibility")
     model_path: Optional[str] = Field(
@@ -143,8 +294,8 @@ class NaiveBayesModelComponent(Component, Model, Resolvable):
             "new data — closes the train-once / score-later loop."
         ),
     )
-    output_mode: str = Field(default="predictions", description="Output mode: 'predictions' or 'feature_importance'")
-    n_jobs: int = Field(default=-1, description="Number of parallel jobs (-1 = use all CPUs)")
+    output_predictions: bool = Field(default=True, description="Add a `predicted` column to the output")
+    output_probabilities: bool = Field(default=True, description="Add `predicted_proba_<class>` columns per class")
     include_preview_metadata: bool = Field(
         default=False,
         description="Include a preview of the output DataFrame in metadata (for builder UIs).",
@@ -260,17 +411,36 @@ class NaiveBayesModelComponent(Component, Model, Resolvable):
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
+        source_cfg = self.source
+        execution_mode = self.execution_mode
+        sql_dialect = self.sql_dialect
+        output_table = self.output_table
+        model_name = self.model_name
         target_column = self.target_column
         feature_columns = self.feature_columns
         model_path = self.model_path
         task_type = self.task_type
-        n_estimators = self.n_estimators
-        max_depth = self.max_depth
         test_size = self.test_size
         random_state = self.random_state
-        output_mode = self.output_mode
-        n_jobs = self.n_jobs
+        output_predictions = self.output_predictions
+        output_probabilities = self.output_probabilities
         group_name = self.group_name
+
+        if bool(upstream_asset_key) == bool(source_cfg):
+            raise ValueError("NaiveBayesModelComponent: set exactly one of `upstream_asset_key` or `source`.")
+        if execution_mode not in ("python", "sql"):
+            raise ValueError(f"NaiveBayesModelComponent: execution_mode must be 'python' or 'sql', got {execution_mode!r}.")
+        if execution_mode == "sql":
+            if not source_cfg:
+                raise ValueError("NaiveBayesModelComponent: execution_mode='sql' requires `source` (a SQL FROM-source).")
+            if sql_dialect not in _SQL_MODEL_DIALECTS:
+                raise ValueError(f"NaiveBayesModelComponent: execution_mode='sql' requires sql_dialect to be one of {_SQL_MODEL_DIALECTS}.")
+            if not output_table:
+                raise ValueError("NaiveBayesModelComponent: execution_mode='sql' requires `output_table`.")
+            if not model_name:
+                raise ValueError("NaiveBayesModelComponent: execution_mode='sql' requires `model_name`.")
+            if not feature_columns:
+                raise ValueError("NaiveBayesModelComponent: execution_mode='sql' requires `feature_columns`.")
 
         partitions_def = _build_partitions_def(
             self.partition_type,
@@ -350,17 +520,46 @@ class NaiveBayesModelComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, 
+        if task_type not in ("classification", "regression"):
+            raise ValueError(f"NaiveBayesModelComponent: unknown task_type: {task_type!r}. Use 'classification' or 'regression'.")
+        if task_type == "regression":
+            raise ValueError(
+                'naive_bayes_model only supports classification — '
+                'Gaussian Naive Bayes has no regression variant in sklearn. '
+                'Set task_type="classification".'
+            )
+
+        _asset_kwargs: Dict[str, Any] = dict(
+            retry_policy=_retry_policy,
             key=AssetKey.from_user_string(asset_name),
-            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
             partitions_def=partitions_def,
-                        owners=owners,
+            owners=owners,
             tags=_all_tags,
             freshness_policy=_freshness_policy,
-group_name=group_name,
+            group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def _asset(context: AssetExecutionContext, upstream: Any) -> pd.DataFrame:
+        if upstream_asset_key:
+            _asset_kwargs["ins"] = {"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))}
+        if source_cfg and source_cfg.get("resource_key"):
+            _asset_kwargs["required_resource_keys"] = {source_cfg["resource_key"]}
+
+        if execution_mode == "sql":
+            @asset(**_asset_kwargs)
+            def _sql_asset(context: AssetExecutionContext):
+                statements = _build_sql_mode_statements(
+                    sql_dialect, source_cfg["sql"], output_table, model_name,
+                    list(feature_columns),
+                )
+                return _run_sql_mode(context, source_cfg, statements, output_table)
+
+            return Definitions(assets=[_sql_asset])
+
+        @asset(**_asset_kwargs)
+        def _asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
+            upstream = kwargs.get("upstream")
+            if upstream is None:
+                upstream = _ingest_warehouse_query(source_cfg, context)
             # Defensive Output/MaterializeResult unwrap — see summarize for the rationale.
             # Tolerates upstream authors who annotate `-> Output` or
             # return `Output(value=df, ...)` / `MaterializeResult(value=df)`.
@@ -387,6 +586,7 @@ group_name=group_name,
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
             try:
                 from sklearn.naive_bayes import GaussianNB
+                from sklearn.metrics import accuracy_score
                 from sklearn.model_selection import train_test_split
             except ImportError as e:
                 raise ImportError("scikit-learn is required: pip install scikit-learn") from e
@@ -395,57 +595,78 @@ group_name=group_name,
             X = df[feature_columns].fillna(0)
             y = df[target_column]
 
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=test_size, random_state=random_state
-            )
-
-            if task_type == "classification":
-                from sklearn.metrics import accuracy_score, classification_report
-                model = GaussianNB()
-                model.fit(X_train, y_train)
-                if model_path is not None:
-                    import fsspec, joblib
-                    with fsspec.open(model_path, "wb") as _fh:
-                        joblib.dump(model, _fh)
-                y_pred = model.predict(X_test)
-                accuracy = accuracy_score(y_test, y_pred)
-                report = classification_report(y_test, y_pred)
-
-            elif task_type == "regression":
-                from sklearn.metrics import mean_absolute_error, r2_score
-                raise ValueError(
-                    'naive_bayes_model only supports classification — '
-                    'Gaussian Naive Bayes has no regression variant in sklearn. '
-                    'Set task_type="classification".'
+            if len(X) < 5:
+                context.log.warning(
+                    f"naive_bayes_model: only {len(X)} rows available; skipping "
+                    "train/test split (whole frame used for both fit and eval)."
                 )
-                model.fit(X_train, y_train)
-                if model_path is not None:
-                    import fsspec, joblib
-                    with fsspec.open(model_path, "wb") as _fh:
-                        joblib.dump(model, _fh)
-                y_pred = model.predict(X_test)
-                r2 = r2_score(y_test, y_pred)
-                mae = mean_absolute_error(y_test, y_pred)
-                context.add_output_metadata({
-                    "r2_score": MetadataValue.float(float(r2)),
-                    "mean_absolute_error": MetadataValue.float(float(mae)),
-                    "n_estimators": MetadataValue.int(n_estimators),
-                    "train_rows": MetadataValue.int(len(X_train)),
-                    "test_rows": MetadataValue.int(len(X_test)),
-                })
+                X_train = X_test = X
+                y_train = y_test = y
             else:
-                raise ValueError(f"Unknown task_type: {task_type}. Use 'classification' or 'regression'.")
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X, y, test_size=test_size, random_state=random_state
+                )
 
-            if output_mode == "feature_importance":
-                return pd.DataFrame({
-                    "feature": feature_columns,
-                    "importance": model.feature_importances_,
-                }).sort_values("importance", ascending=False).reset_index(drop=True)
-            elif output_mode == "predictions":
+            model = GaussianNB()
+            model.fit(X_train, y_train)
+            if model_path is not None:
+                import fsspec, joblib
+                with fsspec.open(model_path, "wb") as _fh:
+                    joblib.dump(model, _fh)
+            accuracy = accuracy_score(y_test, model.predict(X_test))
+
+            # Build column schema metadata
+            from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
+            _col_schema = TableSchema(columns=[
+                TableColumn(name=str(col), type=str(df.dtypes[col]))
+                for col in df.columns
+            ])
+            _metadata = {
+                "dagster/row_count": MetadataValue.int(len(df)),
+                "dagster/column_schema": MetadataValue.table_schema(_col_schema),
+                "accuracy": MetadataValue.float(float(accuracy)),
+                "train_rows": MetadataValue.int(len(X_train)),
+                "test_rows": MetadataValue.int(len(X_test)),
+            }
+            _effective_lineage = column_lineage
+            if not _effective_lineage:
+                try:
+                    _upstream_cols = set(upstream.columns)
+                    _effective_lineage = {
+                        col.name: [col.name] for col in _col_schema.columns
+                        if col.name in _upstream_cols
+                    }
+                except Exception:
+                    pass
+            if _effective_lineage:
+                _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
+                if _upstream_key:
+                    _lineage_deps = {}
+                    for out_col, in_cols in _effective_lineage.items():
+                        _lineage_deps[str(out_col)] = [
+                            TableColumnDep(asset_key=_upstream_key, column_name=str(ic))
+                            for ic in in_cols
+                        ]
+                    _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
+                        TableColumnLineage(_lineage_deps)
+                    )
+            if self.include_preview_metadata and len(df) > 0:
+                try:
+                    _preview_rows = self.preview_rows
+                    _prev = df.sample(min(_preview_rows, len(df))) if len(df) > _preview_rows * 10 else df.head(_preview_rows)
+                    _metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                except Exception as _e:
+                    context.log.warning(f"preview emission failed: {_e}")
+            context.add_output_metadata(_metadata)
+
+            if output_predictions:
                 df["predicted"] = model.predict(X)
-                return df
-            else:
-                raise ValueError(f"Unknown output_mode: {output_mode}. Use 'predictions' or 'feature_importance'.")
+            if output_probabilities:
+                proba = model.predict_proba(X)
+                for i, cls in enumerate(model.classes_):
+                    df[f"predicted_proba_{cls}"] = proba[:, i]
+
+            return df
 
         from dagster import build_column_schema_change_checks
 

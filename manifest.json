@@ -31967,13 +31967,17 @@
       "id": "naive_bayes_model",
       "name": "Naive Bayes Model",
       "category": "analytics",
-      "description": "Fit a Naive Bayes classifier and output predictions and/or class probabilities.",
+      "description": "Fit a Gaussian Naive Bayes classifier (Gaussian only -- no Multinomial/Bernoulli variant exists on this component). Supports `source: {kind: warehouse_query}` direct-SQL ingestion (DuckDB and other databases) alongside `upstream_asset_key`, and `execution_mode: sql` -- Databricks-ONLY, predict-only via `ai_query()` against an already-served Model Serving endpoint. BigQuery ML has no NAIVE_BAYES model type and Snowflake's ML.CLASSIFICATION is AutoML that never guarantees Naive Bayes specifically, so neither is offered (same reasoning decision_tree_model was skipped for entirely).",
       "path": "assets/analytics/naive_bayes_model",
       "tags": [
         "analytics",
         "naive",
         "bayes",
-        "model"
+        "model",
+        "warehouse query",
+        "duckdb",
+        "databricks",
+        "sql execution mode"
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/naive_bayes_model/schema.json",
       "component_type": "dagster_component_templates.NaiveBayesModelComponent",
@@ -31984,16 +31988,16 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/naive_bayes_model/requirements.txt",
       "validation": {
         "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
-        "last_validated": "2026-05-08"
+        "evidence": "Original python-mode: https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md . source/execution_mode additions (added 2026-09-28): source: warehouse_query live-verified against real DuckDB, plus newly-implemented predicted_proba_<class> columns and accuracy/row-count/column-schema metadata (previously computed each run but silently discarded -- this component had no add_output_metadata call at all before this change). Also removed n_estimators/max_depth/n_jobs (dead random_forest_model copy-paste leftovers -- GaussianNB takes none of them) and output_mode='feature_importance' (always crashed: GaussianNB has no feature_importances_). execution_mode='sql' is structural-only -- no live Databricks workspace in this environment; BigQuery/Snowflake deliberately not offered (no genuine per-algorithm match for Naive Bayes on either).",
+        "last_validated": "2026-09-28"
       },
       "agent_hints": {
-        "inputs": "DataFrame with feature columns + categorical target.",
-        "outputs": "DataFrame with predictions + class probabilities.",
-        "side_effects": "Fast. Assumes feature independence. Requires sklearn.",
-        "anti_uses": "For continuous outcomes use linear_regression_model. For interpretability use logistic_regression_model.",
+        "inputs": "DataFrame with numeric feature columns + categorical target (upstream_asset_key), or a SQL FROM-source (source: {kind: warehouse_query}).",
+        "outputs": "DataFrame + `predicted` column (if output_predictions, default true) and/or `predicted_proba_<class>` columns per class (if output_probabilities, default true). execution_mode='sql' writes directly to output_table in the warehouse instead.",
+        "side_effects": "Fast. Assumes feature independence (Gaussian NB's core assumption). Requires scikit-learn. execution_mode='sql' calls an already-served Databricks Model Serving endpoint -- trains nothing.",
+        "anti_uses": "For continuous outcomes use linear_regression_model. For interpretability use logistic_regression_model. Gaussian only -- for count/frequency or binary features, sklearn's MultinomialNB/BernoulliNB would fit better, but neither is implemented on this component.",
         "requires_pip": [
-          "sklearn"
+          "scikit-learn"
         ],
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame"
@@ -32013,7 +32017,11 @@
       ],
       "keywords": [
         "report",
-        "aggregate"
+        "aggregate",
+        "warehouse query",
+        "duckdb",
+        "sql execution mode",
+        "databricks ai_query"
       ]
     },
     {

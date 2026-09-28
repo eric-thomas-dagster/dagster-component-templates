@@ -1,0 +1,27 @@
+pandas>=1.5.0
+
+# chunk op: free, no extra deps.
+
+# classify op mode='zero_shot' (default), embed op provider='sentence_transformers' (default):
+#   pip install transformers torch sentence-transformers
+
+# classify op mode='llm', embed op provider='litellm':
+#   pip install litellm
+
+# embed op provider='openai':
+#   pip install openai
+# embed op provider='cohere':
+#   pip install cohere
+
+# write_vector_store op provider='chromadb' (default):
+#   pip install chromadb
+# write_vector_store op provider='pinecone':
+#   pip install pinecone-client
+# write_vector_store op provider='qdrant':
+#   pip install qdrant-client
+
+# source: {kind: warehouse_query} against DuckDB:
+#   pip install dagster-duckdb duckdb
+# execution_mode='sql': no extra pip deps -- SQL runs server-side via the
+# warehouse's own resource (snowflake_resource / bigquery_resource /
+# databricks resource), which must already be registered.

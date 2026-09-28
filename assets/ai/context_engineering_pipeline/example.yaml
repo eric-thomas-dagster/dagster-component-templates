@@ -1,0 +1,25 @@
+type: dagster_component_templates.ContextEngineeringPipelineComponent
+attributes:
+  asset_name: support_kb
+  upstream_asset_key: raw_support_tickets
+  id_column: ticket_id
+  text_column: body
+  metadata_columns: [customer_id, created_at]
+  include_preview_metadata: true
+  steps:
+    - id: chunks
+      op: chunk
+      chunk_size: 500
+      chunk_overlap: 50
+    - id: classified
+      op: classify
+      candidate_labels: [billing, technical, shipping, other]
+    - id: embedded
+      op: embed
+      provider: sentence_transformers
+      model: all-MiniLM-L6-v2
+    - id: indexed
+      op: write_vector_store
+      provider: chromadb
+      connection_string: /tmp/context_kb
+      collection_name: support_tickets

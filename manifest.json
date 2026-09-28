@@ -57799,9 +57799,78 @@
         "cached model training",
         "flaml"
       ]
+    },
+    {
+      "id": "context_engineering_pipeline",
+      "name": "Context Engineering Pipeline",
+      "category": "ai",
+      "description": "One YAML builds a governed, searchable, citeable knowledge base out of raw unstructured text: chunk -> classify -> embed -> write_vector_store. Pairs with rag_pipeline (query side). Free/local by default (sentence-transformers + HuggingFace zero-shot + ChromaDB); litellm for any provider. Two ingestion modes (upstream_asset_key or a direct source: warehouse_query SQL) and two execution modes: execution_mode='python' (in-memory, bounded by max_source_rows + partitioning) or execution_mode='sql' (the whole chunk/classify/embed chain runs as ONE query in the warehouse's own engine via Snowflake Cortex / BigQuery / Databricks native AI functions, so the corpus never leaves the database and there's no in-memory size limit). Family sibling of MLPipeline / RagPipeline / WarehousePipeline.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/context_engineering_pipeline",
+      "tags": [
+        "ai",
+        "context-engineering",
+        "rag",
+        "chunking",
+        "embeddings",
+        "classification",
+        "vector-store",
+        "chromadb",
+        "litellm",
+        "duckdb",
+        "snowflake-cortex",
+        "bigquery",
+        "databricks",
+        "dbt-alternative"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/context_engineering_pipeline/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/context_engineering_pipeline/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/context_engineering_pipeline/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/context_engineering_pipeline/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/context_engineering_pipeline/requirements.txt",
+      "icon": "Sparkles",
+      "validation": {
+        "level": "code",
+        "evidence": "Live-verified, nothing mocked: full python-mode pipeline (chunk -> classify -> embed -> write_vector_store) against real sentence-transformers embeddings, real HuggingFace zero-shot classification, and a real ChromaDB write, including a real semantic search query correctly retrieving the matching chunk with citation metadata; source: {kind: warehouse_query} against a real DuckDB database via dagster-duckdb (this caught and fixed a real bug: DuckDBResource.get_connection() is a @contextmanager -- calling it without `with` raises AttributeError, confirmed live); max_source_rows truncation reporting both counts in metadata; all mutual-exclusivity/execution_mode/sql_dialect/output_table validation guards. Mocked (no free/local backend exists): embed provider='litellm' and classify mode='llm' -- litellm's own call is mocked, request/response handling runs for real. Structural only, not executed (no live warehouse credentials in this environment): execution_mode='sql' -- the generated SQL is asserted for all 3 dialects (snowflake_cortex, bigquery, databricks) but never run against a real warehouse.",
+        "last_validated": "2026-09-28"
+      },
+      "agent_hints": {
+        "inputs": "Raw text rows via upstream_asset_key (DataFrame) or source: {kind: warehouse_query, resource_key, sql} (direct SQL, works against DuckDB and any resource exposing .get_engine()/.get_connection()).",
+        "outputs": "Final step's output rows -- chunked, classified, and/or embedded depending on steps configured. execution_mode='sql' writes directly to output_table in the warehouse instead.",
+        "side_effects": "write_vector_store step upserts into chromadb/pinecone/qdrant. execution_mode='sql' runs CREATE OR REPLACE TABLE in the target warehouse.",
+        "anti_uses": "For the query/retrieval/generation side of RAG (not building the knowledge base), use rag_pipeline instead. For DuckDB with execution_mode='sql': not supported -- DuckDB has no native embedding/completion function (same limitation dbt's own context-engineering package has); use execution_mode='python' with a duckdb_resource source instead.",
+        "requires_pip": [
+          "sentence-transformers",
+          "transformers",
+          "chromadb"
+        ],
+        "output_type": "pd.DataFrame"
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "context engineering",
+        "dbt context engineering",
+        "knowledge base",
+        "chunking",
+        "rag ingestion",
+        "vector database",
+        "grounding",
+        "citations",
+        "warehouse-native ai",
+        "in-database ml"
+      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1171
+  "total": 1172
 }

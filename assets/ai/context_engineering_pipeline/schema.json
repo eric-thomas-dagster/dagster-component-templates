@@ -1,0 +1,134 @@
+{
+  "component_type": "dagster_component_templates.ContextEngineeringPipelineComponent",
+  "name": "Context Engineering Pipeline",
+  "description": "One YAML builds a governed, searchable, citeable knowledge base out of raw unstructured text: chunk -> classify -> embed -> write_vector_store. Pairs with rag_pipeline (query side). Free/local by default (sentence-transformers + HuggingFace zero-shot + ChromaDB); litellm for any provider; execution_mode='sql' runs the whole chain server-side in Snowflake Cortex / BigQuery / Databricks so the corpus never leaves the warehouse.",
+  "category": "ai",
+  "icon": "Sparkles",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": false,
+      "description": "Raw text rows, either from an upstream asset (upstream_asset_key) or a direct SQL query (source)."
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Final step's output rows -- chunked, classified, and/or embedded, depending on the steps configured."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Output Dagster asset name"
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Upstream asset key providing a DataFrame of raw text rows. Mutually exclusive with `source` -- set exactly one."
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Pull raw text rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource>, sql: <query>}. Works out of the box with duckdb_resource and any resource exposing .get_engine() or .get_connection(). Mutually exclusive with `upstream_asset_key` -- set exactly one."
+    },
+    "id_column": {
+      "type": "string",
+      "label": "ID Column",
+      "required": true,
+      "description": "Column uniquely identifying each source row -- threaded through to every chunk as a citation back to the source.",
+      "x-dagster-widget": "column"
+    },
+    "text_column": {
+      "type": "string",
+      "label": "Text Column",
+      "required": true,
+      "description": "Column containing the raw text to chunk.",
+      "x-dagster-widget": "column"
+    },
+    "metadata_columns": {
+      "type": "array",
+      "label": "Metadata Columns",
+      "required": false,
+      "items": { "type": "string" },
+      "description": "Additional source columns to carry forward onto every chunk row -- available to later steps and written as vector-store metadata for filtered search."
+    },
+    "max_source_rows": {
+      "type": "integer",
+      "label": "Max Source Rows",
+      "required": false,
+      "description": "Safety cap on source rows processed per materialize (python mode only). A real corpus is typically too large for one in-memory run -- pair with partitioning to bound each run to a slice instead of the whole historical corpus."
+    },
+    "execution_mode": {
+      "type": "string",
+      "label": "Execution Mode",
+      "required": false,
+      "default": "python",
+      "enum": ["python", "sql"],
+      "description": "'python' (default): pulls rows into a DataFrame, works with every provider. 'sql': the whole chunk/classify/embed chain runs as one query in the warehouse's own engine via a native AI function -- data never leaves the database, no in-memory size limit, but only for warehouses with a native embedding/completion function (set sql_dialect)."
+    },
+    "sql_dialect": {
+      "type": "string",
+      "label": "SQL Dialect",
+      "required": false,
+      "enum": ["snowflake_cortex", "bigquery", "databricks"],
+      "description": "Required when execution_mode='sql'. Selects which warehouse-native AI SQL functions to emit."
+    },
+    "output_table": {
+      "type": "string",
+      "label": "Output Table",
+      "required": false,
+      "description": "Required when execution_mode='sql'. Fully-qualified destination table the resulting knowledge base is written to, in the same database."
+    },
+    "steps": {
+      "type": "array",
+      "label": "Steps",
+      "required": true,
+      "items": { "type": "object" },
+      "description": "Ordered list of {id, op, ...op-specific fields} dicts. Each step's `source:` names a prior step's id to read from; if omitted, defaults to the immediately preceding step. Valid ops: 'chunk' (must be first), 'classify', 'embed', 'write_vector_store'."
+    },
+    "group_name": { "type": "string", "label": "Group Name", "required": false, "description": "Dagster asset group name" },
+    "description": { "type": "string", "label": "Description", "required": false, "description": "Asset description shown in the Dagster catalog." },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "items": { "type": "string" },
+      "description": "Lineage-only upstream asset keys (no data passed at runtime)."
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": { "type": "string" },
+      "description": "Asset owners -- list of team names or email addresses."
+    },
+    "asset_tags": { "type": "object", "label": "Asset Tags", "required": false, "description": "Additional key-value tags to apply to the asset." },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "required": false,
+      "items": { "type": "string" },
+      "description": "Asset kinds for the Dagster catalog. Auto-inferred if unset."
+    },
+    "include_preview_metadata": { "type": "boolean", "label": "Include Preview Metadata", "required": false, "default": false, "description": "Include a preview of the output data in metadata." },
+    "preview_rows": { "type": "integer", "label": "Preview Rows", "required": false, "default": 25, "description": "Rows to include in the preview metadata when include_preview_metadata is True." },
+    "retry_policy_max_retries": { "type": "integer", "label": "Retry Policy Max Retries", "required": false, "description": "Max retries on asset failure. Defines a RetryPolicy." },
+    "retry_policy_delay_seconds": { "type": "integer", "label": "Retry Policy Delay Seconds", "required": false, "description": "Seconds between retries (default 1)." },
+    "retry_policy_backoff": { "type": "string", "label": "Retry Policy Backoff", "required": false, "default": "exponential", "description": "Backoff strategy: 'linear' or 'exponential'." },
+    "freshness_max_lag_minutes": { "type": "integer", "label": "Freshness Max Lag Minutes", "required": false, "description": "Maximum acceptable lag in minutes before the asset is considered stale." },
+    "freshness_cron": { "type": "string", "label": "Freshness Cron", "required": false, "description": "Cron schedule string for the freshness policy." },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "enum": ["daily", "weekly", "monthly", "hourly", "static", "dynamic"],
+      "description": "Partition type."
+    },
+    "partition_start": { "type": "string", "label": "Partition Start", "required": false, "description": "Partition start date (ISO), required for time-based types." },
+    "partition_values": { "type": "string", "label": "Partition Values", "required": false, "description": "Comma-separated values for static partitioning." },
+    "dynamic_partition_name": { "type": "string", "label": "Dynamic Partition Name", "required": false, "description": "Name for DynamicPartitionsDefinition." }
+  }
+}

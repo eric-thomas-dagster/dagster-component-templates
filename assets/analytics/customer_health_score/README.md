@@ -1,6 +1,33 @@
 # Customer Health Score Component
 
-Predict customer churn risk and identify expansion opportunities by calculating health scores from engagement, product usage, subscription, and support data.
+Predict customer churn risk and identify expansion opportunities. `scoring_method='heuristic'` (default): the 4-way join described below (engagement + product usage + subscription + support). `scoring_method='ml'`: fits a real scikit-learn classifier against a `target_column` you supply.
+
+## Ingestion (scoring_method='heuristic')
+
+Each of the four named inputs is **independently optional** (at least one must be connected), and each independently supports two ways to get its rows in:
+
+- **`<name>_asset_key`**: the usual Dagster way -- point at any asset producing a DataFrame with that input's columns.
+- **`<name>_source: {kind: warehouse_query, resource_key: ..., sql: ...}`**: pull rows directly via SQL, no upstream asset required. Works out of the box with `duckdb_resource` and any resource exposing `.get_engine()`/`.get_connection()`, or a bare SQLAlchemy connection string via `database_url_env_var` when no Dagster resource is registered.
+
+So you get 8 fields total: `customer_data_asset_key`/`customer_data_source`, `subscription_data_asset_key`/`subscription_data_source`, `product_usage_asset_key`/`product_usage_source`, `support_ticket_asset_key`/`support_ticket_source` -- set at most one of each pair.
+
+## `scoring_method: ml` -- a real trained classifier, not a heuristic
+
+**`is_churn_risk`/`is_expansion_opportunity` below are threshold-derived from the same weighted heuristic, not fit against any observed outcome** -- there is no "churned"/"expanded" boolean anywhere in the input schema. So `scoring_method='ml'` is opt-in, requires you bring your own label via `target_column` + `feature_columns`, and works over a single, already-joined `upstream_asset_key`/`source` table -- **it cannot be combined with the 4-way join fields above** (if you need the customer+subscription+usage+support join, do it upstream of this component first, then point `scoring_method='ml'` at the joined result).
+
+```yaml
+type: dagster_component_templates.CustomerHealthScoreComponent
+attributes:
+  asset_name: customer_churn_ml
+  scoring_method: ml
+  upstream_asset_key: customers_joined_with_churn_label
+  target_column: churned
+  feature_columns: [login_frequency, feature_adoption_rate, mrr, ticket_count]
+  test_size: 0.2
+  output_probabilities: true
+```
+
+`execution_mode: sql` is also available under `scoring_method: ml` (BigQuery/Snowflake genuine train+predict, Databricks predict-only against an already-served endpoint) -- reuses the exact same audited mapping as `logistic_regression_model`.
 
 ## Purpose
 
@@ -134,14 +161,15 @@ Measures support interaction quality and volume.
 
 ```yaml
 asset_name: customer_health_scores
-analysis_period_days: 30
+customer_data_asset_key: customer_profiles
+subscription_data_asset_key: subscriptions
 churn_risk_threshold: 40
 expansion_opportunity_threshold: 75
 ```
 
-### Input Sources (Connected via Visual Lineage)
+### Input Sources
 
-The component accepts 1-4 input data sources. Connect any combination:
+The component accepts 1-4 input data sources, each independently connected via `<name>_asset_key` (visual lineage / point at any asset) or `<name>_source` (direct SQL, see Ingestion above):
 
 1. **Customer Data** (CRM, user profiles)
    - Fields: customer_id, last_login_days, login_frequency, feature_adoption_rate
@@ -155,7 +183,7 @@ The component accepts 1-4 input data sources. Connect any combination:
 4. **Support Ticket Data** (support interactions)
    - Fields: customer_id, ticket_count, critical_issues, csat_score
 
-Connect by drawing edges in Dagster Designer UI from data sources → `customer_health_scores`.
+Connect by drawing edges in Dagster Designer UI from data sources → `customer_health_scores` (asset_key inputs), or point `<name>_source` at a warehouse query directly.
 
 ### Advanced Configuration
 
@@ -216,6 +244,8 @@ support_health_weight: 0.05  # Minimal support
 ```
 
 **Rationale**: High engagement drives retention in consumer products.
+
+**Naming collision to be aware of**: `engagement_weight`/`product_usage_weight`/`payment_health_weight`/`support_health_weight` (documented here) control how the four **component scores** blend into the overall `health_score`. Each component score itself is built from a SEPARATE, hardcoded, non-configurable set of per-indicator weights inside `_calculate_engagement_score`/`_calculate_product_usage_score`/`_calculate_payment_health_score`/`_calculate_support_health_score` (e.g. `last_login_days` contributes 0.4 to the engagement score, `login_frequency` contributes 0.3 -- these numbers are NOT the same thing as `engagement_weight` and aren't exposed as fields). Confirmed by reading the code -- easy to confuse the two levels.
 
 ## Use Cases
 
@@ -546,15 +576,39 @@ Higher thresholds because proactive outreach happens earlier.
 | `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
 | `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
 
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `output_table` | `str` | — | Required when execution_mode='sql'. Destination table the predictions are written to. |
+| `model_name` | `str` | — | Required when execution_mode='sql'. For snowflake/bigquery: the identifier this component creates the model under. For databricks: the name of an already-served Model Serving endpoint -- this dialect trains nothing. |
+| `target_column` | `Union[str, int]` | — | Required when scoring_method='ml'. Column name of the historical outcome label (e.g. 'churned' or 'expanded') -- this does NOT exist in the heuristic's input schema; you must supply it. |
+| `model_path` | `str` | — | scoring_method='ml' only. If set, joblib-dump the trained model to this path after fit. Supports local paths and any fsspec URL (s3://, gs://, abfs://). |
+| `output_probabilities` | `bool` | `true` | scoring_method='ml' only. Add predicted_proba_<class> columns per class |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `customer_data_asset_key` | `str` | — | Customer data asset (CRM, user profiles, etc.) |
-| `subscription_data_asset_key` | `str` | — | Subscription/billing data asset |
-| `product_usage_asset_key` | `str` | — | Product usage/activity data asset |
-| `support_ticket_asset_key` | `str` | — | Support ticket data asset |
-| `analysis_period_days` | `int` | `30` | Number of days to analyze for health calculation |
+| `customer_data_asset_key` | `str` | — | Customer data asset (CRM, user profiles, etc.). Mutually exclusive with `customer_data_source` -- set at most one. |
+| `customer_data_source` | `Dict[str, Any]` | — | Pull customer data directly via SQL instead of from an asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `customer_data_asset_ke… _(full docs in schema.json + component README)_ |
+| `subscription_data_asset_key` | `str` | — | Subscription/billing data asset. Mutually exclusive with `subscription_data_source` -- set at most one. |
+| `subscription_data_source` | `Dict[str, Any]` | — | Pull subscription/billing data directly via SQL instead of from an asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `subscripti… _(full docs in schema.json + component README)_ |
+| `product_usage_asset_key` | `str` | — | Product usage/activity data asset. Mutually exclusive with `product_usage_source` -- set at most one. |
+| `product_usage_source` | `Dict[str, Any]` | — | Pull product usage/activity data directly via SQL instead of from an asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `product_… _(full docs in schema.json + component README)_ |
+| `support_ticket_asset_key` | `str` | — | Support ticket data asset. Mutually exclusive with `support_ticket_source` -- set at most one. |
+| `support_ticket_source` | `Dict[str, Any]` | — | Pull support ticket data directly via SQL instead of from an asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `support_ticket_a… _(full docs in schema.json + component README)_ |
+| `scoring_method` | `str` | `"heuristic"` | 'heuristic' (default): the 4-way join above and hand-tuned weighted scoring below. 'ml': fits a real scikit-learn classifier against a `target_column` you supply over a single, already-joined `upstream_asset_key`/`source… _(full docs in schema.json + component README)_ |
+| `upstream_asset_key` | `str` | — | scoring_method='ml' only. Upstream asset key providing an already-joined DataFrame with target_column + feature_columns. Mutually exclusive with `source` -- set exactly one. |
+| `source` | `Dict[str, Any]` | — | scoring_method='ml' only. Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Also required (with e… _(full docs in schema.json + component README)_ |
+| `execution_mode` | `str` | `"python"` | Only meaningful when scoring_method='ml'. 'python' (default): fits a real scikit-learn LogisticRegression locally. 'sql': trains AND predicts server-side via BigQuery/Snowflake ML (Databricks is predict-only). Requires `… _(full docs in schema.json + component README)_ |
+| `sql_dialect` | `str` | — | `f"Required when scoring_method='ml' and execution_mode='sql'. One of: {_SQL_MODEL_DIALECTS}."` |
+| `feature_columns` | `List[Union[str, int]]` | — | Required when scoring_method='ml'. List of column names to use as classifier features. |
+| `test_size` | `float` | `0.2` | scoring_method='ml' only. Fraction of data to hold out for evaluation |
+| `random_state` | `int` | `42` | scoring_method='ml' only. Random seed for reproducibility |
+| `max_iter` | `int` | `1000` | scoring_method='ml' only. Maximum number of solver iterations |
+| `normalize` | `bool` | `true` | scoring_method='ml' only. Standardize features with StandardScaler before fitting |
+| `analysis_period_days` | `int` | `30` | scoring_method='heuristic' only. Number of days to analyze for health calculation. NOTE: accepted but not currently used by the scoring math (pre-existing, documented not fixed -- see README). |
 | `engagement_weight` | `float` | `0.25` | Weight for engagement metrics (0-1) |
 | `product_usage_weight` | `float` | `0.25` | Weight for product usage metrics (0-1) |
 | `payment_health_weight` | `float` | `0.25` | Weight for payment/subscription health (0-1) |
@@ -564,7 +618,7 @@ Higher thresholds because proactive outreach happens earlier.
 | `churn_risk_threshold` | `float` | `40.0` | Health score below this is considered churn risk |
 | `expansion_opportunity_threshold` | `float` | `75.0` | Health score above this is considered expansion opportunity |
 | `include_factor_breakdown` | `bool` | `true` | Include breakdown of contributing factors in output |
-| `calculate_trend` | `bool` | `true` | Calculate health score trend (requires historical data) |
+| `calculate_trend` | `bool` | `true` | scoring_method='heuristic' only. Calculate health score trend (requires historical data). NOTE: accepted but not currently implemented anywhere -- no trend-calculation code exists (pre-existing, documented not fixed -- see README). |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output DataFrame in metadata (for builder UIs). |
 | `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
@@ -640,3 +694,25 @@ attributes:
 `deps` draws lineage edges in the Dagster asset graph without loading data at runtime. Use it to express that this asset depends on upstream tables or assets produced by other components.
 
 Dependencies can also be wired externally via `map_resolved_asset_specs()` in `definitions.py` — the same approach used by [Dagster Designer](https://github.com/eric-thomas-dagster/dagster_designer).
+
+## Requirements
+
+- `dagster`
+- `pandas`
+- `numpy`
+- `scikit-learn` (only for `scoring_method: ml`)
+- `sqlalchemy` (only for `*_source: {kind: warehouse_query}` ingestion)
+
+## Validation
+
+`validation.level: code` for the `*_source`/`scoring_method`/`execution_mode` additions.
+
+**Live-verified (nothing mocked)**: `scoring_method: heuristic` (default) with customer_data + subscription_data connected via asset keys (multi-row, confirming both the fix below and that the healthiest synthetic customer scores higher than the least healthy), `*_source: {kind: warehouse_query}` against a real DuckDB database for one input while another uses an asset key, `scoring_method: ml` against a labeled synthetic dataset (real scikit-learn `LogisticRegression`, real `predict_proba`-based probability columns).
+
+**Structural only, not executed (no live warehouse credentials in this environment)**: `execution_mode: sql` -- reuses the exact same generated-SQL patterns already live-verified-as-structurally-correct for `logistic_regression_model`.
+
+**Found and fixed a real, pre-existing bug while adding this — the heuristic path crashed on every real multi-row input before this change**: `_normalize_score` used a scalar `if pd.isna(value): ...` guard, but all 5 call sites (in `_calculate_engagement_score`, `_calculate_product_usage_score`, `_calculate_payment_health_score`) pass a full pandas Series -- `pd.isna()` on a multi-element Series returns a Series of booleans, and Python's `if <Series>:` raises `ValueError: The truth value of a Series is ambiguous` for any real input with more than one row. This is the exact same bug, from the exact same original template, as `lead_scoring`'s `_normalize_score` -- both were broken independently, confirmed by re-reading both files. Rewritten to be genuinely vectorized (`.fillna(50.0).clip(...)` on the whole Series). This component had no committed tests at all before this change.
+
+**Also added, matching the newer sibling components in this repo** (this component previously had none of this): `dagster/row_count` and `dagster/column_schema` metadata, `build_column_schema_change_checks` asset checks, and honoring the previously-dead `include_preview_metadata`/`preview_rows` fields (declared but never actually used in `build_defs` before this change).
+
+**Documented, not fixed** (would change output numbers for existing users): `analysis_period_days` and `calculate_trend` are both accepted fields with no effect -- neither is referenced anywhere in the scoring math, and no trend-calculation code exists anywhere in the file despite `calculate_trend`'s description implying otherwise.

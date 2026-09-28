@@ -1,6 +1,33 @@
 # Lead Scoring Component
 
-Intelligently score and qualify leads based on firmographic fit and behavioral intent to prioritize sales efforts and optimize the marketing-to-sales handoff.
+Intelligently score and qualify leads. `scoring_method='heuristic'` (default): the 3-way join described below (firmographic fit + behavioral intent). `scoring_method='ml'`: fits a real scikit-learn classifier against a `target_column` you supply.
+
+## Ingestion (scoring_method='heuristic')
+
+Each of the three named inputs is **independently optional** (at least one must be connected), and each independently supports two ways to get its rows in:
+
+- **`<name>_asset_key`**: the usual Dagster way -- point at any asset producing a DataFrame with that input's columns.
+- **`<name>_source: {kind: warehouse_query, resource_key: ..., sql: ...}`**: pull rows directly via SQL, no upstream asset required. Works out of the box with `duckdb_resource` and any resource exposing `.get_engine()`/`.get_connection()`, or a bare SQLAlchemy connection string via `database_url_env_var` when no Dagster resource is registered.
+
+So you get 6 fields total: `lead_data_asset_key`/`lead_data_source`, `behavioral_data_asset_key`/`behavioral_data_source`, `company_data_asset_key`/`company_data_source` -- set at most one of each pair.
+
+## `scoring_method: ml` -- a real trained classifier, not a heuristic
+
+**None of the fit/intent formulas below are trained against any observed outcome** -- there is no "converted"/"became_opportunity" boolean anywhere in the input schema. So `scoring_method='ml'` is opt-in, requires you bring your own label via `target_column` + `feature_columns`, and works over a single, already-joined `upstream_asset_key`/`source` table -- **it cannot be combined with the 3-way join fields above** (if you need the CRM+behavioral+company join, do it upstream of this component first, then point `scoring_method='ml'` at the joined result).
+
+```yaml
+type: dagster_component_templates.LeadScoringComponent
+attributes:
+  asset_name: lead_conversion_ml
+  scoring_method: ml
+  upstream_asset_key: leads_joined_with_conversion_label
+  target_column: converted
+  feature_columns: [company_size, email_opens, page_views, demo_requests]
+  test_size: 0.2
+  output_probabilities: true
+```
+
+`execution_mode: sql` is also available under `scoring_method: ml` (BigQuery/Snowflake genuine train+predict, Databricks predict-only against an already-served endpoint) -- reuses the exact same audited mapping as `logistic_regression_model`.
 
 ## Purpose
 
@@ -241,14 +268,16 @@ Recent activity is weighted more heavily than old activity.
 
 ```yaml
 asset_name: lead_scores
+lead_data_asset_key: crm_leads
+behavioral_data_asset_key: web_activity
 scoring_model: combined
 mql_threshold: 50
 sql_threshold: 70
 ```
 
-### Input Sources (Connected via Visual Lineage)
+### Input Sources
 
-The component accepts 1-3 input data sources:
+The component accepts 1-3 input data sources, each independently connected via `<name>_asset_key` (visual lineage / point at any asset) or `<name>_source` (direct SQL, see Ingestion above):
 
 1. **Lead Data** (CRM contacts/leads)
    - Fields: lead_id, company_size, industry, job_title, country, annual_revenue
@@ -257,9 +286,10 @@ The component accepts 1-3 input data sources:
    - Fields: lead_id, email_opens, email_clicks, page_views, session_count, demo_requests, last_activity_date
 
 3. **Company Data** (enrichment data - optional)
-   - Fields: company_id, employee_count, annual_revenue, industry, funding_stage
+   - Fields: **one of `company_id`/`account_id`/`organization_id`** (required -- this is the join key merged onto Lead Data; without a matching id column present in BOTH Lead Data and Company Data, Company Data is silently ignored), plus `company_size`/`employee_count`, `industry`, `annual_revenue`, `country`/`region`
+   - **Fixed 2026-09-28**: this input used to be completely non-functional -- `company_data` was accepted as a parameter internally but never referenced anywhere in the scoring code, so connecting it had zero effect on any score, silently. It's now merged onto Lead Data before fit-scoring (left join on the shared id column), so its `company_size`/`industry`/etc. columns are used wherever Lead Data itself lacks them.
 
-Connect by drawing edges in Dagster Designer UI from data sources → `lead_scores`.
+Connect by drawing edges in Dagster Designer UI from data sources → `lead_scores` (asset_key inputs), or point `<name>_source` at a warehouse query directly.
 
 ### Advanced Configuration - B2B SaaS
 
@@ -665,16 +695,39 @@ for _, lead in df.iterrows():
 | `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
 | `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
 
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `output_table` | `str` | — | Required when execution_mode='sql'. Destination table the predictions are written to. |
+| `model_name` | `str` | — | Required when execution_mode='sql'. For snowflake/bigquery: the identifier this component creates the model under. For databricks: the name of an already-served Model Serving endpoint -- this dialect trains nothing. |
+| `target_column` | `Union[str, int]` | — | Required when scoring_method='ml'. Column name of the historical conversion label (e.g. 'converted') -- this does NOT exist in the heuristic's input schema; you must supply it. |
+| `model_path` | `str` | — | scoring_method='ml' only. If set, joblib-dump the trained model to this path after fit. Supports local paths and any fsspec URL (s3://, gs://, abfs://). |
+| `output_probabilities` | `bool` | `true` | scoring_method='ml' only. Add predicted_proba_<class> columns per class |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `lead_data_asset_key` | `str` | — | Lead/contact data from CRM |
-| `behavioral_data_asset_key` | `str` | — | Behavioral/activity data (web visits, email opens, etc.) |
-| `company_data_asset_key` | `str` | — | Company/firmographic data for B2B scoring |
-| `scoring_model` | `str` | `"combined"` | Scoring model: fit_only, intent_only, or combined |
-| `fit_weight` | `float` | `0.4` | Weight for fit score in combined model (0-1) |
-| `intent_weight` | `float` | `0.6` | Weight for intent score in combined model (0-1) |
+| `lead_data_asset_key` | `str` | — | Lead/contact data from CRM. Mutually exclusive with `lead_data_source` -- set at most one. |
+| `lead_data_source` | `Dict[str, Any]` | — | Pull lead/contact data directly via SQL instead of from an asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `lead_data_asset_ke… _(full docs in schema.json + component README)_ |
+| `behavioral_data_asset_key` | `str` | — | Behavioral/activity data (web visits, email opens, etc.). Mutually exclusive with `behavioral_data_source` -- set at most one. |
+| `behavioral_data_source` | `Dict[str, Any]` | — | Pull behavioral/activity data directly via SQL instead of from an asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `behavioral_… _(full docs in schema.json + component README)_ |
+| `company_data_asset_key` | `str` | — | Company/firmographic data for B2B scoring, joined onto lead_data by a shared id column (company_id/account_id/organization_id, whichever is present in both). Mutually exclusive with `company_data_source` -- set at most one. |
+| `company_data_source` | `Dict[str, Any]` | — | Pull company/firmographic data directly via SQL instead of from an asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `company_da… _(full docs in schema.json + component README)_ |
+| `scoring_method` | `str` | `"heuristic"` | 'heuristic' (default): the original 3-way join (lead_data_asset_key/_source, behavioral_data_asset_key/_source, company_data_asset_key/_source, each independently optional) and hand-tuned fit/intent scoring below. 'ml'… _(full docs in schema.json + component README)_ |
+| `upstream_asset_key` | `str` | — | scoring_method='ml' only. Upstream asset key providing an already-joined DataFrame with target_column + feature_columns. Mutually exclusive with `source` -- set exactly one. |
+| `source` | `Dict[str, Any]` | — | scoring_method='ml' only. Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Also required (with e… _(full docs in schema.json + component README)_ |
+| `execution_mode` | `str` | `"python"` | Only meaningful when scoring_method='ml'. 'python' (default): fits a real scikit-learn LogisticRegression locally. 'sql': trains AND predicts server-side via BigQuery/Snowflake ML (Databricks is predict-only). Requires `… _(full docs in schema.json + component README)_ |
+| `sql_dialect` | `str` | — | `f"Required when scoring_method='ml' and execution_mode='sql'. One of: {_SQL_MODEL_DIALECTS}."` |
+| `feature_columns` | `List[Union[str, int]]` | — | Required when scoring_method='ml'. List of column names to use as classifier features. |
+| `test_size` | `float` | `0.2` | scoring_method='ml' only. Fraction of data to hold out for evaluation |
+| `random_state` | `int` | `42` | scoring_method='ml' only. Random seed for reproducibility |
+| `max_iter` | `int` | `1000` | scoring_method='ml' only. Maximum number of solver iterations |
+| `normalize` | `bool` | `true` | scoring_method='ml' only. Standardize features with StandardScaler before fitting |
+| `scoring_model` | `str` | `"combined"` | scoring_method='heuristic' only. Scoring model: fit_only, intent_only, or combined |
+| `fit_weight` | `float` | `0.4` | scoring_method='heuristic' only. Weight for fit score in combined model (0-1) |
+| `intent_weight` | `float` | `0.6` | scoring_method='heuristic' only. Weight for intent score in combined model (0-1) |
 | `company_size_weight` | `float` | `0.25` | Weight for company size in fit score |
 | `industry_weight` | `float` | `0.25` | Weight for industry match in fit score |
 | `job_title_weight` | `float` | `0.25` | Weight for job title relevance in fit score |
@@ -758,3 +811,28 @@ attributes:
 `deps` draws lineage edges in the Dagster asset graph without loading data at runtime. Use it to express that this asset depends on upstream tables or assets produced by other components.
 
 Dependencies can also be wired externally via `map_resolved_asset_specs()` in `definitions.py` — the same approach used by [Dagster Designer](https://github.com/eric-thomas-dagster/dagster_designer).
+
+## Requirements
+
+- `dagster`
+- `pandas`
+- `numpy`
+- `scikit-learn` (only for `scoring_method: ml`)
+- `sqlalchemy` (only for `*_source: {kind: warehouse_query}` ingestion)
+
+## Validation
+
+`validation.level: code` for the `*_source`/`scoring_method`/`execution_mode` additions.
+
+**Live-verified (nothing mocked)**: `scoring_method: heuristic` (default) with lead_data + behavioral_data connected via asset keys, `*_source: {kind: warehouse_query}` against a real DuckDB database for one input while another uses an asset key, `scoring_method: ml` against a labeled synthetic dataset (real scikit-learn `LogisticRegression`, real `predict_proba`-based probability columns).
+
+**Structural only, not executed (no live warehouse credentials in this environment)**: `execution_mode: sql` -- reuses the exact same generated-SQL patterns already live-verified-as-structurally-correct for `logistic_regression_model`.
+
+**Found and fixed two real, pre-existing bugs while adding this — both mean this component has never fully worked before**:
+
+1. **`company_data_asset_key` had zero effect on any score.** `_calculate_fit_score(self, lead_data, company_data)` accepted `company_data` as a parameter, but its body never referenced it anywhere -- fit scoring only ever read columns from `lead_data`. Confirmed by re-reading the entire method body before touching it. Fixed by merging `company_data` onto `lead_data` (left join on whichever of `company_id`/`account_id`/`organization_id` is present in both) before scoring, with a regression test (`test_company_data_actually_affects_fit_score`) that asserts connecting `company_data` measurably raises fit scores.
+2. **Intent scoring crashed on every real multi-row `behavioral_data` DataFrame.** `_normalize_score` used a scalar `if pd.isna(value): ...` guard, but all 7 call sites in `_calculate_intent_score` pass a full pandas Series -- `pd.isna()` on a multi-element Series returns a Series of booleans, and Python's `if <Series>:` raises `ValueError: The truth value of a Series is ambiguous` for any behavioral_data with more than one row. Confirmed live: a 3-row test DataFrame crashed immediately before this fix. Rewritten to be genuinely vectorized (`.fillna(0).clip(0, 100)` on the whole Series).
+
+Neither bug is related to this session's dual-ingestion/scoring_method work -- both were latent in code nobody had ever exercised with a real multi-row `dg.materialize()` call before these committed tests existed (this component had no committed tests at all before this change).
+
+**Also added, matching the newer sibling components in this repo** (this component previously had none of this): `dagster/row_count` and `dagster/column_schema` metadata, `build_column_schema_change_checks` asset checks, and honoring the previously-dead `include_preview_metadata`/`preview_rows` fields (declared but never actually used in `build_defs` before this change).

@@ -8633,7 +8633,7 @@
       "id": "customer_health_score",
       "name": "Customer Health Score",
       "category": "analytics",
-      "description": "Component that calculates customer health scores from multiple data sources.",
+      "description": "Predict customer churn risk + identify expansion opportunities. `scoring_method='heuristic'` (default): 4-way join (customer_data, subscription_data, product_usage, support_ticket -- each independently optional, each supporting *_asset_key OR *_source: {kind: warehouse_query}) and hand-tuned weighted scoring. `scoring_method='ml'` (new): fits a real scikit-learn LogisticRegression against a `target_column` you supply over a single, already-joined `upstream_asset_key`/`source` table, with `execution_mode: sql` available (BigQuery/Snowflake genuine train+predict, Databricks predict-only).",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/analytics/customer_health_score",
@@ -8641,10 +8641,19 @@
         "analytics",
         "customer",
         "health",
-        "score"
+        "score",
+        "warehouse query",
+        "duckdb",
+        "bigquery",
+        "snowflake",
+        "databricks",
+        "sql execution mode"
       ],
       "dependencies": {
-        "pip": []
+        "pip": [
+          "pandas>=1.5.0",
+          "numpy>=1.23.0"
+        ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/customer_health_score/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/customer_health_score/component.py",
@@ -8654,21 +8663,31 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/customer_health_score/requirements.txt",
       "validation": {
         "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
-        "last_validated": "2026-05-08"
+        "evidence": "*_source/scoring_method/execution_mode additions (added 2026-09-28): scoring_method='heuristic' (default) live-verified with customer_data + subscription_data connected via asset keys (multi-row), and one input via *_source: warehouse_query against real DuckDB while another uses an asset key. Also found and fixed a real pre-existing bug while adding this: _normalize_score used a scalar pd.isna() guard against Series inputs at all 5 call sites ('truth value of a Series is ambiguous') -- the heuristic path crashed on every real multi-row input before this fix. Same bug, same original template, as lead_scoring's _normalize_score (both fixed independently). This component had no committed tests at all before this change. scoring_method='ml' live-verified against labeled synthetic data (real scikit-learn LogisticRegression, real predict_proba probability columns). execution_mode='sql' is structural-only -- no live warehouse credentials in this environment; reuses the exact same generated-SQL patterns already live-verified-as-structurally-correct for logistic_regression_model.",
+        "last_validated": "2026-09-28"
       },
       "agent_hints": {
-        "inputs": "DataFrame with customer engagement/usage/spend features.",
-        "outputs": "DataFrame + `health_score` column (0-100 or similar).",
-        "side_effects": "Adds column. Score is a weighted combination per config.",
-        "anti_uses": "For churn probability use churn_prediction. For LTV use ltv_prediction."
+        "inputs": "scoring_method='heuristic' (default): up to 4 independently-optional DataFrames (customer_data, subscription_data, product_usage, support_ticket), each via *_asset_key or *_source. scoring_method='ml': a single already-joined DataFrame via upstream_asset_key/source, requiring target_column (a historical churn/expansion label -- does NOT exist in typical schemas, must be supplied) + feature_columns.",
+        "outputs": "scoring_method='heuristic': DataFrame + health_score/risk_category/is_churn_risk/is_expansion_opportunity columns. scoring_method='ml': DataFrame + predicted_class/predicted_proba_<class> columns for the FULL input (not test-set-only).",
+        "side_effects": "scoring_method='heuristic': pandas/numpy only, no sklearn dependency. scoring_method='ml': requires scikit-learn. execution_mode='sql' (ml mode only) runs CREATE MODEL in the target warehouse.",
+        "anti_uses": "For churn probability with a real label prefer scoring_method='ml' directly, or logistic_regression_model. For LTV use ltv_prediction.",
+        "requires_pip": [
+          "scikit-learn"
+        ],
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame"
       },
       "produces": [
-        "asset"
+        "asset",
+        "asset_check"
       ],
       "keywords": [
         "report",
-        "aggregate"
+        "aggregate",
+        "warehouse query",
+        "duckdb",
+        "sql execution mode",
+        "bigquery ml"
       ]
     },
     {
@@ -22717,7 +22736,7 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/gradient_boosting_model/requirements.txt",
       "validation": {
         "level": "live",
-        "evidence": "Original python-mode: https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md . source/execution_mode additions (added 2026-09-28): source: warehouse_query live-verified against real DuckDB. execution_mode='sql' is structural-only for all 3 dialects -- generated SQL asserted against each platform's documented syntax, not run against a live warehouse account.",
+        "evidence": "Original python-mode: https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md . source/execution_mode additions (added 2026-09-28): source: warehouse_query live-verified against real DuckDB. execution_mode='sql' is structural-only for all 3 dialects -- generated SQL asserted against each platform's documented syntax, not run against a live warehouse account. Also fixed (2026-09-28): the classification branch computed accuracy/classification_report but never logged them (only the regression branch called add_output_metadata) -- now both branches log real metrics.",
         "last_validated": "2026-09-28"
       },
       "agent_hints": {
@@ -26283,7 +26302,7 @@
       "icon": "BarChart2",
       "validation": {
         "level": "live",
-        "evidence": "Original python-mode: https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/iris_unsupervised.md . source/execution_mode additions (added 2026-09-28): source: warehouse_query live-verified against real DuckDB. execution_mode='sql' is structural-only -- generated SQL asserted against BigQuery ML-function documentation (confirmed centroid_id/nearest_centroids_distance output column names), not run against a live warehouse account.",
+        "evidence": "Original python-mode: https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/iris_unsupervised.md . source/execution_mode additions (added 2026-09-28): source: warehouse_query live-verified against real DuckDB. execution_mode='sql' is structural-only -- generated SQL asserted against BigQuery ML-function documentation (confirmed centroid_id/nearest_centroids_distance output column names), not run against a live warehouse account. Also fixed (2026-09-28): n_clusters/inertia/n_iterations/cluster_sizes were computed (or computable) but never logged as metadata -- all four now real.",
         "last_validated": "2026-09-28"
       },
       "agent_hints": {
@@ -27201,17 +27220,26 @@
       "id": "lead_scoring",
       "name": "Lead Scoring",
       "category": "analytics",
-      "description": "Component that scores and qualifies leads for sales prioritization.",
+      "description": "Score and qualify leads based on firmographic fit + behavioral intent. `scoring_method='heuristic'` (default): 3-way join (lead_data, behavioral_data, company_data -- each independently optional, each supporting *_asset_key OR *_source: {kind: warehouse_query}) and hand-tuned fit/intent scoring. `scoring_method='ml'` (new): fits a real scikit-learn LogisticRegression against a `target_column` you supply over a single, already-joined `upstream_asset_key`/`source` table, with `execution_mode: sql` available (BigQuery/Snowflake genuine train+predict, Databricks predict-only).",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/analytics/lead_scoring",
       "tags": [
         "analytics",
         "lead",
-        "scoring"
+        "scoring",
+        "warehouse query",
+        "duckdb",
+        "bigquery",
+        "snowflake",
+        "databricks",
+        "sql execution mode"
       ],
       "dependencies": {
-        "pip": []
+        "pip": [
+          "pandas>=1.5.0",
+          "numpy>=1.23.0"
+        ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/lead_scoring/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/lead_scoring/component.py",
@@ -27221,23 +27249,31 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/lead_scoring/requirements.txt",
       "validation": {
         "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
-        "last_validated": "2026-05-08"
+        "evidence": "*_source/scoring_method/execution_mode additions (added 2026-09-28): scoring_method='heuristic' (default) live-verified with lead_data + behavioral_data connected via asset keys, and one input via *_source: warehouse_query against real DuckDB while another uses an asset key. Also found and fixed two real pre-existing bugs while adding this: (1) company_data_asset_key had ZERO effect on any score -- _calculate_fit_score accepted company_data as a parameter but never referenced it anywhere in its body; now merged onto lead_data on a shared company_id/account_id/organization_id before scoring, with a regression test. (2) intent scoring crashed on every real multi-row behavioral_data DataFrame (_normalize_score used a scalar pd.isna() guard against Series inputs at all 7 call sites -- 'truth value of a Series is ambiguous'); rewritten to be genuinely vectorized. Neither bug is related to this session's own dual-ingestion work; this component had no committed tests at all before this change. scoring_method='ml' live-verified against labeled synthetic data (real scikit-learn LogisticRegression, real predict_proba probability columns). execution_mode='sql' is structural-only -- no live warehouse credentials in this environment; reuses the exact same generated-SQL patterns already live-verified-as-structurally-correct for logistic_regression_model.",
+        "last_validated": "2026-09-28"
       },
       "agent_hints": {
-        "inputs": "DataFrame with lead features + conversion labels (or scoring rules).",
-        "outputs": "DataFrame + score column.",
-        "side_effects": "Requires sklearn if ML-based; pure pandas if rule-based.",
+        "inputs": "scoring_method='heuristic' (default): up to 3 independently-optional DataFrames (lead_data, behavioral_data, company_data), each via *_asset_key or *_source. scoring_method='ml': a single already-joined DataFrame via upstream_asset_key/source, requiring target_column (a historical conversion label -- does NOT exist in typical CRM/behavioral schemas, must be supplied) + feature_columns.",
+        "outputs": "scoring_method='heuristic': DataFrame + lead_score/lead_temperature/lead_grade/is_mql/is_sql columns. scoring_method='ml': DataFrame + predicted_class/predicted_proba_<class> columns for the FULL input (not test-set-only).",
+        "side_effects": "scoring_method='heuristic': pandas/numpy only, no sklearn dependency. scoring_method='ml': requires scikit-learn. execution_mode='sql' (ml mode only) runs CREATE MODEL in the target warehouse.",
+        "anti_uses": "For generic binary classification with a label you already have, prefer logistic_regression_model directly (same underlying algorithm, more direct).",
         "requires_pip": [
-          "sklearn"
-        ]
+          "scikit-learn"
+        ],
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame"
       },
       "produces": [
-        "asset"
+        "asset",
+        "asset_check"
       ],
       "keywords": [
         "report",
-        "aggregate"
+        "aggregate",
+        "warehouse query",
+        "duckdb",
+        "sql execution mode",
+        "bigquery ml"
       ]
     },
     {
@@ -29037,7 +29073,7 @@
       "icon": "BarChart2",
       "validation": {
         "level": "live",
-        "evidence": "Original python-mode: https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/titanic_complete.md . source/execution_mode additions (added 2026-09-28): source: warehouse_query live-verified against real DuckDB. execution_mode='sql' is structural-only for all 3 dialects (bigquery/snowflake/databricks) -- generated SQL asserted against each platform's documented ML-function/ai_query syntax, not run against a live warehouse account.",
+        "evidence": "Original python-mode: https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/titanic_complete.md . source/execution_mode additions (added 2026-09-28): source: warehouse_query live-verified against real DuckDB. execution_mode='sql' is structural-only for all 3 dialects (bigquery/snowflake/databricks) -- generated SQL asserted against each platform's documented ML-function/ai_query syntax, not run against a live warehouse account. Also fixed (2026-09-28): accuracy/classification_report were computed but never logged as metadata (added n_classes too).",
         "last_validated": "2026-09-28"
       },
       "agent_hints": {
@@ -32479,7 +32515,7 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/neural_network_model/requirements.txt",
       "validation": {
         "level": "live",
-        "evidence": "Original python-mode: https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md . source/execution_mode additions (added 2026-09-28): source: warehouse_query live-verified against real DuckDB. execution_mode='sql' is structural-only for all 3 dialects -- generated SQL asserted against each platform's documented syntax, not run against a live warehouse account.",
+        "evidence": "Original python-mode: https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md . source/execution_mode additions (added 2026-09-28): source: warehouse_query live-verified against real DuckDB. execution_mode='sql' is structural-only for all 3 dialects -- generated SQL asserted against each platform's documented syntax, not run against a live warehouse account. Also fixed (2026-09-28): the classification branch computed accuracy/classification_report but never logged them (only the regression branch called add_output_metadata) -- now both branches log real metrics.",
         "last_validated": "2026-09-28"
       },
       "agent_hints": {

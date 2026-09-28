@@ -24,36 +24,178 @@
     "customer_data_asset_key": {
       "type": "string",
       "label": "Customer Data Asset",
-      "description": "Customer data asset (CRM, user profiles, etc.)",
+      "description": "Customer data asset (CRM, user profiles, etc.). Mutually exclusive with customer_data_source -- set at most one.",
       "required": false,
-      "default": ""
+      "default": null
+    },
+    "customer_data_source": {
+      "type": "object",
+      "label": "Customer Data Source",
+      "description": "Pull customer data directly via SQL instead of from an asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with customer_data_asset_key -- set at most one.",
+      "required": false
     },
     "subscription_data_asset_key": {
       "type": "string",
       "label": "Subscription Data Asset",
-      "description": "Subscription/billing data asset",
+      "description": "Subscription/billing data asset. Mutually exclusive with subscription_data_source -- set at most one.",
       "required": false,
-      "default": "",
-      "ui:widget": "code"
+      "default": null
+    },
+    "subscription_data_source": {
+      "type": "object",
+      "label": "Subscription Data Source",
+      "description": "Pull subscription/billing data directly via SQL instead of from an asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with subscription_data_asset_key -- set at most one.",
+      "required": false
     },
     "product_usage_asset_key": {
       "type": "string",
       "label": "Product Usage Asset",
-      "description": "Product usage/activity data asset",
+      "description": "Product usage/activity data asset. Mutually exclusive with product_usage_source -- set at most one.",
       "required": false,
-      "default": ""
+      "default": null
+    },
+    "product_usage_source": {
+      "type": "object",
+      "label": "Product Usage Source",
+      "description": "Pull product usage/activity data directly via SQL instead of from an asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with product_usage_asset_key -- set at most one.",
+      "required": false
     },
     "support_ticket_asset_key": {
       "type": "string",
       "label": "Support Ticket Asset",
-      "description": "Support ticket data asset",
+      "description": "Support ticket data asset. Mutually exclusive with support_ticket_source -- set at most one.",
       "required": false,
-      "default": ""
+      "default": null
+    },
+    "support_ticket_source": {
+      "type": "object",
+      "label": "Support Ticket Source",
+      "description": "Pull support ticket data directly via SQL instead of from an asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with support_ticket_asset_key -- set at most one.",
+      "required": false
+    },
+    "scoring_method": {
+      "type": "string",
+      "label": "Scoring Method",
+      "required": false,
+      "default": "heuristic",
+      "enum": [
+        "heuristic",
+        "ml"
+      ],
+      "ui:widget": "select",
+      "description": "'heuristic' (default): the 4-way join above and hand-tuned weighted scoring. 'ml': fits a real scikit-learn classifier against a target_column you supply over a single, already-joined upstream_asset_key/source table -- cannot be combined with the 4-way join fields."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "scoring_method='ml' only. Upstream asset key providing an already-joined DataFrame with target_column + feature_columns. Mutually exclusive with source -- set exactly one."
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "scoring_method='ml' only. Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with upstream_asset_key -- set exactly one."
+    },
+    "execution_mode": {
+      "type": "string",
+      "label": "Execution Mode",
+      "required": false,
+      "default": "python",
+      "enum": [
+        "python",
+        "sql"
+      ],
+      "description": "Only meaningful when scoring_method='ml'. 'python' (default): fits a real scikit-learn LogisticRegression locally. 'sql': trains AND predicts server-side via BigQuery/Snowflake ML (Databricks is predict-only)."
+    },
+    "sql_dialect": {
+      "type": "string",
+      "label": "SQL Dialect",
+      "required": false,
+      "enum": [
+        "snowflake",
+        "bigquery",
+        "databricks"
+      ],
+      "description": "Required when scoring_method='ml' and execution_mode='sql'."
+    },
+    "output_table": {
+      "type": "string",
+      "label": "Output Table",
+      "required": false,
+      "description": "Required when execution_mode='sql'. Destination table the predictions are written to."
+    },
+    "model_name": {
+      "type": "string",
+      "label": "Model Name",
+      "required": false,
+      "description": "Required when execution_mode='sql'. For snowflake/bigquery: the identifier this component creates the model under. For databricks: the name of an already-served Model Serving endpoint."
+    },
+    "target_column": {
+      "type": "string",
+      "label": "Target Column",
+      "required": false,
+      "x-dagster-widget": "column",
+      "description": "Required when scoring_method='ml'. Column name of the historical outcome label (e.g. 'churned' or 'expanded') -- this does NOT exist in the heuristic's input schema; you must supply it."
+    },
+    "feature_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Feature Columns",
+      "required": false,
+      "ui:widget": "list",
+      "x-dagster-widget": "columns",
+      "description": "Required when scoring_method='ml'. List of column names to use as classifier features."
+    },
+    "test_size": {
+      "type": "number",
+      "label": "Test Size",
+      "required": false,
+      "default": 0.2,
+      "description": "scoring_method='ml' only. Fraction of data to hold out for evaluation"
+    },
+    "random_state": {
+      "type": "integer",
+      "label": "Random State",
+      "required": false,
+      "default": 42,
+      "description": "scoring_method='ml' only. Random seed for reproducibility"
+    },
+    "max_iter": {
+      "type": "integer",
+      "label": "Max Iter",
+      "required": false,
+      "default": 1000,
+      "description": "scoring_method='ml' only. Maximum number of solver iterations"
+    },
+    "model_path": {
+      "type": "string",
+      "label": "Model Path",
+      "required": false,
+      "description": "scoring_method='ml' only. If set, joblib-dump the trained model to this path after fit."
+    },
+    "output_probabilities": {
+      "type": "boolean",
+      "label": "Output Probabilities",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox",
+      "description": "scoring_method='ml' only. Add predicted_proba_<class> columns per class"
+    },
+    "normalize": {
+      "type": "boolean",
+      "label": "Normalize",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox",
+      "description": "scoring_method='ml' only. Standardize features with StandardScaler before fitting"
     },
     "analysis_period_days": {
       "type": "integer",
       "label": "Analysis Period Days",
-      "description": "Number of days to analyze for health calculation",
+      "description": "scoring_method='heuristic' only. Number of days to analyze for health calculation. NOTE: accepted but not currently used by the scoring math (pre-existing, documented not fixed).",
       "required": false,
       "default": 30
     },

@@ -146,6 +146,8 @@ group_name: churn_models
 - `n_classes` — Number of distinct target classes
 - `train_rows` / `test_rows` — Split sizes
 
+**Fixed 2026-09-28**: `accuracy`/`classification_report` were already computed internally but silently discarded (this README claimed they were logged when they weren't); `n_classes` is newly added. All five are now real, populated metadata.
+
 ## IO Manager Note
 
 This component uses Dagster's IO manager to pass DataFrames between assets. No IO manager configuration is required for local development — Dagster's default FilesystemIOManager handles serialization automatically.

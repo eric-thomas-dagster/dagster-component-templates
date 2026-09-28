@@ -142,7 +142,7 @@ group_name: churn_models
 
 ## Metadata Logged
 
-Classification: `accuracy`, `n_estimators`, `train_rows`, `test_rows`
+Classification: `accuracy`, `classification_report`, `n_estimators`, `train_rows`, `test_rows`. **Fixed 2026-09-28**: `accuracy`/`classification_report` were already computed internally but silently discarded -- this branch had no `context.add_output_metadata` call at all before this fix (only the regression branch did).
 
 Regression: `r2_score`, `n_estimators`, `train_rows`, `test_rows`
 

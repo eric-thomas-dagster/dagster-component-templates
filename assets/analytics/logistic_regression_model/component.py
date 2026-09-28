@@ -671,6 +671,11 @@ class LogisticRegressionModelComponent(Component, Model, Resolvable):
             _metadata = {
                 "dagster/row_count": MetadataValue.int(len(df)),
                 "dagster/column_schema": MetadataValue.table_schema(_col_schema),
+                "accuracy": MetadataValue.float(float(accuracy)),
+                "classification_report": MetadataValue.md(f"```\n{report}\n```"),
+                "n_classes": MetadataValue.int(len(model.classes_)),
+                "train_rows": MetadataValue.int(len(X_train)),
+                "test_rows": MetadataValue.int(len(X_test)),
             }
             # Use explicit lineage, or auto-infer passthrough columns at runtime
             _effective_lineage = column_lineage

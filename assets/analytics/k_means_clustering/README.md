@@ -129,7 +129,7 @@ group_name: segmentation
 
 ## Metadata Logged
 
-Only `dagster/row_count` and `dagster/column_schema` are actually populated (confirmed by reading the code). `cluster_sizes` is computed internally but never added to the metadata dict; `n_clusters`/`inertia`/`n_iterations` are never computed at all -- an earlier version of this README claimed all five were logged.
+**Fixed 2026-09-28**: `n_clusters`, `inertia` (`km.inertia_`), `n_iterations` (`km.n_iter_`), and `cluster_sizes` are now all real, populated metadata, alongside `dagster/row_count`/`dagster/column_schema`. Previously `cluster_sizes` was computed internally but never added to the metadata dict, and `inertia`/`n_iterations` were never computed at all -- an earlier version of this README claimed all were logged when none were.
 
 ## IO Manager Note
 

@@ -52,6 +52,10 @@ def test_python_mode_upstream_asset_key(mod, iris_df, feature_cols):
     assert "cluster" in df_out.columns
     assert df_out["cluster"].nunique() == 3
 
+    mats = result.asset_materializations_for_node("km_out")
+    assert "inertia" in mats[0].metadata
+    assert "cluster_sizes" in mats[0].metadata
+
 
 @requires_duckdb
 def test_python_mode_source_warehouse_query_against_real_duckdb(mod, iris_df, feature_cols, tmp_path):

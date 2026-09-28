@@ -128,7 +128,7 @@ group_name: renewal_models
 
 Regression: `r2_score`, `mean_absolute_error`, `n_estimators`, `train_rows`, `test_rows`.
 
-Classification currently computes `accuracy`/`classification_report` internally but does not emit them as asset metadata (a pre-existing gap in the python-mode path, not something this session's changes touch).
+Classification: `accuracy`, `classification_report`, `train_rows`, `test_rows`. **Fixed 2026-09-28**: these were already computed internally but silently discarded -- only the regression branch called `context.add_output_metadata` before this fix.
 
 ## Requirements
 

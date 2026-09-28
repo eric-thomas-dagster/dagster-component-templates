@@ -608,6 +608,12 @@ class KMeansClusteringComponent(Component, Model, Resolvable):
             _metadata = {
                 "dagster/row_count": MetadataValue.int(len(df)),
                 "dagster/column_schema": MetadataValue.table_schema(_col_schema),
+                "n_clusters": MetadataValue.int(n_clusters),
+                "inertia": MetadataValue.float(float(km.inertia_)),
+                "n_iterations": MetadataValue.int(int(km.n_iter_)),
+                "cluster_sizes": MetadataValue.md(
+                    "\n".join(f"- cluster {k}: {v} rows" for k, v in sorted(cluster_sizes.items()))
+                ),
             }
             # Use explicit lineage, or auto-infer passthrough columns at runtime
             _effective_lineage = column_lineage

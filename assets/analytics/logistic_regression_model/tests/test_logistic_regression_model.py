@@ -61,6 +61,9 @@ def test_python_mode_upstream_asset_key(mod, breast_cancer_df, feature_cols):
     assert "predicted_class" in df_out.columns
     assert any(c.startswith("predicted_proba_") for c in df_out.columns)
 
+    mats = result.asset_materializations_for_node("lr_out")
+    assert "accuracy" in mats[0].metadata
+
 
 @requires_duckdb
 def test_python_mode_source_warehouse_query_against_real_duckdb(mod, breast_cancer_df, feature_cols, tmp_path):

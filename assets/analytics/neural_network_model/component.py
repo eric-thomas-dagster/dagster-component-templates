@@ -653,6 +653,12 @@ class NeuralNetworkModelComponent(Component, Model, Resolvable):
                 y_pred = model.predict(X_test)
                 accuracy = accuracy_score(y_test, y_pred)
                 report = classification_report(y_test, y_pred)
+                context.add_output_metadata({
+                    "accuracy": MetadataValue.float(float(accuracy)),
+                    "classification_report": MetadataValue.md(f"```\n{report}\n```"),
+                    "train_rows": MetadataValue.int(len(X_train)),
+                    "test_rows": MetadataValue.int(len(X_test)),
+                })
 
             elif task_type == "regression":
                 from sklearn.metrics import mean_absolute_error, r2_score

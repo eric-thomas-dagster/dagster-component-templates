@@ -34438,11 +34438,16 @@
       "id": "pca",
       "name": "PCA",
       "category": "analytics",
-      "description": "Reduce DataFrame dimensionality using Principal Component Analysis.",
+      "description": "Reduce DataFrame dimensionality using Principal Component Analysis. Supports `source: {kind: warehouse_query}` direct-SQL ingestion (DuckDB and other databases) alongside `upstream_asset_key`, and `execution_mode: sql` -- trains AND predicts server-side via BigQuery `CREATE MODEL...OPTIONS(model_type='PCA')` + `ML.PREDICT`. BigQuery-ONLY: Snowflake ML has no PCA function and Databricks has no natural predict-against-a-served-endpoint story for PCA (no stable label space).",
       "path": "assets/analytics/pca",
       "tags": [
         "analytics",
-        "pca"
+        "pca",
+        "dimensionality reduction",
+        "warehouse query",
+        "duckdb",
+        "bigquery",
+        "sql execution mode"
       ],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pca/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pca/component.py",
@@ -34452,14 +34457,14 @@
       "icon": "BarChart2",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/iris_unsupervised.md",
-        "last_validated": "2026-05-06"
+        "evidence": "Original python-mode: https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/iris_unsupervised.md . source/execution_mode additions (added 2026-09-28): source: warehouse_query live-verified against real DuckDB, plus a pre-existing bug fix (model_path was never extracted from self in build_defs -- python mode raised a bare NameError on every materialize before this change; now live-verified the joblib-dump/load round trip works). execution_mode='sql' is structural-only -- generated SQL asserted against BigQuery ML-function documentation (confirmed principal_component_1..N output column names), not run against a live warehouse account.",
+        "last_validated": "2026-09-28"
       },
       "agent_hints": {
-        "inputs": "DataFrame with numeric feature columns.",
-        "outputs": "DataFrame with PC1..PCN columns replacing the original feature columns. Rows unchanged.",
-        "side_effects": "REMOVES the original feature columns and REPLACES with N principal components. Downstream references to original column names will KeyError.",
-        "anti_uses": "Only for numeric features \u2014 one-hot encode categoricals FIRST. Set n_components based on desired explained variance.",
+        "inputs": "DataFrame with numeric feature columns (upstream_asset_key), or a SQL FROM-source (source: {kind: warehouse_query}).",
+        "outputs": "DataFrame with PC1..PCN columns replacing (or, if keep_original, alongside) the original feature columns. execution_mode='sql' writes directly to output_table in the warehouse instead.",
+        "side_effects": "REMOVES the original feature columns and REPLACES with N principal components (unless keep_original: true). Downstream references to original column names will KeyError. execution_mode='sql' runs CREATE MODEL in the target warehouse.",
+        "anti_uses": "Only for numeric features -- one-hot encode categoricals FIRST. Set n_components based on desired explained variance.",
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame"
       },
@@ -34478,7 +34483,11 @@
       ],
       "keywords": [
         "report",
-        "aggregate"
+        "aggregate",
+        "warehouse query",
+        "duckdb",
+        "sql execution mode",
+        "bigquery ml"
       ]
     },
     {

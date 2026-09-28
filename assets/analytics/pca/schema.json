@@ -24,8 +24,46 @@
     "upstream_asset_key": {
       "type": "string",
       "label": "Upstream Asset Key",
-      "description": "Upstream asset key providing a DataFrame",
-      "required": true
+      "description": "Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one.",
+      "required": false
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Also required (with execution_mode='sql') to name the FROM-source for the server-side training/prediction query. Mutually exclusive with `upstream_asset_key` -- set exactly one."
+    },
+    "execution_mode": {
+      "type": "string",
+      "label": "Execution Mode",
+      "required": false,
+      "default": "python",
+      "enum": [
+        "python",
+        "sql"
+      ],
+      "description": "'python' (default): fits a real scikit-learn PCA locally. 'sql': trains AND predicts server-side via BigQuery CREATE MODEL...OPTIONS(model_type='PCA') + ML.PREDICT -- BigQuery-ONLY, since Snowflake ML has no PCA function and Databricks has no natural predict-against-a-served-endpoint story for PCA. Requires `source`, `sql_dialect='bigquery'`, `output_table`, and `model_name`."
+    },
+    "sql_dialect": {
+      "type": "string",
+      "label": "SQL Dialect",
+      "required": false,
+      "enum": [
+        "bigquery"
+      ],
+      "description": "Required when execution_mode='sql'. Only bigquery is offered."
+    },
+    "output_table": {
+      "type": "string",
+      "label": "Output Table",
+      "required": false,
+      "description": "Required when execution_mode='sql'. Destination table the PC-projected rows are written to."
+    },
+    "model_name": {
+      "type": "string",
+      "label": "Model Name",
+      "required": false,
+      "description": "Required when execution_mode='sql'. The model identifier this component creates in BigQuery."
     },
     "feature_columns": {
       "type": "array",

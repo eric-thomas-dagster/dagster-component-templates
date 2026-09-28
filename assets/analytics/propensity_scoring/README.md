@@ -1,6 +1,31 @@
 # Propensity Scoring Component
 
-Calculate customer propensity scores for various actions using heuristic scoring. Identify high-propensity customers for targeted campaigns and interventions.
+Calculate customer propensity scores. `scoring_method='heuristic'` (default): the original per-`propensity_type` behavior-pattern scoring, unchanged. `scoring_method='ml'`: fits a real scikit-learn classifier against a `target_column` you supply.
+
+## Ingestion
+
+Two ways to get the rows in, set exactly one, for either `scoring_method`:
+
+- **`upstream_asset_key`**: the usual Dagster way -- point at any asset producing a DataFrame with the input columns below.
+- **`source: {kind: warehouse_query, resource_key: ..., sql: ...}`**: pull rows directly via SQL, no upstream asset required. Works out of the box with `duckdb_resource` and any resource exposing `.get_engine()`/`.get_connection()`, or a bare SQLAlchemy connection string via `database_url_env_var` when no Dagster resource is registered.
+
+## `scoring_method: ml` -- a real trained classifier, not a heuristic
+
+**None of the 4 `propensity_type` formulas below are fit against any observed outcome** -- they're all pure behavioral recency/frequency proxies. There is no "did purchase"/"did upgrade"/"did refer" boolean anywhere in the input schema. So `scoring_method='ml'` is opt-in and requires you bring your own label (e.g. a historical `converted` boolean) via `target_column`, plus `feature_columns` naming which columns to train on. `propensity_type` becomes purely a label/description string in `ml` mode -- it no longer selects a different formula.
+
+```yaml
+type: dagster_component_templates.PropensityScoringComponent
+attributes:
+  asset_name: purchase_propensity_ml
+  upstream_asset_key: customer_behavior_with_conversion_label
+  scoring_method: ml
+  target_column: converted
+  feature_columns: [activity_count, engagement_score]
+  test_size: 0.2
+  output_probabilities: true
+```
+
+`execution_mode: sql` is also available under `scoring_method: ml` (BigQuery/Snowflake genuine train+predict, Databricks predict-only against an already-served endpoint) -- reuses the exact same audited mapping as `logistic_regression_model`.
 
 ## Purpose
 
@@ -21,7 +46,6 @@ Scores range 0-100, classified as High/Medium/Low propensity.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with customer behavior data |
 
 ### Catalog metadata
 
@@ -62,12 +86,32 @@ Scores range 0-100, classified as High/Medium/Low propensity.
 | `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
 | `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
 
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `output_table` | `str` | — | Required when execution_mode='sql'. Destination table the predictions are written to. |
+| `model_name` | `str` | — | Required when execution_mode='sql'. For snowflake/bigquery: the identifier this component creates the model under. For databricks: the name of an already-served Model Serving endpoint -- this dialect trains nothing. |
+| `target_column` | `Union[str, int]` | — | Required when scoring_method='ml'. Column name of the historical outcome label (e.g. 'converted') -- this does NOT exist in the heuristic's input schema; you must supply it. |
+| `model_path` | `str` | — | scoring_method='ml' only. If set, joblib-dump the trained model to this path after fit. Supports local paths and any fsspec URL (s3://, gs://, abfs://). |
+| `output_probabilities` | `bool` | `true` | scoring_method='ml' only. Add predicted_proba_<class> columns per class |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `propensity_type` | `str` | `"purchase"` | Type of propensity: purchase, upgrade, referral, engagement |
-| `scoring_window_days` | `int` | `90` | Days of historical data to use for scoring |
+| `upstream_asset_key` | `str` | — | Upstream asset key providing a DataFrame with customer behavior data. Mutually exclusive with `source` -- set exactly one. |
+| `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Also required (with execution_mode='sql') to na… _(full docs in schema.json + component README)_ |
+| `scoring_method` | `str` | `"heuristic"` | 'heuristic' (default): the original behavior-pattern scoring below, unchanged. 'ml': fits a real scikit-learn classifier against a `target_column` you supply. None of the 4 propensity_type formulas are fit against any ob… _(full docs in schema.json + component README)_ |
+| `execution_mode` | `str` | `"python"` | Only meaningful when scoring_method='ml'. 'python' (default): fits a real scikit-learn LogisticRegression locally. 'sql': trains AND predicts server-side via BigQuery/Snowflake ML (Databricks is predict-only). Requires `… _(full docs in schema.json + component README)_ |
+| `sql_dialect` | `str` | — | `f"Required when scoring_method='ml' and execution_mode='sql'. One of: {_SQL_MODEL_DIALECTS}."` |
+| `feature_columns` | `List[Union[str, int]]` | — | Required when scoring_method='ml'. List of column names to use as classifier features. |
+| `test_size` | `float` | `0.2` | scoring_method='ml' only. Fraction of data to hold out for evaluation |
+| `random_state` | `int` | `42` | scoring_method='ml' only. Random seed for reproducibility |
+| `max_iter` | `int` | `1000` | scoring_method='ml' only. Maximum number of solver iterations |
+| `normalize` | `bool` | `true` | scoring_method='ml' only. Standardize features with StandardScaler before fitting |
+| `propensity_type` | `str` | `"purchase"` | scoring_method='heuristic' only. Type of propensity: purchase, upgrade, referral, engagement |
+| `scoring_window_days` | `int` | `90` | scoring_method='heuristic' only. Days of historical data to use for scoring. NOTE: accepted but not currently used by the heuristic scoring math (pre-existing, documented not fixed -- see README). |
 | `score_threshold_high` | `float` | `70.0` | Score threshold for 'high propensity' classification |
 | `score_threshold_medium` | `float` | `40.0` | Score threshold for 'medium propensity' classification |
 | `customer_id_field` | `str` | — | Customer ID column (auto-detected) |
@@ -118,6 +162,7 @@ Scores range 0-100, classified as High/Medium/Low propensity.
 type: dagster_component_templates.PropensityScoringComponent
 attributes:
   asset_name: purchase_propensity
+  upstream_asset_key: customer_behavior
   propensity_type: purchase
   scoring_window_days: 90
   score_threshold_high: 70.0
@@ -125,23 +170,25 @@ attributes:
   description: Customer purchase propensity scores
 ```
 
-## Propensity Types
+## Propensity Types (scoring_method='heuristic')
 
 ### Purchase Propensity
-Factors: Recency (40%), Frequency (40%), Engagement (20%)
+Factors: Recency (up to 40 pts), Frequency (up to 40 pts), Engagement (up to 20 pts)
 **Use for:** Upsell campaigns, promotional targeting
 
 ### Upgrade Propensity
-Factors: Engagement (70%), Recency (30%)
+Factors: Engagement (up to 70 pts), Recency boost (up to 30 pts)
 **Use for:** Upgrade offers, feature promotions
 
 ### Referral Propensity
-Factors: Engagement (60%), Tenure (40%)
+Factors: Engagement (up to 60 pts), Recency-window boost (up to 40 pts -- highest for activity 7-60 days ago, NOT "Tenure" as an earlier version of this README claimed; confirmed against the actual code, there is no tenure-based term anywhere in this branch)
 **Use for:** Referral program invitations
 
 ### Engagement Propensity
-Factors: Recency (50%), Frequency (50%)
+Factors: Recency (up to 50 pts), Frequency (up to 50 pts)
 **Use for:** Re-engagement campaigns, content recommendations
+
+**Note on "Factors" percentages above**: these are hardcoded per-branch point allocations in the code, not tunable weights -- unlike `lead_scoring`/`customer_health_score`, there are no corresponding Pydantic fields to adjust them.
 
 ## Best Practices
 
@@ -164,6 +211,8 @@ Factors: Recency (50%), Frequency (50%)
 
 - `pandas>=1.5.0`
 - `numpy>=1.24.0`
+- `scikit-learn` (only for `scoring_method: ml`)
+- `sqlalchemy` (only for `source: {kind: warehouse_query}` ingestion)
 
 ## Asset Dependencies & Lineage
 
@@ -180,3 +229,15 @@ attributes:
 `deps` draws lineage edges in the Dagster asset graph without loading data at runtime. Use it to express that this asset depends on upstream tables or assets produced by other components.
 
 Dependencies can also be wired externally via `map_resolved_asset_specs()` in `definitions.py` — the same approach used by [Dagster Designer](https://github.com/eric-thomas-dagster/dagster_designer).
+
+## Validation
+
+`validation.level: code` for the `source`/`scoring_method`/`execution_mode` additions.
+
+**Live-verified (nothing mocked)**: `scoring_method: heuristic` (default) against synthetic behavior data, for all 4 `propensity_type` values -- purchase/upgrade/referral/engagement. `scoring_method: ml` against a labeled synthetic dataset (real scikit-learn `LogisticRegression`, real `predict_proba`-based probability columns, real accuracy/row-count/column-schema metadata). `source: {kind: warehouse_query}` against a real DuckDB database.
+
+**Structural only, not executed (no live warehouse credentials in this environment)**: `execution_mode: sql` -- reuses the exact same generated-SQL patterns already live-verified-as-structurally-correct for `logistic_regression_model`.
+
+**Found and fixed two real pre-existing bugs while adding this — the heuristic mode could not actually complete a single materialize before this change**: `(count / len(result_df) * 100).round(1)` crashed with `AttributeError: 'float' object has no attribute 'round'` (plain Python floats have no `.round()` method — only numpy/pandas scalars do), and `avg_propensity_score` was passed to `context.add_output_metadata` as a raw `numpy.float64`, which Dagster's metadata serializer rejects (`SerializationError: Unhandled value type`). Both fixed (`round(x, n)` instead of `x.round(n)`; explicit `float()` cast before logging). Neither bug is related to this session's dual-ingestion/scoring_method work -- they were latent in code nobody had ever exercised with a real `dg.materialize()` call before these committed tests existed.
+
+**Also found and documented (not silently fixed, since it would change output numbers for existing users)**: `scoring_window_days` is accepted but never referenced anywhere in the actual scoring math (dead config, same bug family as `churn_prediction`'s `lookback_days`). Also fixed a false README claim that Referral Propensity's second factor is "Tenure (40%)" -- the actual code has no tenure-based term in that branch at all; it's a recency-window boost (highest for activity 7-60 days ago).

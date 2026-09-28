@@ -1,2 +1,10 @@
 pandas>=1.5.0
 numpy>=1.23.0
+
+# scoring_method='ml': pip install scikit-learn
+# source: {kind: warehouse_query, resource_key: ...} against DuckDB (via a registered Dagster resource):
+#   pip install dagster-duckdb duckdb
+# source: {kind: warehouse_query, database_url_env_var: ...} (bare SQLAlchemy, no Dagster resource):
+#   pip install duckdb duckdb-engine
+# scoring_method='ml', execution_mode='sql': no extra pip deps -- SQL runs
+# server-side via the warehouse's own resource, which must already be registered.

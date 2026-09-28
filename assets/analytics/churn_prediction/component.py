@@ -1,7 +1,10 @@
 """Churn Prediction Component.
 
-Predict customer churn risk using heuristic scoring based on activity patterns.
-Identifies customers at risk of churning with actionable recommendations.
+Predict customer churn risk. `scoring_method='heuristic'` (default): weighted
+activity-decline scoring, unchanged from before. `scoring_method='ml'`: fits
+a real scikit-learn classifier against a `target_column` you supply (e.g. a
+historical `churned` boolean) -- the heuristic has no access to any such
+label, so 'ml' mode is opt-in and requires you bring your own.
 """
 
 from typing import Any, Dict, List, Optional, Union
@@ -23,6 +26,133 @@ from dagster import (
     Output,
 )
 from pydantic import Field
+
+
+def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
+    """Execute SQL via a Dagster resource that exposes .get_engine() (SQLAlchemy)
+    OR .get_connection() (DB-API), or a bare SQLAlchemy engine built from
+    `database_url_env_var` when no Dagster resource is registered."""
+    sql = source_config["sql"]
+    resource_key = source_config.get("resource_key")
+    if resource_key:
+        resource = getattr(context.resources, resource_key)
+        if hasattr(resource, "get_engine"):
+            return pd.read_sql(sql, resource.get_engine())
+        if hasattr(resource, "get_connection"):
+            with resource.get_connection() as conn:
+                return pd.read_sql(sql, conn)
+        raise ValueError(
+            f"resource {resource_key!r} must expose .get_engine() (SQLAlchemy) "
+            f"or .get_connection() (DB-API); got {type(resource).__name__}"
+        )
+    env_var = source_config.get("database_url_env_var")
+    if env_var:
+        import os
+        from sqlalchemy import create_engine
+        url = os.environ.get(env_var, "")
+        if not url:
+            raise ValueError(f"database_url_env_var {env_var!r} is unset")
+        return pd.read_sql(sql, create_engine(url))
+    raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
+
+
+# ── scoring_method='ml', execution_mode='sql' ───────────────────────────
+# Reuses the exact same audited BQ/Snowflake/Databricks LOGISTIC_REG mapping
+# as logistic_regression_model -- churn is a binary classification task
+# once you have a real `target_column`, same as any other.
+# validation.level: code -- no live warehouse credentials in this dev
+# environment; the generated SQL is asserted structurally, not executed.
+
+_SQL_MODEL_DIALECTS = ("snowflake", "bigquery", "databricks")
+
+
+def _build_sql_mode_statements(
+    dialect: str, source_sql: str, output_table: str, model_name: str,
+    target_column: str, feature_columns: List[str], test_size: float, max_iter: int,
+) -> List[str]:
+    if dialect not in _SQL_MODEL_DIALECTS:
+        raise ValueError(f"unsupported sql_dialect: {dialect!r}. Valid: {_SQL_MODEL_DIALECTS}")
+
+    if dialect == "bigquery":
+        feat_csv = ", ".join(feature_columns)
+        return [
+            f"CREATE OR REPLACE MODEL `{model_name}`\n"
+            f"OPTIONS(model_type='LOGISTIC_REG', input_label_cols=['{target_column}'], "
+            f"max_iterations={max_iter}, data_split_method='RANDOM', "
+            f"data_split_eval_fraction={test_size}) AS\n"
+            f"SELECT {feat_csv}, {target_column}\n"
+            f"FROM ({source_sql})",
+
+            f"CREATE OR REPLACE TABLE {output_table} AS\n"
+            f"SELECT * FROM ML.PREDICT(MODEL `{model_name}`, (SELECT * FROM ({source_sql})))",
+        ]
+
+    if dialect == "snowflake":
+        view_name = f"{output_table}_training_view"
+        return [
+            f"CREATE OR REPLACE VIEW {view_name} AS {source_sql}",
+
+            f"CREATE OR REPLACE SNOWFLAKE.ML.CLASSIFICATION {model_name}(\n"
+            f"  INPUT_DATA => SYSTEM$REFERENCE('VIEW', '{view_name}'),\n"
+            f"  TARGET_COLNAME => '{target_column}'\n"
+            f")",
+
+            f"CREATE OR REPLACE TABLE {output_table} AS\n"
+            f"SELECT *, {model_name}!PREDICT(INPUT_DATA => {{*}}) AS prediction\n"
+            f"FROM {view_name}",
+        ]
+
+    # databricks: predict-only against an already-served endpoint (model_name
+    # is that endpoint's name here, not something this statement creates).
+    feat_struct = ", ".join(f"'{c}', src.{c}" for c in feature_columns)
+    return [
+        f"CREATE OR REPLACE TABLE {output_table} AS\n"
+        f"SELECT src.*, ai_query('{model_name}', named_struct({feat_struct})) AS predicted_class\n"
+        f"FROM ({source_sql}) AS src"
+    ]
+
+
+def _run_sql_mode(context, source_cfg: dict, statements: List[str], output_table: str) -> Output:
+    resource_key = source_cfg.get("resource_key")
+    if resource_key:
+        resource = getattr(context.resources, resource_key)
+        if hasattr(resource, "get_engine"):
+            engine = resource.get_engine()
+            with engine.begin() as conn:
+                for stmt in statements:
+                    conn.exec_driver_sql(stmt)
+                row_count = conn.exec_driver_sql(f"SELECT COUNT(*) FROM {output_table}").scalar()
+        elif hasattr(resource, "get_connection"):
+            with resource.get_connection() as conn:
+                for stmt in statements:
+                    conn.execute(stmt)
+                row_count = conn.execute(f"SELECT COUNT(*) FROM {output_table}").fetchone()[0]
+        else:
+            raise ValueError(f"resource {resource_key!r} must expose .get_engine() or .get_connection().")
+    else:
+        env_var = source_cfg.get("database_url_env_var")
+        if not env_var:
+            raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
+        import os
+        from sqlalchemy import create_engine
+        url = os.environ.get(env_var, "")
+        if not url:
+            raise ValueError(f"database_url_env_var {env_var!r} is unset")
+        engine = create_engine(url)
+        with engine.begin() as conn:
+            for stmt in statements:
+                conn.exec_driver_sql(stmt)
+            row_count = conn.exec_driver_sql(f"SELECT COUNT(*) FROM {output_table}").scalar()
+
+    return Output(
+        value=None,
+        metadata={
+            "dagster/row_count": MetadataValue.int(row_count),
+            "execution_mode": MetadataValue.text("sql"),
+            "output_table": MetadataValue.text(output_table),
+            "generated_sql": MetadataValue.md("\n\n".join(f"```sql\n{s}\n```" for s in statements)),
+        },
+    )
 
 
 def _build_partitions_def(
@@ -158,23 +288,91 @@ class ChurnPredictionComponent(Component, Model, Resolvable):
         description="Name of the asset to create"
     )
 
-    upstream_asset_key: str = Field(
-        description="Upstream asset key providing a DataFrame with customer activity data"
+    upstream_asset_key: Optional[str] = Field(
+        default=None,
+        description="Upstream asset key providing a DataFrame with customer activity data. Mutually exclusive with `source` -- set exactly one."
     )
+
+    source: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Pull rows directly via SQL instead of from an upstream asset: "
+            "{kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. "
+            "Also required (with execution_mode='sql') to name the FROM-source for the "
+            "server-side training/prediction query. Mutually exclusive with `upstream_asset_key` -- set exactly one."
+        ),
+    )
+
+    scoring_method: str = Field(
+        default="heuristic",
+        description=(
+            "'heuristic' (default): the original weighted activity-decline scoring "
+            "below, unchanged. 'ml': fits a real scikit-learn classifier against a "
+            "`target_column` you supply. The heuristic has no access to any historical "
+            "'did this customer actually churn' label -- 'ml' mode requires you bring "
+            "one (e.g. a `churned` boolean observed N days later), and requires "
+            "`target_column` + `feature_columns`."
+        ),
+    )
+    execution_mode: str = Field(
+        default="python",
+        description=(
+            "Only meaningful when scoring_method='ml'. 'python' (default): fits a real "
+            "scikit-learn LogisticRegression locally. 'sql': trains AND predicts "
+            "server-side via BigQuery/Snowflake ML (Databricks is predict-only). "
+            "Requires `source`, `sql_dialect`, `output_table`, and `model_name`."
+        ),
+    )
+    sql_dialect: Optional[str] = Field(
+        default=None,
+        description=f"Required when scoring_method='ml' and execution_mode='sql'. One of: {_SQL_MODEL_DIALECTS}.",
+    )
+    output_table: Optional[str] = Field(
+        default=None,
+        description="Required when execution_mode='sql'. Destination table the predictions are written to.",
+    )
+    model_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "Required when execution_mode='sql'. For snowflake/bigquery: the identifier this "
+            "component creates the model under. For databricks: the name of an already-served "
+            "Model Serving endpoint -- this dialect trains nothing."
+        ),
+    )
+    target_column: Optional[Union[str, int]] = Field(
+        default=None,
+        description="Required when scoring_method='ml'. Column name of the historical churn label (e.g. a boolean 'churned' column) -- this does NOT exist in the heuristic's input schema; you must supply it.",
+    )
+    feature_columns: Optional[List[Union[str, int]]] = Field(
+        default=None,
+        description="Required when scoring_method='ml'. List of column names to use as classifier features.",
+    )
+    test_size: float = Field(default=0.2, description="scoring_method='ml' only. Fraction of data to hold out for evaluation")
+    random_state: int = Field(default=42, description="scoring_method='ml' only. Random seed for reproducibility")
+    max_iter: int = Field(default=1000, description="scoring_method='ml' only. Maximum number of solver iterations")
+    model_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "scoring_method='ml' only. If set, joblib-dump the trained model to this "
+            "path after fit. Supports local paths and any fsspec URL (s3://, gs://, abfs://)."
+        ),
+    )
+    output_probabilities: bool = Field(default=True, description="scoring_method='ml' only. Add predicted_proba_<class> columns per class")
+    normalize: bool = Field(default=True, description="scoring_method='ml' only. Standardize features with StandardScaler before fitting")
 
     inactivity_threshold_days: int = Field(
         default=90,
-        description="Days of inactivity to consider high risk"
+        description="scoring_method='heuristic' only. Days of inactivity to consider high risk"
     )
 
     lookback_days: int = Field(
         default=365,
-        description="Days to look back for historical comparison"
+        description="scoring_method='heuristic' only. Days to look back for historical comparison. NOTE: accepted but not currently used by the heuristic scoring math (pre-existing, documented not fixed -- see README)."
     )
 
     include_risk_factors: bool = Field(
         default=True,
-        description="Include detailed risk factors in output"
+        description="scoring_method='heuristic' only. Include detailed risk factors in output"
     )
 
     customer_id_field: Optional[str] = Field(
@@ -321,6 +519,20 @@ class ChurnPredictionComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
+        source_cfg = self.source
+        scoring_method = self.scoring_method
+        execution_mode = self.execution_mode
+        sql_dialect = self.sql_dialect
+        output_table = self.output_table
+        model_name = self.model_name
+        target_column = self.target_column
+        feature_columns = self.feature_columns
+        test_size = self.test_size
+        random_state = self.random_state
+        max_iter = self.max_iter
+        model_path = self.model_path
+        output_probabilities = self.output_probabilities
+        normalize = self.normalize
         inactivity_threshold_days = self.inactivity_threshold_days
         lookback_days = self.lookback_days
         include_risk_factors = self.include_risk_factors
@@ -333,6 +545,29 @@ class ChurnPredictionComponent(Component, Model, Resolvable):
         group_name = self.group_name
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
+
+        if bool(upstream_asset_key) == bool(source_cfg):
+            raise ValueError("ChurnPredictionComponent: set exactly one of `upstream_asset_key` or `source`.")
+        if scoring_method not in ("heuristic", "ml"):
+            raise ValueError(f"ChurnPredictionComponent: scoring_method must be 'heuristic' or 'ml', got {scoring_method!r}.")
+        if execution_mode not in ("python", "sql"):
+            raise ValueError(f"ChurnPredictionComponent: execution_mode must be 'python' or 'sql', got {execution_mode!r}.")
+        if execution_mode == "sql" and scoring_method != "ml":
+            raise ValueError("ChurnPredictionComponent: execution_mode='sql' requires scoring_method='ml' (there is no SQL-mode heuristic).")
+        if scoring_method == "ml":
+            if not target_column:
+                raise ValueError("ChurnPredictionComponent: scoring_method='ml' requires `target_column` (a historical churn label the heuristic never needed).")
+            if not feature_columns:
+                raise ValueError("ChurnPredictionComponent: scoring_method='ml' requires `feature_columns`.")
+        if execution_mode == "sql":
+            if not source_cfg:
+                raise ValueError("ChurnPredictionComponent: execution_mode='sql' requires `source` (a SQL FROM-source).")
+            if sql_dialect not in _SQL_MODEL_DIALECTS:
+                raise ValueError(f"ChurnPredictionComponent: execution_mode='sql' requires sql_dialect to be one of {_SQL_MODEL_DIALECTS}.")
+            if not output_table:
+                raise ValueError("ChurnPredictionComponent: execution_mode='sql' requires `output_table`.")
+            if not model_name:
+                raise ValueError("ChurnPredictionComponent: execution_mode='sql' requires `model_name`.")
 
         partitions_def = _build_partitions_def(
             self.partition_type,
@@ -412,18 +647,44 @@ class ChurnPredictionComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, 
+        _asset_kwargs: Dict[str, Any] = dict(
+            retry_policy=_retry_policy,
             key=AssetKey.from_user_string(asset_name),
             description=description,
             partitions_def=partitions_def,
-                        owners=owners,
+            owners=owners,
             tags=_all_tags,
             freshness_policy=_freshness_policy,
-group_name=group_name,
-            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
+            group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def churn_prediction_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        if upstream_asset_key:
+            _asset_kwargs["ins"] = {"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))}
+        if source_cfg and source_cfg.get("resource_key"):
+            _asset_kwargs["required_resource_keys"] = {source_cfg["resource_key"]}
+
+        if execution_mode == "sql":
+            @asset(**_asset_kwargs)
+            def _sql_asset(context: AssetExecutionContext):
+                statements = _build_sql_mode_statements(
+                    sql_dialect, source_cfg["sql"], output_table, model_name,
+                    target_column, list(feature_columns), test_size, max_iter,
+                )
+                return _run_sql_mode(context, source_cfg, statements, output_table)
+
+            return Definitions(assets=[_sql_asset])
+
+        @asset(**_asset_kwargs)
+        def churn_prediction_asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
+            upstream = kwargs.get("upstream")
+            if upstream is None:
+                upstream = _ingest_warehouse_query(source_cfg, context)
+            # Defensive Output/MaterializeResult unwrap — see summarize for the rationale.
+            if hasattr(upstream, "value") and hasattr(upstream, "metadata"):
+                upstream = upstream.value
+            if isinstance(upstream, dict):
+                _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
+                upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key
@@ -436,7 +697,94 @@ group_name=group_name,
                     upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
                 elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
-            """Asset that predicts customer churn risk."""
+
+            if scoring_method == "ml":
+                try:
+                    from sklearn.linear_model import LogisticRegression
+                    from sklearn.metrics import accuracy_score, classification_report
+                    from sklearn.model_selection import train_test_split
+                    from sklearn.preprocessing import StandardScaler
+                except ImportError as e:
+                    raise ImportError("scikit-learn is required: pip install scikit-learn") from e
+
+                ml_df = upstream.copy()
+                X = ml_df[list(feature_columns)].apply(pd.to_numeric, errors="coerce").fillna(0)
+                y = ml_df[target_column]
+
+                if len(X) < 5:
+                    context.log.warning(
+                        f"churn_prediction (ml): only {len(X)} rows available; skipping "
+                        "train/test split (whole frame used for both fit and eval)."
+                    )
+                    X_train = X_test = X
+                    y_train = y_test = y
+                else:
+                    X_train, X_test, y_train, y_test = train_test_split(
+                        X, y, test_size=test_size, random_state=random_state
+                    )
+
+                scaler = None
+                if normalize:
+                    scaler = StandardScaler()
+                    X_train = scaler.fit_transform(X_train)
+                    X_test = scaler.transform(X_test)
+
+                model = LogisticRegression(max_iter=max_iter, random_state=random_state)
+                model.fit(X_train, y_train)
+
+                if model_path is not None:
+                    import fsspec, joblib
+                    with fsspec.open(model_path, "wb") as _fh:
+                        joblib.dump(model, _fh)
+
+                accuracy = accuracy_score(y_test, model.predict(X_test))
+
+                from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
+                _col_schema = TableSchema(columns=[
+                    TableColumn(name=str(col), type=str(ml_df.dtypes[col]))
+                    for col in ml_df.columns
+                ])
+                _metadata = {
+                    "dagster/row_count": MetadataValue.int(len(ml_df)),
+                    "dagster/column_schema": MetadataValue.table_schema(_col_schema),
+                    "accuracy": MetadataValue.float(float(accuracy)),
+                    "train_rows": MetadataValue.int(len(X_train)),
+                    "test_rows": MetadataValue.int(len(X_test)),
+                }
+                _effective_lineage = column_lineage
+                if not _effective_lineage:
+                    try:
+                        _upstream_cols = set(upstream.columns)
+                        _effective_lineage = {
+                            col.name: [col.name] for col in _col_schema.columns
+                            if col.name in _upstream_cols
+                        }
+                    except Exception:
+                        pass
+                if _effective_lineage:
+                    _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
+                    if _upstream_key:
+                        _lineage_deps = {}
+                        for out_col, in_cols in _effective_lineage.items():
+                            _lineage_deps[str(out_col)] = [
+                                TableColumnDep(asset_key=_upstream_key, column_name=str(ic))
+                                for ic in in_cols
+                            ]
+                        _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
+                            TableColumnLineage(_lineage_deps)
+                        )
+                context.add_output_metadata(_metadata)
+
+                X_full = X if scaler is None else scaler.transform(X)
+                ml_df["predicted_class"] = model.predict(X_full)
+                if output_probabilities:
+                    proba = model.predict_proba(X_full)
+                    for i, cls in enumerate(model.classes_):
+                        ml_df[f"predicted_proba_{cls}"] = proba[:, i]
+
+                return ml_df
+
+            """Asset that predicts customer churn risk (heuristic scoring)."""
 
             df = upstream
             if not isinstance(df, pd.DataFrame):

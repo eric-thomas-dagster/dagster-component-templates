@@ -24,34 +24,148 @@
     "upstream_asset_key": {
       "type": "string",
       "label": "Upstream Asset Key",
-      "description": "Upstream asset key providing a DataFrame with customer behavior data",
-      "required": true
+      "description": "Upstream asset key providing a DataFrame with customer behavior data. Mutually exclusive with `source` -- set exactly one.",
+      "required": false
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Also required (with execution_mode='sql') to name the FROM-source for the server-side training/prediction query. Mutually exclusive with `upstream_asset_key` -- set exactly one."
+    },
+    "scoring_method": {
+      "type": "string",
+      "label": "Scoring Method",
+      "required": false,
+      "default": "heuristic",
+      "enum": [
+        "heuristic",
+        "ml"
+      ],
+      "ui:widget": "select",
+      "description": "'heuristic' (default): the original behavior-pattern scoring, unchanged. 'ml': fits a real scikit-learn classifier against a target_column you supply. None of the 4 propensity_type formulas are fit against any observed outcome today -- 'ml' mode requires you bring one, plus target_column + feature_columns."
+    },
+    "execution_mode": {
+      "type": "string",
+      "label": "Execution Mode",
+      "required": false,
+      "default": "python",
+      "enum": [
+        "python",
+        "sql"
+      ],
+      "description": "Only meaningful when scoring_method='ml'. 'python' (default): fits a real scikit-learn LogisticRegression locally. 'sql': trains AND predicts server-side via BigQuery/Snowflake ML (Databricks is predict-only). Requires source, sql_dialect, output_table, and model_name."
+    },
+    "sql_dialect": {
+      "type": "string",
+      "label": "SQL Dialect",
+      "required": false,
+      "enum": [
+        "snowflake",
+        "bigquery",
+        "databricks"
+      ],
+      "description": "Required when scoring_method='ml' and execution_mode='sql'."
+    },
+    "output_table": {
+      "type": "string",
+      "label": "Output Table",
+      "required": false,
+      "description": "Required when execution_mode='sql'. Destination table the predictions are written to."
+    },
+    "model_name": {
+      "type": "string",
+      "label": "Model Name",
+      "required": false,
+      "description": "Required when execution_mode='sql'. For snowflake/bigquery: the identifier this component creates the model under. For databricks: the name of an already-served Model Serving endpoint -- this dialect trains nothing."
+    },
+    "target_column": {
+      "type": "string",
+      "label": "Target Column",
+      "required": false,
+      "x-dagster-widget": "column",
+      "description": "Required when scoring_method='ml'. Column name of the historical outcome label (e.g. 'converted') -- this does NOT exist in the heuristic's input schema; you must supply it."
+    },
+    "feature_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Feature Columns",
+      "required": false,
+      "ui:widget": "list",
+      "x-dagster-widget": "columns",
+      "description": "Required when scoring_method='ml'. List of column names to use as classifier features."
+    },
+    "test_size": {
+      "type": "number",
+      "label": "Test Size",
+      "required": false,
+      "default": 0.2,
+      "description": "scoring_method='ml' only. Fraction of data to hold out for evaluation"
+    },
+    "random_state": {
+      "type": "integer",
+      "label": "Random State",
+      "required": false,
+      "default": 42,
+      "description": "scoring_method='ml' only. Random seed for reproducibility"
+    },
+    "max_iter": {
+      "type": "integer",
+      "label": "Max Iter",
+      "required": false,
+      "default": 1000,
+      "description": "scoring_method='ml' only. Maximum number of solver iterations"
+    },
+    "model_path": {
+      "type": "string",
+      "label": "Model Path",
+      "required": false,
+      "default": null,
+      "description": "scoring_method='ml' only. If set, joblib-dump the trained model to this path after fit. Supports local paths and any fsspec URL (s3://, gs://, abfs://)."
+    },
+    "output_probabilities": {
+      "type": "boolean",
+      "label": "Output Probabilities",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox",
+      "description": "scoring_method='ml' only. Add predicted_proba_<class> columns per class"
+    },
+    "normalize": {
+      "type": "boolean",
+      "label": "Normalize",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox",
+      "description": "scoring_method='ml' only. Standardize features with StandardScaler before fitting"
     },
     "propensity_type": {
       "type": "string",
       "label": "Propensity Type",
-      "description": "Type of propensity: purchase, upgrade, referral, engagement",
+      "description": "scoring_method='heuristic' only. Type of propensity: purchase, upgrade, referral, engagement",
       "required": false,
       "default": "purchase"
     },
     "scoring_window_days": {
       "type": "integer",
       "label": "Scoring Window Days",
-      "description": "Days of historical data to use for scoring",
+      "description": "scoring_method='heuristic' only. Days of historical data to use for scoring. NOTE: accepted but not currently used by the heuristic scoring math (pre-existing, documented not fixed).",
       "required": false,
       "default": 90
     },
     "score_threshold_high": {
       "type": "number",
       "label": "Score Threshold High",
-      "description": "Score threshold for ",
+      "description": "scoring_method='heuristic' only. Score threshold (0-100) for 'High' propensity classification.",
       "required": false,
       "default": 70.0
     },
     "score_threshold_medium": {
       "type": "number",
       "label": "Score Threshold Medium",
-      "description": "Score threshold for ",
+      "description": "scoring_method='heuristic' only. Score threshold (0-100) for 'Medium' propensity classification.",
       "required": false,
       "default": 40.0
     },
@@ -271,7 +385,13 @@
   "tags": [
     "analytics",
     "propensity",
-    "scoring"
+    "scoring",
+    "warehouse query",
+    "duckdb",
+    "bigquery",
+    "snowflake",
+    "databricks",
+    "sql execution mode"
   ],
   "name": "Propensity Scoring"
 }

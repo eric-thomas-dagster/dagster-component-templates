@@ -1,6 +1,31 @@
 # Churn Prediction Component
 
-Predict customer churn risk using heuristic scoring. Identify at-risk customers before they leave and take proactive retention actions.
+Predict customer churn risk. `scoring_method='heuristic'` (default): weighted activity-decline scoring, unchanged from before. `scoring_method='ml'`: fits a real scikit-learn classifier against a `target_column` you supply.
+
+## Ingestion
+
+Two ways to get the rows in, set exactly one, for either `scoring_method`:
+
+- **`upstream_asset_key`**: the usual Dagster way -- point at any asset producing a DataFrame with the input columns below.
+- **`source: {kind: warehouse_query, resource_key: ..., sql: ...}`**: pull rows directly via SQL, no upstream asset required. Works out of the box with `duckdb_resource` and any resource exposing `.get_engine()`/`.get_connection()`, or a bare SQLAlchemy connection string via `database_url_env_var` when no Dagster resource is registered.
+
+## `scoring_method: ml` -- a real trained classifier, not a heuristic
+
+**The heuristic below has no access to any historical "did this customer actually churn" label** -- there is no such column anywhere in its input schema (`customer_id`, `last_activity_date`, `total_orders`, `total_revenue`, `lifetime_days` -- all point-in-time activity/spend aggregates, never an observed outcome). So unlike every other SQL-execution-mode component built earlier in this repo's history (those were already real classifiers; this one wasn't), `scoring_method='ml'` is opt-in and requires you bring your own label (e.g. a `churned` boolean observed some fixed window later, built by a separate historical-cohort labeling job upstream) via `target_column`, plus `feature_columns` naming which columns to train on.
+
+```yaml
+type: dagster_component_templates.ChurnPredictionComponent
+attributes:
+  asset_name: customer_churn_ml
+  upstream_asset_key: customer_features_with_churn_label
+  scoring_method: ml
+  target_column: churned
+  feature_columns: [total_orders, total_revenue, lifetime_days, days_inactive]
+  test_size: 0.2
+  output_probabilities: true
+```
+
+`execution_mode: sql` is also available under `scoring_method: ml` (BigQuery/Snowflake genuine train+predict, Databricks predict-only against an already-served endpoint) -- reuses the exact same audited mapping as `logistic_regression_model`, since churn becomes an ordinary binary classification task once you have a real label.
 
 ## Purpose
 
@@ -46,7 +71,7 @@ Returns one row per customer with churn risk assessment:
 |--------|------|-------------|
 | `customer_id` | string | Unique customer identifier |
 | `days_inactive` | number | Days since last activity |
-| `activity_trend` | string | "Increasing", "Stable", or "Declining" |
+| `activity_trend` | string | "Active", "Declining", "At Risk", or "Inactive" (an earlier version of this README claimed "Increasing"/"Stable"/"Declining" -- confirmed against the actual code, `determine_trend`, that those values are never produced) |
 | `churn_risk_score` | number | Risk score 0-100 (higher = more likely to churn) |
 | `churn_risk_level` | string | "Critical", "High", "Medium", "Low" |
 | `recommended_action` | string | Suggested retention action |
@@ -60,7 +85,7 @@ Returns one row per customer with churn risk assessment:
 
 ### Optional Parameters
 
-- **`source_asset`** (string): Upstream asset name (auto-set via lineage)
+- **`upstream_asset_key`** / **`source`** (mutually exclusive, set exactly one): where the input DataFrame comes from -- see Ingestion above. (An earlier version of this README called this `source_asset`, a field name that never existed on this component.)
 - **`inactivity_threshold_days`** (number): Days of inactivity = high risk (default: 90)
 - **`lookback_days`** (number): Historical comparison window (default: 365)
 - **`include_risk_factors`** (boolean): Include detailed risk breakdown (default: true)
@@ -82,7 +107,6 @@ Returns one row per customer with churn risk assessment:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with customer activity data |
 
 ### Catalog metadata
 
@@ -123,13 +147,33 @@ Returns one row per customer with churn risk assessment:
 | `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
 | `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
 
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `output_table` | `str` | — | Required when execution_mode='sql'. Destination table the predictions are written to. |
+| `model_name` | `str` | — | Required when execution_mode='sql'. For snowflake/bigquery: the identifier this component creates the model under. For databricks: the name of an already-served Model Serving endpoint -- this dialect trains nothing. |
+| `target_column` | `Union[str, int]` | — | Required when scoring_method='ml'. Column name of the historical churn label (e.g. a boolean 'churned' column) -- this does NOT exist in the heuristic's input schema; you must supply it. |
+| `model_path` | `str` | — | scoring_method='ml' only. If set, joblib-dump the trained model to this path after fit. Supports local paths and any fsspec URL (s3://, gs://, abfs://). |
+| `output_probabilities` | `bool` | `true` | scoring_method='ml' only. Add predicted_proba_<class> columns per class |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `inactivity_threshold_days` | `int` | `90` | Days of inactivity to consider high risk |
-| `lookback_days` | `int` | `365` | Days to look back for historical comparison |
-| `include_risk_factors` | `bool` | `true` | Include detailed risk factors in output |
+| `upstream_asset_key` | `str` | — | Upstream asset key providing a DataFrame with customer activity data. Mutually exclusive with `source` -- set exactly one. |
+| `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Also required (with execution_mode='sql') to na… _(full docs in schema.json + component README)_ |
+| `scoring_method` | `str` | `"heuristic"` | 'heuristic' (default): the original weighted activity-decline scoring below, unchanged. 'ml': fits a real scikit-learn classifier against a `target_column` you supply. The heuristic has no access to any historical 'did t… _(full docs in schema.json + component README)_ |
+| `execution_mode` | `str` | `"python"` | Only meaningful when scoring_method='ml'. 'python' (default): fits a real scikit-learn LogisticRegression locally. 'sql': trains AND predicts server-side via BigQuery/Snowflake ML (Databricks is predict-only). Requires `… _(full docs in schema.json + component README)_ |
+| `sql_dialect` | `str` | — | `f"Required when scoring_method='ml' and execution_mode='sql'. One of: {_SQL_MODEL_DIALECTS}."` |
+| `feature_columns` | `List[Union[str, int]]` | — | Required when scoring_method='ml'. List of column names to use as classifier features. |
+| `test_size` | `float` | `0.2` | scoring_method='ml' only. Fraction of data to hold out for evaluation |
+| `random_state` | `int` | `42` | scoring_method='ml' only. Random seed for reproducibility |
+| `max_iter` | `int` | `1000` | scoring_method='ml' only. Maximum number of solver iterations |
+| `normalize` | `bool` | `true` | scoring_method='ml' only. Standardize features with StandardScaler before fitting |
+| `inactivity_threshold_days` | `int` | `90` | scoring_method='heuristic' only. Days of inactivity to consider high risk |
+| `lookback_days` | `int` | `365` | scoring_method='heuristic' only. Days to look back for historical comparison. NOTE: accepted but not currently used by the heuristic scoring math (pre-existing, documented not fixed -- see README). |
+| `include_risk_factors` | `bool` | `true` | scoring_method='heuristic' only. Include detailed risk factors in output |
 | `customer_id_field` | `str` | — | Customer ID column name (auto-detected if not specified) |
 | `last_activity_field` | `str` | — | Last activity date column (auto-detected if not specified) |
 | `total_orders_field` | `str` | — | Total orders column (auto-detected if not specified) |
@@ -205,6 +249,7 @@ Results in a 0-100 scale where:
 4. **Frequency Decline Score (15% weight)**
    - Compares recent order frequency vs. historical
    - Tracks changes in purchase cadence
+   - **Confirmed against the actual code: this is not independently computed.** `frequency_decline_score` is literally set equal to `activity_decline_score` (`churn_df['frequency_decline_score'] = churn_df['activity_decline_score']`) -- there are really only 3 independent factors, not 4, despite the weight breakdown implying otherwise.
 
 ### Risk Levels and Actions
 
@@ -275,7 +320,9 @@ This tells you:
 - A/B test retention campaigns on predicted high-risk customers
 - Refine thresholds based on actual churn rates
 
-## Advantages Over ML Models
+## Heuristic vs. `scoring_method: ml`
+
+**`scoring_method: heuristic` (default) advantages:**
 
 1. **No Training Required**: Works immediately with historical data
 2. **Interpretable**: Clear understanding of why a score was assigned
@@ -284,19 +331,21 @@ This tells you:
 5. **Simple Deployment**: No model serving infrastructure needed
 6. **Fast**: Real-time scoring on millions of customers
 
-## Limitations
+**Heuristic limitations:**
 
 - **Not Predictive**: Reactive to patterns, not truly predictive
-- **Equal Weights**: Doesn't learn optimal weight distribution
+- **Equal Weights**: Doesn't learn optimal weight distribution (and, per the note above, only 3 of the 4 named factors are actually independent)
 - **Linear Assumptions**: Assumes linear relationships
 - **No Interactions**: Doesn't capture feature interactions
 
-For higher accuracy, consider upgrading to an ML-based churn model after validating the business value with this heuristic approach.
+If you have (or can build) a real historical churn label, `scoring_method: ml` (see the section near the top of this README) trains an actual scikit-learn classifier instead -- this repo previously said "consider upgrading to an ML-based churn model after validating the business value" without that option existing on this component; it now does.
 
 ## Dependencies
 
 - `pandas>=1.5.0`
 - `numpy>=1.24.0`
+- `scikit-learn` (only for `scoring_method: ml`)
+- `sqlalchemy` (only for `source: {kind: warehouse_query}` ingestion)
 
 ## Notes
 
@@ -321,3 +370,13 @@ attributes:
 `deps` draws lineage edges in the Dagster asset graph without loading data at runtime. Use it to express that this asset depends on upstream tables or assets produced by other components.
 
 Dependencies can also be wired externally via `map_resolved_asset_specs()` in `definitions.py` — the same approach used by [Dagster Designer](https://github.com/eric-thomas-dagster/dagster_designer).
+
+## Validation
+
+`validation.level: code` for the `source`/`scoring_method`/`execution_mode` additions.
+
+**Live-verified (nothing mocked)**: `scoring_method: heuristic` (default) against synthetic customer data -- confirmed byte-for-byte unchanged behavior from before this change. `scoring_method: ml` against a labeled synthetic dataset (real scikit-learn `LogisticRegression`, real `predict_proba`-based probability columns, real accuracy/row-count/column-schema metadata). `source: {kind: warehouse_query}` against a real DuckDB database.
+
+**Structural only, not executed (no live warehouse credentials in this environment)**: `execution_mode: sql` -- reuses the exact same generated-SQL patterns already live-verified-as-structurally-correct for `logistic_regression_model` (BigQuery `CREATE MODEL...OPTIONS(model_type='LOGISTIC_REG')`, Snowflake `SNOWFLAKE.ML.CLASSIFICATION`, Databricks `ai_query()` predict-only).
+
+**Also found and documented (not silently fixed, since it would change output numbers for existing users) two pre-existing heuristic-scoring bugs while adding this**: `lookback_days` is accepted but never referenced anywhere in the actual scoring math (dead config), and `frequency_decline_score` is not independently computed -- it's set equal to `activity_decline_score` verbatim, so the documented "4 independently-weighted factors" is really 3. Also fixed a false README claim that `activity_trend` produces "Increasing"/"Stable"/"Declining" -- the real code (`determine_trend`) only ever produces "Active"/"Declining"/"At Risk"/"Inactive".

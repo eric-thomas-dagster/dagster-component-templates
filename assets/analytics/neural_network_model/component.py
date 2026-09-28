@@ -14,6 +14,7 @@ from dagster import (
     Definitions,
     MetadataValue,
     Model,
+    Output,
     Resolvable,
     asset,
 )
@@ -122,11 +123,201 @@ def _build_partitions_def(
     raise ValueError(f"unknown partition_type: {partition_type!r}")
 
 
+def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
+    """Execute SQL via a Dagster resource that exposes .get_engine() (SQLAlchemy)
+    OR .get_connection() (DB-API), or a bare SQLAlchemy engine built from
+    `database_url_env_var` when no Dagster resource is registered."""
+    sql = source_config["sql"]
+    resource_key = source_config.get("resource_key")
+    if resource_key:
+        resource = getattr(context.resources, resource_key)
+        if hasattr(resource, "get_engine"):
+            return pd.read_sql(sql, resource.get_engine())
+        if hasattr(resource, "get_connection"):
+            with resource.get_connection() as conn:
+                return pd.read_sql(sql, conn)
+        raise ValueError(
+            f"resource {resource_key!r} must expose .get_engine() (SQLAlchemy) "
+            f"or .get_connection() (DB-API); got {type(resource).__name__}"
+        )
+    env_var = source_config.get("database_url_env_var")
+    if env_var:
+        import os
+        from sqlalchemy import create_engine
+        url = os.environ.get(env_var, "")
+        if not url:
+            raise ValueError(f"database_url_env_var {env_var!r} is unset")
+        return pd.read_sql(sql, create_engine(url))
+    raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
+
+
+# ── execution_mode='sql' ────────────────────────────────────────────────
+# Same 3-dialect asymmetry as logistic_regression_model/gradient_boosting_model:
+#   - bigquery:   CREATE MODEL ... OPTIONS(model_type='DNN_CLASSIFIER'|
+#                 'DNN_REGRESSOR', hidden_units=[N]) is a real, exact
+#                 algorithmic match -- BigQuery's DNN model IS a neural
+#                 network. Supports BOTH task types. This is arguably the
+#                 cleanest match of any component in this audit.
+#   - snowflake:  CREATE SNOWFLAKE.ML.CLASSIFICATION trains a classifier
+#                 (NOT literally a neural net internally -- a functional
+#                 substitute for the same task) -- classification only, no
+#                 regression function exists in Snowflake ML.
+#   - databricks: predict-ONLY via ai_query() against an already-served
+#                 model -- arguably the MOST natural fit for this
+#                 component specifically, since neural nets are typically
+#                 trained via MLflow/AutoML and served as an endpoint
+#                 rather than defined inline in SQL on any platform.
+# validation.level: code -- no live warehouse credential in this dev
+# environment; the generated SQL is asserted structurally, not executed.
+
+_SQL_MODEL_DIALECTS = ("snowflake", "bigquery", "databricks")
+
+
+def _build_sql_mode_statements(
+    dialect: str, source_sql: str, output_table: str, model_name: str,
+    target_column: str, feature_columns: List[str], task_type: str,
+    test_size: float, hidden_units: int,
+) -> List[str]:
+    if dialect not in _SQL_MODEL_DIALECTS:
+        raise ValueError(f"unsupported sql_dialect: {dialect!r}. Valid: {_SQL_MODEL_DIALECTS}")
+    if task_type not in ("classification", "regression"):
+        raise ValueError(f"unknown task_type: {task_type!r}. Use 'classification' or 'regression'.")
+
+    if dialect == "bigquery":
+        model_type = "DNN_CLASSIFIER" if task_type == "classification" else "DNN_REGRESSOR"
+        feat_csv = ", ".join(feature_columns)
+        return [
+            f"CREATE OR REPLACE MODEL `{model_name}`\n"
+            f"OPTIONS(model_type='{model_type}', input_label_cols=['{target_column}'], "
+            f"hidden_units=[{hidden_units}], data_split_method='RANDOM', "
+            f"data_split_eval_fraction={test_size}) AS\n"
+            f"SELECT {feat_csv}, {target_column}\n"
+            f"FROM ({source_sql})",
+
+            f"CREATE OR REPLACE TABLE {output_table} AS\n"
+            f"SELECT * FROM ML.PREDICT(MODEL `{model_name}`, (SELECT * FROM ({source_sql})))",
+        ]
+
+    if dialect == "snowflake":
+        if task_type != "classification":
+            raise ValueError(
+                "sql_dialect='snowflake' has no regression function in Snowflake ML "
+                "(CREATE SNOWFLAKE.ML.CLASSIFICATION is classification-only) -- "
+                "use sql_dialect='bigquery' for task_type='regression', or "
+                "execution_mode='python'."
+            )
+        view_name = f"{output_table}_training_view"
+        return [
+            f"CREATE OR REPLACE VIEW {view_name} AS {source_sql}",
+
+            f"CREATE OR REPLACE SNOWFLAKE.ML.CLASSIFICATION {model_name}(\n"
+            f"  INPUT_DATA => SYSTEM$REFERENCE('VIEW', '{view_name}'),\n"
+            f"  TARGET_COLNAME => '{target_column}'\n"
+            f")",
+
+            f"CREATE OR REPLACE TABLE {output_table} AS\n"
+            f"SELECT *, {model_name}!PREDICT(INPUT_DATA => {{*}}) AS prediction\n"
+            f"FROM {view_name}",
+        ]
+
+    # databricks: predict-only against an already-served endpoint (model_name
+    # is that endpoint's name here, not something this statement creates).
+    feat_struct = ", ".join(f"'{c}', src.{c}" for c in feature_columns)
+    return [
+        f"CREATE OR REPLACE TABLE {output_table} AS\n"
+        f"SELECT src.*, ai_query('{model_name}', named_struct({feat_struct})) AS predicted\n"
+        f"FROM ({source_sql}) AS src"
+    ]
+
+
+def _run_sql_mode(context, source_cfg: dict, statements: List[str], output_table: str) -> Output:
+    resource_key = source_cfg.get("resource_key")
+    if resource_key:
+        resource = getattr(context.resources, resource_key)
+        if hasattr(resource, "get_engine"):
+            engine = resource.get_engine()
+            with engine.begin() as conn:
+                for stmt in statements:
+                    conn.exec_driver_sql(stmt)
+                row_count = conn.exec_driver_sql(f"SELECT COUNT(*) FROM {output_table}").scalar()
+        elif hasattr(resource, "get_connection"):
+            with resource.get_connection() as conn:
+                for stmt in statements:
+                    conn.execute(stmt)
+                row_count = conn.execute(f"SELECT COUNT(*) FROM {output_table}").fetchone()[0]
+        else:
+            raise ValueError(f"resource {resource_key!r} must expose .get_engine() or .get_connection().")
+    else:
+        env_var = source_cfg.get("database_url_env_var")
+        if not env_var:
+            raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
+        import os
+        from sqlalchemy import create_engine
+        url = os.environ.get(env_var, "")
+        if not url:
+            raise ValueError(f"database_url_env_var {env_var!r} is unset")
+        engine = create_engine(url)
+        with engine.begin() as conn:
+            for stmt in statements:
+                conn.exec_driver_sql(stmt)
+            row_count = conn.exec_driver_sql(f"SELECT COUNT(*) FROM {output_table}").scalar()
+
+    return Output(
+        value=None,
+        metadata={
+            "dagster/row_count": MetadataValue.int(row_count),
+            "execution_mode": MetadataValue.text("sql"),
+            "output_table": MetadataValue.text(output_table),
+            "generated_sql": MetadataValue.md("\n\n".join(f"```sql\n{s}\n```" for s in statements)),
+        },
+    )
+
+
 class NeuralNetworkModelComponent(Component, Model, Resolvable):
     """Fit a multi-layer perceptron neural network for classification or regression."""
 
     asset_name: str = Field(description="Output Dagster asset name")
-    upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
+    upstream_asset_key: Optional[str] = Field(
+        default=None,
+        description="Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one.",
+    )
+    source: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Pull rows directly via SQL instead of from an upstream asset: "
+            "{kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. "
+            "Also required (with execution_mode='sql') to name the FROM-source for the "
+            "server-side training/prediction query. Mutually exclusive with `upstream_asset_key` -- set exactly one."
+        ),
+    )
+    execution_mode: str = Field(
+        default="python",
+        description=(
+            "'python' (default): fits a real scikit-learn MLPClassifier/MLPRegressor locally. "
+            "'sql': trains AND predicts server-side -- BigQuery `CREATE MODEL...OPTIONS(model_type="
+            "'DNN_CLASSIFIER'|'DNN_REGRESSOR')` is a real, exact algorithmic match (a genuine neural "
+            "net) supporting both task types. Snowflake `CREATE SNOWFLAKE.ML.CLASSIFICATION` is a "
+            "functional substitute (not literally a neural net), classification-only. Databricks is "
+            "predict-ONLY via ai_query() against an already-served model_name endpoint. Requires "
+            "`source`, `sql_dialect`, `output_table`, and `model_name`."
+        ),
+    )
+    sql_dialect: Optional[str] = Field(
+        default=None,
+        description=f"Required when execution_mode='sql'. One of: {_SQL_MODEL_DIALECTS}.",
+    )
+    output_table: Optional[str] = Field(
+        default=None,
+        description="Required when execution_mode='sql'. Destination table the predictions are written to.",
+    )
+    model_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "Required when execution_mode='sql'. For snowflake/bigquery: the identifier this "
+            "component creates the model under. For databricks: the name of an already-served "
+            "Model Serving endpoint -- this dialect trains nothing."
+        ),
+    )
     target_column: Union[str, int] = Field(description="Column name of the target variable")
     feature_columns: List[Union[str, int]] = Field(description="List of column names to use as features")
     task_type: str = Field(default="classification", description="Task type: 'classification' or 'regression'")
@@ -260,6 +451,11 @@ class NeuralNetworkModelComponent(Component, Model, Resolvable):
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
+        source_cfg = self.source
+        execution_mode = self.execution_mode
+        sql_dialect = self.sql_dialect
+        output_table = self.output_table
+        model_name = self.model_name
         target_column = self.target_column
         feature_columns = self.feature_columns
         model_path = self.model_path
@@ -271,6 +467,24 @@ class NeuralNetworkModelComponent(Component, Model, Resolvable):
         output_mode = self.output_mode
         n_jobs = self.n_jobs
         group_name = self.group_name
+
+        if bool(upstream_asset_key) == bool(source_cfg):
+            raise ValueError("NeuralNetworkModelComponent: set exactly one of `upstream_asset_key` or `source`.")
+        if execution_mode not in ("python", "sql"):
+            raise ValueError(f"NeuralNetworkModelComponent: execution_mode must be 'python' or 'sql', got {execution_mode!r}.")
+        if execution_mode == "sql":
+            if not source_cfg:
+                raise ValueError("NeuralNetworkModelComponent: execution_mode='sql' requires `source` (a SQL FROM-source).")
+            if sql_dialect not in _SQL_MODEL_DIALECTS:
+                raise ValueError(f"NeuralNetworkModelComponent: execution_mode='sql' requires sql_dialect to be one of {_SQL_MODEL_DIALECTS}.")
+            if not output_table:
+                raise ValueError("NeuralNetworkModelComponent: execution_mode='sql' requires `output_table`.")
+            if not model_name:
+                raise ValueError("NeuralNetworkModelComponent: execution_mode='sql' requires `model_name`.")
+            if not feature_columns:
+                raise ValueError("NeuralNetworkModelComponent: execution_mode='sql' requires `feature_columns`.")
+            if output_mode != "predictions":
+                raise ValueError("NeuralNetworkModelComponent: execution_mode='sql' only supports output_mode='predictions'.")
 
         partitions_def = _build_partitions_def(
             self.partition_type,
@@ -350,17 +564,38 @@ class NeuralNetworkModelComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, 
+        _asset_kwargs: Dict[str, Any] = dict(
+            retry_policy=_retry_policy,
             key=AssetKey.from_user_string(asset_name),
-            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
             partitions_def=partitions_def,
-                        owners=owners,
+            owners=owners,
             tags=_all_tags,
             freshness_policy=_freshness_policy,
-group_name=group_name,
+            group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def _asset(context: AssetExecutionContext, upstream: Any) -> pd.DataFrame:
+        if upstream_asset_key:
+            _asset_kwargs["ins"] = {"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))}
+        if source_cfg and source_cfg.get("resource_key"):
+            _asset_kwargs["required_resource_keys"] = {source_cfg["resource_key"]}
+
+        if execution_mode == "sql":
+            @asset(**_asset_kwargs)
+            def _sql_asset(context: AssetExecutionContext):
+                statements = _build_sql_mode_statements(
+                    sql_dialect, source_cfg["sql"], output_table, model_name,
+                    target_column, list(feature_columns), task_type, test_size,
+                    max(n_estimators, 8),
+                )
+                return _run_sql_mode(context, source_cfg, statements, output_table)
+
+            return Definitions(assets=[_sql_asset])
+
+        @asset(**_asset_kwargs)
+        def _asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
+            upstream = kwargs.get("upstream")
+            if upstream is None:
+                upstream = _ingest_warehouse_query(source_cfg, context)
             # Defensive Output/MaterializeResult unwrap — see summarize for the rationale.
             # Tolerates upstream authors who annotate `-> Output` or
             # return `Output(value=df, ...)` / `MaterializeResult(value=df)`.

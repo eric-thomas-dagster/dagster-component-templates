@@ -1,3 +1,11 @@
 dagster
 pandas
 scikit-learn
+
+# source: {kind: warehouse_query, resource_key: ...} against DuckDB (via a registered Dagster resource):
+#   pip install dagster-duckdb duckdb
+# source: {kind: warehouse_query, database_url_env_var: ...} (bare SQLAlchemy, no Dagster resource):
+#   pip install duckdb duckdb-engine   # or the SQLAlchemy dialect for your warehouse
+# execution_mode='sql': no extra pip deps -- SQL runs server-side via the
+# warehouse's own resource (snowflake_resource / bigquery_resource /
+# databricks resource), which must already be registered.

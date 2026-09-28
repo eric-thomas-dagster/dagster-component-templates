@@ -32421,13 +32421,19 @@
       "id": "neural_network_model",
       "name": "Neural Network Model",
       "category": "analytics",
-      "description": "Fit a multi-layer perceptron (MLP) neural network for classification or regression.",
+      "description": "Fit a multi-layer perceptron (MLP) neural network for classification or regression. Supports `source: {kind: warehouse_query}` direct-SQL ingestion (DuckDB and other databases) alongside `upstream_asset_key`, and `execution_mode: sql` -- trains AND predicts server-side via BigQuery `CREATE MODEL...OPTIONS(model_type='DNN_CLASSIFIER'|'DNN_REGRESSOR')` (a genuine algorithmic match -- BigQuery's DNN model IS a neural network) or Snowflake `CREATE SNOWFLAKE.ML.CLASSIFICATION` (classification only). Databricks is predict-ONLY via `ai_query()` against an already-served model -- arguably the most natural fit in this family, since neural nets are typically trained via MLflow/AutoML and served as an endpoint on every platform anyway.",
       "path": "assets/analytics/neural_network_model",
       "tags": [
         "analytics",
         "neural",
         "network",
-        "model"
+        "model",
+        "warehouse query",
+        "duckdb",
+        "snowflake",
+        "bigquery",
+        "databricks",
+        "sql execution mode"
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/neural_network_model/schema.json",
       "component_type": "dagster_component_templates.NeuralNetworkModelComponent",
@@ -32438,16 +32444,16 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/neural_network_model/requirements.txt",
       "validation": {
         "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
-        "last_validated": "2026-05-08"
+        "evidence": "Original python-mode: https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md . source/execution_mode additions (added 2026-09-28): source: warehouse_query live-verified against real DuckDB. execution_mode='sql' is structural-only for all 3 dialects -- generated SQL asserted against each platform's documented syntax, not run against a live warehouse account.",
+        "last_validated": "2026-09-28"
       },
       "agent_hints": {
-        "inputs": "DataFrame with numeric feature columns + target column.",
-        "outputs": "DataFrame with predictions.",
-        "side_effects": "Requires sklearn (MLPClassifier/MLPRegressor). Feature scaling essential \u2014 chain feature_scaler.",
+        "inputs": "DataFrame with numeric feature columns + target column (upstream_asset_key), or a SQL FROM-source (source: {kind: warehouse_query}).",
+        "outputs": "output_mode='predictions' (default): the full upstream DataFrame with a `predicted` column added. output_mode='feature_importance': note the code calls model.feature_importances_, an attribute MLPClassifier/MLPRegressor do not have -- this mode appears broken as-built (pre-existing, not touched by this session's changes). execution_mode='sql' writes directly to output_table in the warehouse instead (predictions only).",
+        "side_effects": "Requires scikit-learn (MLPClassifier/MLPRegressor). Feature scaling essential \u2014 chain feature_scaler. execution_mode='sql' runs CREATE MODEL/CREATE SNOWFLAKE.ML.CLASSIFICATION or ai_query in the target warehouse.",
         "anti_uses": "For tabular data, prefer gradient_boosting_model \u2014 usually competitive and faster.",
         "requires_pip": [
-          "sklearn"
+          "scikit-learn"
         ],
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame"
@@ -32467,7 +32473,14 @@
       ],
       "keywords": [
         "report",
-        "aggregate"
+        "aggregate",
+        "warehouse query",
+        "duckdb",
+        "sql execution mode",
+        "dnn",
+        "bigquery ml",
+        "snowflake cortex",
+        "ai_query"
       ]
     },
     {

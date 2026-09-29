@@ -7,6 +7,7 @@ the result to a new table.
 For N-way joins, chain multiple `warehouse_join` assets in sequence;
 each output_table becomes the next left_table.
 """
+import contextlib
 from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
@@ -26,6 +27,41 @@ from pydantic import Field
 _SUPPORTED_DIALECTS = {"duckdb", "postgres", "postgresql", "snowflake", "bigquery",
                         "redshift", "databricks", "mssql", "mysql"}
 _VALID_HOWS = {"inner", "left", "right", "outer", "full", "cross"}
+
+
+class _SqlSession:
+    """Uniform execute/scalar/rows interface over either a SQLAlchemy
+    Connection (already inside a transaction, via engine.begin()) or a
+    native DBAPI2 connection (e.g. the duckdb.DuckDBPyConnection yielded
+    by dagster_duckdb's DuckDBResource.get_connection()) -- these two
+    expose different method names for the same operations, and this
+    component needs to run identical CTAS logic against either."""
+
+    def __init__(self, conn: Any, is_sqlalchemy: bool):
+        self._conn = conn
+        self._is_sqlalchemy = is_sqlalchemy
+
+    def execute(self, sql: str) -> None:
+        if self._is_sqlalchemy:
+            self._conn.exec_driver_sql(sql)
+        else:
+            self._conn.execute(sql)
+
+    def scalar(self, sql: str) -> Any:
+        if self._is_sqlalchemy:
+            return self._conn.exec_driver_sql(sql).scalar()
+        return self._conn.execute(sql).fetchone()[0]
+
+    def rows_and_columns(self, sql: str) -> "tuple[list, list[str]]":
+        if self._is_sqlalchemy:
+            result = self._conn.exec_driver_sql(sql)
+            rows = list(result.fetchall())
+            cols = list(rows[0]._mapping.keys()) if rows else list(result.keys())
+            return rows, cols
+        cursor = self._conn.execute(sql)
+        rows = cursor.fetchall()
+        cols = [d[0] for d in cursor.description]
+        return rows, cols
 
 
 def _quote(ident: str, dialect: str) -> str:
@@ -104,6 +140,16 @@ class WarehouseJoinComponent(Component, Model, Resolvable):
     """
 
     asset_name: str = Field(description="Output Dagster asset name")
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Name of a registered Dagster resource to connect through (e.g. a "
+            "DuckDBResource/SnowflakeResource in this project's resources.py) -- "
+            "the proper Dagster pattern, tried first. Falls back to "
+            "database_url/database_url_env_var when unset. The resource must "
+            "expose .get_engine() (a SQLAlchemy Engine) or .get_connection()."
+        ),
+    )
     database_url: Optional[str] = Field(default=None)
     database_url_env_var: Optional[str] = Field(default=None)
     dialect: str = Field(description=f"SQL dialect: one of {sorted(_SUPPORTED_DIALECTS)}.")
@@ -142,16 +188,62 @@ class WarehouseJoinComponent(Component, Model, Resolvable):
     def get_description(cls) -> str:
         return "Join two tables in the warehouse via CTAS. No Python materialization."
 
-    def _resolve_url(self) -> str:
+    @contextlib.contextmanager
+    def _open_sql_session(self, context: AssetExecutionContext):
+        """A registered Dagster resource wins if set, otherwise fall back to
+        a bare connection string. Previously this component only supported
+        database_url/database_url_env_var, so it had no way to reuse a
+        project's already-registered warehouse resource (DuckDBResource,
+        SnowflakeResource, ...) the way most Dagster projects actually
+        connect -- confirmed a real gap, not a design choice.
+
+        A resource-provided .get_engine() was assumed to be the only real
+        API surface, borrowed from _ingest_warehouse_query's assumption --
+        but dagster_duckdb's real DuckDBResource has no .get_engine() at
+        all (confirmed by introspecting the installed class), only
+        .get_connection(), a contextmanager yielding a native DBAPI2
+        connection (.execute()/.fetchall(), no .begin()/.exec_driver_sql()).
+        So this now tries .get_connection() first (the common real case),
+        then .get_engine() (for a resource that happens to expose one),
+        then a bare database_url / database_url_env_var connection string
+        via a self-created SQLAlchemy engine (disposed here, since nothing
+        else could own its lifecycle).
+
+        Yields a _SqlSession, a tiny uniform wrapper so the caller doesn't
+        need to know which of the two APIs is underneath.
+        """
         import os
-        if self.database_url:
-            return self.database_url
-        if self.database_url_env_var:
-            v = os.environ.get(self.database_url_env_var)
-            if not v:
+        import sqlalchemy
+
+        if self.resource_key:
+            resource = getattr(context.resources, self.resource_key)
+            if hasattr(resource, "get_connection"):
+                with resource.get_connection() as raw_conn:
+                    yield _SqlSession(raw_conn, is_sqlalchemy=False)
+                return
+            if hasattr(resource, "get_engine"):
+                with resource.get_engine().begin() as conn:
+                    yield _SqlSession(conn, is_sqlalchemy=True)
+                return
+            raise ValueError(
+                f"resource {self.resource_key!r} must expose .get_connection() or "
+                f".get_engine() -- warehouse_join needs a real transactional "
+                f"connection for its CTAS; got {type(resource).__name__}"
+            )
+
+        url = self.database_url
+        if not url and self.database_url_env_var:
+            url = os.environ.get(self.database_url_env_var)
+            if not url:
                 raise EnvironmentError(f"Env var {self.database_url_env_var!r} is not set")
-            return v
-        raise ValueError("Set either 'database_url' or 'database_url_env_var'")
+        if not url:
+            raise ValueError("Set 'resource_key', 'database_url', or 'database_url_env_var'")
+        engine = sqlalchemy.create_engine(url)
+        try:
+            with engine.begin() as conn:
+                yield _SqlSession(conn, is_sqlalchemy=True)
+        finally:
+            engine.dispose()
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         dialect = self.dialect.lower()
@@ -173,9 +265,12 @@ class WarehouseJoinComponent(Component, Model, Resolvable):
         all_tags = dict(self.asset_tags or {})
         for k in kinds:
             all_tags[f"dagster/kind/{k}"] = ""
-        resolve_url = self._resolve_url
-
-        @asset(
+        open_sql_session = self._open_sql_session
+        # Only declared when actually set -- Dagster errors "resource key X
+        # required" if a resource_key is declared but never registered, so
+        # this must stay conditional the same way SqlTransformerComponent's
+        # equivalent field does.
+        asset_kwargs: Dict[str, Any] = dict(
             key=dg.AssetKey.from_user_string(asset_name),
             description=self.description or self.get_description(),
             owners=self.owners or [],
@@ -184,21 +279,23 @@ class WarehouseJoinComponent(Component, Model, Resolvable):
             deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
             kinds=set(kinds),
         )
+        if self.resource_key:
+            asset_kwargs["required_resource_keys"] = {self.resource_key}
+
+        @asset(**asset_kwargs)
         def _warehouse_join_asset(context: AssetExecutionContext):
-            import sqlalchemy
-            engine = sqlalchemy.create_engine(resolve_url())
-            sql = _ctas_join(output_table, left_table, right_table, how, on_columns, left_on, right_on,
-                             select_cols, mode, dialect)
-            with engine.begin() as conn:
+            with open_sql_session(context) as sql_session:
+                sql = _ctas_join(output_table, left_table, right_table, how, on_columns, left_on, right_on,
+                                 select_cols, mode, dialect)
                 if sql is None:
-                    conn.exec_driver_sql(f"DROP TABLE IF EXISTS {_quote(output_table, dialect)}")
+                    sql_session.execute(f"DROP TABLE IF EXISTS {_quote(output_table, dialect)}")
                     sql = _ctas_join(output_table, left_table, right_table, how, on_columns, left_on, right_on,
                                      select_cols, "create_if_not_exists", dialect)
                 context.log.info(f"CTAS: {sql}")
-                conn.exec_driver_sql(sql)
-                row_count = int(conn.exec_driver_sql(
+                sql_session.execute(sql)
+                row_count = int(sql_session.scalar(
                     f"SELECT COUNT(*) FROM {_quote(output_table, dialect)}"
-                ).scalar() or 0)
+                ) or 0)
                 metadata = {
                     "dagster/row_count": MetadataValue.int(row_count),
                     "warehouse/output_table": MetadataValue.text(output_table),
@@ -207,11 +304,10 @@ class WarehouseJoinComponent(Component, Model, Resolvable):
                 }
                 if include_preview and row_count > 0:
                     try:
-                        prev_rows = conn.exec_driver_sql(
+                        prev_rows, cols = sql_session.rows_and_columns(
                             f"SELECT * FROM {_quote(output_table, dialect)} LIMIT {preview_rows}"
-                        ).fetchall()
+                        )
                         if prev_rows:
-                            cols = list(prev_rows[0]._mapping.keys())
                             metadata["preview"] = MetadataValue.md(
                                 "| " + " | ".join(cols) + " |\n"
                                 "| " + " | ".join(["---"] * len(cols)) + " |\n" +

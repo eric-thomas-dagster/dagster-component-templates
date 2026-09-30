@@ -1,18 +1,32 @@
 """LangGraph Agent Component.
 
-Runs a multi-step LangGraph ``StateGraph`` as a single Dagster asset. Each
-step is an LLM call that reads the shared state (initial input + all prior
-step outputs) and appends its own output back to state. Steps chain
-linearly by default; a step can optionally route conditionally to another
-step name or to END based on a regex or Python-callable check.
+Two mutually exclusive modes:
 
-Why LangGraph vs a plain chain?
-  - Explicit stateful graph. Every node reads/writes a typed state dict.
-  - Cheap conditional routing (early exit, retry-on-parse-fail, branch).
-  - First-class support for streaming intermediate node outputs.
-  - Checkpointed execution — future: swap in a Dagster-backed checkpointer.
+  steps:    Declarative prompt-chain DSL. Each step is a templated LLM call
+            that reads the shared state and appends its output back to
+            state. A step continues to another step ONLY if it explicitly
+            sets `next`; omitting `next` terminates that branch at END
+            (this applies to every step, not just the last one — a step
+            reached only via `condition_regex` is usually meant to be a
+            terminal leaf, so there's no implicit "fall through to the
+            next declared step"). A step can also route conditionally to
+            another step name or to END based on a regex check. Every node
+            is hardcoded to "format a prompt, call one LLM" — no custom
+            per-node logic, tool calls, or retrieval. Good for pure prompt
+            chains with no bespoke node behavior.
 
-State shape stored on each run:
+  graph_fn: Bring-your-own-graph. A dotted path to a callable, defined in
+            your own project, that returns an already-built LangGraph graph
+            (a compiled StateGraph, or anything exposing `.invoke(state)`).
+            The graph's actual logic — tool calls, custom control flow,
+            retrieval, subgraphs, checkpointing, whatever LangGraph can do —
+            lives in your own committed Python. This component just wires
+            it up as a Dagster asset (metadata, retries, lineage) and
+            invokes it with the run's initial state. Use this whenever a
+            node needs to do more than "prompt → LLM → text".
+
+State shape stored on each run (steps mode only; graph_fn mode's state
+shape is whatever your own graph defines):
   {
     "input": <initial user prompt>,
     "outputs": {step_name: <text>, ...},
@@ -21,10 +35,11 @@ State shape stored on each run:
     "stopped_by": "end_of_pipeline" | "conditional_end" | "step_error",
   }
 
-Providers supported: openai, anthropic, google, azure_openai, ollama —
-same set as ``langchain_chain_asset``. Provider packages are optional
-extras; install only what you use.
+Providers supported (steps mode): openai, anthropic, google, azure_openai,
+ollama — same set as ``langchain_chain_asset``. Provider packages are
+optional extras; install only what you use.
 """
+import importlib
 from typing import Any, Dict, List, Optional
 
 import dagster as dg
@@ -40,6 +55,47 @@ from dagster import (
     asset,
 )
 from pydantic import Field
+
+
+def _resolve(callable_path: str, field_name: str):
+    """Resolve a `module.path:function_name` reference to the actual
+    callable. Same convention as dynamic_fanout_asset/warm_scheduled_job's
+    `_resolve` — colon-separated, not dotted, so a dotted module path is
+    unambiguous from the function name."""
+    if ":" not in callable_path:
+        raise ValueError(
+            f"langgraph_agent: {field_name}={callable_path!r} must be "
+            f"'module.path:function_name' (colon-separated), e.g. "
+            f"'myproject.graphs.support:build_graph'."
+        )
+    module_path, fn_name = callable_path.split(":", 1)
+    try:
+        mod = importlib.import_module(module_path)
+    except ImportError as e:
+        raise ImportError(f"langgraph_agent: {field_name}: cannot import module {module_path!r}: {e}") from e
+    try:
+        return getattr(mod, fn_name)
+    except AttributeError as e:
+        raise AttributeError(f"langgraph_agent: {field_name}: module {module_path!r} has no attribute {fn_name!r}") from e
+
+
+def _json_safe(obj: Any) -> Any:
+    """Recursively coerce a graph_fn's returned state into JSON-serializable
+    data for asset metadata — LangGraph state dicts commonly hold
+    LangChain message objects or other non-JSON types that MetadataValue.json
+    can't serialize directly."""
+    import json
+
+    try:
+        json.dumps(obj)
+        return obj
+    except TypeError:
+        pass
+    if isinstance(obj, dict):
+        return {str(k): _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_safe(v) for v in obj]
+    return str(obj)
 
 
 class LangGraphStep(dg.Model, dg.Resolvable):
@@ -70,7 +126,11 @@ class LangGraphStep(dg.Model, dg.Resolvable):
     )
     next: Optional[str] = Field(
         default=None,
-        description="Next step name. Omit on the last step. Use 'END' to terminate.",
+        description=(
+            "Next step name. Omitting this (or setting 'END') terminates this branch at "
+            "END — there is no implicit fall-through to the next declared step, so every "
+            "step that should continue must set this explicitly."
+        ),
     )
     condition_regex: Optional[str] = Field(
         default=None,
@@ -87,12 +147,13 @@ class LangGraphStep(dg.Model, dg.Resolvable):
 
 
 class LangGraphAgentComponent(Component, Model, Resolvable):
-    """Run a LangGraph pipeline of LLM steps as one Dagster asset.
+    """Run a LangGraph pipeline as one Dagster asset — either a declarative
+    prompt chain (`steps`) or your own pre-built graph (`graph_fn`). Exactly
+    one of the two must be set.
 
-    Each step is an LLM call over a template that can reference prior outputs.
-    Linear by default; supports conditional routing via `condition_regex`.
-
-    Example (3-step research pipeline):
+    Example A — declarative prompt chain (3-step research pipeline). Linear
+    by default; supports conditional routing via `condition_regex`. Every
+    step is hardcoded to "template a prompt, call one LLM":
         ```yaml
         type: dagster_component_templates.LangGraphAgentComponent
         attributes:
@@ -128,19 +189,74 @@ class LangGraphAgentComponent(Component, Model, Resolvable):
                 {outputs.research}
         ```
 
-    Output metadata surfaces the final answer, per-step outputs (as a
-    collapsible JSON block), model, and steps_run.
+    Example B — bring your own graph. `build_graph` is real Python you own,
+    using LangGraph's full API (tool calls, custom node logic, subgraphs,
+    checkpointers) — this component just invokes it:
+        ```yaml
+        type: dagster_component_templates.LangGraphAgentComponent
+        attributes:
+          asset_name: support_triage
+          input_prompt: "{run_id}: escalation queue sweep"
+          graph_fn: "myproject.graphs.support:build_graph"
+        ```
+        ```python
+        # myproject/graphs/support.py
+        from langgraph.graph import StateGraph, END
+
+        def build_graph(context):
+            graph = StateGraph(dict)
+            graph.add_node("triage", my_triage_node)   # real logic, tool calls, etc.
+            graph.add_node("escalate", my_escalate_node)
+            graph.set_entry_point("triage")
+            graph.add_conditional_edges("triage", my_router, {"escalate": "escalate", END: END})
+            graph.add_edge("escalate", END)
+            return graph.compile()
+        ```
+
+    Output metadata: `steps` mode surfaces the final answer, per-step
+    outputs (as a collapsible JSON block), model, and steps_run. `graph_fn`
+    mode surfaces the raw final state (JSON-safe coerced) and, if present, a
+    `final` key as the markdown answer.
     """
 
     asset_name: str = Field(description="Output Dagster asset name.")
-    input_prompt: str = Field(
+    input_prompt: Optional[str] = Field(
+        default=None,
         description=(
-            "Initial user prompt. Available as {input} in every step's template. "
-            "Supports {run_id}, {partition_key}, {partition_keys.<dim>} substitutions."
+            "Initial user prompt. In `steps` mode: required, available as {input} in every "
+            "step's template. In `graph_fn` mode: optional, merged into the initial state "
+            "under the `input` key. Supports {run_id}, {partition_key}, {partition_keys.<dim>} substitutions."
         ),
     )
-    steps: List[LangGraphStep] = Field(
-        description="Ordered list of LLM steps. Linear chain unless a step overrides `next`.",
+    steps: Optional[List[LangGraphStep]] = Field(
+        default=None,
+        description=(
+            "Ordered list of LLM steps (declarative prompt-chain mode). Linear chain unless "
+            "a step overrides `next`. Mutually exclusive with `graph_fn` — set exactly one."
+        ),
+    )
+    graph_fn: Optional[str] = Field(
+        default=None,
+        description=(
+            "'module.path:function_name' dotted path (colon-separated) to a callable, defined "
+            "in your own project, that returns an already-built LangGraph graph exposing "
+            "`.invoke(state) -> state` (a compiled StateGraph, or anything with that interface). "
+            "Called as `graph_fn(context) -> graph`. Use this when a node needs custom Python "
+            "logic, tool calls, retrieval, or anything beyond a templated prompt + LLM call — "
+            "the graph's real logic lives in your own committed Python, not in this component's "
+            "YAML. Mutually exclusive with `steps` — set exactly one. Resolved at materialize "
+            "time (not component-load time), so example/manifest validation doesn't require "
+            "your project modules to be importable."
+        ),
+    )
+    initial_state: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Only used with `graph_fn`. Extra keys merged into the state dict passed to "
+            "`graph.invoke(...)`. String values support {run_id}, {partition_key}, "
+            "{partition_keys.<dim>} substitution (same as input_prompt). If `input_prompt` is "
+            "also set, it's added first under the `input` key, so `initial_state` keys win on conflict."
+        ),
     )
 
     llm_provider: str = Field(
@@ -179,11 +295,26 @@ class LangGraphAgentComponent(Component, Model, Resolvable):
 
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         _self = self
-        if not self.steps:
-            raise ValueError(f"langgraph_agent {self.asset_name!r}: `steps` must contain at least one step.")
-        step_names = [s.name for s in self.steps]
-        if len(set(step_names)) != len(step_names):
-            raise ValueError(f"langgraph_agent {self.asset_name!r}: step names must be unique. Got {step_names}.")
+        has_steps = bool(self.steps)
+        has_graph_fn = bool(self.graph_fn)
+        if has_steps and has_graph_fn:
+            raise ValueError(
+                f"langgraph_agent {self.asset_name!r}: `steps` and `graph_fn` are mutually "
+                f"exclusive — set one or the other, not both."
+            )
+        if not has_steps and not has_graph_fn:
+            raise ValueError(
+                f"langgraph_agent {self.asset_name!r}: must set either `steps` (declarative "
+                f"prompt-chain DSL) or `graph_fn` (bring your own pre-built LangGraph graph)."
+            )
+
+        step_names: List[str] = []
+        if has_steps:
+            if not self.input_prompt:
+                raise ValueError(f"langgraph_agent {self.asset_name!r}: `input_prompt` is required when using `steps`.")
+            step_names = [s.name for s in self.steps]
+            if len(set(step_names)) != len(step_names):
+                raise ValueError(f"langgraph_agent {self.asset_name!r}: step names must be unique. Got {step_names}.")
 
         _kinds = list(self.kinds or ["ai", "langgraph", "agent"])
         _all_tags = dict(self.asset_tags or {})
@@ -199,13 +330,17 @@ class LangGraphAgentComponent(Component, Model, Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
+        _default_description = (
+            f"LangGraph pipeline ({_self.llm_provider}/{_self.model}) with "
+            f"{len(_self.steps)} steps: {' → '.join(step_names)}"
+            if has_steps
+            else f"LangGraph graph from {_self.graph_fn!r} (bring-your-own-graph)"
+        )
+
         @asset(
             key=AssetKey.from_user_string(_self.asset_name),
             group_name=_self.group_name,
-            description=_self.description or (
-                f"LangGraph pipeline ({_self.llm_provider}/{_self.model}) with "
-                f"{len(_self.steps)} steps: {' → '.join(step_names)}"
-            ),
+            description=_self.description or _default_description,
             owners=_self.owners,
             tags=_all_tags,
             retry_policy=_retry_policy,
@@ -221,6 +356,35 @@ class LangGraphAgentComponent(Component, Model, Resolvable):
                 else:
                     substitutions["partition_key"] = str(pk)
                     substitutions["partition_keys"] = {}
+
+            if _self.graph_fn:
+                graph_callable = _resolve(_self.graph_fn, "graph_fn")
+                graph = graph_callable(context)
+
+                state: Dict[str, Any] = {}
+                if _self.input_prompt:
+                    state["input"] = _substitute(_self.input_prompt, substitutions)
+                for k, v in (_self.initial_state or {}).items():
+                    state[k] = _substitute(v, substitutions) if isinstance(v, str) else v
+
+                context.log.info(f"[langgraph] graph_fn={_self.graph_fn!r} initial_state_keys={list(state.keys())}")
+                try:
+                    final_state = graph.invoke(state)
+                except Exception as e:
+                    context.log.error(f"[langgraph] graph_fn invocation failed: {e}")
+                    raise
+
+                safe_state = _json_safe(final_state)
+                md: Dict[str, Any] = {
+                    "mode": MetadataValue.text("graph_fn"),
+                    "graph_fn": MetadataValue.text(_self.graph_fn),
+                    "final_state": MetadataValue.json(safe_state),
+                }
+                if isinstance(final_state, dict) and final_state.get("final"):
+                    md["final_answer"] = MetadataValue.md(str(final_state["final"]))
+                context.add_output_metadata(md)
+                return final_state if isinstance(final_state, dict) else {"result": safe_state}
+
             resolved_input = _substitute(_self.input_prompt, substitutions)
 
             result = _run_graph(
@@ -236,7 +400,8 @@ class LangGraphAgentComponent(Component, Model, Resolvable):
                 default_max_tokens=_self.max_tokens,
             )
 
-            md: Dict[str, Any] = {
+            md = {
+                "mode": MetadataValue.text("steps"),
                 "final_answer": MetadataValue.md(result["final"] or "_(empty)_"),
                 "steps_run": MetadataValue.text(" → ".join(result["steps_run"])),
                 "steps_run_count": MetadataValue.int(len(result["steps_run"])),
@@ -409,11 +574,16 @@ def _run_graph(
             if explicit_next not in step_by_name:
                 raise ValueError(f"step {name!r} next={explicit_next!r} not found in steps.")
             graph.add_edge(name, explicit_next)
-        elif explicit_next == "END" or i == len(steps) - 1:
-            graph.add_edge(name, END)
         else:
-            # Middle step with no next: fall through to the next in the list.
-            graph.add_edge(name, step_names[i + 1])
+            # No explicit `next` (and no condition_regex): terminate at END.
+            # This is NOT "fall through to the next step in the list" --
+            # that used to be the behavior here, but it silently broke any
+            # step reached only as a conditional branch target (e.g. this
+            # component's own README quarantine/allow example: neither
+            # branch sets `next`, and both are meant to be terminal leaves,
+            # not a continuation into the next declared step). A step that
+            # wants to continue must say so explicitly via `next`.
+            graph.add_edge(name, END)
 
     compiled = graph.compile()
 

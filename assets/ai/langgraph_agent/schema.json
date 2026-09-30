@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.LangGraphAgentComponent",
-  "description": "Multi-step LangGraph StateGraph as a Dagster asset. Each step is an LLM call over shared state; supports conditional routing.",
+  "description": "Multi-step LangGraph StateGraph as a Dagster asset. Either a declarative prompt-chain DSL (`steps`) or a bring-your-own pre-built graph (`graph_fn`) -- exactly one of the two must be set.",
   "category": "ai",
   "icon": "si:langgraph",
   "x-dagster-io": {
@@ -9,7 +9,7 @@
     },
     "outputs": {
       "type": "dict",
-      "description": "{input, outputs, final, steps_run, stopped_by, model, provider}"
+      "description": "steps mode: {input, outputs, final, steps_run, stopped_by, model, provider}. graph_fn mode: whatever dict your own graph returns."
     }
   },
   "attributes": {
@@ -21,14 +21,26 @@
     "input_prompt": {
       "type": "string",
       "label": "Initial Input Prompt",
-      "required": true,
-      "description": "Seed prompt; available as {input} in every step. Supports {run_id}, {partition_key}, {partition_keys.<dim>}."
+      "required": false,
+      "description": "Required in `steps` mode (seed prompt; available as {input} in every step). Optional in `graph_fn` mode (merged into initial state under `input`). Supports {run_id}, {partition_key}, {partition_keys.<dim>}."
+    },
+    "graph_fn": {
+      "type": "string",
+      "label": "Graph Function",
+      "required": false,
+      "description": "'module.path:function_name' dotted path to a callable, defined in your own project, returning an already-built LangGraph graph exposing `.invoke(state)`. Called as `graph_fn(context) -> graph`. Mutually exclusive with `steps` -- set exactly one. Resolved at materialize time, not component-load time."
+    },
+    "initial_state": {
+      "type": "object",
+      "label": "Initial State",
+      "required": false,
+      "description": "Only used with `graph_fn`. Extra keys merged into the state dict passed to graph.invoke(...). String values support {run_id}/{partition_key}/{partition_keys.<dim>} substitution. Wins over input_prompt's `input` key on conflict."
     },
     "steps": {
       "type": "array",
       "label": "Graph Steps",
-      "required": true,
-      "description": "Ordered LLM steps. Linear chain unless a step overrides `next` or sets `condition_regex`.",
+      "required": false,
+      "description": "Ordered LLM steps (declarative prompt-chain mode). Mutually exclusive with `graph_fn` -- set exactly one. A step continues only if it explicitly sets `next` or `condition_regex`; omitting both terminates that branch at END.",
       "items": {
         "type": "object",
         "properties": {
@@ -53,7 +65,7 @@
           },
           "next": {
             "type": "string",
-            "description": "Next step name, or 'END' to terminate."
+            "description": "Next step name. Omitting this (or 'END') terminates this branch at END -- no implicit fall-through to the next declared step."
           },
           "condition_regex": {
             "type": "string",

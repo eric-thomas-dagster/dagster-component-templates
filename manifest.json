@@ -27127,7 +27127,7 @@
       "id": "langgraph_agent",
       "name": "LangGraph Agent",
       "category": "ai",
-      "description": "Multi-step LangGraph StateGraph as a Dagster asset. Each step is an LLM call over shared state; supports conditional routing.",
+      "description": "Multi-step LangGraph StateGraph as a Dagster asset. Either a declarative prompt-chain DSL (steps) or a bring-your-own pre-built graph (graph_fn) invoked via a dotted-path callable.",
       "path": "assets/ai/langgraph_agent",
       "tags": [
         "ai",
@@ -27163,7 +27163,7 @@
         "asset"
       ],
       "agent_hints": {
-        "output_type": "pd.DataFrame"
+        "output_type": "dict"
       },
       "keywords": [
         "llm",

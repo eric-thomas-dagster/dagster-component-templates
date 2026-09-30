@@ -1,17 +1,23 @@
 # langgraph_agent
 
-Run a multi-step **LangGraph `StateGraph`** as a single Dagster asset. Each step is an LLM call that reads the shared state (initial input + all prior step outputs) and appends its own output back to state. Steps chain linearly by default; a step can conditionally route to another step or to `END` based on a regex check against its output.
+Run a **LangGraph `StateGraph`** as a single Dagster asset, in one of two mutually exclusive modes:
 
-## Why LangGraph vs a plain chain
+- **`steps`** — a declarative prompt-chain DSL. Each step is an LLM call that reads the shared state (initial input + all prior step outputs) and appends its own output back to state. A step continues to another step only if it explicitly sets `next`; it can also route conditionally based on a regex check against its own output. Every node is hardcoded to "template a prompt, call one LLM" — there's no way to give a node custom logic, tool calls, or retrieval.
+- **`graph_fn`** — bring your own graph. Point at a dotted path to a callable in your own project that returns an already-built LangGraph graph (a compiled `StateGraph`, or anything with `.invoke(state)`). The graph's real logic — tool calls, custom control flow, retrieval, subgraphs, checkpointers, anything LangGraph can do — lives in your own committed Python; this component just wires it up as a Dagster asset and invokes it.
+
+**Which mode should I use?** If your pipeline is genuinely "templated prompt → LLM → templated prompt → LLM", `steps` is less code. The moment a node needs to do anything else — call a tool, hit a vector store, run arbitrary Python — `steps` can't express it and you want `graph_fn` instead, with the graph itself defined and versioned as real Python (locally, or registered with LangGraph Platform/Server if you deploy graphs separately).
+
+If your pipeline is a single prompt over rows of a DataFrame, use [`langchain_chain_asset`](../langchain_chain_asset) instead of either mode here.
+
+## Why LangGraph vs a plain chain (steps mode)
 
 - **Explicit stateful graph.** Every node reads/writes a typed state dict — inspectable, replayable, and richer than a linear chain's implicit variables.
 - **Conditional routing.** Early-exit, retry-on-parse-fail, or branch-and-merge patterns are one-liners (`condition_regex`).
-- **First-class streaming.** The compiled graph exposes intermediate node outputs for observability.
 - **Composable.** Multiple `langgraph_agent` assets can compose into larger DAGs via Dagster `deps`.
 
-If your pipeline is a single prompt over rows of a DataFrame, use [`langchain_chain_asset`](../langchain_chain_asset). If you need multi-step reasoning where each step's output feeds the next, this is the right component.
+Note: streaming intermediate node outputs and checkpointed execution are things LangGraph itself supports, but this component does not currently expose either — they're only available if you drop to `graph_fn` and build that into your own graph.
 
-## Example
+## Example: `steps` mode
 
 ```yaml
 type: dagster_component_templates.LangGraphAgentComponent
@@ -46,7 +52,7 @@ attributes:
 
 ## Conditional routing
 
-`condition_regex` lets a step branch based on its own output. Combine with `condition_else` to specify the false branch (defaults to `END`):
+`condition_regex` lets a step branch based on its own output. Combine with `condition_else` to specify the false branch (defaults to `END`). Neither `quarantine` nor `allow` below sets `next`, so each one terminates at `END` right after running — they're alternate terminal outcomes of `classify`, not a continuation into each other:
 
 ```yaml
 steps:
@@ -60,6 +66,48 @@ steps:
   - name: allow
     prompt: "Summarize this legitimate message in one sentence:\n{input}"
 ```
+
+## Example: `graph_fn` mode (bring your own graph)
+
+```yaml
+type: dagster_component_templates.LangGraphAgentComponent
+attributes:
+  asset_name: support_triage
+  input_prompt: "{run_id}: escalation queue sweep"
+  graph_fn: "myproject.graphs.support:build_graph"
+```
+
+```python
+# myproject/graphs/support.py
+from langgraph.graph import StateGraph, END
+
+def build_graph(context):
+    """Called as build_graph(context) -> graph. Build whatever graph you
+    want using LangGraph's full API -- tool-calling nodes, retrieval,
+    subgraphs, checkpointers -- none of that is expressible via `steps`."""
+    graph = StateGraph(dict)
+    graph.add_node("triage", my_triage_node)     # real Python, real tool calls
+    graph.add_node("escalate", my_escalate_node)
+    graph.set_entry_point("triage")
+    graph.add_conditional_edges("triage", my_router, {"escalate": "escalate", END: END})
+    graph.add_edge("escalate", END)
+    return graph.compile()
+```
+
+The asset resolves `graph_fn` at *materialize* time (not component-load time), calls it once to get the graph, builds an initial state dict (`input_prompt`'s resolved value under `input`, plus any `initial_state` keys — `initial_state` wins on conflict), and calls `graph.invoke(state)`. Whatever your graph returns is the asset's materialized value; if it's a dict with a `final` key, that also becomes the `final_answer` metadata.
+
+## Component-level fields
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `asset_name` | `str` | — | Output Dagster asset name. |
+| `input_prompt` | `str` | `None` | Required in `steps` mode ({input} in every step). Optional in `graph_fn` mode (merged into initial state under `input`). |
+| `steps` | `List[LangGraphStep]` | `None` | Declarative prompt-chain mode. Mutually exclusive with `graph_fn` — set exactly one. See the per-step fields below. |
+| `graph_fn` | `str` | `None` | `'module.path:function_name'` dotted path to a callable returning an already-built graph. Mutually exclusive with `steps` — set exactly one. |
+| `initial_state` | `Dict[str, Any]` | `None` | `graph_fn` mode only. Extra keys merged into the initial state, winning over `input_prompt`'s `input` key on conflict. |
+| `llm_provider` / `model` / `api_key_env_var` / `api_base_env_var` / `system_message` / `temperature` / `max_tokens` | — | — | `steps` mode only — LLM call defaults, each overridable per-step. Unused in `graph_fn` mode. |
+
+The table below (auto-generated) documents the per-step fields — each entry in `steps: [...]`:
 
 [//]: # (FIELDS:START - auto-generated by tools/regen_readme_fields.py)
 
@@ -85,7 +133,7 @@ steps:
 | `system_message` | `str` | — | Optional system message for this step (overrides component-level system_message). |
 | `temperature` | `float` | — | Optional per-step temperature override. |
 | `max_tokens` | `int` | — | Optional per-step max_tokens override. |
-| `next` | `str` | — | Next step name. Omit on the last step. Use 'END' to terminate. |
+| `next` | `str` | — | Next step name. Omitting this (or setting 'END') terminates this branch at END — there is no implicit fall-through to the next declared step, so every step that should continue must set this explicitly. |
 | `condition_regex` | `str` | — | Optional regex. If set, the step's output is tested against it: on match, routes to `next`; on no-match, routes to `condition_else` (or END if unset). Great for early-exit or self-review loops. |
 | `condition_else` | `str` | — | Where to route when condition_regex does NOT match. Defaults to END. |
 
@@ -93,7 +141,7 @@ steps:
 
 ## Output
 
-Materialized value is a dict:
+`steps` mode — materialized value is a dict:
 
 ```python
 {
@@ -107,7 +155,9 @@ Materialized value is a dict:
 }
 ```
 
-Asset metadata surfaces: `final_answer` (markdown), `steps_run`, `steps_run_count`, `model`, `provider`, `stopped_by`, and a collapsible `step_outputs` JSON blob.
+Asset metadata surfaces: `mode` ("steps"), `final_answer` (markdown), `steps_run`, `steps_run_count`, `model`, `provider`, `stopped_by`, and a collapsible `step_outputs` JSON blob.
+
+`graph_fn` mode — materialized value is whatever your own graph's final state dict is. Asset metadata surfaces: `mode` ("graph_fn"), `graph_fn` (the dotted path), a collapsible `final_state` JSON blob (non-JSON-serializable values, like LangChain message objects, are coerced to strings), and `final_answer` (markdown) if the final state has a `final` key.
 
 ## Requirements
 

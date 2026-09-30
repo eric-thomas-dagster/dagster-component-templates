@@ -1,0 +1,28 @@
+type: dagster_community_components.WarmScheduledJobComponent
+attributes:
+  asset_name: pricing_refresh_warm
+  group_name: pricing
+
+  schedule: "*/15 * * * *"    # every 15 minutes, evaluated by this component's
+                               # own loop -- NOT a Dagster ScheduleDefinition
+  timezone: UTC
+
+  warmup_fn: "myproject.jobs.pricing:warmup"     # runs ONCE per bounded run:
+                                                  # load the pricing model,
+                                                  # open the warehouse connection
+  tick_fn: "myproject.jobs.pricing:run_tick"     # runs once per precise tick,
+                                                  # as a direct in-process call
+
+  max_seconds: 3600           # bounded run (< your Serverless run-duration cap);
+                               # re-pays warmup once per hour, not once per tick
+  tick_error_handling: continue  # one bad tick doesn't force a full restart
+
+  # Pair with (unmodified) StreamingRunHealthSensorComponent for auto-restart:
+  #
+  # type: dagster_community_components.StreamingRunHealthSensorComponent
+  # attributes:
+  #   sensor_name: pricing_refresh_health
+  #   job_name: __ASSET_JOB
+  #   asset_selection: [pricing_refresh_warm]
+  #   minimum_interval_seconds: 30
+  #   default_status: running

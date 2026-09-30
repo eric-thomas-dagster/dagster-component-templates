@@ -58086,9 +58086,58 @@
         "warehouse-native ai",
         "in-database ml"
       ]
+    },
+    {
+      "id": "warm_scheduled_job",
+      "name": "Warm Scheduled Job",
+      "category": "infrastructure",
+      "description": "Isolated, always-warm job that manages its own cron schedule in-process, bypassing Dagster's SchedulerDaemon entirely (its minute-granular tick evaluation is architectural, not a load artifact -- confirmed against the Dagster OSS scheduler source, which Dagster+'s control plane subclasses unchanged, just wrapped in Datadog/ddtrace instrumentation). Warms up once per bounded run via `warmup_fn` (load a model, open connections), then fires `tick_fn` as a direct in-process function call at each precise scheduled instant -- never through Dagster's run-launching APIs -- which is what makes each tick instant while keeping the process genuinely isolated (dedicated resources, not the shared code-location server; never tags dagster/isolation: disabled). Supports 6-field second-precision cron (second_precision: true) -- a schedule granularity Dagster's native scheduler cannot express at all, not just one it can't hit precisely. Measures and reports drift_seconds per tick, so the precision is directly observable in the catalog. Pair with StreamingRunHealthSensorComponent, unmodified, for auto-restart on crash / max_seconds rollover.",
+      "path": "assets/infrastructure/warm_scheduled_job",
+      "tags": [
+        "infrastructure",
+        "orchestration",
+        "scheduling",
+        "cron",
+        "warm-compute",
+        "isolated",
+        "long-running",
+        "precision-timing"
+      ],
+      "dependencies": {
+        "pip": [
+          "croniter"
+        ]
+      },
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/warm_scheduled_job/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/warm_scheduled_job/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/warm_scheduled_job/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/warm_scheduled_job/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/warm_scheduled_job/schema.json",
+      "icon": "Clock",
+      "validation": {
+        "level": "code",
+        "evidence": "Live-verified (real croniter, real wall-clock sleeps, nothing mocked): warmup runs exactly once per bounded run and every tick observes the identical warm_state object; measured drift against the scheduled instant is sub-500ms; tick_error_handling='continue' survives a failing tick and keeps looping ('raise' correctly fails the whole run); max_seconds and max_ticks both correctly bound the loop; a malformed cron string, a 6-field string without second_precision=true (croniter's own is_valid() is too lenient to catch this alone -- confirmed live it accepts 6-field and even 7-field strings regardless of the second_at_beginning flag, so this component enforces its own strict field-count check first), an invalid dotted callable path, and an invalid timezone are all rejected with clear errors at build_defs time. Not yet verified: multi-hour DST transitions in non-UTC timezones, or behavior under catchup=true with a very large missed-tick backlog beyond max_catchup_ticks.",
+        "last_validated": "2026-09-30"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "schedule",
+        "cron",
+        "warm start",
+        "cold start",
+        "isolated run",
+        "always on",
+        "precision timing",
+        "second precision"
+      ],
+      "vertical": "orchestration"
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1173
+  "total": 1174
 }

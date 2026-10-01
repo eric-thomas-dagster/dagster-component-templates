@@ -235,6 +235,36 @@ working under either engine. Everything else here — `meta.dagster.*`,
 `external_packages`, freshness/automation derivation — reads plain
 manifest fields that exist under both engines unchanged.
 
+## dbt State vs `state_manifest_path` — these are two different things
+
+Two unrelated mechanisms share the word "state" here:
+
+- **`state_manifest_path` / `include_state_explain` / `derive_state_tags`**
+  are built on the mechanism dbt has always shipped for free: two
+  `manifest.json` files diffed by checksum. No paid dependency — works
+  identically on dbt OSS.
+- **`config.state.lag_tolerance`** (read by `derive_freshness_policies` /
+  `derive_lag_tolerance_automation`) is a config key belonging to **dbt
+  State**, dbt Labs' separate, paid, usage-based product (billed per Daily
+  Active Target Table), where a backend service decides whether to skip a
+  rebuild. This component only *reads* that config value as a plain number
+  from the manifest — it never calls dbt State's service, so setting
+  `lag_tolerance` works as a Dagster-side hint whether or not you're
+  actually paying for the add-on.
+
+**If Dagster is already orchestrating the upstream load, you likely don't
+need `lag_tolerance` or dbt State at all.** `lag_tolerance` exists to solve
+a problem specific to dbt not knowing when upstream data actually finished
+loading — it has to wait/poll and guess. Dagster doesn't have that
+problem: if the upstream load is itself a Dagster asset, wire a real
+`deps:` edge to it and let a plain `AutomationCondition.eager()` (or your
+own condition) fire the moment that asset actually materializes — exact
+timing, no heuristic, no paid add-on required. Reach for
+`derive_lag_tolerance_automation` only when the upstream load is genuinely
+outside Dagster's visibility (an external system with no corresponding
+Dagster asset) and dbt's own `lag_tolerance` config is the only signal
+available at all.
+
 ## Related
 
 - **[`EnrichedDbtProjectComponent`](../enriched_dbt_project/README.md)** — same enrichment vocabulary for dbt Core

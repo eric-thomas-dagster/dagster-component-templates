@@ -90,6 +90,49 @@ Automation condition precedence, highest to lowest:
 4. `default_automation_condition` (component-level, same shape as #1) —
    applied only when nothing above set one
 
+## `post_processing:` vs this component's fields
+
+Dagster's own `post_processing:` block is available on **every** component's
+`defs.yaml` — including the plain `dagster_dbt.DbtProjectComponent` directly,
+no enrichment needed:
+
+```yaml
+type: dagster_dbt.DbtProjectComponent     # works without this enriched wrapper
+attributes:
+  project: "{{ project_root }}/dbt_project"
+post_processing:
+  assets:
+    - target: "tag:team=finance"          # full asset-selection DSL: key, tag, kind, wildcard
+      attributes:
+        automation_condition: "{{ finance_default_automation() }}"   # a template_vars_module function
+        owners: ["team:finance"]
+```
+
+**Use `post_processing:`** when you want to set a policy across a selection
+of assets, from the Dagster-repo side, by tag/kind/key. It's the more
+general, idiomatic mechanism and doesn't require this enriched component at
+all. One thing to know: for anything other than `metadata`/`tags`, it
+**replaces** the attribute unconditionally for every asset the selector
+matches — there's no "only if unset", and `attributes.deps` replaces the
+whole dependency list rather than appending to it.
+
+**Use this component's fields instead** when:
+- You want a default that backs off for any asset that already has its own
+  `automation_condition` — `default_automation_condition` only fills the
+  gap, it never clobbers a per-model override. `post_processing` can't
+  express that without a hand-maintained excluding selector.
+- The person declaring per-model policy owns the **dbt model**, not the
+  Dagster repo — `meta.dagster.automation_condition` lives in dbt YAML,
+  authored without touching Dagster code or needing to already know the
+  computed Dagster asset key.
+- You want to **add** one dependency without re-declaring a model's entire
+  existing dep list — `asset_overrides.depends_on` appends; `post_processing`'s
+  `attributes.deps` would require listing every real dbt-derived dep too.
+
+Neither mechanism can fix a **wrong** AssetKey — that's why `external_packages`
+above computes the mesh stub's key via the real configured translator rather
+than relying on an attribute override to paper over a mismatch.
+
 ## Full example
 
 ```yaml

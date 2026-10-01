@@ -1764,6 +1764,7 @@ except ImportError:
         enable_materialization_kinds: bool = Field(default=False)
         auto_trigger_on_freshness_failure: bool = Field(default=False)
         derive_lag_tolerance_automation: bool = Field(default=False)
+        default_automation_condition: Optional[Dict[str, Any]] = Field(default=None)
         code_version_strategy: Literal["disabled", "hash", "sqlglot"] = Field(default="disabled")
         state_manifest_path: Optional[str] = Field(default=None)
         include_state_explain: bool = Field(default=False)

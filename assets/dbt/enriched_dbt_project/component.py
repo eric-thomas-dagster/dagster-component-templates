@@ -758,6 +758,32 @@ def _get_str_meta(metadata: dict, key: str) -> Optional[str]:
     return str(val)
 
 
+def _build_child_map(manifest: Mapping[str, Any]) -> Dict[str, List[str]]:
+    """Manifests produced by dbt v2 / Fusion don't include a top-level
+    `child_map` key at all (confirmed against dagster_dbt's own internal
+    `_build_child_map`, which hit the identical gap and works around it the
+    same way) -- build the parent -> children edges ourselves from each
+    resource's own `depends_on.nodes` list whenever the manifest doesn't
+    supply one. Without this, include_exposures/include_metrics/
+    include_semantic_models silently return nothing under a Fusion manifest
+    -- `manifest.get("child_map", {})` never raises, it just degrades."""
+    existing = manifest.get("child_map")
+    if existing:
+        return existing
+    child_map: Dict[str, List[str]] = {}
+    for resources in (
+        manifest.get("nodes") or {},
+        manifest.get("sources") or {},
+        manifest.get("exposures") or {},
+        manifest.get("metrics") or {},
+        manifest.get("semantic_models") or {},
+    ):
+        for unique_id, node in resources.items():
+            for upstream_unique_id in (node.get("depends_on") or {}).get("nodes", []) or []:
+                child_map.setdefault(upstream_unique_id, []).append(unique_id)
+    return child_map
+
+
 # ─── External-package (mesh) spec builder ─────────────────────────────
 #
 # Vendored from `et/dbt-mesh-external-packages` PR branch. When the PR merges,
@@ -1001,8 +1027,12 @@ try:
 
             extra: dict[str, dg.MetadataValue] = {}
             resource_type: str = node.get("resource_type", "model")
-            child_map: dict = manifest.get("child_map", {})
-            child_ids: list[str] = child_map.get(unique_id, [])
+            # Cached at the instance level -- _enrich_spec runs once per
+            # asset, and this is O(all nodes) to build when the manifest
+            # doesn't supply its own child_map (dbt v2 / Fusion).
+            if not hasattr(self, "_cached_child_map"):
+                self._cached_child_map = _build_child_map(manifest)  # type: ignore[attr-defined]
+            child_ids: list[str] = self._cached_child_map.get(unique_id, [])  # type: ignore[attr-defined]
 
             # 1. dbt docs URL
             if self.dbt_docs_url:

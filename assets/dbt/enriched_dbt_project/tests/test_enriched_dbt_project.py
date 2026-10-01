@@ -1,7 +1,4 @@
-"""Committed regression tests for the three changes made to
-EnrichedDbtProjectComponent in response to a customer report that dbt-mesh
-cross-project lineage overrides were fragile, and that automation
-conditions could only be changed by patching the component:
+"""Committed regression tests for EnrichedDbtProjectComponent, covering:
 
 1. `default_automation_condition` -- a YAML-settable fallback, lowest
    precedence (per-model meta, freshness-failure, lag-tolerance all win).
@@ -10,6 +7,10 @@ conditions could only be changed by patching the component:
    guess, so they respect schema nesting like every other dagster-dbt key.
 3. `asset_overrides` can be keyed by dbt `unique_id` in addition to the
    serialized AssetKey string.
+4. `_build_child_map`: dbt v2 / Fusion manifests omit the top-level
+   `child_map` key entirely (confirmed against dagster_dbt's own identical
+   workaround) -- include_exposures/include_metrics/include_semantic_models
+   must still find their children by walking `depends_on.nodes` instead.
 """
 import dagster as dg
 import pytest
@@ -224,3 +225,50 @@ def test_resolve_override_deps_no_match_returns_empty(mod):
     overrides = {"other/key": mod.AssetOverride(depends_on=["ext/thing"])}
     result = mod._resolve_override_deps(overrides, lookup_key="shared/customer_summary", unique_id=None)
     assert result == []
+
+
+# --- _build_child_map: dbt v2 / Fusion manifests (no child_map key) -----
+
+_FUSION_SHAPED_MANIFEST = {
+    # No "child_map" key at all -- this is exactly what a dbt v2/Fusion
+    # manifest looks like; dbt v1 manifests have always included it.
+    "nodes": {
+        "model.test_project.my_model": {
+            "resource_type": "model",
+            "unique_id": "model.test_project.my_model",
+            "meta": {},
+            "config": {},
+            "depends_on": {"nodes": []},
+        },
+    },
+    "exposures": {
+        "exposure.test_project.my_dashboard": {
+            "name": "my_dashboard",
+            "type": "dashboard",
+            "description": "A dashboard.",
+            "maturity": "high",
+            "owner": {"email": "a@b.com"},
+            "depends_on": {"nodes": ["model.test_project.my_model"]},
+        },
+    },
+}
+
+
+def test_build_child_map_falls_back_when_manifest_omits_it(mod):
+    child_map = mod._build_child_map(_FUSION_SHAPED_MANIFEST)
+    assert child_map["model.test_project.my_model"] == ["exposure.test_project.my_dashboard"]
+
+
+def test_build_child_map_prefers_manifests_own_child_map_when_present(mod):
+    manifest = {**_FUSION_SHAPED_MANIFEST, "child_map": {"some_other_id": ["x"]}}
+    assert mod._build_child_map(manifest) == {"some_other_id": ["x"]}
+
+
+def test_include_exposures_still_works_against_a_fusion_shaped_manifest(mod, component):
+    component.include_exposures = True
+    spec = _model_spec(mod, "model.test_project.my_model")
+    enriched = component._enrich_spec(spec, _FUSION_SHAPED_MANIFEST)
+    exposures_md = enriched.metadata["dbt_docs/exposures"]
+    exposures = exposures_md.value if hasattr(exposures_md, "value") else exposures_md
+    assert len(exposures) == 1
+    assert exposures[0]["name"] == "my_dashboard"

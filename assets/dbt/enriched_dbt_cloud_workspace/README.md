@@ -222,6 +222,19 @@ attributes:
       depends_on: [fx_rates]
 ```
 
+## dbt v2 / Fusion compatibility
+
+dbt v2 (formerly "Fusion", GA September 2026; the Apache-2.0 subset is now
+called dbt OSS) produces a manifest that's wire-compatible with dbt v1 —
+same schema version, only additive new fields — with one exception: it
+doesn't emit a top-level `child_map` key at all. This component builds that
+mapping itself from each resource's `depends_on.nodes` whenever the
+manifest doesn't supply one (same workaround `dagster-dbt` itself ships),
+so `include_exposures` / `include_metrics` / `include_semantic_models` keep
+working under either engine. Everything else here — `meta.dagster.*`,
+`external_packages`, freshness/automation derivation — reads plain
+manifest fields that exist under both engines unchanged.
+
 ## Related
 
 - **[`EnrichedDbtProjectComponent`](../enriched_dbt_project/README.md)** — same enrichment vocabulary for dbt Core

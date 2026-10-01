@@ -14027,7 +14027,7 @@
       "id": "enriched_dbt_project",
       "name": "Enriched dbt Project",
       "category": "dbt",
-      "description": "Enriched drop-in for DbtProjectComponent \u2014 real freshness policies (models + sources), exposure/mesh AssetSpecs, contract asset checks, per-model partitions/automation from dbt meta, and rich docs metadata. All opt-in; defaults preserve base DbtProjectComponent behavior.",
+      "description": "Enriched drop-in for DbtProjectComponent \u2014 real freshness policies (models + sources), exposure/mesh AssetSpecs (keyed via the configured translator, not a bare model-name guess), contract asset checks, per-model partitions/automation from dbt meta plus a component-level default_automation_condition fallback, and rich docs metadata. All opt-in; defaults preserve base DbtProjectComponent behavior.",
       "path": "assets/dbt/enriched_dbt_project",
       "tags": [
         "dbt",
@@ -14092,7 +14092,7 @@
       "id": "enriched_dbt_cloud_workspace",
       "name": "Enriched dbt Cloud Workspace",
       "category": "dbt",
-      "description": "Enriched drop-in for DbtCloudComponent \u2014 mid-run per-model monitor, dbt-style job-selection DSL, plus the same manifest-based enrichments as EnrichedDbtProjectComponent (freshness policies, exposures as AssetSpecs, contract asset checks, mesh via external_packages). All opt-in; defaults preserve base DbtCloudComponent behavior.",
+      "description": "Enriched drop-in for DbtCloudComponent \u2014 mid-run per-model monitor, dbt-style job-selection DSL, plus the same manifest-based enrichments as EnrichedDbtProjectComponent (freshness policies, exposures as AssetSpecs, contract asset checks, mesh via external_packages keyed through the configured translator, per-model + default_automation_condition automation). All opt-in; defaults preserve base DbtCloudComponent behavior.",
       "path": "assets/dbt/enriched_dbt_cloud_workspace",
       "tags": [
         "dbt",

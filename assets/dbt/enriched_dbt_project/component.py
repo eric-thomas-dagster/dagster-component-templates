@@ -36,14 +36,30 @@ add the mid-run monitor + selection DSL ported from
                                     every model whose ``package_name`` matches,
                                     so downstream lineage renders even when the
                                     upstream project is owned by another Dagster
-                                    code location
+                                    code location. The stub's key is computed via
+                                    this project's own configured translator (not
+                                    a bare model-name guess), so it matches the
+                                    upstream project's real key by default when
+                                    both sides share a translation convention.
 
 **Per-model config (existing — read from ``meta.dagster``):**
 - ``partitions_def``      — declared in dbt YAML, applied per-model
 - ``automation_condition``— declared in dbt YAML, applied per-model
 
+**Component-level default (new):**
+- ``default_automation_condition`` — same shape as the per-model
+                                      ``meta.dagster.automation_condition``, but
+                                      declared once for the whole component as
+                                      the fallback when nothing else (per-model
+                                      meta, freshness-failure, lag-tolerance) has
+                                      set one. Lets a team change its default
+                                      automation policy via YAML instead of
+                                      patching this component.
+
 **Per-asset overrides (existing):**
-- ``asset_overrides``     — ``{asset_key: {depends_on: [...]}}`` to inject deps
+- ``asset_overrides``     — ``{asset_key_or_unique_id: {depends_on: [...]}}`` to
+                              inject deps. Keyed by either the serialized
+                              AssetKey string or the dbt ``unique_id``.
 
 ## Portable-but-not-yet-shipped (queued for follow-up)
 
@@ -711,10 +727,18 @@ class DbtDeferConfig(dg.Resolvable):
 def _resolve_override_deps(
     asset_overrides: Optional[Dict[str, "AssetOverride"]],
     lookup_key: str,
+    unique_id: Optional[str] = None,
 ) -> List[dg.AssetKey]:
+    """Look up an override by the asset's serialized AssetKey first (existing
+    behavior), falling back to its dbt `unique_id` if provided and present.
+    The unique_id form (e.g. `model.shared_core.customer_summary`) is easier
+    to get right than a hand-computed, translation-scheme-dependent AssetKey
+    string, especially across the two dbt-mesh projects' code locations."""
     if not asset_overrides:
         return []
     ov = asset_overrides.get(lookup_key)
+    if ov is None and unique_id:
+        ov = asset_overrides.get(unique_id)
     if not ov or not ov.depends_on:
         return []
     return [dg.AssetKey(d.split("/")) if "/" in d else dg.AssetKey(d) for d in ov.depends_on]
@@ -745,11 +769,13 @@ def _build_external_package_deps_map(
 ) -> Dict[str, dg.AssetKey]:
     """Build ``{unique_id → AssetKey}`` for models in external packages.
 
-    Uses a lightweight asset-key derivation (dbt's default: ``AssetKey([alias or name])``)
-    that matches ``dagster_dbt.DagsterDbtTranslator.get_asset_key`` for the common
-    case. Models in external packages that override the key via
-    ``meta.dagster.asset_key`` will need the full translator path; for now we
-    honor the ``meta.dagster.asset_key`` override manually.
+    FALLBACK PATH ONLY — ``_build_external_package_specs`` prefers
+    ``self.get_asset_spec`` (the real, configured translator) and only calls
+    this when that raises. This lightweight derivation does NOT replicate
+    schema nesting (``dagster_dbt``'s default key is ``[schema, name]`` when
+    the model configures a schema, not just ``[alias or name]``), which is
+    exactly the mismatch that made dbt-mesh cross-project lineage fragile —
+    see the module docstring / README.
     """
     if not external_packages:
         return {}
@@ -908,6 +934,17 @@ try:
         User-supplied `automation_condition` from `meta.dagster.*` wins.
         `auto_trigger_on_freshness_failure` wins over this when both would
         apply — freshness-failed is the more direct SLO tie-in."""
+
+        default_automation_condition: Optional[Dict[str, Any]] = None
+        """Fallback AutomationCondition applied when nothing else set one —
+        after per-model `meta.dagster.automation_condition`, after
+        `auto_trigger_on_freshness_failure`, after
+        `derive_lag_tolerance_automation`. Same shape as
+        `meta.dagster.automation_condition` (`{preset: eager}`,
+        `{preset: on_deploy_if_code_changed}`, or `{cron: "0 9 * * *"}`),
+        parsed by the same helper. Lets a team declare its own default
+        automation policy once, via YAML, instead of annotating every model's
+        `meta.dagster.*` or patching this component."""
 
         external_packages: Optional[List[str]] = None
         """dbt mesh: package names to emit as observable stub AssetSpecs. Pair
@@ -1190,6 +1227,23 @@ try:
                         except Exception:
                             pass
 
+            # default_automation_condition → last-resort fallback. Applied
+            # only when NOTHING above has set one (per-model meta, freshness,
+            # lag_tolerance all win). Same shape/parser as
+            # meta.dagster.automation_condition, just declared once at the
+            # component level instead of per-model.
+            if (
+                self.default_automation_condition
+                and per_model_automation is None
+                and enriched.automation_condition is None
+            ):
+                cond = _automation_condition_from_meta(self.default_automation_condition)
+                if cond is not None:
+                    try:
+                        enriched = enriched.replace_attributes(automation_condition=cond)
+                    except Exception:
+                        pass
+
             return enriched
 
         def _build_exposure_specs(
@@ -1359,13 +1413,37 @@ try:
 
         def _build_external_package_specs(self, manifest: dict) -> List[dg.AssetSpec]:
             """Emit stub AssetSpec per model whose ``package_name`` is in
-            ``external_packages`` (dbt mesh — upstream project owns the asset)."""
+            ``external_packages`` (dbt mesh — upstream project owns the asset).
+
+            Prefers ``self.get_asset_spec`` — this project's own configured
+            DagsterDbtTranslator (``translation`` / ``translation_settings``) —
+            for the key, so the stub matches real dagster-dbt conventions
+            (schema nesting, ``meta.dagster.asset_key`` overrides) instead of
+            a bare model-name guess. When the mesh's upstream project uses an
+            equivalent translation scheme (the common setup), this key now
+            matches what that project's own code location actually publishes,
+            with no manual ``asset_overrides`` needed. Falls back to the
+            lightweight ``_build_external_package_deps_map`` derivation only
+            if the translator call raises (e.g. a node shape the translator
+            doesn't expect)."""
             if not self.external_packages:
                 return []
-            key_map = _build_external_package_deps_map(manifest, self.external_packages)
+            package_set = set(self.external_packages)
+            fallback_map: Optional[Dict[str, dg.AssetKey]] = None
             specs: List[dg.AssetSpec] = []
-            for unique_id, asset_key in key_map.items():
-                node = manifest.get("nodes", {}).get(unique_id, {})
+            for unique_id, node in (manifest.get("nodes") or {}).items():
+                if node.get("resource_type") != "model":
+                    continue
+                if node.get("package_name") not in package_set:
+                    continue
+                try:
+                    asset_key = self.get_asset_spec(manifest, unique_id, self.project).key
+                except Exception:
+                    if fallback_map is None:
+                        fallback_map = _build_external_package_deps_map(manifest, self.external_packages)
+                    asset_key = fallback_map.get(unique_id)
+                    if asset_key is None:
+                        continue
                 specs.append(
                     dg.AssetSpec(
                         key=asset_key,
@@ -1474,7 +1552,8 @@ try:
 
                 if self.asset_overrides:
                     lookup_key = spec.key.to_user_string()
-                    override_deps = _resolve_override_deps(self.asset_overrides, lookup_key)
+                    uid = _get_str_meta(dict(spec.metadata), _UNIQUE_ID_KEY)
+                    override_deps = _resolve_override_deps(self.asset_overrides, lookup_key, uid)
                     if override_deps:
                         try:
                             existing = list(enriched.deps or [])

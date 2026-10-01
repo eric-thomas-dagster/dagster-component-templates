@@ -43,6 +43,24 @@ Enrichment (same vocabulary as ``EnrichedDbtProjectComponent``):
 - ``emit_exposures_as_assets``, ``derive_freshness_policies``,
   ``emit_contract_checks``, ``external_packages``, ``asset_overrides``
 
+Automation condition precedence (per-model ``meta.dagster.automation_condition``
+always wins; this previously only existed on the Core sibling — the base
+``DbtCloudComponent`` translator only reads the older, narrower
+``meta.dagster.auto_materialize_policy: {type: eager|lazy}`` shape):
+
+1. per-model ``meta.dagster.automation_condition`` (dbt YAML, always wins)
+2. ``auto_trigger_on_freshness_failure`` → ``freshness_failed()``
+3. ``derive_lag_tolerance_automation`` → lag-tolerance-derived condition
+4. ``default_automation_condition`` — component-level fallback, same shape as
+   #1, applied only when nothing above set one. Lets a team change its
+   default automation policy via YAML instead of patching this component.
+
+``external_packages`` stub keys are computed via this component's own
+configured translator (``self.get_asset_spec``), not a bare model-name
+guess — see README for why this matters for dbt-mesh lineage.
+``asset_overrides`` is keyed by either the serialized AssetKey string or the
+dbt ``unique_id``.
+
 ## Roadmap
 
 **Phase 3+ (queued):**
@@ -352,6 +370,46 @@ def _lag_tolerance_automation_condition(lag: timedelta) -> Optional[Any]:
             return None
 
 
+def _automation_condition_from_meta(meta: Mapping[str, Any]) -> Optional[Any]:
+    """Convert ``meta.dagster.automation_condition`` dict into an AutomationCondition.
+
+    Same shape/behavior as the Core enriched component's helper of the same
+    name (ported here — this component previously had NO per-model
+    automation_condition override at all, unlike its Core sibling; the base
+    DbtCloudComponent's own translator only reads the older, narrower
+    ``meta.dagster.auto_materialize_policy: {type: eager|lazy}`` shape).
+
+    Supported shapes:
+      - ``{preset: eager | on_missing | any_downstream_conditions}``
+      - ``{preset: on_deploy_if_code_changed}``  (synthetic composite)
+      - ``{cron: "0 9 * * *"}``
+    """
+    if not meta or not isinstance(meta, Mapping):
+        return None
+    preset = meta.get("preset")
+    if preset:
+        if preset == "on_deploy_if_code_changed":
+            return (
+                dg.AutomationCondition.code_version_changed().since_last_handled()
+                & ~dg.AutomationCondition.in_progress()
+            )
+        method = getattr(dg.AutomationCondition, preset, None)
+        if method is None or not callable(method):
+            return None
+        try:
+            result = method()
+        except Exception:
+            return None
+        return result if isinstance(result, dg.AutomationCondition) else None
+    cron = meta.get("cron")
+    if cron:
+        try:
+            return dg.AutomationCondition.on_cron(cron)
+        except Exception:
+            return None
+    return None
+
+
 def _derive_freshness_policy(
     dbt_resource_props: Mapping[str, Any],
 ) -> Optional[dg.FreshnessPolicy]:
@@ -430,10 +488,18 @@ class AssetOverride(dg.Resolvable):
 def _resolve_override_deps(
     asset_overrides: Optional[Dict[str, "AssetOverride"]],
     lookup_key: str,
+    unique_id: Optional[str] = None,
 ) -> List[dg.AssetKey]:
+    """Look up an override by the asset's serialized AssetKey first (existing
+    behavior), falling back to its dbt `unique_id` if provided and present.
+    The unique_id form (e.g. `model.shared_core.customer_summary`) is easier
+    to get right than a hand-computed, translation-scheme-dependent AssetKey
+    string, especially across the two dbt-mesh projects' code locations."""
     if not asset_overrides:
         return []
     ov = asset_overrides.get(lookup_key)
+    if ov is None and unique_id:
+        ov = asset_overrides.get(unique_id)
     if not ov or not ov.depends_on:
         return []
     return [dg.AssetKey(d.split("/")) if "/" in d else dg.AssetKey(d) for d in ov.depends_on]
@@ -610,6 +676,17 @@ try:
         pattern; cron is snapped from lag_tolerance (30m → */30 * * * *,
         4h → 0 */4 * * *, etc). Skipped if a user-supplied automation is
         set. auto_trigger_on_freshness_failure wins when both apply."""
+
+        default_automation_condition: Optional[Dict[str, Any]] = None
+        """Fallback AutomationCondition applied when nothing else set one —
+        after per-model `meta.dagster.automation_condition`, after
+        `auto_trigger_on_freshness_failure`, after
+        `derive_lag_tolerance_automation`. Same shape as
+        `meta.dagster.automation_condition` (`{preset: eager}`,
+        `{preset: on_deploy_if_code_changed}`, or `{cron: "0 9 * * *"}`),
+        parsed by the same helper. Lets a team declare its own default
+        automation policy once, via YAML, instead of annotating every model's
+        `meta.dagster.*` or patching this component."""
 
         code_version_strategy: Literal["disabled", "hash", "sqlglot"] = "disabled"
         """How to derive Dagster ``code_version`` per model:
@@ -813,9 +890,22 @@ try:
                     if resolved_blocks:
                         extra["dbt_docs/doc_blocks"] = dg.MetadataValue.json(resolved_blocks)
 
+            # meta.dagster.automation_condition — per-model override, always
+            # wins. The base DbtCloudComponent's translator doesn't read this
+            # key at all (only the older, narrower auto_materialize_policy
+            # shape), so without this the only escape hatch from
+            # auto_trigger_on_freshness_failure / derive_lag_tolerance_automation
+            # was patching this component directly.
+            dagster_meta = node.get("meta", {}).get("dagster", {}) or {}
+            per_model_automation = _automation_condition_from_meta(
+                dagster_meta.get("automation_condition") or {}
+            )
+
             enriched = spec
             if extra:
                 enriched = enriched.merge_attributes(metadata=extra)
+            if per_model_automation is not None:
+                enriched = enriched.replace_attributes(automation_condition=per_model_automation)
 
             if self.enable_materialization_kinds:
                 mat = (node.get("config") or {}).get("materialized")
@@ -886,6 +976,19 @@ try:
                             enriched = enriched.replace_attributes(automation_condition=cond)
                         except Exception:
                             pass
+
+            # default_automation_condition → last-resort fallback. Applied
+            # only when NOTHING above has set one (per-model meta, freshness,
+            # lag_tolerance all win). Same shape/parser as
+            # meta.dagster.automation_condition, just declared once at the
+            # component level instead of per-model.
+            if self.default_automation_condition and enriched.automation_condition is None:
+                cond = _automation_condition_from_meta(self.default_automation_condition)
+                if cond is not None:
+                    try:
+                        enriched = enriched.replace_attributes(automation_condition=cond)
+                    except Exception:
+                        pass
 
             return enriched
 
@@ -1034,6 +1137,19 @@ try:
             return specs
 
         def _build_external_package_specs(self, manifest: dict) -> List[dg.AssetSpec]:
+            """Emit stub AssetSpec per model whose ``package_name`` is in
+            ``external_packages`` (dbt mesh — upstream project owns the asset).
+
+            Prefers ``self.get_asset_spec`` — this project's own configured
+            DagsterDbtTranslator (``translation`` / ``translation_settings``) —
+            for the key, so the stub matches real dagster-dbt conventions
+            (schema nesting, ``meta.dagster.asset_key`` overrides) instead of
+            a bare model-name guess. When the mesh's upstream project uses an
+            equivalent translation scheme (the common setup), this key now
+            matches what that project's own code location actually publishes,
+            with no manual ``asset_overrides`` needed. Falls back to the old
+            manual ``meta.dagster.asset_key`` / bare-alias derivation only if
+            the translator call raises."""
             if not self.external_packages:
                 return []
             package_set = set(self.external_packages)
@@ -1043,19 +1159,22 @@ try:
                     continue
                 if props.get("package_name") not in package_set:
                     continue
-                meta_asset_key = ((props.get("meta") or {}).get("dagster") or {}).get("asset_key")
-                if meta_asset_key:
-                    if isinstance(meta_asset_key, str):
-                        key = dg.AssetKey(meta_asset_key.split("/"))
-                    elif isinstance(meta_asset_key, list):
-                        key = dg.AssetKey([str(x) for x in meta_asset_key])
+                try:
+                    key = self.get_asset_spec(manifest, unique_id, None).key
+                except Exception:
+                    meta_asset_key = ((props.get("meta") or {}).get("dagster") or {}).get("asset_key")
+                    if meta_asset_key:
+                        if isinstance(meta_asset_key, str):
+                            key = dg.AssetKey(meta_asset_key.split("/"))
+                        elif isinstance(meta_asset_key, list):
+                            key = dg.AssetKey([str(x) for x in meta_asset_key])
+                        else:
+                            continue
                     else:
-                        continue
-                else:
-                    alias = props.get("alias") or props.get("name")
-                    if not alias:
-                        continue
-                    key = dg.AssetKey(alias)
+                        alias = props.get("alias") or props.get("name")
+                        if not alias:
+                            continue
+                        key = dg.AssetKey(alias)
                 specs.append(
                     dg.AssetSpec(
                         key=key,
@@ -1491,7 +1610,8 @@ try:
                         enriched = spec
                     if self.asset_overrides:
                         lookup_key = spec.key.to_user_string()
-                        override_deps = _resolve_override_deps(self.asset_overrides, lookup_key)
+                        uid = _get_str_meta(dict(spec.metadata), _UNIQUE_ID_KEY)
+                        override_deps = _resolve_override_deps(self.asset_overrides, lookup_key, uid)
                         if override_deps:
                             try:
                                 existing = list(enriched.deps or [])

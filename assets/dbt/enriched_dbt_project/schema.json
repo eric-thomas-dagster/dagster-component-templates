@@ -74,7 +74,7 @@
     "asset_overrides": {
       "type": "object",
       "label": "Asset Overrides",
-      "description": "Per-asset overrides keyed by the emitted asset key. Today supports {depends_on: [upstream_key, ...]} to inject deps.",
+      "description": "Per-asset overrides keyed by either the emitted asset key or the dbt unique_id (e.g. model.my_project.my_model). Today supports {depends_on: [upstream_key, ...]} to inject deps.",
       "required": false
     },
     "emit_exposures_as_assets": {
@@ -104,7 +104,7 @@
         "type": "string"
       },
       "label": "External Packages (dbt mesh)",
-      "description": "dbt package names to emit as observable stub AssetSpecs. Pair with exclude: 'package:X' so this project's dbt run skips them. Downstream lineage still renders even though the upstream is owned by another Dagster code location.",
+      "description": "dbt package names to emit as observable stub AssetSpecs. Pair with exclude: 'package:X' so this project's dbt run skips them. The stub's key is computed via this project's own configured translator, not a bare model-name guess, so it matches the upstream project's real key when both sides share a translation scheme. Downstream lineage still renders even though the upstream is owned by another Dagster code location.",
       "required": false
     },
     "dbt_cloud_workspace": {

@@ -83,16 +83,38 @@ job_selection_exclude: "type:ci"                         # everything except CI
 | `emit_source_assets` | Emit each dbt source as an observable external `AssetSpec` (kinds `dbt`, `source`). Merges with upstream Fivetran / Sling declarations at the same key. |
 | `emit_semantic_layer_as_assets` | Emit dbt `semantic_models` + `metrics` as observable `AssetSpec`s (kinds `semantic_model` / `metric`). |
 | `emit_contract_checks` | For every model with `config.contract.enforced: true`, emit one `AssetCheckSpec` per column constraint. |
-| `external_packages` | dbt mesh: emit observable stub `AssetSpec`s for models whose `package_name` matches. Pair with `exclude: 'package:X'`. |
+| `external_packages` | dbt mesh: emit observable stub `AssetSpec`s for models whose `package_name` matches. Pair with `exclude: 'package:X'`. The stub's key is computed via this component's own configured translator, not a bare model-name guess, so it matches the upstream project's real key when both sides share a translation scheme. |
 | `enable_materialization_kinds` | Add each model's `config.materialized` value (`table` / `view` / `incremental` / `materialized_view` / `ephemeral` / `seed` / `snapshot`) as a Dagster kind. |
 | `derive_freshness_policies` | Attach a real `FreshnessPolicy` to sources (from `sources.freshness.warn_after/error_after`) and to models (from dbt 1.9+ `config.freshness.build_after` and/or dbt State `config.state.lag_tolerance`). Honors explicit `meta.dagster.freshness_policy` overrides. |
 | `auto_trigger_on_freshness_failure` | With `derive_freshness_policies`: also attach `AutomationCondition.freshness_failed()` so Dagster triggers the rebuild when the derived policy fails. |
 | `derive_lag_tolerance_automation` | For models with `config.state.lag_tolerance`: attach `.newly_updated().since(cron_tick_passed(cron))` where the cron is snapped from lag_tolerance. |
+| `default_automation_condition` | Fallback `AutomationCondition` applied when nothing else set one — lowest precedence, after per-model `meta.dagster.automation_condition` (new: see below), `auto_trigger_on_freshness_failure`, and `derive_lag_tolerance_automation`. Same shape as `meta.dagster.automation_condition`. Lets a team declare its own default policy via YAML instead of patching this component. |
 | `code_version_strategy` | `disabled` / `hash` / `sqlglot`. `sqlglot` parses `compiled_code`, strips comments + normalizes whitespace, then hashes — whitespace/comment edits don't bump. Pairs with `AutomationCondition.code_version_changed()`. |
 | `state_manifest_path` | Path to a dbt state `manifest.json` (or a directory containing one). Enables the checksum-comparison enrichments below. |
 | `include_state_explain` | Requires `state_manifest_path`. Attaches `dbt_state/state` + `dbt_state/explanation` metadata per model — build-time equivalent of the state-reuse case of `dbt state explain`. |
 | `derive_state_tags` | Requires `state_manifest_path`. Adds a `dbt/state` tag with `new` / `unchanged` / `modified` so `tag:dbt/state=modified` selections work. |
-| `asset_overrides` | Per-asset overrides keyed by asset key. Today supports `{depends_on: [...]}` to inject Dagster asset dependencies. |
+| `asset_overrides` | Per-asset overrides keyed by either the asset key or the dbt `unique_id`. Today supports `{depends_on: [...]}` to inject Dagster asset dependencies. |
+
+### Per-model automation condition (new — read from `meta.dagster.automation_condition`)
+
+Previously, this component had NO way to set a per-model automation
+condition from dbt YAML at all — only the component-level
+`auto_trigger_on_freshness_failure` / `derive_lag_tolerance_automation`
+flags, which apply uniformly. Now it supports the same `meta.dagster.*`
+escape hatch as `EnrichedDbtProjectComponent`:
+
+```yaml
+# In your dbt model's config
+config:
+  meta:
+    dagster:
+      automation_condition:
+        preset: eager
+```
+
+Supported: `{preset: eager | on_missing | any_downstream_conditions |
+on_deploy_if_code_changed}` or `{cron: "0 9 * * *"}`. Always wins over
+every component-level automation field above.
 
 ### Enhanced polling sensor
 
@@ -144,10 +166,17 @@ attributes:
   derive_freshness_policies: true
   auto_trigger_on_freshness_failure: true
   code_version_strategy: sqlglot
+  default_automation_condition:        # fallback for everything else
+    preset: eager
 
   # dbt mesh
   external_packages: [shared_core]
   exclude: "package:shared_core"
+
+  # External asset dep injection -- keyed by AssetKey string or unique_id
+  asset_overrides:
+    model.shared_core.customer_summary:
+      depends_on: [fx_rates]
 ```
 
 ## Related
@@ -200,6 +229,7 @@ attributes:
 | `enable_materialization_kinds` | `bool` | `false` | — |
 | `auto_trigger_on_freshness_failure` | `bool` | `false` | — |
 | `derive_lag_tolerance_automation` | `bool` | `false` | — |
+| `default_automation_condition` | `Dict[str, Any]` | — | — |
 | `code_version_strategy` | `Literal['disabled', 'hash', 'sqlglot']` | `"disabled"` | — |
 | `state_manifest_path` | `str` | — | — |
 | `include_state_explain` | `bool` | `false` | — |

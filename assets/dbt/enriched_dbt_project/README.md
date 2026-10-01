@@ -43,16 +43,17 @@ identically to the base `DbtProjectComponent`.
 | `emit_source_assets` | Emit each dbt source as an observable external `AssetSpec` (kinds `dbt`, `source`). Sources become first-class Dagster nodes (freshness policies apply, downstream selectors work, `+<key>` returns the source). Merges with any upstream Fivetran / Sling / manual observable-source declaration at the same key. |
 | `emit_semantic_layer_as_assets` | Emit dbt `semantic_models` + `metrics` as observable `AssetSpec`s (kinds `semantic_model` / `metric`). semantic_models dep on their upstream model; metrics dep on the semantic models they aggregate. |
 | `emit_contract_checks` | For every model with `config.contract.enforced: true`, emit one `AssetCheckSpec` per column constraint (`not_null`, `unique`, `primary_key`, `foreign_key`, `check`). |
-| `external_packages` | dbt mesh: emit observable stub `AssetSpec`s for models whose `package_name` matches. Pair with `exclude: 'package:X'` so this project's dbt run doesn't try to rebuild them — downstream lineage still renders because the upstream Dagster code location merges in. |
+| `external_packages` | dbt mesh: emit observable stub `AssetSpec`s for models whose `package_name` matches. Pair with `exclude: 'package:X'` so this project's dbt run doesn't try to rebuild them — downstream lineage still renders because the upstream Dagster code location merges in. The stub's key is computed via this project's own configured translator (`translation` / `translation_settings`), not a bare model-name guess, so it matches the upstream project's real published key by default whenever both sides use an equivalent translation scheme — falls back to `meta.dagster.asset_key` / a bare name only if the translator call fails. |
 | `enable_materialization_kinds` | Add each model's `config.materialized` value (`table` / `view` / `incremental` / `materialized_view` / `ephemeral` / `seed` / `snapshot`) as a Dagster kind for distinct UI icons. |
 | `derive_freshness_policies` | Attach a real `FreshnessPolicy` to sources (from `sources.freshness.warn_after/error_after`) and to models (from dbt 1.9+ `config.freshness.build_after` and/or dbt State `config.state.lag_tolerance`; `fail_window = max(build_after, lag_tolerance)`). Honors explicit `meta.dagster.freshness_policy` overrides. |
 | `auto_trigger_on_freshness_failure` | With `derive_freshness_policies`: also attach `AutomationCondition.freshness_failed()` so Dagster triggers the rebuild when the derived policy fails. |
 | `derive_lag_tolerance_automation` | For models with `config.state.lag_tolerance` (and no user-supplied `automation_condition`): attach `.newly_updated().since(cron_tick_passed(cron))` where the cron is snapped from lag_tolerance (`30m → */30 * * * *`, `4h → 0 */4 * * *`, `1d → 0 0 * * *`). Dagster drives the trigger; dbt still enforces the exact gate on its own build step. |
+| `default_automation_condition` | Fallback `AutomationCondition` applied when NOTHING else set one — lowest precedence, after per-model `meta.dagster.automation_condition`, `auto_trigger_on_freshness_failure`, and `derive_lag_tolerance_automation`. Same shape as `meta.dagster.automation_condition` (below). Lets a team declare its own default automation policy once, via YAML, instead of annotating every model or patching this component. |
 | `code_version_strategy` | `disabled` (default) / `hash` / `sqlglot`. `hash` uses dbt's manifest `checksum.checksum` (bumps on any file edit including whitespace). `sqlglot` parses `compiled_code`, strips comments + normalizes whitespace, then hashes — semantic-only versioning that pairs with `AutomationCondition.code_version_changed()`. Falls back to `hash` if `sqlglot` isn't installed. |
 | `state_manifest_path` | Path to a dbt state `manifest.json` (or a directory containing one). Enables the checksum-comparison enrichments below. |
 | `include_state_explain` | Requires `state_manifest_path`. Attaches `dbt_state/state` (`new` / `unchanged` / `modified`) and `dbt_state/explanation` (human-readable reason) metadata per model. Build-time equivalent of the state-reuse case of `dbt state explain`. |
 | `derive_state_tags` | Requires `state_manifest_path`. Adds a `dbt/state` tag with the same value so `tag:dbt/state=modified` selections work. |
-| `asset_overrides` | Per-asset overrides keyed by asset key. Today supports `{depends_on: [...]}` to inject Dagster asset dependencies (e.g. external assets not managed by dbt). |
+| `asset_overrides` | Per-asset overrides keyed by either the serialized AssetKey string (e.g. `fct_daily_pnl`) or the dbt `unique_id` (e.g. `model.my_project.fct_daily_pnl`) — the latter is easier to get right since it doesn't depend on the translation scheme. Today supports `{depends_on: [...]}` to inject Dagster asset dependencies (e.g. external assets not managed by dbt, or a mesh stub whose computed key you want to double-check before relying on it). |
 | `defer_config` | dbt slim CI config: `{state_path, defer, favor_state}`. Appends `--state <path> [--defer] [--favor-state]` to the dbt invocation so the run only builds changed models, deferring `ref()` resolution to the state's tables for unchanged upstream models. Pairs naturally with `state_manifest_path` (typically both point at the same state artifact). |
 
 ### Per-model config (read from dbt YAML `meta.dagster.*`)
@@ -81,9 +82,13 @@ instead of in Dagster YAML:
 - **Automation presets:** `eager`, `on_missing`, `any_downstream_conditions`, `on_deploy_if_code_changed`, or raw `cron: "0 9 * * *"`
 - **Freshness shapes:** `time_window` (`fail_window_seconds`, `warn_window_seconds?`) or `cron` (`deadline_cron`, `lower_bound_delta_seconds`, `timezone?`)
 
-User-supplied `meta.dagster.automation_condition` always wins over any
-`auto_trigger_on_freshness_failure` / `derive_lag_tolerance_automation`
-derivation.
+Automation condition precedence, highest to lowest:
+
+1. per-model `meta.dagster.automation_condition` (above) — always wins
+2. `auto_trigger_on_freshness_failure` → `freshness_failed()`
+3. `derive_lag_tolerance_automation` → lag-tolerance-derived condition
+4. `default_automation_condition` (component-level, same shape as #1) —
+   applied only when nothing above set one
 
 ## Full example
 
@@ -110,6 +115,8 @@ attributes:
   derive_freshness_policies: true
   auto_trigger_on_freshness_failure: true      # freshness fails → Dagster rebuilds
   derive_lag_tolerance_automation: false        # (mutually exclusive with above)
+  default_automation_condition:                 # fallback for everything else
+    preset: eager
 
   # Code version — sqlglot canonicalizes SQL so whitespace/comment edits
   # don't bump the version. Pairs with AutomationCondition.code_version_changed().
@@ -119,9 +126,11 @@ attributes:
   external_packages: [shared_core]
   exclude: "package:shared_core"
 
-  # External asset dep injection
+  # External asset dep injection -- keyed by AssetKey string or unique_id
   asset_overrides:
     fct_daily_pnl:
+      depends_on: [fx_rates]
+    model.shared_core.customer_summary:          # equivalent, by unique_id
       depends_on: [fx_rates]
 ```
 

@@ -119,6 +119,13 @@
     "asset_overrides": {
       "type": "object",
       "label": "Asset Overrides",
+      "description": "Per-asset overrides keyed by either the emitted asset key or the dbt unique_id (e.g. model.my_project.my_model). Today supports {depends_on: [...]} to inject Dagster asset dependencies.",
+      "required": false
+    },
+    "default_automation_condition": {
+      "type": "object",
+      "label": "Default Automation Condition",
+      "description": "Fallback AutomationCondition applied when nothing else (per-model meta.dagster.automation_condition, auto_trigger_on_freshness_failure, derive_lag_tolerance_automation) set one. Same shape as meta.dagster.automation_condition: {preset: eager|on_missing|any_downstream_conditions|on_deploy_if_code_changed} or {cron: \"0 9 * * *\"}.",
       "required": false
     },
     "emit_exposures_as_assets": {
@@ -148,7 +155,7 @@
         "type": "string"
       },
       "label": "External Packages (dbt mesh)",
-      "description": "dbt package names to emit as observable stub AssetSpecs. Pair with exclude: 'package:X'.",
+      "description": "dbt package names to emit as observable stub AssetSpecs. Pair with exclude: 'package:X'. The stub's key is computed via this component's own configured translator, not a bare model-name guess, so it matches the upstream project's real key when both sides share a translation scheme.",
       "required": false
     }
   },

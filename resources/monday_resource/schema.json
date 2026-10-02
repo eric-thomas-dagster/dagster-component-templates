@@ -1,0 +1,49 @@
+{
+  "component_type": "dagster_component_templates.MondayResourceComponent",
+  "description": "Register a MondayResource wrapping the monday.com GraphQL API for use by other components",
+  "category": "resource",
+  "vertical": "productivity",
+  "icon": "si:monday",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "monday_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "monday_resource"
+    },
+    "api_token_env_var": {
+      "type": "string",
+      "label": "API Token Env Var",
+      "description": "Env var holding the monday.com API token",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "api_url": {
+      "type": "string",
+      "label": "API URL",
+      "description": "monday.com GraphQL endpoint",
+      "required": false,
+      "default": "https://api.monday.com/v2"
+    },
+    "api_version": {
+      "type": "string",
+      "label": "API Version",
+      "description": "monday.com API version sent via the 'API-Version' header",
+      "required": false,
+      "default": "2026-07"
+    }
+  },
+  "tags": [
+    "resource",
+    "monday",
+    "monday.com",
+    "productivity",
+    "project-management"
+  ],
+  "name": "Monday.com Resource"
+}

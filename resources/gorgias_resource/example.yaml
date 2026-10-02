@@ -1,0 +1,6 @@
+type: dagster_component_templates.GorgiasResourceComponent
+attributes:
+  resource_key: gorgias_resource
+  subdomain: acme
+  email_env_var: GORGIAS_EMAIL
+  api_key_env_var: GORGIAS_API_KEY

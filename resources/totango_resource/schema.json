@@ -1,0 +1,43 @@
+{
+  "component_type": "dagster_component_templates.TotangoResourceComponent",
+  "description": "Register a TotangoResource wrapping Totango's REST v2 Search API (app-token auth) for use by other components",
+  "category": "resource",
+  "icon": "UsersRound",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "totango_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "totango_resource"
+    },
+    "region": {
+      "type": "string",
+      "label": "Region",
+      "description": "Totango region: 'us' or 'eu'. Determines the base URL host.",
+      "required": false,
+      "default": "us",
+      "enum": ["us", "eu"],
+      "ui:widget": "select"
+    },
+    "app_token_env_var": {
+      "type": "string",
+      "label": "App Token Env Var",
+      "description": "Env var holding the Totango service token (Settings -> Integrations -> API Token)",
+      "required": false,
+      "default": "TOTANGO_APP_TOKEN",
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": [
+    "resource",
+    "totango",
+    "customer-success",
+    "accounts"
+  ],
+  "name": "Totango Resource"
+}

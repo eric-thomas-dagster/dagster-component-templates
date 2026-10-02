@@ -1,0 +1,8 @@
+type: dagster_component_templates.QuickBooksResourceComponent
+attributes:
+  resource_key: quickbooks
+  realm_id: "9130354234523456"       # QuickBooks company id (realmId)
+  client_id_env_var: QBO_CLIENT_ID
+  client_secret_env_var: QBO_CLIENT_SECRET
+  refresh_token_env_var: QBO_REFRESH_TOKEN
+  minor_version: 75

@@ -1,0 +1,47 @@
+{
+  "component_type": "dagster_component_templates.GorgiasResourceComponent",
+  "description": "Register a GorgiasResource wrapping Gorgias's REST API (HTTP Basic Auth) for use by other components",
+  "category": "resource",
+  "icon": "si:gorgias",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "gorgias_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "gorgias_resource"
+    },
+    "subdomain": {
+      "type": "string",
+      "label": "Subdomain",
+      "description": "Gorgias account subdomain, e.g. 'acme' for https://acme.gorgias.com",
+      "required": true
+    },
+    "email_env_var": {
+      "type": "string",
+      "label": "Email Env Var",
+      "description": "Env var holding the Gorgias account email used as the Basic Auth username",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var holding the Gorgias REST API key (Settings > REST API)",
+      "required": true,
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": [
+    "resource",
+    "gorgias",
+    "support",
+    "helpdesk",
+    "cx"
+  ],
+  "name": "Gorgias Resource"
+}

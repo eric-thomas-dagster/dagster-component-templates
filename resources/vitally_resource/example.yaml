@@ -1,0 +1,6 @@
+type: dagster_component_templates.VitallyResourceComponent
+attributes:
+  resource_key: vitally_resource
+  subdomain: yourcompany
+  region: us
+  api_key_env_var: VITALLY_API_KEY

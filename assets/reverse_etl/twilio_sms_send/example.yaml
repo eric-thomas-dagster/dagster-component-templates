@@ -1,0 +1,28 @@
+# TwilioSmsSendComponent — DataFrame → Twilio SMS send (reverse-ETL
+# message activation).
+#
+# !! SAFETY: materializing this asset sends REAL text messages to REAL
+# phone numbers the moment it runs, and Twilio bills per message segment.
+# There is no "upload for later matching" step like the ad-audience
+# reverse-ETL components in this repo. ALWAYS test with a small/test
+# recipient list (e.g. a `source: {kind: inline, rows: [...]}` with 1-2 of
+# your own numbers) before pointing this at a real warehouse segment.
+#
+# Requires a TwilioResourceComponent registered under the same resource_key.
+
+type: dagster_component_templates.TwilioSmsSendComponent
+attributes:
+  asset_name: twilio_order_shipped_sms
+  upstream_asset_key: dbt_marts_orders_shipped_today
+  resource_key: twilio_resource
+
+  from_number: "+15551234567"          # your provisioned Twilio number
+  recipient_column: phone_e164         # upstream column, E.164 format
+  message_template: "Hi {first_name}, your order {order_id} just shipped!"
+
+  batch_size: 500                     # blast-radius safety cap, NOT a rate limit
+
+  group_name: reverse_etl
+  description: "Send an SMS via Twilio for every order that shipped today."
+  # kinds: [twilio, reverse_etl]
+  # owners: [platform@corp.com]

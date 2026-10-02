@@ -1,0 +1,8 @@
+type: dagster_component_templates.SageIntacctResourceComponent
+attributes:
+  resource_key: sage_intacct_resource
+  sender_id: dagster_integration
+  sender_password_env_var: INTACCT_SENDER_PASSWORD
+  company_id: your-company-id
+  user_id: your-api-user
+  user_password_env_var: INTACCT_USER_PASSWORD

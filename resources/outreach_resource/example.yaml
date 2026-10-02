@@ -1,0 +1,6 @@
+type: dagster_component_templates.OutreachResourceComponent
+attributes:
+  resource_key: outreach_resource
+  client_id_env_var: OUTREACH_CLIENT_ID
+  client_secret_env_var: OUTREACH_CLIENT_SECRET
+  refresh_token_env_var: OUTREACH_REFRESH_TOKEN

@@ -1,0 +1,5 @@
+type: dagster_component_templates.TypesenseResourceComponent
+attributes:
+  resource_key: typesense_resource
+  host: "https://xxx.a1.typesense.net:443"
+  api_key_env_var: TYPESENSE_API_KEY

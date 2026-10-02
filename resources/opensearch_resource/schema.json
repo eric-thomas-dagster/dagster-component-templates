@@ -1,0 +1,63 @@
+{
+  "component_type": "dagster_component_templates.OpenSearchResourceComponent",
+  "description": "Register an OpenSearchResource (raw REST auth for the OpenSearch _bulk API) for use by other components",
+  "category": "resource",
+  "icon": "si:opensearch",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "opensearch_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "opensearch_resource"
+    },
+    "host": {
+      "type": "string",
+      "label": "Host",
+      "description": "OpenSearch endpoint, e.g. 'https://my-cluster:9200'",
+      "required": true
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "description": "Env var holding the basic-auth username (primary auth case).",
+      "required": false,
+      "default": "",
+      "ui:widget": "env_var"
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var holding the basic-auth password.",
+      "required": false,
+      "default": "",
+      "ui:widget": "env_var"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var holding an API key (alternative to basic auth).",
+      "required": false,
+      "default": "",
+      "ui:widget": "env_var"
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "label": "Verify SSL",
+      "description": "Verify TLS certificates.",
+      "required": false,
+      "default": true
+    }
+  },
+  "tags": [
+    "resource",
+    "opensearch",
+    "search",
+    "reverse-etl"
+  ],
+  "name": "OpenSearch Resource"
+}

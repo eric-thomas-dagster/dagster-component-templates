@@ -1,0 +1,213 @@
+{
+  "component_type": "dagster_component_templates.SageIntacctArInvoicesIngestionComponent",
+  "description": "Ingest Sage Intacct AR Invoices (the ARINVOICE object) via the legacy XML Web Services readByQuery function and return a pandas DataFrame.",
+  "category": "source",
+  "vertical": "finance-ops",
+  "icon": "si:sageintacct",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame of AR Invoice records (one row per ARINVOICE record)"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "required": true
+    },
+    "resource_name": {
+      "type": "string",
+      "label": "Resource Name",
+      "description": "Key of the SageIntacctResource this asset depends on for authentication",
+      "required": false,
+      "default": "sage_intacct_resource"
+    },
+    "object_name": {
+      "type": "string",
+      "label": "Object Name",
+      "description": "Intacct object to query. Defaults to ARINVOICE (AR Invoices).",
+      "required": false,
+      "default": "ARINVOICE"
+    },
+    "fields": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Fields",
+      "description": "Fields to select from the object. Defaults to a standard ARINVOICE field set if unset.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "date_field": {
+      "type": "string",
+      "label": "Date Field",
+      "description": "Intacct date field used for from_date/to_date range filtering (e.g. 'WHENCREATED', 'WHENPOSTED', 'WHENDUE').",
+      "required": false,
+      "default": "WHENCREATED"
+    },
+    "from_date": {
+      "type": "string",
+      "label": "From Date",
+      "description": "Start of the date window (ISO-8601 date, e.g. '2026-06-01'). Converted to Intacct's MM/DD/YYYY format. Required unless a time-based partition_type is set.",
+      "required": false,
+      "default": null
+    },
+    "to_date": {
+      "type": "string",
+      "label": "To Date",
+      "description": "End of the date window (ISO-8601 date, e.g. '2026-07-01'). Converted to Intacct's MM/DD/YYYY format. Required unless a time-based partition_type is set.",
+      "required": false,
+      "default": null
+    },
+    "extra_query": {
+      "type": "string",
+      "label": "Extra Query",
+      "description": "Additional Intacct query where-clause fragment, ANDed with the date range (e.g. \"STATE = 'Open'\").",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "pagesize": {
+      "type": "integer",
+      "label": "Page Size",
+      "description": "Records per readByQuery/readMore page (Intacct max is 2000)",
+      "required": false,
+      "default": 100
+    },
+    "limit": {
+      "type": "integer",
+      "label": "Limit",
+      "description": "Maximum number of records to fetch across all pages",
+      "required": false,
+      "default": 1000
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "finance"
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Asset owners — team names (team:finance) or email addresses.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Key-value tags applied to the asset in the Dagster catalog.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "description": "Asset kinds shown in the Dagster catalog. Defaults to ['sage_intacct', 'python'].",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Rows to include in the preview metadata",
+      "required": false,
+      "default": 10
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "description": "Lineage-only upstream asset keys (no data passed at runtime)",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'us,eu,asia'.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ingestion",
+    "sage-intacct",
+    "intacct",
+    "finance",
+    "accounting",
+    "ar-invoices",
+    "erp"
+  ],
+  "name": "Sage Intacct AR Invoices Ingestion"
+}

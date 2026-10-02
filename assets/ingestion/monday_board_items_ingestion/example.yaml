@@ -1,0 +1,7 @@
+type: dagster_component_templates.MondayBoardItemsIngestionComponent
+attributes:
+  asset_name: monday_board_items
+  resource_name: monday_resource
+  board_id: "1234567890"
+  limit: 2000
+  group_name: productivity

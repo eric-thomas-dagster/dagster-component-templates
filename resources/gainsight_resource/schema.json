@@ -1,0 +1,40 @@
+{
+  "component_type": "dagster_component_templates.GainsightResourceComponent",
+  "description": "Register a GainsightResource wrapping Gainsight NXT's REST API v1 (access-key auth) for use by other components",
+  "category": "resource",
+  "icon": "Heart",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "gainsight_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "gainsight_resource"
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base URL",
+      "description": "Your Gainsight tenant's API base URL, e.g. 'https://yourcompany.gainsightcloud.com'",
+      "required": true
+    },
+    "access_key_env_var": {
+      "type": "string",
+      "label": "Access Key Env Var",
+      "description": "Env var holding the org-wide Gainsight Access Key (Administration -> Connectors 2.0 -> Gainsight API -> Access_Key)",
+      "required": false,
+      "default": "GAINSIGHT_ACCESS_KEY",
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": [
+    "resource",
+    "gainsight",
+    "customer-success",
+    "health-score"
+  ],
+  "name": "Gainsight Resource"
+}

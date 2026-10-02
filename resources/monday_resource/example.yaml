@@ -1,0 +1,5 @@
+type: dagster_component_templates.MondayResourceComponent
+attributes:
+  resource_key: monday_resource
+  api_token_env_var: MONDAY_API_TOKEN
+  api_version: "2026-07"

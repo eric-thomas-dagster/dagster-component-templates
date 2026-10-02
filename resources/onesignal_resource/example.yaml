@@ -1,0 +1,5 @@
+type: dagster_component_templates.OneSignalResourceComponent
+attributes:
+  resource_key: onesignal_resource
+  app_id: "11111111-2222-3333-4444-555555555555"
+  rest_api_key_env_var: ONESIGNAL_REST_API_KEY

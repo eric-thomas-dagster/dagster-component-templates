@@ -1,0 +1,8 @@
+type: dagster_component_templates.SageIntacctArInvoicesIngestionComponent
+attributes:
+  asset_name: sage_intacct_ar_invoices
+  resource_name: sage_intacct_resource
+  from_date: "2026-06-01"
+  to_date: "2026-07-01"
+  limit: 5000
+  group_name: finance

@@ -1,0 +1,8 @@
+type: dagster_component_templates.NetSuiteResourceComponent
+attributes:
+  resource_key: netsuite
+  account_id: "1234567_SB1"       # sandbox account id (prod: no _SBn suffix)
+  consumer_key_env_var: NETSUITE_CONSUMER_KEY
+  consumer_secret_env_var: NETSUITE_CONSUMER_SECRET
+  token_id_env_var: NETSUITE_TOKEN_ID
+  token_secret_env_var: NETSUITE_TOKEN_SECRET

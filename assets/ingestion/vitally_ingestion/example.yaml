@@ -1,0 +1,9 @@
+type: dagster_component_templates.VitallyAccountsIngestionComponent
+attributes:
+  asset_name: vitally_accounts
+  resource_name: vitally_resource
+  status: active
+  sort_by: updatedAt
+  limit: 2000
+  page_size: 100
+  group_name: vitally

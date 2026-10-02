@@ -1,0 +1,28 @@
+# FirebaseFcmSendComponent — DataFrame → Firebase Cloud Messaging (FCM)
+# push send (reverse-ETL message activation).
+#
+# !! SAFETY: materializing this asset sends REAL push notifications to REAL
+# devices the moment it runs. There is no "upload for later matching" step
+# like the ad-audience reverse-ETL components in this repo. ALWAYS test
+# against a small list of your own test-device tokens (e.g. a
+# `source: {kind: inline, rows: [...]}` with 1-2 rows) before pointing
+# this at a real warehouse segment.
+#
+# Requires a FirebaseResourceComponent registered under the same resource_key.
+
+type: dagster_component_templates.FirebaseFcmSendComponent
+attributes:
+  asset_name: firebase_cart_abandoned_push
+  upstream_asset_key: dbt_marts_cart_abandoned_today
+  resource_key: firebase_resource
+
+  recipient_column: fcm_device_token    # upstream column with the FCM token
+  title_template: "You left something behind!"
+  message_template: "{first_name}, your cart has {item_count} item(s) waiting."
+
+  batch_size: 500                      # blast-radius safety cap, NOT a rate limit
+
+  group_name: reverse_etl
+  description: "Push a cart-abandonment reminder via FCM for every stale cart."
+  # kinds: [firebase, reverse_etl]
+  # owners: [platform@corp.com]

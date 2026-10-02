@@ -1,0 +1,9 @@
+type: dagster_component_templates.GainsightCompanyIngestionComponent
+attributes:
+  asset_name: gainsight_companies
+  resource_name: gainsight_resource
+  object_name: Company
+  select_fields: ["Gsid", "Name", "Csm", "Status", "Stage", "Renewal_Date", "Health_Score"]
+  limit: 2000
+  page_size: 500
+  group_name: gainsight

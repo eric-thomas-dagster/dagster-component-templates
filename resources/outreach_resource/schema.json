@@ -1,0 +1,64 @@
+{
+  "component_type": "dagster_component_templates.OutreachResourceComponent",
+  "description": "Register an OutreachResource wrapping Outreach's JSON:API REST API (OAuth2 refresh_token grant) for use by other components",
+  "category": "resource",
+  "icon": "si:outreach",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "outreach_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "outreach_resource"
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client ID Env Var",
+      "description": "Env var holding the Outreach OAuth Client ID",
+      "required": false,
+      "default": "OUTREACH_CLIENT_ID",
+      "ui:widget": "env_var"
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "description": "Env var holding the Outreach OAuth Client Secret",
+      "required": false,
+      "default": "OUTREACH_CLIENT_SECRET",
+      "ui:widget": "env_var"
+    },
+    "refresh_token_env_var": {
+      "type": "string",
+      "label": "Refresh Token Env Var",
+      "description": "Env var holding the initial OAuth refresh token (obtained once via the authorization_code grant)",
+      "required": false,
+      "default": "OUTREACH_REFRESH_TOKEN",
+      "ui:widget": "env_var"
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base URL",
+      "description": "Outreach API base URL",
+      "required": false,
+      "default": "https://api.outreach.io/api/v2"
+    },
+    "token_url": {
+      "type": "string",
+      "label": "Token URL",
+      "description": "Outreach OAuth token endpoint",
+      "required": false,
+      "default": "https://api.outreach.io/oauth/token"
+    }
+  },
+  "tags": [
+    "resource",
+    "outreach",
+    "sales-engagement",
+    "sales"
+  ],
+  "name": "Outreach Resource"
+}

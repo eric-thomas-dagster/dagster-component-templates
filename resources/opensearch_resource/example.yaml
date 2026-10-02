@@ -1,0 +1,6 @@
+type: dagster_component_templates.OpenSearchResourceComponent
+attributes:
+  resource_key: opensearch_resource
+  host: "https://my-opensearch-domain.us-east-1.es.amazonaws.com"
+  username_env_var: OPENSEARCH_USERNAME
+  password_env_var: OPENSEARCH_PASSWORD

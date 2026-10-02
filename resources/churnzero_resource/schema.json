@@ -1,0 +1,48 @@
+{
+  "component_type": "dagster_component_templates.ChurnZeroResourceComponent",
+  "description": "Register a ChurnZeroResource wrapping ChurnZero's REST API v1 (account-specific base URL, HTTP Basic auth) for use by other components",
+  "category": "resource",
+  "icon": "Activity",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "churnzero_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "churnzero_resource"
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base URL",
+      "description": "Your ChurnZero tenant's API base URL (account-specific -- find on Admin -> API Keys page). e.g. 'https://yourtenant.churnzero.net'",
+      "required": true
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "description": "Env var holding your ChurnZero login email (Basic auth username)",
+      "required": false,
+      "default": "CHURNZERO_USERNAME",
+      "ui:widget": "env_var"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var holding the ChurnZero API key (Basic auth password)",
+      "required": false,
+      "default": "CHURNZERO_API_KEY",
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": [
+    "resource",
+    "churnzero",
+    "customer-success",
+    "accounts"
+  ],
+  "name": "ChurnZero Resource"
+}

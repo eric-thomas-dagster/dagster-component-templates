@@ -1,0 +1,50 @@
+{
+  "component_type": "dagster_component_templates.VitallyResourceComponent",
+  "description": "Register a VitallyResource wrapping Vitally's REST API (subdomain-scoped, HTTP Basic auth) for use by other components",
+  "category": "resource",
+  "icon": "SmilePlus",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "vitally_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "vitally_resource"
+    },
+    "subdomain": {
+      "type": "string",
+      "label": "Subdomain",
+      "description": "Your Vitally subdomain, from https://<subdomain>.vitally.io",
+      "required": true
+    },
+    "region": {
+      "type": "string",
+      "label": "Region",
+      "description": "Vitally region: 'us' or 'eu'. Determines the base URL host.",
+      "required": false,
+      "default": "us",
+      "enum": ["us", "eu"],
+      "ui:widget": "select"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var holding the Vitally REST API key (Settings -> Integrations -> REST API)",
+      "required": false,
+      "default": "VITALLY_API_KEY",
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": [
+    "resource",
+    "vitally",
+    "customer-success",
+    "nps",
+    "accounts"
+  ],
+  "name": "Vitally Resource"
+}

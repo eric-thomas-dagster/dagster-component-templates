@@ -1,0 +1,25 @@
+# NetSuiteRecordUpsertComponent -- DataFrame -> NetSuite Customer reverse ETL.
+# NetSuite's record/v1 REST API has no single-call upsert: this component
+# does GET-by-lookup_field, then PATCH (update) or POST (create).
+#
+# Requires a NetSuiteResourceComponent registered under the same resource_key.
+
+type: dagster_component_templates.NetSuiteRecordUpsertComponent
+attributes:
+  asset_name: netsuite_customers_mirror
+  upstream_asset_key: dbt_marts_customers
+  resource_key: netsuite
+
+  lookup_field: externalId                    # NetSuite field used for the GET lookup
+  fields_map:
+    customer_id: externalId                   # upstream col -> NetSuite Customer field
+    company_name: companyName
+    email: email
+    phone: phone
+
+  batch_size: 5000                            # safety cap (1 GET + 1 POST/PATCH per row)
+
+  group_name: reverse_etl
+  description: "Mirror dbt Customers mart into NetSuite Customer records."
+  # kinds: [netsuite, reverse_etl]
+  # owners: [finance-ops@corp.com]

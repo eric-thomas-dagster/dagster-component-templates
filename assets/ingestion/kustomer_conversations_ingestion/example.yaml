@@ -1,0 +1,8 @@
+type: dagster_component_templates.KustomerConversationsIngestionComponent
+attributes:
+  asset_name: kustomer_conversations
+  resource_name: kustomer_resource
+  from_date_time: "2026-06-01T00:00:00.000Z"
+  to_date_time: "2026-07-01T00:00:00.000Z"
+  limit: 500
+  group_name: kustomer

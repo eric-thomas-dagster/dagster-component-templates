@@ -1,0 +1,4 @@
+type: dagster_component_templates.DriftResourceComponent
+attributes:
+  resource_key: drift_resource
+  access_token_env_var: DRIFT_ACCESS_TOKEN

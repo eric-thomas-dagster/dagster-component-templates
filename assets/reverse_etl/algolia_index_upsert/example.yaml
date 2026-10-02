@@ -1,0 +1,20 @@
+# AlgoliaIndexUpsertComponent — DataFrame → Algolia index reverse ETL
+# (search-index activation) using the native /1/indexes/{index}/batch
+# endpoint. id_field's value becomes each record's objectID.
+
+type: dagster_component_templates.AlgoliaIndexUpsertComponent
+attributes:
+  asset_name: algolia_product_catalog_sync
+  upstream_asset_key: dbt_marts_product_catalog
+  resource_key: algolia_resource
+
+  index_name: products
+  id_field: product_id          # upstream col -> Algolia objectID
+  operation: upsert             # upsert (default) | delete
+
+  batch_size: 50000             # safety cap
+
+  group_name: reverse_etl
+  description: "Mirror dbt product catalog mart into the Algolia 'products' index for site search."
+  # kinds: [algolia, reverse_etl]
+  # owners: [platform@corp.com]

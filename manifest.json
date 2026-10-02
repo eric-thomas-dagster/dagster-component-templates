@@ -29576,7 +29576,7 @@
       "id": "marketo_resource",
       "name": "Marketo Resource",
       "category": "resource",
-      "description": "Marketo REST API client wrapper. OAuth client_credentials grant.",
+      "description": "Marketo REST API client wrapper. OAuth client_credentials grant. Supports both read (get) and write (post) -- e.g. POST /rest/v1/leads.json for createOrUpdate upserts.",
       "path": "resources/marketo_resource",
       "tags": [
         "resource",
@@ -58503,9 +58503,2457 @@
         "write to linkedin"
       ],
       "vertical": "marketing-ads"
+    },
+    {
+      "id": "outreach_resource",
+      "name": "Outreach Resource",
+      "category": "resource",
+      "description": "Register an OutreachResource wrapping Outreach's JSON:API REST API (OAuth2 refresh_token grant) for use by other components",
+      "path": "resources/outreach_resource",
+      "component_type": "dagster_component_templates.OutreachResourceComponent",
+      "icon": "si:outreach",
+      "tags": [
+        "resource",
+        "outreach",
+        "sales-engagement",
+        "sales"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/outreach_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/outreach_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/outreach_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/outreach_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/outreach_resource/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against Outreach's published OAuth2/JSON:API docs. Live validation against a real Outreach org pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "agent_hints": {
+        "when_to_use": "User wants to authenticate against Outreach's REST API for another component to use (e.g. outreach_prospects_ingestion). OAuth2 refresh_token grant for a long-running internal pipeline -- not Outreach's S2S/app-install flow.",
+        "typical_upstream": "None -- this is a connection/auth resource.",
+        "outputs": "An OutreachResource exposing get(path, params) -> dict, used by downstream ingestion components.",
+        "example_prompts": [
+          "Connect to Outreach so I can pull Prospects into the warehouse",
+          "Set up Outreach API credentials for a Dagster pipeline"
+        ],
+        "anti_uses": "Not for Outreach's marketplace-app S2S flow (RSA keypair + app install) -- that's a different auth model for multi-tenant apps.",
+        "requires_pip": [
+          "requests"
+        ],
+        "requires_env_vars": [
+          "OUTREACH_CLIENT_ID",
+          "OUTREACH_CLIENT_SECRET",
+          "OUTREACH_REFRESH_TOKEN"
+        ]
+      },
+      "keywords": [
+        "outreach.io",
+        "sales engagement",
+        "connection",
+        "connect",
+        "oauth2",
+        "prospects"
+      ],
+      "vertical": "sales-engagement"
+    },
+    {
+      "id": "outreach_prospects_ingestion",
+      "name": "Outreach Prospects Ingestion",
+      "category": "source",
+      "description": "Ingest Outreach Prospects via Outreach's JSON:API REST API and return a flattened pandas DataFrame.",
+      "path": "assets/ingestion/outreach_prospects_ingestion",
+      "component_type": "dagster_component_templates.OutreachProspectsIngestionComponent",
+      "icon": "si:outreach",
+      "tags": [
+        "ingestion",
+        "outreach",
+        "sales",
+        "sales-engagement",
+        "prospects"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/outreach_prospects_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/outreach_prospects_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/outreach_prospects_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/outreach_prospects_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/outreach_prospects_ingestion/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated, 17/17 committed tests passing against a fake JSON:API resource. Live validation against a real Outreach org pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:outreach_resource"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to pull Outreach Prospect (contact-equivalent) records into the warehouse/lakehouse for sales-engagement analytics, attribution, or enrichment. Sales-engagement equivalent of a CRM contacts sync.",
+        "typical_upstream": "None (root ingestion) -- hits Outreach's REST API directly via outreach_resource.",
+        "outputs": "pandas DataFrame, one row per prospect, JSON:API attributes flattened to columns (firstName, lastName, emails, title, company, createdAt, updatedAt, etc. -- varies by org/custom fields).",
+        "example_prompts": [
+          "Ingest Outreach prospects updated in the last week",
+          "Pull all Outreach prospects into our warehouse daily"
+        ],
+        "anti_uses": "Not for Sequences/Sequence States/Activities/Accounts -- this is Prospects only. For generic REST APIs use rest_api_ingestion.",
+        "requires_pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ],
+        "requires_env_vars": [
+          "OUTREACH_CLIENT_ID",
+          "OUTREACH_CLIENT_SECRET",
+          "OUTREACH_REFRESH_TOKEN"
+        ]
+      },
+      "keywords": [
+        "outreach.io",
+        "prospects",
+        "sales engagement",
+        "ingest",
+        "extract load",
+        "el",
+        "read from",
+        "contacts"
+      ],
+      "vertical": "sales-engagement"
+    },
+    {
+      "id": "salesloft_resource",
+      "name": "Salesloft Resource",
+      "category": "resource",
+      "description": "Register a SalesloftResource wrapping Salesloft's REST API (Bearer API key auth) for use by other components",
+      "path": "resources/salesloft_resource",
+      "component_type": "dagster_component_templates.SalesloftResourceComponent",
+      "icon": "si:salesloft",
+      "tags": [
+        "resource",
+        "salesloft",
+        "sales-engagement",
+        "sales"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/salesloft_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/salesloft_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/salesloft_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/salesloft_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/salesloft_resource/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against Salesloft's published API-key auth docs. Live validation against a real Salesloft org pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "agent_hints": {
+        "when_to_use": "User wants to authenticate against Salesloft's REST API for another component to use (e.g. salesloft_people_ingestion). Bearer API key -- simplest path for an internal pipeline reading your own org's data.",
+        "typical_upstream": "None -- this is a connection/auth resource.",
+        "outputs": "A SalesloftResource exposing get(path, params) -> dict, used by downstream ingestion components.",
+        "example_prompts": [
+          "Connect to Salesloft so I can pull People into the warehouse",
+          "Set up Salesloft API credentials for a Dagster pipeline"
+        ],
+        "anti_uses": "Not for partner/multi-tenant integrations -- Salesloft restricts API-key auth to customer accounts; partners need an OAuth2 app instead (not implemented here).",
+        "requires_pip": [
+          "requests"
+        ],
+        "requires_env_vars": [
+          "SALESLOFT_API_KEY"
+        ]
+      },
+      "keywords": [
+        "salesloft",
+        "sales engagement",
+        "connection",
+        "connect",
+        "api key",
+        "people"
+      ],
+      "vertical": "sales-engagement"
+    },
+    {
+      "id": "salesloft_people_ingestion",
+      "name": "Salesloft People Ingestion",
+      "category": "source",
+      "description": "Ingest Salesloft People via Salesloft's REST API and return a pandas DataFrame.",
+      "path": "assets/ingestion/salesloft_people_ingestion",
+      "component_type": "dagster_component_templates.SalesloftPeopleIngestionComponent",
+      "icon": "si:salesloft",
+      "tags": [
+        "ingestion",
+        "salesloft",
+        "sales",
+        "sales-engagement",
+        "people"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/salesloft_people_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/salesloft_people_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/salesloft_people_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/salesloft_people_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/salesloft_people_ingestion/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated, 15/15 committed tests passing against a fake Salesloft resource. Live validation against a real Salesloft org pending -- in particular the updated_at[gte]/[lte] filter operator names on the People endpoint specifically."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:salesloft_resource"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to pull Salesloft People (contact-equivalent) records into the warehouse/lakehouse for sales-engagement analytics, attribution, or enrichment. Sales-engagement equivalent of a CRM contacts sync.",
+        "typical_upstream": "None (root ingestion) -- hits Salesloft's REST API directly via salesloft_resource.",
+        "outputs": "pandas DataFrame, one row per person, flat fields as returned (id, email_address, first_name, last_name, title, created_at, updated_at, etc. -- varies by org/custom fields). No JSON:API unwrapping needed.",
+        "example_prompts": [
+          "Ingest Salesloft people updated in the last week",
+          "Pull all Salesloft people into our warehouse daily"
+        ],
+        "anti_uses": "Not for Cadences/Activities/Accounts -- this is People only. For generic REST APIs use rest_api_ingestion.",
+        "requires_pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ],
+        "requires_env_vars": [
+          "SALESLOFT_API_KEY"
+        ]
+      },
+      "keywords": [
+        "salesloft",
+        "people",
+        "sales engagement",
+        "ingest",
+        "extract load",
+        "el",
+        "read from",
+        "contacts"
+      ],
+      "vertical": "sales-engagement"
+    },
+    {
+      "id": "onesignal_resource",
+      "name": "OneSignal Resource",
+      "category": "resource",
+      "description": "Register a OneSignalResource (REST API app id + key auth) for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/onesignal_resource",
+      "tags": [
+        "resource",
+        "onesignal",
+        "push",
+        "notification",
+        "messaging"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/onesignal_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/onesignal_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/onesignal_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/onesignal_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/onesignal_resource/requirements.txt",
+      "icon": "si:onesignal",
+      "x-dagster-provides": [
+        "onesignal_resource"
+      ],
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated. Live validation against a real OneSignal app pending. Pairs with onesignal_push_send, which sends real push notifications when materialized against real credentials -- not a dry-run."
+      },
+      "produces": [
+        "resource"
+      ],
+      "agent_hints": {
+        "outputs": "Register a OneSignalResource (REST API app id + key auth) for use by other components",
+        "requires_pip": [
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "ONESIGNAL_REST_API_KEY"
+        ]
+      },
+      "keywords": [
+        "onesignal",
+        "push notifications",
+        "messaging",
+        "connection",
+        "connect"
+      ]
+    },
+    {
+      "id": "twilio_sms_send",
+      "name": "Twilio SMS Send",
+      "component_type": "dagster_component_templates.TwilioSmsSendComponent",
+      "path": "assets/reverse_etl/twilio_sms_send",
+      "category": "reverse_etl",
+      "icon": "si:twilio",
+      "description": "Reverse-ETL message activation: send a personalized SMS via Twilio to each row of an upstream DataFrame (client.messages.create). Sends REAL text messages the moment this asset materializes -- no upload-for-later-matching indirection, and Twilio bills per message segment.",
+      "tags": [
+        "sink",
+        "twilio",
+        "sms",
+        "reverse-etl",
+        "activation",
+        "messaging"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/twilio_sms_send/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/twilio_sms_send/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/twilio_sms_send/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/twilio_sms_send/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/twilio_sms_send/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "dagster-twilio"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated (15/15 tests, monkeypatched Twilio API call). Live validation against a real Twilio account pending. SAFETY: this component sends real SMS messages, not a dry-run -- materializing against real credentials results in real sends billed per message segment."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:twilio"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to send a real SMS to each row of a warehouse segment (reverse ETL / message activation) -- e.g. shipping notifications, appointment reminders, one-time SMS blasts to a computed segment.",
+        "typical_upstream": "Dagster asset producing a pandas DataFrame with a phone-number column (E.164 format recommended) -- usually a dbt mart or warehouse segment.",
+        "example_prompts": [
+          "Send an SMS via Twilio to every customer whose order shipped today",
+          "Text a reminder to a warehouse segment of upcoming appointments",
+          "Blast a personalized SMS to a dbt mart of at-risk customers"
+        ],
+        "anti_uses": "This sends real messages, not a dry-run -- there is no upload-for-later-matching step like the ad-audience reverse-ETL components in this repo. Not for bulk marketing campaigns needing suppression lists/opt-out management (use a dedicated marketing SMS platform). Not for reading Twilio data (no read-side counterpart in this repo).",
+        "requires_pip": [
+          "pandas>=2.0.0",
+          "dagster-twilio"
+        ],
+        "requires_env_vars": [
+          "TWILIO_ACCOUNT_SID",
+          "TWILIO_AUTH_TOKEN"
+        ]
+      },
+      "keywords": [
+        "reverse etl",
+        "twilio sms",
+        "sms send",
+        "message activation",
+        "sink",
+        "send sms"
+      ],
+      "vertical": "messaging-activation"
+    },
+    {
+      "id": "firebase_fcm_send",
+      "name": "Firebase FCM Send",
+      "component_type": "dagster_component_templates.FirebaseFcmSendComponent",
+      "path": "assets/reverse_etl/firebase_fcm_send",
+      "category": "reverse_etl",
+      "icon": "si:firebase",
+      "description": "Reverse-ETL message activation: send a personalized push notification via Firebase Cloud Messaging (FCM) to each row of an upstream DataFrame (firebase_admin.messaging.send against the row's device token). Sends REAL push notifications the moment this asset materializes -- no upload-for-later-matching indirection.",
+      "tags": [
+        "sink",
+        "firebase",
+        "fcm",
+        "push",
+        "reverse-etl",
+        "activation",
+        "messaging"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/firebase_fcm_send/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/firebase_fcm_send/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/firebase_fcm_send/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/firebase_fcm_send/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/firebase_fcm_send/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "firebase-admin>=6.0.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated (14/14 tests, monkeypatched firebase_admin.messaging call). Live validation against a real Firebase project pending. SAFETY: this component sends real push notifications, not a dry-run."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:firebase"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to send a real push notification to each row of a warehouse segment (reverse ETL / message activation) -- e.g. cart-abandonment pushes, order updates, re-engagement pushes.",
+        "typical_upstream": "Dagster asset producing a pandas DataFrame with an FCM device-token column -- usually a dbt mart or warehouse segment.",
+        "example_prompts": [
+          "Push a cart-abandonment reminder via FCM to every stale cart in the warehouse",
+          "Send an order-update push notification to customers via Firebase",
+          "Re-engage a dbt mart of dormant mobile users with a push notification"
+        ],
+        "anti_uses": "This sends real push notifications, not a dry-run -- there is no upload-for-later-matching step like the ad-audience reverse-ETL components in this repo. Not for reading/writing Firestore, Storage, or Realtime DB (use firebase_resource directly for those). Not for topic-based broadcast push (this is per-device-token targeting only).",
+        "requires_pip": [
+          "pandas>=2.0.0",
+          "firebase-admin>=6.0.0"
+        ],
+        "requires_env_vars": [
+          "FIREBASE_PROJECT_ID",
+          "FIREBASE_CREDENTIALS_PATH"
+        ]
+      },
+      "keywords": [
+        "reverse etl",
+        "firebase push",
+        "fcm send",
+        "message activation",
+        "sink",
+        "send push notification"
+      ],
+      "vertical": "messaging-activation"
+    },
+    {
+      "id": "onesignal_push_send",
+      "name": "OneSignal Push Send",
+      "component_type": "dagster_component_templates.OneSignalPushSendComponent",
+      "path": "assets/reverse_etl/onesignal_push_send",
+      "category": "reverse_etl",
+      "icon": "si:onesignal",
+      "description": "Reverse-ETL message activation: send a personalized push notification via the OneSignal REST API (POST /notifications, Subscription-ID targeting) to each row of an upstream DataFrame. Sends REAL push notifications the moment this asset materializes -- no upload-for-later-matching indirection.",
+      "tags": [
+        "sink",
+        "onesignal",
+        "push",
+        "reverse-etl",
+        "activation",
+        "messaging"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/onesignal_push_send/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/onesignal_push_send/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/onesignal_push_send/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/onesignal_push_send/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/onesignal_push_send/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated (15/15 tests, monkeypatched OneSignal REST call). Live validation against a real OneSignal app pending. SAFETY: this component sends real push notifications, not a dry-run."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:onesignal"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to send a real push notification to each row of a warehouse segment (reverse ETL / message activation) -- e.g. cart-abandonment pushes, order updates, re-engagement pushes, cross-platform (iOS/Android/web) push via OneSignal rather than FCM directly.",
+        "typical_upstream": "Dagster asset producing a pandas DataFrame with a OneSignal Subscription ID column -- usually a dbt mart or warehouse segment.",
+        "example_prompts": [
+          "Push a cart-abandonment reminder via OneSignal to every stale cart in the warehouse",
+          "Send a re-engagement push to a dbt mart of dormant users via OneSignal",
+          "Notify a warehouse segment of an app update via OneSignal push"
+        ],
+        "anti_uses": "This sends real push notifications, not a dry-run -- there is no upload-for-later-matching step like the ad-audience reverse-ETL components in this repo. Not for email/SMS via OneSignal (this component targets push only). Not for segment/topic-based broadcast (this is per-subscription-id targeting only).",
+        "requires_pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "ONESIGNAL_REST_API_KEY"
+        ]
+      },
+      "keywords": [
+        "reverse etl",
+        "onesignal push",
+        "push send",
+        "message activation",
+        "sink",
+        "send push notification"
+      ],
+      "vertical": "messaging-activation"
+    },
+    {
+      "id": "algolia_resource",
+      "name": "Algolia Resource",
+      "component_type": "dagster_component_templates.AlgoliaResourceComponent",
+      "path": "resources/algolia_resource",
+      "category": "resource",
+      "icon": "si:algolia",
+      "description": "Register an AlgoliaResource (Algolia Search REST API write auth) for use by other components",
+      "tags": [
+        "resource",
+        "algolia",
+        "search",
+        "reverse-etl"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/algolia_resource/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/algolia_resource/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/algolia_resource/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/algolia_resource/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/algolia_resource/schema.json",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against Algolia's published REST API docs. Live validation against a real Algolia app pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "agent_hints": {
+        "when_to_use": "Register Algolia Admin API auth for reverse-ETL components that write to an Algolia index.",
+        "typical_upstream": "None -- this is an auth resource.",
+        "typical_downstream": "algolia_index_upsert (AlgoliaIndexUpsertComponent).",
+        "example_prompts": [
+          "Connect to Algolia for search-index sync",
+          "Register Algolia Admin API Key auth"
+        ],
+        "anti_uses": "Not for reading/searching an Algolia index -- this resource only exposes write-auth headers.",
+        "requires_pip": [
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "ALGOLIA_ADMIN_API_KEY"
+        ]
+      },
+      "keywords": [
+        "algolia",
+        "search",
+        "resource",
+        "connection",
+        "connect",
+        "reverse etl"
+      ],
+      "vertical": "search-activation"
+    },
+    {
+      "id": "opensearch_resource",
+      "name": "OpenSearch Resource",
+      "component_type": "dagster_component_templates.OpenSearchResourceComponent",
+      "path": "resources/opensearch_resource",
+      "category": "resource",
+      "icon": "si:opensearch",
+      "description": "Register an OpenSearchResource (raw REST auth for the OpenSearch _bulk API) for use by other components",
+      "tags": [
+        "resource",
+        "opensearch",
+        "search",
+        "reverse-etl"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/opensearch_resource/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/opensearch_resource/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/opensearch_resource/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/opensearch_resource/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/opensearch_resource/schema.json",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against OpenSearch's published Bulk API docs. Live validation against a real cluster pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "agent_hints": {
+        "when_to_use": "Register OpenSearch cluster auth (basic auth primary, API key alternative) for reverse-ETL components that write via the _bulk API.",
+        "typical_upstream": "None -- this is an auth resource.",
+        "typical_downstream": "opensearch_index_upsert (OpenSearchIndexUpsertComponent).",
+        "example_prompts": [
+          "Connect to OpenSearch for search-index sync",
+          "Register OpenSearch basic auth for bulk indexing"
+        ],
+        "anti_uses": "Not for querying/searching an OpenSearch index -- this resource only exposes write-side auth/headers.",
+        "requires_pip": [
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "OPENSEARCH_USERNAME",
+          "OPENSEARCH_PASSWORD"
+        ]
+      },
+      "keywords": [
+        "opensearch",
+        "search",
+        "resource",
+        "connection",
+        "connect",
+        "bulk api",
+        "reverse etl"
+      ],
+      "vertical": "search-activation"
+    },
+    {
+      "id": "typesense_resource",
+      "name": "Typesense Resource",
+      "component_type": "dagster_component_templates.TypesenseResourceComponent",
+      "path": "resources/typesense_resource",
+      "category": "resource",
+      "icon": "si:typesense",
+      "description": "Register a TypesenseResource for the Typesense REST API for use by other components",
+      "tags": [
+        "resource",
+        "typesense",
+        "search",
+        "reverse-etl"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/typesense_resource/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/typesense_resource/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/typesense_resource/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/typesense_resource/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/typesense_resource/schema.json",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against Typesense's published Documents Import API docs. Live validation against a real cluster pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "agent_hints": {
+        "when_to_use": "Register Typesense API key auth for reverse-ETL components that write via the Documents Import endpoint.",
+        "typical_upstream": "None -- this is an auth resource.",
+        "typical_downstream": "typesense_index_upsert (TypesenseIndexUpsertComponent).",
+        "example_prompts": [
+          "Connect to Typesense for search-index sync",
+          "Register Typesense API key auth"
+        ],
+        "anti_uses": "Not for querying/searching a Typesense collection -- this resource only exposes write-side auth headers.",
+        "requires_pip": [
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "TYPESENSE_API_KEY"
+        ]
+      },
+      "keywords": [
+        "typesense",
+        "search",
+        "resource",
+        "connection",
+        "connect",
+        "reverse etl"
+      ],
+      "vertical": "search-activation"
+    },
+    {
+      "id": "algolia_index_upsert",
+      "name": "Algolia Index Upsert",
+      "component_type": "dagster_component_templates.AlgoliaIndexUpsertComponent",
+      "path": "assets/reverse_etl/algolia_index_upsert",
+      "category": "reverse_etl",
+      "icon": "si:algolia",
+      "description": "Reverse-ETL / search-index activation: sync an upstream DataFrame into an Algolia index via the native /1/indexes/{index}/batch endpoint. id_field's value becomes each record's objectID; all other columns become document fields. Supports 'upsert' (updateObject, create-or-replace) and 'delete' (deleteObject).",
+      "tags": [
+        "sink",
+        "algolia",
+        "reverse-etl",
+        "search-activation",
+        "index",
+        "upsert"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/algolia_index_upsert/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/algolia_index_upsert/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/algolia_index_upsert/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/algolia_index_upsert/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/algolia_index_upsert/schema.json",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against Algolia's published batch/REST API docs; 16/16 committed tests passing with the one external HTTP call monkeypatched. Live validation against a real Algolia app pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:algolia"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to sync a warehouse table or Dagster asset (product catalog, content/docs catalog) INTO Algolia to power site search -- a search-activation reverse-ETL case with zero prior coverage.",
+        "typical_upstream": "Dagster asset producing a pandas DataFrame -- usually a dbt mart (product catalog, content index) or a warehouse table.",
+        "typical_downstream": "An Algolia index. Uses the native batch endpoint (updateObject/deleteObject) -- no search-then-write.",
+        "example_prompts": [
+          "Sync our product catalog dbt mart into Algolia for site search",
+          "Push a content/docs mart into an Algolia index nightly",
+          "Remove discontinued products from the Algolia products index"
+        ],
+        "anti_uses": "Not for reading/querying Algolia (use the Search API directly). Not for configuring index settings/rankings -- this only upserts/deletes records.",
+        "requires_pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "ALGOLIA_ADMIN_API_KEY"
+        ]
+      },
+      "keywords": [
+        "reverse etl",
+        "algolia upsert",
+        "search index sync",
+        "site search",
+        "search activation",
+        "objectid",
+        "sink",
+        "write to algolia"
+      ],
+      "vertical": "search-activation"
+    },
+    {
+      "id": "opensearch_index_upsert",
+      "name": "OpenSearch Index Upsert",
+      "component_type": "dagster_component_templates.OpenSearchIndexUpsertComponent",
+      "path": "assets/reverse_etl/opensearch_index_upsert",
+      "category": "reverse_etl",
+      "icon": "si:opensearch",
+      "description": "Reverse-ETL / search-index activation: sync an upstream DataFrame into an OpenSearch index via the native _bulk NDJSON API. id_field's value becomes each document's _id; all other columns become source fields. Supports 'upsert' (index action, create-or-replace) and 'delete' (delete action, no source line).",
+      "tags": [
+        "sink",
+        "opensearch",
+        "reverse-etl",
+        "search-activation",
+        "index",
+        "upsert",
+        "bulk"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/opensearch_index_upsert/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/opensearch_index_upsert/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/opensearch_index_upsert/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/opensearch_index_upsert/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/opensearch_index_upsert/schema.json",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against OpenSearch's published Bulk API docs (incl. the delete-has-no-source-line rule). 18/18 committed tests passing with the one external HTTP call monkeypatched. Live validation against a real cluster pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:opensearch"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to sync a warehouse table or Dagster asset (product catalog, content/docs catalog, logs-as-search) INTO an OpenSearch index to power site search -- a search-activation reverse-ETL case with zero prior coverage.",
+        "typical_upstream": "Dagster asset producing a pandas DataFrame -- usually a dbt mart (product catalog, content index) or a warehouse table.",
+        "typical_downstream": "An OpenSearch index (self-managed or AWS OpenSearch Service). Uses the native _bulk API (index/delete actions).",
+        "example_prompts": [
+          "Sync our product catalog dbt mart into OpenSearch for site search",
+          "Push a content mart into an OpenSearch index nightly via bulk API",
+          "Remove discontinued products from an OpenSearch index"
+        ],
+        "anti_uses": "Not for querying/searching OpenSearch (use the Search/_search API directly). Not for index/mapping management -- this only upserts/deletes documents.",
+        "requires_pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "OPENSEARCH_USERNAME",
+          "OPENSEARCH_PASSWORD"
+        ]
+      },
+      "keywords": [
+        "reverse etl",
+        "opensearch upsert",
+        "search index sync",
+        "site search",
+        "search activation",
+        "bulk api",
+        "sink",
+        "write to opensearch"
+      ],
+      "vertical": "search-activation"
+    },
+    {
+      "id": "typesense_index_upsert",
+      "name": "Typesense Index Upsert",
+      "component_type": "dagster_component_templates.TypesenseIndexUpsertComponent",
+      "path": "assets/reverse_etl/typesense_index_upsert",
+      "category": "reverse_etl",
+      "icon": "si:typesense",
+      "description": "Reverse-ETL / search-index activation: sync an upstream DataFrame into a Typesense collection via the native Documents Import NDJSON endpoint (action=upsert). id_field's value becomes each document's string 'id' field (required inside the body, unlike Algolia/OpenSearch). 'delete' loops one DELETE .../documents/{id} call per row -- Typesense's import endpoint has no bulk-delete mode.",
+      "tags": [
+        "sink",
+        "typesense",
+        "reverse-etl",
+        "search-activation",
+        "collection",
+        "upsert",
+        "import"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/typesense_index_upsert/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/typesense_index_upsert/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/typesense_index_upsert/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/typesense_index_upsert/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/typesense_index_upsert/schema.json",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against Typesense's published Documents Import / delete API docs (incl. confirming no bulk-delete mode exists). 16/16 committed tests passing with the external HTTP calls monkeypatched. Live validation against a real cluster pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:typesense"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to sync a warehouse table or Dagster asset (product catalog, content/docs catalog) INTO a Typesense collection to power site search -- a search-activation reverse-ETL case with zero prior coverage.",
+        "typical_upstream": "Dagster asset producing a pandas DataFrame -- usually a dbt mart (product catalog, content index) or a warehouse table.",
+        "typical_downstream": "A Typesense collection (Typesense Cloud or self-hosted). Uses the native Documents Import endpoint for upsert; per-document DELETE calls for delete.",
+        "example_prompts": [
+          "Sync our product catalog dbt mart into Typesense for site search",
+          "Push a content mart into a Typesense collection nightly",
+          "Remove discontinued products from a Typesense collection"
+        ],
+        "anti_uses": "Not for querying/searching Typesense (use the Search API directly). Not for collection schema management -- this only upserts/deletes documents. Delete has no bulk mode -- expect one HTTP call per deleted row.",
+        "requires_pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "TYPESENSE_API_KEY"
+        ]
+      },
+      "keywords": [
+        "reverse etl",
+        "typesense upsert",
+        "search index sync",
+        "site search",
+        "search activation",
+        "documents import",
+        "sink",
+        "write to typesense"
+      ],
+      "vertical": "search-activation"
+    },
+    {
+      "id": "sage_intacct_resource",
+      "name": "Sage Intacct Resource",
+      "category": "resource",
+      "description": "Register a SageIntacctResource wrapping Sage Intacct's legacy XML Web Services gateway (xmlgw.phtml) for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/sage_intacct_resource",
+      "vertical": "finance-ops",
+      "tags": [
+        "resource",
+        "sage-intacct",
+        "intacct",
+        "finance",
+        "accounting",
+        "erp"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sage_intacct_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sage_intacct_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sage_intacct_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sage_intacct_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sage_intacct_resource/requirements.txt",
+      "component_type": "dagster_component_templates.SageIntacctResourceComponent",
+      "icon": "si:sageintacct",
+      "x-dagster-provides": [
+        "sage_intacct_resource"
+      ],
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against Sage Intacct's published XML Web Services docs (request/response envelope shape, readByQuery/readMore pagination). Live validation against a real Intacct sandbox company pending."
+      },
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "agent_hints": {
+        "when_to_use": "User wants to pull data OUT of Sage Intacct (AR invoices, customers, etc) via its XML Web Services gateway. Register this resource first, then wire sage_intacct_ar_invoices_ingestion (or another Intacct ingestion component) to it via resource_name.",
+        "outputs": "A SageIntacctResource exposing read_by_query(object_name, fields, query, pagesize) and read_more(resultid) against Intacct's XML gateway.",
+        "example_prompts": [
+          "Connect to our Sage Intacct company to pull AR invoices",
+          "Set up Sage Intacct XML API credentials for Dagster ingestion"
+        ],
+        "anti_uses": "Not a REST/JSON client -- Intacct's XML gateway is the only supported path here. Not for writing/upserting back to Intacct (read-only readByQuery/readMore).",
+        "requires_pip": [
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "INTACCT_SENDER_PASSWORD",
+          "INTACCT_USER_PASSWORD"
+        ]
+      },
+      "keywords": [
+        "sage intacct",
+        "intacct xml api",
+        "xmlgateway",
+        "erp",
+        "accounting api",
+        "connection",
+        "connect"
+      ]
+    },
+    {
+      "id": "sage_intacct_ar_invoices_ingestion",
+      "name": "Sage Intacct AR Invoices Ingestion",
+      "component_type": "dagster_component_templates.SageIntacctArInvoicesIngestionComponent",
+      "path": "assets/ingestion/sage_intacct_ar_invoices_ingestion",
+      "category": "source",
+      "icon": "si:sageintacct",
+      "description": "Ingest Sage Intacct AR Invoices (the ARINVOICE object) via the legacy XML Web Services readByQuery/readMore functions and return a pandas DataFrame.",
+      "tags": [
+        "ingestion",
+        "sage-intacct",
+        "intacct",
+        "finance",
+        "accounting",
+        "ar-invoices",
+        "erp"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sage_intacct_ar_invoices_ingestion/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sage_intacct_ar_invoices_ingestion/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sage_intacct_ar_invoices_ingestion/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sage_intacct_ar_invoices_ingestion/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sage_intacct_ar_invoices_ingestion/schema.json",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated with 20 committed tests, including a realistic sample XML response proving the readByQuery/readMore parser against real-shaped Intacct XML. Live validation against a real Intacct sandbox company pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:sage_intacct"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants AR Invoice data from Sage Intacct into the warehouse/lake. Common cases: AR aging reports, cash-flow forecasting inputs, revenue reconciliation against a warehouse mart.",
+        "typical_upstream": "Sage Intacct ARINVOICE object via the XML gateway (through sage_intacct_resource).",
+        "outputs": "pandas DataFrame, one row per AR invoice record, with RECORDNO/INVOICENO/CUSTOMERID/CUSTOMERNAME/WHENCREATED/WHENDUE/TOTALDUE/STATE etc as string columns (Intacct's XML gateway does not type-annotate fields).",
+        "example_prompts": [
+          "Pull all open AR invoices from Sage Intacct created this month",
+          "Ingest Sage Intacct AR invoices daily for an aging report"
+        ],
+        "anti_uses": "Not for other Intacct objects (CUSTOMER, GLENTRY, etc) without adapting object_name/fields -- this component defaults its field set to ARINVOICE. Not a write path -- read-only.",
+        "requires_pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ],
+        "requires_env_vars": [
+          "INTACCT_SENDER_PASSWORD",
+          "INTACCT_USER_PASSWORD"
+        ]
+      },
+      "keywords": [
+        "sage intacct",
+        "ar invoices",
+        "arinvoice",
+        "accounts receivable",
+        "xml gateway",
+        "readbyquery",
+        "finance ingestion"
+      ],
+      "vertical": "finance-ops"
+    },
+    {
+      "id": "monday_resource",
+      "name": "Monday.com Resource",
+      "category": "resource",
+      "description": "Register a MondayResource wrapping the monday.com GraphQL API for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/monday_resource",
+      "vertical": "productivity",
+      "tags": [
+        "resource",
+        "monday",
+        "monday.com",
+        "productivity",
+        "project-management"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/monday_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/monday_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/monday_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/monday_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/monday_resource/requirements.txt",
+      "component_type": "dagster_component_templates.MondayResourceComponent",
+      "icon": "si:monday",
+      "x-dagster-provides": [
+        "monday_resource"
+      ],
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against monday.com's published GraphQL API docs (auth header shape, API-Version requirement, items_page/next_items_page cursor pagination). Live validation against a real monday.com account pending."
+      },
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "agent_hints": {
+        "when_to_use": "User wants to pull data OUT of monday.com (board items, etc) via its GraphQL API. Register this resource first, then wire monday_board_items_ingestion (or another monday.com component) to it via resource_name.",
+        "outputs": "A MondayResource exposing execute(query, variables) against the single https://api.monday.com/v2 GraphQL endpoint, raising MondayGraphQLError on a top-level errors array.",
+        "example_prompts": [
+          "Connect to our monday.com account for Dagster ingestion",
+          "Set up monday.com API token and version header for GraphQL access"
+        ],
+        "anti_uses": "Not a REST client -- monday.com's API is GraphQL-only, there's no path-based pagination. Not for mutations/writes in this version (execute() works for any query/mutation string, but no write helpers are provided yet).",
+        "requires_pip": [
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "MONDAY_API_TOKEN"
+        ]
+      },
+      "keywords": [
+        "monday.com",
+        "monday graphql",
+        "project management api",
+        "connection",
+        "connect"
+      ]
+    },
+    {
+      "id": "monday_board_items_ingestion",
+      "name": "Monday.com Board Items Ingestion",
+      "component_type": "dagster_component_templates.MondayBoardItemsIngestionComponent",
+      "path": "assets/ingestion/monday_board_items_ingestion",
+      "category": "source",
+      "icon": "si:monday",
+      "description": "Ingest Items from a monday.com board via its GraphQL API (items_page/next_items_page cursor pagination) and return a pandas DataFrame.",
+      "tags": [
+        "ingestion",
+        "monday",
+        "monday.com",
+        "productivity",
+        "project-management",
+        "graphql"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/monday_board_items_ingestion/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/monday_board_items_ingestion/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/monday_board_items_ingestion/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/monday_board_items_ingestion/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/monday_board_items_ingestion/schema.json",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated with 16 committed tests covering items_page->next_items_page cursor-walking, column_values flattening, and the required API-Version/raw-token auth header. NOTE: assets/ingestion/monday_ingestion already exists (dlt-based, no paired resource) -- see README for how this component differs in scope/architecture. Live validation against a real monday.com board pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:monday"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants Items from a specific monday.com board into the warehouse/lake, using the paired-resource-component architecture (vs. the existing dlt-pipeline-based monday_ingestion). Common cases: project/task tracking boards, CRM-style pipelines built in monday.com, status reporting.",
+        "typical_upstream": "monday.com board Items via items_page/next_items_page (through monday_resource).",
+        "outputs": "pandas DataFrame, one row per board Item, with id/name/state/created_at/updated_at/group_id/group_title plus column_<id> (human text) and column_<id>_raw (JSON value) per board column.",
+        "example_prompts": [
+          "Pull all items from our monday.com Sprint Planning board",
+          "Ingest monday.com board 1234567890 items daily for status reporting"
+        ],
+        "anti_uses": "Not for monday.com users/boards-list/updates/activity-logs -- items only. If already using the existing monday_ingestion (dlt-based, generic boards/items/users), you likely don't need both.",
+        "requires_pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ],
+        "requires_env_vars": [
+          "MONDAY_API_TOKEN"
+        ]
+      },
+      "keywords": [
+        "monday.com",
+        "monday items",
+        "board items",
+        "graphql pagination",
+        "items_page",
+        "project management ingestion"
+      ],
+      "vertical": "productivity"
+    },
+    {
+      "id": "gorgias_resource",
+      "name": "Gorgias Resource",
+      "category": "resource",
+      "description": "Register a GorgiasResource wrapping Gorgias's REST API (HTTP Basic Auth) for use by other components",
+      "path": "resources/gorgias_resource",
+      "tags": [
+        "resource",
+        "gorgias",
+        "support",
+        "helpdesk",
+        "cx"
+      ],
+      "icon": "si:gorgias",
+      "component_type": "dagster_component_templates.GorgiasResourceComponent",
+      "x-dagster-provides": [
+        "gorgias_resource"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gorgias_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gorgias_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gorgias_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gorgias_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gorgias_resource/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against Gorgias's public REST API docs. Live validation against a real Gorgias account pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "agent_hints": {
+        "when_to_use": "User wants to pull Gorgias support ticket data into Dagster for analytics, enrichment, or downstream sync.",
+        "typical_upstream": "None (auth resource).",
+        "typical_downstream": "gorgias_tickets_ingestion and any future Gorgias-based component.",
+        "example_prompts": [
+          "Connect to our Gorgias helpdesk",
+          "Set up Gorgias API auth for ticket ingestion"
+        ],
+        "anti_uses": "Not for Gorgias public OAuth2 apps (Basic Auth only, private-app style). Not a ticket-writing/sink resource.",
+        "requires_pip": [
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "GORGIAS_EMAIL",
+          "GORGIAS_API_KEY"
+        ]
+      },
+      "keywords": [
+        "gorgias",
+        "helpdesk",
+        "support ticketing",
+        "basic auth",
+        "resource"
+      ],
+      "vertical": "support-cx"
+    },
+    {
+      "id": "gorgias_tickets_ingestion",
+      "name": "Gorgias Tickets Ingestion",
+      "category": "ingestion",
+      "description": "Ingest Gorgias support tickets via GET /api/tickets (cursor pagination) and return a pandas DataFrame. Client-side date-window filtering since Gorgias has no server-side date filter on this endpoint.",
+      "path": "assets/ingestion/gorgias_tickets_ingestion",
+      "tags": [
+        "ingestion",
+        "gorgias",
+        "support",
+        "helpdesk",
+        "cx",
+        "tickets"
+      ],
+      "icon": "si:gorgias",
+      "component_type": "dagster_component_templates.GorgiasTicketsIngestionComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gorgias_tickets_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gorgias_tickets_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gorgias_tickets_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gorgias_tickets_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gorgias_tickets_ingestion/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated + 14 unit tests (mocking only the HTTP call). Live validation against a real Gorgias account pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:gorgias_resource"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to bring Gorgias support ticket history into the warehouse/lakehouse for analytics, CX reporting, or feeding downstream ML/LLM components.",
+        "typical_upstream": "None (root ingestion) -- hits Gorgias's REST API.",
+        "outputs": "DataFrame with raw Gorgias ticket fields (id, subject, status, created_datetime, updated_datetime, customer info, etc.).",
+        "example_prompts": [
+          "Ingest our Gorgias tickets for the last quarter",
+          "Pull Gorgias support tickets into a daily-partitioned asset"
+        ],
+        "anti_uses": "Not for writing tickets back to Gorgias. Not for per-message transcript detail. Don't rely on from_date_time/to_date_time as a true server-side filter -- it's client-side only.",
+        "requires_pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ],
+        "requires_env_vars": [
+          "GORGIAS_EMAIL",
+          "GORGIAS_API_KEY"
+        ]
+      },
+      "keywords": [
+        "gorgias",
+        "support tickets",
+        "helpdesk ingestion",
+        "cursor pagination",
+        "extract load",
+        "el",
+        "read from"
+      ],
+      "vertical": "support-cx"
+    },
+    {
+      "id": "drift_resource",
+      "name": "Drift Resource",
+      "category": "resource",
+      "description": "Register a DriftResource wrapping Drift's REST API (OAuth2 Bearer token) for use by other components",
+      "path": "resources/drift_resource",
+      "tags": [
+        "resource",
+        "drift",
+        "support",
+        "chat",
+        "cx"
+      ],
+      "icon": "si:drift",
+      "component_type": "dagster_component_templates.DriftResourceComponent",
+      "x-dagster-provides": [
+        "drift_resource"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/drift_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/drift_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/drift_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/drift_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/drift_resource/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against Drift's public devdocs + drift-python OSS client source. Live validation against a real Drift workspace pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "agent_hints": {
+        "when_to_use": "User wants to pull Drift conversational marketing/chat data into Dagster.",
+        "typical_upstream": "None (auth resource).",
+        "typical_downstream": "drift_conversations_ingestion and any future Drift-based component.",
+        "example_prompts": [
+          "Connect to our Drift chat platform",
+          "Set up Drift API auth for conversation ingestion"
+        ],
+        "anti_uses": "Does not perform OAuth2 token refresh -- expects an already-issued, non-expiring private-app token (or an externally-rotated OAuth2 token) in an env var.",
+        "requires_pip": [
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "DRIFT_ACCESS_TOKEN"
+        ]
+      },
+      "keywords": [
+        "drift",
+        "conversational marketing",
+        "live chat",
+        "bearer token",
+        "resource"
+      ],
+      "vertical": "support-cx"
+    },
+    {
+      "id": "drift_conversations_ingestion",
+      "name": "Drift Conversations Ingestion",
+      "category": "ingestion",
+      "description": "Ingest Drift conversations (and optionally their messages) via GET /conversations/list (page_token pagination) and return a pandas DataFrame.",
+      "path": "assets/ingestion/drift_conversations_ingestion",
+      "tags": [
+        "ingestion",
+        "drift",
+        "support",
+        "chat",
+        "cx",
+        "conversations"
+      ],
+      "icon": "si:drift",
+      "component_type": "dagster_component_templates.DriftConversationsIngestionComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/drift_conversations_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/drift_conversations_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/drift_conversations_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/drift_conversations_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/drift_conversations_ingestion/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated + 13 unit tests (mocking only the HTTP call). Live validation against a real Drift workspace pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:drift_resource"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants Drift chat/conversation data (with optional full message transcripts) in the warehouse for CX analytics, lead scoring enrichment, or LLM-based summarization.",
+        "typical_upstream": "None (root ingestion) -- hits Drift's REST API.",
+        "outputs": "DataFrame with Drift conversation fields (id, status, contactId, inboxId, createdAt, updatedAt) plus optional transcript/messages_raw columns.",
+        "example_prompts": [
+          "Ingest our Drift conversations from last month",
+          "Pull Drift chat transcripts for sentiment analysis"
+        ],
+        "anti_uses": "Not for writing/sending messages to Drift. Don't rely on from_date_time/to_date_time as a true server-side filter -- Drift's list endpoint only supports statusId server-side.",
+        "requires_pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ],
+        "requires_env_vars": [
+          "DRIFT_ACCESS_TOKEN"
+        ]
+      },
+      "keywords": [
+        "drift",
+        "conversations",
+        "live chat transcripts",
+        "page_token pagination",
+        "extract load",
+        "el",
+        "read from"
+      ],
+      "vertical": "support-cx"
+    },
+    {
+      "id": "kustomer_resource",
+      "name": "Kustomer Resource",
+      "category": "resource",
+      "description": "Register a KustomerResource wrapping Kustomer's REST API (Bearer API key) for use by other components",
+      "path": "resources/kustomer_resource",
+      "tags": [
+        "resource",
+        "kustomer",
+        "support",
+        "cx",
+        "crm"
+      ],
+      "icon": "si:kustomer",
+      "component_type": "dagster_component_templates.KustomerResourceComponent",
+      "x-dagster-provides": [
+        "kustomer_resource"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/kustomer_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/kustomer_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/kustomer_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/kustomer_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/kustomer_resource/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against Kustomer's public docs (partially JS-rendered/uncrawlable -- see component README). Live validation against a real Kustomer org pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "agent_hints": {
+        "when_to_use": "User wants to pull Kustomer CRM/conversation data into Dagster.",
+        "typical_upstream": "None (auth resource).",
+        "typical_downstream": "kustomer_conversations_ingestion and any future Kustomer-based component.",
+        "example_prompts": [
+          "Connect to our Kustomer CX platform",
+          "Set up Kustomer API auth"
+        ],
+        "anti_uses": "Not for Kustomer's Chat SDK / in-app widget auth (separate mechanism). Exposes both get() and post() since Kustomer's bulk-listing mechanism is POST-based.",
+        "requires_pip": [
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "KUSTOMER_API_KEY"
+        ]
+      },
+      "keywords": [
+        "kustomer",
+        "customer service crm",
+        "json:api",
+        "bearer api key",
+        "resource"
+      ],
+      "vertical": "support-cx"
+    },
+    {
+      "id": "kustomer_conversations_ingestion",
+      "name": "Kustomer Conversations Ingestion",
+      "category": "ingestion",
+      "description": "Ingest Kustomer conversations via the Search API (POST /v1/customers/search, queryContext=conversation) and return a pandas DataFrame.",
+      "path": "assets/ingestion/kustomer_conversations_ingestion",
+      "tags": [
+        "ingestion",
+        "kustomer",
+        "support",
+        "cx",
+        "conversations"
+      ],
+      "icon": "si:kustomer",
+      "component_type": "dagster_component_templates.KustomerConversationsIngestionComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/kustomer_conversations_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/kustomer_conversations_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/kustomer_conversations_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/kustomer_conversations_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/kustomer_conversations_ingestion/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated + 14 unit tests (mocking only the HTTP call). Filter operator names (gte/lt) and field-prefix convention follow Kustomer's documented search semantics but were not confirmed against a live org due to JS-rendered docs. Live validation pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:kustomer_resource"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants Kustomer conversation/CX data in the warehouse for support analytics or downstream enrichment.",
+        "typical_upstream": "None (root ingestion) -- hits Kustomer's Search API.",
+        "outputs": "DataFrame flattened from JSON:API conversation objects (id, type, plus conversation_* attribute columns).",
+        "example_prompts": [
+          "Ingest our Kustomer conversations for Q3",
+          "Pull Kustomer support conversation data into a daily asset"
+        ],
+        "anti_uses": "Not for Kustomer Customers/contacts. Not for writing back to Kustomer. Validate filter operator names against your org before production use.",
+        "requires_pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ],
+        "requires_env_vars": [
+          "KUSTOMER_API_KEY"
+        ]
+      },
+      "keywords": [
+        "kustomer",
+        "conversations",
+        "search api",
+        "json:api",
+        "page pagination",
+        "extract load",
+        "el",
+        "read from"
+      ],
+      "vertical": "support-cx"
+    },
+    {
+      "id": "netsuite_resource",
+      "name": "NetSuite Resource",
+      "category": "resource",
+      "description": "Register a NetSuite SuiteTalk REST (record/v1) API client. Auth is OAuth 1.0a Token-Based Authentication (TBA) -- NOT OAuth2 -- signed with consumer key/secret + token id/secret via HMAC-SHA256 using requests-oauthlib's OAuth1.",
+      "path": "resources/netsuite_resource",
+      "component_type": "dagster_component_templates.NetSuiteResourceComponent",
+      "icon": "si:oracle",
+      "tags": [
+        "resource",
+        "netsuite",
+        "erp",
+        "oauth1",
+        "suitetalk"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/netsuite_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/netsuite_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/netsuite_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/netsuite_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/netsuite_resource/requirements.txt",
+      "x-dagster-provides": [
+        "netsuite"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28",
+          "requests-oauthlib>=1.3.1"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against NetSuite's published SuiteTalk REST + TBA docs. Live validation against a real NetSuite account pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "agent_hints": {
+        "when_to_use": "User wants to authenticate against NetSuite's SuiteTalk REST API for another component to use (e.g. netsuite_record_upsert). Requires Token-Based Authentication enabled on a NetSuite Integration record.",
+        "typical_upstream": "None -- this is a connection/auth resource.",
+        "example_prompts": [
+          "Connect to NetSuite so I can upsert Customer records",
+          "Set up NetSuite OAuth1 TBA auth for reverse ETL"
+        ],
+        "anti_uses": "Not OAuth2 -- do not pass a bearer/access token here. Not for NetSuite's legacy SOAP SuiteTalk API.",
+        "requires_pip": [
+          "requests>=2.28",
+          "requests-oauthlib>=1.3.1"
+        ],
+        "requires_env_vars": [
+          "NETSUITE_CONSUMER_KEY",
+          "NETSUITE_CONSUMER_SECRET",
+          "NETSUITE_TOKEN_ID",
+          "NETSUITE_TOKEN_SECRET"
+        ]
+      },
+      "keywords": [
+        "netsuite",
+        "suitetalk",
+        "oauth1",
+        "token-based authentication",
+        "connection",
+        "connect"
+      ],
+      "vertical": "erp-finance"
+    },
+    {
+      "id": "quickbooks_resource",
+      "name": "QuickBooks Resource",
+      "category": "resource",
+      "description": "Register a QuickBooksResource wrapping the QuickBooks Online Accounting API. OAuth2 refresh-token flow; every request is scoped to realm_id (the QuickBooks company/tenant id). Exposes request() + query() (QBO's SQL-like query language).",
+      "path": "resources/quickbooks_resource",
+      "component_type": "dagster_component_templates.QuickBooksResourceComponent",
+      "icon": "si:quickbooks",
+      "tags": [
+        "resource",
+        "quickbooks",
+        "accounting",
+        "erp",
+        "oauth2"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/quickbooks_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/quickbooks_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/quickbooks_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/quickbooks_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/quickbooks_resource/requirements.txt",
+      "x-dagster-provides": [
+        "quickbooks"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against Intuit's published OAuth2 + Accounting API docs. Live validation against a real QBO sandbox company pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "agent_hints": {
+        "when_to_use": "User wants to authenticate against the QuickBooks Online Accounting API for another component to use (e.g. quickbooks_customer_upsert).",
+        "typical_upstream": "None -- this is a connection/auth resource.",
+        "example_prompts": [
+          "Connect to QuickBooks Online so I can upsert Customer records",
+          "Set up QBO OAuth2 refresh-token auth for reverse ETL"
+        ],
+        "anti_uses": "Not for QuickBooks Desktop (a different product/API). Does not persist Intuit's rotated refresh tokens -- pair with an external secret-refresh mechanism in production.",
+        "requires_pip": [
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "QBO_CLIENT_ID",
+          "QBO_CLIENT_SECRET",
+          "QBO_REFRESH_TOKEN"
+        ]
+      },
+      "keywords": [
+        "quickbooks",
+        "quickbooks online",
+        "qbo",
+        "oauth2",
+        "synctoken",
+        "connection",
+        "connect"
+      ],
+      "vertical": "erp-finance"
+    },
+    {
+      "id": "marketo_lead_upsert",
+      "name": "Marketo Lead Upsert",
+      "category": "reverse_etl",
+      "description": "Reverse-ETL sink: mirror an upstream DataFrame into Marketo Leads via the native createOrUpdate action. POST /rest/v1/leads.json with action=createOrUpdate atomically creates or updates each record in one request, matched on lookupField (typically email). Requests are chunked at 300 records (Marketo's hard per-request limit).",
+      "path": "assets/reverse_etl/marketo_lead_upsert",
+      "component_type": "dagster_component_templates.MarketoLeadUpsertComponent",
+      "icon": "si:marketo",
+      "tags": [
+        "marketo",
+        "sink",
+        "reverse-etl",
+        "upsert",
+        "lead",
+        "createOrUpdate"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/marketo_lead_upsert/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/marketo_lead_upsert/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/marketo_lead_upsert/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/marketo_lead_upsert/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/marketo_lead_upsert/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against Marketo's published REST Lead Database docs. Live validation against a real Marketo instance pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:marketo"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to sync data from a warehouse / Dagster asset INTO Marketo (reverse ETL). Common cases: a dbt Contacts/Leads mart into Marketo for nurture campaigns; a warehouse-computed lead score into a custom Marketo field.",
+        "typical_upstream": "Dagster asset producing a pandas DataFrame -- usually a dbt mart or a warehouse table transformation.",
+        "typical_downstream": "Marketo Lead records, matched via createOrUpdate's lookupField (default email).",
+        "example_prompts": [
+          "Sync a dbt Contacts mart into Marketo Leads",
+          "Push a warehouse lead score into a custom Marketo field",
+          "Mirror CRM contacts into Marketo for nurture campaigns"
+        ],
+        "anti_uses": "Not for reading Marketo data -- use the read-side Marketo integration via MarketoResource.get(). Not for bulk historical backfills >300 rows/request without accepting the automatic chunking overhead.",
+        "requires_pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "MARKETO_CLIENT_ID",
+          "MARKETO_CLIENT_SECRET"
+        ]
+      },
+      "keywords": [
+        "reverse etl",
+        "marketo upsert",
+        "lead sync",
+        "createOrUpdate",
+        "sink",
+        "write to marketo"
+      ],
+      "vertical": "marketing-automation"
+    },
+    {
+      "id": "netsuite_record_upsert",
+      "name": "NetSuite Record Upsert",
+      "category": "reverse_etl",
+      "description": "Reverse-ETL sink: mirror an upstream DataFrame into NetSuite Customer records. NetSuite's SuiteTalk REST record/v1 API has no single-call upsert -- this component performs GET /customer?q=<lookup_field> IS \"<value>\" to find an existing record, then PATCH /customer/{id} (update) or POST /customer (create). One GET + one POST-or-PATCH per row; no bulk/composite batching available in record/v1.",
+      "path": "assets/reverse_etl/netsuite_record_upsert",
+      "component_type": "dagster_component_templates.NetSuiteRecordUpsertComponent",
+      "icon": "si:oracle",
+      "tags": [
+        "netsuite",
+        "sink",
+        "reverse-etl",
+        "upsert",
+        "customer",
+        "erp"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/netsuite_record_upsert/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/netsuite_record_upsert/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/netsuite_record_upsert/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/netsuite_record_upsert/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/netsuite_record_upsert/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28",
+          "requests-oauthlib>=1.3.1"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against NetSuite's published SuiteTalk REST docs. Live validation against a real NetSuite account pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:netsuite"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to sync data from a warehouse / Dagster asset INTO NetSuite Customer records (reverse ETL). Common case: a dbt Customers mart or externally-sourced customer master data into NetSuite as the ERP system of record.",
+        "typical_upstream": "Dagster asset producing a pandas DataFrame -- usually a dbt mart or a warehouse table transformation.",
+        "typical_downstream": "NetSuite Customer records, matched via lookup_field (default externalId) through a GET-then-PATCH-or-POST pattern.",
+        "example_prompts": [
+          "Sync a dbt Customers mart into NetSuite Customer records",
+          "Mirror warehouse-computed credit scores into NetSuite custom Customer fields"
+        ],
+        "anti_uses": "Not for reading NetSuite data -- use netsuite_ingestion (dlt-based). Not suited to bulk migration (tens of thousands of rows) -- use SuiteScript Map/Reduce or CSV Import instead, since there's no bulk endpoint here.",
+        "requires_pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28",
+          "requests-oauthlib>=1.3.1"
+        ],
+        "requires_env_vars": [
+          "NETSUITE_CONSUMER_KEY",
+          "NETSUITE_CONSUMER_SECRET",
+          "NETSUITE_TOKEN_ID",
+          "NETSUITE_TOKEN_SECRET"
+        ]
+      },
+      "keywords": [
+        "reverse etl",
+        "netsuite upsert",
+        "customer sync",
+        "suitetalk",
+        "sink",
+        "write to netsuite"
+      ],
+      "vertical": "erp-finance"
+    },
+    {
+      "id": "quickbooks_customer_upsert",
+      "name": "QuickBooks Customer Upsert",
+      "category": "reverse_etl",
+      "description": "Reverse-ETL sink: mirror an upstream DataFrame into QuickBooks Online Customer records. QBO has no single-call upsert -- POST /customer is used for both create and update, with behavior determined by the request body (Id + SyncToken present = sparse update; absent = create). This component queries by lookup_field first to discover the current SyncToken, then issues the appropriate create-or-update POST. Two API calls per row.",
+      "path": "assets/reverse_etl/quickbooks_customer_upsert",
+      "component_type": "dagster_component_templates.QuickBooksCustomerUpsertComponent",
+      "icon": "si:quickbooks",
+      "tags": [
+        "quickbooks",
+        "sink",
+        "reverse-etl",
+        "upsert",
+        "customer",
+        "accounting",
+        "synctoken"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/quickbooks_customer_upsert/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/quickbooks_customer_upsert/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/quickbooks_customer_upsert/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/quickbooks_customer_upsert/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/quickbooks_customer_upsert/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against Intuit's published Accounting API docs (Customer entity, SyncToken, sparse updates). Live validation against a real QBO sandbox company pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:quickbooks"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to sync data from a warehouse / Dagster asset INTO QuickBooks Online Customer records (reverse ETL). Common case: a dbt Customers mart into QBO for invoicing/billing, or warehouse-computed customer attributes into QBO custom fields.",
+        "typical_upstream": "Dagster asset producing a pandas DataFrame -- usually a dbt mart or a warehouse table transformation.",
+        "typical_downstream": "QuickBooks Online Customer records, matched via lookup_field (default DisplayName) through a query-then-create-or-update-with-SyncToken pattern.",
+        "example_prompts": [
+          "Sync a dbt Customers mart into QuickBooks Online",
+          "Push a customer segment/tier into a QuickBooks Customer custom field"
+        ],
+        "anti_uses": "Not for reading QuickBooks data -- use quickbooks_ingestion (dlt-based). Not for QuickBooks Desktop. Not safe for high-concurrency writes to the same record -- stale-SyncToken conflicts are recorded as errors, not auto-retried.",
+        "requires_pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "QBO_CLIENT_ID",
+          "QBO_CLIENT_SECRET",
+          "QBO_REFRESH_TOKEN"
+        ]
+      },
+      "keywords": [
+        "reverse etl",
+        "quickbooks upsert",
+        "customer sync",
+        "synctoken",
+        "sink",
+        "write to quickbooks"
+      ],
+      "vertical": "erp-finance"
+    },
+    {
+      "id": "gainsight_resource",
+      "name": "Gainsight Resource",
+      "category": "resource",
+      "description": "Register a GainsightResource wrapping Gainsight NXT's REST API v1 (access-key auth) for use by other components",
+      "path": "resources/gainsight_resource",
+      "tags": [
+        "resource",
+        "gainsight",
+        "customer-success",
+        "health-score"
+      ],
+      "icon": "Heart",
+      "component_type": "dagster_component_templates.GainsightResourceComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gainsight_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gainsight_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gainsight_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gainsight_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gainsight_resource/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against Gainsight's published REST API v1 docs. Live validation against a real Gainsight NXT tenant is pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "x-dagster-provides": [
+        "gainsight_resource"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to authenticate against Gainsight NXT's REST API v1 for another component to use (e.g. gainsight_ingestion). Access-key auth, not OAuth.",
+        "typical_upstream": "None -- this is a connection/auth resource.",
+        "outputs": "A GainsightResource exposing post(path, json) -> dict, used by downstream ingestion components.",
+        "example_prompts": [
+          "Connect to Gainsight so I can pull Company health scores into the warehouse",
+          "Set up Gainsight API access for customer success reporting"
+        ],
+        "anti_uses": "Not for Gainsight Timeline/Activity writes or User Management -- this wraps the generic object-query endpoint only.",
+        "requires_pip": [
+          "requests"
+        ],
+        "requires_env_vars": [
+          "GAINSIGHT_ACCESS_KEY"
+        ]
+      },
+      "keywords": [
+        "gainsight",
+        "customer success",
+        "health score",
+        "csm",
+        "connection",
+        "connect"
+      ],
+      "vertical": "customer-success"
+    },
+    {
+      "id": "gainsight_ingestion",
+      "name": "Gainsight Company Ingestion",
+      "category": "source",
+      "description": "Ingest Gainsight Company records (health scores, CSM, stage, renewal) via Gainsight REST API v1 and return a pandas DataFrame.",
+      "path": "assets/ingestion/gainsight_ingestion",
+      "tags": [
+        "ingestion",
+        "gainsight",
+        "customer-success",
+        "health-score"
+      ],
+      "icon": "Heart",
+      "component_type": "dagster_component_templates.GainsightCompanyIngestionComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gainsight_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gainsight_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gainsight_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gainsight_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gainsight_ingestion/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated with 12 committed unit tests mocking only the HTTP call. Live validation against a real Gainsight NXT tenant is pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:gainsight_resource"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to pull Gainsight Company records (health scores, CSM assignment, renewal stage) into a warehouse/Dagster asset for CS reporting, churn analysis, or blending with product usage data.",
+        "typical_upstream": "GainsightResourceComponent (auth).",
+        "typical_downstream": "dbt mart joining Company health scores against usage/billing data; churn_prediction or customer_health_score analytics components.",
+        "example_prompts": [
+          "Ingest Gainsight Company health scores into the warehouse",
+          "Pull Gainsight CSM assignments and renewal dates for a CS dashboard"
+        ],
+        "anti_uses": "Not for Gainsight Timeline/Activity feed -- this queries the Company object only. Health score field name must be confirmed per-tenant (it's a custom field, not standardized).",
+        "requires_pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ],
+        "requires_env_vars": [
+          "GAINSIGHT_ACCESS_KEY"
+        ]
+      },
+      "keywords": [
+        "gainsight",
+        "customer success",
+        "health score ingestion",
+        "csm",
+        "company object",
+        "churn data"
+      ],
+      "vertical": "customer-success"
+    },
+    {
+      "id": "vitally_resource",
+      "name": "Vitally Resource",
+      "category": "resource",
+      "description": "Register a VitallyResource wrapping Vitally's REST API (subdomain-scoped, HTTP Basic auth) for use by other components",
+      "path": "resources/vitally_resource",
+      "tags": [
+        "resource",
+        "vitally",
+        "customer-success",
+        "nps",
+        "accounts"
+      ],
+      "icon": "SmilePlus",
+      "component_type": "dagster_component_templates.VitallyResourceComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/vitally_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/vitally_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/vitally_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/vitally_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/vitally_resource/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against Vitally's published REST API docs. Live validation against a real Vitally account is pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "x-dagster-provides": [
+        "vitally_resource"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to authenticate against Vitally's REST API for another component to use (e.g. vitally_ingestion).",
+        "typical_upstream": "None -- this is a connection/auth resource.",
+        "outputs": "A VitallyResource exposing get(path, params) -> dict, used by downstream ingestion components.",
+        "example_prompts": [
+          "Connect to Vitally so I can pull account health/NPS into the warehouse",
+          "Set up Vitally API access for customer success reporting"
+        ],
+        "anti_uses": "Not for Vitally's separate HTTPS Analytics (event-tracking) API -- this wraps the resources/* REST API only.",
+        "requires_pip": [
+          "requests"
+        ],
+        "requires_env_vars": [
+          "VITALLY_API_KEY"
+        ]
+      },
+      "keywords": [
+        "vitally",
+        "customer success",
+        "nps",
+        "account health",
+        "connection",
+        "connect"
+      ],
+      "vertical": "customer-success"
+    },
+    {
+      "id": "vitally_ingestion",
+      "name": "Vitally Accounts Ingestion",
+      "category": "source",
+      "description": "Ingest Vitally Accounts (health/NPS data) via Vitally REST API and return a pandas DataFrame.",
+      "path": "assets/ingestion/vitally_ingestion",
+      "tags": [
+        "ingestion",
+        "vitally",
+        "customer-success",
+        "nps",
+        "accounts"
+      ],
+      "icon": "SmilePlus",
+      "component_type": "dagster_component_templates.VitallyAccountsIngestionComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/vitally_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/vitally_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/vitally_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/vitally_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/vitally_ingestion/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated with 11 committed unit tests mocking only the HTTP call. Live validation against a real Vitally account is pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:vitally_resource"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to pull Vitally Accounts (health score, NPS, traits) into a warehouse/Dagster asset for CS reporting or churn analysis.",
+        "typical_upstream": "VitallyResourceComponent (auth).",
+        "typical_downstream": "dbt mart joining account health against usage/billing data; churn_prediction or customer_health_score analytics components.",
+        "example_prompts": [
+          "Ingest Vitally account health scores into the warehouse",
+          "Pull NPS responses per account from Vitally for a CS dashboard"
+        ],
+        "anti_uses": "Not for Vitally Conversations, Tasks, Notes, or Projects endpoints -- this ingests Accounts only. No server-side date-range filter exists on Vitally's Accounts endpoint.",
+        "requires_pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ],
+        "requires_env_vars": [
+          "VITALLY_API_KEY"
+        ]
+      },
+      "keywords": [
+        "vitally",
+        "customer success",
+        "account health ingestion",
+        "nps",
+        "accounts"
+      ],
+      "vertical": "customer-success"
+    },
+    {
+      "id": "churnzero_resource",
+      "name": "ChurnZero Resource",
+      "category": "resource",
+      "description": "Register a ChurnZeroResource wrapping ChurnZero's REST API v1 (account-specific base URL, HTTP Basic auth) for use by other components",
+      "path": "resources/churnzero_resource",
+      "tags": [
+        "resource",
+        "churnzero",
+        "customer-success",
+        "accounts"
+      ],
+      "icon": "Activity",
+      "component_type": "dagster_component_templates.ChurnZeroResourceComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/churnzero_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/churnzero_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/churnzero_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/churnzero_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/churnzero_resource/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against ChurnZero's published HTTP API docs. Live validation against a real ChurnZero tenant is pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "x-dagster-provides": [
+        "churnzero_resource"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to authenticate against ChurnZero's REST API for another component to use (e.g. churnzero_ingestion). IMPORTANT: ChurnZero's base_url is account-specific, not a shared domain.",
+        "typical_upstream": "None -- this is a connection/auth resource.",
+        "outputs": "A ChurnZeroResource exposing get(path, params) and get_url(full_url) -> dict, used by downstream ingestion components.",
+        "example_prompts": [
+          "Connect to ChurnZero so I can pull account churn scores into the warehouse",
+          "Set up ChurnZero API access for customer success reporting"
+        ],
+        "anti_uses": "Not for ChurnZero's separate inbound event-tracking endpoint (analytics.churnzero.net/i) -- this wraps the public/v1 REST API only.",
+        "requires_pip": [
+          "requests"
+        ],
+        "requires_env_vars": [
+          "CHURNZERO_USERNAME",
+          "CHURNZERO_API_KEY"
+        ]
+      },
+      "keywords": [
+        "churnzero",
+        "customer success",
+        "churn score",
+        "accounts",
+        "connection",
+        "connect"
+      ],
+      "vertical": "customer-success"
+    },
+    {
+      "id": "churnzero_ingestion",
+      "name": "ChurnZero Accounts Ingestion",
+      "category": "source",
+      "description": "Ingest ChurnZero Account records (churn scores) via ChurnZero's OData-flavored REST API and return a pandas DataFrame.",
+      "path": "assets/ingestion/churnzero_ingestion",
+      "tags": [
+        "ingestion",
+        "churnzero",
+        "customer-success",
+        "churn-score",
+        "accounts"
+      ],
+      "icon": "Activity",
+      "component_type": "dagster_component_templates.ChurnZeroAccountsIngestionComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/churnzero_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/churnzero_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/churnzero_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/churnzero_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/churnzero_ingestion/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated with 11 committed unit tests mocking only the HTTP call. Live validation against a real ChurnZero tenant is pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:churnzero_resource"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to pull ChurnZero Account records (churn scores, renewal/billing attributes) into a warehouse/Dagster asset for churn analysis or CS reporting.",
+        "typical_upstream": "ChurnZeroResourceComponent (auth).",
+        "typical_downstream": "dbt mart joining churn scores against usage/billing data; churn_prediction analytics component.",
+        "example_prompts": [
+          "Ingest ChurnZero account churn scores into the warehouse",
+          "Pull ChurnZero accounts modified in the last day for incremental sync"
+        ],
+        "anti_uses": "Not for ChurnZero Contacts, NPS, or inbound event-tracking -- this ingests Account objects only.",
+        "requires_pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ],
+        "requires_env_vars": [
+          "CHURNZERO_USERNAME",
+          "CHURNZERO_API_KEY"
+        ]
+      },
+      "keywords": [
+        "churnzero",
+        "customer success",
+        "churn score ingestion",
+        "accounts",
+        "odata"
+      ],
+      "vertical": "customer-success"
+    },
+    {
+      "id": "totango_resource",
+      "name": "Totango Resource",
+      "category": "resource",
+      "description": "Register a TotangoResource wrapping Totango's REST v2 Search API (app-token auth) for use by other components",
+      "path": "resources/totango_resource",
+      "tags": [
+        "resource",
+        "totango",
+        "customer-success",
+        "accounts"
+      ],
+      "icon": "UsersRound",
+      "component_type": "dagster_component_templates.TotangoResourceComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/totango_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/totango_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/totango_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/totango_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/totango_resource/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against Totango's published REST v2 Search API docs. Live validation against a real Totango org is pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "x-dagster-provides": [
+        "totango_resource"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to authenticate against Totango's REST v2 Search API for another component to use (e.g. totango_ingestion).",
+        "typical_upstream": "None -- this is a connection/auth resource.",
+        "outputs": "A TotangoResource exposing post(path, json) -> dict, used by downstream ingestion components.",
+        "example_prompts": [
+          "Connect to Totango so I can pull account health into the warehouse",
+          "Set up Totango API access for customer success reporting"
+        ],
+        "anti_uses": "Not for Totango Touchpoints, Tasks, or SuccessPlay APIs -- this wraps the Search API only.",
+        "requires_pip": [
+          "requests"
+        ],
+        "requires_env_vars": [
+          "TOTANGO_APP_TOKEN"
+        ]
+      },
+      "keywords": [
+        "totango",
+        "customer success",
+        "successblocs",
+        "accounts",
+        "connection",
+        "connect"
+      ],
+      "vertical": "customer-success"
+    },
+    {
+      "id": "totango_ingestion",
+      "name": "Totango Accounts Ingestion",
+      "category": "source",
+      "description": "Ingest Totango Account records via the Totango Search API (POST /api/v1/search/accounts) and return a pandas DataFrame.",
+      "path": "assets/ingestion/totango_ingestion",
+      "tags": [
+        "ingestion",
+        "totango",
+        "customer-success",
+        "accounts"
+      ],
+      "icon": "UsersRound",
+      "component_type": "dagster_component_templates.TotangoAccountsIngestionComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/totango_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/totango_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/totango_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/totango_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/totango_ingestion/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated with 13 committed unit tests mocking only the HTTP call. Live validation against a real Totango org is pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:totango_resource"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to pull Totango Account records (health, status, last activity) into a warehouse/Dagster asset for CS reporting or churn analysis.",
+        "typical_upstream": "TotangoResourceComponent (auth).",
+        "typical_downstream": "dbt mart joining account health against usage/billing data; churn_prediction or customer_health_score analytics components.",
+        "example_prompts": [
+          "Ingest Totango account health scores into the warehouse",
+          "Pull Totango accounts for a CS dashboard"
+        ],
+        "anti_uses": "Not for Totango Touchpoints, SuccessPlays, or Teams -- this ingests Accounts via the Search API only. Account field names (especially health scores) are org-specific custom attributes.",
+        "requires_pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ],
+        "requires_env_vars": [
+          "TOTANGO_APP_TOKEN"
+        ]
+      },
+      "keywords": [
+        "totango",
+        "customer success",
+        "account ingestion",
+        "successblocs",
+        "health score"
+      ],
+      "vertical": "customer-success"
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1180
+  "total": 1217
 }

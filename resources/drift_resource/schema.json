@@ -1,0 +1,41 @@
+{
+  "component_type": "dagster_component_templates.DriftResourceComponent",
+  "description": "Register a DriftResource wrapping Drift's REST API (OAuth2 Bearer token) for use by other components",
+  "category": "resource",
+  "icon": "si:drift",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "drift_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "drift_resource"
+    },
+    "access_token_env_var": {
+      "type": "string",
+      "label": "Access Token Env Var",
+      "description": "Env var holding a Drift API access token (private-app token or OAuth2 access token)",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base URL",
+      "description": "Drift API base URL. Override only for Drift-provided test/sandbox environments.",
+      "required": false,
+      "default": "https://driftapi.com"
+    }
+  },
+  "tags": [
+    "resource",
+    "drift",
+    "support",
+    "chat",
+    "cx"
+  ],
+  "name": "Drift Resource"
+}

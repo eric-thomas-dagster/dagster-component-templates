@@ -1,0 +1,20 @@
+# TypesenseIndexUpsertComponent — DataFrame → Typesense collection reverse ETL
+# (search-index activation) using the native Documents Import NDJSON endpoint.
+# id_field's value becomes each document's string 'id' field.
+
+type: dagster_component_templates.TypesenseIndexUpsertComponent
+attributes:
+  asset_name: typesense_product_catalog_sync
+  upstream_asset_key: dbt_marts_product_catalog
+  resource_key: typesense_resource
+
+  collection_name: products
+  id_field: product_id          # upstream col -> Typesense document 'id'
+  operation: upsert             # upsert (default) | delete (per-doc DELETE calls)
+
+  batch_size: 50000             # safety cap
+
+  group_name: reverse_etl
+  description: "Mirror dbt product catalog mart into the Typesense 'products' collection for site search."
+  # kinds: [typesense, reverse_etl]
+  # owners: [platform@corp.com]

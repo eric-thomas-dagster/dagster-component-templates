@@ -1,0 +1,39 @@
+{
+  "component_type": "dagster_component_templates.TypesenseResourceComponent",
+  "description": "Register a TypesenseResource for the Typesense REST API for use by other components",
+  "category": "resource",
+  "icon": "si:typesense",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "typesense_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "typesense_resource"
+    },
+    "host": {
+      "type": "string",
+      "label": "Host",
+      "description": "Typesense node URL, e.g. 'https://xxx.a1.typesense.net:443' or 'http://localhost:8108'.",
+      "required": true
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var holding the Typesense API key.",
+      "required": true,
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": [
+    "resource",
+    "typesense",
+    "search",
+    "reverse-etl"
+  ],
+  "name": "Typesense Resource"
+}

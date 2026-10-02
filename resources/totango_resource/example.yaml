@@ -1,0 +1,5 @@
+type: dagster_component_templates.TotangoResourceComponent
+attributes:
+  resource_key: totango_resource
+  region: us
+  app_token_env_var: TOTANGO_APP_TOKEN

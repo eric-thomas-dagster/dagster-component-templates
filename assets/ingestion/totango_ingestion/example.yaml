@@ -1,0 +1,8 @@
+type: dagster_component_templates.TotangoAccountsIngestionComponent
+attributes:
+  asset_name: totango_accounts
+  resource_name: totango_resource
+  fields: ["name", "display_name", "health", "last_activity_time", "status"]
+  count: 1000
+  limit: 5000
+  group_name: totango

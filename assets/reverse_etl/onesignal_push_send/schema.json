@@ -1,0 +1,81 @@
+{
+  "component_type": "dagster_component_templates.OneSignalPushSendComponent",
+  "description": "Reverse-ETL message activation: send a personalized push notification via the OneSignal REST API (`POST /notifications`, Subscription-ID targeting) to each row of an upstream DataFrame. Sends REAL push notifications the moment this asset materializes -- no upload-for-later-matching indirection.",
+  "category": "reverse_etl",
+  "icon": "si:onesignal",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one OneSignal push send, personalized via message_template/heading_template."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (messages_sent / messages_failed / rows_skipped_no_recipient). No downstream data -- the send side effect is a real push notification on the recipient's device."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with `source`."
+    },
+    "source": {
+      "type": "object",
+      "label": "Inline Source",
+      "required": false,
+      "description": "Inline source config (sql / csv / inline). Mutually exclusive with `upstream_asset_key`."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "onesignal_resource"
+    },
+    "recipient_column": {
+      "type": "string",
+      "label": "Recipient Column",
+      "required": true,
+      "description": "Upstream column holding the target OneSignal Subscription ID (current API field; replaces the deprecated Player ID)."
+    },
+    "message_template": {
+      "type": "string",
+      "label": "Message Template",
+      "required": true,
+      "description": "Push notification body ('contents') template. Supports {column_name} substitution from other upstream row columns."
+    },
+    "heading_template": {
+      "type": "string",
+      "label": "Heading Template",
+      "required": false,
+      "description": "Push notification title ('headings') template (same {column_name} substitution). Optional."
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 1000,
+      "description": "Max upstream rows per run (blast-radius safety cap, not a rate limit)."
+    },
+    "group_name": { "type": "string", "label": "Group Name", "required": false },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "label": "Owners", "required": false },
+    "tags": { "type": "object", "label": "Tags", "required": false },
+    "kinds": { "type": "array", "label": "Kinds", "required": false }
+  },
+  "tags": [
+    "sink",
+    "onesignal",
+    "push",
+    "reverse-etl",
+    "activation",
+    "messaging"
+  ],
+  "name": "OneSignal Push Send",
+  "vertical": "messaging-activation"
+}

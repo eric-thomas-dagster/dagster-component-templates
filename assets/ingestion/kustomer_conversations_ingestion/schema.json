@@ -1,0 +1,186 @@
+{
+  "component_type": "dagster_component_templates.KustomerConversationsIngestionComponent",
+  "description": "Ingest Kustomer conversations via the Search API (POST /v1/customers/search, queryContext=conversation) and return a pandas DataFrame.",
+  "category": "source",
+  "vertical": "support-cx",
+  "icon": "si:kustomer",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame of Kustomer conversation records (flattened from JSON:API attributes)"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "required": true
+    },
+    "resource_name": {
+      "type": "string",
+      "label": "Resource Name",
+      "description": "Key of the KustomerResource this asset depends on for authentication",
+      "required": false,
+      "default": "kustomer_resource"
+    },
+    "from_date_time": {
+      "type": "string",
+      "label": "From Date/Time",
+      "description": "Start of the conversation window (ISO-8601). Passed as a server-side conversation_created_at >= filter on the Search API.",
+      "required": false,
+      "default": null
+    },
+    "to_date_time": {
+      "type": "string",
+      "label": "To Date/Time",
+      "description": "End of the conversation window (ISO-8601). Passed as a server-side conversation_created_at < filter.",
+      "required": false,
+      "default": null
+    },
+    "limit": {
+      "type": "integer",
+      "label": "Limit",
+      "description": "Maximum number of conversations to fetch across all pages",
+      "required": false,
+      "default": 100
+    },
+    "page_size": {
+      "type": "integer",
+      "label": "Page Size",
+      "description": "Conversations requested per page (Kustomer's documented max page size)",
+      "required": false,
+      "default": 100
+    },
+    "max_pages": {
+      "type": "integer",
+      "label": "Max Pages",
+      "description": "Safety cap on the number of search pages walked, regardless of limit",
+      "required": false,
+      "default": 100
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "kustomer"
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Asset owners — team names (team:support) or email addresses.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Key-value tags applied to the asset in the Dagster catalog.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "description": "Asset kinds shown in the Dagster catalog. Defaults to ['kustomer', 'python'].",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Rows to include in the preview metadata",
+      "required": false,
+      "default": 10
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "description": "Lineage-only upstream asset keys (no data passed at runtime)",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'us,eu,asia'.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ingestion",
+    "kustomer",
+    "support",
+    "cx",
+    "conversations"
+  ],
+  "name": "Kustomer Conversations Ingestion"
+}

@@ -1,0 +1,85 @@
+{
+  "component_type": "dagster_component_templates.TypesenseIndexUpsertComponent",
+  "description": "Reverse-ETL / search-index activation: sync an upstream DataFrame into a Typesense collection via the native Documents Import NDJSON endpoint (action=upsert). id_field's value becomes each document's string 'id' field (required inside the body, unlike Algolia/OpenSearch). 'delete' loops one DELETE .../documents/{id} call per row -- Typesense's import endpoint has no bulk-delete mode.",
+  "category": "reverse_etl",
+  "icon": "si:typesense",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one Typesense document, keyed by id_field -> id."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_submitted / rows_errored / rows_skipped_no_id / api_requests). No downstream data -- the write side effect lands in Typesense."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with `source`."
+    },
+    "source": {
+      "type": "object",
+      "label": "Inline Source",
+      "required": false,
+      "description": "Inline source config (sql / csv / inline). Mutually exclusive with `upstream_asset_key`."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "typesense_resource"
+    },
+    "collection_name": {
+      "type": "string",
+      "label": "Collection Name",
+      "required": true,
+      "description": "Target Typesense collection name."
+    },
+    "id_field": {
+      "type": "string",
+      "label": "ID Field",
+      "required": true,
+      "description": "Upstream column whose (stringified) value becomes the Typesense document's 'id' field."
+    },
+    "operation": {
+      "type": "string",
+      "label": "Operation",
+      "required": false,
+      "default": "upsert",
+      "enum": ["upsert", "delete"],
+      "ui:widget": "select",
+      "description": "'upsert' create-or-replaces via the Import endpoint's action=upsert; 'delete' loops a per-document DELETE call (no bulk-delete mode)."
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 50000,
+      "description": "Max upstream rows per run (safety cap)."
+    },
+    "group_name": { "type": "string", "label": "Group Name", "required": false },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "label": "Owners", "required": false },
+    "tags": { "type": "object", "label": "Tags", "required": false },
+    "kinds": { "type": "array", "label": "Kinds", "required": false }
+  },
+  "tags": [
+    "sink",
+    "typesense",
+    "reverse-etl",
+    "search-activation",
+    "collection",
+    "upsert",
+    "import"
+  ],
+  "name": "Typesense Index Upsert",
+  "vertical": "search-activation"
+}

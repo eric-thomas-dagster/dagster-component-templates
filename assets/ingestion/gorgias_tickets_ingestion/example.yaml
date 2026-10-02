@@ -1,0 +1,9 @@
+type: dagster_component_templates.GorgiasTicketsIngestionComponent
+attributes:
+  asset_name: gorgias_tickets
+  resource_name: gorgias_resource
+  from_date_time: "2026-06-01T00:00:00Z"
+  to_date_time: "2026-07-01T00:00:00Z"
+  order_by: "created_datetime:desc"
+  limit: 500
+  group_name: gorgias

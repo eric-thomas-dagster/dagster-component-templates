@@ -1,0 +1,41 @@
+{
+  "component_type": "dagster_component_templates.SalesloftResourceComponent",
+  "description": "Register a SalesloftResource wrapping Salesloft's REST API (Bearer API key auth) for use by other components",
+  "category": "resource",
+  "icon": "si:salesloft",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "salesloft_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "salesloft_resource"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var holding the Salesloft API key (Bearer token)",
+      "required": false,
+      "default": "SALESLOFT_API_KEY",
+      "ui:widget": "env_var"
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base URL",
+      "description": "Salesloft API base URL",
+      "required": false,
+      "default": "https://api.salesloft.com/v2"
+    }
+  },
+  "tags": [
+    "resource",
+    "salesloft",
+    "sales-engagement",
+    "sales"
+  ],
+  "name": "Salesloft Resource"
+}

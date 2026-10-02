@@ -1,0 +1,82 @@
+{
+  "component_type": "dagster_component_templates.FirebaseFcmSendComponent",
+  "description": "Reverse-ETL message activation: send a personalized push notification via Firebase Cloud Messaging (FCM) to each row of an upstream DataFrame (`firebase_admin.messaging.send(...)` against the row's device token). Sends REAL push notifications the moment this asset materializes -- no upload-for-later-matching indirection.",
+  "category": "reverse_etl",
+  "icon": "si:firebase",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one FCM push send, personalized via message_template/title_template."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (messages_sent / messages_failed / rows_skipped_no_recipient). No downstream data -- the send side effect is a real push notification on the recipient's device."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with `source`."
+    },
+    "source": {
+      "type": "object",
+      "label": "Inline Source",
+      "required": false,
+      "description": "Inline source config (sql / csv / inline). Mutually exclusive with `upstream_asset_key`."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "firebase_resource"
+    },
+    "recipient_column": {
+      "type": "string",
+      "label": "Recipient Column",
+      "required": true,
+      "description": "Upstream column holding the target FCM device registration token."
+    },
+    "message_template": {
+      "type": "string",
+      "label": "Message Template",
+      "required": true,
+      "description": "Push notification body template. Supports {column_name} substitution from other upstream row columns."
+    },
+    "title_template": {
+      "type": "string",
+      "label": "Title Template",
+      "required": false,
+      "description": "Push notification title template (same {column_name} substitution). Optional."
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 1000,
+      "description": "Max upstream rows per run (blast-radius safety cap, not a rate limit)."
+    },
+    "group_name": { "type": "string", "label": "Group Name", "required": false },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "label": "Owners", "required": false },
+    "tags": { "type": "object", "label": "Tags", "required": false },
+    "kinds": { "type": "array", "label": "Kinds", "required": false }
+  },
+  "tags": [
+    "sink",
+    "firebase",
+    "fcm",
+    "push",
+    "reverse-etl",
+    "activation",
+    "messaging"
+  ],
+  "name": "Firebase FCM Send",
+  "vertical": "messaging-activation"
+}

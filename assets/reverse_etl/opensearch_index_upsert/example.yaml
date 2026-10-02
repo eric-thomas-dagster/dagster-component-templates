@@ -1,0 +1,20 @@
+# OpenSearchIndexUpsertComponent — DataFrame → OpenSearch index reverse ETL
+# (search-index activation) using the native _bulk NDJSON endpoint.
+# id_field's value becomes each document's _id.
+
+type: dagster_component_templates.OpenSearchIndexUpsertComponent
+attributes:
+  asset_name: opensearch_product_catalog_sync
+  upstream_asset_key: dbt_marts_product_catalog
+  resource_key: opensearch_resource
+
+  index_name: products
+  id_field: product_id          # upstream col -> OpenSearch _id
+  operation: upsert             # upsert (default) | delete
+
+  batch_size: 50000             # safety cap
+
+  group_name: reverse_etl
+  description: "Mirror dbt product catalog mart into the OpenSearch 'products' index for site search."
+  # kinds: [opensearch, reverse_etl]
+  # owners: [platform@corp.com]

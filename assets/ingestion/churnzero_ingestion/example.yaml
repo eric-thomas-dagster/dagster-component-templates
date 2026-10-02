@@ -1,0 +1,8 @@
+type: dagster_component_templates.ChurnZeroAccountsIngestionComponent
+attributes:
+  asset_name: churnzero_accounts
+  resource_name: churnzero_resource
+  order_by: ObjectLastModifiedDate
+  top: 100
+  limit: 2000
+  group_name: churnzero

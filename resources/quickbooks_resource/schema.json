@@ -1,0 +1,62 @@
+{
+  "component_type": "dagster_component_templates.QuickBooksResourceComponent",
+  "description": "Register a QuickBooksResource wrapping the QuickBooks Online Accounting API. OAuth2 refresh-token flow; every request is scoped to realm_id (the QuickBooks company/tenant id). Exposes request() + query() (QBO's SQL-like query language).",
+  "category": "resource",
+  "icon": "si:quickbooks",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "quickbooks"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "quickbooks"
+    },
+    "realm_id": {
+      "type": "string",
+      "label": "Realm ID",
+      "description": "QuickBooks company/tenant id (realmId), returned during OAuth authorization.",
+      "required": true
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client ID Env Var",
+      "description": "Env var with OAuth2 Client ID",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "description": "Env var with OAuth2 Client Secret",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "refresh_token_env_var": {
+      "type": "string",
+      "label": "Refresh Token Env Var",
+      "description": "Env var with OAuth2 Refresh Token",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "minor_version": {
+      "type": "integer",
+      "label": "Minor Version",
+      "description": "QuickBooks API minor version (appended to every request).",
+      "required": false,
+      "default": 75
+    }
+  },
+  "tags": [
+    "resource",
+    "quickbooks",
+    "accounting",
+    "erp",
+    "oauth2"
+  ],
+  "name": "QuickBooks Resource",
+  "vertical": "erp-finance"
+}

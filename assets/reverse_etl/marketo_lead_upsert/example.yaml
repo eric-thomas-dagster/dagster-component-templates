@@ -1,0 +1,26 @@
+# MarketoLeadUpsertComponent -- DataFrame -> Marketo Lead reverse ETL using
+# the native createOrUpdate action. Atomic create-or-update per record,
+# matched on `lookup_field` (typically email).
+#
+# Requires a MarketoResourceComponent registered under the same resource_key.
+
+type: dagster_component_templates.MarketoLeadUpsertComponent
+attributes:
+  asset_name: marketo_leads_mirror
+  upstream_asset_key: dbt_marts_contacts
+  resource_key: marketo
+
+  lookup_field: email                          # Marketo's createOrUpdate match key
+  fields_map:
+    email: email                               # upstream col -> Marketo field
+    first_name: firstName
+    last_name: lastName
+    company: company
+    lead_score: leadScore__c                   # custom fields pass through as-is
+
+  batch_size: 50000                            # safety cap (chunked at 300/request regardless)
+
+  group_name: reverse_etl
+  description: "Mirror dbt Contacts mart into Marketo Leads via createOrUpdate."
+  # kinds: [marketo, reverse_etl]
+  # owners: [marketing-ops@corp.com]

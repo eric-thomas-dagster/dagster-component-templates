@@ -1,0 +1,8 @@
+type: dagster_component_templates.SalesloftPeopleIngestionComponent
+attributes:
+  asset_name: salesloft_people
+  resource_name: salesloft_resource
+  updated_after: "2026-06-01T00:00:00Z"
+  updated_before: "2026-07-01T00:00:00Z"
+  limit: 5000
+  group_name: salesloft

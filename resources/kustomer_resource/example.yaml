@@ -1,0 +1,5 @@
+type: dagster_component_templates.KustomerResourceComponent
+attributes:
+  resource_key: kustomer_resource
+  org_subdomain: acme
+  api_key_env_var: KUSTOMER_API_KEY

@@ -1,0 +1,5 @@
+type: dagster_component_templates.AlgoliaResourceComponent
+attributes:
+  resource_key: algolia_resource
+  app_id: "YOUR_APP_ID"
+  api_key_env_var: ALGOLIA_ADMIN_API_KEY

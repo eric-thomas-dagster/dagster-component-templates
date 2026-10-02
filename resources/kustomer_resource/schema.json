@@ -1,0 +1,40 @@
+{
+  "component_type": "dagster_component_templates.KustomerResourceComponent",
+  "description": "Register a KustomerResource wrapping Kustomer's REST API (Bearer API key) for use by other components",
+  "category": "resource",
+  "icon": "si:kustomer",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "kustomer_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "kustomer_resource"
+    },
+    "org_subdomain": {
+      "type": "string",
+      "label": "Org Subdomain",
+      "description": "Kustomer org subdomain, e.g. 'acme' for https://acme.api.kustomerapp.com",
+      "required": true
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var holding the Kustomer API key (Settings > Security > API Keys)",
+      "required": true,
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": [
+    "resource",
+    "kustomer",
+    "support",
+    "cx",
+    "crm"
+  ],
+  "name": "Kustomer Resource"
+}

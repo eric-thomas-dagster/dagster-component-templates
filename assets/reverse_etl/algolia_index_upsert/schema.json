@@ -1,0 +1,84 @@
+{
+  "component_type": "dagster_component_templates.AlgoliaIndexUpsertComponent",
+  "description": "Reverse-ETL / search-index activation: sync an upstream DataFrame into an Algolia index via the native /1/indexes/{index}/batch endpoint. id_field's value becomes each record's objectID; all other columns become document fields. Supports 'upsert' (updateObject, create-or-replace) and 'delete' (deleteObject).",
+  "category": "reverse_etl",
+  "icon": "si:algolia",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one Algolia record, keyed by id_field -> objectID."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_submitted / rows_errored / rows_skipped_no_id / api_requests). No downstream data -- the write side effect lands in Algolia."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with `source`."
+    },
+    "source": {
+      "type": "object",
+      "label": "Inline Source",
+      "required": false,
+      "description": "Inline source config (sql / csv / inline). Mutually exclusive with `upstream_asset_key`."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "algolia_resource"
+    },
+    "index_name": {
+      "type": "string",
+      "label": "Index Name",
+      "required": true,
+      "description": "Target Algolia index name."
+    },
+    "id_field": {
+      "type": "string",
+      "label": "ID Field",
+      "required": true,
+      "description": "Upstream column whose value becomes the Algolia record's objectID."
+    },
+    "operation": {
+      "type": "string",
+      "label": "Operation",
+      "required": false,
+      "default": "upsert",
+      "enum": ["upsert", "delete"],
+      "ui:widget": "select",
+      "description": "'upsert' create-or-replaces via updateObject; 'delete' removes via deleteObject."
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 50000,
+      "description": "Max upstream rows per run (safety cap)."
+    },
+    "group_name": { "type": "string", "label": "Group Name", "required": false },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "label": "Owners", "required": false },
+    "tags": { "type": "object", "label": "Tags", "required": false },
+    "kinds": { "type": "array", "label": "Kinds", "required": false }
+  },
+  "tags": [
+    "sink",
+    "algolia",
+    "reverse-etl",
+    "search-activation",
+    "index",
+    "upsert"
+  ],
+  "name": "Algolia Index Upsert",
+  "vertical": "search-activation"
+}

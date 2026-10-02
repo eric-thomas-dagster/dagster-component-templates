@@ -1,0 +1,6 @@
+type: dagster_component_templates.ChurnZeroResourceComponent
+attributes:
+  resource_key: churnzero_resource
+  base_url: "https://yourtenant.churnzero.net"
+  username_env_var: CHURNZERO_USERNAME
+  api_key_env_var: CHURNZERO_API_KEY

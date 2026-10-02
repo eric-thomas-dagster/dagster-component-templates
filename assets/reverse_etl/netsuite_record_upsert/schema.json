@@ -1,0 +1,77 @@
+{
+  "component_type": "dagster_component_templates.NetSuiteRecordUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into NetSuite Customer records. NetSuite's SuiteTalk REST record/v1 API has no single-call upsert -- this component performs GET /customer?q=<lookup_field> IS \"<value>\" to find an existing record, then PATCH /customer/{id} (update) or POST /customer (create). One GET + one POST-or-PATCH per row; no bulk/composite batching available in record/v1.",
+  "category": "reverse_etl",
+  "icon": "si:oracle",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one NetSuite Customer record (upserted via lookup_field)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored / api_requests). No downstream data -- the write side effect lands in NetSuite."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with `source`."
+    },
+    "source": {
+      "type": "object",
+      "label": "Inline Source",
+      "required": false,
+      "description": "Inline source config (sql / csv / inline). Mutually exclusive with `upstream_asset_key`."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "netsuite"
+    },
+    "lookup_field": {
+      "type": "string",
+      "label": "Lookup Field",
+      "required": false,
+      "default": "externalId",
+      "description": "NetSuite Customer field used to find an existing record via q= search. MUST be present in fields_map values."
+    },
+    "fields_map": {
+      "type": "object",
+      "label": "Fields Map",
+      "required": true,
+      "description": "Upstream column -> NetSuite Customer field name.",
+      "ui:widget": "key-value"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 5000,
+      "description": "Max upstream rows per run (safety cap). No bulk endpoint -- each row costs 1 GET + 1 POST-or-PATCH."
+    },
+    "group_name": { "type": "string", "label": "Group Name", "required": false, "default": "netsuite" },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "items": { "type": "string" }, "label": "Owners", "required": false, "ui:widget": "list" },
+    "tags": { "type": "object", "label": "Tags", "required": false, "ui:widget": "key-value" },
+    "kinds": { "type": "array", "items": { "type": "string" }, "label": "Kinds", "required": false, "ui:widget": "list" }
+  },
+  "tags": [
+    "netsuite",
+    "sink",
+    "reverse-etl",
+    "upsert",
+    "customer",
+    "erp"
+  ],
+  "name": "NetSuite Record Upsert",
+  "vertical": "erp-finance"
+}

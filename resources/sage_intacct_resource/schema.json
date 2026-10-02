@@ -1,0 +1,75 @@
+{
+  "component_type": "dagster_component_templates.SageIntacctResourceComponent",
+  "description": "Register a SageIntacctResource wrapping Sage Intacct's legacy XML Web Services gateway (xmlgw.phtml) for use by other components",
+  "category": "resource",
+  "vertical": "finance-ops",
+  "icon": "si:sageintacct",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "sage_intacct_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "sage_intacct_resource"
+    },
+    "sender_id": {
+      "type": "string",
+      "label": "Sender ID",
+      "description": "Web Services sender ID registered with Sage support and whitelisted on the company",
+      "required": true
+    },
+    "sender_password_env_var": {
+      "type": "string",
+      "label": "Sender Password Env Var",
+      "description": "Env var holding the Web Services sender password",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "company_id": {
+      "type": "string",
+      "label": "Company ID",
+      "description": "Intacct company ID",
+      "required": true
+    },
+    "user_id": {
+      "type": "string",
+      "label": "User ID",
+      "description": "Intacct user ID (an API-enabled web services user)",
+      "required": true
+    },
+    "user_password_env_var": {
+      "type": "string",
+      "label": "User Password Env Var",
+      "description": "Env var holding the Intacct user (login) password",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "entity_id": {
+      "type": "string",
+      "label": "Entity ID",
+      "description": "Entity/location ID for multi-entity companies (omit for single-entity companies)",
+      "required": false,
+      "default": null
+    },
+    "endpoint_url": {
+      "type": "string",
+      "label": "Endpoint URL",
+      "description": "Intacct XML gateway endpoint",
+      "required": false,
+      "default": "https://api.intacct.com/ia/xml/xmlgw.phtml"
+    }
+  },
+  "tags": [
+    "resource",
+    "sage-intacct",
+    "intacct",
+    "finance",
+    "accounting",
+    "erp"
+  ],
+  "name": "Sage Intacct Resource"
+}

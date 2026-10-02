@@ -1,0 +1,47 @@
+{
+  "component_type": "dagster_component_templates.OneSignalResourceComponent",
+  "description": "Register a OneSignalResource (REST API app id + key auth) for use by other components",
+  "category": "resource",
+  "icon": "si:onesignal",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "onesignal_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "onesignal_resource"
+    },
+    "app_id": {
+      "type": "string",
+      "label": "App ID",
+      "description": "OneSignal App ID.",
+      "required": true
+    },
+    "rest_api_key_env_var": {
+      "type": "string",
+      "label": "REST API Key Env Var",
+      "description": "Env var holding the OneSignal REST API Key (Settings -> Keys & IDs).",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "api_base_url": {
+      "type": "string",
+      "label": "API Base URL",
+      "description": "OneSignal REST API base URL (override for a different region/version).",
+      "required": false,
+      "default": "https://api.onesignal.com"
+    }
+  },
+  "tags": [
+    "resource",
+    "onesignal",
+    "push",
+    "notification",
+    "messaging"
+  ],
+  "name": "OneSignal Resource"
+}

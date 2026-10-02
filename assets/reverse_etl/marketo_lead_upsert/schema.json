@@ -1,0 +1,77 @@
+{
+  "component_type": "dagster_component_templates.MarketoLeadUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into Marketo Leads via the native createOrUpdate action. POST /rest/v1/leads.json with action=createOrUpdate atomically creates or updates each record in one request, matched on lookupField (typically email). Requests are chunked at 300 records (Marketo's hard per-request limit).",
+  "category": "reverse_etl",
+  "icon": "si:marketo",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one Marketo Lead (upserted via lookup_field)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_skipped / rows_errored / api_requests). No downstream data -- the write side effect lands in Marketo."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with `source`."
+    },
+    "source": {
+      "type": "object",
+      "label": "Inline Source",
+      "required": false,
+      "description": "Inline source config (sql / csv / inline). Mutually exclusive with `upstream_asset_key`."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "marketo"
+    },
+    "lookup_field": {
+      "type": "string",
+      "label": "Lookup Field",
+      "required": false,
+      "default": "email",
+      "description": "Marketo field used as the createOrUpdate match key. MUST be present in fields_map values."
+    },
+    "fields_map": {
+      "type": "object",
+      "label": "Fields Map",
+      "required": true,
+      "description": "Upstream column -> Marketo field API name.",
+      "ui:widget": "key-value"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 50000,
+      "description": "Max upstream rows per run (safety cap). Chunked at 300 per request (Marketo's hard limit) regardless."
+    },
+    "group_name": { "type": "string", "label": "Group Name", "required": false, "default": "marketo" },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "items": { "type": "string" }, "label": "Owners", "required": false, "ui:widget": "list" },
+    "tags": { "type": "object", "label": "Tags", "required": false, "ui:widget": "key-value" },
+    "kinds": { "type": "array", "items": { "type": "string" }, "label": "Kinds", "required": false, "ui:widget": "list" }
+  },
+  "tags": [
+    "marketo",
+    "sink",
+    "reverse-etl",
+    "upsert",
+    "lead",
+    "createOrUpdate"
+  ],
+  "name": "Marketo Lead Upsert",
+  "vertical": "marketing-automation"
+}

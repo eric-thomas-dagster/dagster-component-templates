@@ -1,0 +1,46 @@
+{
+  "component_type": "dagster_component_templates.AlgoliaResourceComponent",
+  "description": "Register an AlgoliaResource (Algolia Search REST API write auth) for use by other components",
+  "category": "resource",
+  "icon": "si:algolia",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "algolia_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "algolia_resource"
+    },
+    "app_id": {
+      "type": "string",
+      "label": "Application ID",
+      "description": "Algolia Application ID",
+      "required": true
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var holding an Algolia Admin API Key (write access required for batch/delete).",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "api_base_url": {
+      "type": "string",
+      "label": "API Base URL",
+      "description": "Override the Algolia REST host. Defaults to 'https://{app_id}-dsn.algolia.net'.",
+      "required": false,
+      "default": ""
+    }
+  },
+  "tags": [
+    "resource",
+    "algolia",
+    "search",
+    "reverse-etl"
+  ],
+  "name": "Algolia Resource"
+}

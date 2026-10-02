@@ -1,0 +1,5 @@
+type: dagster_component_templates.GainsightResourceComponent
+attributes:
+  resource_key: gainsight_resource
+  base_url: "https://yourcompany.gainsightcloud.com"
+  access_key_env_var: GAINSIGHT_ACCESS_KEY

@@ -1,0 +1,62 @@
+{
+  "component_type": "dagster_component_templates.NetSuiteResourceComponent",
+  "description": "Register a NetSuite SuiteTalk REST (record/v1) API client. Auth is OAuth 1.0a Token-Based Authentication (TBA) -- NOT OAuth2 -- signed with consumer key/secret + token id/secret via HMAC-SHA256 using requests-oauthlib's OAuth1.",
+  "category": "resource",
+  "icon": "si:oracle",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "netsuite"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "netsuite"
+    },
+    "account_id": {
+      "type": "string",
+      "label": "Account ID",
+      "description": "NetSuite account id, e.g. '1234567' (production) or '1234567_SB1' (sandbox).",
+      "required": true
+    },
+    "consumer_key_env_var": {
+      "type": "string",
+      "label": "Consumer Key Env Var",
+      "description": "Env var with OAuth1 Consumer Key (from the Integration record).",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "consumer_secret_env_var": {
+      "type": "string",
+      "label": "Consumer Secret Env Var",
+      "description": "Env var with OAuth1 Consumer Secret (from the Integration record).",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "token_id_env_var": {
+      "type": "string",
+      "label": "Token ID Env Var",
+      "description": "Env var with OAuth1 Token ID (from the Access Token).",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "token_secret_env_var": {
+      "type": "string",
+      "label": "Token Secret Env Var",
+      "description": "Env var with OAuth1 Token Secret (from the Access Token).",
+      "required": true,
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": [
+    "resource",
+    "netsuite",
+    "erp",
+    "oauth1",
+    "suitetalk"
+  ],
+  "name": "NetSuite Resource",
+  "vertical": "erp-finance"
+}

@@ -11173,11 +11173,11 @@
       ]
     },
     {
-      "id": "dataframe_to_amplitude",
-      "name": "DataFrame to Amplitude",
+      "id": "amplitude_event_track",
+      "name": "Amplitude Event Track",
       "category": "reverse_etl",
       "description": "Reverse-ETL sink \u2014 POST DataFrame rows as Amplitude events via HTTP V2 API (POST /2/httpapi, up to 1000/batch). Sets event_type + user_id/device_id + event_properties + user_properties per row. Two source shapes (upstream_asset_key OR inline source: kind sql/csv/inline). Auth via AmplitudeResource (recommended) or inline api_key_env_var.",
-      "path": "assets/reverse_etl/dataframe_to_amplitude",
+      "path": "assets/reverse_etl/amplitude_event_track",
       "tags": [
         "sink",
         "amplitude",
@@ -11187,8 +11187,8 @@
         "user-properties"
       ],
       "icon": "si:amplitude",
-      "type": "dagster_component_templates.DataframeToAmplitudeComponent",
-      "component_type": "dagster_component_templates.DataframeToAmplitudeComponent",
+      "type": "dagster_component_templates.AmplitudeEventTrackComponent",
+      "component_type": "dagster_component_templates.AmplitudeEventTrackComponent",
       "version": "1.0.0",
       "author": "Dagster Community",
       "dependencies": {
@@ -11197,11 +11197,11 @@
           "requests"
         ]
       },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_amplitude/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_amplitude/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_amplitude/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_amplitude/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_amplitude/requirements.txt",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/amplitude_event_track/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/amplitude_event_track/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/amplitude_event_track/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/amplitude_event_track/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/amplitude_event_track/requirements.txt",
       "produces": [
         "asset"
       ],
@@ -11403,11 +11403,11 @@
       ]
     },
     {
-      "id": "dataframe_to_braze",
-      "name": "DataFrame to Braze",
+      "id": "braze_sink",
+      "name": "Braze Sink",
       "category": "reverse_etl",
       "description": "Reverse-ETL sink \u2014 batch-POST rows to Braze via the REST API. Supports two source shapes (upstream_asset_key OR inline source: kind sql/csv/inline) and two endpoints (users_track / catalogs). Auth via a shared BrazeResource (recommended) or inline api_key + endpoint.",
-      "path": "assets/reverse_etl/dataframe_to_braze",
+      "path": "assets/reverse_etl/braze_sink",
       "tags": [
         "sink",
         "braze",
@@ -11419,8 +11419,8 @@
         "rest-api"
       ],
       "icon": "si:braze",
-      "type": "dagster_component_templates.DataframeToBrazeComponent",
-      "component_type": "dagster_component_templates.DataframeToBrazeComponent",
+      "type": "dagster_component_templates.BrazeSinkComponent",
+      "component_type": "dagster_component_templates.BrazeSinkComponent",
       "version": "1.0.0",
       "author": "Dagster Community",
       "dependencies": {
@@ -11429,11 +11429,11 @@
           "requests"
         ]
       },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_braze/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_braze/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_braze/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_braze/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_braze/requirements.txt",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/braze_sink/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/braze_sink/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/braze_sink/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/braze_sink/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/braze_sink/requirements.txt",
       "produces": [
         "asset"
       ],
@@ -11572,11 +11572,11 @@
       ]
     },
     {
-      "id": "dataframe_to_customer_io",
-      "name": "DataFrame to Customer.io",
+      "id": "customer_io_sink",
+      "name": "Customer.io Sink",
       "category": "reverse_etl",
       "description": "Reverse-ETL sink \u2014 batch-POST DataFrame rows to Customer.io via /api/v2/batch (up to 100 ops/batch). Two modes: `identify` (upsert profile attributes) or `event` (bulk-track events). Two source shapes (upstream_asset_key OR inline source: kind sql/csv/inline).",
-      "path": "assets/reverse_etl/dataframe_to_customer_io",
+      "path": "assets/reverse_etl/customer_io_sink",
       "tags": [
         "sink",
         "customer-io",
@@ -11588,8 +11588,8 @@
         "in-app"
       ],
       "icon": "si:customerio",
-      "type": "dagster_component_templates.DataframeToCustomerIoComponent",
-      "component_type": "dagster_component_templates.DataframeToCustomerIoComponent",
+      "type": "dagster_component_templates.CustomerIoSinkComponent",
+      "component_type": "dagster_component_templates.CustomerIoSinkComponent",
       "version": "1.0.0",
       "author": "Dagster Community",
       "dependencies": {
@@ -11598,11 +11598,11 @@
           "requests"
         ]
       },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_customer_io/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_customer_io/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_customer_io/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_customer_io/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_customer_io/requirements.txt",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/customer_io_sink/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/customer_io_sink/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/customer_io_sink/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/customer_io_sink/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/customer_io_sink/requirements.txt",
       "produces": [
         "asset"
       ],
@@ -12195,11 +12195,11 @@
       "icon": "si:influxdb"
     },
     {
-      "id": "dataframe_to_iterable",
-      "name": "DataFrame to Iterable",
+      "id": "iterable_sink",
+      "name": "Iterable Sink",
       "category": "reverse_etl",
       "description": "Reverse-ETL sink \u2014 batch-POST DataFrame rows to Iterable via bulk endpoints. Two modes: `users` (POST /api/users/bulkUpdate, up to 1000/batch) or `events` (POST /api/events/trackBulk, up to 1000/batch). Two source shapes (upstream_asset_key OR inline source: kind sql/csv/inline). Auth via IterableResource (recommended) or inline api_key_env_var.",
-      "path": "assets/reverse_etl/dataframe_to_iterable",
+      "path": "assets/reverse_etl/iterable_sink",
       "tags": [
         "sink",
         "iterable",
@@ -12211,8 +12211,8 @@
         "events"
       ],
       "icon": "si:iterable",
-      "type": "dagster_component_templates.DataframeToIterableComponent",
-      "component_type": "dagster_component_templates.DataframeToIterableComponent",
+      "type": "dagster_component_templates.IterableSinkComponent",
+      "component_type": "dagster_component_templates.IterableSinkComponent",
       "version": "1.0.0",
       "author": "Dagster Community",
       "dependencies": {
@@ -12221,11 +12221,11 @@
           "requests"
         ]
       },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_iterable/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_iterable/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_iterable/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_iterable/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_iterable/requirements.txt",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/iterable_sink/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/iterable_sink/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/iterable_sink/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/iterable_sink/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/iterable_sink/requirements.txt",
       "produces": [
         "asset"
       ],
@@ -12310,11 +12310,11 @@
       ]
     },
     {
-      "id": "dataframe_to_klaviyo",
-      "name": "DataFrame to Klaviyo",
+      "id": "klaviyo_profile_upsert",
+      "name": "Klaviyo Profile Upsert",
       "category": "reverse_etl",
       "description": "Reverse-ETL sink \u2014 batch-POST DataFrame rows to Klaviyo profiles via the async bulk profile-import job endpoint (POST /api/profile-bulk-import-jobs, up to 10000/batch). Two source shapes (upstream_asset_key OR inline source: kind sql/csv/inline). Reserved fields (email, phone_number, external_id, first_name, ...) land at the top level; everything else nests under `properties`. Auth via KlaviyoResource (recommended) or inline api_key_env_var.",
-      "path": "assets/reverse_etl/dataframe_to_klaviyo",
+      "path": "assets/reverse_etl/klaviyo_profile_upsert",
       "tags": [
         "sink",
         "klaviyo",
@@ -12326,8 +12326,8 @@
         "profile-sync"
       ],
       "icon": "si:klaviyo",
-      "type": "dagster_component_templates.DataframeToKlaviyoComponent",
-      "component_type": "dagster_component_templates.DataframeToKlaviyoComponent",
+      "type": "dagster_component_templates.KlaviyoProfileUpsertComponent",
+      "component_type": "dagster_component_templates.KlaviyoProfileUpsertComponent",
       "version": "1.0.0",
       "author": "Dagster Community",
       "dependencies": {
@@ -12336,11 +12336,11 @@
           "requests"
         ]
       },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_klaviyo/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_klaviyo/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_klaviyo/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_klaviyo/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_klaviyo/requirements.txt",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/klaviyo_profile_upsert/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/klaviyo_profile_upsert/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/klaviyo_profile_upsert/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/klaviyo_profile_upsert/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/klaviyo_profile_upsert/requirements.txt",
       "produces": [
         "asset"
       ],
@@ -12437,11 +12437,11 @@
       ]
     },
     {
-      "id": "dataframe_to_mixpanel",
-      "name": "DataFrame to Mixpanel",
+      "id": "mixpanel_event_track",
+      "name": "Mixpanel Event Track",
       "category": "reverse_etl",
       "description": "Reverse-ETL sink \u2014 batch-POST DataFrame rows to Mixpanel via bulk endpoints. Two modes: `events` (POST /import, service-account auth, up to 2000/batch) or `profiles` (POST /engage#profile-set, project-token auth, up to 50/batch). Two source shapes (upstream_asset_key OR inline source: kind sql/csv/inline).",
-      "path": "assets/reverse_etl/dataframe_to_mixpanel",
+      "path": "assets/reverse_etl/mixpanel_event_track",
       "tags": [
         "sink",
         "mixpanel",
@@ -12451,8 +12451,8 @@
         "user-profiles"
       ],
       "icon": "si:mixpanel",
-      "type": "dagster_component_templates.DataframeToMixpanelComponent",
-      "component_type": "dagster_component_templates.DataframeToMixpanelComponent",
+      "type": "dagster_component_templates.MixpanelEventTrackComponent",
+      "component_type": "dagster_component_templates.MixpanelEventTrackComponent",
       "version": "1.0.0",
       "author": "Dagster Community",
       "dependencies": {
@@ -12461,11 +12461,11 @@
           "requests"
         ]
       },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_mixpanel/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_mixpanel/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_mixpanel/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_mixpanel/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_mixpanel/requirements.txt",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/mixpanel_event_track/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/mixpanel_event_track/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/mixpanel_event_track/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/mixpanel_event_track/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/mixpanel_event_track/requirements.txt",
       "produces": [
         "asset"
       ],
@@ -13047,11 +13047,11 @@
       "vertical": "security"
     },
     {
-      "id": "dataframe_to_segment",
-      "name": "DataFrame to Segment",
+      "id": "segment_track",
+      "name": "Segment Track",
       "category": "reverse_etl",
       "description": "Reverse-ETL sink \u2014 batch-POST DataFrame rows to Segment via POST /v1/batch. Two modes: `identify` (traits sync) or `track` (event stream). Two source shapes (upstream_asset_key OR inline source: kind sql/csv/inline). Ops are auto-packed to Segment's 500KB per-batch limit.",
-      "path": "assets/reverse_etl/dataframe_to_segment",
+      "path": "assets/reverse_etl/segment_track",
       "tags": [
         "sink",
         "segment",
@@ -13061,8 +13061,8 @@
         "customer-data-platform"
       ],
       "icon": "si:segment",
-      "type": "dagster_component_templates.DataframeToSegmentComponent",
-      "component_type": "dagster_component_templates.DataframeToSegmentComponent",
+      "type": "dagster_component_templates.SegmentTrackComponent",
+      "component_type": "dagster_component_templates.SegmentTrackComponent",
       "version": "1.0.0",
       "author": "Dagster Community",
       "dependencies": {
@@ -13071,11 +13071,11 @@
           "requests"
         ]
       },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_segment/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_segment/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_segment/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_segment/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_segment/requirements.txt",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/segment_track/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/segment_track/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/segment_track/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/segment_track/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/segment_track/requirements.txt",
       "produces": [
         "asset"
       ],
@@ -13114,11 +13114,11 @@
       "vertical": "marketing"
     },
     {
-      "id": "dataframe_to_sendgrid",
-      "name": "DataFrame to SendGrid",
+      "id": "sendgrid_contact_upsert",
+      "name": "SendGrid Contact Upsert",
       "category": "reverse_etl",
       "description": "Reverse-ETL sink \u2014 batch-PUT DataFrame rows to SendGrid Marketing as contact upserts via the async bulk-import endpoint (PUT /v3/marketing/contacts, up to 30000 contacts/request). Two source shapes (upstream_asset_key OR inline source: kind sql/csv/inline). Reserved fields (email, first_name, last_name, city, ...) land top-level; custom fields nest under `custom_fields` keyed by SendGrid field ID.",
-      "path": "assets/reverse_etl/dataframe_to_sendgrid",
+      "path": "assets/reverse_etl/sendgrid_contact_upsert",
       "tags": [
         "sink",
         "sendgrid",
@@ -13128,8 +13128,8 @@
         "contact-sync"
       ],
       "icon": "si:sendgrid",
-      "type": "dagster_component_templates.DataframeToSendGridComponent",
-      "component_type": "dagster_component_templates.DataframeToSendGridComponent",
+      "type": "dagster_component_templates.SendGridContactUpsertComponent",
+      "component_type": "dagster_component_templates.SendGridContactUpsertComponent",
       "version": "1.0.0",
       "author": "Dagster Community",
       "dependencies": {
@@ -13138,11 +13138,11 @@
           "requests"
         ]
       },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_sendgrid/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_sendgrid/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_sendgrid/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_sendgrid/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/dataframe_to_sendgrid/requirements.txt",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/sendgrid_contact_upsert/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/sendgrid_contact_upsert/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/sendgrid_contact_upsert/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/sendgrid_contact_upsert/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/sendgrid_contact_upsert/requirements.txt",
       "produces": [
         "asset"
       ],

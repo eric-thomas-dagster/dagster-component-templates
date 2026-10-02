@@ -5,7 +5,7 @@ auth (`Api-Key` header) and exposes typed batch operations
 (`bulk_update_users`, `bulk_track_events`) for downstream Iterable
 sinks.
 
-Pairs with **`DataframeToIterableComponent`**.
+Pairs with **`IterableSinkComponent`**.
 
 ## Configuration
 

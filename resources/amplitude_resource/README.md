@@ -4,7 +4,7 @@ Registers an `AmplitudeResource` under a resource key. Holds Amplitude
 auth (API key in JSON body per HTTP V2 spec) and exposes typed batch
 operations (`track_events_bulk`) for downstream Amplitude sinks.
 
-Pairs with **`DataframeToAmplitudeComponent`**.
+Pairs with **`AmplitudeEventTrackComponent`**.
 
 ## Configuration
 

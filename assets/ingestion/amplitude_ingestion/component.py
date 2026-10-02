@@ -159,7 +159,7 @@ class AmplitudeIngestionComponent(Component, Model, Resolvable):
         description=(
             "Optional resource key registered by an AmplitudeResourceComponent. When set, "
             "api_key above is read from that resource at run time -- lets one Amplitude API "
-            "key serve both this ingestion connector and the dataframe_to_amplitude reverse-ETL "
+            "key serve both this ingestion connector and the amplitude_event_track reverse-ETL "
             "sink without configuring it twice. Note: secret_key is NOT covered by this and must "
             "still be supplied inline (see secret_key above)."
         ),

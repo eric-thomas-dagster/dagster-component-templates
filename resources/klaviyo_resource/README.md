@@ -4,7 +4,7 @@ Registers a `KlaviyoResource` under a resource key. Holds Klaviyo auth
 (private API key + `revision` date header) and exposes typed batch
 operations (`upsert_profiles_bulk`) for downstream Klaviyo sinks.
 
-Pairs with **`DataframeToKlaviyoComponent`**.
+Pairs with **`KlaviyoProfileUpsertComponent`**.
 
 ## Configuration
 

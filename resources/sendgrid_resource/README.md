@@ -4,7 +4,7 @@ Registers a `SendGridResource` under a resource key. Holds SendGrid
 Marketing API auth (Bearer token) and exposes typed batch operations
 (`upsert_contacts_bulk`) for downstream SendGrid sinks.
 
-Pairs with **`DataframeToSendGridComponent`**.
+Pairs with **`SendGridContactUpsertComponent`**.
 
 ## Configuration
 

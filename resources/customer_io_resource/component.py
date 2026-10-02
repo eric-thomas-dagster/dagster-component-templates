@@ -1,7 +1,7 @@
 """Customer.io Resource component.
 
 Registers a ``CustomerIoResource`` with typed batch methods for
-downstream Customer.io components (``dataframe_to_customer_io``,
+downstream Customer.io components (``customer_io_sink``,
 custom sinks).
 
 Owns the Customer.io wire protocol:

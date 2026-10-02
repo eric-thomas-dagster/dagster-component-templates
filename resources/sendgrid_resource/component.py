@@ -1,7 +1,7 @@
 """SendGrid Resource component.
 
 Registers a ``SendGridResource`` with typed batch methods for
-downstream SendGrid components (``dataframe_to_sendgrid``, custom sinks).
+downstream SendGrid components (``sendgrid_contact_upsert``, custom sinks).
 
 Owns the SendGrid Marketing wire protocol:
 - Auth: ``Authorization: Bearer <api_key>`` header

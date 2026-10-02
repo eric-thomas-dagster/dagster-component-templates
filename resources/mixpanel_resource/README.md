@@ -6,7 +6,7 @@ auth (service-account username+secret for `/import`, project token for
 (`import_events_bulk`, `set_profiles_bulk`) for downstream Mixpanel
 sinks.
 
-Pairs with **`DataframeToMixpanelComponent`**.
+Pairs with **`MixpanelEventTrackComponent`**.
 
 ## Why two auth mechanisms
 

@@ -1,7 +1,7 @@
 """Klaviyo Resource component.
 
 Registers a ``KlaviyoResource`` with typed batch methods for
-downstream Klaviyo components (``dataframe_to_klaviyo``, custom sinks).
+downstream Klaviyo components (``klaviyo_profile_upsert``, custom sinks).
 
 Owns the Klaviyo wire protocol:
 - Auth: ``Authorization: Klaviyo-API-Key <key>`` header + ``revision`` header

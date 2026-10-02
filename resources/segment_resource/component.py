@@ -1,7 +1,7 @@
 """Segment Resource component.
 
 Registers a ``SegmentResource`` with typed batch methods for
-downstream Segment components (``dataframe_to_segment``, custom sinks).
+downstream Segment components (``segment_track``, custom sinks).
 
 Owns the Segment wire protocol:
 - Auth: HTTP Basic with write_key + empty password
@@ -15,7 +15,7 @@ credential from the write_key above (Tracking API, api.segment.io,
 HTTP Basic). Segment itself treats these as two unrelated credential
 types issued from two different places in its dashboard; this resource
 just gives both a home so `segment_ingestion` (Config API) and
-`dataframe_to_segment` (Tracking API) can share ONE registered resource
+`segment_track` (Tracking API) can share ONE registered resource
 without conflating the two. `access_token_env_var` is unset by default
 and only required if a component that needs the Config API sets
 `resource_key` to point at this resource.

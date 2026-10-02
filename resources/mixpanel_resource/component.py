@@ -1,7 +1,7 @@
 """Mixpanel Resource component.
 
 Registers a ``MixpanelResource`` with typed batch methods for
-downstream Mixpanel components (``dataframe_to_mixpanel``, custom sinks).
+downstream Mixpanel components (``mixpanel_event_track``, custom sinks).
 
 Owns the Mixpanel wire protocol:
 - Auth: HTTP Basic (service account username + secret) for ``/import``

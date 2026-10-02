@@ -1,7 +1,7 @@
 """Amplitude Resource component.
 
 Registers an ``AmplitudeResource`` with typed batch methods for
-downstream Amplitude components (``dataframe_to_amplitude``, custom sinks).
+downstream Amplitude components (``amplitude_event_track``, custom sinks).
 
 Owns the Amplitude wire protocol:
 - Auth: API key in JSON body (HTTP V2 API)

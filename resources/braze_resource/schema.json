@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.BrazeResourceComponent",
-  "description": "Register a BrazeResource under a resource key for use by downstream Braze components (dataframe_to_braze, custom sinks). Holds the region-specific REST endpoint URL + the env var name for the REST API key.",
+  "description": "Register a BrazeResource under a resource key for use by downstream Braze components (braze_sink, custom sinks). Holds the region-specific REST endpoint URL + the env var name for the REST API key.",
   "category": "resource",
   "icon": "si:braze",
   "attributes": {

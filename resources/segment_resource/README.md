@@ -4,7 +4,7 @@ Registers a `SegmentResource` under a resource key. Holds Segment HTTP
 API auth (write key via HTTP Basic) and exposes typed batch operations
 (`batch_ops`) for downstream Segment sinks.
 
-Pairs with **`DataframeToSegmentComponent`**.
+Pairs with **`SegmentTrackComponent`**.
 
 ## Configuration
 

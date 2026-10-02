@@ -157,7 +157,7 @@ class KlaviyoIngestionComponent(Component, Model, Resolvable):
             "defaults its own resource_key to 'klaviyo', not 'klaviyo_resource'). When set, "
             "api_key is read from that resource at run time instead of api_key above -- lets "
             "one Klaviyo credential serve both this ingestion connector and the "
-            "dataframe_to_klaviyo reverse-ETL sink without configuring it twice."
+            "klaviyo_profile_upsert reverse-ETL sink without configuring it twice."
         ),
     )
 

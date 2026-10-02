@@ -1,7 +1,7 @@
 """Iterable Resource component.
 
 Registers an ``IterableResource`` with typed batch methods for
-downstream Iterable components (``dataframe_to_iterable``, custom sinks).
+downstream Iterable components (``iterable_sink``, custom sinks).
 
 Owns the Iterable wire protocol:
 - Auth: ``Api-Key: <key>`` header

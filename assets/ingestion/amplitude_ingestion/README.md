@@ -18,7 +18,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 | `asset_name` | required | Name of the asset that will hold the data |
 | `api_key` | one of api_key OR resource_key | Amplitude project API key, used as the HTTP Basic auth username. |
 | `secret_key` | required | Amplitude project secret key, used as the HTTP Basic auth password. Always required inline, even with resource_key set. |
-| `resource_key` | no | Resource key registered by an AmplitudeResourceComponent. When set, api_key is read from that resource instead -- lets one Amplitude credential serve both this connector and the dataframe_to_amplitude reverse-ETL sink. `secret_key` is NOT covered (AmplitudeResourceComponent has no secret-key field) and must still be set inline. |
+| `resource_key` | no | Resource key registered by an AmplitudeResourceComponent. When set, api_key is read from that resource instead -- lets one Amplitude credential serve both this connector and the amplitude_event_track reverse-ETL sink. `secret_key` is NOT covered (AmplitudeResourceComponent has no secret-key field) and must still be set inline. |
 | `eu_residency` | optional | Set true if your Amplitude project uses EU data residency. |
 | `resources` | optional | Comma-separated list of resources to extract: events_list, cohorts. Default: `events_list` |
 

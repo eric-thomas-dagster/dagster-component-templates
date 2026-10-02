@@ -159,7 +159,7 @@ class BrazeIngestionComponent(Component, Model, Resolvable):
             "Optional resource key registered by a BrazeResourceComponent. When set, "
             "credentials are read from that resource at run time instead of rest_endpoint/"
             "api_key above -- lets one Braze credential serve both this ingestion connector "
-            "and the dataframe_to_braze reverse-ETL sink without configuring it twice."
+            "and the braze_sink reverse-ETL sink without configuring it twice."
         ),
     )
 

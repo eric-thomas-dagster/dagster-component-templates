@@ -5,7 +5,7 @@ Customer.io Track API auth (HTTP Basic with Site ID + API key) and
 exposes typed batch operations (`batch_ops`) for downstream
 Customer.io sinks.
 
-Pairs with **`DataframeToCustomerIoComponent`**.
+Pairs with **`CustomerIoSinkComponent`**.
 
 ## Configuration
 

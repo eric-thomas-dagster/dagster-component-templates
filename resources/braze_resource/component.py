@@ -10,7 +10,7 @@ Owns the Braze wire protocol end-to-end:
 - Retryable failures + soft-error surfacing so downstream sinks can
   report clean summary metadata
 
-Downstream components (``dataframe_to_braze``, custom Braze sinks/readers)
+Downstream components (``braze_sink``, custom Braze sinks/readers)
 call ``resource.track_users(...)`` / ``resource.upsert_catalog_items(...)``
 without re-implementing HTTP + batching + error semantics.
 """
@@ -274,7 +274,7 @@ class BrazeResource(dg.ConfigurableResource):
 
 class BrazeResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a BrazeResource under a resource key for use by downstream
-    Braze components (``dataframe_to_braze``, custom sinks, custom readers)."""
+    Braze components (``braze_sink``, custom sinks, custom readers)."""
 
     resource_key: str = Field(
         default="braze",

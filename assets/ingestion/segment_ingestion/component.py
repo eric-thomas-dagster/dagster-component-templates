@@ -159,7 +159,7 @@ class SegmentIngestionComponent(Component, Model, Resolvable):
             "Optional resource key registered by a SegmentResourceComponent. When set, "
             "credentials are read from that resource's access_token_env_var at run time "
             "instead of access_token above, letting one registered Segment resource serve "
-            "both this ingestion connector (Config API) and the dataframe_to_segment "
+            "both this ingestion connector (Config API) and the segment_track "
             "reverse-ETL sink (Tracking API, via the same resource's separate "
             "write_key_env_var) without configuring Segment twice. Requires the target "
             "SegmentResourceComponent to have access_token_env_var set -- it's a different "

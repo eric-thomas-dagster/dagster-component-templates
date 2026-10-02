@@ -2,7 +2,6 @@
   "component_type": "dagster_component_templates.GoogleAnalyticsIngestionComponent",
   "description": "Component for ingesting Google Analytics 4 data using dlt - returns DataFrames.",
   "category": "ingestion",
-
   "vertical": "marketing",
   "icon": "si:googleanalytics",
   "x-dagster-io": {
@@ -147,7 +146,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -194,14 +193,14 @@
     "preview_rows": {
       "type": "integer",
       "label": "Preview Rows",
-      "description": "How many rows to include in the preview. Large tables (>10× this number) are sampled randomly.",
+      "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
       "required": false,
       "default": 25
     },
     "destination": {
       "type": "string",
       "label": "Destination",
-      "description": "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode.",
+      "description": "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB \u2192 DataFrame mode.",
       "required": false,
       "default": null,
       "enum": [
@@ -237,14 +236,14 @@
       "required": false
     },
     "persist_only": {
-      "description": "If True with destination set: emit a MaterializeResult and skip DataFrame return. If False: query the destination back into a DataFrame (only meaningful for SQL destinations — non-SQL destinations always emit MaterializeResult).",
+      "description": "If True with destination set: emit a MaterializeResult and skip DataFrame return. If False: query the destination back into a DataFrame (only meaningful for SQL destinations \u2014 non-SQL destinations always emit MaterializeResult).",
       "type": "boolean",
       "label": "Persist Only",
       "required": false,
       "default": false
     },
     "destination_credentials_url": {
-      "description": "Inline connection string passed to dlt's destination factory. Useful when one Dagster project ingests into multiple accounts of the same destination type. If unset, dlt resolves credentials from env vars — see ../DESTINATIONS.md.",
+      "description": "Inline connection string passed to dlt's destination factory. Useful when one Dagster project ingests into multiple accounts of the same destination type. If unset, dlt resolves credentials from env vars \u2014 see ../DESTINATIONS.md.",
       "type": "string",
       "label": "Destination Credentials Url",
       "required": false,
@@ -327,6 +326,152 @@
             "template": {
               "base": "postgresql://{username}:{password}@{host}:{port}/{database}"
             }
+          },
+          "redshift": {
+            "fields": [
+              {
+                "name": "host",
+                "label": "Host",
+                "required": true
+              },
+              {
+                "name": "port",
+                "label": "Port",
+                "required": false,
+                "default": "5439"
+              },
+              {
+                "name": "username",
+                "label": "Username",
+                "required": true
+              },
+              {
+                "name": "password",
+                "label": "Password",
+                "required": true,
+                "widget": "password"
+              },
+              {
+                "name": "database",
+                "label": "Database",
+                "required": true
+              }
+            ],
+            "template": {
+              "base": "redshift://{username}:{password}@{host}:{port}/{database}"
+            }
+          },
+          "clickhouse": {
+            "fields": [
+              {
+                "name": "host",
+                "label": "Host",
+                "required": true
+              },
+              {
+                "name": "port",
+                "label": "Port",
+                "required": false,
+                "default": "9000",
+                "description": "Native TCP port (not the HTTP interface port)"
+              },
+              {
+                "name": "username",
+                "label": "Username",
+                "required": false,
+                "default": "default"
+              },
+              {
+                "name": "password",
+                "label": "Password",
+                "required": true,
+                "widget": "password"
+              },
+              {
+                "name": "database",
+                "label": "Database",
+                "required": true
+              },
+              {
+                "name": "secure",
+                "label": "Secure (TLS)",
+                "required": false,
+                "default": "0",
+                "description": "1 for HTTPS/TLS, 0 otherwise"
+              }
+            ],
+            "template": {
+              "base": "clickhouse://{username}:{password}@{host}:{port}/{database}",
+              "query_params": {
+                "secure": "secure"
+              }
+            }
+          },
+          "mssql": {
+            "fields": [
+              {
+                "name": "host",
+                "label": "Host",
+                "required": true
+              },
+              {
+                "name": "port",
+                "label": "Port",
+                "required": false,
+                "default": "1433"
+              },
+              {
+                "name": "username",
+                "label": "Username",
+                "required": true
+              },
+              {
+                "name": "password",
+                "label": "Password",
+                "required": true,
+                "widget": "password"
+              },
+              {
+                "name": "database",
+                "label": "Database",
+                "required": true
+              },
+              {
+                "name": "encrypt",
+                "label": "Encrypt",
+                "required": false,
+                "default": "no",
+                "description": "'yes' to require SSL (e.g. Azure SQL); 'no' for a local unencrypted instance"
+              }
+            ],
+            "template": {
+              "base": "mssql://{username}:{password}@{host}:{port}/{database}",
+              "query_params": {
+                "encrypt": "encrypt"
+              }
+            }
+          },
+          "motherduck": {
+            "fields": [
+              {
+                "name": "database",
+                "label": "Database",
+                "required": false,
+                "description": "Defaults to 'my_db' on MotherDuck's side if left blank"
+              },
+              {
+                "name": "token",
+                "label": "Service Token",
+                "required": true,
+                "widget": "password"
+              }
+            ],
+            "template": {
+              "base": "md:{database}",
+              "query_params": {
+                "token": "motherduck_token"
+              }
+            }
           }
         },
         "related_env_var_field": "destination_credentials_env_var"
@@ -389,7 +534,7 @@
       "type": "object",
       "label": "Column Lineage",
       "required": false,
-      "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
+      "description": "Column-level lineage: output column \u2192 list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "partition_date_column": {
       "description": "Column used to filter the upstream DataFrame to the current date partition key.",

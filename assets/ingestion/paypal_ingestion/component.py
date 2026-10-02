@@ -435,16 +435,18 @@ class PayPalIngestionComponent(Component, Model, Resolvable):
             resource_metadata = {}
             with pipeline.sql_client() as client:
                 try:
-                    tables_df = client.execute_df(
+                    with client.execute_query(
                         f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{dataset_name}'"
-                    )
+                    ) as cur:
+                        tables_df = cur.df()
                     table_names = tables_df["table_name"].tolist()
                 except Exception:
                     table_names = resource_names
 
                 for table_name in table_names:
                     try:
-                        df = client.execute_df(f"SELECT * FROM {dataset_name}.{table_name}")
+                        with client.execute_query(f"SELECT * FROM {dataset_name}.{table_name}") as cur:
+                            df = cur.df()
                         if len(df) > 0:
                             df["_resource_type"] = table_name
                             all_data.append(df)

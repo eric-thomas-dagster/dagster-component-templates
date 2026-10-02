@@ -159,7 +159,12 @@ class MondayIngestionComponent(Component, Model, Resolvable):
 
     resources: str = Field(
         default="boards,users",
-        description="Comma-separated list of resources to extract: boards, users (account-level, single page up to 100); items (requires board_id, fully cursor-paginated)"
+        description="Comma-separated list of resources to extract: boards, users (account-level, single page up to 100); items (requires board_id, fully cursor-paginated, includes column_values)"
+    )
+
+    column_ids: Optional[List[str]] = Field(
+        default=None,
+        description="For the 'items' resource: specific column IDs to fetch via column_values(ids: [...]). Fetches all columns if unset.",
     )
 
     # --- Destination fields (see ../DESTINATIONS.md) --------------------------
@@ -367,6 +372,38 @@ class MondayIngestionComponent(Component, Model, Resolvable):
             context.log.info(f"Starting monday.com ingestion, destination={destination or 'duckdb (in-memory)'}")
 
             resources_list = [r.strip() for r in resources.split(",")]
+            column_ids_local = self.column_ids
+
+            def _column_values_selection(column_ids):
+                """Build the `column_values { ... }` GraphQL sub-selection, optionally
+                filtered to a specific set of column ids via the `ids` argument."""
+                if column_ids:
+                    ids_literal = ", ".join(f'"{c}"' for c in column_ids)
+                    return f"column_values(ids: [{ids_literal}]) {{ id text value type }}"
+                return "column_values { id text value type }"
+
+            def _flatten_item(item):
+                """Flatten one monday.com Item (with its nested column_values list) into
+                a single flat dict. Each column becomes two keys: `column_<id>`
+                (human-readable `text`) and `column_<id>_raw` (the raw JSON-encoded
+                `value`, for columns like dates/numbers/people needing the structured form)."""
+                group = item.get("group") or {}
+                row = {
+                    "id": item.get("id"),
+                    "name": item.get("name"),
+                    "state": item.get("state"),
+                    "created_at": item.get("created_at"),
+                    "updated_at": item.get("updated_at"),
+                    "group_id": group.get("id"),
+                    "group_title": group.get("title"),
+                }
+                for cv in item.get("column_values") or []:
+                    col_id = cv.get("id")
+                    if not col_id:
+                        continue
+                    row[f"column_{col_id}"] = cv.get("text")
+                    row[f"column_{col_id}_raw"] = cv.get("value")
+                return row
 
             def _post_graphql(query):
                 resp = requests.post(
@@ -394,23 +431,27 @@ class MondayIngestionComponent(Component, Model, Resolvable):
             def _items_resource():
                 if not board_id:
                     return
+                item_fields = (
+                    f"id name state created_at updated_at group {{ id title }} "
+                    f"{_column_values_selection(column_ids_local)}"
+                )
                 cursor = None
                 while True:
                     if cursor is None:
                         query = (
                             'query { boards (ids: [%s]) { items_page (limit: 100) { '
-                            'cursor items { id name state created_at updated_at } } } }'
-                        ) % board_id
+                            'cursor items { %s } } } }'
+                        ) % (board_id, item_fields)
                         data = _post_graphql(query)
                         page = data["boards"][0]["items_page"]
                     else:
                         query = (
                             'query { next_items_page (cursor: "%s", limit: 100) { '
-                            'cursor items { id name state created_at updated_at } } }'
-                        ) % cursor
+                            'cursor items { %s } } }'
+                        ) % (cursor, item_fields)
                         data = _post_graphql(query)
                         page = data["next_items_page"]
-                    yield page["items"]
+                    yield [_flatten_item(item) for item in page["items"]]
                     cursor = page.get("cursor")
                     if not cursor:
                         break
@@ -459,16 +500,18 @@ class MondayIngestionComponent(Component, Model, Resolvable):
             resource_metadata = {}
             with pipeline.sql_client() as client:
                 try:
-                    tables_df = client.execute_df(
+                    with client.execute_query(
                         f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{dataset_name}'"
-                    )
+                    ) as cur:
+                        tables_df = cur.df()
                     table_names = tables_df["table_name"].tolist()
                 except Exception:
                     table_names = resource_names
 
                 for table_name in table_names:
                     try:
-                        df = client.execute_df(f"SELECT * FROM {dataset_name}.{table_name}")
+                        with client.execute_query(f"SELECT * FROM {dataset_name}.{table_name}") as cur:
+                            df = cur.df()
                         if len(df) > 0:
                             df["_resource_type"] = table_name
                             all_data.append(df)

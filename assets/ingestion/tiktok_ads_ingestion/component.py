@@ -761,7 +761,8 @@ class TikTokAdsIngestionComponent(Component, Model, Resolvable):
                     f"WHERE table_schema = '{dataset_name}'"
                 )
                 try:
-                    tables_df = client.execute_df(tables_query)
+                    with client.execute_query(tables_query) as cur:
+                        tables_df = cur.df()
                     table_names = tables_df['table_name'].tolist()
                 except Exception:
                     table_names = []
@@ -774,7 +775,8 @@ class TikTokAdsIngestionComponent(Component, Model, Resolvable):
                 for table_name in table_names:
                     try:
                         query = f"SELECT * FROM {dataset_name}.{table_name}"
-                        df = client.execute_df(query)
+                        with client.execute_query(query) as cur:
+                            df = cur.df()
                         if len(df) > 0:
                             df['_resource_type'] = table_name
                             all_data.append(df)

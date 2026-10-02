@@ -28,12 +28,14 @@ _PACKAGE_ROOT = Path(__file__).resolve().parent
 # class name -> component.py path (relative to package root). Generated.
 _CLASS_PATHS: dict[str, str] = {
 
+
     # (2026-08-29). Each one enumerated vendor items and emitted one asset per
     # 8 dlt-shaped _workspace components removed in the Bucket B reshape sweep
     # Bucket B Phase B — reverse-ETL sinks (2026-08-29)
     # Use `<vendor>_ingestion` for bulk pulls and `<vendor>_resource` for
     # ad-hoc calls; sinks land in Phase B for write-capable vendors.
     # item — the exact shape `_ingestion` already provides via dlt.
+    
     
     "ABControlsComponent": "assets/analytics/ab_controls/component.py",
     "ABTestAnalysisComponent": "assets/analytics/ab_test_analysis/component.py",
@@ -103,6 +105,7 @@ _CLASS_PATHS: dict[str, str] = {
     "AssetJobComponent": "schedules/asset_job/component.py",
     "AssetReferenceComponent": "core/asset_reference/component.py",
     "AthenaIOManagerComponent": "io_managers/athena_io_manager/component.py",
+    "AudioDiarizedTranscriberComponent": "assets/ai/audio_diarized_transcriber/component.py",
     "AudioTranscriberComponent": "assets/ai/audio_transcriber/component.py",
     "AudioTransformAssetComponent": "assets/transforms/audio_transform_asset/component.py",
     "AuditColumnsComponent": "transforms/audit_columns/component.py",
@@ -118,6 +121,7 @@ _CLASS_PATHS: dict[str, str] = {
     "Auth0ResourceComponent": "resources/auth0_resource/component.py",
     "Auth0UserUpsertComponent": "assets/reverse_etl/auth0_user_upsert/component.py",
     "AutoFieldComponent": "assets/transforms/auto_field/component.py",
+    "AutoMLAssetComponent": "assets/analytics/automl_asset/component.py",
     "AutoSysAssetComponent": "assets/infrastructure/autosys_asset/component.py",
     "AutomationAnywhereIntegrationComponent": "integrations/automation_anywhere_integration/component.py",
     "AutomationConditionApplicatorComponent": "assets/infrastructure/automation_condition_applicator/component.py",
@@ -233,6 +237,7 @@ _CLASS_PATHS: dict[str, str] = {
     "ConfluencePageUpsertComponent": "assets/reverse_etl/confluence_page_upsert/component.py",
     "ConfluenceResourceComponent": "resources/confluence_resource/component.py",
     "ConstantContactIngestionComponent": "assets/ingestion/constant_contact_ingestion/component.py",
+    "ContextEngineeringPipelineComponent": "assets/ai/context_engineering_pipeline/component.py",
     "ContractExtractorComponent": "assets/ai/contract_extractor/component.py",
     "ControlMIntegrationComponent": "integrations/controlm_integration/component.py",
     "ConversationMemoryComponent": "assets/ai/conversation_memory/component.py",
@@ -365,6 +370,7 @@ _CLASS_PATHS: dict[str, str] = {
     "Db2ResourceComponent": "resources/db2_resource/component.py",
     "DbtCloudJobSensorComponent": "sensors/dbt_cloud_job_sensor/component.py",
     "DbtCloudResourceComponent": "resources/dbt_cloud_resource/component.py",
+    "DbtCloudTriggerJobComponent": "jobs/dbt_cloud_trigger_job/component.py",
     "DbtDocsEnrichedProjectComponent": "assets/dbt/enriched_dbt_project/component.py",
     "DbtRunJobComponent": "jobs/dbt_run_job/component.py",
     "DbtStateReusePatchComponent": "integrations/dbt_state_reuse_patch/component.py",
@@ -497,6 +503,7 @@ _CLASS_PATHS: dict[str, str] = {
     "FhirResourceNormalizerComponent": "assets/transforms/fhir_resource_normalizer/component.py",
     "FieldMapperComponent": "assets/transforms/field_mapper/component.py",
     "FileIngestionComponent": "assets/ingestion/file_ingestion/component.py",
+    "FileListerComponent": "assets/source/file_lister/component.py",
     "FileTransformerComponent": "assets/transforms/file_transformer/component.py",
     "FilesystemMonitorSensorComponent": "sensors/filesystem_monitor/component.py",
     "FilterComponent": "assets/transforms/filter/component.py",
@@ -1030,6 +1037,7 @@ _CLASS_PATHS: dict[str, str] = {
     "RabbitMQToDatabaseAssetComponent": "assets/ingestion/rabbitmq_to_database_asset/component.py",
     "RabbitmqObservationSensorComponent": "observations/rabbitmq_observation_sensor/component.py",
     "RagEvalComponent": "assets/ai/rag_eval/component.py",
+    "RagGroundingCheckComponent": "assets/ai/rag_grounding_check/component.py",
     "RampIngestionComponent": "assets/ingestion/ramp_ingestion/component.py",
     "RandomForestModelComponent": "assets/analytics/random_forest_model/component.py",
     "RankComponent": "assets/transforms/rank/component.py",
@@ -1215,6 +1223,7 @@ _CLASS_PATHS: dict[str, str] = {
     "StripeIngestionComponent": "assets/ingestion/stripe_ingestion/component.py",
     "StripeResource": "resources/stripe_resource/component.py",
     "StripeResourceComponent": "resources/stripe_resource/component.py",
+    "StructuredDocumentExtractorComponent": "assets/ai/structured_document_extractor/component.py",
     "StuckRunTerminatorJobComponent": "jobs/stuck_run_terminator_job/component.py",
     "SubscriptionMetricsComponent": "assets/analytics/subscription_metrics/component.py",
     "SummarizeComponent": "assets/transforms/summarize/component.py",
@@ -1332,6 +1341,7 @@ _CLASS_PATHS: dict[str, str] = {
     "VideoAudioExtractAssetComponent": "assets/transforms/video_audio_extract_asset/component.py",
     "VideoFrameExtractAssetComponent": "assets/transforms/video_frame_extract_asset/component.py",
     "VideoMetadataExtractorComponent": "assets/transforms/video_metadata_extractor/component.py",
+    "VideoSceneSummarizerComponent": "assets/ai/video_scene_summarizer/component.py",
     "VifComponent": "assets/analytics/vif/component.py",
     "VisionApiAssetComponent": "assets/ai/vision_api_asset/component.py",
     "VisionModelComponent": "assets/ai/vision_model/component.py",
@@ -1355,6 +1365,7 @@ _CLASS_PATHS: dict[str, str] = {
     "WarehouseSummarizeComponent": "assets/transforms/warehouse_summarize/component.py",
     "WarehouseTopNPerGroupComponent": "assets/transforms/warehouse_top_n_per_group/component.py",
     "WarehouseUnionComponent": "assets/transforms/warehouse_union/component.py",
+    "WarmScheduledJobComponent": "assets/infrastructure/warm_scheduled_job/component.py",
     "WeaviateResourceComponent": "resources/weaviate_resource/component.py",
     "WebexIngestionComponent": "assets/ingestion/webex_ingestion/component.py",
     "WebflowIngestionComponent": "assets/ingestion/webflow_ingestion/component.py",

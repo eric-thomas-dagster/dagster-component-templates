@@ -1,0 +1,66 @@
+{
+  "component_type": "dagster_component_templates.GoogleAdsResourceComponent",
+  "description": "Register a GoogleAdsResource wrapping the official google-ads Python client for use by other components",
+  "category": "resource",
+  "icon": "si:googleads",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "google_ads_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "google_ads_resource"
+    },
+    "developer_token_env_var": {
+      "type": "string",
+      "label": "Developer Token Env Var",
+      "description": "Env var holding your Google Ads developer token",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client ID Env Var",
+      "description": "Env var holding the OAuth2 client ID",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "description": "Env var holding the OAuth2 client secret",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "refresh_token_env_var": {
+      "type": "string",
+      "label": "Refresh Token Env Var",
+      "description": "Env var holding the OAuth2 refresh token",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "customer_id": {
+      "type": "string",
+      "label": "Customer ID",
+      "description": "Target Google Ads account ID, 10 digits, no dashes",
+      "required": true
+    },
+    "login_customer_id": {
+      "type": "string",
+      "label": "Login (MCC) Customer ID",
+      "description": "Manager (MCC) account ID, 10 digits, no dashes. Optional.",
+      "required": false
+    }
+  },
+  "tags": [
+    "resource",
+    "google",
+    "ads",
+    "marketing"
+  ],
+  "name": "Google Ads Resource"
+}

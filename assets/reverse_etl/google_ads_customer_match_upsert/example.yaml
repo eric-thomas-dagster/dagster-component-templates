@@ -1,0 +1,11 @@
+type: dagster_component_templates.GoogleAdsCustomerMatchUpsertComponent
+attributes:
+  asset_name: google_ads_churned_customers_audience
+  upstream_asset_key: dbt_marts_churned_customers
+  resource_key: google_ads_resource
+  user_list_resource_name: "customers/1234567890/userLists/987654321"
+  fields_map:
+    email: email
+    phone_e164: phone
+  operation: add
+  group_name: google_ads

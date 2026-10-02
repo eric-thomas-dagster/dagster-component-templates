@@ -58135,9 +58135,377 @@
         "second precision"
       ],
       "vertical": "orchestration"
+    },
+    {
+      "id": "google_ads_resource",
+      "name": "Google Ads Resource",
+      "category": "resource",
+      "description": "Register a GoogleAdsResource wrapping the official google-ads Python client for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/google_ads_resource",
+      "tags": [
+        "resource",
+        "google",
+        "ads",
+        "marketing"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/google_ads_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/google_ads_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/google_ads_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/google_ads_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/google_ads_resource/requirements.txt",
+      "icon": "si:googleads",
+      "x-dagster-provides": [
+        "google_ads_resource"
+      ],
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02"
+      },
+      "produces": [
+        "resource"
+      ],
+      "agent_hints": {
+        "outputs": "Register a GoogleAdsResource wrapping the official google-ads Python client for use by other components",
+        "requires_pip": [
+          "google-ads>=24.0.0"
+        ]
+      },
+      "keywords": [
+        "google ads",
+        "customer match",
+        "connection",
+        "connect"
+      ]
+    },
+    {
+      "id": "tiktok_ads_resource",
+      "name": "TikTok Ads Resource",
+      "category": "resource",
+      "description": "Register a TikTokAdsResource for the TikTok Marketing API for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/tiktok_ads_resource",
+      "tags": [
+        "resource",
+        "tiktok",
+        "ads",
+        "marketing"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/tiktok_ads_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/tiktok_ads_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/tiktok_ads_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/tiktok_ads_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/tiktok_ads_resource/requirements.txt",
+      "icon": "si:tiktok",
+      "x-dagster-provides": [
+        "tiktok_ads_resource"
+      ],
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02"
+      },
+      "produces": [
+        "resource"
+      ],
+      "agent_hints": {
+        "outputs": "Register a TikTokAdsResource for the TikTok Marketing API for use by other components",
+        "requires_pip": [
+          "requests>=2.28"
+        ]
+      },
+      "keywords": [
+        "tiktok ads",
+        "tiktok marketing",
+        "connection",
+        "connect"
+      ]
+    },
+    {
+      "id": "google_ads_customer_match_upsert",
+      "name": "Google Ads Customer Match Upsert",
+      "component_type": "dagster_component_templates.GoogleAdsCustomerMatchUpsertComponent",
+      "path": "assets/reverse_etl/google_ads_customer_match_upsert",
+      "category": "reverse_etl",
+      "icon": "si:googleads",
+      "description": "Reverse-ETL / audience activation: upload an upstream DataFrame into a Google Ads Customer Match user list via OfflineUserDataJobService. Identifiers (email/phone) are normalized and SHA-256 hashed before upload. Supports 'add' (activation) and 'remove' (suppression).",
+      "tags": [
+        "sink",
+        "google-ads",
+        "reverse-etl",
+        "activation",
+        "customer-match",
+        "audience"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/google_ads_customer_match_upsert/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/google_ads_customer_match_upsert/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/google_ads_customer_match_upsert/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/google_ads_customer_match_upsert/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/google_ads_customer_match_upsert/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "google-ads>=24.0.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against a fake OfflineUserDataJobService. Live validation against a real Google Ads account pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:google_ads"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to sync a warehouse segment INTO a Google Ads Customer Match audience for targeting or suppression (reverse ETL / activation).",
+        "typical_upstream": "Dagster asset producing a pandas DataFrame with email and/or phone columns \u2014 usually a dbt mart or warehouse segment.",
+        "typical_downstream": "An existing Google Ads Customer Match user list (must be created beforehand via the Google Ads UI or API).",
+        "example_prompts": [
+          "Sync high-LTV customers from the warehouse into a Google Ads Customer Match audience",
+          "Suppress churned customers from Google Ads retargeting",
+          "Activate a dbt segment into Google Ads for lookalike targeting"
+        ],
+        "anti_uses": "Not for reading Google Ads campaign/performance data \u2014 use `google_ads_ingestion`. Does not create user lists \u2014 the target list must already exist.",
+        "requires_pip": [
+          "pandas>=2.0.0",
+          "google-ads>=24.0.0"
+        ],
+        "requires_env_vars": [
+          "GOOGLE_ADS_DEVELOPER_TOKEN",
+          "GOOGLE_ADS_CLIENT_ID",
+          "GOOGLE_ADS_CLIENT_SECRET",
+          "GOOGLE_ADS_REFRESH_TOKEN"
+        ]
+      },
+      "keywords": [
+        "reverse etl",
+        "audience activation",
+        "customer match",
+        "google ads audience",
+        "offline user data job",
+        "sink",
+        "write to google ads"
+      ],
+      "vertical": "marketing-ads"
+    },
+    {
+      "id": "meta_custom_audience_upsert",
+      "name": "Meta Custom Audience Upsert",
+      "component_type": "dagster_component_templates.MetaCustomAudienceUpsertComponent",
+      "path": "assets/reverse_etl/meta_custom_audience_upsert",
+      "category": "reverse_etl",
+      "icon": "si:meta",
+      "description": "Reverse-ETL / audience activation: upload an upstream DataFrame into a Meta (Facebook/Instagram) Custom Audience via /{custom_audience_id}/users. Identifiers (email/phone) are normalized and SHA-256 hashed before upload. Supports 'add' (activation) and 'remove' (suppression).",
+      "tags": [
+        "sink",
+        "meta",
+        "facebook",
+        "reverse-etl",
+        "activation",
+        "custom-audience",
+        "audience"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/meta_custom_audience_upsert/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/meta_custom_audience_upsert/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/meta_custom_audience_upsert/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/meta_custom_audience_upsert/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/meta_custom_audience_upsert/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "facebook-business>=19.0.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against a monkeypatched API call. Live validation against a real Meta ad account pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:facebook_ads"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to sync a warehouse segment INTO a Meta (Facebook/Instagram) Custom Audience for targeting or suppression (reverse ETL / activation).",
+        "typical_upstream": "Dagster asset producing a pandas DataFrame with email and/or phone columns \u2014 usually a dbt mart or warehouse segment.",
+        "typical_downstream": "An existing Meta Custom Audience (must be created beforehand via Meta Ads Manager or the Marketing API).",
+        "example_prompts": [
+          "Sync high-LTV customers from the warehouse into a Meta Custom Audience",
+          "Suppress churned customers from Meta retargeting",
+          "Activate a dbt segment into Meta for lookalike targeting"
+        ],
+        "anti_uses": "Not for reading Meta campaign/performance data \u2014 use `facebook_ads_ingestion`. Does not create audiences \u2014 the target audience must already exist.",
+        "requires_pip": [
+          "pandas>=2.0.0",
+          "facebook-business>=19.0.0"
+        ],
+        "requires_env_vars": [
+          "FACEBOOK_APP_ID",
+          "FACEBOOK_APP_SECRET",
+          "FACEBOOK_ACCESS_TOKEN"
+        ]
+      },
+      "keywords": [
+        "reverse etl",
+        "audience activation",
+        "custom audience",
+        "facebook audience",
+        "meta ads audience",
+        "sink",
+        "write to meta"
+      ],
+      "vertical": "marketing-ads"
+    },
+    {
+      "id": "tiktok_custom_audience_upsert",
+      "name": "TikTok Custom Audience Upsert",
+      "component_type": "dagster_component_templates.TikTokCustomAudienceUpsertComponent",
+      "path": "assets/reverse_etl/tiktok_custom_audience_upsert",
+      "category": "reverse_etl",
+      "icon": "si:tiktok",
+      "description": "Reverse-ETL / audience activation: upload an upstream DataFrame into a TikTok Custom Audience via the two-stage file-upload + update flow. One file is uploaded per identifier type present in fields_map. Identifiers are SHA-256 hashed before upload. Supports 'add' (APPEND) and 'remove' (REMOVE).",
+      "tags": [
+        "sink",
+        "tiktok",
+        "reverse-etl",
+        "activation",
+        "custom-audience",
+        "audience"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/tiktok_custom_audience_upsert/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/tiktok_custom_audience_upsert/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/tiktok_custom_audience_upsert/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/tiktok_custom_audience_upsert/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/tiktok_custom_audience_upsert/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against monkeypatched API calls. Live validation against a real TikTok ad account pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:tiktok_ads"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to sync a warehouse segment INTO a TikTok Custom Audience for targeting or suppression (reverse ETL / activation).",
+        "typical_upstream": "Dagster asset producing a pandas DataFrame with email and/or phone columns \u2014 usually a dbt mart or warehouse segment.",
+        "typical_downstream": "An existing TikTok Custom Audience (must be created beforehand via TikTok Ads Manager or the Marketing API).",
+        "example_prompts": [
+          "Sync high-LTV customers from the warehouse into a TikTok Custom Audience",
+          "Suppress churned customers from TikTok retargeting",
+          "Activate a dbt segment into TikTok for lookalike targeting"
+        ],
+        "anti_uses": "Not for reading TikTok campaign/performance data \u2014 use `tiktok_ads_ingestion`. Does not create audiences \u2014 the target audience must already exist.",
+        "requires_pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "TIKTOK_ADS_ACCESS_TOKEN"
+        ]
+      },
+      "keywords": [
+        "reverse etl",
+        "audience activation",
+        "custom audience",
+        "tiktok audience",
+        "sink",
+        "write to tiktok"
+      ],
+      "vertical": "marketing-ads"
+    },
+    {
+      "id": "linkedin_matched_audience_upsert",
+      "name": "LinkedIn Matched Audience Upsert",
+      "component_type": "dagster_component_templates.LinkedInMatchedAudienceUpsertComponent",
+      "path": "assets/reverse_etl/linkedin_matched_audience_upsert",
+      "category": "reverse_etl",
+      "icon": "si:linkedin",
+      "description": "Reverse-ETL / audience activation: upload an upstream DataFrame into a LinkedIn Matched Audiences DMP Segment via POST /rest/dmpSegments/{id}/users (BATCH_CREATE). Email is SHA-256 hashed before upload. Supports 'add' (ADD) and 'remove' (REMOVE). Email is the only supported identifier type.",
+      "tags": [
+        "sink",
+        "linkedin",
+        "reverse-etl",
+        "activation",
+        "matched-audiences",
+        "dmp-segment",
+        "audience"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/linkedin_matched_audience_upsert/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/linkedin_matched_audience_upsert/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/linkedin_matched_audience_upsert/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/linkedin_matched_audience_upsert/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/linkedin_matched_audience_upsert/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Code-validated against a monkeypatched API call. Live validation against a real LinkedIn ad account pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:linkedin_ads"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to sync a warehouse segment INTO a LinkedIn Matched Audiences DMP Segment for targeting or suppression (reverse ETL / activation).",
+        "typical_upstream": "Dagster asset producing a pandas DataFrame with an email column \u2014 usually a dbt mart or warehouse segment.",
+        "typical_downstream": "An existing LinkedIn Matched Audiences DMP Segment (must be created beforehand via LinkedIn Campaign Manager or the Marketing API).",
+        "example_prompts": [
+          "Sync high-LTV customers from the warehouse into a LinkedIn Matched Audience",
+          "Suppress churned customers from LinkedIn retargeting",
+          "Activate a dbt segment into LinkedIn for B2B targeting"
+        ],
+        "anti_uses": "Not for reading LinkedIn campaign/performance data \u2014 use `linkedin_ads_ingestion`. Does not create segments \u2014 the target segment must already exist. Does not support phone identifiers.",
+        "requires_pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "LINKEDIN_ADS_ACCESS_TOKEN"
+        ]
+      },
+      "keywords": [
+        "reverse etl",
+        "audience activation",
+        "matched audiences",
+        "dmp segment",
+        "linkedin audience",
+        "sink",
+        "write to linkedin"
+      ],
+      "vertical": "marketing-ads"
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1174
+  "total": 1180
 }

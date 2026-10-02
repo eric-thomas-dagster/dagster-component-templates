@@ -1,0 +1,46 @@
+{
+  "component_type": "dagster_component_templates.TikTokAdsResourceComponent",
+  "description": "Register a TikTokAdsResource for the TikTok Marketing API for use by other components",
+  "category": "resource",
+  "icon": "si:tiktok",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "tiktok_ads_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "tiktok_ads_resource"
+    },
+    "access_token_env_var": {
+      "type": "string",
+      "label": "Access Token Env Var",
+      "description": "Env var holding the TikTok Marketing API access token",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "advertiser_id": {
+      "type": "string",
+      "label": "Advertiser ID",
+      "description": "TikTok Advertiser ID",
+      "required": true
+    },
+    "api_base_url": {
+      "type": "string",
+      "label": "API Base URL",
+      "description": "TikTok Marketing API base URL (override for a different API version).",
+      "required": false,
+      "default": "https://business-api.tiktok.com/open_api/v1.3"
+    }
+  },
+  "tags": [
+    "resource",
+    "tiktok",
+    "ads",
+    "marketing"
+  ],
+  "name": "TikTok Ads Resource"
+}

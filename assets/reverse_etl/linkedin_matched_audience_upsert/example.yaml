@@ -1,0 +1,10 @@
+type: dagster_component_templates.LinkedInMatchedAudienceUpsertComponent
+attributes:
+  asset_name: linkedin_high_ltv_customers_segment
+  upstream_asset_key: dbt_marts_high_ltv_customers
+  resource_key: linkedin_ads_resource
+  segment_id: "10804"
+  fields_map:
+    email: email
+  operation: add
+  group_name: linkedin_ads

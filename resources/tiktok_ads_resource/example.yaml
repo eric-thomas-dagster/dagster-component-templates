@@ -1,0 +1,5 @@
+type: dagster_component_templates.TikTokAdsResourceComponent
+attributes:
+  resource_key: tiktok_ads_resource
+  access_token_env_var: TIKTOK_ADS_ACCESS_TOKEN
+  advertiser_id: "1234567890123456789"

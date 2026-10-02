@@ -1,0 +1,8 @@
+type: dagster_component_templates.GoogleAdsResourceComponent
+attributes:
+  resource_key: google_ads_resource
+  developer_token_env_var: GOOGLE_ADS_DEVELOPER_TOKEN
+  client_id_env_var: GOOGLE_ADS_CLIENT_ID
+  client_secret_env_var: GOOGLE_ADS_CLIENT_SECRET
+  refresh_token_env_var: GOOGLE_ADS_REFRESH_TOKEN
+  customer_id: "1234567890"

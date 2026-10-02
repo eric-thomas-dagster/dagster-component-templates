@@ -1,0 +1,83 @@
+{
+  "component_type": "dagster_component_templates.TikTokCustomAudienceUpsertComponent",
+  "description": "Reverse-ETL / audience activation: upload an upstream DataFrame into a TikTok Custom Audience via the two-stage file-upload + update flow (dmp/custom_audience/file/upload then dmp/custom_audience/update). One file is uploaded per identifier type present in fields_map. Identifiers are SHA-256 hashed before upload. Supports 'add' (APPEND) and 'remove' (REMOVE).",
+  "category": "reverse_etl",
+  "icon": "si:tiktok",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row contributes hashed identifier values (email/phone), grouped per type into separate uploaded files."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (custom_audience_id / action / files_uploaded / rows_submitted / rows_submitted_by_type / update_response). Matching can take 24-48h on TikTok's side."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with `source`."
+    },
+    "source": {
+      "type": "object",
+      "label": "Inline Source",
+      "required": false,
+      "description": "Inline source config (sql / csv / inline). Mutually exclusive with `upstream_asset_key`."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "tiktok_ads_resource"
+    },
+    "custom_audience_id": {
+      "type": "string",
+      "label": "Custom Audience ID",
+      "required": true,
+      "description": "Target TikTok Custom Audience ID. Must already exist."
+    },
+    "fields_map": {
+      "type": "object",
+      "label": "Fields Map",
+      "required": true,
+      "description": "Upstream column -> identifier type ('email' or 'phone'). Values are SHA-256 hashed before upload."
+    },
+    "operation": {
+      "type": "string",
+      "label": "Operation",
+      "required": false,
+      "default": "add",
+      "enum": ["add", "remove"],
+      "ui:widget": "select",
+      "description": "'add' maps to TikTok action=APPEND; 'remove' maps to action=REMOVE."
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 50000,
+      "description": "Max upstream rows per run (safety cap)."
+    },
+    "group_name": { "type": "string", "label": "Group Name", "required": false },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "label": "Owners", "required": false },
+    "tags": { "type": "object", "label": "Tags", "required": false },
+    "kinds": { "type": "array", "label": "Kinds", "required": false }
+  },
+  "tags": [
+    "sink",
+    "tiktok",
+    "reverse-etl",
+    "activation",
+    "custom-audience",
+    "audience"
+  ],
+  "name": "TikTok Custom Audience Upsert"
+}

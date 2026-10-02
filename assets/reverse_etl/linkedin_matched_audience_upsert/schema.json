@@ -1,0 +1,91 @@
+{
+  "component_type": "dagster_component_templates.LinkedInMatchedAudienceUpsertComponent",
+  "description": "Reverse-ETL / audience activation: upload an upstream DataFrame into a LinkedIn Matched Audiences DMP Segment via POST /rest/dmpSegments/{id}/users (BATCH_CREATE, up to 5,000 per request). Email is SHA-256 hashed (lowercase, all whitespace removed) before upload. Supports 'add' (ADD) and 'remove' (REMOVE). Email is the only supported identifier type -- LinkedIn's API documents no phone identifier.",
+  "category": "reverse_etl",
+  "icon": "si:linkedin",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row contributes a hashed email identifier to the target DMP Segment."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (segment_id / operation / rows_submitted / rows_skipped_no_identifier / api_requests)."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with `source`."
+    },
+    "source": {
+      "type": "object",
+      "label": "Inline Source",
+      "required": false,
+      "description": "Inline source config (sql / csv / inline). Mutually exclusive with `upstream_asset_key`."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "linkedin_ads_resource"
+    },
+    "segment_id": {
+      "type": "string",
+      "label": "Segment ID",
+      "required": true,
+      "description": "Target DMP Segment ID. Must already exist."
+    },
+    "fields_map": {
+      "type": "object",
+      "label": "Fields Map",
+      "required": true,
+      "description": "Upstream column -> identifier type. Only 'email' is supported."
+    },
+    "operation": {
+      "type": "string",
+      "label": "Operation",
+      "required": false,
+      "default": "add",
+      "enum": ["add", "remove"],
+      "ui:widget": "select",
+      "description": "'add' maps to LinkedIn action=ADD; 'remove' maps to action=REMOVE."
+    },
+    "linkedin_api_version": {
+      "type": "string",
+      "label": "LinkedIn API Version",
+      "required": false,
+      "default": "202501",
+      "description": "LinkedIn REST API version header (YYYYMM). LinkedIn sunsets old versions ~12 months after release."
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 50000,
+      "description": "Max upstream rows per run (safety cap)."
+    },
+    "group_name": { "type": "string", "label": "Group Name", "required": false },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "label": "Owners", "required": false },
+    "tags": { "type": "object", "label": "Tags", "required": false },
+    "kinds": { "type": "array", "label": "Kinds", "required": false }
+  },
+  "tags": [
+    "sink",
+    "linkedin",
+    "reverse-etl",
+    "activation",
+    "matched-audiences",
+    "dmp-segment",
+    "audience"
+  ],
+  "name": "LinkedIn Matched Audience Upsert"
+}

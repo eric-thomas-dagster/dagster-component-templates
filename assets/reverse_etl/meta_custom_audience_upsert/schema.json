@@ -1,0 +1,84 @@
+{
+  "component_type": "dagster_component_templates.MetaCustomAudienceUpsertComponent",
+  "description": "Reverse-ETL / audience activation: upload an upstream DataFrame into a Meta (Facebook/Instagram) Custom Audience via the native /{custom_audience_id}/users endpoint. Identifiers (email/phone) are normalized and SHA-256 hashed before upload — never sent to Meta in plaintext. Supports 'add' (activation) and 'remove' (suppression).",
+  "category": "reverse_etl",
+  "icon": "si:meta",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row contributes one or more hashed identifiers (email/phone) to the target Custom Audience."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (custom_audience_id / rows_submitted / rows_skipped_no_identifier / operation / schema / api_requests)."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with `source`."
+    },
+    "source": {
+      "type": "object",
+      "label": "Inline Source",
+      "required": false,
+      "description": "Inline source config (sql / csv / inline). Mutually exclusive with `upstream_asset_key`."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "facebook_ads_resource"
+    },
+    "custom_audience_id": {
+      "type": "string",
+      "label": "Custom Audience ID",
+      "required": true,
+      "description": "Target Meta Custom Audience ID. Must already exist."
+    },
+    "fields_map": {
+      "type": "object",
+      "label": "Fields Map",
+      "required": true,
+      "description": "Upstream column -> identifier type ('email' or 'phone'). Values are SHA-256 hashed before upload."
+    },
+    "operation": {
+      "type": "string",
+      "label": "Operation",
+      "required": false,
+      "default": "add",
+      "enum": ["add", "remove"],
+      "ui:widget": "select",
+      "description": "'add' activates matching users; 'remove' suppresses them."
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 50000,
+      "description": "Max upstream rows per run (safety cap)."
+    },
+    "group_name": { "type": "string", "label": "Group Name", "required": false },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "label": "Owners", "required": false },
+    "tags": { "type": "object", "label": "Tags", "required": false },
+    "kinds": { "type": "array", "label": "Kinds", "required": false }
+  },
+  "tags": [
+    "sink",
+    "meta",
+    "facebook",
+    "reverse-etl",
+    "activation",
+    "custom-audience",
+    "audience"
+  ],
+  "name": "Meta Custom Audience Upsert"
+}

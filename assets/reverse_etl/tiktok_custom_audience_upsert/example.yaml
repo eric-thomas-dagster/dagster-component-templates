@@ -1,0 +1,11 @@
+type: dagster_component_templates.TikTokCustomAudienceUpsertComponent
+attributes:
+  asset_name: tiktok_high_ltv_customers_audience
+  upstream_asset_key: dbt_marts_high_ltv_customers
+  resource_key: tiktok_ads_resource
+  custom_audience_id: "1234567890123456789"
+  fields_map:
+    email: email
+    phone_e164: phone
+  operation: add
+  group_name: tiktok_ads

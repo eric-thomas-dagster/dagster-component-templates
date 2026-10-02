@@ -59,7 +59,21 @@
       "label": "Destination",
       "description": "dlt destination identifier. Leave empty for in-memory DuckDB -> DataFrame mode.",
       "required": false,
-      "default": null
+      "default": null,
+      "enum": [
+        "snowflake",
+        "bigquery",
+        "postgres",
+        "redshift",
+        "filesystem",
+        "duckdb",
+        "databricks",
+        "athena",
+        "clickhouse",
+        "mssql",
+        "motherduck"
+      ],
+      "ui:widget": "select"
     },
     "dataset_name": {
       "type": "string",

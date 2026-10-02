@@ -1,0 +1,6 @@
+type: dagster_component_templates.Auth0ResourceComponent
+attributes:
+  resource_key: auth0_resource
+  tenant_domain: "mycompany.us.auth0.com"
+  client_id_env_var: AUTH0_CLIENT_ID
+  client_secret_env_var: AUTH0_CLIENT_SECRET

@@ -1,0 +1,28 @@
+# ChargebeeCustomerUpsertComponent -- DataFrame -> Chargebee Customers
+# reverse ETL. Chargebee has no upsert-by-key endpoint and uses POST for
+# every mutating call: this component looks up an existing match via
+# GET /customers?<lookup_field>[is]=<value>, then POSTs either a create
+# (POST /customers) or an update (POST /customers/{id}).
+#
+# Requires a ChargebeeResourceComponent registered under the same resource_key.
+
+type: dagster_component_templates.ChargebeeCustomerUpsertComponent
+attributes:
+  asset_name: chargebee_customers_mirror
+  upstream_asset_key: dbt_marts_customers
+  resource_key: chargebee
+
+  lookup_field: email                         # or 'id' to match on a merchant-supplied id
+  fields_map:
+    customer_id: id                           # upstream col -> Chargebee Customer field
+    email: email
+    first_name: first_name
+    last_name: last_name
+    company_name: company
+
+  batch_size: 5000                            # safety cap (1 list-filter GET + 1 write per row)
+
+  group_name: reverse_etl
+  description: "Mirror dbt Customers mart into Chargebee Customer records."
+  # kinds: [chargebee, reverse_etl]
+  # owners: [finance-ops@corp.com]

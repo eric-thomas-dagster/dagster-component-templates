@@ -1,0 +1,60 @@
+{
+  "component_type": "dagster_component_templates.PinterestAdsResourceComponent",
+  "description": "Register a PinterestAdsResource (OAuth 2.0 bearer token) for the Pinterest Ads API for use by other components",
+  "category": "resource",
+  "icon": "si:pinterest",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "pinterest_ads_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "pinterest_ads_resource"
+    },
+    "access_token_env_var": {
+      "type": "string",
+      "label": "Access Token Env Var",
+      "description": "Env var holding the Pinterest OAuth 2.0 access token (needs ads:read + ads:write scopes for activation)",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "ad_account_id": {
+      "type": "string",
+      "label": "Ad Account ID",
+      "description": "Pinterest Ad Account ID",
+      "required": true
+    },
+    "app_id_env_var": {
+      "type": "string",
+      "label": "App ID Env Var",
+      "description": "Env var holding the Pinterest App ID (optional, only needed for token refresh)",
+      "required": false,
+      "ui:widget": "env_var"
+    },
+    "app_secret_env_var": {
+      "type": "string",
+      "label": "App Secret Env Var",
+      "description": "Env var holding the Pinterest App Secret (optional, only needed for token refresh)",
+      "required": false,
+      "ui:widget": "env_var"
+    },
+    "api_base_url": {
+      "type": "string",
+      "label": "API Base URL",
+      "description": "Pinterest Ads API base URL (override for a different API version).",
+      "required": false,
+      "default": "https://api.pinterest.com/v5"
+    }
+  },
+  "tags": [
+    "resource",
+    "pinterest",
+    "ads",
+    "marketing"
+  ],
+  "name": "Pinterest Ads Resource"
+}

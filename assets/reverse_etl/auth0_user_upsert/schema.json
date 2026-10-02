@@ -1,0 +1,86 @@
+{
+  "component_type": "dagster_component_templates.Auth0UserUpsertComponent",
+  "description": "Reverse-ETL sink: sync an upstream DataFrame of user records into Auth0. Default operation ('sync') only creates users that don't exist or updates profile attributes on ones that do -- it can never block or delete anyone. Deactivation requires the explicit, separate operation: 'deactivate' and only ever blocks (never deletes) users matched by email; rows with no match are skipped, never created. There is no delete operation.",
+  "category": "reverse_etl",
+  "icon": "si:auth0",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row maps to one Auth0 user, matched by email."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_deactivated / rows_skipped_* / rows_errored / operation)."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with `source`."
+    },
+    "source": {
+      "type": "object",
+      "label": "Inline Source",
+      "required": false,
+      "description": "Inline source config (sql / csv / inline). Mutually exclusive with `upstream_asset_key`."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "auth0_resource"
+    },
+    "connection": {
+      "type": "string",
+      "label": "Connection",
+      "required": true,
+      "description": "Auth0 connection name new users are created under (e.g. 'Username-Password-Authentication')."
+    },
+    "fields_map": {
+      "type": "object",
+      "label": "Fields Map",
+      "required": true,
+      "description": "Upstream column -> Auth0 field (top-level or dotted user_metadata/app_metadata path). Exactly one value must be 'email'. 'blocked' is forbidden.",
+      "ui:widget": "key-value"
+    },
+    "operation": {
+      "type": "string",
+      "label": "Operation",
+      "required": false,
+      "default": "sync",
+      "enum": ["sync", "deactivate"],
+      "ui:widget": "select",
+      "description": "'sync' (default, safe) creates/updates only. 'deactivate' (explicit) blocks matched users -- never creates, never deletes. No other value accepted."
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 5000,
+      "description": "Max upstream rows per run (safety cap)."
+    },
+    "group_name": { "type": "string", "label": "Group Name", "required": false, "default": "auth0" },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "items": { "type": "string" }, "label": "Owners", "required": false, "ui:widget": "list" },
+    "tags": { "type": "object", "label": "Tags", "required": false, "ui:widget": "key-value" },
+    "kinds": { "type": "array", "items": { "type": "string" }, "label": "Kinds", "required": false, "ui:widget": "list" }
+  },
+  "tags": [
+    "auth0",
+    "sink",
+    "reverse-etl",
+    "identity",
+    "sso",
+    "upsert",
+    "safety-critical"
+  ],
+  "name": "Auth0 User Upsert",
+  "vertical": "identity-sso"
+}

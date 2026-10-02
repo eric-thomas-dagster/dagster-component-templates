@@ -1,0 +1,95 @@
+{
+  "component_type": "dagster_component_templates.MagentoProductUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into Magento/Adobe Commerce Products via the REST API. Search-then-write per row (Magento's PUT /V1/products/:sku is update-ONLY, not a true upsert) -- GET /V1/products/:sku → PUT the match or POST a new product (requires sku/name/price/attribute_set_id at minimum).",
+  "category": "reverse_etl",
+  "vertical": "crm-sales",
+  "icon": "si:magento",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row → one Magento product (upserted by matching on sku)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored). No downstream data — write side effect lands in Magento/Adobe Commerce."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true,
+      "description": "Asset providing the DataFrame."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "magento"
+    },
+    "fields_map": {
+      "type": "object",
+      "label": "Fields Map",
+      "required": true,
+      "description": "Upstream column → Magento field name. MUST include a mapping to `sku`.",
+      "ui:widget": "key-value"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 200,
+      "description": "Max upstream rows per run (safety cap)."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "magento"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "magento",
+    "adobe-commerce",
+    "sink",
+    "reverse-etl",
+    "upsert",
+    "products",
+    "e-commerce"
+  ],
+  "name": "Magento Product Upsert"
+}

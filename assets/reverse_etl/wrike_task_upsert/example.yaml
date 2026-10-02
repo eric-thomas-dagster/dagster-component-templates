@@ -1,0 +1,22 @@
+type: dagster_component_templates.WrikeTaskUpsertComponent
+attributes:
+  asset_name: wrike_incidents_mirror
+  upstream_asset_key: incidents_seed
+  resource_key: wrike_resource
+
+  folder_id: "IEAABBCC123456"
+
+  # Stable unique key. Written into each task's description as
+  # `<!-- dagster-key: <value> -->` and used to match rows to existing
+  # tasks on subsequent runs.
+  key_column: incident_id
+  title_column: name
+
+  # Optional
+  description_column: description
+  status_column: status            # Active / Completed / Deferred / Cancelled
+  importance_column: severity      # High / Normal / Low
+  due_date_column: due_date
+
+  batch_size: 100
+  group_name: wrike

@@ -1,0 +1,82 @@
+{
+  "component_type": "dagster_component_templates.DynamicsCrmResourceComponent",
+  "description": "Self-contained Microsoft Dynamics 365 (Dataverse) Web API workhorse. Azure AD OAuth 2.0 client_credentials auth (requires a matching Dataverse Application User + security role), retry on 401 (token refresh) / 429 / 5xx. .get()/.post()/.patch() HTTP methods plus upsert_by_key() wrapping Dataverse's native alternate-key upsert (PATCH with Prefer: return=representation to disambiguate created vs updated and recover the row's GUID).",
+  "category": "resource",
+  "vertical": "crm-sales",
+  "icon": "Building2",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "resource",
+      "description": "DynamicsCrmResource with get/post/patch HTTP methods plus upsert_by_key(). Consumed by dynamics_crm_record_upsert (sink) and by custom Dagster asset code that needs Dataverse Web API reads/writes."
+    }
+  },
+  "x-dagster-provides": [
+    "dynamics_crm_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "dynamics_crm",
+      "description": "Resource key. Other components reference it via this name."
+    },
+    "org_url": {
+      "type": "string",
+      "label": "Org Url",
+      "required": true,
+      "description": "Dynamics 365 organization URL, e.g. 'https://myorg.crm.dynamics.com'."
+    },
+    "tenant_id": {
+      "type": "string",
+      "label": "Tenant Id",
+      "required": true,
+      "description": "Azure AD (Entra ID) tenant ID."
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client Id Env Var",
+      "required": false,
+      "default": "DYNAMICS_CLIENT_ID",
+      "ui:widget": "env_var",
+      "description": "Env var holding the Azure AD app registration's client ID."
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "required": false,
+      "default": "DYNAMICS_CLIENT_SECRET",
+      "ui:widget": "env_var",
+      "description": "Env var holding the Azure AD app registration's client secret."
+    },
+    "api_version": {
+      "type": "string",
+      "label": "Api Version",
+      "required": false,
+      "default": "v9.2",
+      "description": "Dataverse Web API version segment (e.g. 'v9.2')."
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout (seconds)",
+      "required": false,
+      "default": 60
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "required": false,
+      "default": 3,
+      "description": "Retry attempts on 429 / 5xx + one on 401 (token refresh)."
+    }
+  },
+  "tags": [
+    "resource",
+    "dynamics_crm",
+    "dataverse",
+    "crm",
+    "alternate-key",
+    "reverse-etl"
+  ],
+  "name": "Dynamics CRM Resource"
+}

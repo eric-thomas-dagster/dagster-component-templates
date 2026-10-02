@@ -1,0 +1,56 @@
+{
+  "component_type": "dagster_component_templates.HelpScoutResourceComponent",
+  "description": "Register a HelpScoutResource wrapping the Help Scout Mailbox API v2 (OAuth2 client_credentials grant) for use by other components",
+  "category": "resource",
+  "icon": "si:helpscout",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "help_scout_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "help_scout_resource"
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client ID Env Var",
+      "description": "Env var holding the Help Scout OAuth2 Client ID.",
+      "required": false,
+      "default": "HELPSCOUT_CLIENT_ID",
+      "ui:widget": "env_var"
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "description": "Env var holding the Help Scout OAuth2 Client Secret.",
+      "required": false,
+      "default": "HELPSCOUT_CLIENT_SECRET",
+      "ui:widget": "env_var"
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base URL",
+      "description": "Help Scout API base URL.",
+      "required": false,
+      "default": "https://api.helpscout.net/v2"
+    },
+    "token_url": {
+      "type": "string",
+      "label": "Token URL",
+      "description": "Help Scout OAuth2 token endpoint.",
+      "required": false,
+      "default": "https://api.helpscout.net/v2/oauth2/token"
+    }
+  },
+  "tags": [
+    "resource",
+    "helpscout",
+    "support",
+    "customer-service"
+  ],
+  "name": "Help Scout Resource"
+}

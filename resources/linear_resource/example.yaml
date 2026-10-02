@@ -1,0 +1,4 @@
+type: dagster_component_templates.LinearResourceComponent
+attributes:
+  resource_key: linear_resource
+  api_key_env_var: LINEAR_API_KEY

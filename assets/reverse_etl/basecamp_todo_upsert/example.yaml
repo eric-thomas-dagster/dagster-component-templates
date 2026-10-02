@@ -1,0 +1,23 @@
+type: dagster_component_templates.BasecampTodoUpsertComponent
+attributes:
+  asset_name: basecamp_incidents_mirror
+  upstream_asset_key: incidents_seed
+  resource_key: basecamp_resource
+
+  project_id: "2085958505"
+  todolist_id: "1069480012"
+
+  # Stable unique key. Written into each to-do's description as
+  # `<!-- dagster-key: <value> -->` and used to match rows to existing
+  # to-dos on subsequent runs.
+  key_column: incident_id
+  content_column: name          # Basecamp's title field is literally called `content`
+
+  # Optional
+  description_column: description
+  due_on_column: due_date
+  assignee_ids_column: assignee_person_ids
+  completed_column: is_resolved
+
+  batch_size: 100
+  group_name: basecamp

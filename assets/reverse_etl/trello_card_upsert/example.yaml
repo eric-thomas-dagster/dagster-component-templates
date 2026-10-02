@@ -1,0 +1,22 @@
+type: dagster_component_templates.TrelloCardUpsertComponent
+attributes:
+  asset_name: trello_incidents_mirror
+  upstream_asset_key: incidents_seed
+  resource_key: trello_resource
+
+  list_id: "5f8a1b2c3d4e5f6a7b8c9d0e"
+
+  # Stable unique key. Written into each card's description as
+  # `<!-- dagster-key: <value> -->` and used to match rows to existing
+  # cards on subsequent runs.
+  key_column: incident_id
+  name_column: name
+
+  # Optional
+  desc_column: description
+  due_column: due_date
+  id_labels_column: label_ids
+  closed_column: is_resolved
+
+  batch_size: 100
+  group_name: trello

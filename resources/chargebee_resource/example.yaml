@@ -1,0 +1,5 @@
+type: dagster_component_templates.ChargebeeResourceComponent
+attributes:
+  resource_key: chargebee
+  site: mysite
+  api_key_env_var: CHARGEBEE_API_KEY

@@ -1,0 +1,27 @@
+# MagentoProductUpsertComponent -- DataFrame -> Magento/Adobe Commerce Products reverse ETL.
+# Search-by-sku -> PUT if found, POST if new. Magento's PUT /V1/products/:sku
+# is UPDATE-ONLY (it will not create a missing product), so this sink always
+# checks existence first via the resource's upsert_product_by_sku.
+#
+# Requires a MagentoResourceComponent registered under the same resource_key.
+
+type: dagster_component_templates.MagentoProductUpsertComponent
+attributes:
+  asset_name: magento_products_mirror
+  upstream_asset_key: catalog_products
+  resource_key: magento
+
+  # fields_map MUST include a mapping to Magento field `sku` (the match key).
+  fields_map:
+    product_sku: sku             # upstream sku -> Magento sku (match key)
+    product_name: name
+    list_price: price
+    is_active: status            # 1=enabled, 2=disabled
+    visibility_code: visibility  # 1/2/3/4 -- see README
+
+  batch_size: 200
+
+  group_name: reverse_etl
+  description: "Mirror upstream product catalog into Magento/Adobe Commerce Products via sku match."
+  # kinds: [magento, reverse_etl]
+  # owners: [platform@corp.com]

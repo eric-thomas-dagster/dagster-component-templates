@@ -1,0 +1,96 @@
+{
+  "component_type": "dagster_component_templates.OktaUserUpsertComponent",
+  "description": "Reverse-ETL sink: sync an upstream DataFrame of user records into Okta. Default operation ('sync') only creates users that don't exist or merge-updates profile attributes on ones that do -- it can never deactivate or delete anyone. Deactivation requires the explicit, separate operation: 'deactivate' and only ever deactivates (never deletes) users matched by login via Okta's distinct lifecycle endpoint; rows with no match are skipped, never created. There is no delete operation.",
+  "category": "reverse_etl",
+  "icon": "si:okta",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row maps to one Okta user, matched by login."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_deactivated / rows_skipped_* / rows_errored / operation)."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with `source`."
+    },
+    "source": {
+      "type": "object",
+      "label": "Inline Source",
+      "required": false,
+      "description": "Inline source config (sql / csv / inline). Mutually exclusive with `upstream_asset_key`."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "okta_resource"
+    },
+    "fields_map": {
+      "type": "object",
+      "label": "Fields Map",
+      "required": true,
+      "description": "Upstream column -> Okta profile attribute (flat names: login, email, firstName, lastName, ...). Exactly one value must be 'login'. 'status' is forbidden.",
+      "ui:widget": "key-value"
+    },
+    "operation": {
+      "type": "string",
+      "label": "Operation",
+      "required": false,
+      "default": "sync",
+      "enum": ["sync", "deactivate"],
+      "ui:widget": "select",
+      "description": "'sync' (default, safe) creates/updates only. 'deactivate' (explicit) deactivates matched users -- never creates, never deletes. No other value accepted."
+    },
+    "activate_on_create": {
+      "type": "boolean",
+      "label": "Activate On Create",
+      "required": false,
+      "default": true,
+      "description": "Only used in sync mode on create: Okta's own `activate` query param.",
+      "ui:widget": "checkbox"
+    },
+    "send_deactivate_email": {
+      "type": "boolean",
+      "label": "Send Deactivate Email",
+      "required": false,
+      "default": false,
+      "description": "Only used in deactivate mode: Okta's `sendEmail` lifecycle param.",
+      "ui:widget": "checkbox"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 5000,
+      "description": "Max upstream rows per run (safety cap)."
+    },
+    "group_name": { "type": "string", "label": "Group Name", "required": false, "default": "okta" },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "items": { "type": "string" }, "label": "Owners", "required": false, "ui:widget": "list" },
+    "tags": { "type": "object", "label": "Tags", "required": false, "ui:widget": "key-value" },
+    "kinds": { "type": "array", "items": { "type": "string" }, "label": "Kinds", "required": false, "ui:widget": "list" }
+  },
+  "tags": [
+    "okta",
+    "sink",
+    "reverse-etl",
+    "identity",
+    "sso",
+    "upsert",
+    "safety-critical"
+  ],
+  "name": "Okta User Upsert",
+  "vertical": "identity-sso"
+}

@@ -1,0 +1,144 @@
+{
+  "component_type": "dagster_component_templates.BasecampTodoUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into Basecamp to-dos in a target to-do list. Rows are matched to existing to-dos by a key marker embedded in the to-do description (e.g. <!-- dagster-key: INC-1001 -->); Basecamp has no native upsert endpoint for to-dos.",
+  "category": "reverse_etl",
+  "icon": "si:basecamp",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one Basecamp to-do (upserted via key_column)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated). No downstream data -- write side effect lands in Basecamp."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with source."
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "basecamp_resource"
+    },
+    "project_id": {
+      "type": "string",
+      "label": "Project Id",
+      "required": true,
+      "description": "Target Basecamp project (bucket) ID."
+    },
+    "todolist_id": {
+      "type": "string",
+      "label": "Todolist Id",
+      "required": true,
+      "description": "Target Basecamp to-do list ID to-dos are created/matched in."
+    },
+    "key_column": {
+      "type": "string",
+      "label": "Key Column",
+      "required": true,
+      "description": "Upstream column holding a stable unique key, embedded as a dagster-key marker in the to-do description."
+    },
+    "content_column": {
+      "type": "string",
+      "label": "Content Column",
+      "required": true,
+      "description": "Column holding the to-do's title text (Basecamp calls this field `content`, not `title`)."
+    },
+    "description_column": {
+      "type": "string",
+      "label": "Description Column",
+      "required": false,
+      "default": null,
+      "description": "Column holding the to-do description (HTML)."
+    },
+    "due_on_column": {
+      "type": "string",
+      "label": "Due On Column",
+      "required": false,
+      "default": null,
+      "description": "Column holding an ISO-8601 due date."
+    },
+    "assignee_ids_column": {
+      "type": "string",
+      "label": "Assignee Ids Column",
+      "required": false,
+      "default": null,
+      "description": "Column holding Basecamp person IDs to assign. Accepts a list, or a comma-separated string of ints."
+    },
+    "completed_column": {
+      "type": "string",
+      "label": "Completed Column",
+      "required": false,
+      "default": null,
+      "description": "Column holding a boolean/'true'/'false'. Toggles completion via Basecamp's separate completion sub-resource."
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 100,
+      "description": "Max upstream rows to process per run (safety cap)."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "basecamp"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "basecamp",
+    "reverse-etl",
+    "upsert",
+    "project-management",
+    "oauth2"
+  ],
+  "name": "Basecamp To-do Upsert",
+  "vertical": "productivity"
+}

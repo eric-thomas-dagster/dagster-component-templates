@@ -1,0 +1,64 @@
+{
+  "component_type": "dagster_component_templates.OktaResourceComponent",
+  "description": "Register an OktaResource (OAuth2 client_credentials grant against an Okta API Service Integration) wrapping the Okta Users API for use by other components. Exposes only find/create/update/deactivate -- never delete.",
+  "category": "resource",
+  "icon": "si:okta",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "okta_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "okta_resource"
+    },
+    "org_url": {
+      "type": "string",
+      "label": "Org URL",
+      "description": "Your Okta org URL, e.g. 'https://mycompany.okta.com'.",
+      "required": true
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client ID Env Var",
+      "description": "Env var holding the Okta API Service Integration's Client ID (grant it only the okta.users.manage scope).",
+      "required": false,
+      "default": "OKTA_CLIENT_ID",
+      "ui:widget": "env_var"
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "description": "Env var holding the Service Integration's Client Secret.",
+      "required": false,
+      "default": "OKTA_CLIENT_SECRET",
+      "ui:widget": "env_var"
+    },
+    "scope": {
+      "type": "string",
+      "label": "Scope",
+      "description": "Space-separated OAuth scope(s) requested.",
+      "required": false,
+      "default": "okta.users.manage"
+    },
+    "token_path": {
+      "type": "string",
+      "label": "Token Path",
+      "description": "Token endpoint path, relative to org_url.",
+      "required": false,
+      "default": "/oauth2/v1/token"
+    }
+  },
+  "tags": [
+    "resource",
+    "okta",
+    "identity",
+    "sso",
+    "oauth2"
+  ],
+  "name": "Okta Resource",
+  "vertical": "identity-sso"
+}

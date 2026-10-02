@@ -1,0 +1,167 @@
+{
+  "component_type": "dagster_component_templates.HelpScoutConversationUpsertComponent",
+  "description": "Reverse-ETL sink: create-or-update an upstream DataFrame into Help Scout conversations. A row with a conversation_id present updates the existing conversation (tags/note/status); otherwise a new conversation is created, which natively auto-upserts the underlying Customer by email.",
+  "category": "reverse_etl",
+  "icon": "si:helpscout",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one Help Scout conversation (created, or updated if conversation_id_column has a value)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored / rows_skipped_no_key / rows_skipped_noop). No downstream data -- write side effect lands in Help Scout."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with source."
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "help_scout_resource"
+    },
+    "mailbox_id": {
+      "type": "integer",
+      "label": "Mailbox Id",
+      "required": true,
+      "description": "Target Help Scout mailbox ID for new conversations."
+    },
+    "conversation_id_column": {
+      "type": "string",
+      "label": "Conversation Id Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding an existing conversation ID. Present -> UPDATE; absent -> CREATE."
+    },
+    "customer_email_column": {
+      "type": "string",
+      "label": "Customer Email Column",
+      "required": true,
+      "description": "Upstream column holding the customer's email. CREATE identifier -- Help Scout auto-upserts the Customer by this email."
+    },
+    "customer_first_name_column": {
+      "type": "string",
+      "label": "Customer First Name Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding the customer's first name. CREATE only."
+    },
+    "customer_last_name_column": {
+      "type": "string",
+      "label": "Customer Last Name Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding the customer's last name. CREATE only."
+    },
+    "subject_column": {
+      "type": "string",
+      "label": "Subject Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding the conversation subject. Required for CREATE."
+    },
+    "body_column": {
+      "type": "string",
+      "label": "Body Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding the initial thread text. Required for CREATE."
+    },
+    "tags_column": {
+      "type": "string",
+      "label": "Tags Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding tags (comma-separated string or list). CREATE: included in create body. UPDATE: FULL REPLACE via update_tags, not additive."
+    },
+    "note_column": {
+      "type": "string",
+      "label": "Note Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding note text. UPDATE only: posts via add_note."
+    },
+    "status_column": {
+      "type": "string",
+      "label": "Status Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding a status value. UPDATE only: calls patch_status."
+    },
+    "conversation_type": {
+      "type": "string",
+      "label": "Conversation Type",
+      "required": false,
+      "default": "email",
+      "description": "Help Scout conversation type for new conversations."
+    },
+    "max_rows": {
+      "type": "integer",
+      "label": "Max Rows",
+      "required": false,
+      "default": 10000,
+      "description": "Overall safety cap on rows per run."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "help_scout"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "helpscout",
+    "sink",
+    "reverse-etl",
+    "upsert",
+    "support"
+  ],
+  "name": "Help Scout Conversation Upsert",
+  "vertical": "support"
+}

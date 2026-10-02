@@ -1,0 +1,32 @@
+{
+  "component_type": "dagster_component_templates.LinearResourceComponent",
+  "description": "Linear GraphQL API client wrapper. Personal API key or OAuth2 access token, sent raw (no Bearer prefix) in the Authorization header.",
+  "category": "resource",
+  "icon": "si:linear",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "linear_resource",
+      "description": "Key used to register this resource. Other components reference it via resource_key."
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "required": false,
+      "default": "LINEAR_API_KEY",
+      "description": "Env var holding a Linear personal API key or OAuth2 access token."
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base Url",
+      "required": false,
+      "default": "https://api.linear.app/graphql",
+      "description": "Linear GraphQL endpoint."
+    }
+  }
+}

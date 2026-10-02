@@ -1,0 +1,84 @@
+{
+  "component_type": "dagster_component_templates.TwitterAdsTailoredAudienceUpsertComponent",
+  "description": "Reverse-ETL / audience activation: upload an upstream DataFrame into an X (Twitter) Ads Tailored Audience via the single custom_audiences/:id/users endpoint. Each row becomes one user object carrying one or more SHA-256 hashed identifier(s) (email/phone). Supports 'add' (operation_type=Update) and 'remove' (operation_type=Delete). Requests are chunked at 2,500 users per X's documented limit.",
+  "category": "reverse_etl",
+  "icon": "si:x",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row contributes hashed identifier values (email/phone) into one X Ads user object."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (custom_audience_id / operation_type / requests_sent / rows_submitted / success_count / total_count / last_response). X processes audience changes in batches every 6-8 hours on its side."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with `source`."
+    },
+    "source": {
+      "type": "object",
+      "label": "Inline Source",
+      "required": false,
+      "description": "Inline source config (sql / csv / inline). Mutually exclusive with `upstream_asset_key`."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "twitter_ads_resource"
+    },
+    "custom_audience_id": {
+      "type": "string",
+      "label": "Custom Audience ID",
+      "required": true,
+      "description": "Target X Ads Tailored Audience ID. Must already exist."
+    },
+    "fields_map": {
+      "type": "object",
+      "label": "Fields Map",
+      "required": true,
+      "description": "Upstream column -> identifier type ('email' or 'phone'). Values are SHA-256 hashed before upload."
+    },
+    "operation": {
+      "type": "string",
+      "label": "Operation",
+      "required": false,
+      "default": "add",
+      "enum": ["add", "remove"],
+      "ui:widget": "select",
+      "description": "'add' maps to X operation_type=Update; 'remove' maps to operation_type=Delete."
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 50000,
+      "description": "Max upstream rows per run (safety cap)."
+    },
+    "group_name": { "type": "string", "label": "Group Name", "required": false },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "label": "Owners", "required": false },
+    "tags": { "type": "object", "label": "Tags", "required": false },
+    "kinds": { "type": "array", "label": "Kinds", "required": false }
+  },
+  "tags": [
+    "sink",
+    "twitter",
+    "x",
+    "reverse-etl",
+    "activation",
+    "tailored-audience",
+    "audience"
+  ],
+  "name": "Twitter/X Ads Tailored Audience Upsert"
+}

@@ -1,0 +1,65 @@
+{
+  "component_type": "dagster_component_templates.CopperResourceComponent",
+  "description": "Self-contained Copper CRM REST API workhorse. Header-based API-key auth (X-PW-AccessToken / X-PW-Application / X-PW-UserEmail). Retry on 429 / 5xx with exponential backoff (honors Retry-After). Generic get/post/put plus search(object_type, filter_body) and upsert(object_type, search_filter, create_body) -- Copper has no native atomic upsert, so upsert() emulates one via search-then-write.",
+  "category": "resource",
+  "icon": "UsersRound",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "resource",
+      "description": "CopperResource with get/post/put/search/upsert convenience methods. Consumed by copper_record_upsert (sink) and by custom Dagster asset code that needs Copper People/Leads/Companies CRUD."
+    }
+  },
+  "x-dagster-provides": [
+    "copper_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "copper",
+      "description": "Key used to register this resource. Other components reference it via resource_key."
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "required": true,
+      "ui:widget": "env_var",
+      "description": "Env var holding the Copper API key (sent as X-PW-AccessToken)."
+    },
+    "user_email": {
+      "type": "string",
+      "label": "User Email",
+      "required": true,
+      "description": "Email address of the Copper user the API key belongs to. Required by Copper on every request as X-PW-UserEmail."
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base URL",
+      "required": false,
+      "default": "https://api.copper.com/developer_api/v1"
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout (seconds)",
+      "required": false,
+      "default": 60
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "required": false,
+      "default": 3,
+      "description": "Retry attempts on 429 / 5xx (exponential backoff, honors Retry-After)."
+    }
+  },
+  "tags": [
+    "resource",
+    "copper",
+    "crm",
+    "sales",
+    "reverse-etl"
+  ],
+  "name": "Copper Resource",
+  "vertical": "crm-sales"
+}

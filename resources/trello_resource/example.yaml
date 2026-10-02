@@ -1,0 +1,5 @@
+type: dagster_component_templates.TrelloResourceComponent
+attributes:
+  resource_key: trello_resource
+  api_key_env_var: TRELLO_API_KEY
+  api_token_env_var: TRELLO_API_TOKEN

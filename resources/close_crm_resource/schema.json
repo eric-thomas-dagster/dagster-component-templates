@@ -1,0 +1,61 @@
+{
+  "component_type": "dagster_component_templates.CloseCrmResourceComponent",
+  "description": "Self-contained Close CRM REST API workhorse. HTTP Basic auth (API key as username, blank password). Close has no native atomic upsert endpoint, so this resource emulates one via search-then-write: POST /data/search/ (Advanced Filtering) to find an existing Lead by email / phone / name / custom field, then PUT /lead/{id}/ or POST /lead/. Retries on 429 (sliding-window rate limit, backs off using the RateLimit response header) and 5xx.",
+  "category": "resource",
+  "vertical": "crm-sales",
+  "icon": "favicon:close.com",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "resource",
+      "description": "CloseCrmResource with .get/.post/.put, find_lead_by_query (Advanced Filtering search), create_lead, update_lead, and upsert_lead (search-then-write). Consumed by close_crm_lead_upsert (sink) and by custom Dagster asset code that needs raw Close REST access."
+    }
+  },
+  "x-dagster-provides": [
+    "close_crm_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "close_crm",
+      "description": "Key used to register this resource. Other components reference it via resource_key."
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "required": true,
+      "ui:widget": "env_var",
+      "description": "Env var holding the Close API key. Sent as the HTTP Basic username with a blank password."
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base URL",
+      "required": false,
+      "default": "https://api.close.com/api/v1",
+      "description": "Close REST API base URL."
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout (seconds)",
+      "required": false,
+      "default": 30
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "required": false,
+      "default": 3,
+      "description": "Retry attempts on 429 (sliding-window rate limit) and 5xx."
+    }
+  },
+  "tags": [
+    "resource",
+    "close",
+    "close-crm",
+    "crm",
+    "reverse-etl",
+    "search-then-write"
+  ],
+  "name": "Close CRM Resource"
+}

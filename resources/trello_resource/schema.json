@@ -1,0 +1,39 @@
+{
+  "component_type": "dagster_component_templates.TrelloResourceComponent",
+  "description": "Trello REST API client wrapper. API key + token passed as query-string parameters on every request (Trello has no header-based auth).",
+  "category": "resource",
+  "icon": "si:trello",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "trello_resource",
+      "description": "Key used to register this resource. Other components reference it via resource_key."
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "required": false,
+      "default": "TRELLO_API_KEY",
+      "description": "Env var holding the Trello API key."
+    },
+    "api_token_env_var": {
+      "type": "string",
+      "label": "Api Token Env Var",
+      "required": false,
+      "default": "TRELLO_API_TOKEN",
+      "description": "Env var holding the Trello API token."
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base Url",
+      "required": false,
+      "default": "https://api.trello.com/1",
+      "description": "Trello API base URL."
+    }
+  }
+}

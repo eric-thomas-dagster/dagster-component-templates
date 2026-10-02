@@ -1,0 +1,5 @@
+type: dagster_component_templates.PinterestAdsResourceComponent
+attributes:
+  resource_key: pinterest_ads_resource
+  access_token_env_var: PINTEREST_ADS_ACCESS_TOKEN
+  ad_account_id: "549756359984"

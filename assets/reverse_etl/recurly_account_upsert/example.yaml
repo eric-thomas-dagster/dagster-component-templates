@@ -1,0 +1,28 @@
+# RecurlyAccountUpsertComponent -- DataFrame -> Recurly Accounts reverse
+# ETL. Recurly's PUT /accounts/{account_id} ONLY updates (404s if the
+# account doesn't exist, never creates). This component checks existence
+# first via GET /accounts/code-<value>, then PUTs (update) or POSTs
+# (create) accordingly.
+#
+# Requires a RecurlyResourceComponent registered under the same resource_key.
+
+type: dagster_component_templates.RecurlyAccountUpsertComponent
+attributes:
+  asset_name: recurly_accounts_mirror
+  upstream_asset_key: dbt_marts_customers
+  resource_key: recurly
+
+  lookup_field: code                          # Recurly's merchant-assigned account code
+  fields_map:
+    customer_id: code                         # upstream col -> Recurly Account field
+    email: email
+    first_name: first_name
+    last_name: last_name
+    company_name: company
+
+  batch_size: 5000                            # safety cap (1 existence-check GET + 1 write per row)
+
+  group_name: reverse_etl
+  description: "Mirror dbt Customers mart into Recurly Account records."
+  # kinds: [recurly, reverse_etl]
+  # owners: [finance-ops@corp.com]

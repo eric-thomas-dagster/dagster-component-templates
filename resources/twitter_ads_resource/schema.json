@@ -1,0 +1,68 @@
+{
+  "component_type": "dagster_component_templates.TwitterAdsResourceComponent",
+  "description": "Register a TwitterAdsResource (OAuth 1.0a) for the X (Twitter) Ads API for use by other components",
+  "category": "resource",
+  "icon": "si:x",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "twitter_ads_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "twitter_ads_resource"
+    },
+    "consumer_key_env_var": {
+      "type": "string",
+      "label": "Consumer Key Env Var",
+      "description": "Env var holding the X Ads API Consumer Key (API Key)",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "consumer_secret_env_var": {
+      "type": "string",
+      "label": "Consumer Secret Env Var",
+      "description": "Env var holding the X Ads API Consumer Secret (API Secret)",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "access_token_env_var": {
+      "type": "string",
+      "label": "Access Token Env Var",
+      "description": "Env var holding the X Ads API Access Token",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "access_token_secret_env_var": {
+      "type": "string",
+      "label": "Access Token Secret Env Var",
+      "description": "Env var holding the X Ads API Access Token Secret",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "account_id": {
+      "type": "string",
+      "label": "Account ID",
+      "description": "X Ads Account ID (not the numeric X/Twitter user ID)",
+      "required": true
+    },
+    "api_base_url": {
+      "type": "string",
+      "label": "API Base URL",
+      "description": "X Ads API base URL (override for a different API version).",
+      "required": false,
+      "default": "https://ads-api.x.com/12"
+    }
+  },
+  "tags": [
+    "resource",
+    "twitter",
+    "x",
+    "ads",
+    "marketing"
+  ],
+  "name": "Twitter/X Ads Resource"
+}

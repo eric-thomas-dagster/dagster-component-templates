@@ -1,0 +1,5 @@
+type: dagster_component_templates.FreshserviceResourceComponent
+attributes:
+  resource_key: freshservice_resource
+  domain: mycompany.freshservice.com
+  api_key_env_var: FRESHSERVICE_API_KEY

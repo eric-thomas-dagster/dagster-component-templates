@@ -1,0 +1,21 @@
+type: dagster_component_templates.SmartsheetRowUpsertComponent
+attributes:
+  asset_name: smartsheet_tasks_mirror
+  upstream_asset_key: tasks_seed
+  resource_key: smartsheet
+
+  sheet_id: "4583173393803140"
+
+  # Smartsheet has no native column-match upsert -- the resource fetches the
+  # sheet once and matches client-side on this column. Must be in fields_map's
+  # values.
+  key_column: "Task ID"
+
+  # Upstream column -> Smartsheet column title.
+  fields_map:
+    task_id: "Task ID"
+    name: "Task Name"
+    status: Status
+
+  batch_size: 500
+  group_name: smartsheet

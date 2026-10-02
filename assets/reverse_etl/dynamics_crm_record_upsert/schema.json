@@ -1,0 +1,120 @@
+{
+  "component_type": "dagster_component_templates.DynamicsCrmRecordUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into a Microsoft Dynamics 365 (Dataverse) entity set via its native alternate-key upsert endpoint. `PATCH {org_url}/api/data/{api_version}/{entity_set}({key}='{value}')` atomically creates or updates in one request -- no search-then-write. One PATCH per row (Dataverse has no single-call bulk/composite upsert the way Salesforce does).",
+  "category": "reverse_etl",
+  "vertical": "crm-sales",
+  "icon": "Building2",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row → one Dataverse record (upserted via alternate_key_field)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_unknown_action / rows_errored). No downstream data -- the write side effect lands in Dataverse."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`."
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "dynamics_crm"
+    },
+    "entity_set_name": {
+      "type": "string",
+      "label": "Entity Set Name",
+      "required": true,
+      "description": "Target Dataverse entity SET name -- plural, lowercase logical name (e.g. 'accounts', 'contacts', 'leads', 'opportunities', or a custom table's plural logical name)."
+    },
+    "alternate_key_field": {
+      "type": "string",
+      "label": "Alternate Key Field",
+      "required": true,
+      "description": "Dataverse field logical name used as the upsert match key -- MUST be a pre-defined Alternate Key on the table. MUST be present in fields_map values."
+    },
+    "fields_map": {
+      "type": "object",
+      "label": "Fields Map",
+      "required": true,
+      "description": "Upstream column → Dataverse field logical name.",
+      "ui:widget": "key-value"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 5000,
+      "description": "Max upstream rows per run (safety cap). One PATCH per row."
+    },
+    "prefer_representation": {
+      "type": "boolean",
+      "label": "Prefer Representation",
+      "required": false,
+      "default": true,
+      "description": "Send Prefer: return=representation so 201/200 distinguishes created vs. updated and the GUID comes back inline. False skips the extra server-side retrieve but reports every row's action as 'unknown'.",
+      "ui:widget": "checkbox"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "dynamics_crm"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "dynamics_crm",
+    "dataverse",
+    "sink",
+    "reverse-etl",
+    "upsert",
+    "alternate-key"
+  ],
+  "name": "Dynamics CRM Record Upsert"
+}

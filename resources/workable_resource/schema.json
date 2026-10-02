@@ -1,0 +1,39 @@
+{
+  "component_type": "dagster_component_templates.WorkableResourceComponent",
+  "description": "Register a WorkableResource for the Workable SPI v3 REST API (recruiting/ATS) for use by other components",
+  "category": "resource",
+  "icon": "si:workable",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "workable_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "workable_resource"
+    },
+    "api_token_env_var": {
+      "type": "string",
+      "label": "API Token Env Var",
+      "description": "Env var holding the Workable API token.",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "subdomain": {
+      "type": "string",
+      "label": "Subdomain",
+      "description": "Workable subdomain (e.g. 'your-company' from your-company.workable.com).",
+      "required": true
+    }
+  },
+  "tags": [
+    "resource",
+    "workable",
+    "ats",
+    "recruiting"
+  ],
+  "name": "Workable Resource"
+}

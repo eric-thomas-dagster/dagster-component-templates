@@ -1,0 +1,12 @@
+type: dagster_component_templates.WorkableCandidateUpsertComponent
+attributes:
+  asset_name: workable_candidates_mirror
+  upstream_asset_key: dbt_marts_applicants
+  resource_key: workable_resource
+  email_column: email
+  name_column: full_name
+  job_shortcode: ABCD1234
+  fields_map:
+    phone: phone
+    summary: summary
+  group_name: reverse_etl

@@ -1,0 +1,58 @@
+{
+  "component_type": "dagster_component_templates.InsightlyResourceComponent",
+  "description": "Self-contained Insightly CRM REST API v3.1 workhorse. HTTP Basic auth (API key as username, blank password) against a pod-specific host (https://api.{pod}.insightly.com/v3.1). Retries on 429 (logs X-RateLimit headers) / 5xx. .get()/.post()/.put() primitives plus .search() (field_name/field_value lookup) and .upsert() (emulated find-then-create-or-update — Insightly has no native upsert).",
+  "category": "resource",
+  "icon": "Plug",
+  "vertical": "crm-sales",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "resource",
+      "description": "InsightlyResource with .get/.post/.put/.search/.upsert methods. Consumed by insightly_record_upsert (sink) and by custom Dagster asset code that needs Insightly CRUD."
+    }
+  },
+  "x-dagster-provides": [
+    "insightly_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "insightly"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "required": true,
+      "ui:widget": "env_var",
+      "description": "Env var holding the Insightly API key (used as HTTP Basic username, blank password)."
+    },
+    "pod": {
+      "type": "string",
+      "label": "Pod",
+      "required": false,
+      "default": "na1",
+      "description": "Insightly pod identifier, from your account's API Settings page (directly under your API key), e.g. 'na1'."
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout (seconds)",
+      "required": false,
+      "default": 60
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "required": false,
+      "default": 3,
+      "description": "Retry attempts on 429 / 5xx (exponential backoff, capped at 10s)."
+    }
+  },
+  "tags": [
+    "resource",
+    "insightly",
+    "crm",
+    "reverse-etl"
+  ],
+  "name": "Insightly Resource"
+}

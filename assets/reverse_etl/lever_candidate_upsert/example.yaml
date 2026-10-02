@@ -1,0 +1,54 @@
+# LeverCandidateUpsertComponent — DataFrame → Lever opportunity (candidate) upsert.
+# Requires a LeverResourceComponent registered under the same resource_key.
+#
+# Supply EXACTLY ONE of:
+#   1. `upstream_asset_key:` — chain from an existing Dagster asset that produces a DataFrame.
+#   2. `source:` block       — read the DataFrame inline at run time (SQL / CSV / inline rows).
+
+type: dagster_component_templates.LeverCandidateUpsertComponent
+attributes:
+  asset_name: lever_candidates_mirror
+
+  # ── Option 1: upstream Dagster asset ─────────────────────────────
+  upstream_asset_key: dbt_marts_applicants
+
+  # ── Option 2: inline source (uncomment ONE of the three shapes) ──
+  # source:
+  #   kind: sql
+  #   resource_key: analytics_postgres   # any resource w/ .get_engine() or .get_connection()
+  #   query: |
+  #     SELECT email, full_name, current_title, tags, stage_id
+  #     FROM analytics.open_applicants
+  #
+  # source:
+  #   kind: sql
+  #   database_url_env_var: ANALYTICS_POSTGRES_URL   # self-contained: build engine from env var
+  #   query: "SELECT * FROM open_applicants"
+  #
+  # source:
+  #   kind: csv
+  #   path: /data/exports/applicants.csv
+  #   read_csv_kwargs: {sep: ";", encoding: latin1}
+  #
+  # source:
+  #   kind: inline
+  #   rows:
+  #     - {email: jane@example.com, full_name: Jane Doe, current_title: "Eng Manager @ Acme", tags: "warm-lead,referral", stage_id: lead-stage-id}
+  #     - {email: bob@example.com, full_name: Bob Smith, current_title: "SWE @ Acme", tags: "cold-outreach"}
+
+  resource_key: lever_resource
+
+  email_column: email                    # match key, exact-match search in Lever
+  name_column: full_name                 # create-only
+  headline_column: current_title         # create-only
+  tags_column: tags                      # additive -- Lever has no "replace all tags" call
+  stage_id_column: stage_id              # update_stage on match, "stage" on create
+  # archive_reason_column: archive_reason  # only applies to an EXISTING match
+  # posting_id: "abc123-posting-id"        # static, create-only
+  max_rows: 10000                        # safety cap per run
+
+  group_name: reverse_etl
+  description: "Mirror upstream applicants into Lever opportunities, matched by email."
+  # kinds: [lever, reverse_etl]
+  # owners: [talent@corp.com]
+  # tags: {tier: production}

@@ -1,0 +1,35 @@
+# DocuSignEnvelopeSendComponent — DataFrame → DocuSign envelope send
+# (reverse-ETL e-signature activation).
+#
+# !! Materializing this asset creates REAL envelopes and, with the default
+# status: sent, immediately emails a signature request to every resolved
+# recipient. ALWAYS test with a `source: {kind: inline, rows: [...]}`
+# against your own test email addresses (and/or use_demo_env: true on
+# docusign_resource) before pointing this at a real warehouse table.
+#
+# Requires a DocuSignResourceComponent registered under the same
+# resource_key.
+
+type: dagster_component_templates.DocuSignEnvelopeSendComponent
+attributes:
+  asset_name: docusign_contracts_sent
+  upstream_asset_key: dbt_marts_contracts_ready_for_signature
+  resource_key: docusign_resource
+
+  template_id: "55A80182-xxxx-xxxx-xxxx-FD1E1C0F9D74"   # DocuSign template GUID
+  role_name: Signer1                                      # must match the template's recipient role
+  recipient_email_column: signer_email
+  recipient_name_column: signer_name
+  email_subject_template: "Please sign your {contract_type} agreement"
+
+  tabs_map:                              # optional: prefill template text tabs from row columns
+    contract_value: ContractValue
+    effective_date: EffectiveDate
+
+  status: sent                          # "sent" emails immediately; "created" leaves a draft
+  batch_size: 200                       # blast-radius safety cap, NOT a rate limit
+
+  group_name: reverse_etl
+  description: "Send a signature-request envelope for every contract ready today."
+  # kinds: [docusign, reverse_etl]
+  # owners: [legal-ops@corp.com]

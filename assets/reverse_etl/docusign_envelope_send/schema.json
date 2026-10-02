@@ -1,0 +1,107 @@
+{
+  "component_type": "dagster_component_templates.DocuSignEnvelopeSendComponent",
+  "description": "Reverse-ETL e-signature activation: create and send a DocuSign envelope from a template for each row of an upstream DataFrame (`POST /envelopes` with templateId + templateRoles). Creates REAL envelopes and, by default, immediately emails a signature request the moment this asset materializes.",
+  "category": "reverse_etl",
+  "icon": "si:docusign",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one DocuSign envelope created from a template, personalized via tabs_map / email_subject_template."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (envelopes_sent / envelopes_failed / rows_skipped_no_recipient / first_envelope_ids). No downstream data -- the send side effect is a real DocuSign envelope + signature-request email."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with `source`."
+    },
+    "source": {
+      "type": "object",
+      "label": "Inline Source",
+      "required": false,
+      "description": "Inline source config (sql / csv / inline). Mutually exclusive with `upstream_asset_key`."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "docusign_resource"
+    },
+    "template_id": {
+      "type": "string",
+      "label": "Template ID",
+      "required": true,
+      "description": "DocuSign template ID (GUID) the envelope is built from."
+    },
+    "role_name": {
+      "type": "string",
+      "label": "Role Name",
+      "required": true,
+      "description": "Template recipient role name to assign the resolved email/name to."
+    },
+    "recipient_email_column": {
+      "type": "string",
+      "label": "Recipient Email Column",
+      "required": true,
+      "description": "Upstream column holding the recipient's email address."
+    },
+    "recipient_name_column": {
+      "type": "string",
+      "label": "Recipient Name Column",
+      "required": true,
+      "description": "Upstream column holding the recipient's full name."
+    },
+    "email_subject_template": {
+      "type": "string",
+      "label": "Email Subject Template",
+      "required": false,
+      "default": "Please sign this document",
+      "description": "Envelope email subject. Supports {column_name} substitution."
+    },
+    "status": {
+      "type": "string",
+      "label": "Status",
+      "required": false,
+      "default": "sent",
+      "description": "'sent' emails immediately; 'created' leaves a draft."
+    },
+    "tabs_map": {
+      "type": "object",
+      "label": "Tabs Map",
+      "required": false,
+      "description": "Upstream column -> template text-tab tabLabel, to prefill from row values."
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 500,
+      "description": "Max upstream rows per run (blast-radius safety cap, not a rate limit)."
+    },
+    "group_name": { "type": "string", "label": "Group Name", "required": false },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "label": "Owners", "required": false },
+    "tags": { "type": "object", "label": "Tags", "required": false },
+    "kinds": { "type": "array", "label": "Kinds", "required": false }
+  },
+  "tags": [
+    "sink",
+    "docusign",
+    "esignature",
+    "reverse-etl",
+    "activation",
+    "document"
+  ],
+  "name": "DocuSign Envelope Send",
+  "vertical": "esignature-activation"
+}

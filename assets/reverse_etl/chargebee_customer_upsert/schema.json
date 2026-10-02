@@ -1,0 +1,77 @@
+{
+  "component_type": "dagster_component_templates.ChargebeeCustomerUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into Chargebee Customer records. Chargebee uses POST for every mutating operation and has no upsert-by-key call -- POST /customers creates (fails if the id already exists), POST /customers/{id} updates (404s if it doesn't exist). This component looks up by lookup_field first via the list endpoint's '<field>[is]=' filter to discover an existing customer id, then issues the appropriate create-or-update POST. Two API calls per row.",
+  "category": "reverse_etl",
+  "icon": "Receipt",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one Chargebee Customer record (upserted via lookup_field)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored / api_requests). No downstream data -- the write side effect lands in Chargebee."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with `source`."
+    },
+    "source": {
+      "type": "object",
+      "label": "Inline Source",
+      "required": false,
+      "description": "Inline source config (sql / csv / inline). Mutually exclusive with `upstream_asset_key`."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "chargebee"
+    },
+    "lookup_field": {
+      "type": "string",
+      "label": "Lookup Field",
+      "required": false,
+      "default": "email",
+      "description": "Chargebee Customer field used to find an existing record via the list endpoint's '<field>[is]=' filter. MUST be present in fields_map values."
+    },
+    "fields_map": {
+      "type": "object",
+      "label": "Fields Map",
+      "required": true,
+      "description": "Upstream column -> Chargebee Customer field name.",
+      "ui:widget": "key-value"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 5000,
+      "description": "Max upstream rows per run (safety cap). No upsert-by-key endpoint -- each row costs 1 list-filter GET + 1 write POST."
+    },
+    "group_name": { "type": "string", "label": "Group Name", "required": false, "default": "chargebee" },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "items": { "type": "string" }, "label": "Owners", "required": false, "ui:widget": "list" },
+    "tags": { "type": "object", "label": "Tags", "required": false, "ui:widget": "key-value" },
+    "kinds": { "type": "array", "items": { "type": "string" }, "label": "Kinds", "required": false, "ui:widget": "list" }
+  },
+  "tags": [
+    "chargebee",
+    "sink",
+    "reverse-etl",
+    "upsert",
+    "customer",
+    "billing"
+  ],
+  "name": "Chargebee Customer Upsert",
+  "vertical": "erp-finance"
+}

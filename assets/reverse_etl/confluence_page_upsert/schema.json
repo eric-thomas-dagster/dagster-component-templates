@@ -1,0 +1,119 @@
+{
+  "component_type": "dagster_component_templates.ConfluencePageUpsertComponent",
+  "description": "Reverse-ETL sink: batch-upsert rows from an upstream DataFrame into Confluence Cloud pages, one row per page, matched on (space_id, title). Confluence has no native page upsert endpoint -- this is a search-then-write pattern (GET by space-id+title, then PUT or POST), with version-number-plus-one handled automatically on update.",
+  "category": "reverse_etl",
+  "vertical": "productivity",
+  "icon": "si:confluence",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row upserts one Confluence page, matched on (space_id, title)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata. No downstream data -- write side effect lands in Confluence."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with source."
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "confluence"
+    },
+    "space_id": {
+      "type": "string",
+      "label": "Space Id",
+      "required": true,
+      "description": "Confluence space id to scope pages to (numeric space id, not the space key)."
+    },
+    "fields_map": {
+      "type": "object",
+      "label": "Fields Map",
+      "required": true,
+      "description": "Upstream column -> Confluence field name. Must include exactly one mapping to 'title'.",
+      "ui:widget": "key-value"
+    },
+    "body_column": {
+      "type": "string",
+      "label": "Body Column",
+      "required": true,
+      "description": "Upstream column holding the page's body content."
+    },
+    "wrap_body_as_html": {
+      "type": "boolean",
+      "label": "Wrap Body As Html",
+      "required": false,
+      "default": true,
+      "description": "If true, body_column is treated as plain text and wrapped into escaped <p> paragraphs. If false, body_column is assumed to already be storage-format XHTML.",
+      "ui:widget": "checkbox"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 5000,
+      "description": "Max upstream rows per run (safety cap)."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "confluence"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "confluence",
+    "atlassian",
+    "reverse-etl",
+    "upsert"
+  ],
+  "name": "Confluence Page Upsert",
+  "vertical": "productivity"
+}

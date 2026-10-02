@@ -1,0 +1,38 @@
+{
+  "component_type": "dagster_component_templates.BasecampResourceComponent",
+  "description": "Basecamp 3/4 REST API client wrapper. Every request is scoped under a per-account URL (https://3.basecampapi.com/<account_id>/...); auth is an OAuth2 Bearer access token obtained via a 3-legged authorization-code grant.",
+  "category": "resource",
+  "icon": "si:basecamp",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "basecamp_resource",
+      "description": "Key used to register this resource. Other components reference it via resource_key."
+    },
+    "account_id": {
+      "type": "string",
+      "label": "Account Id",
+      "required": true,
+      "description": "Basecamp account ID (numeric segment after the host in any Basecamp URL)."
+    },
+    "access_token_env_var": {
+      "type": "string",
+      "label": "Access Token Env Var",
+      "required": false,
+      "default": "BASECAMP_ACCESS_TOKEN",
+      "description": "Env var holding a Basecamp OAuth2 access token."
+    },
+    "user_agent": {
+      "type": "string",
+      "label": "User Agent",
+      "required": false,
+      "default": "Dagster Community Components (https://github.com/dagster-io)",
+      "description": "User-Agent header value sent on every request."
+    }
+  }
+}

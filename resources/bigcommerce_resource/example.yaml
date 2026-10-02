@@ -1,0 +1,6 @@
+type: dagster_component_templates.BigCommerceResourceComponent
+attributes:
+  resource_key: bigcommerce
+  store_hash: abc123def
+  access_token_env_var: BIGCOMMERCE_ACCESS_TOKEN
+  api_version: "v3"

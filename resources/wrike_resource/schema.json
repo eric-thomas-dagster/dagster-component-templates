@@ -1,0 +1,32 @@
+{
+  "component_type": "dagster_component_templates.WrikeResourceComponent",
+  "description": "Wrike REST API v4 client wrapper. Permanent access token sent as a standard Bearer token in the Authorization header.",
+  "category": "resource",
+  "icon": "si:wrike",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "wrike_resource",
+      "description": "Key used to register this resource. Other components reference it via resource_key."
+    },
+    "access_token_env_var": {
+      "type": "string",
+      "label": "Access Token Env Var",
+      "required": false,
+      "default": "WRIKE_ACCESS_TOKEN",
+      "description": "Env var holding a Wrike permanent access token."
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base Url",
+      "required": false,
+      "default": "https://www.wrike.com/api/v4",
+      "description": "Wrike API base URL."
+    }
+  }
+}

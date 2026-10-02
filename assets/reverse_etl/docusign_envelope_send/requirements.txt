@@ -1,0 +1,4 @@
+pandas>=2.0.0
+requests
+pyjwt
+cryptography

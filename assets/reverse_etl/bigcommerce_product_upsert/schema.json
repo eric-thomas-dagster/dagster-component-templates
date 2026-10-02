@@ -1,0 +1,94 @@
+{
+  "component_type": "dagster_component_templates.BigCommerceProductUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into BigCommerce Products via the Catalog API v3. Search-then-write per row (BigCommerce has no native upsert) — GET /catalog/products?sku=X → PUT the match or POST a new product. CREATE requires name, type, weight, and price at minimum.",
+  "category": "reverse_etl",
+  "icon": "si:bigcommerce",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row → one BigCommerce product (upserted by matching on sku)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored). No downstream data — write side effect lands in BigCommerce."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with `source`."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "bigcommerce"
+    },
+    "fields_map": {
+      "type": "object",
+      "label": "Fields Map",
+      "required": true,
+      "description": "Upstream column → BigCommerce field name. MUST include a mapping to `sku`.",
+      "ui:widget": "key-value"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 200,
+      "description": "Max upstream rows per run (safety cap)."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "bigcommerce"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "bigcommerce",
+    "sink",
+    "reverse-etl",
+    "upsert",
+    "products",
+    "e-commerce"
+  ],
+  "name": "BigCommerce Product Upsert",
+  "vertical": "crm-sales"
+}

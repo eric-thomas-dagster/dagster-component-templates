@@ -1,0 +1,49 @@
+{
+  "component_type": "dagster_component_templates.ZuoraResourceComponent",
+  "description": "Register a ZuoraResource wrapping the Zuora REST API. OAuth2 client-credentials flow -- Zuora deprecated session-based Z-Session auth for all tenants on 2024-08-01, so OAuth2 is the only supported mechanism now. Exposes a generic request() plus query() (ZOQL via POST /v1/action/query, used for lookup-before-write since the generic Object CRUD API has no filter-by-field GET).",
+  "category": "resource",
+  "icon": "Repeat",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "zuora"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "zuora"
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base URL",
+      "description": "Zuora REST endpoint (region/environment-specific, e.g. rest.na.zuora.com, rest.eu.zuora.com, or a sandbox host).",
+      "required": true
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client ID Env Var",
+      "description": "Env var with the Zuora OAuth2 Client ID.",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "description": "Env var with the Zuora OAuth2 Client Secret.",
+      "required": true,
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": [
+    "resource",
+    "zuora",
+    "billing",
+    "subscriptions",
+    "erp",
+    "oauth2"
+  ],
+  "name": "Zuora Resource",
+  "vertical": "erp-finance"
+}

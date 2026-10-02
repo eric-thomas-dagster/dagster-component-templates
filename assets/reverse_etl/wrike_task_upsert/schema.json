@@ -1,0 +1,137 @@
+{
+  "component_type": "dagster_component_templates.WrikeTaskUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into Wrike tasks in a target Folder. Rows are matched to existing tasks by a key marker embedded in the task description (e.g. <!-- dagster-key: INC-1001 -->); Wrike has no native upsert endpoint for tasks.",
+  "category": "reverse_etl",
+  "icon": "si:wrike",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one Wrike task (upserted via key_column)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated). No downstream data -- write side effect lands in Wrike."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with source."
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "wrike_resource"
+    },
+    "folder_id": {
+      "type": "string",
+      "label": "Folder Id",
+      "required": true,
+      "description": "Target Wrike Folder ID tasks are created/matched in."
+    },
+    "key_column": {
+      "type": "string",
+      "label": "Key Column",
+      "required": true,
+      "description": "Upstream column holding a stable unique key, embedded as a dagster-key marker in the task description."
+    },
+    "title_column": {
+      "type": "string",
+      "label": "Title Column",
+      "required": true,
+      "description": "Column holding the task title."
+    },
+    "description_column": {
+      "type": "string",
+      "label": "Description Column",
+      "required": false,
+      "default": null,
+      "description": "Column holding the task description (HTML)."
+    },
+    "status_column": {
+      "type": "string",
+      "label": "Status Column",
+      "required": false,
+      "default": null,
+      "description": "Column holding a Wrike status: Active, Completed, Deferred, or Cancelled."
+    },
+    "importance_column": {
+      "type": "string",
+      "label": "Importance Column",
+      "required": false,
+      "default": null,
+      "description": "Column holding a Wrike importance: High, Normal, or Low."
+    },
+    "due_date_column": {
+      "type": "string",
+      "label": "Due Date Column",
+      "required": false,
+      "default": null,
+      "description": "Column holding an ISO-8601 due date, sent as dates.due."
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 100,
+      "description": "Max upstream rows to process per run (safety cap)."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "wrike"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "wrike",
+    "reverse-etl",
+    "upsert",
+    "project-management"
+  ],
+  "name": "Wrike Task Upsert",
+  "vertical": "productivity"
+}

@@ -1,0 +1,6 @@
+type: dagster_component_templates.WooCommerceResourceComponent
+attributes:
+  resource_key: woocommerce
+  store_url: https://mystore.com
+  consumer_key_env_var: WOOCOMMERCE_CONSUMER_KEY
+  consumer_secret_env_var: WOOCOMMERCE_CONSUMER_SECRET

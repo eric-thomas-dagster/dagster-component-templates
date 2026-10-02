@@ -1,0 +1,40 @@
+# PandaDocDocumentCreateComponent — DataFrame → PandaDoc document create +
+# send (reverse-ETL e-signature activation).
+#
+# !! Materializing this asset creates REAL documents and, with the default
+# auto_send: true, immediately emails a signature request to every resolved
+# recipient. ALWAYS test with a `source: {kind: inline, rows: [...]}`
+# against your own test email addresses before pointing this at a real
+# warehouse table.
+#
+# Requires a PandaDocResourceComponent registered under the same
+# resource_key.
+
+type: dagster_component_templates.PandaDocDocumentCreateComponent
+attributes:
+  asset_name: pandadoc_contracts_sent
+  upstream_asset_key: dbt_marts_contracts_ready_for_signature
+  resource_key: pandadoc_resource
+
+  template_uuid: "AbCdEfGhIjKlMnOpQrStUv"    # PandaDoc template UUID
+  name_template: "{contract_type} Agreement - {customer_name}"
+
+  recipient_email_column: signer_email
+  recipient_first_name_column: signer_first_name
+  recipient_last_name_column: signer_last_name
+  recipient_role: Client                      # must match a role on the template, if any
+
+  tokens_map:                                 # optional: prefill template tokens from row columns
+    contract_value: contract.value
+    effective_date: contract.effective_date
+
+  auto_send: true                             # poll until sendable, then send immediately
+  poll_interval_seconds: 2.0
+  poll_timeout_seconds: 120
+
+  batch_size: 200                             # blast-radius safety cap, NOT a rate limit
+
+  group_name: reverse_etl
+  description: "Create and send a PandaDoc contract for every row ready for signature today."
+  # kinds: [pandadoc, reverse_etl]
+  # owners: [legal-ops@corp.com]

@@ -1,0 +1,62 @@
+# FreshserviceTicketUpsertComponent — DataFrame → Freshservice ticket reverse ETL.
+# Requires a FreshserviceResourceComponent registered under the same resource_key.
+#
+# Supply EXACTLY ONE of:
+#   1. `upstream_asset_key:` — chain from an existing Dagster asset that produces a DataFrame.
+#   2. `source:` block       — read the DataFrame inline at run time (SQL / CSV / inline rows).
+#
+# fields_map prefix convention:
+#   - "custom_fields.<name>" values go into the nested custom_fields object (create/update).
+#   - unprefixed values (subject, description, email, priority, status, ...) are top-level fields.
+# key_field must appear in fields_map values. If it carries the "custom_fields." prefix,
+# it's stripped before being used in the Filter Tickets API query (filter syntax uses the
+# bare field name, never the nested payload path).
+
+type: dagster_component_templates.FreshserviceTicketUpsertComponent
+attributes:
+  asset_name: freshservice_tickets_from_alerts
+
+  # ── Option 1: upstream Dagster asset ─────────────────────────────
+  upstream_asset_key: alerts_to_tickets
+
+  # ── Option 2: inline source (uncomment ONE of the three shapes) ──
+  # source:
+  #   kind: sql
+  #   resource_key: analytics_postgres   # any resource w/ .get_engine() or .get_connection()
+  #   query: |
+  #     SELECT alert_id, title, details, requester_email, priority
+  #     FROM analytics.open_alerts
+  #     WHERE created_at > now() - interval '1 day'
+  #
+  # source:
+  #   kind: sql
+  #   database_url_env_var: ANALYTICS_POSTGRES_URL   # self-contained: build engine from env var
+  #   query: "SELECT * FROM open_alerts"
+  #
+  # source:
+  #   kind: csv
+  #   path: /data/exports/alerts.csv
+  #   read_csv_kwargs: {sep: ";", encoding: latin1}
+  #
+  # source:
+  #   kind: inline
+  #   rows:
+  #     - {alert_id: A-001, title: Payment gateway down, details: "...", requester_email: ops@corp.com, priority: 4}
+  #     - {alert_id: A-002, title: Redis connection lost, details: "...", requester_email: ops@corp.com, priority: 3}
+
+  resource_key: freshservice_resource
+
+  key_field: custom_fields.unique_external_id   # match on this field (must be in fields_map values)
+  fields_map:
+    alert_id: custom_fields.unique_external_id  # source column → Freshservice field
+    title: subject
+    details: description
+    requester_email: email
+    priority: priority
+  batch_size: 500                               # safety cap per run
+
+  group_name: reverse_etl
+  description: "Mirror upstream alerts into Freshservice tickets with unique_external_id match."
+  # kinds: [freshservice, reverse_etl]
+  # owners: [platform@corp.com]
+  # tags: {tier: production}

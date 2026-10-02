@@ -1,0 +1,30 @@
+# DynamicsCrmRecordUpsertComponent — DataFrame → Microsoft Dynamics 365
+# (Dataverse) reverse ETL using the native alternate-key upsert endpoint.
+# Atomic create-or-update, no search-then-write.
+#
+# Requires a DynamicsCrmResourceComponent registered under the same
+# resource_key AND the target field (alternate_key_field) marked as an
+# "Alternate Key" on the Dataverse table (maker portal → table → Keys).
+
+type: dagster_component_templates.DynamicsCrmRecordUpsertComponent
+attributes:
+  asset_name: dynamics_crm_accounts_mirror
+  upstream_asset_key: dbt_marts_accounts
+  resource_key: dynamics_crm
+
+  entity_set_name: accounts                     # plural, lowercase logical name
+  alternate_key_field: cr_external_account_id    # must be an Alternate Key in Dataverse
+  fields_map:
+    account_id: cr_external_account_id           # upstream col → Dataverse field
+    name: name
+    industry: industrycode
+    annual_revenue: revenue
+    website: websiteurl
+
+  batch_size: 5000                               # safety cap
+  prefer_representation: true                    # 201/200 disambiguates created/updated + returns GUID
+
+  group_name: reverse_etl
+  description: "Mirror dbt Accounts mart into Dynamics 365 Accounts via alternate-key upsert."
+  # kinds: [dynamics_crm, reverse_etl]
+  # owners: [platform@corp.com]

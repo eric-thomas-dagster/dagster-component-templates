@@ -1,0 +1,23 @@
+type: dagster_component_templates.ClickUpTaskUpsertComponent
+attributes:
+  asset_name: clickup_incidents_mirror
+  upstream_asset_key: incidents_seed
+  resource_key: clickup_resource
+
+  list_id: "901234567"
+
+  # Stable unique key. Written into each task's description as
+  # `<!-- dagster-key: <value> -->` and used to match rows to existing
+  # tasks on subsequent runs.
+  key_column: incident_id
+  name_column: name
+
+  # Optional
+  description_column: description
+  status_column: status
+  priority_column: severity        # 'Urgent'/'High'/'Normal'/'Low' or 1-4
+  assignees_column: assignee_user_ids
+  tags_column: tags
+
+  batch_size: 100
+  group_name: clickup

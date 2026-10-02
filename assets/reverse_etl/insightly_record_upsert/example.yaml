@@ -1,0 +1,34 @@
+# InsightlyRecordUpsertComponent -- DataFrame -> Insightly CRM reverse ETL.
+#
+# Insightly has NO native upsert: this sink searches
+# GET /{object_type}/Search?field_name=X&field_value=Y via InsightlyResource,
+# then PUTs the match or POSTs a new record. Search-then-write, not atomic --
+# see README for the race-condition caveat.
+#
+# Requires an InsightlyResourceComponent registered under the same resource_key.
+#
+# Leads/Organisations variant: those objects use flat fields (e.g. Leads has
+# a flat EMAIL field) -- map directly, don't use the "email"/"phone"
+# sentinel (that only triggers CONTACTINFOS nesting for object_type: Contacts).
+
+type: dagster_component_templates.InsightlyRecordUpsertComponent
+attributes:
+  asset_name: insightly_contacts_mirror
+  upstream_asset_key: dbt_marts_customers
+  resource_key: insightly
+
+  object_type: Contacts
+  dedupe_field: email               # fields_map value used for the search; must appear below
+  fields_map:
+    work_email: email               # "email" sentinel -> nested into CONTACTINFOS (Contacts only)
+    work_phone: phone                # "phone" sentinel -> nested into CONTACTINFOS (Contacts only)
+    first_name: FIRST_NAME
+    last_name: LAST_NAME
+    lead_source: LEAD_SOURCE_ID
+
+  batch_size: 5000                  # safety cap -- no batch endpoint, 1 search + 1 write per row
+
+  group_name: reverse_etl
+  description: "Mirror dbt Customers mart into Insightly Contacts (emulated upsert by email)."
+  # kinds: [insightly, reverse_etl]
+  # owners: [sales-ops@corp.com]

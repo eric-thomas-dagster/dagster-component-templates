@@ -1,0 +1,141 @@
+{
+  "component_type": "dagster_component_templates.LeverCandidateUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into Lever opportunities (candidates) via search-then-write. Lever supports an exact-match email filter, so this is a true upsert: a match gets tagged/staged/archived in place, a non-match gets a brand-new opportunity created.",
+  "category": "reverse_etl",
+  "icon": "si:lever",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one Lever opportunity (upserted via email match)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored / rows_skipped_no_key). No downstream data -- write side effect lands in Lever."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with source."
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "lever_resource"
+    },
+    "email_column": {
+      "type": "string",
+      "label": "Email Column",
+      "required": true,
+      "description": "Upstream column holding the candidate's email -- the match key, searched via search_opportunities_by_email."
+    },
+    "name_column": {
+      "type": "string",
+      "label": "Name Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding the candidate's full name. Used on CREATE only."
+    },
+    "headline_column": {
+      "type": "string",
+      "label": "Headline Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding the candidate's headline (e.g. current title/company). Used on CREATE only."
+    },
+    "tags_column": {
+      "type": "string",
+      "label": "Tags Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding tags (comma-separated string or list). Added via addTags on every row that has a match or gets created. ADDITIVE ONLY -- Lever has no 'replace all tags' call."
+    },
+    "stage_id_column": {
+      "type": "string",
+      "label": "Stage Id Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding a Lever stage ID. Updates stage on an existing match; included as 'stage' on create."
+    },
+    "archive_reason_column": {
+      "type": "string",
+      "label": "Archive Reason Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding an archive reason. Only applies to an EXISTING matched opportunity -- never on create."
+    },
+    "posting_id": {
+      "type": "string",
+      "label": "Posting Id",
+      "required": false,
+      "default": null,
+      "description": "Static Lever posting ID, passed to create_opportunity only."
+    },
+    "max_rows": {
+      "type": "integer",
+      "label": "Max Rows",
+      "required": false,
+      "default": 10000,
+      "description": "Overall safety cap on rows per run."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "lever"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "lever",
+    "sink",
+    "reverse-etl",
+    "upsert",
+    "ats",
+    "hr"
+  ],
+  "name": "Lever Candidate Upsert",
+  "vertical": "finance-hr"
+}

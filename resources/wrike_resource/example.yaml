@@ -1,0 +1,4 @@
+type: dagster_component_templates.WrikeResourceComponent
+attributes:
+  resource_key: wrike_resource
+  access_token_env_var: WRIKE_ACCESS_TOKEN

@@ -1,0 +1,83 @@
+{
+  "component_type": "dagster_component_templates.PinterestAudienceUpsertComponent",
+  "description": "Reverse-ETL / audience activation: upload an upstream DataFrame into an existing Pinterest Customer List (the object behind a CUSTOMER_LIST-type Audience) via the PATCH customer_lists update endpoint. Rows are sent as records_v2 (one object per customer, carrying email and/or hashed_phone_number). Identifiers are SHA-256 hashed before upload. Supports 'add' (operation_type=ADD) and 'remove' (operation_type=REMOVE).",
+  "category": "reverse_etl",
+  "icon": "si:pinterest",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row contributes hashed identifier values (email/phone) into one Pinterest records_v2 row."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (customer_list_id / operation_type / rows_submitted / status / num_uploaded_user_records / num_removed_user_records / num_batches / update_response). Matching to produce a targetable audience can take up to 48-72h on Pinterest's side."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with `source`."
+    },
+    "source": {
+      "type": "object",
+      "label": "Inline Source",
+      "required": false,
+      "description": "Inline source config (sql / csv / inline). Mutually exclusive with `upstream_asset_key`."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "pinterest_ads_resource"
+    },
+    "customer_list_id": {
+      "type": "string",
+      "label": "Customer List ID",
+      "required": true,
+      "description": "Target Pinterest Customer List ID. Must already exist."
+    },
+    "fields_map": {
+      "type": "object",
+      "label": "Fields Map",
+      "required": true,
+      "description": "Upstream column -> identifier type ('email' or 'phone'). Values are SHA-256 hashed before upload."
+    },
+    "operation": {
+      "type": "string",
+      "label": "Operation",
+      "required": false,
+      "default": "add",
+      "enum": ["add", "remove"],
+      "ui:widget": "select",
+      "description": "'add' maps to Pinterest operation_type=ADD; 'remove' maps to operation_type=REMOVE."
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 50000,
+      "description": "Max upstream rows per run (safety cap)."
+    },
+    "group_name": { "type": "string", "label": "Group Name", "required": false },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "label": "Owners", "required": false },
+    "tags": { "type": "object", "label": "Tags", "required": false },
+    "kinds": { "type": "array", "label": "Kinds", "required": false }
+  },
+  "tags": [
+    "sink",
+    "pinterest",
+    "reverse-etl",
+    "activation",
+    "customer-list",
+    "audience"
+  ],
+  "name": "Pinterest Audience Upsert"
+}

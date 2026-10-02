@@ -1,0 +1,63 @@
+{
+  "component_type": "dagster_component_templates.ConfluenceResourceComponent",
+  "description": "Register a ConfluenceResource wrapping the Confluence Cloud REST v2 API (pages/spaces) for use by other components",
+  "category": "resource",
+  "icon": "si:confluence",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "confluence_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "confluence"
+    },
+    "site_domain": {
+      "type": "string",
+      "label": "Site Domain",
+      "description": "Your Atlassian site subdomain (for yoursite.atlassian.net, pass 'yoursite').",
+      "required": true
+    },
+    "email_env_var": {
+      "type": "string",
+      "label": "Email Env Var",
+      "description": "Env var holding the Atlassian account email (Basic auth username).",
+      "required": false,
+      "default": "CONFLUENCE_EMAIL",
+      "ui:widget": "env_var"
+    },
+    "api_token_env_var": {
+      "type": "string",
+      "label": "Api Token Env Var",
+      "description": "Env var holding an Atlassian API token.",
+      "required": false,
+      "default": "CONFLUENCE_API_TOKEN",
+      "ui:widget": "env_var"
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "description": "Per-request timeout in seconds.",
+      "required": false,
+      "default": 60
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "description": "Retry attempts on 429 (honors Retry-After) / 5xx.",
+      "required": false,
+      "default": 3
+    }
+  },
+  "tags": [
+    "resource",
+    "confluence",
+    "atlassian",
+    "productivity"
+  ],
+  "name": "Confluence Resource",
+  "vertical": "productivity"
+}

@@ -1,0 +1,78 @@
+{
+  "component_type": "dagster_component_templates.ZuoraAccountUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into Zuora Account records via the generic Object CRUD API. Zuora has no upsert-by-key endpoint and no filter-by-field GET -- this component queries by lookup_field first via ZOQL (POST /v1/action/query) to discover an existing Account Id, then issues PUT /v1/object/account/{id} (update) or POST /v1/object/account (create). Two API calls per row. Create requires Name, Currency, BillCycleDay, and Status in fields_map -- no defaults are supplied.",
+  "category": "reverse_etl",
+  "icon": "Repeat",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one Zuora Account record (upserted via lookup_field, typically AccountNumber)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored / api_requests). No downstream data -- the write side effect lands in Zuora."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with `source`."
+    },
+    "source": {
+      "type": "object",
+      "label": "Inline Source",
+      "required": false,
+      "description": "Inline source config (sql / csv / inline). Mutually exclusive with `upstream_asset_key`."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "zuora"
+    },
+    "lookup_field": {
+      "type": "string",
+      "label": "Lookup Field",
+      "required": false,
+      "default": "AccountNumber",
+      "description": "Zuora Account field used to find an existing record via a ZOQL where clause. MUST be present in fields_map values."
+    },
+    "fields_map": {
+      "type": "object",
+      "label": "Fields Map",
+      "required": true,
+      "description": "Upstream column -> Zuora Account field name. Must include Name, Currency, BillCycleDay, and Status for create to succeed.",
+      "ui:widget": "key-value"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 5000,
+      "description": "Max upstream rows per run (safety cap). No upsert-by-key endpoint -- each row costs 1 ZOQL query + 1 write."
+    },
+    "group_name": { "type": "string", "label": "Group Name", "required": false, "default": "zuora" },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "items": { "type": "string" }, "label": "Owners", "required": false, "ui:widget": "list" },
+    "tags": { "type": "object", "label": "Tags", "required": false, "ui:widget": "key-value" },
+    "kinds": { "type": "array", "items": { "type": "string" }, "label": "Kinds", "required": false, "ui:widget": "list" }
+  },
+  "tags": [
+    "zuora",
+    "sink",
+    "reverse-etl",
+    "upsert",
+    "account",
+    "billing",
+    "zoql"
+  ],
+  "name": "Zuora Account Upsert",
+  "vertical": "erp-finance"
+}

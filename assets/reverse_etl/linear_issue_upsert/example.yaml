@@ -1,0 +1,24 @@
+type: dagster_component_templates.LinearIssueUpsertComponent
+attributes:
+  asset_name: linear_incidents_mirror
+  upstream_asset_key: incidents_seed
+  resource_key: linear_resource
+
+  team_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+  # Stable unique key. A uuid5 derived from (team_id, key value) is passed
+  # as Linear's own IssueCreateInput.id -- re-runs update the same issue,
+  # no label/body-marker hack needed.
+  key_column: incident_id
+  title_column: name
+
+  # Optional
+  description_column: description
+  priority_column: severity         # 'Urgent'/'High'/'Medium'/'Low' or 0-4
+  state_name_column: status         # e.g. 'Done', 'In Progress'
+  label_names_column: labels
+  default_labels: [auto-synced]
+  # assignee_email_column: owner_email
+
+  batch_size: 100
+  group_name: linear

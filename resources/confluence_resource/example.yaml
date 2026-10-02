@@ -1,0 +1,6 @@
+type: dagster_component_templates.ConfluenceResourceComponent
+attributes:
+  resource_key: confluence
+  site_domain: yoursite
+  email_env_var: CONFLUENCE_EMAIL
+  api_token_env_var: CONFLUENCE_API_TOKEN

@@ -1,0 +1,61 @@
+{
+  "component_type": "dagster_component_templates.MagentoResourceComponent",
+  "description": "Register a MagentoResource wrapping the Magento/Adobe Commerce REST API for use by other components",
+  "category": "resource",
+  "icon": "si:magento",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "magento_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "magento"
+    },
+    "instance_url": {
+      "type": "string",
+      "label": "Instance Url",
+      "description": "Your Magento/Adobe Commerce instance base URL, e.g. 'https://mystore.example.com' (self-hosted -- no fixed SaaS domain).",
+      "required": true
+    },
+    "admin_token_env_var": {
+      "type": "string",
+      "label": "Admin Token Env Var",
+      "description": "Env var holding the pre-generated Magento admin/integration access token (Admin > System > Integrations, or POST /V1/integration/admin/token).",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "description": "Per-request timeout in seconds.",
+      "required": false,
+      "default": 60
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "description": "Retry attempts on 429 (honors Retry-After) / 5xx.",
+      "required": false,
+      "default": 3
+    },
+    "attribute_set_id": {
+      "type": "integer",
+      "label": "Attribute Set Id",
+      "description": "Default Magento attribute set Id used on product create when the sink's fields_map doesn't supply one. Default Magento installs ship a 'Default' attribute set at id 4.",
+      "required": false,
+      "default": 4
+    }
+  },
+  "tags": [
+    "resource",
+    "magento",
+    "adobe-commerce",
+    "ecommerce",
+    "retail"
+  ],
+  "name": "Magento Resource"
+}

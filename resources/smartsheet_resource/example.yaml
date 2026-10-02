@@ -1,0 +1,4 @@
+type: dagster_component_templates.SmartsheetResourceComponent
+attributes:
+  resource_key: smartsheet
+  access_token_env_var: SMARTSHEET_ACCESS_TOKEN

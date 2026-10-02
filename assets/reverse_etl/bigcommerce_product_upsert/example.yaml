@@ -1,0 +1,27 @@
+# BigCommerceProductUpsertComponent -- DataFrame → BigCommerce Products reverse ETL.
+# Search-by-sku → PUT if found, POST if new. BigCommerce has no native upsert.
+#
+# Requires a BigCommerceResourceComponent registered under the same resource_key.
+
+type: dagster_component_templates.BigCommerceProductUpsertComponent
+attributes:
+  asset_name: bigcommerce_products_mirror
+  upstream_asset_key: catalog_products
+  resource_key: bigcommerce
+
+  # fields_map MUST include a mapping to BigCommerce field `sku` (match key).
+  # BigCommerce requires name/type/weight/price on CREATE -- map those too.
+  fields_map:
+    product_sku: sku             # upstream SKU → BigCommerce sku (match key)
+    product_name: name
+    product_type: type           # 'physical' or 'digital'
+    list_price: price
+    weight_lbs: weight
+    long_description: description
+
+  batch_size: 200
+
+  group_name: reverse_etl
+  description: "Mirror upstream product catalog into BigCommerce Products via sku match."
+  # kinds: [bigcommerce, reverse_etl]
+  # owners: [platform@corp.com]

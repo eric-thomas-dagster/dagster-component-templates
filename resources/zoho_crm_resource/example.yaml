@@ -1,0 +1,24 @@
+# ZohoCrmResourceComponent -- Zoho CRM REST API workhorse using a real
+# OAuth2 refresh-token grant (long-running-safe, unlike a static access
+# token). Pairs with ZohoCrmRecordUpsertComponent for reverse-ETL writes.
+#
+# Obtain client_id / client_secret / refresh_token once via Zoho's API
+# Console (https://api-console.zoho.com) -- Self Client or Server-based
+# app -- then run the one-time authorization_code exchange to mint the
+# initial refresh_token. After that this resource refreshes access tokens
+# automatically; Zoho refresh tokens do not rotate and do not expire.
+
+type: dagster_component_templates.ZohoCrmResourceComponent
+attributes:
+  resource_key: zoho_crm
+
+  client_id_env_var:     ZOHO_CLIENT_ID
+  client_secret_env_var: ZOHO_CLIENT_SECRET
+  refresh_token_env_var: ZOHO_REFRESH_TOKEN
+
+  accounts_domain: com        # 'com' (US), 'eu', 'in', 'com.au', 'jp', 'com.cn', 'ca'
+  # api_domain:              # optional override; defaults to the token response's api_domain
+  api_version: v8
+
+  request_timeout_seconds: 60
+  max_retries: 3

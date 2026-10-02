@@ -1,0 +1,144 @@
+{
+  "component_type": "dagster_component_templates.ClickUpTaskUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into ClickUp tasks in a target List. Rows are matched to existing tasks by a key marker embedded in the task description (e.g. <!-- dagster-key: INC-1001 -->); ClickUp has no native upsert endpoint for tasks.",
+  "category": "reverse_etl",
+  "icon": "si:clickup",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one ClickUp task (upserted via key_column)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated). No downstream data -- write side effect lands in ClickUp."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with source."
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "clickup_resource"
+    },
+    "list_id": {
+      "type": "string",
+      "label": "List Id",
+      "required": true,
+      "description": "Target ClickUp List ID tasks are created/matched in."
+    },
+    "key_column": {
+      "type": "string",
+      "label": "Key Column",
+      "required": true,
+      "description": "Upstream column holding a stable unique key, embedded as a dagster-key marker in the task description."
+    },
+    "name_column": {
+      "type": "string",
+      "label": "Name Column",
+      "required": true,
+      "description": "Column holding the task name."
+    },
+    "description_column": {
+      "type": "string",
+      "label": "Description Column",
+      "required": false,
+      "default": null,
+      "description": "Column holding the task description (plain text/markdown)."
+    },
+    "status_column": {
+      "type": "string",
+      "label": "Status Column",
+      "required": false,
+      "default": null,
+      "description": "Column holding a ClickUp status name configured on the target List."
+    },
+    "priority_column": {
+      "type": "string",
+      "label": "Priority Column",
+      "required": false,
+      "default": null,
+      "description": "Column holding priority (1=Urgent, 2=High, 3=Normal, 4=Low, or name)."
+    },
+    "assignees_column": {
+      "type": "string",
+      "label": "Assignees Column",
+      "required": false,
+      "default": null,
+      "description": "Column holding ClickUp user IDs to assign. Accepts a list, or a comma-separated string of ints."
+    },
+    "tags_column": {
+      "type": "string",
+      "label": "Tags Column",
+      "required": false,
+      "default": null,
+      "description": "Column holding tag names. Accepts a list, or a comma-separated string."
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 100,
+      "description": "Max upstream rows to process per run (safety cap)."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "clickup"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "clickup",
+    "reverse-etl",
+    "upsert",
+    "project-management"
+  ],
+  "name": "ClickUp Task Upsert",
+  "vertical": "productivity"
+}

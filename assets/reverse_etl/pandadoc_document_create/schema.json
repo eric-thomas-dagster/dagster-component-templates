@@ -1,0 +1,127 @@
+{
+  "component_type": "dagster_component_templates.PandaDocDocumentCreateComponent",
+  "description": "Reverse-ETL e-signature activation: create (and, by default, send) a PandaDoc document from a template for each row of an upstream DataFrame (`POST /documents` with template_uuid + recipients + tokens, then poll to `document.draft` and `POST /documents/{id}/send`). Creates REAL documents and, by default, immediately emails a signature request the moment this asset materializes.",
+  "category": "reverse_etl",
+  "icon": "si:pandadoc",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one PandaDoc document created from a template, personalized via tokens_map / name_template."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (documents_created / documents_failed / rows_skipped_no_recipient / first_document_ids). No downstream data -- the side effect is a real PandaDoc document + (with auto_send) a signature-request email."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with `source`."
+    },
+    "source": {
+      "type": "object",
+      "label": "Inline Source",
+      "required": false,
+      "description": "Inline source config (sql / csv / inline). Mutually exclusive with `upstream_asset_key`."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "pandadoc_resource"
+    },
+    "template_uuid": {
+      "type": "string",
+      "label": "Template UUID",
+      "required": true,
+      "description": "PandaDoc template UUID the document is built from."
+    },
+    "name_template": {
+      "type": "string",
+      "label": "Name Template",
+      "required": false,
+      "description": "Document name template. Supports {column_name} substitution."
+    },
+    "recipient_email_column": {
+      "type": "string",
+      "label": "Recipient Email Column",
+      "required": true,
+      "description": "Upstream column holding the recipient's email address."
+    },
+    "recipient_first_name_column": {
+      "type": "string",
+      "label": "Recipient First Name Column",
+      "required": false
+    },
+    "recipient_last_name_column": {
+      "type": "string",
+      "label": "Recipient Last Name Column",
+      "required": false
+    },
+    "recipient_role": {
+      "type": "string",
+      "label": "Recipient Role",
+      "required": false,
+      "description": "Template recipient role name to assign this recipient to."
+    },
+    "tokens_map": {
+      "type": "object",
+      "label": "Tokens Map",
+      "required": false,
+      "description": "Upstream column -> PandaDoc template token name, to prefill from row values."
+    },
+    "auto_send": {
+      "type": "boolean",
+      "label": "Auto Send",
+      "required": false,
+      "default": true,
+      "description": "Poll until sendable and send immediately, vs. create-only."
+    },
+    "send_message": {
+      "type": "string",
+      "label": "Send Message",
+      "required": false
+    },
+    "poll_interval_seconds": {
+      "type": "number",
+      "label": "Poll Interval Seconds",
+      "required": false,
+      "default": 2.0
+    },
+    "poll_timeout_seconds": {
+      "type": "number",
+      "label": "Poll Timeout Seconds",
+      "required": false,
+      "default": 120.0
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 200,
+      "description": "Max upstream rows per run (blast-radius safety cap, not a rate limit)."
+    },
+    "group_name": { "type": "string", "label": "Group Name", "required": false },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "label": "Owners", "required": false },
+    "tags": { "type": "object", "label": "Tags", "required": false },
+    "kinds": { "type": "array", "label": "Kinds", "required": false }
+  },
+  "tags": [
+    "sink",
+    "pandadoc",
+    "esignature",
+    "reverse-etl",
+    "activation",
+    "document"
+  ],
+  "name": "PandaDoc Document Create",
+  "vertical": "esignature-activation"
+}

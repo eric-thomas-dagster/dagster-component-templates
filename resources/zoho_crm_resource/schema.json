@@ -1,0 +1,91 @@
+{
+  "component_type": "dagster_component_templates.ZohoCrmResourceComponent",
+  "description": "Self-contained Zoho CRM REST API workhorse. Real OAuth2 refresh-token grant (POST {accounts_host}/oauth/v2/token) -- Zoho refresh tokens never rotate and never expire on their own. Retry on 401 (token refresh) / 429 / 5xx. .get()/.post()/.patch() convenience methods plus .upsert() wrapping Zoho's native Upsert Records API (POST /{module}/upsert, duplicate_check_fields, 100 records/request).",
+  "category": "resources",
+  "icon": "si:zoho",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "resource",
+      "description": "ZohoCrmResource with .get()/.post()/.patch()/.upsert() methods. Consumed by zoho_crm_record_upsert (sink) and by custom Dagster asset code that needs arbitrary Zoho CRM REST calls."
+    }
+  },
+  "x-dagster-provides": [
+    "zoho_crm_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "zoho_crm"
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client Id Env Var",
+      "required": false,
+      "default": "ZOHO_CLIENT_ID",
+      "ui:widget": "env_var",
+      "description": "Env var holding the Zoho OAuth Client ID."
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "required": false,
+      "default": "ZOHO_CLIENT_SECRET",
+      "ui:widget": "env_var",
+      "description": "Env var holding the Zoho OAuth Client Secret."
+    },
+    "refresh_token_env_var": {
+      "type": "string",
+      "label": "Refresh Token Env Var",
+      "required": false,
+      "default": "ZOHO_REFRESH_TOKEN",
+      "ui:widget": "env_var",
+      "description": "Env var holding the long-lived OAuth refresh token."
+    },
+    "accounts_domain": {
+      "type": "string",
+      "label": "Accounts Domain",
+      "required": false,
+      "default": "com",
+      "description": "Zoho accounts data-center region: 'com' (US), 'eu', 'in', 'com.au', 'jp', 'com.cn', or 'ca' (mapped to accounts.zohocloud.ca).",
+      "enum": ["com", "eu", "in", "com.au", "jp", "com.cn", "ca"]
+    },
+    "api_domain": {
+      "type": "string",
+      "label": "Api Domain",
+      "required": false,
+      "default": null,
+      "description": "Override the Zoho API host. Leave unset to use the api_domain Zoho's OAuth token response returns for your data center."
+    },
+    "api_version": {
+      "type": "string",
+      "label": "Api Version",
+      "required": false,
+      "default": "v8",
+      "description": "Zoho CRM REST API version."
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout (seconds)",
+      "required": false,
+      "default": 60
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "required": false,
+      "default": 3
+    }
+  },
+  "tags": [
+    "resource",
+    "zoho",
+    "crm",
+    "oauth2",
+    "upsert",
+    "reverse-etl"
+  ],
+  "name": "Zoho CRM Resource",
+  "vertical": "crm-sales"
+}

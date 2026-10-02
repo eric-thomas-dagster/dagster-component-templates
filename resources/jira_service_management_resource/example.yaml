@@ -1,0 +1,9 @@
+type: dagster_component_templates.JiraServiceManagementResourceComponent
+attributes:
+  resource_key: jira_service_management_resource
+  email_env_var: JSM_EMAIL
+  api_token_env_var: JSM_API_TOKEN
+  site_domain: mysite   # mysite.atlassian.net -- subdomain only
+
+  # --- Self-signed / on-prem edge cases only ---
+  # verify_ssl: false

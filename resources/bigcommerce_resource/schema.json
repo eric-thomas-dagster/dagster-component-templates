@@ -1,0 +1,46 @@
+{
+  "component_type": "dagster_component_templates.BigCommerceResourceComponent",
+  "description": "Register a BigCommerceResource (X-Auth-Token REST client for the Catalog API v3) for use by other components",
+  "category": "resource",
+  "icon": "si:bigcommerce",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "bigcommerce_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "bigcommerce"
+    },
+    "store_hash": {
+      "type": "string",
+      "label": "Store Hash",
+      "description": "BigCommerce store hash (from your store's API path).",
+      "required": true
+    },
+    "access_token_env_var": {
+      "type": "string",
+      "label": "Access Token Env Var",
+      "description": "Env var holding the BigCommerce API access token",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "api_version": {
+      "type": "string",
+      "label": "API Version",
+      "description": "BigCommerce Catalog API version path segment",
+      "required": false,
+      "default": "v3"
+    }
+  },
+  "tags": [
+    "resource",
+    "bigcommerce",
+    "ecommerce",
+    "retail"
+  ],
+  "name": "BigCommerce Resource"
+}

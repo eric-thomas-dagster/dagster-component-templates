@@ -1,0 +1,106 @@
+{
+  "component_type": "dagster_component_templates.FreshserviceTicketUpsertComponent",
+  "description": "Reverse-ETL sink: mirror a DataFrame into Freshservice tickets via search-then-write. Freshservice has no native upsert — GET /tickets/filter by key_field → PUT existing ticket or POST a new one. In-run cache prevents double-post on eventual-consistency lag. Source can be an upstream Dagster asset OR inline SQL / CSV / literal rows.",
+  "category": "reverse_etl",
+  "icon": "si:freshworks",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "Either an upstream Dagster asset (via `upstream_asset_key`) OR an inline source config (via `source:` — SQL against a resource, a CSV file path, or literal rows). Each row → one Freshservice ticket (upserted by matching on `key_field` via the Filter Tickets API)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored / rows_skipped_no_key). No downstream data — the write side effect lands in Freshservice."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`."
+    },
+    "source": {
+      "type": "object",
+      "label": "Inline Source",
+      "required": false,
+      "description": "Read the DataFrame inline at run time. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. Mutually exclusive with `upstream_asset_key`."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "freshservice_resource"
+    },
+    "key_field": {
+      "type": "string",
+      "label": "Key Field",
+      "required": true,
+      "description": "Freshservice field (or custom field, prefixed 'custom_fields.') used to match existing tickets via the Filter Tickets API. Must be present in fields_map values."
+    },
+    "fields_map": {
+      "type": "object",
+      "label": "Fields Map",
+      "required": true,
+      "description": "Source column → Freshservice field. Values prefixed 'custom_fields.' go into the nested custom_fields sub-object; unprefixed values are top-level ticket fields.",
+      "ui:widget": "key-value"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 500,
+      "description": "Max rows per run (safety cap)."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "freshservice"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "freshservice",
+    "sink",
+    "reverse-etl",
+    "upsert",
+    "itsm",
+    "support"
+  ],
+  "name": "Freshservice Ticket Upsert",
+  "vertical": "support"
+}

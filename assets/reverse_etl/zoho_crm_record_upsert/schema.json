@@ -1,0 +1,110 @@
+{
+  "component_type": "dagster_component_templates.ZohoCrmRecordUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into a Zoho CRM module via the native Upsert Records API. `POST /crm/{version}/{module_api_name}/upsert` atomically creates or updates, matching on duplicate_check_fields -- no search-then-write. Chunks internally at Zoho's 100-records-per-request limit.",
+  "category": "reverse_etl",
+  "icon": "si:zoho",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one Zoho CRM record (upserted via duplicate_check_fields)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored / rows_skipped_no_key). No downstream data -- the write side effect lands in Zoho CRM."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true,
+      "description": "Asset providing the DataFrame."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "zoho_crm"
+    },
+    "module_api_name": {
+      "type": "string",
+      "label": "Module Api Name",
+      "required": true,
+      "description": "Target Zoho CRM module API name (Leads / Contacts / Accounts / Deals / custom)."
+    },
+    "duplicate_check_fields": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Duplicate Check Fields",
+      "required": true,
+      "description": "Zoho field API names used to detect duplicates on upsert (e.g. ['Email']). Must be a subset of fields_map values.",
+      "ui:widget": "list"
+    },
+    "fields_map": {
+      "type": "object",
+      "label": "Fields Map",
+      "required": true,
+      "description": "Upstream column → Zoho field API name.",
+      "ui:widget": "key-value"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 5000,
+      "description": "Max upstream rows per run (safety cap). Always chunked at Zoho's 100-records-per-request limit internally."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "zoho_crm"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "zoho",
+    "sink",
+    "reverse-etl",
+    "upsert",
+    "crm",
+    "duplicate-check-fields"
+  ],
+  "name": "Zoho CRM Record Upsert",
+  "vertical": "crm-sales"
+}

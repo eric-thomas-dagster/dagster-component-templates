@@ -1,0 +1,6 @@
+type: dagster_component_templates.ZuoraResourceComponent
+attributes:
+  resource_key: zuora
+  base_url: "rest.na.zuora.com"
+  client_id_env_var: ZUORA_CLIENT_ID
+  client_secret_env_var: ZUORA_CLIENT_SECRET

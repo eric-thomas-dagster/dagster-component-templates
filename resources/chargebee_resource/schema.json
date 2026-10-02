@@ -1,0 +1,41 @@
+{
+  "component_type": "dagster_component_templates.ChargebeeResourceComponent",
+  "description": "Register a ChargebeeResource wrapping the Chargebee API v2. HTTP Basic auth (api_key as username, blank password). Chargebee uses POST for every mutating operation (create AND update) -- create is POST /customers, update is POST /customers/{id}. Exposes a generic request().",
+  "category": "resource",
+  "icon": "Receipt",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "chargebee"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "chargebee"
+    },
+    "site": {
+      "type": "string",
+      "label": "Site",
+      "description": "Chargebee site name (for <site>.chargebee.com).",
+      "required": true
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var with the Chargebee API key.",
+      "required": true,
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": [
+    "resource",
+    "chargebee",
+    "billing",
+    "subscriptions",
+    "erp"
+  ],
+  "name": "Chargebee Resource",
+  "vertical": "erp-finance"
+}

@@ -1,0 +1,8 @@
+type: dagster_component_templates.DocuSignResourceComponent
+attributes:
+  resource_key: docusign_resource
+  integration_key: "{{ env('DOCUSIGN_INTEGRATION_KEY') }}"
+  user_id: "{{ env('DOCUSIGN_USER_ID') }}"
+  private_key: "{{ env('DOCUSIGN_PRIVATE_KEY') }}"
+  # account_id: "{{ env('DOCUSIGN_ACCOUNT_ID') }}"   # optional; else uses the default account
+  # use_demo_env: true                                 # sandbox (account-d.docusign.com)

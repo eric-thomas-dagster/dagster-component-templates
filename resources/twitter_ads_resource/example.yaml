@@ -1,0 +1,8 @@
+type: dagster_component_templates.TwitterAdsResourceComponent
+attributes:
+  resource_key: twitter_ads_resource
+  consumer_key_env_var: TWITTER_ADS_CONSUMER_KEY
+  consumer_secret_env_var: TWITTER_ADS_CONSUMER_SECRET
+  access_token_env_var: TWITTER_ADS_ACCESS_TOKEN
+  access_token_secret_env_var: TWITTER_ADS_ACCESS_TOKEN_SECRET
+  account_id: "abc123xyz"

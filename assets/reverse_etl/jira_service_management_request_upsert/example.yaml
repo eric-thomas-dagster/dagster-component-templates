@@ -1,0 +1,15 @@
+type: dagster_component_templates.JiraServiceManagementRequestUpsertComponent
+attributes:
+  asset_name: jsm_requests_from_support_tickets
+  upstream_asset_key: dbt_marts_open_tickets
+  resource_key: jira_service_management_resource
+  project_key: ITSM
+  service_desk_id: "1"
+  request_type_id: "10"
+  key_field: customfield_10050
+  fields_map:
+    ticket_id: customfield_10050
+    title: summary
+    body: description
+  comment_column: internal_note
+  group_name: reverse_etl

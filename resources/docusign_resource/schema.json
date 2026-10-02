@@ -1,0 +1,65 @@
+{
+  "component_type": "dagster_component_templates.DocuSignResourceComponent",
+  "description": "Register a DocuSignResource (JWT Grant OAuth2 eSignature REST API client) for use by other components",
+  "category": "resource",
+  "icon": "si:docusign",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "resource",
+      "description": "DocuSign eSignature REST API resource (JWT Grant OAuth2)."
+    }
+  },
+  "x-dagster-provides": [
+    "docusign_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "docusign_resource"
+    },
+    "integration_key": {
+      "type": "string",
+      "label": "Integration Key",
+      "description": "DocuSign Integration Key (client ID) with an RSA keypair registered for JWT grant.",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "user_id": {
+      "type": "string",
+      "label": "User ID",
+      "description": "GUID of the DocuSign user being impersonated (must have granted one-time JWT consent).",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "private_key": {
+      "type": "string",
+      "label": "Private Key",
+      "description": "RSA private key (PEM format) matching the public key registered on the Integration Key.",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "account_id": {
+      "type": "string",
+      "label": "Account ID",
+      "description": "Specific DocuSign account ID. If unset, the default account from the JWT userinfo response is used.",
+      "required": false
+    },
+    "use_demo_env": {
+      "type": "boolean",
+      "label": "Use Demo Env",
+      "description": "Use DocuSign's demo/sandbox environment (account-d.docusign.com) instead of production.",
+      "required": false,
+      "default": false
+    }
+  },
+  "tags": [
+    "resource",
+    "docusign",
+    "esignature",
+    "document"
+  ],
+  "name": "DocuSign Resource"
+}

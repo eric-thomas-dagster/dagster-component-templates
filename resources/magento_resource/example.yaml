@@ -1,0 +1,6 @@
+type: dagster_component_templates.MagentoResourceComponent
+attributes:
+  resource_key: magento
+  instance_url: "https://mystore.example.com"
+  admin_token_env_var: MAGENTO_ADMIN_TOKEN
+  attribute_set_id: 4

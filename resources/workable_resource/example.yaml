@@ -1,0 +1,5 @@
+type: dagster_component_templates.WorkableResourceComponent
+attributes:
+  resource_key: workable_resource
+  api_token_env_var: WORKABLE_API_TOKEN
+  subdomain: my-company

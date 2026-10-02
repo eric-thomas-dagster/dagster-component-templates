@@ -1,0 +1,5 @@
+type: dagster_component_templates.LeverResourceComponent
+attributes:
+  resource_key: lever_resource
+  api_key_env_var: LEVER_API_KEY
+  perform_as: "abc123-lever-user-id"  # look up via GET /users once

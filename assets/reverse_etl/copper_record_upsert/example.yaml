@@ -1,0 +1,29 @@
+# CopperRecordUpsertComponent -- DataFrame -> Copper CRM reverse ETL
+# using search-then-write (Copper has no native atomic upsert).
+#
+# Requires a CopperResourceComponent registered under the same resource_key.
+#
+# dedupe_field must uniquely identify a record (typically 'email') and must
+# be present in fields_map's values. NOT race-condition-safe under
+# concurrent writers -- see README.
+
+type: dagster_component_templates.CopperRecordUpsertComponent
+attributes:
+  asset_name: copper_people_mirror
+  upstream_asset_key: dbt_marts_contacts
+  resource_key: copper
+
+  object_type: people                  # people / leads / companies
+  dedupe_field: email                  # searched via /people/search before writing
+
+  fields_map:
+    full_name: name                    # upstream col -> Copper field
+    email_address: email               # -> emails: [{email, category: work}]
+    phone_number: phone                # -> phone_numbers: [{number, category: work}]
+
+  batch_size: 2000
+
+  group_name: reverse_etl
+  description: "Mirror dbt Contacts mart into Copper People via search-then-write."
+  # kinds: [copper, reverse_etl]
+  # owners: [platform@corp.com]

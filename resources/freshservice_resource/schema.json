@@ -1,0 +1,39 @@
+{
+  "component_type": "dagster_component_templates.FreshserviceResourceComponent",
+  "description": "Register a FreshserviceResource for the Freshservice ITSM REST API (v2) for use by other components. Distinct product from Freshdesk -- tickets/assets/changes, not contacts.",
+  "category": "resource",
+  "icon": "si:freshworks",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "freshservice_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "freshservice_resource"
+    },
+    "domain": {
+      "type": "string",
+      "label": "Domain",
+      "description": "Freshservice domain e.g. 'mycompany.freshservice.com' (full host)",
+      "required": true
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var holding Freshservice API key",
+      "required": true,
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": [
+    "resource",
+    "freshservice",
+    "itsm",
+    "support"
+  ],
+  "name": "Freshservice Resource"
+}

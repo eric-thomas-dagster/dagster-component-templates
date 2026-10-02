@@ -1,0 +1,7 @@
+type: dagster_component_templates.XeroResourceComponent
+attributes:
+  resource_key: xero
+  client_id_env_var: XERO_CLIENT_ID
+  client_secret_env_var: XERO_CLIENT_SECRET
+  refresh_token_env_var: XERO_REFRESH_TOKEN
+  # tenant_id: "a1b2c3d4-..."   # optional -- auto-discovered via GET /connections if unset

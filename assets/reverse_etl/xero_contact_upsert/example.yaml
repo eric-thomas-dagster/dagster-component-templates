@@ -1,0 +1,26 @@
+# XeroContactUpsertComponent -- DataFrame -> Xero Contacts reverse ETL.
+# Xero has no single-call upsert: this component looks up an existing
+# match via where=<lookup_field>=="<value>" (Xero enforces Name uniqueness
+# across active contacts), then POSTs either a create (no ContactID) or
+# an update (ContactID set).
+#
+# Requires a XeroResourceComponent registered under the same resource_key.
+
+type: dagster_component_templates.XeroContactUpsertComponent
+attributes:
+  asset_name: xero_contacts_mirror
+  upstream_asset_key: dbt_marts_customers
+  resource_key: xero
+
+  lookup_field: Name                          # Xero enforces Name uniqueness
+  fields_map:
+    customer_name: Name                       # upstream col -> Xero Contact field
+    email: EmailAddress
+    contact_number: ContactNumber
+
+  batch_size: 5000                            # safety cap (1 lookup + 1 write per row)
+
+  group_name: reverse_etl
+  description: "Mirror dbt Customers mart into Xero Contact records."
+  # kinds: [xero, reverse_etl]
+  # owners: [finance-ops@corp.com]

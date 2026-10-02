@@ -1,0 +1,20 @@
+type: dagster_component_templates.ConfluencePageUpsertComponent
+attributes:
+  asset_name: confluence_release_notes_sync
+  upstream_asset_key: dbt_marts_release_notes
+  resource_key: confluence
+  # Confluence space id (numeric), not the space key.
+  space_id: "98765"
+
+  # Upstream DataFrame column -> Confluence field name. Must include exactly
+  # one mapping to 'title' -- the match key within the space.
+  fields_map:
+    page_title: title
+
+  # Column holding the page body. By default treated as plain text and
+  # wrapped into simple <p> paragraphs (Confluence storage format).
+  body_column: notes_body
+  # wrap_body_as_html: false  # set false to pass pre-built storage XHTML through
+
+  batch_size: 500
+  group_name: confluence

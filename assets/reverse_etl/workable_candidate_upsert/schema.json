@@ -1,0 +1,130 @@
+{
+  "component_type": "dagster_component_templates.WorkableCandidateUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into Workable candidates via search-then-write. Workable supports an exact-match email filter, so this finds the candidate by email, then updates the match (and optionally moves its pipeline stage) or creates a new candidate (via a job pipeline or the account-wide talent pool).",
+  "category": "reverse_etl",
+  "icon": "si:workable",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset or inline source. Each row -> one Workable candidate (upserted by matching on email)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored / rows_skipped_no_key). No downstream data -- write side effect lands in Workable."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with source."
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "workable_resource"
+    },
+    "email_column": {
+      "type": "string",
+      "label": "Email Column",
+      "required": true,
+      "description": "Upstream column holding the candidate's email (Workable match key)."
+    },
+    "name_column": {
+      "type": "string",
+      "label": "Name Column",
+      "required": true,
+      "description": "Upstream column holding the candidate's full name (used on CREATE, mapped to Workable's name field)."
+    },
+    "job_shortcode": {
+      "type": "string",
+      "label": "Job Shortcode",
+      "required": false,
+      "description": "If set, new candidates are created via POST /jobs/{shortcode}/candidates. If unset, created via POST /talent_pool/candidates."
+    },
+    "fields_map": {
+      "type": "object",
+      "label": "Fields Map",
+      "required": false,
+      "description": "Upstream column -> Workable candidate field (e.g. phone, summary, address, cover_letter). Applied on both create and update.",
+      "ui:widget": "key-value"
+    },
+    "stage_column": {
+      "type": "string",
+      "label": "Stage Column",
+      "required": false,
+      "description": "Upstream column holding a target pipeline stage slug. If present on an existing match, triggers a move. Requires member_id."
+    },
+    "member_id": {
+      "type": "string",
+      "label": "Member Id",
+      "required": false,
+      "description": "Acting Workable account member id. Required only if stage_column is used."
+    },
+    "max_rows": {
+      "type": "integer",
+      "label": "Max Rows",
+      "required": false,
+      "default": 10000,
+      "description": "Safety cap on total rows per run."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "workable"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "workable",
+    "sink",
+    "reverse-etl",
+    "upsert",
+    "ats",
+    "hr"
+  ],
+  "name": "Workable Candidate Upsert",
+  "vertical": "finance-hr"
+}

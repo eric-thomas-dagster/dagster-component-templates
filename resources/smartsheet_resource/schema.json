@@ -1,0 +1,47 @@
+{
+  "component_type": "dagster_component_templates.SmartsheetResourceComponent",
+  "description": "Register a SmartsheetResource (bearer-token auth + sheet/row read-write methods) for use by other components.",
+  "category": "resource",
+  "icon": "si:smartsheet",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "smartsheet_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "smartsheet"
+    },
+    "access_token_env_var": {
+      "type": "string",
+      "label": "Access Token Env Var",
+      "description": "Env var holding the Smartsheet API access token (personal access token or OAuth2 app token).",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "description": "Per-request timeout in seconds.",
+      "required": false,
+      "default": 60
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "description": "Retry attempts on 429 (honors Retry-After) / 5xx.",
+      "required": false,
+      "default": 3
+    }
+  },
+  "tags": [
+    "resource",
+    "smartsheet",
+    "productivity"
+  ],
+  "name": "Smartsheet Resource",
+  "vertical": "productivity"
+}

@@ -1,0 +1,110 @@
+{
+  "component_type": "dagster_component_templates.SmartsheetRowUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into a Smartsheet sheet. Smartsheet has no native upsert/column-match endpoint, so the resource fetches the sheet once, matches rows client-side on key_column, and routes each incoming row to a batched PUT (update) or POST (add), chunked at Smartsheet's 500-rows-per-call limit.",
+  "category": "reverse_etl",
+  "icon": "si:smartsheet",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one Smartsheet row (upserted via client-side match on key_column)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata. No downstream data -- write side effect lands in Smartsheet."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with source."
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "smartsheet"
+    },
+    "sheet_id": {
+      "type": "string",
+      "label": "Sheet Id",
+      "required": true,
+      "description": "Target Smartsheet sheet ID."
+    },
+    "key_column": {
+      "type": "string",
+      "label": "Key Column",
+      "required": true,
+      "description": "Smartsheet column title used as the upsert match key. Must be present in fields_map's values."
+    },
+    "fields_map": {
+      "type": "object",
+      "label": "Fields Map",
+      "required": true,
+      "description": "Upstream column -> Smartsheet column title.",
+      "ui:widget": "key-value"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 500,
+      "description": "Max upstream rows per run (safety cap). Hard-capped at 500 -- Smartsheet's row-add/row-update endpoints each accept at most 500 rows per API call."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "smartsheet"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "smartsheet",
+    "sink",
+    "reverse-etl",
+    "upsert"
+  ],
+  "name": "Smartsheet Row Upsert",
+  "vertical": "productivity"
+}

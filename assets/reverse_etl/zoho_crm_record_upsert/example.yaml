@@ -1,0 +1,30 @@
+# ZohoCrmRecordUpsertComponent -- DataFrame -> Zoho CRM reverse ETL using
+# the native "Upsert Records" API. Atomic create-or-update per record,
+# matched on duplicate_check_fields.
+#
+# Requires a ZohoCrmResourceComponent registered under the same resource_key.
+# duplicate_check_fields entries should be Zoho fields marked unique/
+# mandatory on the module (e.g. Email is Zoho's system-defined
+# duplicate-check field for Leads/Contacts).
+
+type: dagster_component_templates.ZohoCrmRecordUpsertComponent
+attributes:
+  asset_name: zoho_crm_leads_mirror
+  upstream_asset_key: dbt_marts_leads
+  resource_key: zoho_crm
+
+  module_api_name: Leads
+  duplicate_check_fields: [Email]        # Zoho's system-defined dup-check field for Leads
+  fields_map:
+    email: Email                        # upstream col -> Zoho field
+    first_name: First_Name
+    last_name: Last_Name
+    company: Company
+    lead_source: Lead_Source
+
+  batch_size: 5000                      # safety cap (always chunked at 100/request internally)
+
+  group_name: reverse_etl
+  description: "Mirror dbt Leads mart into Zoho CRM Leads via native Upsert Records API."
+  # kinds: [zoho, reverse_etl]
+  # owners: [platform@corp.com]

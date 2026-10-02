@@ -1,0 +1,13 @@
+# CloseCrmResourceComponent -- registers a Close CRM REST API client for
+# use by other components (e.g. close_crm_lead_upsert).
+#
+# Auth: Close API key as the HTTP Basic username, blank password.
+# Create an API key under Close -> Settings -> Developer -> API Keys.
+
+type: dagster_component_templates.CloseCrmResourceComponent
+attributes:
+  resource_key: close_crm
+  api_key_env_var: CLOSE_API_KEY
+  base_url: https://api.close.com/api/v1   # default
+  request_timeout_seconds: 30
+  max_retries: 3

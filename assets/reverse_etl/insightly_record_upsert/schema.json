@@ -1,0 +1,116 @@
+{
+  "component_type": "dagster_component_templates.InsightlyRecordUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into Insightly CRM Contacts/Leads/Organisations via emulated upsert. Insightly has no native upsert endpoint -- this searches GET /{object_type}/Search?field_name=X&field_value=Y, then PUTs the match or POSTs a new record. Search-then-write, not atomic.",
+  "category": "reverse_etl",
+  "icon": "UsersRound",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one Insightly Contact/Lead/Organisation (upserted via dedupe_field)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored / rows_skipped_no_key). No downstream data -- the write side effect lands in Insightly."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with source."
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "insightly"
+    },
+    "object_type": {
+      "type": "string",
+      "label": "Object Type",
+      "required": true,
+      "description": "Target Insightly object type. Only 'Contacts' gets CONTACTINFOS email/phone nesting.",
+      "enum": ["Contacts", "Leads", "Organisations"],
+      "ui:widget": "select"
+    },
+    "dedupe_field": {
+      "type": "string",
+      "label": "Dedupe Field",
+      "required": true,
+      "description": "fields_map value used to search for an existing record before create-or-update. MUST be present in fields_map values."
+    },
+    "dedupe_search_field_name": {
+      "type": "string",
+      "label": "Dedupe Search Field Name",
+      "required": false,
+      "default": null,
+      "description": "Insightly field_name passed to GET /{object_type}/Search. Defaults based on dedupe_field (EMAIL_ADDRESS / PHONE sentinels, else dedupe_field verbatim)."
+    },
+    "fields_map": {
+      "type": "object",
+      "label": "Fields Map",
+      "required": true,
+      "description": "Upstream column -> Insightly field name. Values 'email'/'phone' nest into CONTACTINFOS (Contacts only); everything else is a flat field name.",
+      "ui:widget": "key-value"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 5000,
+      "description": "Max upstream rows per run (safety cap). No batch endpoint -- 1 search + 1 write per row."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "insightly"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "insightly",
+    "sink",
+    "reverse-etl",
+    "upsert",
+    "crm"
+  ],
+  "name": "Insightly Record Upsert",
+  "vertical": "crm-sales"
+}

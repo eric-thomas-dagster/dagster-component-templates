@@ -1,0 +1,12 @@
+type: dagster_component_templates.DynamicsCrmResourceComponent
+attributes:
+  resource_key: dynamics_crm
+  org_url: "https://myorg.crm.dynamics.com"
+  tenant_id: "${DYNAMICS_TENANT_ID}"
+
+  client_id_env_var:     DYNAMICS_CLIENT_ID
+  client_secret_env_var: DYNAMICS_CLIENT_SECRET
+
+  api_version: "v9.2"
+  request_timeout_seconds: 60
+  max_retries: 3

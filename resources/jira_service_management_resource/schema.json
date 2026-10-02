@@ -1,0 +1,52 @@
+{
+  "component_type": "dagster_component_templates.JiraServiceManagementResourceComponent",
+  "description": "Shared Jira Service Management (JSM) connection: HTTP Basic auth (email + API token) over the servicedeskapi surface (/rest/servicedeskapi/...) for creating and commenting on customer requests, plus the core Jira API slice (/rest/api/3/...) JSM itself has no equivalent for (JQL search, field updates). Separate from jira_resource -- see README for why.",
+  "category": "resource",
+  "icon": "si:jira",
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "jira_service_management_resource",
+      "description": "Resource registration key. Other components reference it via this name."
+    },
+    "email_env_var": {
+      "type": "string",
+      "label": "Email Env Var",
+      "required": false,
+      "default": "JSM_EMAIL",
+      "description": "Env var holding the Atlassian account email (Basic auth username)."
+    },
+    "api_token_env_var": {
+      "type": "string",
+      "label": "Api Token Env Var",
+      "required": false,
+      "default": "JSM_API_TOKEN",
+      "description": "Env var holding an Atlassian API token."
+    },
+    "site_domain": {
+      "type": "string",
+      "label": "Site Domain",
+      "required": true,
+      "description": "Atlassian site subdomain only, e.g. 'mysite' for mysite.atlassian.net (no https://, no trailing slash)."
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "label": "Verify Ssl",
+      "required": false,
+      "default": true,
+      "description": "TLS cert verification.",
+      "ui:widget": "checkbox"
+    }
+  },
+  "tags": [
+    "resource",
+    "jira",
+    "jira_service_management",
+    "itsm",
+    "support",
+    "atlassian"
+  ],
+  "name": "Jira Service Management Resource"
+}

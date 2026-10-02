@@ -1,0 +1,58 @@
+{
+  "component_type": "dagster_component_templates.WooCommerceResourceComponent",
+  "description": "Register a WooCommerceResource (REST API v3, HTTP Basic auth) for use by other components",
+  "category": "resource",
+  "icon": "si:woocommerce",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "woocommerce_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "woocommerce"
+    },
+    "store_url": {
+      "type": "string",
+      "label": "Store URL",
+      "description": "Base URL of your WooCommerce store e.g. https://mystore.com",
+      "required": true
+    },
+    "consumer_key_env_var": {
+      "type": "string",
+      "label": "Consumer Key Env Var",
+      "description": "Env var holding the WooCommerce REST API consumer key (HTTP Basic-auth username)",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "consumer_secret_env_var": {
+      "type": "string",
+      "label": "Consumer Secret Env Var",
+      "description": "Env var holding the WooCommerce REST API consumer secret (HTTP Basic-auth password)",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "required": false,
+      "default": 60
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "required": false,
+      "default": 3
+    }
+  },
+  "tags": [
+    "resource",
+    "woocommerce",
+    "ecommerce",
+    "wordpress"
+  ],
+  "name": "WooCommerce Resource"
+}

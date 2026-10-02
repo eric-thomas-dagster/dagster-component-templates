@@ -1,0 +1,55 @@
+{
+  "component_type": "dagster_component_templates.XeroResourceComponent",
+  "description": "Register a XeroResource wrapping the Xero Accounting API. OAuth2 refresh-token flow (client_id/client_secret/refresh_token posted as form fields, not Basic auth). Every request carries an Xero-tenant-id header -- the tenant id is auto-discovered via GET /connections unless supplied explicitly. Exposes a generic request().",
+  "category": "resource",
+  "icon": "si:xero",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "xero"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "xero"
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client ID Env Var",
+      "description": "Env var with OAuth2 Client ID",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "description": "Env var with OAuth2 Client Secret",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "refresh_token_env_var": {
+      "type": "string",
+      "label": "Refresh Token Env Var",
+      "description": "Env var with OAuth2 Refresh Token",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "tenant_id": {
+      "type": "string",
+      "label": "Tenant ID",
+      "description": "Xero tenant (org) id. If unset, auto-discovered via GET /connections (first connected tenant).",
+      "required": false
+    }
+  },
+  "tags": [
+    "resource",
+    "xero",
+    "accounting",
+    "erp",
+    "oauth2"
+  ],
+  "name": "Xero Resource",
+  "vertical": "erp-finance"
+}

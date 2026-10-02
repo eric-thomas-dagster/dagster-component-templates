@@ -1,0 +1,50 @@
+{
+  "component_type": "dagster_component_templates.Auth0ResourceComponent",
+  "description": "Register an Auth0Resource (OAuth2 client_credentials grant against an M2M application) wrapping the Auth0 Management API's user endpoints for use by other components. Exposes only find/create/update/block -- never delete.",
+  "category": "resource",
+  "icon": "si:auth0",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "auth0_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "auth0_resource"
+    },
+    "tenant_domain": {
+      "type": "string",
+      "label": "Tenant Domain",
+      "description": "Your Auth0 tenant domain, e.g. 'mycompany.us.auth0.com'.",
+      "required": true
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client ID Env Var",
+      "description": "Env var holding the Auth0 M2M application's Client ID (scopes: read:users, create:users, update:users).",
+      "required": false,
+      "default": "AUTH0_CLIENT_ID",
+      "ui:widget": "env_var"
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "description": "Env var holding the M2M application's Client Secret.",
+      "required": false,
+      "default": "AUTH0_CLIENT_SECRET",
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": [
+    "resource",
+    "auth0",
+    "identity",
+    "sso",
+    "oauth2"
+  ],
+  "name": "Auth0 Resource",
+  "vertical": "identity-sso"
+}

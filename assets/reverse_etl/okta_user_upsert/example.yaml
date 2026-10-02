@@ -1,0 +1,27 @@
+# OktaUserUpsertComponent -- DataFrame -> Okta user sync.
+#
+# SAFE BY DEFAULT: operation: sync (the default, shown here) only ever
+# creates a user that doesn't exist yet or merge-updates profile
+# attributes on one that does. It can never deactivate or delete anyone --
+# see README.md's "Safety" section before pointing this at a production org.
+
+type: dagster_component_templates.OktaUserUpsertComponent
+attributes:
+  asset_name: okta_employee_sync
+  upstream_asset_key: dbt_marts_active_employees
+  resource_key: okta_resource
+
+  fields_map:
+    work_email: login                 # required -- the match key
+    work_email2: email                 # usually same upstream col as login, mapped twice is fine
+    first_name: firstName
+    last_name: lastName
+    mobile: mobilePhone
+
+  operation: sync                     # default -- create-if-absent / update-if-present (merge)
+  activate_on_create: true            # Okta's own documented default
+  batch_size: 5000                    # safety cap
+
+  group_name: reverse_etl
+  description: "Sync active-employee mart into Okta (profile attributes only)."
+  # owners: [identity-team@corp.com]

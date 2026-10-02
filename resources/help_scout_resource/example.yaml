@@ -1,0 +1,5 @@
+type: dagster_component_templates.HelpScoutResourceComponent
+attributes:
+  resource_key: help_scout_resource
+  client_id_env_var: HELPSCOUT_CLIENT_ID
+  client_secret_env_var: HELPSCOUT_CLIENT_SECRET

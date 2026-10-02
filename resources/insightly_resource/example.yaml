@@ -1,0 +1,7 @@
+type: dagster_component_templates.InsightlyResourceComponent
+attributes:
+  resource_key: insightly
+  api_key_env_var: INSIGHTLY_API_KEY
+  pod: "na1"            # from Insightly Settings -> API, right under your API key
+  request_timeout_seconds: 60
+  max_retries: 3

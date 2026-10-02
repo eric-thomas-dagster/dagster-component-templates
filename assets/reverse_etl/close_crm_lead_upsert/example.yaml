@@ -1,0 +1,30 @@
+# CloseCrmLeadUpsertComponent -- DataFrame -> Close CRM reverse ETL.
+#
+# Close has NO native upsert endpoint: this sink searches for an existing
+# Lead via Close's Advanced Filtering API (POST /data/search/) by
+# `dedupe_field`, then PUTs the match or POSTs a new Lead. This is NOT
+# race-condition-safe under concurrent writers -- see README.md.
+#
+# Requires a CloseCrmResourceComponent registered under the same
+# resource_key.
+
+type: dagster_component_templates.CloseCrmLeadUpsertComponent
+attributes:
+  asset_name: close_crm_leads_mirror
+  upstream_asset_key: dbt_marts_leads
+  resource_key: close_crm
+
+  dedupe_field: email                           # recommended: unique per-contact
+  fields_map:
+    company_name: name                          # upstream col -> Close field
+    contact_full_name: contact_name
+    email: email
+    phone: phone
+    warehouse_lead_id: custom.cf_FSYEbxYJFsnY9tN1OTAPIF33j7Sw5Lb7Eawll7JzoNh
+
+  batch_size: 5000                              # safety cap
+
+  group_name: reverse_etl
+  description: "Mirror dbt Leads mart into Close CRM via emulated search-then-write upsert."
+  # kinds: [close, reverse_etl]
+  # owners: [sales-ops@corp.com]

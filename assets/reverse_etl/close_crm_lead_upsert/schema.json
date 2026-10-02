@@ -1,0 +1,103 @@
+{
+  "component_type": "dagster_component_templates.CloseCrmLeadUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into Close CRM Leads. Close has no native atomic upsert endpoint (unlike Salesforce's External-ID upsert or HubSpot's batch/upsert), so this emulates one via search-then-write: POST /data/search/ (Advanced Filtering) to find an existing Lead by dedupe_field, then PUT /lead/{id}/ or POST /lead/. NOT race-condition-safe under concurrent writers.",
+  "category": "reverse_etl",
+  "vertical": "crm-sales",
+  "icon": "favicon:close.com",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row → one Close Lead (upserted via dedupe_field)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored / rows_skipped_no_key). No downstream data — the write side effect lands in Close CRM."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true,
+      "description": "Asset providing the DataFrame."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "close_crm"
+    },
+    "dedupe_field": {
+      "type": "string",
+      "label": "Dedupe Field",
+      "required": true,
+      "description": "Close field used to search for an existing Lead (no native upsert — emulated via search-then-write; NOT race-condition-safe). One of 'email' (recommended), 'phone', 'name' (not guaranteed unique), or 'custom.cf_xxx'. MUST be present in fields_map values.",
+      "enum": ["email", "phone", "name"]
+    },
+    "fields_map": {
+      "type": "object",
+      "label": "Fields Map",
+      "required": true,
+      "description": "Upstream column → Close field. Values: 'name', 'contact_name', 'email', 'phone', or 'custom.cf_xxx'.",
+      "ui:widget": "key-value"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 5000,
+      "description": "Max upstream rows per run (safety cap)."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "close_crm"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "close",
+    "close-crm",
+    "sink",
+    "reverse-etl",
+    "upsert",
+    "lead",
+    "search-then-write"
+  ],
+  "name": "Close CRM Lead Upsert",
+  "vertical": "crm-sales"
+}

@@ -1,0 +1,5 @@
+type: dagster_component_templates.RecurlyResourceComponent
+attributes:
+  resource_key: recurly
+  api_key_env_var: RECURLY_API_KEY
+  api_version: "2021-02-25"

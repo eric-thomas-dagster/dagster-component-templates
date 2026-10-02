@@ -1,0 +1,28 @@
+# ZuoraAccountUpsertComponent -- DataFrame -> Zuora Accounts reverse ETL
+# (generic Object CRUD API). Zuora has no upsert-by-key endpoint and no
+# filter-by-field GET: this component looks up an existing match via a
+# ZOQL query (POST /v1/action/query), then PUTs (update) or POSTs
+# (create) against /v1/object/account accordingly.
+#
+# Requires a ZuoraResourceComponent registered under the same resource_key.
+
+type: dagster_component_templates.ZuoraAccountUpsertComponent
+attributes:
+  asset_name: zuora_accounts_mirror
+  upstream_asset_key: dbt_marts_customers
+  resource_key: zuora
+
+  lookup_field: AccountNumber                 # unique per Zuora tenant
+  fields_map:
+    customer_id: AccountNumber                # upstream col -> Zuora Account field
+    account_name: Name
+    currency: Currency                        # required by Zuora on create
+    bill_cycle_day: BillCycleDay              # required by Zuora on create
+    status: Status                            # required by Zuora on create (Draft/Active/Canceled)
+
+  batch_size: 5000                            # safety cap (1 ZOQL query + 1 write per row)
+
+  group_name: reverse_etl
+  description: "Mirror dbt Customers mart into Zuora Account records."
+  # kinds: [zuora, reverse_etl]
+  # owners: [finance-ops@corp.com]

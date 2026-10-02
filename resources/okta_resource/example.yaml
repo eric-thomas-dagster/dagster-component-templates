@@ -1,0 +1,6 @@
+type: dagster_component_templates.OktaResourceComponent
+attributes:
+  resource_key: okta_resource
+  org_url: "https://mycompany.okta.com"
+  client_id_env_var: OKTA_CLIENT_ID
+  client_secret_env_var: OKTA_CLIENT_SECRET

@@ -1,0 +1,26 @@
+# WooCommerceProductUpsertComponent — DataFrame → WooCommerce Products reverse ETL.
+# Search-by-sku → PUT if found, POST if new. WooCommerce has no native upsert.
+#
+# Requires a WooCommerceResourceComponent registered under the same resource_key.
+
+type: dagster_component_templates.WooCommerceProductUpsertComponent
+attributes:
+  asset_name: woocommerce_products_mirror
+  upstream_asset_key: catalog_products
+  resource_key: woocommerce
+
+  # fields_map MUST include a mapping to WooCommerce field `sku` (the match key).
+  fields_map:
+    product_sku: sku             # upstream sku → WooCommerce sku (match key)
+    product_name: name
+    product_description: description
+    short_description: short_description
+    price: regular_price
+    stock_quantity: stock_quantity
+
+  batch_size: 200
+
+  group_name: reverse_etl
+  description: "Mirror upstream product catalog into WooCommerce Products via SKU match."
+  # kinds: [woocommerce, reverse_etl]
+  # owners: [platform@corp.com]

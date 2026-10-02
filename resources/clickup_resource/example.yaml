@@ -1,0 +1,4 @@
+type: dagster_component_templates.ClickUpResourceComponent
+attributes:
+  resource_key: clickup_resource
+  api_token_env_var: CLICKUP_API_TOKEN

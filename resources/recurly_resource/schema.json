@@ -1,0 +1,42 @@
+{
+  "component_type": "dagster_component_templates.RecurlyResourceComponent",
+  "description": "Register a RecurlyResource wrapping the Recurly API v3. HTTP Basic auth (private API key as username, blank password). Every request pins a dated API version via the Accept header (application/vnd.recurly.v<version>+json). request() returns None on 404 (not an exception) so upsert-style existence checks can branch on it directly. Exposes a generic request().",
+  "category": "resource",
+  "icon": "Repeat",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "recurly"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "recurly"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var with the Recurly PRIVATE API key.",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "api_version": {
+      "type": "string",
+      "label": "API Version",
+      "description": "Recurly dated API version (sent as 'application/vnd.recurly.v<version>+json').",
+      "required": false,
+      "default": "2021-02-25"
+    }
+  },
+  "tags": [
+    "resource",
+    "recurly",
+    "billing",
+    "subscriptions",
+    "erp"
+  ],
+  "name": "Recurly Resource",
+  "vertical": "erp-finance"
+}

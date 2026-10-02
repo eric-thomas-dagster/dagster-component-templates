@@ -1,0 +1,46 @@
+{
+  "component_type": "dagster_component_templates.LeverResourceComponent",
+  "description": "Register a LeverResource wrapping the Lever Hire REST API for use by other components",
+  "category": "resource",
+  "icon": "si:lever",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "lever_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "lever_resource"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var holding the Lever API key (Basic auth username, blank password).",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "perform_as": {
+      "type": "string",
+      "label": "Perform As",
+      "description": "Lever user ID of the acting user. REQUIRED by Lever on every mutating call (create/tag/stage/archive) -- look it up once via GET /users.",
+      "required": true
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base URL",
+      "description": "Lever API base URL.",
+      "required": false,
+      "default": "https://api.lever.co/v1"
+    }
+  },
+  "tags": [
+    "resource",
+    "lever",
+    "ats",
+    "recruiting"
+  ],
+  "name": "Lever Resource"
+}

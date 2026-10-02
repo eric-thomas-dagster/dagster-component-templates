@@ -1,0 +1,137 @@
+{
+  "component_type": "dagster_component_templates.TrelloCardUpsertComponent",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into Trello cards in a target List. Rows are matched to existing cards by a key marker embedded in the card description (e.g. <!-- dagster-key: INC-1001 -->); Trello has no native upsert endpoint for cards.",
+  "category": "reverse_etl",
+  "icon": "si:trello",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one Trello card (upserted via key_column)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated). No downstream data -- write side effect lands in Trello."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with source."
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "trello_resource"
+    },
+    "list_id": {
+      "type": "string",
+      "label": "List Id",
+      "required": true,
+      "description": "Target Trello List ID cards are created/matched in."
+    },
+    "key_column": {
+      "type": "string",
+      "label": "Key Column",
+      "required": true,
+      "description": "Upstream column holding a stable unique key, embedded as a dagster-key marker in the card description."
+    },
+    "name_column": {
+      "type": "string",
+      "label": "Name Column",
+      "required": true,
+      "description": "Column holding the card name."
+    },
+    "desc_column": {
+      "type": "string",
+      "label": "Desc Column",
+      "required": false,
+      "default": null,
+      "description": "Column holding the card description (markdown)."
+    },
+    "due_column": {
+      "type": "string",
+      "label": "Due Column",
+      "required": false,
+      "default": null,
+      "description": "Column holding an ISO-8601 due date/datetime."
+    },
+    "id_labels_column": {
+      "type": "string",
+      "label": "Id Labels Column",
+      "required": false,
+      "default": null,
+      "description": "Column holding Trello label IDs to apply. Accepts a list, or a comma-separated string."
+    },
+    "closed_column": {
+      "type": "string",
+      "label": "Closed Column",
+      "required": false,
+      "default": null,
+      "description": "Column holding a boolean/'true'/'false' to archive (close) the card."
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 100,
+      "description": "Max upstream rows to process per run (safety cap)."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "trello"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "trello",
+    "reverse-etl",
+    "upsert",
+    "project-management"
+  ],
+  "name": "Trello Card Upsert",
+  "vertical": "productivity"
+}

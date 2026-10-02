@@ -1,0 +1,5 @@
+type: dagster_component_templates.BasecampResourceComponent
+attributes:
+  resource_key: basecamp_resource
+  account_id: "195539477"
+  access_token_env_var: BASECAMP_ACCESS_TOKEN

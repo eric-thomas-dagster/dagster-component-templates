@@ -1,0 +1,32 @@
+{
+  "component_type": "dagster_component_templates.ClickUpResourceComponent",
+  "description": "ClickUp REST API v2 client wrapper. Personal API token or OAuth2 access token, sent raw (no Bearer prefix) in the Authorization header.",
+  "category": "resource",
+  "icon": "si:clickup",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "clickup_resource",
+      "description": "Key used to register this resource. Other components reference it via resource_key."
+    },
+    "api_token_env_var": {
+      "type": "string",
+      "label": "Api Token Env Var",
+      "required": false,
+      "default": "CLICKUP_API_TOKEN",
+      "description": "Env var holding a ClickUp personal API token or OAuth2 access token."
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base Url",
+      "required": false,
+      "default": "https://api.clickup.com/api/v2",
+      "description": "ClickUp API base URL."
+    }
+  }
+}

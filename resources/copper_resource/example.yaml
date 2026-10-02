@@ -1,0 +1,18 @@
+# CopperResourceComponent -- Copper CRM REST API resource.
+#
+# Auth requires FOUR headers on every request (all set automatically by
+# this resource): X-PW-AccessToken (your API key), X-PW-Application
+# (always "developer_api"), X-PW-UserEmail (the API key owner's email),
+# and Content-Type: application/json.
+#
+# Copper has no native atomic upsert endpoint -- see copper_record_upsert
+# for the search-then-write sink that pairs with this resource.
+
+type: dagster_component_templates.CopperResourceComponent
+attributes:
+  resource_key: copper
+  api_key_env_var: COPPER_API_KEY
+  user_email: you@company.com
+  # base_url: https://api.copper.com/developer_api/v1   # default
+  # request_timeout_seconds: 60
+  # max_retries: 3

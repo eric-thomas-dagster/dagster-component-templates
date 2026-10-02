@@ -1,6 +1,6 @@
 # Configuring destinations for ingestion components
 
-Every dlt-based ingestion component in this directory exposes the same five
+Every dlt-based ingestion component in this directory exposes the same seven
 destination-related fields. This document is the single source of truth for
 how to use them. Per-component READMEs only document source-specific config
 (API tokens, resource selection, etc.) and link here for destination details.
@@ -9,7 +9,7 @@ how to use them. Per-component READMEs only document source-specific config
 > <https://dlthub.com/docs/dlt-ecosystem/destinations>. We don't restate every
 > credential field here — just the patterns and the most common destinations.
 
-## The 5 fields
+## The 7 fields
 
 | Field | Type | Default | Purpose |
 |---|---|---|---|
@@ -18,6 +18,47 @@ how to use them. Per-component READMEs only document source-specific config
 | `persist_only` | `bool` | `false` | When `true` and `destination` is set, the asset emits a `MaterializeResult` and skips DataFrame return. When `false`, the asset queries the destination back into a DataFrame (only meaningful for SQL destinations). |
 | `destination_credentials_url` | `str?` | `null` | Inline connection string passed to dlt's destination factory (`dlt.destinations.<name>(credentials=...)`). Useful for projects that ingest into multiple accounts of the same destination type. |
 | `destination_credentials_env_var` | `str?` | `null` | Alternative to `destination_credentials_url`: name of an env var holding the connection string. Resolved at run-time. |
+| `bucket_url` | `str?` | `null` | Bucket/path URL for filesystem-shaped storage (`s3://...`, `gs://...`, `az://...`, or a local path). Required when `destination: filesystem` is the final target. For `destination: databricks`/`athena`, sets the **staging** bucket inline instead of relying on the `DESTINATION__FILESYSTEM__BUCKET_URL` env var — see "Databricks and Athena always need staging" below. |
+| `athena_query_result_bucket` | `str?` | `null` | Only used when `destination: athena`. Inline alternative to the `DESTINATION__ATHENA__QUERY_RESULT_BUCKET` env var. May be omitted to use Athena-managed query results. |
+
+## Databricks and Athena always need staging
+
+Unlike Snowflake/BigQuery/Postgres (which load directly), dlt loads into
+Databricks and Athena via an intermediate **filesystem staging destination** —
+files are copied to a bucket first, then loaded into the warehouse from
+there. This is a dlt pipeline-topology requirement, not just a credential:
+it must be activated by passing a `staging=` argument to `dlt.pipeline(...)`,
+which dlt never does on its own.
+
+Every component in this directory wires this up automatically whenever
+`destination` is `databricks` or `athena` — you don't need to do anything
+beyond configuring the staging bucket itself, via **either**:
+
+- The `bucket_url` field (set directly in your component's YAML/Python
+  config), or
+- The `DESTINATION__FILESYSTEM__BUCKET_URL` env var (and its credential
+  siblings — see the filesystem env-var table below) — if `bucket_url` is
+  unset, the component falls back to dlt's own env-var resolution for the
+  staging bucket, same as every other field in this document.
+
+```yaml
+attributes:
+  asset_name: github_repos
+  destination: databricks
+  bucket_url: "s3://my-staging-bucket/dlt-staging"
+  dataset_name: github_raw
+  persist_only: true
+```
+
+```yaml
+attributes:
+  asset_name: github_repos
+  destination: athena
+  bucket_url: "s3://my-staging-bucket/dlt-staging"
+  athena_query_result_bucket: "s3://my-query-results/"
+  dataset_name: github_raw
+  persist_only: true
+```
 
 ## Four operating modes
 
@@ -204,6 +245,9 @@ These all share the same shape:
 
 ### databricks
 
+Also needs a filesystem **staging** bucket — see "Databricks and Athena
+always need staging" above.
+
 | Env var | Required |
 |---|---|
 | `DESTINATION__DATABRICKS__CREDENTIALS__SERVER_HOSTNAME` | yes — workspace URL host |
@@ -215,7 +259,8 @@ These all share the same shape:
 ### filesystem (S3 / GCS / Azure / local)
 
 The bucket URL drives which backend is used. Backend-specific credentials
-follow.
+follow. As `destination: filesystem` (the final target, not staging), set
+the bucket via the `bucket_url` field directly or the env var below.
 
 | Env var | Required |
 |---|---|
@@ -237,9 +282,14 @@ For **Azure**:
 
 ### athena
 
+Also needs a filesystem **staging** bucket — see "Databricks and Athena
+always need staging" above. `query_result_bucket` is separate from staging:
+it's where Athena writes its own query results, and can be omitted to use
+Athena-managed query results instead.
+
 | Env var | Required |
 |---|---|
-| `DESTINATION__ATHENA__QUERY_RESULT_BUCKET` | yes — `s3://...` for query results staging |
+| `DESTINATION__ATHENA__QUERY_RESULT_BUCKET` | optional — `s3://...` for query results; omit to use Athena-managed results |
 | `DESTINATION__ATHENA__CREDENTIALS__AWS_ACCESS_KEY_ID` | yes |
 | `DESTINATION__ATHENA__CREDENTIALS__AWS_SECRET_ACCESS_KEY` | yes |
 | `DESTINATION__ATHENA__CREDENTIALS__REGION_NAME` | yes |

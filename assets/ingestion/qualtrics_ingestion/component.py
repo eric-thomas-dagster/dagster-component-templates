@@ -198,6 +198,27 @@ class QualtricsIngestionComponent(Component, Model, Resolvable):
             "connection string. Resolved at run-time."
         ),
     )
+    bucket_url: Optional[str] = Field(
+        default=None,
+        description=(
+            "Bucket/path URL for filesystem-shaped storage (e.g. 's3://my-bucket/path', "
+            "'gs://my-bucket/path', 'az://my-container/path', or 'file:///local/path'). "
+            "Required when destination='filesystem' (the final write target). Also used "
+            "as the staging area when destination='databricks' or 'athena', both of which "
+            "require an intermediate filesystem stage before the warehouse-side load -- "
+            "dlt resolves the bucket's credentials from the destination-appropriate "
+            "standard environment variables (e.g. AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY) "
+            "unless destination_credentials_url/destination_credentials_env_var is set."
+        ),
+    )
+    athena_query_result_bucket: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional S3 path where Athena writes query results (e.g. "
+            "'s3://my-bucket/results/'). Only used when destination='athena'. May be "
+            "omitted to use Athena-managed query results instead."
+        ),
+    )
 
     # --- Standard asset metadata -----------------------------------------------
 
@@ -295,6 +316,47 @@ class QualtricsIngestionComponent(Component, Model, Resolvable):
                 return factory(credentials=creds)
         return self.destination
 
+    def _resolve_destination_with_bucket(self):
+        """Wraps _resolve_destination() to inject `bucket_url` (filesystem)
+        or `query_result_bucket` (athena) -- dlt needs these to know where
+        to write/query, separately from the staging area wired by
+        _resolve_staging() for destinations that go through one."""
+        if self.destination == "filesystem" and self.bucket_url:
+            creds = None
+            if self.destination_credentials_url:
+                creds = self.destination_credentials_url
+            elif self.destination_credentials_env_var:
+                creds = os.environ.get(self.destination_credentials_env_var)
+            return dlt.destinations.filesystem(bucket_url=self.bucket_url, credentials=creds)
+        if self.destination == "athena" and self.athena_query_result_bucket:
+            creds = None
+            if self.destination_credentials_url:
+                creds = self.destination_credentials_url
+            elif self.destination_credentials_env_var:
+                creds = os.environ.get(self.destination_credentials_env_var)
+            athena_kwargs = {"query_result_bucket": self.athena_query_result_bucket}
+            if creds:
+                athena_kwargs["credentials"] = creds
+            return dlt.destinations.athena(**athena_kwargs)
+        return self._resolve_destination()
+
+    def _resolve_staging(self):
+        """Build the dlt `staging` argument. Databricks and Athena both load
+        via an intermediate filesystem stage (files copied to a bucket, then
+        loaded into the warehouse from there) -- dlt requires this staging
+        destination to be activated explicitly, it is never auto-enabled.
+        Unconditionally activates staging for these two (there's no direct-load
+        mode for them in dlt); if `bucket_url` is set inline, build the
+        filesystem destination with it explicitly, otherwise fall back to the
+        bare 'filesystem' string so dlt resolves bucket_url/credentials from
+        DESTINATION__FILESYSTEM__* env vars, consistent with how every other
+        destination in this component resolves credentials by default."""
+        if self.destination not in ("databricks", "athena"):
+            return None
+        if self.bucket_url:
+            return dlt.destinations.filesystem(bucket_url=self.bucket_url)
+        return "filesystem"
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         component = self
         asset_name = self.asset_name
@@ -387,7 +449,8 @@ class QualtricsIngestionComponent(Component, Model, Resolvable):
 
             pipeline = dlt.pipeline(
                 pipeline_name=f"{asset_name}_pipeline",
-                destination=component._resolve_destination(),
+                destination=component._resolve_destination_with_bucket(),
+                staging=component._resolve_staging(),
                 dataset_name=dataset_name,
             )
 

@@ -14,6 +14,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
@@ -45,6 +46,7 @@
         "type": "object",
         "properties": {
           "name": {
+            "description": "Unique node name. Referenced by `next` and templated as {outputs.<name>}.",
             "type": "string"
           },
           "prompt": {
@@ -52,15 +54,19 @@
             "description": "Uses {input} and {outputs.<name>} tokens."
           },
           "system_message": {
+            "description": "Optional system message for this step (overrides component-level system_message).",
             "type": "string"
           },
           "model": {
+            "description": "Optional per-step model override (defaults to component-level model).",
             "type": "string"
           },
           "temperature": {
+            "description": "Optional per-step temperature override.",
             "type": "number"
           },
           "max_tokens": {
+            "description": "Optional per-step max_tokens override.",
             "type": "integer"
           },
           "next": {
@@ -72,6 +78,7 @@
             "description": "If set, route to `next` on match else to `condition_else`."
           },
           "condition_else": {
+            "description": "Where to route when condition_regex does NOT match. Defaults to END.",
             "type": "string"
           }
         }
@@ -93,71 +100,77 @@
       "ui:widget": "select"
     },
     "model": {
+      "description": "Default model. Overridable per step.",
       "type": "string",
       "label": "Model",
       "required": false,
       "default": null
     },
     "api_key_env_var": {
+      "description": "Env var containing the provider API key.",
       "type": "string",
       "label": "API Key Env Var",
       "required": false
     },
     "api_base_env_var": {
+      "description": "Env var containing a custom base URL (for Azure / Ollama / self-hosted).",
       "type": "string",
       "label": "API Base URL Env Var",
       "required": false
     },
     "system_message": {
+      "description": "Default system message applied to every step. Overridable per step.",
       "type": "string",
       "label": "Default System Message",
       "required": false
     },
     "temperature": {
+      "description": "Default sampling temperature.",
       "type": "number",
       "label": "Temperature",
       "required": false,
       "default": null
     },
     "max_tokens": {
+      "description": "Default max tokens per step.",
       "type": "integer",
       "label": "Max Tokens",
       "required": false,
       "default": null
     },
-    "group_name": {"label": "Group Name", 
+    "group_name": {"label": "Group Name", "description": "Dagster asset group name.",
       "type": "string",
       "required": false
     },
-    "description": {"label": "Description", 
+    "description": {"label": "Description", "description": "Asset description.",
       "type": "string",
       "required": false
     },
-    "owners": {"label": "Owners", 
+    "owners": {"label": "Owners", "description": "Asset owners.",
       "type": "array",
       "required": false
     },
-    "asset_tags": {"label": "Asset Tags", 
+    "asset_tags": {"label": "Asset Tags", "description": "Extra asset tags.",
       "type": "object",
       "required": false
     },
-    "kinds": {"label": "Kinds", 
+    "kinds": {"label": "Kinds", "description": "Asset kinds. Defaults to ['ai', 'langgraph', 'agent'].",
       "type": "array",
       "required": false
     },
-    "deps": {"label": "Deps", 
+    "deps": {"label": "Deps", "description": "Lineage-only upstream asset keys.",
       "type": "array",
       "required": false
     },
-    "retry_policy_max_retries": {"label": "Retry Policy Max Retries", 
+    "retry_policy_max_retries": {"label": "Retry Policy Max Retries", "description": "Max retries on failure.",
       "type": "integer",
       "required": false
     },
-    "retry_policy_delay_seconds": {"label": "Retry Policy Delay Seconds", 
+    "retry_policy_delay_seconds": {"label": "Retry Policy Delay Seconds", "description": "Seconds between retries.",
       "type": "integer",
       "required": false
     },
-    "retry_policy_backoff": {"label": "Retry Policy Backoff", 
+    "retry_policy_backoff": {"label": "Retry Policy Backoff", "description": "'linear' or 'exponential'.",
       "type": "string",
       "required": false,
       "default": "exponential",

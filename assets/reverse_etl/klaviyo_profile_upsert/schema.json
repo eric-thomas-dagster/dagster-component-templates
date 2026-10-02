@@ -21,13 +21,14 @@
     "upstream_asset_key": {
       "label": "Upstream Asset Key",
       "type": "string",
-      "required": false
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with source."
     },
     "source": {
       "label": "Source",
       "type": "object",
       "required": false,
-      "description": "{kind: sql|csv|inline, ...}"
+      "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."
     },
     "resource_key": {
       "label": "Resource Key",

@@ -1,0 +1,4 @@
+type: dagster_component_templates.MetronomeResourceComponent
+attributes:
+  resource_key: metronome_resource
+  api_key_env_var: METRONOME_API_KEY

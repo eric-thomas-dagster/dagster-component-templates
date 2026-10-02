@@ -1,0 +1,255 @@
+{
+  "component_type": "dagster_component_templates.PiiHasherComponent",
+  "description": "Normalize + SHA-256 hash PII identifier columns (email, phone, generic) in a DataFrame — a destination-agnostic building block for safe downstream activation or compliance/anonymization.",
+  "category": "transformation",
+  "icon": "Lock",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame containing one or more plaintext PII identifier columns"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame with each listed identifier column normalized + SHA-256 hashed into a new '{column}{suffix}' column"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame",
+      "required": true
+    },
+    "column_identifiers": {
+      "type": "object",
+      "label": "Column Identifiers",
+      "description": "Mapping of column name -> identifier type. Supported types: 'email', 'phone', 'generic'. Each listed column is normalized per its type then SHA-256 hashed into a new '{column}{hashed_column_suffix}' column. Columns not listed here pass through unchanged.",
+      "required": true,
+      "ui:widget": "key-value"
+    },
+    "email_strip_all_whitespace": {
+      "type": "boolean",
+      "label": "Email: Strip All Whitespace",
+      "description": "Default (false): trim + lowercase -- the convention Google Ads, Meta, TikTok, X/Twitter, and Pinterest all document. Set true to additionally strip ALL whitespace (not just leading/trailing) before lowercasing -- LinkedIn's documented, broader rule.",
+      "required": false,
+      "default": false
+    },
+    "phone_mode": {
+      "type": "string",
+      "label": "Phone Normalization Mode",
+      "description": "'e164_with_plus': keep a leading '+' plus country-code digits only (Google Ads Customer Match, TikTok Custom Audiences, X/Twitter Tailored Audiences convention). 'digits_only_no_plus': strip the '+' and every non-digit character (Meta Custom Audiences, Pinterest Customer Lists convention). Pick whichever your downstream destination expects.",
+      "required": false,
+      "default": "e164_with_plus",
+      "enum": [
+        "e164_with_plus",
+        "digits_only_no_plus"
+      ],
+      "ui:widget": "select"
+    },
+    "hashed_column_suffix": {
+      "type": "string",
+      "label": "Hashed Column Suffix",
+      "description": "Suffix appended to each identifier column's name to form its hashed output column name, e.g. 'email' -> 'email_hashed'.",
+      "required": false,
+      "default": "_hashed"
+    },
+    "drop_original_columns": {
+      "type": "boolean",
+      "label": "Drop Original Columns",
+      "description": "Drop the original plaintext identifier columns after hashing (default: true). Set false to KEEP plaintext columns for local debugging/testing only -- WARNING: enabling this in production defeats the purpose of hashing, since plaintext PII remains in the output DataFrame.",
+      "required": false,
+      "default": true
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag (minutes)",
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "required": false,
+      "default": null
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron Schedule",
+      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "cron"
+    },
+    "column_lineage": {
+      "type": "object",
+      "label": "Column Lineage",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from. Defaults to each hashed column tracing back to its source column, e.g. {\"email_hashed\": [\"email\"]}.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "required": false,
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "required": false,
+      "default": 25
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "transformation",
+    "pii",
+    "privacy",
+    "hashing",
+    "sha256",
+    "compliance",
+    "anonymization"
+  ],
+  "name": "PII Hasher"
+}

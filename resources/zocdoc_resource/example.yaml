@@ -1,0 +1,6 @@
+type: dagster_component_templates.ZocdocResourceComponent
+attributes:
+  resource_key: zocdoc_resource
+  environment: sandbox
+  client_id_env_var: ZOCDOC_CLIENT_ID
+  client_secret_env_var: ZOCDOC_CLIENT_SECRET

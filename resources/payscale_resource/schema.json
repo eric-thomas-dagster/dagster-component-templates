@@ -1,0 +1,92 @@
+{
+  "component_type": "dagster_component_templates.PayscaleResourceComponent",
+  "description": "Register a PayscaleResource (OAuth2 client_credentials grant) wrapping PayScale's Jobalyzer compensation-benchmarking API for use by other components. NOT self-serve -- credentials require a direct commercial agreement with PayScale.",
+  "category": "resource",
+  "icon": "DollarSign",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "payscale_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "payscale_resource"
+    },
+    "customer_id": {
+      "type": "string",
+      "label": "Customer ID",
+      "description": "PayScale-issued customer/client identifier, sent as both customerId and user on every request. Issued alongside OAuth2 credentials -- not self-serve.",
+      "required": true
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client ID Env Var",
+      "description": "Env var holding the OAuth2 client_credentials client ID.",
+      "required": false,
+      "default": "PAYSCALE_CLIENT_ID",
+      "ui:widget": "env_var"
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "description": "Env var holding the OAuth2 client_credentials client secret.",
+      "required": false,
+      "default": "PAYSCALE_CLIENT_SECRET",
+      "ui:widget": "env_var"
+    },
+    "token_url": {
+      "type": "string",
+      "label": "Token URL",
+      "description": "OAuth2 token endpoint (documented PayScale default: https://accounts.payscale.com/connect/token).",
+      "required": false,
+      "default": "https://accounts.payscale.com/connect/token"
+    },
+    "api_base_url": {
+      "type": "string",
+      "label": "API Base URL",
+      "description": "Jobalyzer REST API base URL (documented PayScale default).",
+      "required": false,
+      "default": "https://jobalyzer.payscale.com/jobalyzer/v1"
+    },
+    "scope": {
+      "type": "string",
+      "label": "OAuth2 Scope",
+      "description": "OAuth2 scope requested at the token endpoint.",
+      "required": false,
+      "default": "jobalyzer"
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout (seconds)",
+      "description": "Per-HTTP-call timeout in seconds.",
+      "required": false,
+      "default": 30
+    },
+    "poll_interval_seconds": {
+      "type": "number",
+      "label": "Poll Interval (seconds)",
+      "description": "Seconds between polling attempts while a report is still processing.",
+      "required": false,
+      "default": 2.0
+    },
+    "poll_timeout_seconds": {
+      "type": "number",
+      "label": "Poll Timeout (seconds)",
+      "description": "Give up waiting for a report after this many seconds and raise TimeoutError.",
+      "required": false,
+      "default": 60.0
+    }
+  },
+  "tags": [
+    "resource",
+    "payscale",
+    "compensation",
+    "hr",
+    "oauth2"
+  ],
+  "name": "PayScale Resource",
+  "vertical": "finance-hr"
+}

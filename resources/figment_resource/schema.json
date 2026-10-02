@@ -1,0 +1,42 @@
+{
+  "component_type": "dagster_component_templates.FigmentResourceComponent",
+  "description": "Register a FigmentResource for Figment's institutional crypto staking infrastructure REST API (static x-api-key auth) for use by other components",
+  "category": "resource",
+  "icon": "si:figment",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "figment_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "figment_resource"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var holding the Figment API key.",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base URL",
+      "description": "Figment API base URL.",
+      "required": false,
+      "default": "https://api.figment.io"
+    }
+  },
+  "tags": [
+    "resource",
+    "figment",
+    "staking",
+    "crypto",
+    "fintech"
+  ],
+  "name": "Figment Resource",
+  "vertical": "crypto-staking"
+}

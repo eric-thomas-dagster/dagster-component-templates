@@ -1,0 +1,118 @@
+{
+  "component_type": "dagster_component_templates.SigmaInputTableUpsertComponent",
+  "description": "Reverse-ETL writeback: write an upstream DataFrame's rows into an existing Sigma Input Table, via a pre-published webhook-triggered Action Sequence (POST /v2/webhooks/{workbookId}/{sequenceId}). Sigma's REST API has no direct 'write rows to an Input Table' endpoint -- this is the real, documented write path (Beta). Chunks at Sigma's documented 2,000-rows-per-action cap. The trigger is async (HTTP 202 + traceId) -- this component confirms acceptance, not that rows were actually applied.",
+  "category": "reverse_etl",
+  "icon": "si:sigma",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row is mapped via fields_map into an Input Table row object."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (workbook_id / sequence_id / write_mode / rows_submitted / rows_skipped_empty / api_requests / trace_ids)."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with `source`."
+    },
+    "source": {
+      "type": "object",
+      "label": "Inline Source",
+      "required": false,
+      "description": "Inline source config (sql / csv / inline). Mutually exclusive with `upstream_asset_key`."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "sigma_resource"
+    },
+    "workbook_id": {
+      "type": "string",
+      "label": "Workbook ID",
+      "required": true,
+      "description": "Workbook ID containing the target Input Table's Action Sequence."
+    },
+    "sequence_id": {
+      "type": "string",
+      "label": "Sequence ID",
+      "required": true,
+      "description": "ID of the already-published Action Sequence with a Webhook trigger configured."
+    },
+    "rows_parameter_name": {
+      "type": "string",
+      "label": "Rows Parameter Name",
+      "required": false,
+      "default": "rows",
+      "description": "JSON key of the array-type webhook parameter that receives row objects."
+    },
+    "fields_map": {
+      "type": "object",
+      "label": "Fields Map",
+      "required": true,
+      "description": "Upstream column -> Input Table column name."
+    },
+    "static_parameters": {
+      "type": "object",
+      "label": "Static Parameters",
+      "required": false,
+      "description": "Extra scalar webhook parameters sent on every call alongside the rows array."
+    },
+    "write_mode": {
+      "type": "string",
+      "label": "Write Mode",
+      "required": false,
+      "default": "insert",
+      "enum": ["insert", "update"],
+      "ui:widget": "select",
+      "description": "Documentation/metadata only -- describes what the bound Action Sequence does. Does not change the request shape."
+    },
+    "rows_per_request": {
+      "type": "integer",
+      "label": "Rows Per Request",
+      "required": false,
+      "default": 2000,
+      "description": "Rows per webhook call. Capped at 2,000 -- Sigma's documented Insert row(s) limit."
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 50000,
+      "description": "Max upstream rows per run (safety cap)."
+    },
+    "validate_schema_before_write": {
+      "type": "boolean",
+      "label": "Validate Schema Before Write",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox",
+      "description": "Fail fast if rows_parameter_name/static_parameters aren't declared on the webhook's schema."
+    },
+    "group_name": { "type": "string", "label": "Group Name", "required": false },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "label": "Owners", "required": false },
+    "tags": { "type": "object", "label": "Tags", "required": false },
+    "kinds": { "type": "array", "label": "Kinds", "required": false }
+  },
+  "tags": [
+    "sink",
+    "sigma",
+    "reverse-etl",
+    "business-intelligence",
+    "bi",
+    "input-table",
+    "webhook"
+  ],
+  "name": "Sigma Input Table Upsert"
+}

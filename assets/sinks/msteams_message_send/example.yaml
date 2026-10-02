@@ -1,0 +1,15 @@
+type: dagster_component_templates.MSTeamsMessageSendComponent
+attributes:
+  asset_name: customer_health_teams_alert
+  upstream_asset_key: customers_crossing_health_threshold
+
+  resource_key: msteams           # or: webhook_url_env_var: MSTEAMS_WEBHOOK_URL
+
+  mode: per_row                   # 'per_row' or 'summary'
+  title_template: "Health score alert: {customer_name}"
+  message_template: |
+    Customer **{customer_name}** (plan: {plan}) just crossed the health-score threshold.
+    Score: {health_score} (was {previous_health_score})
+
+  group_name: notifications
+  dry_run: true                   # flip to false for live sending

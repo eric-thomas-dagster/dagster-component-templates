@@ -1,0 +1,195 @@
+{
+  "component_type": "dagster_component_templates.ZocdocAppointmentsIngestionComponent",
+  "description": "Ingest booked Zocdoc appointments via GET /v1/appointments into a pandas DataFrame, for operational/analytics reporting. PHI-safe by design: materialization metadata, logs, and error messages never carry a data preview -- row counts and configured filters only.",
+  "category": "source",
+  "vertical": "healthcare-scheduling",
+  "icon": "Calendar",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame of booked appointment records returned by Zocdoc's GET /v1/appointments (fields vary; may include PHI such as patient name/contact info -- see README PHI Safety section)."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "required": true
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key of the ZocdocResource this asset depends on for authentication",
+      "required": false,
+      "default": "zocdoc_resource"
+    },
+    "from_date_time": {
+      "type": "string",
+      "label": "From Date/Time",
+      "description": "Start of the appointment start-time window (ISO-8601) -> start_time_utc_min. Required unless a time-based partition_type is set.",
+      "required": false,
+      "default": null
+    },
+    "to_date_time": {
+      "type": "string",
+      "label": "To Date/Time",
+      "description": "End of the appointment start-time window (ISO-8601) -> start_time_utc_max. Required unless a time-based partition_type is set.",
+      "required": false,
+      "default": null
+    },
+    "practice_ids": {
+      "type": "string",
+      "label": "Practice Ids",
+      "description": "Comma-separated Zocdoc practice ids to filter on.",
+      "required": false,
+      "default": null
+    },
+    "provider_ids": {
+      "type": "string",
+      "label": "Provider Ids",
+      "description": "Comma-separated Zocdoc provider ids to filter on.",
+      "required": false,
+      "default": null
+    },
+    "location_ids": {
+      "type": "string",
+      "label": "Location Ids",
+      "description": "Comma-separated Zocdoc location ids to filter on.",
+      "required": false,
+      "default": null
+    },
+    "statuses": {
+      "type": "string",
+      "label": "Statuses",
+      "description": "Comma-separated appointment statuses to filter on (e.g. 'booked,confirmed').",
+      "required": false,
+      "default": null
+    },
+    "sort_by": {
+      "type": "string",
+      "label": "Sort By",
+      "description": "One of 'start_time_utc' / 'created_time_utc' / 'last_modified_time_utc'.",
+      "required": false,
+      "default": null,
+      "enum": ["start_time_utc", "created_time_utc", "last_modified_time_utc"],
+      "ui:widget": "select"
+    },
+    "sort_direction": {
+      "type": "string",
+      "label": "Sort Direction",
+      "description": "One of 'ascending' / 'descending'.",
+      "required": false,
+      "default": null,
+      "enum": ["ascending", "descending"],
+      "ui:widget": "select"
+    },
+    "page_size": {
+      "type": "integer",
+      "label": "Page Size",
+      "description": "Results per page (Zocdoc max is 100).",
+      "required": false,
+      "default": 100
+    },
+    "limit": {
+      "type": "integer",
+      "label": "Limit",
+      "description": "Maximum number of appointments to fetch across all pages (safety cap).",
+      "required": false,
+      "default": 1000
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "zocdoc"
+    },
+    "owners": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Owners",
+      "description": "Asset owners — team names (team:foo) or email addresses.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Key-value tags applied to the asset in the Dagster catalog.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Kinds",
+      "description": "Asset kinds shown in the Dagster catalog. Defaults to ['zocdoc', 'python'].",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "deps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Deps",
+      "description": "Lineage-only upstream asset keys (no data passed at runtime)",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": ["daily", "weekly", "monthly", "hourly", "static", "multi", "dynamic"],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "Partition start date in ISO format. Required for time-based partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": { "type": "object" },
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec. Overrides flat fields when set.",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ingestion",
+    "zocdoc",
+    "healthcare",
+    "scheduling",
+    "appointments",
+    "phi"
+  ],
+  "name": "Zocdoc Appointments Ingestion"
+}

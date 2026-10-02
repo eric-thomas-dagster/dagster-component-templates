@@ -1,0 +1,13 @@
+type: dagster_component_templates.PiiHasherComponent
+attributes:
+  asset_name: hashed_customers
+  upstream_asset_key: raw_customers
+  group_name: transforms
+  column_identifiers:
+    email: email
+    phone_number: phone
+    loyalty_id: generic
+  phone_mode: e164_with_plus
+  email_strip_all_whitespace: false
+  hashed_column_suffix: _hashed
+  drop_original_columns: true

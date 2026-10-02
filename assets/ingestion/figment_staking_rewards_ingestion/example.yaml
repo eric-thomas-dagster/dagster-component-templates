@@ -1,0 +1,18 @@
+type: dagster_component_templates.FigmentStakingRewardsIngestionComponent
+attributes:
+  asset_name: figment_eth_staking_rewards
+  resource_name: figment_resource
+  network: ethereum
+  time_rollup: daily
+  start: "2026-06-01T00:00:00Z"
+  end: "2026-07-01T00:00:00Z"
+  include_aggregate_summary: true
+  group_name: figment
+
+# Solana example (uncomment / use as a separate component instance):
+# type: dagster_component_templates.FigmentStakingRewardsIngestionComponent
+# attributes:
+#   asset_name: figment_sol_staking_rewards
+#   resource_name: figment_resource
+#   network: solana
+#   accounts: ["<stake-or-system-account-address>"]   # max 50 per request

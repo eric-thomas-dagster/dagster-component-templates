@@ -1,0 +1,16 @@
+type: dagster_component_templates.SlackMessageSendComponent
+attributes:
+  asset_name: customer_health_slack_alert
+  upstream_asset_key: customers_crossing_health_threshold
+
+  resource_key: slack_resource   # or: token_env_var: SLACK_BOT_TOKEN
+
+  mode: per_row                  # 'per_row' or 'summary'
+  channel_template: "#customer-success"
+  message_template: |
+    :rotating_light: *{customer_name}* (plan: {plan}) just crossed the health-score threshold.
+    Score: {health_score} (was {previous_health_score})
+    <https://app.example.com/customers/{customer_id}|View in app>
+
+  group_name: notifications
+  dry_run: true                  # flip to false for live sending

@@ -1,0 +1,8 @@
+type: dagster_component_templates.MetronomeInvoicesIngestionComponent
+attributes:
+  asset_name: metronome_invoices
+  resource_name: metronome_resource
+  invoice_status: FINALIZED
+  starting_on: "2026-01-01T00:00:00.000Z"
+  ending_before: "2026-07-01T00:00:00.000Z"
+  group_name: metronome

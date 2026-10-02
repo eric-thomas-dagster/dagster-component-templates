@@ -1,0 +1,42 @@
+{
+  "component_type": "dagster_component_templates.MetronomeResourceComponent",
+  "description": "Register a MetronomeResource for the Metronome usage-based billing REST API (static Bearer API key auth) for use by other components",
+  "category": "resource",
+  "icon": "si:metronome",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "metronome_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "metronome_resource"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var holding the Metronome API key (bearer token).",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base URL",
+      "description": "Metronome API base URL. Override only for a regional/dedicated deployment.",
+      "required": false,
+      "default": "https://api.metronome.com/v1"
+    }
+  },
+  "tags": [
+    "resource",
+    "metronome",
+    "billing",
+    "usage-based-billing",
+    "fintech"
+  ],
+  "name": "Metronome Resource",
+  "vertical": "billing-metering"
+}

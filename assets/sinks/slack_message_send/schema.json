@@ -1,0 +1,177 @@
+{
+  "component_type": "dagster_component_templates.SlackMessageSendComponent",
+  "description": "SlackMessageSendComponent — post business-data-driven alerts to Slack.",
+  "category": "sink",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true
+    },
+    "outputs": {
+      "type": "MaterializeResult"
+    }
+  },
+  "icon": "si:slack",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name (summary row)."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Upstream DataFrame asset key."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "description": "Resource key registered by a SlackResourceComponent. Takes priority over token_env_var when both are set."
+    },
+    "token_env_var": {
+      "type": "string",
+      "label": "Token Env Var",
+      "required": false,
+      "description": "Env var with a Slack bot token (xoxb-...). Used when resource_key is not set.",
+      "ui:widget": "env_var"
+    },
+    "mode": {
+      "type": "string",
+      "label": "Mode",
+      "required": false,
+      "description": "'per_row': one Slack message per upstream row, using row fields in templates. 'summary': one message per run, with all rows rendered in the body via summary_template.",
+      "default": "per_row",
+      "enum": [
+        "per_row",
+        "summary"
+      ],
+      "ui:widget": "select"
+    },
+    "channel_template": {
+      "type": "string",
+      "label": "Channel Template",
+      "required": false,
+      "description": "Target channel/user template — `{column}` placeholders against upstream row. Example: '#customer-success' (literal) or '{slack_channel}' (per-row routing). Accepts a channel ID, a '#name', or a user ID for a DM."
+    },
+    "message_template": {
+      "type": "string",
+      "label": "Message Template",
+      "required": false,
+      "description": "Message text, with `{column}` placeholders. Supports Slack mrkdwn formatting.",
+      "default": ""
+    },
+    "summary_template": {
+      "type": "string",
+      "label": "Summary Template",
+      "required": false,
+      "description": "For mode='summary', a template rendered against the whole DataFrame's row summary (use `{row_count}` / `{table_md}`, a markdown table of up to 50 rows)."
+    },
+    "thread_ts_column": {
+      "type": "string",
+      "label": "Thread Ts Column",
+      "required": false,
+      "description": "Optional upstream column holding a thread_ts to reply in an existing thread, per row."
+    },
+    "dry_run": {
+      "type": "boolean",
+      "label": "Dry Run",
+      "required": false,
+      "description": "If True, render and log every message but don't post to Slack. Use for staging.",
+      "default": false
+    },
+    "max_send": {
+      "type": "integer",
+      "label": "Max Send",
+      "required": false,
+      "description": "Hard cap on messages sent per run. None = no limit."
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "description": "Max retries on asset failure. Useful for transient errors like network glitches or rate limits."
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "description": "Seconds between retries (default 1)."
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "default": "exponential"
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes",
+      "required": false,
+      "description": "Maximum acceptable lag in minutes before the asset is considered stale."
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "required": false,
+      "description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5'."
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned."
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "required": false,
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types."
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "required": false,
+      "description": "Comma-separated values for static partitioning, e.g. 'us,eu,asia'."
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "description": "Name for DynamicPartitionsDefinition when partition_type='dynamic'."
+    }
+  },
+  "tags": [
+    "slack-message-send",
+    "sink",
+    "slack",
+    "notification"
+  ],
+  "name": "Slack Message Send"
+}

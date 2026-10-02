@@ -1,0 +1,8 @@
+type: dagster_component_templates.SigmaWorkbookIngestionComponent
+attributes:
+  asset_name: sigma_workbook_catalog
+  resource_name: sigma_resource
+  workbook_limit: 500
+  include_elements: true
+  input_tables_only: false
+  group_name: sigma

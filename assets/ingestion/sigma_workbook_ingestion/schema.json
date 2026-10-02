@@ -1,0 +1,166 @@
+{
+  "component_type": "dagster_component_templates.SigmaWorkbookIngestionComponent",
+  "description": "Ingest a catalog of Sigma workbooks + their elements (via GET /v2/workbooks and GET /v2/workbooks/{id}/elements) and return a pandas DataFrame, one row per (workbook, element). Identifies Input Table elements via type == 'input-table' (Sigma's own documented approach). Surfaces workbook-level createdBy/updatedBy/timestamps/latestVersion as the closest API-exposed audit proxy -- true per-row Input Table audit history is a Sigma UI-only feature not exposed via the public REST API.",
+  "category": "source",
+  "vertical": "business-intelligence",
+  "icon": "si:sigma",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame of Sigma workbook + element records, one row per (workbook, element)"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "required": true
+    },
+    "resource_name": {
+      "type": "string",
+      "label": "Resource Name",
+      "description": "Key of the SigmaResource this asset depends on for authentication",
+      "required": false,
+      "default": "sigma_resource"
+    },
+    "workbook_limit": {
+      "type": "integer",
+      "label": "Workbook Limit",
+      "description": "Maximum number of workbooks to catalog across all pages",
+      "required": false,
+      "default": 500
+    },
+    "page_limit": {
+      "type": "integer",
+      "label": "Page Limit",
+      "description": "Page size for both the workbooks and elements list calls (Sigma caps limit at 1,000).",
+      "required": false,
+      "default": 100
+    },
+    "include_elements": {
+      "type": "boolean",
+      "label": "Include Elements",
+      "description": "Fetch each workbook's elements (one extra paginated call per workbook). If false, emit one row per workbook only.",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "input_tables_only": {
+      "type": "boolean",
+      "label": "Input Tables Only",
+      "description": "Only meaningful when include_elements=true. Keep only type=='input-table' elements, dropping workbooks with none entirely.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "sigma"
+    },
+    "owners": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Owners",
+      "description": "Asset owners — team names (team:analytics-eng) or email addresses.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Key-value tags applied to the asset in the Dagster catalog.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Kinds",
+      "description": "Asset kinds shown in the Dagster catalog. Defaults to ['sigma', 'python'].",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Rows to include in the preview metadata",
+      "required": false,
+      "default": 10
+    },
+    "deps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Deps",
+      "description": "Lineage-only upstream asset keys (no data passed at runtime)",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None for unpartitioned. Sigma's List Workbooks API has no time-range filter, so a time-based type only controls run cadence.",
+      "required": false,
+      "default": null,
+      "enum": ["daily", "weekly", "monthly", "hourly", "static", "multi", "dynamic"],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'us,eu,asia'.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": { "type": "object" },
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ingestion",
+    "sigma",
+    "business-intelligence",
+    "bi",
+    "workbooks",
+    "input-tables"
+  ],
+  "name": "Sigma Workbook Ingestion"
+}

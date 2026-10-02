@@ -1,0 +1,28 @@
+# MetronomeUsageEventSendComponent — DataFrame → Metronome usage event send
+# (reverse-ETL usage-based billing activation).
+#
+# Sends one usage event per upstream row via `POST /ingest`. `transaction_id`
+# is Metronome's idempotency key -- set transaction_id_column to a stable,
+# unique-per-event source column so reruns/retries never double-bill.
+#
+# Requires a MetronomeResourceComponent registered under the same resource_key.
+
+type: dagster_component_templates.MetronomeUsageEventSendComponent
+attributes:
+  asset_name: metronome_api_usage_events
+  upstream_asset_key: dbt_marts_api_calls_today
+  resource_key: metronome_resource
+
+  customer_id_column: metronome_customer_id   # Metronome customer UUID or ingest alias
+  event_type: api_call                        # static event_type for every row
+  timestamp_column: called_at                 # RFC 3339 timestamp column
+  transaction_id_column: request_id           # STRONGLY recommended for idempotency
+  properties_columns: [endpoint, status_code, duration_ms]
+
+  batch_size: 100       # Metronome's hard limit: 1-100 events per /ingest request
+  max_retries: 5        # bounded version of "always retry 5xx/network until 200"
+
+  group_name: reverse_etl
+  description: "Send a Metronome usage event for every API call logged today."
+  # kinds: [metronome, reverse_etl]
+  # owners: [billing@corp.com]

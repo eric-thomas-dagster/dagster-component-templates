@@ -1,0 +1,4 @@
+type: dagster_component_templates.FigmentResourceComponent
+attributes:
+  resource_key: figment_resource
+  api_key_env_var: FIGMENT_API_KEY

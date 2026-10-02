@@ -1,0 +1,6 @@
+type: dagster_component_templates.PayscaleResourceComponent
+attributes:
+  resource_key: payscale_resource
+  customer_id: "123456"
+  client_id_env_var: PAYSCALE_CLIENT_ID
+  client_secret_env_var: PAYSCALE_CLIENT_SECRET

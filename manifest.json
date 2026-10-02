@@ -64603,9 +64603,1112 @@
         "zuora",
         "zuora resource"
       ]
+    },
+    {
+      "id": "mistral_llm",
+      "name": "Mistral LLM",
+      "category": "ai",
+      "description": "Native Mistral AI LLM inference via Mistral's OpenAI-compatible API. Drop-in peer of openai_llm / anthropic_llm / gemini_llm / groq_llm. Mistral's wire format is identical to OpenAI's Chat Completions \u2014 swap in a Mistral API key and model name and existing OpenAI-client code works unchanged. For multi-vendor routing use litellm_inference_asset.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/mistral_llm",
+      "tags": [
+        "ai",
+        "llm",
+        "mistral",
+        "codestral",
+        "ministral"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "openai>=1.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mistral_llm/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mistral_llm/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mistral_llm/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mistral_llm/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mistral_llm/requirements.txt",
+      "icon": "lu:wind",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite, real logic exercised). Live validation against a real Mistral account/tenant pending."
+      },
+      "consumes": [],
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "when_to_use": "Native Mistral AI LLM inference via Mistral's OpenAI-compatible API. Drop-in peer of openai_llm / anthropic_llm / gemini_llm / groq_llm. Mistral's wire format is identical to OpenAI's Chat Completions \u2014 swap in a Mistral API key and model name and existing OpenAI-client code works unchanged. For multi-vendor routing use litellm_inference_asset.",
+        "example_prompts": [
+          "Native Mistral AI LLM inference via Mistral's OpenAI-compatible API. Drop-in peer of openai_llm / anthropic_llm / gemini_llm / groq_llm. Mistral's wire format is identical to OpenAI's Chat Completions \u2014 swap in a Mistral API key and model name and existing OpenAI-client code works unchanged. For multi-vendor routing use litellm_inference_asset."
+        ],
+        "requires_pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "openai>=1.0.0"
+        ],
+        "requires_env_vars": [
+          "MISTRAL_API_KEY"
+        ]
+      },
+      "keywords": [
+        "ai",
+        "codestral",
+        "llm",
+        "ministral",
+        "mistral",
+        "mistral llm"
+      ]
+    },
+    {
+      "id": "perplexity_llm",
+      "name": "Perplexity LLM",
+      "category": "ai",
+      "description": "Native Perplexity (Sonar) web-grounded LLM inference via Perplexity's OpenAI-compatible API. Drop-in peer of openai_llm / anthropic_llm / gemini_llm / groq_llm / mistral_llm, but unlike those, Perplexity's responses are grounded with real-time web citations, which this component surfaces as its own output column and in materialization metadata. For multi-vendor routing use litellm_inference_asset.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/perplexity_llm",
+      "tags": [
+        "ai",
+        "llm",
+        "perplexity",
+        "sonar",
+        "web-search",
+        "citations",
+        "rag"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "openai>=1.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/perplexity_llm/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/perplexity_llm/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/perplexity_llm/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/perplexity_llm/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/perplexity_llm/requirements.txt",
+      "icon": "lu:search",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite, real logic exercised). Live validation against a real Perplexity account/tenant pending."
+      },
+      "consumes": [],
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "when_to_use": "Native Perplexity (Sonar) web-grounded LLM inference via Perplexity's OpenAI-compatible API. Drop-in peer of openai_llm / anthropic_llm / gemini_llm / groq_llm / mistral_llm, but unlike those, Perplexity's responses are grounded with real-time web citations, which this component surfaces as its own output column and in materialization metadata. For multi-vendor routing use litellm_inference_asset.",
+        "example_prompts": [
+          "Native Perplexity (Sonar) web-grounded LLM inference via Perplexity's OpenAI-compatible API. Drop-in peer of openai_llm / anthropic_llm / gemini_llm / groq_llm / mistral_llm, but unlike those, Perplexity's responses are grounded with real-time web citations, which this component surfaces as its own output column and in materialization metadata. For multi-vendor routing use litellm_inference_asset."
+        ],
+        "requires_pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "openai>=1.0.0"
+        ],
+        "requires_env_vars": [
+          "PERPLEXITY_API_KEY"
+        ]
+      },
+      "keywords": [
+        "ai",
+        "citations",
+        "llm",
+        "perplexity",
+        "perplexity llm",
+        "rag",
+        "sonar",
+        "web-search"
+      ]
+    },
+    {
+      "id": "payscale_compensation_enrichment",
+      "name": "PayScale Compensation Enrichment",
+      "category": "analytics",
+      "description": "Enrich an upstream DataFrame of job records (title + location) with PayScale Jobalyzer compensation-benchmark columns -- one API lookup per row. Requires payscale_resource; PayScale credentials are NOT self-serve.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/analytics/payscale_compensation_enrichment",
+      "tags": [
+        "analytics",
+        "payscale",
+        "compensation",
+        "hr",
+        "enrichment"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas>=1.5.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/payscale_compensation_enrichment/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/payscale_compensation_enrichment/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/payscale_compensation_enrichment/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/payscale_compensation_enrichment/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/payscale_compensation_enrichment/requirements.txt",
+      "icon": "DollarSign",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite, real logic exercised). Live validation against a real PayScale account/tenant pending."
+      },
+      "consumes": [
+        "resource:payscale_resource"
+      ],
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "when_to_use": "Enrich an upstream DataFrame of job records (title + location) with PayScale Jobalyzer compensation-benchmark columns -- one API lookup per row. Requires payscale_resource; PayScale credentials are NOT self-serve.",
+        "example_prompts": [
+          "Enrich an upstream DataFrame of job records (title + location) with PayScale Jobalyzer compensation-benchmark columns -- one API lookup per row. Requires payscale_resource; PayScale credentials are NOT self-serve."
+        ],
+        "requires_pip": [
+          "dagster",
+          "pandas>=1.5.0"
+        ],
+        "requires_env_vars": [
+          "PAYSCALE_CLIENT_ID",
+          "PAYSCALE_CLIENT_SECRET"
+        ]
+      },
+      "vertical": "finance-hr",
+      "keywords": [
+        "analytics",
+        "compensation",
+        "enrichment",
+        "hr",
+        "payscale",
+        "payscale compensation enrichment"
+      ]
+    },
+    {
+      "id": "figment_staking_rewards_ingestion",
+      "name": "Figment Staking Rewards Ingestion",
+      "category": "source",
+      "description": "Ingest granular and/or aggregated staking rewards/balances per validator/delegator from Figment's institutional staking Rewards API (POST /{network}/rewards), across networks (Ethereum, Solana, ...), and return a pandas DataFrame.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/figment_staking_rewards_ingestion",
+      "tags": [
+        "ingestion",
+        "figment",
+        "staking",
+        "crypto",
+        "rewards",
+        "fintech"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/figment_staking_rewards_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/figment_staking_rewards_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/figment_staking_rewards_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/figment_staking_rewards_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/figment_staking_rewards_ingestion/requirements.txt",
+      "icon": "si:figment",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite, real logic exercised). Live validation against a real Figment account/tenant pending."
+      },
+      "consumes": [],
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "when_to_use": "Ingest granular and/or aggregated staking rewards/balances per validator/delegator from Figment's institutional staking Rewards API (POST /{network}/rewards), across networks (Ethereum, Solana, ...), and return a pandas DataFrame.",
+        "example_prompts": [
+          "Ingest granular and/or aggregated staking rewards/balances per validator/delegator from Figment's institutional staking Rewards API (POST /{network}/rewards), across networks (Ethereum, Solana, ...), and return a pandas DataFrame."
+        ],
+        "requires_pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ],
+        "requires_env_vars": []
+      },
+      "vertical": "crypto-staking",
+      "keywords": [
+        "crypto",
+        "figment",
+        "figment staking rewards ingestion",
+        "fintech",
+        "ingestion",
+        "rewards",
+        "staking"
+      ]
+    },
+    {
+      "id": "metronome_invoices_ingestion",
+      "name": "Metronome Invoices Ingestion",
+      "category": "source",
+      "description": "Ingest Metronome customers and their invoices via the Metronome billing API and return a pandas DataFrame (one row per invoice) for finance reporting.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/metronome_invoices_ingestion",
+      "tags": [
+        "ingestion",
+        "metronome",
+        "billing",
+        "finance",
+        "invoices",
+        "fintech"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/metronome_invoices_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/metronome_invoices_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/metronome_invoices_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/metronome_invoices_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/metronome_invoices_ingestion/requirements.txt",
+      "icon": "si:metronome",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite, real logic exercised). Live validation against a real Metronome account/tenant pending."
+      },
+      "consumes": [],
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "when_to_use": "Ingest Metronome customers and their invoices via the Metronome billing API and return a pandas DataFrame (one row per invoice) for finance reporting.",
+        "example_prompts": [
+          "Ingest Metronome customers and their invoices via the Metronome billing API and return a pandas DataFrame (one row per invoice) for finance reporting."
+        ],
+        "requires_pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ],
+        "requires_env_vars": []
+      },
+      "vertical": "billing-metering",
+      "keywords": [
+        "billing",
+        "finance",
+        "fintech",
+        "ingestion",
+        "invoices",
+        "metronome",
+        "metronome invoices ingestion"
+      ]
+    },
+    {
+      "id": "sigma_workbook_ingestion",
+      "name": "Sigma Workbook Ingestion",
+      "category": "source",
+      "description": "Ingest a catalog of Sigma workbooks + their elements (via GET /v2/workbooks and GET /v2/workbooks/{id}/elements) and return a pandas DataFrame, one row per (workbook, element). Identifies Input Table elements via type == 'input-table' (Sigma's own documented approach). Surfaces workbook-level createdBy/updatedBy/timestamps/latestVersion as the closest API-exposed audit proxy -- true per-row Input Table audit history is a Sigma UI-only feature not exposed via the public REST API.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/sigma_workbook_ingestion",
+      "tags": [
+        "ingestion",
+        "sigma",
+        "business-intelligence",
+        "bi",
+        "workbooks",
+        "input-tables"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sigma_workbook_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sigma_workbook_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sigma_workbook_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sigma_workbook_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sigma_workbook_ingestion/requirements.txt",
+      "icon": "si:sigma",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite, real logic exercised). Live validation against a real Sigma account/tenant pending."
+      },
+      "consumes": [],
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "when_to_use": "Ingest a catalog of Sigma workbooks + their elements (via GET /v2/workbooks and GET /v2/workbooks/{id}/elements) and return a pandas DataFrame, one row per (workbook, element). Identifies Input Table elements via type == 'input-table' (Sigma's own documented approach). Surfaces workbook-level createdBy/updatedBy/timestamps/latestVersion as the closest API-exposed audit proxy -- true per-row Input Table audit history is a Sigma UI-only feature not exposed via the public REST API.",
+        "example_prompts": [
+          "Ingest a catalog of Sigma workbooks + their elements (via GET /v2/workbooks and GET /v2/workbooks/{id}/elements) and return a pandas DataFrame, one row per (workbook, element). Identifies Input Table elements via type == 'input-table' (Sigma's own documented approach). Surfaces workbook-level createdBy/updatedBy/timestamps/latestVersion as the closest API-exposed audit proxy -- true per-row Input Table audit history is a Sigma UI-only feature not exposed via the public REST API."
+        ],
+        "requires_pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ],
+        "requires_env_vars": []
+      },
+      "vertical": "business-intelligence",
+      "keywords": [
+        "bi",
+        "business-intelligence",
+        "ingestion",
+        "input-tables",
+        "sigma",
+        "sigma workbook ingestion",
+        "workbooks"
+      ]
+    },
+    {
+      "id": "zocdoc_appointments_ingestion",
+      "name": "Zocdoc Appointments Ingestion",
+      "category": "source",
+      "description": "Ingest booked Zocdoc appointments via GET /v1/appointments into a pandas DataFrame, for operational/analytics reporting. PHI-safe by design: materialization metadata, logs, and error messages never carry a data preview -- row counts and configured filters only.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/zocdoc_appointments_ingestion",
+      "tags": [
+        "ingestion",
+        "zocdoc",
+        "healthcare",
+        "scheduling",
+        "appointments",
+        "phi"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/zocdoc_appointments_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/zocdoc_appointments_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/zocdoc_appointments_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/zocdoc_appointments_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/zocdoc_appointments_ingestion/requirements.txt",
+      "icon": "Calendar",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite, real logic exercised). Live validation against a real Zocdoc account/tenant pending."
+      },
+      "consumes": [
+        "resource:zocdoc_resource"
+      ],
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "when_to_use": "Ingest booked Zocdoc appointments via GET /v1/appointments into a pandas DataFrame, for operational/analytics reporting. PHI-safe by design: materialization metadata, logs, and error messages never carry a data preview -- row counts and configured filters only.",
+        "example_prompts": [
+          "Ingest booked Zocdoc appointments via GET /v1/appointments into a pandas DataFrame, for operational/analytics reporting. PHI-safe by design: materialization metadata, logs, and error messages never carry a data preview -- row counts and configured filters only."
+        ],
+        "requires_pip": [
+          "dagster",
+          "pandas",
+          "requests"
+        ],
+        "requires_env_vars": [
+          "ZOCDOC_CLIENT_ID",
+          "ZOCDOC_CLIENT_SECRET"
+        ]
+      },
+      "vertical": "healthcare-scheduling",
+      "keywords": [
+        "appointments",
+        "healthcare",
+        "ingestion",
+        "phi",
+        "scheduling",
+        "zocdoc",
+        "zocdoc appointments ingestion"
+      ]
+    },
+    {
+      "id": "metronome_usage_event_send",
+      "name": "Metronome Usage Event Send",
+      "category": "reverse_etl",
+      "description": "Reverse-ETL usage-based billing activation: send a Metronome usage event (POST /ingest) for each row of an upstream DataFrame. Batched up to 100 events per request; transaction_id is Metronome's idempotency key so retries never double-bill.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/reverse_etl/metronome_usage_event_send",
+      "tags": [
+        "sink",
+        "metronome",
+        "billing",
+        "usage-based-billing",
+        "reverse-etl",
+        "activation",
+        "fintech"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/metronome_usage_event_send/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/metronome_usage_event_send/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/metronome_usage_event_send/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/metronome_usage_event_send/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/metronome_usage_event_send/requirements.txt",
+      "icon": "si:metronome",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite, real logic exercised). Live validation against a real Metronome account/tenant pending."
+      },
+      "consumes": [
+        "resource:metronome_resource"
+      ],
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "when_to_use": "Send usage-based billing events (API calls, compute-seconds, seats, etc.) from a warehouse mart into Metronome for invoicing.",
+        "example_prompts": [
+          "Send usage-based billing events (API calls, compute-seconds, seats, etc.) from a warehouse mart into Metronome for invoicing.",
+          "Any \"one billable event per row\" reverse-ETL case where the destination is Metronome rather than a CRM/marketing tool."
+        ],
+        "requires_pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "METRONOME_API_KEY"
+        ]
+      },
+      "vertical": "billing-metering",
+      "keywords": [
+        "activation",
+        "billing",
+        "fintech",
+        "metronome",
+        "metronome usage event send",
+        "reverse-etl",
+        "sink",
+        "usage-based-billing"
+      ]
+    },
+    {
+      "id": "sigma_input_table_upsert",
+      "name": "Sigma Input Table Upsert",
+      "category": "reverse_etl",
+      "description": "Reverse-ETL writeback: write an upstream DataFrame's rows into an existing Sigma Input Table, via a pre-published webhook-triggered Action Sequence (POST /v2/webhooks/{workbookId}/{sequenceId}). Sigma's REST API has no direct 'write rows to an Input Table' endpoint -- this is the real, documented write path (Beta). Chunks at Sigma's documented 2,000-rows-per-action cap. The trigger is async (HTTP 202 + traceId) -- this component confirms acceptance, not that rows were actually applied.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/reverse_etl/sigma_input_table_upsert",
+      "tags": [
+        "sink",
+        "sigma",
+        "reverse-etl",
+        "business-intelligence",
+        "bi",
+        "input-table",
+        "webhook"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests",
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/sigma_input_table_upsert/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/sigma_input_table_upsert/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/sigma_input_table_upsert/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/sigma_input_table_upsert/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/sigma_input_table_upsert/requirements.txt",
+      "icon": "si:sigma",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite, real logic exercised). Live validation against a real Sigma account/tenant pending."
+      },
+      "consumes": [
+        "resource:sigma_resource"
+      ],
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "when_to_use": "Reverse-ETL writeback: write an upstream DataFrame's rows into an existing Sigma Input Table, via a pre-published webhook-triggered Action Sequence (POST /v2/webhooks/{workbookId}/{sequenceId}). Sigma's REST API has no direct 'write rows to an Input Table' endpoint -- this is the real, documented write path (Beta). Chunks at Sigma's documented 2,000-rows-per-action cap. The trigger is async (HTTP 202 + traceId) -- this component confirms acceptance, not that rows were actually applied.",
+        "example_prompts": [
+          "Reverse-ETL writeback: write an upstream DataFrame's rows into an existing Sigma Input Table, via a pre-published webhook-triggered Action Sequence (POST /v2/webhooks/{workbookId}/{sequenceId}). Sigma's REST API has no direct 'write rows to an Input Table' endpoint -- this is the real, documented write path (Beta). Chunks at Sigma's documented 2,000-rows-per-action cap. The trigger is async (HTTP 202 + traceId) -- this component confirms acceptance, not that rows were actually applied."
+        ],
+        "requires_pip": [
+          "dagster",
+          "requests",
+          "pandas"
+        ],
+        "requires_env_vars": [
+          "SIGMA_CLIENT_ID",
+          "SIGMA_CLIENT_SECRET"
+        ]
+      },
+      "keywords": [
+        "bi",
+        "business-intelligence",
+        "input-table",
+        "reverse-etl",
+        "sigma",
+        "sigma input table upsert",
+        "sink",
+        "webhook"
+      ]
+    },
+    {
+      "id": "zocdoc_availability_upsert",
+      "name": "Zocdoc Availability Upsert",
+      "category": "reverse_etl",
+      "description": "Reverse-ETL sink: push warehouse-computed provider availability/timeslots into Zocdoc via PUT /v1/providers/{provider_id}/calendar/timeslots (full replace per provider_id+date). PHI-safe by design: materialization metadata, logs, and error messages never carry request/response bodies -- counts and bare group identifiers only.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/reverse_etl/zocdoc_availability_upsert",
+      "tags": [
+        "zocdoc",
+        "healthcare",
+        "scheduling",
+        "sink",
+        "reverse-etl",
+        "upsert",
+        "timeslots",
+        "phi"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/zocdoc_availability_upsert/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/zocdoc_availability_upsert/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/zocdoc_availability_upsert/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/zocdoc_availability_upsert/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/zocdoc_availability_upsert/requirements.txt",
+      "icon": "ClipboardCheck",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite, real logic exercised). Live validation against a real Zocdoc account/tenant pending."
+      },
+      "consumes": [
+        "resource:zocdoc_resource"
+      ],
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "when_to_use": "Reverse-ETL sink: push warehouse-computed provider availability/timeslots into Zocdoc via PUT /v1/providers/{provider_id}/calendar/timeslots (full replace per provider_id+date). PHI-safe by design: materialization metadata, logs, and error messages never carry request/response bodies -- counts and bare group identifiers only.",
+        "example_prompts": [
+          "Reverse-ETL sink: push warehouse-computed provider availability/timeslots into Zocdoc via PUT /v1/providers/{provider_id}/calendar/timeslots (full replace per provider_id+date). PHI-safe by design: materialization metadata, logs, and error messages never carry request/response bodies -- counts and bare group identifiers only."
+        ],
+        "requires_pip": [
+          "dagster",
+          "pandas",
+          "requests"
+        ],
+        "requires_env_vars": [
+          "ZOCDOC_CLIENT_ID",
+          "ZOCDOC_CLIENT_SECRET"
+        ]
+      },
+      "vertical": "healthcare-scheduling",
+      "keywords": [
+        "healthcare",
+        "phi",
+        "reverse-etl",
+        "scheduling",
+        "sink",
+        "timeslots",
+        "upsert",
+        "zocdoc",
+        "zocdoc availability upsert"
+      ]
+    },
+    {
+      "id": "msteams_message_send",
+      "name": "MS Teams Message Send",
+      "category": "sink",
+      "description": "MSTeamsMessageSendComponent \u2014 post business-data-driven alerts to Microsoft Teams.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sinks/msteams_message_send",
+      "tags": [
+        "msteams-message-send",
+        "sink",
+        "msteams",
+        "notification"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "dagster-msteams"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/msteams_message_send/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/msteams_message_send/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/msteams_message_send/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/msteams_message_send/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/msteams_message_send/requirements.txt",
+      "icon": "MessageSquare",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite, real logic exercised). Live validation against a real MS account/tenant pending."
+      },
+      "consumes": [],
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "when_to_use": "MSTeamsMessageSendComponent \u2014 post business-data-driven alerts to Microsoft Teams.",
+        "example_prompts": [
+          "MSTeamsMessageSendComponent \u2014 post business-data-driven alerts to Microsoft Teams."
+        ],
+        "requires_pip": [
+          "dagster",
+          "pandas",
+          "dagster-msteams"
+        ],
+        "requires_env_vars": [
+          "MSTEAMS_WEBHOOK_URL"
+        ]
+      },
+      "keywords": [
+        "ms teams message send",
+        "msteams",
+        "msteams message send",
+        "msteams-message-send",
+        "notification",
+        "sink"
+      ]
+    },
+    {
+      "id": "slack_message_send",
+      "name": "Slack Message Send",
+      "category": "sink",
+      "description": "SlackMessageSendComponent \u2014 post business-data-driven alerts to Slack.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sinks/slack_message_send",
+      "tags": [
+        "slack-message-send",
+        "sink",
+        "slack",
+        "notification"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "dagster-slack"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/slack_message_send/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/slack_message_send/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/slack_message_send/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/slack_message_send/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/slack_message_send/requirements.txt",
+      "icon": "si:slack",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite, real logic exercised). Live validation against a real Slack account/tenant pending."
+      },
+      "consumes": [],
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "when_to_use": "SlackMessageSendComponent \u2014 post business-data-driven alerts to Slack.",
+        "example_prompts": [
+          "SlackMessageSendComponent \u2014 post business-data-driven alerts to Slack."
+        ],
+        "requires_pip": [
+          "dagster",
+          "pandas",
+          "dagster-slack"
+        ],
+        "requires_env_vars": [
+          "SLACK_BOT_TOKEN"
+        ]
+      },
+      "keywords": [
+        "notification",
+        "sink",
+        "slack",
+        "slack message send",
+        "slack-message-send"
+      ]
+    },
+    {
+      "id": "pii_hasher",
+      "name": "PII Hasher",
+      "category": "transformation",
+      "description": "Normalize + SHA-256 hash PII identifier columns (email, phone, generic) in a DataFrame \u2014 a destination-agnostic building block for safe downstream activation or compliance/anonymization.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/pii_hasher",
+      "tags": [
+        "transformation",
+        "pii",
+        "privacy",
+        "hashing",
+        "sha256",
+        "compliance",
+        "anonymization"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas>=1.5.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pii_hasher/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pii_hasher/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pii_hasher/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pii_hasher/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pii_hasher/requirements.txt",
+      "icon": "Lock",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite, real logic exercised). Live validation against a real PII account/tenant pending."
+      },
+      "consumes": [],
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "when_to_use": "Normalize + SHA-256 hash PII identifier columns (email, phone, generic) in a DataFrame \u2014 a destination-agnostic building block for safe downstream activation or compliance/anonymization.",
+        "example_prompts": [
+          "Normalize + SHA-256 hash PII identifier columns (email, phone, generic) in a DataFrame \u2014 a destination-agnostic building block for safe downstream activation or compliance/anonymization."
+        ],
+        "requires_pip": [
+          "dagster",
+          "pandas>=1.5.0"
+        ],
+        "requires_env_vars": []
+      },
+      "keywords": [
+        "anonymization",
+        "compliance",
+        "hashing",
+        "pii",
+        "pii hasher",
+        "privacy",
+        "sha256",
+        "transformation"
+      ]
+    },
+    {
+      "id": "figment_resource",
+      "name": "Figment Resource",
+      "category": "resource",
+      "description": "Register a FigmentResource for Figment's institutional crypto staking infrastructure REST API (static x-api-key auth) for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/figment_resource",
+      "tags": [
+        "resource",
+        "figment",
+        "staking",
+        "crypto",
+        "fintech"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/figment_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/figment_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/figment_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/figment_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/figment_resource/requirements.txt",
+      "icon": "si:figment",
+      "x-dagster-provides": [
+        "figment_resource"
+      ],
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite, real logic exercised). Live validation against a real Figment account/tenant pending."
+      },
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "agent_hints": {
+        "when_to_use": "User needs a Figment Resource client usable by other Dagster components (sinks, custom asset code).",
+        "outputs": "Register a FigmentResource for Figment's institutional crypto staking infrastructure REST API (static x-api-key auth) for use by other components",
+        "requires_pip": [
+          "requests"
+        ],
+        "requires_env_vars": [
+          "FIGMENT_API_KEY"
+        ]
+      },
+      "keywords": [
+        "crypto",
+        "figment",
+        "figment resource",
+        "fintech",
+        "resource",
+        "staking"
+      ]
+    },
+    {
+      "id": "metronome_resource",
+      "name": "Metronome Resource",
+      "category": "resource",
+      "description": "Register a MetronomeResource for the Metronome usage-based billing REST API (static Bearer API key auth) for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/metronome_resource",
+      "tags": [
+        "resource",
+        "metronome",
+        "billing",
+        "usage-based-billing",
+        "fintech"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/metronome_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/metronome_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/metronome_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/metronome_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/metronome_resource/requirements.txt",
+      "icon": "si:metronome",
+      "x-dagster-provides": [
+        "metronome_resource"
+      ],
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite, real logic exercised). Live validation against a real Metronome account/tenant pending."
+      },
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "agent_hints": {
+        "when_to_use": "User needs a Metronome Resource client usable by other Dagster components (sinks, custom asset code).",
+        "outputs": "Register a MetronomeResource for the Metronome usage-based billing REST API (static Bearer API key auth) for use by other components",
+        "requires_pip": [
+          "requests"
+        ],
+        "requires_env_vars": [
+          "METRONOME_API_KEY"
+        ]
+      },
+      "keywords": [
+        "billing",
+        "fintech",
+        "metronome",
+        "metronome resource",
+        "resource",
+        "usage-based-billing"
+      ]
+    },
+    {
+      "id": "payscale_resource",
+      "name": "PayScale Resource",
+      "category": "resource",
+      "description": "Register a PayscaleResource (OAuth2 client_credentials grant) wrapping PayScale's Jobalyzer compensation-benchmarking API for use by other components. NOT self-serve -- credentials require a direct commercial agreement with PayScale.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/payscale_resource",
+      "tags": [
+        "resource",
+        "payscale",
+        "compensation",
+        "hr",
+        "oauth2"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests>=2.28.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/payscale_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/payscale_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/payscale_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/payscale_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/payscale_resource/requirements.txt",
+      "icon": "DollarSign",
+      "x-dagster-provides": [
+        "payscale_resource"
+      ],
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite, real logic exercised). Live validation against a real PayScale account/tenant pending."
+      },
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "agent_hints": {
+        "when_to_use": "User needs a PayScale Resource client usable by other Dagster components (sinks, custom asset code).",
+        "outputs": "Register a PayscaleResource (OAuth2 client_credentials grant) wrapping PayScale's Jobalyzer compensation-benchmarking API for use by other components. NOT self-serve -- credentials require a direct commercial agreement with PayScale.",
+        "requires_pip": [
+          "dagster",
+          "requests>=2.28.0"
+        ],
+        "requires_env_vars": [
+          "PAYSCALE_CLIENT_ID",
+          "PAYSCALE_CLIENT_SECRET"
+        ]
+      },
+      "keywords": [
+        "compensation",
+        "hr",
+        "oauth2",
+        "payscale",
+        "payscale resource",
+        "resource"
+      ]
+    },
+    {
+      "id": "sigma_resource",
+      "name": "Sigma Resource",
+      "category": "resource",
+      "description": "Register a SigmaResource wrapping Sigma Computing's REST API (OAuth2 client_credentials grant) for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/sigma_resource",
+      "tags": [
+        "resource",
+        "sigma",
+        "business-intelligence",
+        "bi"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sigma_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sigma_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sigma_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sigma_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sigma_resource/requirements.txt",
+      "icon": "si:sigma",
+      "x-dagster-provides": [
+        "sigma_resource"
+      ],
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite, real logic exercised). Live validation against a real Sigma account/tenant pending."
+      },
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "agent_hints": {
+        "when_to_use": "User needs a Sigma Resource client usable by other Dagster components (sinks, custom asset code).",
+        "outputs": "Register a SigmaResource wrapping Sigma Computing's REST API (OAuth2 client_credentials grant) for use by other components",
+        "requires_pip": [
+          "dagster",
+          "requests"
+        ],
+        "requires_env_vars": [
+          "SIGMA_CLIENT_ID",
+          "SIGMA_CLIENT_SECRET"
+        ]
+      },
+      "keywords": [
+        "bi",
+        "business-intelligence",
+        "resource",
+        "sigma",
+        "sigma resource"
+      ]
+    },
+    {
+      "id": "zocdoc_resource",
+      "name": "Zocdoc Resource",
+      "category": "resource",
+      "description": "Register a ZocdocResource (OAuth2 client_credentials grant) wrapping Zocdoc's partner-gated Developer Platform API for use by other components. No self-serve signup -- Zocdoc must approve the integration before calls work.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/zocdoc_resource",
+      "tags": [
+        "resource",
+        "zocdoc",
+        "healthcare",
+        "scheduling",
+        "oauth2",
+        "phi"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/zocdoc_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/zocdoc_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/zocdoc_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/zocdoc_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/zocdoc_resource/requirements.txt",
+      "icon": "HeartPulse",
+      "x-dagster-provides": [
+        "zocdoc_resource"
+      ],
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-02",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite, real logic exercised). Live validation against a real Zocdoc account/tenant pending."
+      },
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "agent_hints": {
+        "when_to_use": "User needs a Zocdoc Resource client usable by other Dagster components (sinks, custom asset code).",
+        "outputs": "Register a ZocdocResource (OAuth2 client_credentials grant) wrapping Zocdoc's partner-gated Developer Platform API for use by other components. No self-serve signup -- Zocdoc must approve the integration before calls work.",
+        "requires_pip": [
+          "dagster",
+          "requests"
+        ],
+        "requires_env_vars": [
+          "ZOCDOC_CLIENT_ID",
+          "ZOCDOC_CLIENT_SECRET"
+        ]
+      },
+      "keywords": [
+        "healthcare",
+        "oauth2",
+        "phi",
+        "resource",
+        "scheduling",
+        "zocdoc",
+        "zocdoc resource"
+      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1278
+  "total": 1296
 }

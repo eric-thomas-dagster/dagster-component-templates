@@ -1,0 +1,309 @@
+{
+  "component_type": "dagster_component_templates.PayscaleCompensationEnrichmentComponent",
+  "description": "Enrich an upstream DataFrame of job records (title + location) with PayScale Jobalyzer compensation-benchmark columns -- one API lookup per row. Requires payscale_resource; PayScale credentials are NOT self-serve.",
+  "category": "analytics",
+  "icon": "DollarSign",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame with job title and location columns"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Input DataFrame with appended PayScale compensation-benchmark columns"
+    }
+  },
+  "x-dagster-requires": [
+    "payscale_resource"
+  ],
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame with job title/location data",
+      "required": true
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Resource key registered by PayscaleResourceComponent.",
+      "required": false,
+      "default": "payscale_resource"
+    },
+    "job_title_column": {
+      "type": "string",
+      "label": "Job Title Column",
+      "description": "Column with the job title to send as PayScale's 'JobTitle' compensable factor",
+      "required": true,
+      "x-dagster-widget": "column"
+    },
+    "city_column": {
+      "type": "string",
+      "label": "City Column",
+      "description": "Optional column with city name ('City')",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "state_column": {
+      "type": "string",
+      "label": "State Column",
+      "description": "Optional column with state/province ('State')",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "country_column": {
+      "type": "string",
+      "label": "Country Column",
+      "description": "Optional column with country name ('Country'). Falls back to default_country when absent or blank.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "default_country": {
+      "type": "string",
+      "label": "Default Country",
+      "description": "Country sent when country_column is unset or blank for a row.",
+      "required": false,
+      "default": "United States"
+    },
+    "years_experience_column": {
+      "type": "string",
+      "label": "Years Experience Column",
+      "description": "Optional column with years of experience ('YearsExperience')",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "education_column": {
+      "type": "string",
+      "label": "Education Column",
+      "description": "Optional column with highest degree earned ('HighestDegreeEarned')",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "skills_column": {
+      "type": "string",
+      "label": "Skills Column",
+      "description": "Optional column with a comma-separated or list-valued set of skills ('Skills')",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "auto_resolve_job_title": {
+      "type": "boolean",
+      "label": "Auto Resolve Job Title",
+      "description": "Let PayScale auto-match free-text JobTitle input to a standardized PayScale title.",
+      "required": false,
+      "default": true
+    },
+    "include_total_pay": {
+      "type": "boolean",
+      "label": "Include Total Pay",
+      "description": "Also append TotalPayReport columns alongside BasePayReport.",
+      "required": false,
+      "default": true
+    },
+    "output_column_prefix": {
+      "type": "string",
+      "label": "Output Column Prefix",
+      "description": "Prefix applied to every appended compensation-benchmark column.",
+      "required": false,
+      "default": "payscale_"
+    },
+    "continue_on_error": {
+      "type": "boolean",
+      "label": "Continue On Error",
+      "description": "If a row's PayScale lookup fails, log a warning and leave that row's columns null rather than failing the whole asset.",
+      "required": false,
+      "default": true
+    },
+    "batch_delay": {
+      "type": "number",
+      "label": "Batch Delay",
+      "description": "Seconds to sleep between rows.",
+      "required": false,
+      "default": 0.0
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values; 'multi' for date × static. Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning. Defaults to 'segment'.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "owners": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Owners",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Key-value tags applied to the asset in the Dagster catalog.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Kinds",
+      "description": "Asset kinds shown in the Dagster catalog. Defaults to ['python'] if empty.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag (minutes)",
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "required": false,
+      "default": null
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron Schedule",
+      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "cron"
+    },
+    "column_lineage": {
+      "type": "object",
+      "label": "Column Lineage",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "required": false,
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "required": false,
+      "default": 25
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential",
+      "enum": ["exponential", "linear", "fixed"],
+      "ui:widget": "select"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Deps",
+      "required": false
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": {"type": "object"},
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec. Overrides flat fields when set.",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "analytics",
+    "payscale",
+    "compensation",
+    "hr",
+    "enrichment"
+  ],
+  "name": "PayScale Compensation Enrichment",
+  "vertical": "finance-hr"
+}

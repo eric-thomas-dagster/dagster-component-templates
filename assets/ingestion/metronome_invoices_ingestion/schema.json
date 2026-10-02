@@ -1,0 +1,137 @@
+{
+  "component_type": "dagster_component_templates.MetronomeInvoicesIngestionComponent",
+  "description": "Ingest Metronome customers and their invoices via the Metronome billing API and return a pandas DataFrame (one row per invoice) for finance reporting.",
+  "category": "source",
+  "vertical": "billing-metering",
+  "icon": "si:metronome",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame of invoice header fields (id, status, total, subtotal, issued_at, start_timestamp, end_timestamp, customer_id, ...) plus a nested line_items column."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "required": true
+    },
+    "resource_name": {
+      "type": "string",
+      "label": "Resource Name",
+      "description": "Key of the MetronomeResource this asset depends on for authentication",
+      "required": false,
+      "default": "metronome_resource"
+    },
+    "customer_ids": {
+      "type": "array",
+      "label": "Customer IDs",
+      "description": "Specific Metronome customer IDs to fetch invoices for. If unset, all customers are listed and invoices fetched for each.",
+      "required": false
+    },
+    "invoice_status": {
+      "type": "string",
+      "label": "Invoice Status",
+      "description": "Filter invoices by status (e.g. 'DRAFT', 'FINALIZED', 'VOID'). Unset fetches all statuses.",
+      "required": false
+    },
+    "starting_on": {
+      "type": "string",
+      "label": "Starting On",
+      "description": "Only include invoices starting on/after this ISO-8601 timestamp.",
+      "required": false
+    },
+    "ending_before": {
+      "type": "string",
+      "label": "Ending Before",
+      "description": "Only include invoices ending before this ISO-8601 timestamp.",
+      "required": false
+    },
+    "customers_page_limit": {
+      "type": "integer",
+      "label": "Customers Page Limit",
+      "required": false,
+      "default": 100
+    },
+    "invoices_page_limit": {
+      "type": "integer",
+      "label": "Invoices Page Limit",
+      "required": false,
+      "default": 100
+    },
+    "max_customers": {
+      "type": "integer",
+      "label": "Max Customers",
+      "description": "Safety cap on the number of distinct customers to fetch invoices for in a single run.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "metronome"
+    },
+    "owners": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Owners",
+      "description": "Asset owners -- team names (team:finance) or email addresses.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Key-value tags applied to the asset in the Dagster catalog.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Kinds",
+      "description": "Asset kinds shown in the Dagster catalog. Defaults to ['metronome', 'python'].",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "required": false,
+      "default": 10
+    },
+    "deps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Deps",
+      "description": "Lineage-only upstream asset keys (no data passed at runtime)",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "ingestion",
+    "metronome",
+    "billing",
+    "finance",
+    "invoices",
+    "fintech"
+  ],
+  "name": "Metronome Invoices Ingestion"
+}

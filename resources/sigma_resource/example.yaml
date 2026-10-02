@@ -1,0 +1,6 @@
+type: dagster_component_templates.SigmaResourceComponent
+attributes:
+  resource_key: sigma_resource
+  client_id_env_var: SIGMA_CLIENT_ID
+  client_secret_env_var: SIGMA_CLIENT_SECRET
+  base_url: https://api.sigmacomputing.com

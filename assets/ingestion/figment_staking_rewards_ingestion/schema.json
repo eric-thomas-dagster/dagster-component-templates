@@ -1,0 +1,157 @@
+{
+  "component_type": "dagster_component_templates.FigmentStakingRewardsIngestionComponent",
+  "description": "Ingest granular and/or aggregated staking rewards/balances per validator/delegator from Figment's institutional staking Rewards API (POST /{network}/rewards), across networks (Ethereum, Solana, ...), and return a pandas DataFrame.",
+  "category": "source",
+  "vertical": "crypto-staking",
+  "icon": "si:figment",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame of reward records (fields vary by network) plus a network column; includes an aggregate_summary metadata attachment when include_aggregate_summary is set."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "required": true
+    },
+    "resource_name": {
+      "type": "string",
+      "label": "Resource Name",
+      "description": "Key of the FigmentResource this asset depends on for authentication",
+      "required": false,
+      "default": "figment_resource"
+    },
+    "network": {
+      "type": "string",
+      "label": "Network",
+      "description": "Figment network slug, e.g. 'ethereum' or 'solana'.",
+      "required": true
+    },
+    "time_rollup": {
+      "type": "string",
+      "label": "Time Rollup",
+      "description": "Granularity for network='ethereum': 'epoch' / 'daily' / 'all_time'. Not used for network='solana'.",
+      "required": false,
+      "default": "epoch",
+      "enum": ["epoch", "daily", "all_time"],
+      "ui:widget": "select"
+    },
+    "start": {
+      "type": "string",
+      "label": "Start",
+      "description": "Inclusive start of the reward window (ISO-8601). ethereum-only filter.",
+      "required": false
+    },
+    "end": {
+      "type": "string",
+      "label": "End",
+      "description": "Inclusive end of the reward window (ISO-8601). ethereum-only filter.",
+      "required": false
+    },
+    "pubkeys": {
+      "type": "array",
+      "label": "Pubkeys",
+      "description": "Filter to specific validator public keys. ethereum-only filter.",
+      "required": false
+    },
+    "withdrawal_addresses": {
+      "type": "array",
+      "label": "Withdrawal Addresses",
+      "description": "Filter to validators by withdrawal address. ethereum-only filter.",
+      "required": false
+    },
+    "accounts": {
+      "type": "array",
+      "label": "Accounts",
+      "description": "Stake-account or system-account addresses. REQUIRED for network='solana' (max 50 per request).",
+      "required": false
+    },
+    "extra_query_params": {
+      "type": "object",
+      "label": "Extra Query Params",
+      "description": "Escape hatch: additional fields merged into the request body, for networks/params not modeled explicitly.",
+      "required": false
+    },
+    "include_aggregate_summary": {
+      "type": "boolean",
+      "label": "Include Aggregate Summary",
+      "description": "When true (network='ethereum' only), issues a second time_rollup=all_time request and attaches the result as metadata.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "max_pages": {
+      "type": "integer",
+      "label": "Max Pages",
+      "description": "Safety cap on pagination pages followed via a next_page cursor, if present.",
+      "required": false,
+      "default": 20
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "figment"
+    },
+    "owners": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Kinds",
+      "description": "Asset kinds. Defaults to ['figment', 'python'].",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "required": false,
+      "default": 10
+    },
+    "deps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Deps",
+      "description": "Lineage-only upstream asset keys (no data passed at runtime)",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "ingestion",
+    "figment",
+    "staking",
+    "crypto",
+    "rewards",
+    "fintech"
+  ],
+  "name": "Figment Staking Rewards Ingestion"
+}

@@ -1,0 +1,125 @@
+{
+  "component_type": "dagster_component_templates.MetronomeUsageEventSendComponent",
+  "description": "Reverse-ETL usage-based billing activation: send a Metronome usage event (POST /ingest) for each row of an upstream DataFrame. Batched up to 100 events per request; transaction_id is Metronome's idempotency key so retries never double-bill.",
+  "category": "reverse_etl",
+  "icon": "si:metronome",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one usage event, batched up to 100 per /ingest request."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (events_sent / batches_sent / rows_skipped_no_customer_id). No downstream data -- the usage event lands in Metronome and affects the customer's invoice."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with `source`."
+    },
+    "source": {
+      "type": "object",
+      "label": "Inline Source",
+      "required": false,
+      "description": "Inline source config (sql/csv/inline). Mutually exclusive with `upstream_asset_key`."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "metronome_resource"
+    },
+    "customer_id_column": {
+      "type": "string",
+      "label": "Customer ID Column",
+      "required": true,
+      "description": "Upstream column holding the Metronome customer_id (UUID) or ingest alias."
+    },
+    "event_type": {
+      "type": "string",
+      "label": "Event Type",
+      "required": false,
+      "description": "Static event_type applied to every row. Mutually exclusive with event_type_column."
+    },
+    "event_type_column": {
+      "type": "string",
+      "label": "Event Type Column",
+      "required": false,
+      "description": "Upstream column holding a per-row event_type. Mutually exclusive with event_type."
+    },
+    "timestamp_column": {
+      "type": "string",
+      "label": "Timestamp Column",
+      "required": false,
+      "description": "Upstream column holding the RFC 3339 event timestamp. Defaults to current UTC time if unset."
+    },
+    "transaction_id_column": {
+      "type": "string",
+      "label": "Transaction ID Column",
+      "required": false,
+      "description": "Upstream column holding a stable unique-per-event ID (Metronome's idempotency key). Strongly recommended."
+    },
+    "properties_columns": {
+      "type": "array",
+      "label": "Properties Columns",
+      "required": false,
+      "description": "Upstream columns to include in the event's properties object. Defaults to all non-reserved columns."
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 100,
+      "description": "Rows per /ingest request. Metronome's hard limit is 100 events per request."
+    },
+    "max_rows_per_run": {
+      "type": "integer",
+      "label": "Max Rows Per Run",
+      "required": false,
+      "description": "Optional blast-radius safety cap on total rows sent per materialization."
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "required": false,
+      "default": 5,
+      "description": "Max retry attempts per batch on network error, 5xx, or 429 before raising."
+    },
+    "initial_backoff_seconds": {
+      "type": "number",
+      "label": "Initial Backoff Seconds",
+      "required": false,
+      "default": 1.0
+    },
+    "backoff_multiplier": {
+      "type": "number",
+      "label": "Backoff Multiplier",
+      "required": false,
+      "default": 2.0
+    },
+    "group_name": { "type": "string", "label": "Group Name", "required": false },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "label": "Owners", "required": false },
+    "tags": { "type": "object", "label": "Tags", "required": false },
+    "kinds": { "type": "array", "label": "Kinds", "required": false }
+  },
+  "tags": [
+    "sink",
+    "metronome",
+    "billing",
+    "usage-based-billing",
+    "reverse-etl",
+    "activation",
+    "fintech"
+  ],
+  "name": "Metronome Usage Event Send",
+  "vertical": "billing-metering"
+}

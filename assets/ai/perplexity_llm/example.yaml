@@ -1,0 +1,17 @@
+type: dagster_component_templates.PerplexityLLMComponent
+attributes:
+  asset_name: company_research_briefs
+  upstream_asset_key: target_companies
+
+  api_key_env_var: PERPLEXITY_API_KEY
+  text_model: sonar-pro
+
+  system_prompt: "You are a market research analyst. Answer in 3 sentences, citing the most recent facts you can find."
+  input_column: company_name
+  output_column: research_brief
+  citations_column: research_sources
+
+  search_recency_filter: month
+  max_tokens: 400
+  temperature: 0.2
+  group_name: ai

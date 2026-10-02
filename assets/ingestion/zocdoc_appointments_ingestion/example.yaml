@@ -1,0 +1,9 @@
+type: dagster_component_templates.ZocdocAppointmentsIngestionComponent
+attributes:
+  asset_name: zocdoc_appointments
+  resource_key: zocdoc_resource
+  practice_ids: "prac_123"
+  from_date_time: "2026-06-01T00:00:00Z"
+  to_date_time: "2026-07-01T00:00:00Z"
+  statuses: "booked,confirmed"
+  limit: 1000

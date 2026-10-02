@@ -1,0 +1,14 @@
+type: dagster_component_templates.SigmaInputTableUpsertComponent
+attributes:
+  asset_name: sigma_forecast_inputs_write
+  upstream_asset_key: dbt_marts_forecast_inputs
+  resource_key: sigma_resource
+  workbook_id: "abc123-workbook-id"
+  sequence_id: "def456-sequence-id"
+  rows_parameter_name: rows
+  fields_map:
+    region: Region
+    forecast_month: ForecastMonth
+    forecast_value: ForecastValue
+  write_mode: insert
+  group_name: sigma

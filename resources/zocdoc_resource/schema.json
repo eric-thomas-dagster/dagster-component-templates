@@ -1,0 +1,60 @@
+{
+  "component_type": "dagster_component_templates.ZocdocResourceComponent",
+  "description": "Register a ZocdocResource (OAuth2 client_credentials grant) wrapping Zocdoc's partner-gated Developer Platform API for use by other components. No self-serve signup -- Zocdoc must approve the integration before calls work.",
+  "category": "resource",
+  "icon": "HeartPulse",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "zocdoc_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "zocdoc_resource"
+    },
+    "environment": {
+      "type": "string",
+      "label": "Environment",
+      "description": "'sandbox' or 'production'. No default -- must be chosen deliberately given production carries real patient-facing data (PHI).",
+      "required": true,
+      "enum": ["sandbox", "production"],
+      "ui:widget": "select"
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client ID Env Var",
+      "description": "Env var holding the Zocdoc OAuth2 Client ID for your partner-gated application.",
+      "required": false,
+      "default": "ZOCDOC_CLIENT_ID",
+      "ui:widget": "env_var"
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "description": "Env var holding the Zocdoc OAuth2 Client Secret.",
+      "required": false,
+      "default": "ZOCDOC_CLIENT_SECRET",
+      "ui:widget": "env_var"
+    },
+    "scope": {
+      "type": "string",
+      "label": "OAuth2 Scope",
+      "description": "Optional OAuth2 scope to request (e.g. 'offline_access' for a refresh token).",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "resource",
+    "zocdoc",
+    "healthcare",
+    "scheduling",
+    "oauth2",
+    "phi"
+  ],
+  "name": "Zocdoc Resource",
+  "vertical": "healthcare-scheduling"
+}

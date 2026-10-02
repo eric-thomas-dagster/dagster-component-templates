@@ -1,0 +1,98 @@
+{
+  "component_type": "dagster_component_templates.ZocdocAvailabilityUpsertComponent",
+  "description": "Reverse-ETL sink: push warehouse-computed provider availability/timeslots into Zocdoc via PUT /v1/providers/{provider_id}/calendar/timeslots (full replace per provider_id+date). PHI-safe by design: materialization metadata, logs, and error messages never carry request/response bodies -- counts and bare group identifiers only.",
+  "category": "reverse_etl",
+  "icon": "ClipboardCheck",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one Zocdoc timeslot, grouped by mapped (provider_id, date)."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_processed / groups_processed / rows_upserted / rows_skipped_no_key / rows_errored / groups_oversized). No downstream data -- the write side effect lands in Zocdoc's provider calendar."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with source."
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "zocdoc_resource"
+    },
+    "fields_map": {
+      "type": "object",
+      "label": "Fields Map",
+      "required": true,
+      "description": "Upstream column -> Zocdoc timeslot field. Required targets: provider_id, date, location_id, start_time, time_zone. Optional: allowed_visit_reason_ids, excluded_visit_reason_ids, patient_type.",
+      "ui:widget": "key-value"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 5000,
+      "description": "Max upstream rows per run (safety cap)."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "zocdoc"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "zocdoc",
+    "healthcare",
+    "scheduling",
+    "sink",
+    "reverse-etl",
+    "upsert",
+    "timeslots",
+    "phi"
+  ],
+  "name": "Zocdoc Availability Upsert",
+  "vertical": "healthcare-scheduling"
+}

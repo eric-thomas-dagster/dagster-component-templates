@@ -1,0 +1,15 @@
+type: dagster_component_templates.MistralLLMComponent
+attributes:
+  asset_name: ticket_summaries
+  upstream_asset_key: support_tickets
+
+  api_key_env_var: MISTRAL_API_KEY
+  text_model: mistral-large-latest
+
+  system_prompt: "You are a customer-support analyst. Output a one-sentence summary under 20 words. No preamble."
+  input_column: ticket_text
+  output_column: summary
+
+  max_tokens: 100
+  temperature: 0.0
+  group_name: ai

@@ -1,0 +1,49 @@
+{
+  "component_type": "dagster_component_templates.SigmaResourceComponent",
+  "description": "Register a SigmaResource wrapping Sigma Computing's REST API (OAuth2 client_credentials grant) for use by other components",
+  "category": "resource",
+  "icon": "si:sigma",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "sigma_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "sigma_resource"
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client ID Env Var",
+      "description": "Env var holding the Sigma API Client ID",
+      "required": false,
+      "default": "SIGMA_CLIENT_ID",
+      "ui:widget": "env_var"
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "description": "Env var holding the Sigma API Client Secret",
+      "required": false,
+      "default": "SIGMA_CLIENT_SECRET",
+      "ui:widget": "env_var"
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base URL",
+      "description": "Sigma REST API base URL for your org's cloud/region (AWS-US-West default; AWS-US-East/CA/EU/UK/AU and Azure/GCP each have a distinct host).",
+      "required": false,
+      "default": "https://api.sigmacomputing.com"
+    }
+  },
+  "tags": [
+    "resource",
+    "sigma",
+    "business-intelligence",
+    "bi"
+  ],
+  "name": "Sigma Resource"
+}

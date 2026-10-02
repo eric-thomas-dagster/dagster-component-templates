@@ -1,0 +1,14 @@
+type: dagster_component_templates.ZocdocAvailabilityUpsertComponent
+attributes:
+  asset_name: zocdoc_availability_sync
+  upstream_asset_key: dbt_marts_provider_open_slots
+  resource_key: zocdoc_resource
+  fields_map:
+    zocdoc_provider_id: provider_id
+    slot_date: date
+    zocdoc_location_id: location_id
+    slot_start_time: start_time
+    slot_time_zone: time_zone
+    visit_reason_ids: allowed_visit_reason_ids
+    patient_type: patient_type
+  batch_size: 5000

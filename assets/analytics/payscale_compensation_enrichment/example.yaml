@@ -1,0 +1,13 @@
+type: dagster_component_templates.PayscaleCompensationEnrichmentComponent
+attributes:
+  asset_name: compensation_benchmarked_roles
+  upstream_asset_key: open_roles
+  resource_key: payscale_resource
+  job_title_column: job_title
+  city_column: city
+  state_column: state
+  country_column: country
+  years_experience_column: years_experience
+  education_column: highest_degree
+  include_total_pay: true
+  group_name: analytics

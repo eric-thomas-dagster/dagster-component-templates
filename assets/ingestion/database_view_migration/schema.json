@@ -8,15 +8,17 @@
     "outputs": {"type": "external", "description": "Recreates the view on the target DB"}
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "source_connection_env_var": {"type": "string", "label": "Source Connection Env Var", "required": true, "ui:widget": "env_var"},
-    "target_connection_env_var": {"type": "string", "label": "Target Connection Env Var", "required": true, "ui:widget": "env_var"},
+    "asset_name": {"description": "Output Dagster asset name", "type": "string", "label": "Asset Name", "required": true},
+    "source_connection_env_var": {"description": "Env var with source SQLAlchemy URL. Set this OR source_connection.", "type": "string", "label": "Source Connection Env Var", "required": true, "ui:widget": "env_var"},
+    "target_connection_env_var": {"description": "Env var with target SQLAlchemy URL. Set this OR target_connection.", "type": "string", "label": "Target Connection Env Var", "required": true, "ui:widget": "env_var"},
     "source_type": {
+      "description": "Source DB dialect: postgres / mysql / mssql / oracle / db2 / snowflake / redshift",
       "type": "string", "label": "Source Type", "required": true,
       "enum": ["postgres", "mysql", "mssql", "oracle", "db2", "snowflake", "redshift", "duckdb"],
       "ui:widget": "select"
     },
     "target_type": {
+      "description": "Target DB dialect (same options)",
       "type": "string", "label": "Target Type", "required": true,
       "enum": ["postgres", "mysql", "mssql", "oracle", "db2", "snowflake", "redshift", "duckdb"],
       "ui:widget": "select"
@@ -25,12 +27,12 @@
     "target_view": {"type": "string", "label": "Target View", "description": "schema.name or just name", "required": true},
     "table_replacements": {"type": "object", "label": "Table Replacements", "description": "old qualified name → new", "required": false, "ui:widget": "key-value"},
     "function_replacements": {"type": "object", "label": "Function Replacements", "description": "old name → new (case-insensitive whole-word)", "required": false, "ui:widget": "key-value"},
-    "group_name": {"type": "string", "label": "Group Name", "required": false},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "asset_tags": {"type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
-    "deps": {"type": "array", "items": {"type": "string"}, "label": "Deps", "required": false}
+    "group_name": {"description": "Dagster asset group name", "type": "string", "label": "Group Name", "required": false},
+    "description": {"description": "Asset description", "type": "string", "label": "Description", "required": false},
+    "owners": {"description": "Asset owners", "type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "asset_tags": {"description": "Additional tags", "type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"description": "Asset kinds (default: ['view', source_type, target_type])", "type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
+    "deps": {"description": "Upstream asset keys (typically the replicated tables this view depends on)", "type": "array", "items": {"type": "string"}, "label": "Deps", "required": false}
   },
   "tags": ["ingestion", "migration", "views", "warehouse", "schema-rebuild"],
   "name": "Database View Migration"

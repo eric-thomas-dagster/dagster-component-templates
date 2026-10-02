@@ -8,6 +8,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name",
       "type": "string",
       "label": "Asset Name",
       "required": true,
@@ -21,6 +22,7 @@
       "description": "Log Analytics workspace GUID"
     },
     "query": {
+      "description": "KQL query to run. Example: 'AzureActivity \\| where TimeGenerated > ago(1h) \\| take 1000'",
       "type": "string",
       "label": "Query",
       "required": true,
@@ -52,18 +54,21 @@
       "default": null
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": null
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
       "default": null
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "label": "Deps",
       "required": false,
@@ -73,6 +78,7 @@
       }
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "label": "Owners",
       "required": false,
@@ -82,12 +88,14 @@
       }
     },
     "asset_tags": {
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object",
       "label": "Asset Tags",
       "required": false,
       "default": null
     },
     "kinds": {
+      "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "label": "Kinds",
       "required": false,

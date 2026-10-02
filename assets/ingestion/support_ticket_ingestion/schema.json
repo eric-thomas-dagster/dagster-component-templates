@@ -44,6 +44,7 @@
       "ui:widget": "list"
     },
     "destination": {
+      "description": "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode.",
       "type": "string",
       "label": "Destination",
       "required": false,
@@ -63,17 +64,20 @@
       "ui:widget": "select"
     },
     "dataset_name": {
+      "description": "Target dataset/schema in the destination. Defaults to the asset name.",
       "type": "string",
       "label": "Dataset Name",
       "required": false
     },
     "persist_only": {
+      "description": "If True with destination set: emit a MaterializeResult and skip DataFrame return. If False: query the destination back into a DataFrame (only meaningful for SQL destinations — non-SQL destinations always emit MaterializeResult).",
       "type": "boolean",
       "label": "Persist Only",
       "required": false,
       "default": false
     },
     "destination_credentials_url": {
+      "description": "Inline connection string passed to dlt's destination factory. Useful when one Dagster project ingests into multiple accounts of the same destination type. If unset, dlt resolves credentials from env vars — see ../DESTINATIONS.md.",
       "type": "string",
       "label": "Destination Credentials Url",
       "required": false,
@@ -162,17 +166,20 @@
       }
     },
     "destination_credentials_env_var": {
+      "description": "Alternative to destination_credentials_url: name of an env var holding the connection string. Resolved at run-time.",
       "type": "string",
       "label": "Destination Credentials Env Var",
       "required": false
     },
     "group_name": {
+      "description": "Asset group for organization",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": "support"
     },
     "owners": {
+      "description": "Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
       "type": "array",
       "items": {
         "type": "string"
@@ -181,11 +188,13 @@
       "required": false
     },
     "asset_tags": {
+      "description": "Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'}",
       "type": "object",
       "label": "Asset Tags",
       "required": false
     },
     "kinds": {
+      "description": "Asset kinds for the Dagster catalog. Auto-inferred from destination and asset name if not set.",
       "type": "array",
       "items": {
         "type": "string"
@@ -194,29 +203,34 @@
       "required": false
     },
     "freshness_max_lag_minutes": {
+      "description": "Maximum acceptable lag in minutes before the asset is considered stale.",
       "type": "integer",
       "label": "Freshness Max Lag Minutes",
       "required": false
     },
     "freshness_cron": {
+      "description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5'.",
       "type": "string",
       "label": "Freshness Cron",
       "required": false,
       "x-dagster-widget": "cron"
     },
     "include_preview_metadata": {
+      "description": "Include sample data preview in metadata",
       "type": "boolean",
       "label": "Include Preview Metadata",
       "required": false,
       "default": true
     },
     "preview_rows": {
+      "description": "Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used.",
       "type": "integer",
       "label": "Preview Rows",
       "required": false,
       "default": 25
     },
     "partition_type": {
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', or None for unpartitioned. With a partition type set, the partition key is exposed via context.partition_key for use in filtering / templating.",
       "type": "string",
       "label": "Partition Type",
       "required": false,
@@ -232,21 +246,25 @@
       "ui:widget": "select"
     },
     "partition_start": {
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required when partition_type is set.",
       "type": "string",
       "label": "Partition Start",
       "required": false
     },
     "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
       "type": "integer",
       "label": "Retry Policy Max Retries",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
       "type": "integer",
       "label": "Retry Policy Delay Seconds",
       "required": false
     },
     "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,
@@ -265,23 +283,27 @@
       "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "partition_date_column": {
+      "description": "Column used to filter the upstream DataFrame to the current date partition key.",
       "type": "string",
       "label": "Partition Date Column",
       "required": false,
       "x-dagster-widget": "column"
     },
     "partition_values": {
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'.",
       "type": "string",
       "label": "Partition Values",
       "required": false
     },
     "partition_static_dim": {
+      "description": "Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
       "type": "string",
       "label": "Partition Static Dim",
       "required": false,
       "x-dagster-widget": "column"
     },
     "partition_static_column": {
+      "description": "Column used to filter the upstream DataFrame to the current static partition value.",
       "type": "string",
       "label": "Partition Static Column",
       "required": false,

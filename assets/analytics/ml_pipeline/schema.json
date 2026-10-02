@@ -33,7 +33,7 @@
     "kinds":              {"type": "array",  "label": "Kinds", "items": {"type": "string"},
                            "description": "Asset kinds. Default: ['python', 'ml']."},
     "tags":               {"type": "object", "label": "Tags", "description": "Additional tags for the emitted assets."},
-    "owners":             {"type": "array",  "label": "Owners", "items": {"type": "string"}},
+    "owners":             {"description": "Owners on the emitted assets.", "type": "array",  "label": "Owners", "items": {"type": "string"}},
     "description":        {"type": "string", "label": "Description", "description": "Description on the emitted assets."}
   }
 }

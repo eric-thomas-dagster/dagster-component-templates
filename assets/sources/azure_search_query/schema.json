@@ -8,39 +8,46 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "endpoint": {
+      "description": "Azure AI Search endpoint URL",
       "type": "string",
       "label": "Endpoint",
       "required": true
     },
     "index_name": {
+      "description": "Index to query",
       "type": "string",
       "label": "Index Name",
       "required": true
     },
     "api_key_env_var": {
+      "description": "Env var holding the query API key. Omit to use DefaultAzureCredential.",
       "type": "string",
       "label": "Api Key Env Var",
       "required": false,
       "default": null
     },
     "search_text": {
+      "description": "Search text (default '*' returns all docs subject to filter/top)",
       "type": "string",
       "label": "Search Text",
       "required": false,
       "default": "*"
     },
     "filter_query": {
+      "description": "OData $filter expression, e.g. \"category eq 'Electronics' and price gt 100\"",
       "type": "string",
       "label": "Filter Query",
       "required": false,
       "default": null
     },
     "select": {
+      "description": "Optional column projection — list of field names",
       "type": "array",
       "label": "Select",
       "required": false,
@@ -50,6 +57,7 @@
       }
     },
     "order_by": {
+      "description": "Optional ordering, e.g. ['price desc', 'name asc']",
       "type": "array",
       "label": "Order By",
       "required": false,
@@ -59,30 +67,35 @@
       }
     },
     "top": {
+      "description": "Max results to return (Azure max 1000 per request)",
       "type": "integer",
       "label": "Top",
       "required": false,
       "default": 1000
     },
     "semantic_configuration_name": {
+      "description": "Optional semantic ranker configuration name (requires Standard tier and a configured semantic config)",
       "type": "string",
       "label": "Semantic Configuration Name",
       "required": false,
       "default": null
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": null
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
       "default": null
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "label": "Deps",
       "required": false,
@@ -92,6 +105,7 @@
       }
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "label": "Owners",
       "required": false,
@@ -101,12 +115,14 @@
       }
     },
     "asset_tags": {
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object",
       "label": "Asset Tags",
       "required": false,
       "default": null
     },
     "kinds": {
+      "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "label": "Kinds",
       "required": false,

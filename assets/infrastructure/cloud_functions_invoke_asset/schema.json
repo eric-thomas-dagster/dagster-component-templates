@@ -11,6 +11,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
@@ -22,6 +23,7 @@
       "default": null
     },
     "credentials_path": {
+      "description": "Falls back to GOOGLE_APPLICATION_CREDENTIALS.",
       "type": "string",
       "label": "Credentials Path",
       "required": false,
@@ -34,6 +36,7 @@
       "description": "HTTPS URL of the function."
     },
     "method": {
+      "description": "HTTP method (POST / GET / PUT / PATCH / DELETE).",
       "type": "string",
       "label": "HTTP Method",
       "required": false,
@@ -47,12 +50,14 @@
       "description": "Static request body. Mutually exclusive with upstream_asset_key."
     },
     "upstream_asset_key": {
+      "description": "Upstream DataFrame asset. One function call per row.",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": false,
       "default": null
     },
     "payload_column": {
+      "description": "When set, publish only this column's value as the body. dict → JSON, others → str.",
       "type": "string",
       "label": "Payload Column",
       "required": false,
@@ -91,6 +96,7 @@
       "default": 0.0
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
@@ -98,12 +104,14 @@
       "ui:widget": "textarea"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": null
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "label": "Deps",
       "required": false,
@@ -112,11 +120,13 @@
       }
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "label": "Owners",
       "required": false,

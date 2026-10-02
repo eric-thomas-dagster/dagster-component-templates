@@ -11,11 +11,13 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Upstream DataFrame asset key.",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true
@@ -27,6 +29,7 @@
       "default": null
     },
     "credentials_path": {
+      "description": "Falls back to GOOGLE_APPLICATION_CREDENTIALS.",
       "type": "string",
       "label": "Credentials Path",
       "required": false,
@@ -39,18 +42,21 @@
       "default": null
     },
     "location": {
+      "description": "Recognizer region — 'global' or a specific region (e.g. 'us-central1').",
       "type": "string",
       "label": "Location",
       "required": false,
       "default": "global"
     },
     "audio_column": {
+      "description": "Column with audio file paths or `gs://` URIs.",
       "type": "string",
       "label": "Audio Column",
       "required": true,
       "x-dagster-widget": "column"
     },
     "output_column": {
+      "description": "Column to write the transcript into.",
       "type": "string",
       "label": "Output Column",
       "required": false,
@@ -58,6 +64,7 @@
       "x-dagster-widget": "column"
     },
     "language_codes": {
+      "description": "One or more BCP-47 language codes. Multiple → multilingual recognition.",
       "type": "array",
       "label": "Language Codes",
       "required": false,
@@ -67,6 +74,7 @@
       "default": null
     },
     "recognizer_model": {
+      "description": "Speech v2 model: 'latest_short' / 'latest_long' / 'chirp' / 'chirp_2' / 'phone_call' / 'medical_conversation'. (Field is named recognizer_model rather than model to avoid a Pydantic name collision.)",
       "type": "string",
       "label": "Recognizer Model",
       "required": false,
@@ -123,6 +131,7 @@
       "default": 3
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
@@ -130,12 +139,14 @@
       "ui:widget": "textarea"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": null
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "label": "Deps",
       "required": false,
@@ -144,11 +155,13 @@
       }
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "label": "Owners",
       "required": false,

@@ -11,11 +11,13 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Dagster asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Optional upstream asset passed to compute.",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": false,
@@ -34,6 +36,7 @@
       "description": "{version, owners, consumers, schema: [{name, type?, nullable?, unique?, min?, max?, allowed_values?, regex?}], freshness_max_lag_minutes?, sla_max_row_count_drop_pct?}."
     },
     "on_violation": {
+      "description": "'block' (default) raises dg.Failure on any check fail — asset does not materialize. 'warn' materializes anyway; downstream can block via AutomationCondition.eager() on the failing check.",
       "type": "string",
       "label": "On Violation",
       "required": false,
@@ -44,11 +47,13 @@
       ]
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false
@@ -64,12 +69,14 @@
       "description": "Asset owners (defaults to contract.owners if omitted)."
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false,
       "ui:widget": "key-value"
     },
     "kinds": {
+      "description": "Asset kinds. Default: ['python', 'contract', 'governance'].",
       "type": "array",
       "items": {
         "type": "string"

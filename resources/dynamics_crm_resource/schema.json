@@ -57,6 +57,7 @@
       "description": "Dataverse Web API version segment (e.g. 'v9.2')."
     },
     "request_timeout_seconds": {
+      "description": "Per-request timeout in seconds.",
       "type": "integer",
       "label": "Request Timeout (seconds)",
       "required": false,

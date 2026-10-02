@@ -11,6 +11,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Dagster asset name. Required when NOT using `wraps:` (inherited from inner in wraps mode).",
       "type": "string",
       "label": "Asset Name",
       "required": true
@@ -35,16 +36,19 @@
       "description": "Prepended to every captured line before it lands in the log."
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
@@ -54,12 +58,14 @@
       "ui:widget": "list"
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false,
       "ui:widget": "key-value"
     },
     "kinds": {
+      "description": "Default: ['python', 'logging'].",
       "type": "array",
       "items": {
         "type": "string"

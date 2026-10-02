@@ -11,11 +11,13 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output asset name (the normalized employee table).",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Upstream DataFrame asset — the raw HRIS data.",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true
@@ -41,24 +43,28 @@
       "description": "{vendor_value: canonical_value}. Defaults to full_time/part_time/contractor/intern/temporary."
     },
     "derive_full_name": {
+      "description": "If full_name isn't mapped, derive it from first_name + last_name.",
       "type": "boolean",
       "label": "Derive Full Name",
       "required": false,
       "default": true
     },
     "compute_tenure": {
+      "description": "Adds a tenure_days column (today - hire_date if active, else termination_date - hire_date).",
       "type": "boolean",
       "label": "Compute Tenure Days",
       "required": false,
       "default": true
     },
     "derive_is_active": {
+      "description": "Adds an is_active boolean column based on the normalized employment_status.",
       "type": "boolean",
       "label": "Derive is_active",
       "required": false,
       "default": true
     },
     "drop_extra_columns": {
+      "description": "If True, only the canonical columns are kept. If False (default), source columns are preserved with a vendor_ prefix.",
       "type": "boolean",
       "label": "Drop Extra Columns",
       "required": false,
@@ -66,12 +72,14 @@
       "x-dagster-widget": "column"
     },
     "case_insensitive_map": {
+      "description": "Lowercase + strip vendor values before applying status_map / type_map.",
       "type": "boolean",
       "label": "Case-Insensitive Map",
       "required": false,
       "default": true
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
@@ -79,12 +87,14 @@
       "ui:widget": "textarea"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": null
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "label": "Deps",
       "required": false,
@@ -93,11 +103,13 @@
       }
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "label": "Owners",
       "required": false,

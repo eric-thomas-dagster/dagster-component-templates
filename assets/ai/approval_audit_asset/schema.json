@@ -8,21 +8,21 @@
     "outputs": {"type": "asset", "description": "One DataFrame asset materializing the token audit; rows sorted by `decided_at` DESC."}
   },
   "attributes": {
-    "asset_name":                {"type": "string",  "required": true, "label": "Asset Name"},
+    "asset_name":                {"description": "Dagster asset name for the audit DataFrame (e.g. `approval_audit`).", "type": "string",  "required": true, "label": "Asset Name"},
     "approval_dir":              {"type": "string",  "required": true, "label": "Approval Dir",
                                   "description": "Directory of JSON approval tokens (same dir approval-gate components write into). Accepts local paths (`/tmp/approvals`, `~/approvals`) OR cloud URIs (`s3://bucket/prefix`, `gs://bucket/prefix`, `abfs://container@account.dfs.core.windows.net/prefix`). Cloud URIs require the matching fsspec driver: `pip install s3fs` / `gcsfs` / `adlfs` (whichever you use). Local paths never require fsspec."},
-    "recursive":                 {"type": "boolean", "label": "Recursive", "default": false},
-    "token_glob":                {"type": "string",  "label": "Token Glob", "default": "*.json"},
+    "recursive":                 {"description": "If true, walk subdirectories under `approval_dir`.", "type": "boolean", "label": "Recursive", "default": false},
+    "token_glob":                {"description": "Glob pattern for token files. Default `*.json`.", "type": "string",  "label": "Token Glob", "default": "*.json"},
 
-    "group_name":                {"type": "string",  "label": "Group Name", "default": "governance"},
+    "group_name":                {"description": "Asset group. Default: 'governance'.", "type": "string",  "label": "Group Name", "default": "governance"},
     "kinds":                     {"type": "array",   "label": "Kinds", "items": {"type": "string"},
                                   "description": "Default: ['audit', 'approval', 'governance']."},
-    "tags":                      {"type": "object",  "label": "Tags"},
-    "owners":                    {"type": "array",   "label": "Owners", "items": {"type": "string"}},
-    "description":               {"type": "string",  "label": "Description"},
+    "tags":                      {"description": "Catalog tags.", "type": "object",  "label": "Tags"},
+    "owners":                    {"description": "Asset owners.", "type": "array",   "label": "Owners", "items": {"type": "string"}},
+    "description":               {"description": "Asset description.", "type": "string",  "label": "Description"},
 
-    "freshness_max_lag_minutes": {"type": "integer", "label": "Freshness Max Lag Minutes"},
-    "freshness_cron":            {"type": "string",  "label": "Freshness Cron"},
+    "freshness_max_lag_minutes": {"description": "Freshness policy: warn if audit is older than N minutes.", "type": "integer", "label": "Freshness Max Lag Minutes"},
+    "freshness_cron":            {"description": "Cron for the freshness policy (paired with max_lag_minutes).", "type": "string",  "label": "Freshness Cron"},
     "schedule_cron":             {"type": "string",  "label": "Schedule Cron",
                                   "description": "If set, emit a Dagster schedule that re-materializes this asset on the given cron."}
   }

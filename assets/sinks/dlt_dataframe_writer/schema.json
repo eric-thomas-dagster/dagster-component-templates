@@ -603,6 +603,7 @@
       "default": null
     },
     "write_disposition": {
+      "description": "Write mode: 'replace' (drop and recreate), 'append' (add rows), 'merge' (upsert based on primary key)",
       "type": "string",
       "label": "Write Disposition",
       "required": false,
@@ -615,16 +616,19 @@
       "ui:widget": "select"
     },
     "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
       "type": "integer",
       "label": "Retry Policy Max Retries",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
       "type": "integer",
       "label": "Retry Policy Delay Seconds",
       "required": false
     },
     "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,
@@ -643,6 +647,7 @@
       "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "items": {
         "type": "string"

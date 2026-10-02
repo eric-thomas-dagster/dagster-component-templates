@@ -26,12 +26,12 @@
     "filter_by_tags":                {"type": "string",  "label": "Filter By Tags", "description": "Comma-separated tag keys that entities must carry."},
 
     "polling_sensor":                {"type": "boolean", "label": "Polling Sensor", "default": true, "description": "Emit a polling sensor that observes ADF pipeline-run status and emits AssetObservation events."},
-    "poll_interval_seconds":         {"type": "integer", "label": "Poll Interval Seconds", "default": 60},
+    "poll_interval_seconds":         {"description": "Sensor polling interval (seconds).", "type": "integer", "label": "Poll Interval Seconds", "default": 60},
 
-    "group_name":                    {"type": "string",  "label": "Group Name", "default": "azure_data_factory"},
-    "description":                   {"type": "string",  "label": "Description"},
-    "owners":                        {"type": "array",   "label": "Owners", "items": {"type": "string"}},
-    "asset_tags":                    {"type": "object",  "label": "Asset Tags"},
+    "group_name":                    {"description": "Asset group.", "type": "string",  "label": "Group Name", "default": "azure_data_factory"},
+    "description":                   {"description": "Asset description.", "type": "string",  "label": "Description"},
+    "owners":                        {"description": "Asset owners.", "type": "array",   "label": "Owners", "items": {"type": "string"}},
+    "asset_tags":                    {"description": "Additional key-value tags applied to the asset in the Dagster catalog.", "type": "object",  "label": "Asset Tags"},
     "extra_kinds":                   {"type": "array",   "label": "Extra Kinds", "items": {"type": "string"}, "description": "Additional `dagster/kind/*` tags applied to every asset."},
     "asset_key_prefix":              {"type": "array",   "label": "Asset Key Prefix", "items": {"type": "string"}, "description": "Optional key prefix — every asset key gets `[<prefix>..., adf_<kind>_<name>]`."},
 
@@ -44,16 +44,16 @@
     "wait_for_completion":           {"type": "boolean", "label": "Wait For Completion", "default": true},
     "capture_activity_metadata":     {"type": "boolean", "label": "Capture Activity Metadata", "default": true},
 
-    "partition_type":                {"type": "string",  "label": "Partition Type", "enum": ["daily", "weekly", "monthly", "hourly", "static"]},
-    "partition_start":               {"type": "string",  "label": "Partition Start"},
-    "partition_values":              {"type": "array",   "label": "Partition Values", "items": {"type": "string"}},
+    "partition_type":                {"description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned.", "type": "string",  "label": "Partition Type", "enum": ["daily", "weekly", "monthly", "hourly", "static"]},
+    "partition_start":               {"description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.", "type": "string",  "label": "Partition Start"},
+    "partition_values":              {"description": "Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.", "type": "array",   "label": "Partition Values", "items": {"type": "string"}},
 
-    "freshness_max_lag_minutes":     {"type": "integer", "label": "Freshness Max Lag Minutes"},
-    "freshness_cron":                {"type": "string",  "label": "Freshness Cron"},
+    "freshness_max_lag_minutes":     {"description": "Maximum acceptable lag in minutes before the asset is considered stale. Defines a FreshnessPolicy.", "type": "integer", "label": "Freshness Max Lag Minutes"},
+    "freshness_cron":                {"description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).", "type": "string",  "label": "Freshness Cron"},
     "upstream_asset_keys":           {"type": "array",   "label": "Upstream Asset Keys", "items": {"type": "string"}},
-    "retry_policy_max_retries":      {"type": "integer", "label": "Retry Policy Max Retries"},
-    "retry_policy_delay_seconds":    {"type": "integer", "label": "Retry Policy Delay Seconds"},
-    "retry_policy_backoff":          {"type": "string",  "label": "Retry Policy Backoff", "default": "exponential"},
+    "retry_policy_max_retries":      {"description": "Max retries on asset failure. Defines a RetryPolicy.", "type": "integer", "label": "Retry Policy Max Retries"},
+    "retry_policy_delay_seconds":    {"description": "Seconds between retries.", "type": "integer", "label": "Retry Policy Delay Seconds"},
+    "retry_policy_backoff":          {"description": "Backoff strategy: 'linear' or 'exponential'.", "type": "string",  "label": "Retry Policy Backoff", "default": "exponential"},
 
     "defs_state":                    {"type": "object",  "label": "Defs State", "description": "State backend for cached workspace discovery. Local filesystem by default; override per-deploy for Dagster Cloud."}
   },

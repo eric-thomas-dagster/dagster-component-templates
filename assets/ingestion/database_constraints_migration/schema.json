@@ -8,37 +8,39 @@
     "outputs": {"type": "dataframe", "description": "Per-constraint status: schema_name, table_name, target_table, constraint_type, constraint_name, columns, status, error_message, ddl"}
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "source_connection_env_var": {"type": "string", "label": "Source Connection Env Var", "required": true, "ui:widget": "env_var"},
-    "target_connection_env_var": {"type": "string", "label": "Target Connection Env Var", "required": true, "ui:widget": "env_var"},
+    "asset_name": {"description": "Output Dagster asset name", "type": "string", "label": "Asset Name", "required": true},
+    "source_connection_env_var": {"description": "Env var with source SQLAlchemy URL. Set this OR source_connection.", "type": "string", "label": "Source Connection Env Var", "required": true, "ui:widget": "env_var"},
+    "target_connection_env_var": {"description": "Env var with target SQLAlchemy URL. Set this OR target_connection.", "type": "string", "label": "Target Connection Env Var", "required": true, "ui:widget": "env_var"},
     "source_type": {
+      "description": "Source DB dialect",
       "type": "string", "label": "Source Type", "required": true,
       "enum": ["postgres", "mysql", "mssql", "oracle", "db2", "snowflake", "redshift", "duckdb"],
       "ui:widget": "select"
     },
     "target_type": {
+      "description": "Target DB dialect",
       "type": "string", "label": "Target Type", "required": true,
       "enum": ["postgres", "mysql", "mssql", "oracle", "db2", "snowflake", "redshift", "duckdb"],
       "ui:widget": "select"
     },
-    "schemas": {"type": "array", "items": {"type": "string"}, "label": "Source Schemas", "required": false},
-    "include_patterns": {"type": "array", "items": {"type": "string"}, "label": "Include Patterns", "required": false},
-    "exclude_patterns": {"type": "array", "items": {"type": "string"}, "label": "Exclude Patterns", "required": false},
-    "target_schema": {"type": "string", "label": "Target Schema Override", "required": false},
-    "table_replacements": {"type": "object", "label": "FK Table Replacements", "required": false, "ui:widget": "key-value"},
+    "schemas": {"description": "Source schemas to scan for constraints", "type": "array", "items": {"type": "string"}, "label": "Source Schemas", "required": false},
+    "include_patterns": {"description": "fnmatch-style glob patterns (case-insensitive) against qualified table names. Examples: ['HR.*'], ['HR.EMPLOYEES', 'FINANCE.STG_*']. Default: include all discovered tables.", "type": "array", "items": {"type": "string"}, "label": "Include Patterns", "required": false},
+    "exclude_patterns": {"description": "fnmatch-style glob patterns to exclude. Applied AFTER include_patterns.", "type": "array", "items": {"type": "string"}, "label": "Exclude Patterns", "required": false},
+    "target_schema": {"description": "Override target schema (defaults to source schema name)", "type": "string", "label": "Target Schema Override", "required": false},
+    "table_replacements": {"description": "FK reference rewrites (old qualified name → new)", "type": "object", "label": "FK Table Replacements", "required": false, "ui:widget": "key-value"},
     "constraint_types": {
       "type": "array", "items": {"type": "string"}, "label": "Constraint Types", "required": false,
       "description": "Subset of: primary_key, foreign_key, not_null, default, check, unique"
     },
     "function_replacements": {"type": "object", "label": "CHECK Function Replacements", "description": "Substitutions applied to CHECK expressions (e.g. {'NVL': 'COALESCE'})", "required": false, "ui:widget": "key-value"},
     "dry_run": {"type": "boolean", "label": "Dry Run", "description": "Try every ALTER in a transaction then ROLLBACK — no state change.", "required": false, "default": false},
-    "fail_on_any_error": {"type": "boolean", "label": "Fail On Any Error", "required": false, "default": false},
-    "group_name": {"type": "string", "label": "Group Name", "required": false},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "asset_tags": {"type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
-    "deps": {"type": "array", "items": {"type": "string"}, "label": "Deps", "required": false}
+    "fail_on_any_error": {"description": "If true, asset fails on any constraint failure. Default: report and succeed.", "type": "boolean", "label": "Fail On Any Error", "required": false, "default": false},
+    "group_name": {"description": "Dagster asset group name", "type": "string", "label": "Group Name", "required": false},
+    "description": {"description": "Asset description", "type": "string", "label": "Description", "required": false},
+    "owners": {"description": "Asset owners", "type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "asset_tags": {"description": "Additional tags", "type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"description": "Asset kinds (default: ['constraints', source_type, target_type])", "type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
+    "deps": {"description": "Upstream asset keys (typically the data replications)", "type": "array", "items": {"type": "string"}, "label": "Deps", "required": false}
   },
   "tags": ["ingestion", "migration", "constraints", "primary-key", "foreign-key", "alter-table", "warehouse"],
   "name": "Database Constraints Migration"

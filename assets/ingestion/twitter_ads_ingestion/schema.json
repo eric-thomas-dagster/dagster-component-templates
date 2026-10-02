@@ -224,17 +224,20 @@
       "ui:widget": "list"
     },
     "dataset_name": {
+      "description": "Target dataset/schema in the destination. Defaults to the asset name.",
       "type": "string",
       "label": "Dataset Name",
       "required": false
     },
     "persist_only": {
+      "description": "If True with destination set: emit a MaterializeResult and skip DataFrame return. If False: query the destination back into a DataFrame (only meaningful for SQL destinations — non-SQL destinations always emit MaterializeResult).",
       "type": "boolean",
       "label": "Persist Only",
       "required": false,
       "default": false
     },
     "destination_credentials_url": {
+      "description": "Inline connection string passed to dlt's destination factory. Useful when one Dagster project ingests into multiple accounts of the same destination type. If unset, dlt resolves credentials from env vars — see ../DESTINATIONS.md.",
       "type": "string",
       "label": "Destination Credentials Url",
       "required": false,
@@ -323,11 +326,13 @@
       }
     },
     "destination_credentials_env_var": {
+      "description": "Alternative to destination_credentials_url: name of an env var holding the connection string. Resolved at run-time.",
       "type": "string",
       "label": "Destination Credentials Env Var",
       "required": false
     },
     "partition_type": {
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', or None for unpartitioned. With a partition type set, the partition key is exposed via context.partition_key for use in filtering / templating.",
       "type": "string",
       "label": "Partition Type",
       "required": false,
@@ -343,21 +348,25 @@
       "ui:widget": "select"
     },
     "partition_start": {
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required when partition_type is set.",
       "type": "string",
       "label": "Partition Start",
       "required": false
     },
     "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
       "type": "integer",
       "label": "Retry Policy Max Retries",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
       "type": "integer",
       "label": "Retry Policy Delay Seconds",
       "required": false
     },
     "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,
@@ -376,23 +385,27 @@
       "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "partition_date_column": {
+      "description": "Column used to filter the upstream DataFrame to the current date partition key.",
       "type": "string",
       "label": "Partition Date Column",
       "required": false,
       "x-dagster-widget": "column"
     },
     "partition_values": {
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'.",
       "type": "string",
       "label": "Partition Values",
       "required": false
     },
     "partition_static_dim": {
+      "description": "Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
       "type": "string",
       "label": "Partition Static Dim",
       "required": false,
       "x-dagster-widget": "column"
     },
     "partition_static_column": {
+      "description": "Column used to filter the upstream DataFrame to the current static partition value.",
       "type": "string",
       "label": "Partition Static Column",
       "required": false,

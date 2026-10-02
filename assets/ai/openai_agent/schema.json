@@ -15,6 +15,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
@@ -105,26 +106,31 @@
       }
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group",
       "required": false
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "label": "Owners",
       "required": false
     },
     "asset_tags": {
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object",
       "label": "Tags",
       "required": false
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "label": "Lineage-Only Deps",
       "required": false

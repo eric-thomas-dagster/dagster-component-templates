@@ -8,34 +8,36 @@
     "outputs": {"type": "dataframe", "description": "Status DataFrame: schema_name, view_name, target_view, status, error_message, ddl_chars"}
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
-    "source_connection_env_var": {"type": "string", "label": "Source Connection Env Var", "required": true, "ui:widget": "env_var"},
-    "target_connection_env_var": {"type": "string", "label": "Target Connection Env Var", "required": true, "ui:widget": "env_var"},
+    "asset_name": {"description": "Output Dagster asset name", "type": "string", "label": "Asset Name", "required": true},
+    "source_connection_env_var": {"description": "Env var with source SQLAlchemy URL. Set this OR source_connection.", "type": "string", "label": "Source Connection Env Var", "required": true, "ui:widget": "env_var"},
+    "target_connection_env_var": {"description": "Env var with target SQLAlchemy URL. Set this OR target_connection.", "type": "string", "label": "Target Connection Env Var", "required": true, "ui:widget": "env_var"},
     "source_type": {
+      "description": "Source DB dialect",
       "type": "string", "label": "Source Type", "required": true,
       "enum": ["postgres", "mysql", "mssql", "oracle", "db2", "snowflake", "redshift", "duckdb"],
       "ui:widget": "select"
     },
     "target_type": {
+      "description": "Target DB dialect",
       "type": "string", "label": "Target Type", "required": true,
       "enum": ["postgres", "mysql", "mssql", "oracle", "db2", "snowflake", "redshift", "duckdb"],
       "ui:widget": "select"
     },
-    "schemas": {"type": "array", "items": {"type": "string"}, "label": "Source Schemas", "required": false},
-    "include_patterns": {"type": "array", "items": {"type": "string"}, "label": "Include Patterns", "required": false},
-    "exclude_patterns": {"type": "array", "items": {"type": "string"}, "label": "Exclude Patterns", "required": false},
-    "target_schema": {"type": "string", "label": "Target Schema Override", "required": false},
-    "table_replacements": {"type": "object", "label": "Table Replacements", "required": false, "ui:widget": "key-value"},
-    "function_replacements": {"type": "object", "label": "Function Replacements", "required": false, "ui:widget": "key-value"},
+    "schemas": {"description": "Source schemas to scan (default: all non-system schemas)", "type": "array", "items": {"type": "string"}, "label": "Source Schemas", "required": false},
+    "include_patterns": {"description": "fnmatch-style glob patterns (case-insensitive) against qualified view names. Examples: ['APP.V_*'], ['HR.V_EMPLOYEES', 'FINANCE.V_*']. Default: include all discovered views.", "type": "array", "items": {"type": "string"}, "label": "Include Patterns", "required": false},
+    "exclude_patterns": {"description": "fnmatch-style glob patterns to exclude. Applied AFTER include_patterns. Examples: ['*_LEGACY', 'APP.V_ORACLE_*'] for views you've rewritten by hand.", "type": "array", "items": {"type": "string"}, "label": "Exclude Patterns", "required": false},
+    "target_schema": {"description": "Override target schema name. If unset, uses source schema name verbatim. e.g. 'RAW' → all views land in RAW.<view_name>.", "type": "string", "label": "Target Schema Override", "required": false},
+    "table_replacements": {"description": "Substitutions applied to every view's DDL — old qualified name → new", "type": "object", "label": "Table Replacements", "required": false, "ui:widget": "key-value"},
+    "function_replacements": {"description": "Dialect function substitutions applied case-insensitive whole-word", "type": "object", "label": "Function Replacements", "required": false, "ui:widget": "key-value"},
     "view_ddl_overrides": {"type": "object", "label": "Per-View Body Overrides", "description": "Source qualified name → SELECT body (no CREATE VIEW). For views the auto-rewrite can't handle (Oracle CONNECT BY, MSSQL CROSS APPLY, etc.)", "required": false, "ui:widget": "key-value"},
     "dry_run": {"type": "boolean", "label": "Dry Run", "description": "Try every CREATE VIEW in a transaction then ROLLBACK — no state change.", "required": false, "default": false},
-    "fail_on_any_error": {"type": "boolean", "label": "Fail On Any Error", "required": false, "default": false},
-    "group_name": {"type": "string", "label": "Group Name", "required": false},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "asset_tags": {"type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
-    "deps": {"type": "array", "items": {"type": "string"}, "label": "Deps", "required": false}
+    "fail_on_any_error": {"description": "If true, the asset materialization fails when ANY view fails to migrate. Default: succeed and report failures in the status DataFrame.", "type": "boolean", "label": "Fail On Any Error", "required": false, "default": false},
+    "group_name": {"description": "Dagster asset group name", "type": "string", "label": "Group Name", "required": false},
+    "description": {"description": "Asset description", "type": "string", "label": "Description", "required": false},
+    "owners": {"description": "Asset owners", "type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "asset_tags": {"description": "Additional tags", "type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"description": "Asset kinds (default: ['views', source_type, target_type])", "type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
+    "deps": {"description": "Upstream asset keys (typically table replications)", "type": "array", "items": {"type": "string"}, "label": "Deps", "required": false}
   },
   "tags": ["ingestion", "migration", "views", "bulk", "warehouse", "status-report"],
   "name": "Database Views Migration"

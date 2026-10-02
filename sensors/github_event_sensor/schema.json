@@ -11,11 +11,13 @@
   },
   "attributes": {
     "sensor_name": {
+      "description": "Unique sensor name.",
       "type": "string",
       "label": "Sensor Name",
       "required": true
     },
     "asset_keys": {
+      "description": "Slash-separated asset keys to materialize when an event matches.",
       "type": "array",
       "items": {
         "type": "string"
@@ -24,12 +26,14 @@
       "required": true
     },
     "minimum_interval_seconds": {
+      "description": "Minimum seconds between sensor evaluations.",
       "type": "integer",
       "label": "Minimum Interval Seconds",
       "default": 60,
       "required": false
     },
     "default_status": {
+      "description": "'RUNNING' or 'STOPPED'.",
       "type": "string",
       "label": "Default Status",
       "default": "stopped",
@@ -40,16 +44,19 @@
       "required": false
     },
     "repo": {
+      "description": "GitHub repo in 'owner/name' form.",
       "type": "string",
       "label": "Repo",
       "required": true
     },
     "token_env_var": {
+      "description": "Env var with a GitHub PAT (or unset for public repos with rate-limited unauthed access).",
       "type": "string",
       "label": "Token Env Var",
       "required": true
     },
     "event_types": {
+      "description": "GitHub event_type names to listen for.",
       "type": "array",
       "label": "Event Types",
       "required": true

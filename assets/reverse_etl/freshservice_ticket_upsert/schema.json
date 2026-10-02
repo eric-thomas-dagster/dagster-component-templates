@@ -15,6 +15,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
@@ -32,6 +33,7 @@
       "description": "Read the DataFrame inline at run time. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. Mutually exclusive with `upstream_asset_key`."
     },
     "resource_key": {
+      "description": "Resource key registered by FreshserviceResourceComponent.",
       "type": "string",
       "label": "Resource Key",
       "required": false,
@@ -58,17 +60,20 @@
       "description": "Max rows per run (safety cap)."
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": "freshservice"
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
@@ -78,12 +83,14 @@
       "ui:widget": "list"
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false,
       "ui:widget": "key-value"
     },
     "kinds": {
+      "description": "Asset kinds (auto-includes 'freshservice').",
       "type": "array",
       "items": {
         "type": "string"

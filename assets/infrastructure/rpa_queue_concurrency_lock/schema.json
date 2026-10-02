@@ -69,6 +69,7 @@
       "description": "Event-log lookback window (should be >= ttl_seconds)."
     },
     "kinds": {
+      "description": "Asset kinds to attach to the wrapped asset.",
       "type": "array",
       "items": {
         "type": "string"
@@ -79,6 +80,7 @@
       "ui:widget": "list"
     },
     "group_name": {
+      "description": "Dagster asset group for the wrapped asset.",
       "type": "string",
       "label": "Group Name",
       "required": false,
@@ -110,6 +112,7 @@
       "description": "ISO start date when partition_type is set."
     },
     "description": {
+      "description": "Optional description shown in the Dagster UI.",
       "type": "string",
       "label": "Description",
       "required": false

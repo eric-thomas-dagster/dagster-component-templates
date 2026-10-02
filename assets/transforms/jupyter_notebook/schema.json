@@ -15,19 +15,20 @@
     }
   },
   "attributes": {
-    "asset_name": { "type": "string", "label": "Asset Name", "required": true },
-    "upstream_asset_key": { "type": "string", "label": "Upstream Asset Key", "required": true },
-    "notebook_path": { "type": "string", "label": "Notebook Path (.ipynb)" },
+    "asset_name": {"description": "Output Dagster asset name", "type": "string", "label": "Asset Name", "required": true },
+    "upstream_asset_key": {"description": "Upstream asset key (DataFrame in)", "type": "string", "label": "Upstream Asset Key", "required": true },
+    "notebook_path": {"description": "Path to the .ipynb file to execute (mutually exclusive with `code`). Resolved relative to the Dagster project root.", "type": "string", "label": "Notebook Path (.ipynb)" },
     "code": { "type": "string", "label": "Inline Python Code", "description": "Receives `df`, must assign `out_df`" },
     "backend": {
+      "description": "`f\"Execution backend. One of: {list(_VALID_BACKENDS)}. 'papermill' is the canonical notebook-as-pipeline pattern.\"`",
       "type": "string",
       "enum": ["papermill", "exec"],
       "default": "exec",
       "label": "Backend"
     },
-    "output_notebook_path": { "type": "string", "label": "Save executed notebook (papermill)" },
-    "parameters": { "type": "object", "label": "papermill Parameters" },
-    "timeout_seconds": { "type": "integer", "default": 600, "label": "Timeout (seconds)" },
-    "group_name": { "type": "string", "label": "Group Name" }
+    "output_notebook_path": {"description": "When set + backend=papermill, save the executed notebook (with outputs) to this path. Useful for inspection / lineage.", "type": "string", "label": "Save executed notebook (papermill)" },
+    "parameters": {"description": "papermill parameters dict, injected as the notebook's parameters cell.", "type": "object", "label": "papermill Parameters" },
+    "timeout_seconds": {"description": "Max notebook execution time (papermill backend).", "type": "integer", "default": 600, "label": "Timeout (seconds)" },
+    "group_name": {"description": "Dagster asset group name.", "type": "string", "label": "Group Name" }
   }
 }

@@ -8,10 +8,10 @@
     "outputs": {"type": "multi_asset", "description": "Emits 3 assets: research_plan, subtopic_notes, research_brief."}
   },
   "attributes": {
-    "plan_asset_name": {"label": "Plan Asset Name", "type": "string", "required": true},
-    "notes_asset_name": {"label": "Notes Asset Name", "type": "string", "required": true},
-    "brief_asset_name": {"label": "Brief Asset Name", "type": "string", "required": true},
-    "topic": {"label": "Topic", "type": "string", "required": true},
+    "plan_asset_name": {"description": "Planner asset name.", "label": "Plan Asset Name", "type": "string", "required": true},
+    "notes_asset_name": {"description": "Subtopic-notes asset name.", "label": "Notes Asset Name", "type": "string", "required": true},
+    "brief_asset_name": {"description": "Final brief asset name.", "label": "Brief Asset Name", "type": "string", "required": true},
+    "topic": {"description": "The topic to research.", "label": "Topic", "type": "string", "required": true},
     "model": {"label": "Model", "type": "string", "required": false, "default": "gpt-4o-mini"},
     "api_key_env_var": {"label": "API Key Env Var", "type": "string", "required": false, "default": "OPENAI_API_KEY"},
     "api_base_env_var": {"label": "API Base Env Var", "type": "string", "required": false},
@@ -19,10 +19,10 @@
     "planner_max_tokens": {"label": "Planner Max Tokens", "type": "integer", "required": false, "default": 500},
     "researcher_max_tokens": {"label": "Researcher Max Tokens", "type": "integer", "required": false, "default": 350},
     "brief_max_tokens": {"label": "Brief Max Tokens", "type": "integer", "required": false, "default": 1200},
-    "max_subtopics": {"label": "Max Subtopics", "type": "integer", "required": false, "default": 8, "minimum": 1, "maximum": 30},
-    "researcher_system_message": {"label": "Researcher System Message", "type": "string", "required": false},
-    "brief_system_message": {"label": "Brief System Message", "type": "string", "required": false},
-    "group_name": {"label": "Group Name", "type": "string", "required": false},
-    "kinds": {"label": "Kinds", "type": "array", "required": false}
+    "max_subtopics": {"description": "Upper bound the planner is told about. The LLM picks up to this many at runtime.", "label": "Max Subtopics", "type": "integer", "required": false, "default": 8, "minimum": 1, "maximum": 30},
+    "researcher_system_message": {"description": "Optional override for the researcher's system prompt. Default is a generic 'be concise, cite plausible sources' persona.", "label": "Researcher System Message", "type": "string", "required": false},
+    "brief_system_message": {"description": "Optional override for the synthesizer's system prompt.", "label": "Brief System Message", "type": "string", "required": false},
+    "group_name": {"description": "Dagster asset group name.", "label": "Group Name", "type": "string", "required": false},
+    "kinds": {"description": "Asset kinds for the Dagster catalog.", "label": "Kinds", "type": "array", "required": false}
   }
 }

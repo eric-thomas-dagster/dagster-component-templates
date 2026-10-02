@@ -11,11 +11,13 @@
   },
   "attributes": {
     "environment_id": {
+      "description": "Coalesce environment ID",
       "type": "string",
       "label": "Environment ID",
       "required": true
     },
     "api_token_env_var": {
+      "description": "Env var with Coalesce API token",
       "type": "string",
       "label": "API Token Env Var",
       "required": true

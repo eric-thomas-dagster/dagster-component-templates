@@ -4,10 +4,10 @@
   "category": "resource",
   "icon": "Server",
   "attributes": {
-    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "jde_orchestrator_resource"},
+    "resource_key": {"description": "Resource key registered by JDEOrchestratorResourceComponent.", "type": "string", "label": "Resource Key", "required": false, "default": "jde_orchestrator_resource"},
     "base_url_env_var": {"type": "string", "label": "Base URL Env Var", "required": true, "description": "Env var with the AIS Server base URL (e.g. https://ais.acme.com). No /jderest path."},
-    "username_env_var": {"type": "string", "label": "Username Env Var", "required": true},
-    "password_env_var": {"type": "string", "label": "Password Env Var", "required": true},
+    "username_env_var": {"description": "Env var with JDE username.", "type": "string", "label": "Username Env Var", "required": true},
+    "password_env_var": {"description": "Env var with JDE password.", "type": "string", "label": "Password Env Var", "required": true},
     "api_path_prefix": {"type": "string", "label": "API Path Prefix", "required": false, "default": "/jderest/v3/orchestrator", "description": "v3 for JDE Tools 9.2.7+, v2 for older."},
     "verify_ssl": {"type": "boolean", "label": "Verify SSL", "required": false, "default": true, "ui:widget": "checkbox"}
   }

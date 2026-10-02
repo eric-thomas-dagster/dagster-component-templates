@@ -213,28 +213,33 @@
       "ui:widget": "key-value"
     },
     "include_preview_metadata": {
+      "description": "Include a preview of the output DataFrame in metadata (for builder UIs).",
       "type": "boolean",
       "label": "Include Preview Metadata",
       "required": false,
       "default": false
     },
     "preview_rows": {
+      "description": "Rows in the preview when include_preview_metadata=True.",
       "type": "integer",
       "label": "Preview Rows",
       "required": false,
       "default": 25
     },
     "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
       "type": "integer",
       "label": "Retry Policy Max Retries",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
       "type": "integer",
       "label": "Retry Policy Delay Seconds",
       "required": false
     },
     "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,
@@ -247,11 +252,13 @@
       "ui:widget": "select"
     },
     "description": {
+      "description": "Asset description shown in the Dagster catalog.",
       "type": "string",
       "label": "Description",
       "required": false
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "items": {
         "type": "string"

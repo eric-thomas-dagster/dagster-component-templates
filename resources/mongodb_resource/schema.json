@@ -42,23 +42,27 @@
   "name": "MongoDB Resource",
   "attributes": {
     "resource_key": {
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
       "type": "string",
       "label": "Resource Key",
       "required": false,
       "default": "mongodb_resource"
     },
     "connection_string_env_var": {
+      "description": "Env var with the MongoDB connection string. Set this OR connection_string.",
       "type": "string",
       "label": "Connection String Env Var",
       "required": true
     },
     "database": {
+      "description": "Default database name (optional)",
       "type": "string",
       "label": "Database",
       "required": false,
       "default": ""
     },
     "tls": {
+      "description": "Enable TLS. Required for MongoDB Atlas; leave False for local/self-hosted clusters that don't terminate TLS.",
       "type": "boolean",
       "label": "Tls",
       "required": false,

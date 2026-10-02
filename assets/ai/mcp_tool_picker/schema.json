@@ -19,7 +19,7 @@
     "planner_max_tokens": {"label": "Planner Max Tokens", "type": "integer", "required": false, "default": 500},
     "synthesis_max_tokens": {"label": "Synthesis Max Tokens", "type": "integer", "required": false, "default": 800},
     "synthesis_system_message": {"label": "Synthesis System Message", "type": "string", "required": false},
-    "group_name": {"label": "Group Name", "type": "string", "required": false},
-    "kinds": {"label": "Kinds", "type": "array", "required": false}
+    "group_name": {"description": "Dagster asset group name.", "label": "Group Name", "type": "string", "required": false},
+    "kinds": {"description": "Asset kinds for the Dagster catalog.", "label": "Kinds", "type": "array", "required": false}
   }
 }

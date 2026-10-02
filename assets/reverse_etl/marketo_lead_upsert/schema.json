@@ -15,6 +15,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
@@ -32,6 +33,7 @@
       "description": "Inline source config (sql / csv / inline). Mutually exclusive with `upstream_asset_key`."
     },
     "resource_key": {
+      "description": "Resource key registered by MarketoResourceComponent.",
       "type": "string",
       "label": "Resource Key",
       "required": false,
@@ -58,11 +60,11 @@
       "default": 50000,
       "description": "Max upstream rows per run (safety cap). Chunked at 300 per request (Marketo's hard limit) regardless."
     },
-    "group_name": { "type": "string", "label": "Group Name", "required": false, "default": "marketo" },
-    "description": { "type": "string", "label": "Description", "required": false },
-    "owners": { "type": "array", "items": { "type": "string" }, "label": "Owners", "required": false, "ui:widget": "list" },
-    "tags": { "type": "object", "label": "Tags", "required": false, "ui:widget": "key-value" },
-    "kinds": { "type": "array", "items": { "type": "string" }, "label": "Kinds", "required": false, "ui:widget": "list" }
+    "group_name": {"description": "Dagster asset group name.", "type": "string", "label": "Group Name", "required": false, "default": "marketo" },
+    "description": {"description": "Asset description.", "type": "string", "label": "Description", "required": false },
+    "owners": {"description": "Asset owners.", "type": "array", "items": { "type": "string" }, "label": "Owners", "required": false, "ui:widget": "list" },
+    "tags": {"description": "Catalog tags.", "type": "object", "label": "Tags", "required": false, "ui:widget": "key-value" },
+    "kinds": {"description": "Asset kinds (auto-includes 'marketo').", "type": "array", "items": { "type": "string" }, "label": "Kinds", "required": false, "ui:widget": "list" }
   },
   "tags": [
     "marketo",

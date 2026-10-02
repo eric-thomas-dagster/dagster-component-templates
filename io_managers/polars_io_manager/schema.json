@@ -11,12 +11,14 @@
   },
   "attributes": {
     "resource_key": {
+      "description": "Dagster resource key. Use 'io_manager' to make this the default.",
       "type": "string",
       "label": "Resource Key",
       "default": "io_manager",
       "required": false
     },
     "base_dir": {
+      "description": "Local directory under which to store Parquet files.",
       "type": "string",
       "label": "Base Dir",
       "required": true

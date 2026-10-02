@@ -16,11 +16,13 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Upstream asset to evaluate (typically an *_agent or LLM output).",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true
@@ -43,17 +45,20 @@
       }
     },
     "api_key_env_var": {
+      "description": "Env var with the judge LLM's API key.",
       "type": "string",
       "label": "Judge API Key Env Var",
       "required": false
     },
     "temperature": {
+      "description": "Judge sampling temperature (keep low for consistent scoring).",
       "type": "number",
       "label": "Temperature",
       "default": 0.0,
       "required": false
     },
     "max_tokens": {
+      "description": "Max tokens per judge call.",
       "type": "integer",
       "label": "Max Tokens",
       "default": 256,
@@ -79,26 +84,32 @@
       "required": false
     },
     "group_name": {"label": "Group Name", 
+      "description": "Dagster asset group name.",
       "type": "string",
       "required": false
     },
     "description": {"label": "Description", 
+      "description": "Asset description.",
       "type": "string",
       "required": false
     },
     "owners": {"label": "Owners", 
+      "description": "Asset owners.",
       "type": "array",
       "required": false
     },
     "asset_tags": {"label": "Asset Tags", 
+      "description": "Extra asset tags.",
       "type": "object",
       "required": false
     },
     "kinds": {"label": "Kinds", 
+      "description": "Asset kinds. Defaults to ['llm', 'evaluation'].",
       "type": "array",
       "required": false
     },
     "deps": {"label": "Deps", 
+      "description": "Lineage-only upstream asset keys.",
       "type": "array",
       "required": false
     }

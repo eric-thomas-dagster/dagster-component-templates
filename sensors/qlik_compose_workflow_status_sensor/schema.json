@@ -5,16 +5,19 @@
   "icon": "si:qlik",
   "attributes": {
     "sensor_name": {
+      "description": "Unique sensor name.",
       "type": "string",
       "label": "Sensor Name",
       "required": true
     },
     "project": {
+      "description": "Compose project.",
       "type": "string",
       "label": "Project",
       "required": true
     },
     "workflow": {
+      "description": "Compose workflow.",
       "type": "string",
       "label": "Workflow",
       "required": true
@@ -26,11 +29,13 @@
       "default": null
     },
     "job_name": {
+      "description": "Job to trigger.",
       "type": "string",
       "label": "Job Name",
       "required": true
     },
     "resource_key": {
+      "description": "Resource key registered by QlikComposeResourceComponent.",
       "type": "string",
       "label": "Resource Key",
       "required": false,

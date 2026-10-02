@@ -12,6 +12,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
@@ -29,21 +30,25 @@
       "required": false
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group",
       "required": false
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "label": "Owners",
       "required": false
     },
     "asset_tags": {
+      "description": "Extra asset tags.",
       "type": "object",
       "label": "Tags",
       "required": false
@@ -55,24 +60,29 @@
       "required": false
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys.",
       "type": "array",
       "label": "Lineage-Only Deps",
       "required": false
     },
     "freshness_max_lag_minutes": {"label": "Freshness Max Lag Minutes", 
+      "description": "FreshnessPolicy max lag (min).",
       "type": "integer",
       "required": false
     },
     "freshness_cron": {"label": "Freshness Cron", 
+      "description": "FreshnessPolicy deadline cron.",
       "type": "string",
       "required": false,
       "x-dagster-widget": "cron"
     },
     "retry_policy_max_retries": {"label": "Retry Policy Max Retries", 
+      "description": "Retry on transient failures.",
       "type": "integer",
       "required": false
     },
     "retry_policy_delay_seconds": {"label": "Retry Policy Delay Seconds", 
+      "description": "Seconds between retries.",
       "type": "integer",
       "required": false
     },

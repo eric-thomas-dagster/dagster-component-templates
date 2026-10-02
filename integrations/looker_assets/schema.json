@@ -11,21 +11,25 @@
   },
   "attributes": {
     "base_url": {
+      "description": "Looker instance base URL (e.g. 'https://mycompany.looker.com').",
       "type": "string",
       "label": "Base Url",
       "required": true
     },
     "client_id_env_var": {
+      "description": "Env var with API3 client_id.",
       "type": "string",
       "label": "Client Id Env Var",
       "required": true
     },
     "client_secret_env_var": {
+      "description": "Env var with API3 client_secret.",
       "type": "string",
       "label": "Client Secret Env Var",
       "required": true
     },
     "project": {
+      "description": "Optional LookML project filter.",
       "type": "string",
       "label": "Project",
       "required": false

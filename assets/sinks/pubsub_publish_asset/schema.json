@@ -11,11 +11,13 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Upstream DataFrame asset key.",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true
@@ -27,12 +29,14 @@
       "default": null
     },
     "credentials_path": {
+      "description": "Falls back to GOOGLE_APPLICATION_CREDENTIALS.",
       "type": "string",
       "label": "Credentials Path",
       "required": false,
       "default": null
     },
     "project_id": {
+      "description": "GCP project. Defaults to the SA's project.",
       "type": "string",
       "label": "Project ID",
       "required": false,
@@ -45,6 +49,7 @@
       "description": "Topic name (no projects/.../topics/ prefix)."
     },
     "auto_create_topic": {
+      "description": "If True, create the topic if it doesn't exist (requires roles/pubsub.editor).",
       "type": "boolean",
       "label": "Auto-Create Topic",
       "required": false,
@@ -69,6 +74,7 @@
       "x-dagster-widget": "columns"
     },
     "ordering_key_column": {
+      "description": "Optional column to use as Pub/Sub ordering_key (requires the topic to have message ordering enabled).",
       "type": "string",
       "label": "Ordering Key Column",
       "required": false,
@@ -76,12 +82,14 @@
       "x-dagster-widget": "column"
     },
     "flush_batch_size": {
+      "description": "Flush publishes every N messages.",
       "type": "integer",
       "label": "Flush Batch Size",
       "required": false,
       "default": 100
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
@@ -89,12 +97,14 @@
       "ui:widget": "textarea"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": null
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "label": "Deps",
       "required": false,
@@ -103,11 +113,13 @@
       }
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "label": "Owners",
       "required": false,

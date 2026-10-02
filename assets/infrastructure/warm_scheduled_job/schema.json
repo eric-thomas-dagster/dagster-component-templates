@@ -29,12 +29,12 @@
                           "description": "Safety cap on consecutive missed ticks executed back-to-back when catchup=true."},
     "tick_error_handling": {"type": "string", "default": "continue", "enum": ["continue", "raise"], "label": "Tick Error Handling",
                            "description": "'continue' (default): a tick_fn exception is logged + reported as a failed-tick materialization, loop continues. 'raise': the exception fails the whole run immediately."},
-    "group_name": {"type": "string", "label": "Group Name"},
-    "description": {"type": "string", "label": "Description"},
-    "asset_tags": {"type": "object", "label": "Tags"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds"},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners"},
-    "deps": {"type": "array", "items": {"type": "string"}, "label": "Lineage Deps"}
+    "group_name": {"description": "Dagster asset group name.", "type": "string", "label": "Group Name"},
+    "description": {"description": "Asset description.", "type": "string", "label": "Description"},
+    "asset_tags": {"description": "Additional key-value tags applied to the asset in the Dagster catalog.", "type": "object", "label": "Tags"},
+    "kinds": {"description": "Asset kinds for the Dagster catalog.", "type": "array", "items": {"type": "string"}, "label": "Kinds"},
+    "owners": {"description": "Asset owners.", "type": "array", "items": {"type": "string"}, "label": "Owners"},
+    "deps": {"description": "Lineage-only upstream asset keys (no data passed at runtime).", "type": "array", "items": {"type": "string"}, "label": "Lineage Deps"}
   },
   "tags": ["infrastructure", "orchestration", "scheduling", "cron", "warm-compute", "isolated", "long-running", "precision-timing"],
   "name": "Warm Scheduled Job"

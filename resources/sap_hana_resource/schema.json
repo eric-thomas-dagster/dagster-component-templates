@@ -8,45 +8,53 @@
   },
   "attributes": {
     "resource_key": {
+      "description": "Dagster resource key",
       "type": "string",
       "label": "Resource Key",
       "required": false,
       "default": "sap_hana"
     },
     "host": {
+      "description": "HANA host (e.g. 'myhana.hanacloud.ondemand.com')",
       "type": "string",
       "label": "Host",
       "required": true
     },
     "port": {
+      "description": "HANA port (443 for HANA Cloud, 30015 for on-prem default)",
       "type": "integer",
       "label": "Port",
       "required": false,
       "default": 443
     },
     "database": {
+      "description": "Tenant DB name (multi-tenant systems). For HANA Cloud, leave empty.",
       "type": "string",
       "label": "Database",
       "required": false,
       "default": null
     },
     "user": {
+      "description": "HANA user",
       "type": "string",
       "label": "User",
       "required": true
     },
     "password_env_var": {
+      "description": "Env var holding the user's password",
       "type": "string",
       "label": "Password Env Var",
       "required": true
     },
     "encrypt": {
+      "description": "TLS — required for HANA Cloud",
       "type": "boolean",
       "label": "Encrypt",
       "required": false,
       "default": true
     },
     "validate_certificate": {
+      "description": "Verify the server certificate",
       "type": "boolean",
       "label": "Validate Certificate",
       "required": false,

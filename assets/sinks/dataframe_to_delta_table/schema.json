@@ -16,21 +16,25 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Dagster asset name",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Upstream asset producing the DataFrame",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true
     },
     "table_uri": {
+      "description": "Delta table location (s3://, az://, gs://, /local, uc://)",
       "type": "string",
       "label": "Table URI",
       "required": true
     },
     "storage_options": {
+      "description": "Cloud creds + config. ${ENV_VAR} expansion supported.",
       "type": "object",
       "label": "Storage Options",
       "required": false,
@@ -52,6 +56,7 @@
       "ui:widget": "select"
     },
     "partition_by": {
+      "description": "Partition columns. Set ONCE at table creation — must match the table's existing partitioning.",
       "type": "array",
       "items": {
         "type": "string"
@@ -61,6 +66,7 @@
       "ui:widget": "list"
     },
     "overwrite_partition_filter": {
+      "description": "When mode='overwrite': replace only the rows matching these partition predicates (format same as delta_ingestion's partition_filters). Supports {partition_key}.",
       "type": "array",
       "items": {
         "type": "array"
@@ -91,18 +97,21 @@
       "x-dagster-widget": "columns"
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
       "ui:widget": "code"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": "delta_sink"
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
@@ -112,12 +121,14 @@
       "ui:widget": "list"
     },
     "asset_tags": {
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object",
       "label": "Asset Tags",
       "required": false,
       "ui:widget": "key-value"
     },
     "kinds": {
+      "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "items": {
         "type": "string"
@@ -127,6 +138,7 @@
       "ui:widget": "list"
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "items": {
         "type": "string"
@@ -136,6 +148,7 @@
       "ui:widget": "list"
     },
     "partition_type": {
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned.",
       "type": "string",
       "label": "Partition Type",
       "required": false,
@@ -151,31 +164,37 @@
       "ui:widget": "select"
     },
     "partition_start": {
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
       "type": "string",
       "label": "Partition Start",
       "required": false
     },
     "partition_values": {
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
       "type": "string",
       "label": "Partition Values",
       "required": false
     },
     "dynamic_partition_name": {
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
       "type": "string",
       "label": "Dynamic Partition Name",
       "required": false
     },
     "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy.",
       "type": "integer",
       "label": "Retry Policy Max Retries",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "description": "Seconds between retries.",
       "type": "integer",
       "label": "Retry Policy Delay Seconds",
       "required": false
     },
     "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,

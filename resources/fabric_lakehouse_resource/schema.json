@@ -8,18 +8,21 @@
   },
   "attributes": {
     "resource_key": {
+      "description": "Dagster resource key",
       "type": "string",
       "label": "Resource Key",
       "required": false,
       "default": "fabric_lakehouse"
     },
     "workspace_id": {
+      "description": "Fabric workspace ID (GUID)",
       "type": "string",
       "label": "Workspace Id",
       "required": true,
       "default": null
     },
     "lakehouse_name": {
+      "description": "Lakehouse item display name",
       "type": "string",
       "label": "Lakehouse Name",
       "required": true,

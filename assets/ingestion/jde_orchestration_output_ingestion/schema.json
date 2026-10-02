@@ -12,6 +12,7 @@
   },
   "attributes": {
     "asset_key": {
+      "description": "Asset key for the emitted DataFrame.",
       "type": "string",
       "label": "Asset Key",
       "required": true
@@ -42,11 +43,13 @@
       "default": 300
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false
     },
     "resource_key": {
+      "description": "Resource key registered by JDEOrchestratorResourceComponent.",
       "type": "string",
       "label": "Resource Key",
       "required": false,

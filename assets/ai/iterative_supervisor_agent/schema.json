@@ -38,16 +38,19 @@
       "maximum": 15
     },
     "model": {"label": "Model", 
+      "description": "Optional per-tool model override. Falls back to component-level model when None. Use a search-capable model (e.g. 'perplexity/sonar-pro' via Vercel AI Gateway) for tools that genuinely need retrieval, cheap model for math.",
       "type": "string",
       "required": false,
       "default": null
     },
     "api_key_env_var": {"label": "API Key Env Var", 
+      "description": "Per-tool API key env var (falls back to component-level).",
       "type": "string",
       "required": false,
       "default": null
     },
     "api_base_env_var": {"label": "API Base Env Var", 
+      "description": "Per-tool base URL env var (e.g., VERCEL_AI_GATEWAY_URL).",
       "type": "string",
       "required": false
     },
@@ -76,10 +79,12 @@
       "required": false
     },
     "group_name": {"label": "Group Name", 
+      "description": "Dagster asset group name.",
       "type": "string",
       "required": false
     },
     "kinds": {"label": "Kinds", 
+      "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "required": false
     }

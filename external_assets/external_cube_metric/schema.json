@@ -9,18 +9,18 @@
   },
   "icon": "si:cube",
   "attributes": {
-    "asset_key": {"label": "Asset Key", "type": "string", "required": true},
-    "cube_name": {"label": "Cube Name", "type": "string", "required": true},
-    "measure_name": {"label": "Measure Name", "type": "string", "required": false},
-    "dimension_name": {"label": "Dimension Name", "type": "string", "required": false},
-    "metric_type": {"label": "Metric Type", "type": "string", "required": false},
-    "cube_playground_url": {"label": "Cube Playground URL", "type": "string", "required": false},
-    "cube_docs_url": {"label": "Cube Docs URL", "type": "string", "required": false},
-    "group_name": {"label": "Group Name", "type": "string", "required": false, "default": "cube"},
-    "description": {"label": "Description", "type": "string", "required": false},
-    "owners": {"label": "Owners", "type": "array", "required": false},
-    "tags": {"label": "Tags", "type": "object", "required": false},
-    "kinds": {"label": "Kinds", "type": "array", "required": false},
-    "deps": {"label": "Deps", "type": "array", "required": false}
+    "asset_key": {"description": "Dagster asset key, '/'-separated (e.g. 'cube/orders/count').", "label": "Asset Key", "type": "string", "required": true},
+    "cube_name": {"description": "Cube name (e.g. 'Orders', 'Customers').", "label": "Cube Name", "type": "string", "required": true},
+    "measure_name": {"description": "Cube measure name (e.g. 'Orders.count', 'Orders.totalAmount'). Set this OR dimension_name.", "label": "Measure Name", "type": "string", "required": false},
+    "dimension_name": {"description": "Cube dimension name (e.g. 'Orders.status'). Set this OR measure_name.", "label": "Dimension Name", "type": "string", "required": false},
+    "metric_type": {"description": "Cube type (count / sum / avg / string / time / number / boolean). Surfaced as metadata.", "label": "Metric Type", "type": "string", "required": false},
+    "cube_playground_url": {"description": "Cube Playground URL — clickable link in the catalog to inspect the metric interactively.", "label": "Cube Playground URL", "type": "string", "required": false},
+    "cube_docs_url": {"description": "URL to the metric's docs / schema file (GitHub / internal wiki).", "label": "Cube Docs URL", "type": "string", "required": false},
+    "group_name": {"description": "Dagster asset group name.", "label": "Group Name", "type": "string", "required": false, "default": "cube"},
+    "description": {"description": "Asset description.", "label": "Description", "type": "string", "required": false},
+    "owners": {"description": "Asset owners.", "label": "Owners", "type": "array", "required": false},
+    "tags": {"description": "Catalog tags.", "label": "Tags", "type": "object", "required": false},
+    "kinds": {"description": "Asset kinds (auto-includes 'cube', 'semantic-layer').", "label": "Kinds", "type": "array", "required": false},
+    "deps": {"description": "Upstream Dagster asset keys.", "label": "Deps", "type": "array", "required": false}
   }
 }

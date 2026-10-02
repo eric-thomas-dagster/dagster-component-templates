@@ -76,11 +76,13 @@
       "ui:widget": "list"
     },
     "group_name": {"label": "Group Name", 
+      "description": "Dagster asset group name.",
       "type": "string",
       "required": false,
       "default": "talend_cloud"
     },
     "kinds": {"label": "Kinds", 
+      "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "items": {
         "type": "string"
@@ -92,11 +94,13 @@
       "ui:widget": "list"
     },
     "tags": {"label": "Tags", 
+      "description": "Catalog tags.",
       "type": "object",
       "required": false,
       "ui:widget": "key-value"
     },
     "owners": {"label": "Owners", 
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"

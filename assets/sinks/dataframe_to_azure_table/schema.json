@@ -8,46 +8,54 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Dagster asset name",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Asset key of upstream DataFrame",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true
     },
     "account_name_env_var": {
+      "description": "Env var holding the storage account name",
       "type": "string",
       "label": "Account Name Env Var",
       "required": false,
       "default": "AZURE_STORAGE_ACCOUNT"
     },
     "account_key_env_var": {
+      "description": "Env var holding the account key. Omit to use DefaultAzureCredential (Entra OAuth).",
       "type": "string",
       "label": "Account Key Env Var",
       "required": false,
       "default": "AZURE_STORAGE_ACCOUNT_KEY"
     },
     "partition_key_column": {
+      "description": "DataFrame column that maps to PartitionKey on each entity",
       "type": "string",
       "label": "Partition Key Column",
       "required": true,
       "x-dagster-widget": "column"
     },
     "row_key_column": {
+      "description": "DataFrame column that maps to RowKey on each entity (unique within partition)",
       "type": "string",
       "label": "Row Key Column",
       "required": true,
       "x-dagster-widget": "column"
     },
     "create_if_missing": {
+      "description": "Create the table if it doesn't exist (free metadata operation)",
       "type": "boolean",
       "label": "Create If Missing",
       "required": false,
       "default": true
     },
     "write_mode": {
+      "description": "'upsert' (replace existing entity), 'merge' (patch existing), or 'insert' (fail on dup)",
       "type": "string",
       "label": "Write Mode",
       "required": false,
@@ -59,24 +67,28 @@
       ]
     },
     "batch_size": {
+      "description": "Max entities per batch. Azure caps at 100 entities per transaction; all entities in a batch must share the same PartitionKey.",
       "type": "integer",
       "label": "Batch Size",
       "required": false,
       "default": 100
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": null
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
       "default": null
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "label": "Deps",
       "required": false,
@@ -86,6 +98,7 @@
       }
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "label": "Owners",
       "required": false,
@@ -95,12 +108,14 @@
       }
     },
     "asset_tags": {
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object",
       "label": "Asset Tags",
       "required": false,
       "default": null
     },
     "kinds": {
+      "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "label": "Kinds",
       "required": false,

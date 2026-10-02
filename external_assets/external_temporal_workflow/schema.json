@@ -5,18 +5,18 @@
   "icon": "si:temporal",
   "x-dagster-io": {"inputs": {"type": "none"}, "outputs": {"type": "none"}},
   "attributes": {
-    "asset_key": {"label": "Asset Key", "type": "string", "required": true},
-    "workflow_type": {"label": "Workflow Type", "type": "string", "required": false},
-    "workflow_id": {"label": "Workflow ID", "type": "string", "required": false},
-    "schedule_id": {"label": "Schedule ID", "type": "string", "required": false},
-    "task_queue": {"label": "Task Queue", "type": "string", "required": false},
-    "namespace": {"label": "Namespace", "type": "string", "required": false, "default": "default"},
-    "temporal_ui_url": {"label": "Temporal Ui URL", "type": "string", "required": false},
-    "group_name": {"label": "Group Name", "type": "string", "required": false, "default": "temporal"},
-    "description": {"label": "Description", "type": "string", "required": false},
-    "owners": {"label": "Owners", "type": "array", "required": false},
-    "tags": {"label": "Tags", "type": "object", "required": false},
-    "kinds": {"label": "Kinds", "type": "array", "required": false},
-    "deps": {"label": "Deps", "type": "array", "required": false}
+    "asset_key": {"description": "Dagster asset key, '/'-separated (e.g. 'temporal/etl/nightly').", "label": "Asset Key", "type": "string", "required": true},
+    "workflow_type": {"description": "Temporal Workflow class name (registered on the worker).", "label": "Workflow Type", "type": "string", "required": false},
+    "workflow_id": {"description": "Specific Workflow ID this asset represents (for a fixed workflow_id, not template-derived).", "label": "Workflow ID", "type": "string", "required": false},
+    "schedule_id": {"description": "Temporal Schedule ID (when the workflow is fired by a Temporal Schedule).", "label": "Schedule ID", "type": "string", "required": false},
+    "task_queue": {"description": "Task queue the workflow's worker polls (for context / docs).", "label": "Task Queue", "type": "string", "required": false},
+    "namespace": {"description": "Temporal namespace.", "label": "Namespace", "type": "string", "required": false, "default": "default"},
+    "temporal_ui_url": {"description": "Temporal Web UI base URL — surfaces as a clickable link in the catalog.", "label": "Temporal Ui URL", "type": "string", "required": false},
+    "group_name": {"description": "Dagster asset group name.", "label": "Group Name", "type": "string", "required": false, "default": "temporal"},
+    "description": {"description": "Asset description.", "label": "Description", "type": "string", "required": false},
+    "owners": {"description": "Asset owners.", "label": "Owners", "type": "array", "required": false},
+    "tags": {"description": "Catalog tags.", "label": "Tags", "type": "object", "required": false},
+    "kinds": {"description": "Asset kinds (auto-includes 'temporal', 'workflow').", "label": "Kinds", "type": "array", "required": false},
+    "deps": {"description": "Upstream Dagster asset keys.", "label": "Deps", "type": "array", "required": false}
   }
 }

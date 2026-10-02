@@ -34,12 +34,14 @@
       "description": "Email address of the Copper user the API key belongs to. Required by Copper on every request as X-PW-UserEmail."
     },
     "base_url": {
+      "description": "Copper API base URL.",
       "type": "string",
       "label": "Base URL",
       "required": false,
       "default": "https://api.copper.com/developer_api/v1"
     },
     "request_timeout_seconds": {
+      "description": "Per-request timeout in seconds.",
       "type": "integer",
       "label": "Request Timeout (seconds)",
       "required": false,

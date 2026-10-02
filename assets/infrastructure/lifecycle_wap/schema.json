@@ -11,11 +11,13 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Dagster asset name emitted by this component.",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Optional upstream asset passed as second arg to compute.python.",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": false,
@@ -44,6 +46,7 @@
       "ui:widget": "list"
     },
     "on_pass": {
+      "description": "Publish policy on ALL checks pass: `publish` (default) or `discard`.",
       "type": "string",
       "label": "On Pass",
       "required": false,
@@ -54,6 +57,7 @@
       ]
     },
     "on_fail": {
+      "description": "Publish policy on ANY check fail: `quarantine` (default), `discard`, `tag_and_keep`.",
       "type": "string",
       "label": "On Fail",
       "required": false,
@@ -79,16 +83,19 @@
       "description": "Raise dg.Failure on audit fail. Set false to materialize + rely on downstream AutomationCondition on AssetCheckResult."
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
@@ -98,12 +105,14 @@
       "ui:widget": "list"
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false,
       "ui:widget": "key-value"
     },
     "kinds": {
+      "description": "Asset kinds. Default: ['python', 'wap', 'lifecycle'].",
       "type": "array",
       "items": {
         "type": "string"

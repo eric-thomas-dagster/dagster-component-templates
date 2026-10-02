@@ -49,6 +49,7 @@
       "description": "Dagster asset group name"
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false
@@ -64,6 +65,7 @@
       "ui:widget": "list"
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false,
@@ -80,6 +82,7 @@
       "ui:widget": "list"
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "items": {
         "type": "string"

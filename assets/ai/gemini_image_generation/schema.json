@@ -104,6 +104,7 @@
       "description": "Retries on transient errors"
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
@@ -111,6 +112,7 @@
       "ui:widget": "textarea"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
@@ -126,11 +128,13 @@
       "description": "Upstream asset keys for lineage"
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "label": "Owners",
       "required": false,
@@ -139,6 +143,7 @@
       }
     },
     "partition_type": {
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned.",
       "type": "string",
       "label": "Partition Type",
       "required": false,
@@ -155,24 +160,28 @@
       "ui:widget": "select"
     },
     "partition_start": {
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
       "type": "string",
       "label": "Partition Start",
       "required": false,
       "default": null
     },
     "partition_values": {
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
       "type": "string",
       "label": "Partition Values",
       "required": false,
       "default": null
     },
     "dynamic_partition_name": {
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
       "type": "string",
       "label": "Dynamic Partition Name",
       "required": false,
       "default": null
     },
     "partition_dimensions": {
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "type": "array",
       "label": "Partition Dimensions",
       "required": false

@@ -49,12 +49,14 @@
       "required": false
     },
     "customers_page_limit": {
+      "description": "Page size for the GET /customers listing (only used when customer_ids is unset).",
       "type": "integer",
       "label": "Customers Page Limit",
       "required": false,
       "default": 100
     },
     "invoices_page_limit": {
+      "description": "Page size for the GET /customers/{id}/invoices listing, per customer.",
       "type": "integer",
       "label": "Invoices Page Limit",
       "required": false,
@@ -104,6 +106,7 @@
       "ui:widget": "list"
     },
     "include_preview_metadata": {
+      "description": "Include sample data preview in metadata",
       "type": "boolean",
       "label": "Include Preview Metadata",
       "required": false,
@@ -111,6 +114,7 @@
       "ui:widget": "checkbox"
     },
     "preview_rows": {
+      "description": "Rows to include in the preview metadata",
       "type": "integer",
       "label": "Preview Rows",
       "required": false,

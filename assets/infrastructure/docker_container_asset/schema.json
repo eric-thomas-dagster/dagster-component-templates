@@ -11,16 +11,19 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Dagster asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "image": {
+      "description": "Docker image.",
       "type": "string",
       "label": "Image",
       "required": true
     },
     "command": {
+      "description": "Container command.",
       "type": "array",
       "label": "Command",
       "required": false,
@@ -29,21 +32,25 @@
       }
     },
     "env_vars": {
+      "description": "Env vars.",
       "type": "object",
       "label": "Env Vars",
       "required": false
     },
     "network": {
+      "description": "Docker network name.",
       "type": "string",
       "label": "Network",
       "required": false
     },
     "group_name": {
+      "description": "Asset group.",
       "type": "string",
       "label": "Group Name",
       "required": true
     },
     "deps": {
+      "description": "Upstream asset keys.",
       "type": "array",
       "label": "Deps",
       "required": false,

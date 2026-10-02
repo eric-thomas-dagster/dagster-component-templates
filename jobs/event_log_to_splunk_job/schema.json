@@ -4,16 +4,16 @@
   "category": "jobs",
   "icon": "Upload",
   "attributes": {
-    "job_name": {"label": "Job Name", "type": "string", "required": true},
-    "schedule": {"label": "Schedule", "type": "string", "required": false, "default": "*/5 * * * *", "x-dagster-widget": "cron"},
-    "default_status": {"label": "Default Status", "type": "string", "required": false, "default": "stopped", "enum": ["stopped", "running"]},
-    "tags": {"label": "Tags", "type": "object", "required": false, "default": null},
-    "hec_url": {"type": "string", "label": "Splunk HEC URL", "required": true, "default": "https://splunk.example.com:8088/services/collector/event"},
-    "hec_token_env": {"label": "Hec Token Env", "type": "string", "required": false, "default": "SPLUNK_HEC_TOKEN"},
-    "sourcetype": {"label": "Sourcetype", "type": "string", "required": false, "default": "dagster:event"},
-    "index": {"label": "Index", "type": "string", "required": false, "default": null},
-    "verify_ssl": {"label": "Verify Ssl", "type": "boolean", "required": false, "default": true},
-    "initial_lookback_hours": {"label": "Initial Lookback Hours", "type": "integer", "required": false, "default": 6},
-    "batch_limit": {"label": "Batch Limit", "type": "integer", "required": false, "default": 5000}
+    "job_name": {"description": "Dagster job name", "label": "Job Name", "type": "string", "required": true},
+    "schedule": {"description": "Cron schedule; default every 5min.", "label": "Schedule", "type": "string", "required": false, "default": "*/5 * * * *", "x-dagster-widget": "cron"},
+    "default_status": {"description": "STOPPED \\| RUNNING", "label": "Default Status", "type": "string", "required": false, "default": "stopped", "enum": ["stopped", "running"]},
+    "tags": {"description": "Dagster job tags", "label": "Tags", "type": "object", "required": false, "default": null},
+    "hec_url": {"description": "Splunk HEC endpoint URL.", "type": "string", "label": "Splunk HEC URL", "required": true, "default": "https://splunk.example.com:8088/services/collector/event"},
+    "hec_token_env": {"description": "Env var holding the HEC token (sent as 'Authorization: Splunk <token>').", "label": "Hec Token Env", "type": "string", "required": false, "default": "SPLUNK_HEC_TOKEN"},
+    "sourcetype": {"description": "Splunk sourcetype for indexed events.", "label": "Sourcetype", "type": "string", "required": false, "default": "dagster:event"},
+    "index": {"description": "Optional Splunk index (falls back to HEC default).", "label": "Index", "type": "string", "required": false, "default": null},
+    "verify_ssl": {"description": "Verify TLS cert (False for self-signed dev Splunk).", "label": "Verify Ssl", "type": "boolean", "required": false, "default": true},
+    "initial_lookback_hours": {"description": "On first run, pull events from last N hours.", "label": "Initial Lookback Hours", "type": "integer", "required": false, "default": 6},
+    "batch_limit": {"description": "Max events per tick.", "label": "Batch Limit", "type": "integer", "required": false, "default": 5000}
   }
 }

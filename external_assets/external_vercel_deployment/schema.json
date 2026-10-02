@@ -9,18 +9,18 @@
   },
   "icon": "si:vercel",
   "attributes": {
-    "asset_key": {"label": "Asset Key", "type": "string", "required": true},
-    "project_id": {"label": "Project ID", "type": "string", "required": false},
-    "project_name": {"label": "Project Name", "type": "string", "required": false},
-    "target": {"label": "Target", "type": "string", "required": false, "default": "production", "enum": ["production", "preview", "development"]},
-    "team_id": {"label": "Team ID", "type": "string", "required": false},
-    "vercel_dashboard_url": {"label": "Vercel Dashboard URL", "type": "string", "required": false},
-    "production_url": {"label": "Production URL", "type": "string", "required": false},
-    "group_name": {"label": "Group Name", "type": "string", "required": false, "default": "vercel"},
-    "description": {"label": "Description", "type": "string", "required": false},
-    "owners": {"label": "Owners", "type": "array", "required": false},
-    "tags": {"label": "Tags", "type": "object", "required": false},
-    "kinds": {"label": "Kinds", "type": "array", "required": false},
-    "deps": {"label": "Deps", "type": "array", "required": false}
+    "asset_key": {"description": "Dagster asset key, '/'-separated (e.g. 'vercel/website/production').", "label": "Asset Key", "type": "string", "required": true},
+    "project_id": {"description": "Vercel project ID (prj_...). Preferred — stable across renames.", "label": "Project ID", "type": "string", "required": false},
+    "project_name": {"description": "Vercel project slug (URL name). Set this OR project_id.", "label": "Project Name", "type": "string", "required": false},
+    "target": {"description": "Deployment target: 'production' (default), 'preview', 'development'.", "label": "Target", "type": "string", "required": false, "default": "production", "enum": ["production", "preview", "development"]},
+    "team_id": {"description": "Vercel team ID (team_...). For team-scoped projects.", "label": "Team ID", "type": "string", "required": false},
+    "vercel_dashboard_url": {"description": "Full Vercel dashboard URL for the project (surfaces as a clickable link).", "label": "Vercel Dashboard URL", "type": "string", "required": false},
+    "production_url": {"description": "Canonical production URL (e.g. https://my-site.com). Surfaces as a clickable link.", "label": "Production URL", "type": "string", "required": false},
+    "group_name": {"description": "Dagster asset group name.", "label": "Group Name", "type": "string", "required": false, "default": "vercel"},
+    "description": {"description": "Asset description.", "label": "Description", "type": "string", "required": false},
+    "owners": {"description": "Asset owners.", "label": "Owners", "type": "array", "required": false},
+    "tags": {"description": "Catalog tags.", "label": "Tags", "type": "object", "required": false},
+    "kinds": {"description": "Asset kinds (auto-includes 'vercel', 'deployment').", "label": "Kinds", "type": "array", "required": false},
+    "deps": {"description": "Upstream Dagster asset keys.", "label": "Deps", "type": "array", "required": false}
   }
 }

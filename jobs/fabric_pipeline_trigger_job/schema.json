@@ -8,11 +8,13 @@
   },
   "attributes": {
     "job_name": {
+      "description": "Dagster job name",
       "type": "string",
       "label": "Job Name",
       "required": true
     },
     "workspace_id": {
+      "description": "Fabric workspace ID (GUID)",
       "type": "string",
       "label": "Workspace ID",
       "required": true
@@ -24,6 +26,7 @@
       "description": "Fabric pipeline/notebook/dataflow GUID"
     },
     "item_type": {
+      "description": "'DataPipeline' \\| 'Notebook' \\| 'Dataflow'",
       "type": "string",
       "label": "Item Type",
       "required": false,
@@ -35,6 +38,7 @@
       ]
     },
     "parameters": {
+      "description": "Optional parameters to pass to the pipeline/notebook (forwarded as JSON body).",
       "type": "object",
       "label": "Parameters",
       "required": false,
@@ -77,6 +81,7 @@
       "default": null
     },
     "schedule": {
+      "description": "Cron (e.g. '0 */6 * * *')",
       "type": "string",
       "label": "Schedule",
       "required": false,
@@ -84,6 +89,7 @@
       "x-dagster-widget": "cron"
     },
     "schedule_default_status": {
+      "description": "STOPPED \\| RUNNING",
       "type": "string",
       "label": "Schedule Default Status",
       "required": false,
@@ -94,6 +100,7 @@
       ]
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false,

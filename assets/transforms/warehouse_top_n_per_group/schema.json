@@ -14,16 +14,20 @@
   },
   "attributes": {
     "asset_name": {"label": "Asset Name", 
+      "description": "Output Dagster asset name",
       "type": "string",
       "required": true
     },
     "database_url": {"label": "Database URL", 
+      "description": "SQLAlchemy URL. Set this OR database_url_env_var.",
       "type": "string"
     },
     "database_url_env_var": {"label": "Database URL Env Var", 
+      "description": "Env var with the URL. Set this OR database_url.",
       "type": "string"
     },
     "dialect": {"label": "Dialect", 
+      "description": "`f'SQL dialect: one of {sorted(_SUPPORTED_DIALECTS)}.'`",
       "type": "string",
       "required": true,
       "enum": [
@@ -39,14 +43,17 @@
       ]
     },
     "upstream_table": {"label": "Upstream Table", 
+      "description": "Source table name",
       "type": "string",
       "required": true
     },
     "output_table": {"label": "Output Table", 
+      "description": "Destination table name",
       "type": "string",
       "required": true
     },
     "group_by": {"label": "Group By", 
+      "description": "Partition columns (e.g. ['category'])",
       "type": "array",
       "items": {
         "type": "string"
@@ -55,24 +62,29 @@
       "x-dagster-widget": "columns"
     },
     "sort_by": {"label": "Sort By", 
+      "description": "Column to sort by within each group (the 'top' criterion)",
       "type": "string",
       "required": true,
       "x-dagster-widget": "columns"
     },
     "n": {"label": "N", 
+      "description": "Number of rows to keep per group",
       "type": "integer",
       "default": 3,
       "minimum": 1
     },
     "ascending": {"label": "Ascending", 
+      "description": "If true, keep bottom N. Default false (top N).",
       "type": "boolean",
       "default": false
     },
     "rank_column": {"label": "Rank Column", 
+      "description": "Output column name for the 1..N rank. If unset, the helper column is hidden.",
       "type": "string",
       "x-dagster-widget": "column"
     },
     "mode": {"label": "Mode", 
+      "description": "'replace' or 'create_if_not_exists'",
       "type": "string",
       "enum": [
         "replace",
@@ -81,37 +93,45 @@
       "default": "replace"
     },
     "group_name": {"label": "Group Name", 
+      "description": "Dagster asset group name.",
       "type": "string"
     },
     "deps": {"label": "Deps", 
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
     "owners": {"label": "Owners", 
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
     "description": {"label": "Description", 
+      "description": "Asset description.",
       "type": "string"
     },
     "asset_tags": {"label": "Asset Tags", 
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object"
     },
     "kinds": {"label": "Kinds", 
+      "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
     "include_preview_metadata": {"label": "Include Preview Metadata", 
+      "description": "Include a preview of the output data in metadata (sample rows) for builder UIs.",
       "type": "boolean",
       "default": false
     },
     "preview_rows": {"label": "Preview Rows", 
+      "description": "Rows to include in the preview metadata when `include_preview_metadata` is True.",
       "type": "integer",
       "default": 25,
       "minimum": 1,

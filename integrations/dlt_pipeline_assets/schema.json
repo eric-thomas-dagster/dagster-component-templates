@@ -11,26 +11,31 @@
   },
   "attributes": {
     "pipeline_module": {
+      "description": "Importable module containing the dlt pipeline definition, e.g. 'my_dlt_pipelines.stripe_pipeline'.",
       "type": "string",
       "label": "Pipeline Module",
       "required": true
     },
     "pipeline_name": {
+      "description": "dlt pipeline variable name in that module.",
       "type": "string",
       "label": "Pipeline Name",
       "required": true
     },
     "source_module": {
+      "description": "Importable module with the dlt source, e.g. 'my_dlt_pipelines.stripe_source'.",
       "type": "string",
       "label": "Source Module",
       "required": true
     },
     "source_name": {
+      "description": "dlt source variable name (or factory function).",
       "type": "string",
       "label": "Source Name",
       "required": true
     },
     "group_name": {
+      "description": "Asset group.",
       "type": "string",
       "label": "Group Name",
       "required": true

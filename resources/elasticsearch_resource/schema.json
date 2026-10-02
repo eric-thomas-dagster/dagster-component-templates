@@ -51,33 +51,39 @@
   "name": "Elasticsearch Resource",
   "attributes": {
     "resource_key": {
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
       "type": "string",
       "label": "Resource Key",
       "required": false,
       "default": "elasticsearch_resource"
     },
     "hosts": {
+      "description": "Elasticsearch URL, e.g. 'https://localhost:9200'",
       "type": "string",
       "label": "Hosts",
       "required": true
     },
     "api_key_env_var": {
+      "description": "Env var holding the Elasticsearch API key. Set this OR api_key.",
       "type": "string",
       "label": "Api Key Env Var",
       "required": false
     },
     "username": {
+      "description": "Elasticsearch username for basic auth",
       "type": "string",
       "label": "Username",
       "required": false,
       "default": ""
     },
     "password_env_var": {
+      "description": "Env var holding the Elasticsearch password. Set this OR password.",
       "type": "string",
       "label": "Password Env Var",
       "required": false
     },
     "verify_certs": {
+      "description": "Verify TLS certificates. Set to False for self-signed dev clusters only.",
       "type": "boolean",
       "label": "Verify Certs",
       "required": false,

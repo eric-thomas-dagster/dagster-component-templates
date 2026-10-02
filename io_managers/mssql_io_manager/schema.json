@@ -11,22 +11,26 @@
   },
   "attributes": {
     "resource_key": {
+      "description": "Dagster resource key. Use 'io_manager' to make this the default.",
       "type": "string",
       "label": "Resource Key",
       "default": "io_manager",
       "required": false
     },
     "connection_url_env_var": {
+      "description": "Env var holding the SQLAlchemy URL.",
       "type": "string",
       "label": "Connection Url Env Var",
       "required": true
     },
     "schema_name": {
+      "description": "SQL Server schema name.",
       "type": "string",
       "label": "Schema Name",
       "required": true
     },
     "if_exists": {
+      "description": "'replace', 'append', or 'fail'.",
       "type": "string",
       "label": "If Exists",
       "required": true,

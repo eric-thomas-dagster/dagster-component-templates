@@ -11,21 +11,25 @@
   },
   "attributes": {
     "airflow_url": {
+      "description": "Airflow webserver URL.",
       "type": "string",
       "label": "Airflow Url",
       "required": true
     },
     "auth_user_env_var": {
+      "description": "Env var with Airflow username.",
       "type": "string",
       "label": "Auth User Env Var",
       "required": true
     },
     "auth_pass_env_var": {
+      "description": "Env var with Airflow password.",
       "type": "string",
       "label": "Auth Pass Env Var",
       "required": true
     },
     "dag_id": {
+      "description": "Airflow DAG ID to mirror.",
       "type": "string",
       "label": "Dag Id",
       "required": true

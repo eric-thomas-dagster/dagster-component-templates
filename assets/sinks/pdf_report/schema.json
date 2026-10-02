@@ -16,11 +16,13 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Upstream asset key providing a DataFrame",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true
@@ -32,11 +34,13 @@
       "description": "Output PDF path (local or fsspec URL: s3://, gs://, abfs://)"
     },
     "title": {
+      "description": "Report title shown at the top of the first page",
       "type": "string",
       "default": "Report",
       "label": "Title"
     },
     "template": {
+      "description": "Rendering mode: 'table' (DataFrame as a tabular PDF via reportlab) or 'template_html' (render a Jinja2 HTML template + convert via weasyprint). When template_html, set `html_template` to a path / inline string.",
       "type": "string",
       "enum": [
         "table",
@@ -51,12 +55,14 @@
       "description": "File path or inline Jinja2 string (required for template=template_html)"
     },
     "rows_per_page": {
+      "description": "For template='table': max rows per page (chunked into multiple Table flowables).",
       "type": "integer",
       "default": 40,
       "minimum": 1,
       "label": "Rows Per Page"
     },
     "columns": {
+      "description": "Subset of columns to include. None = all columns.",
       "type": "array",
       "items": {
         "type": "string"
@@ -65,6 +71,7 @@
       "x-dagster-widget": "columns"
     },
     "page_size": {
+      "description": "Page size: 'LETTER' (default), 'A4', 'LEGAL', 'TABLOID'.",
       "type": "string",
       "enum": [
         "LETTER",
@@ -76,6 +83,7 @@
       "label": "Page Size"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name"
     }

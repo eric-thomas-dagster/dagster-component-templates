@@ -8,7 +8,7 @@
     "outputs": {"type": "dataframe", "description": "Only when sink kind=none (returned as pandas through the IO manager); otherwise (parquet/table/jdbc sink) this materializes directly and downstream components should reference the written location out-of-band, not via this port."}
   },
   "attributes": {
-    "asset_name":         {"label": "Asset Name", "type": "string", "required": true},
+    "asset_name":         {"description": "Output Dagster asset name", "label": "Asset Name", "type": "string", "required": true},
     "spark_config":       {"label": "Spark Config", "type": "object", "description": "SparkConf options (e.g. spark.master, spark.sql.shuffle.partitions)"},
     "spark_app_name":     {"label": "Spark App Name", "type": "string", "default": "dagster-pyspark-pipeline"},
 
@@ -25,11 +25,11 @@
     "sinks":              {"label": "Sinks", "type": "array", "items": {"type": "object"},
                            "description": "Multi-step form. Each sink: {from: <step_id>, kind: parquet|csv|json|delta|table|jdbc|none, path/table/url, mode}."},
 
-    "group_name":         {"label": "Group Name", "type": "string"},
-    "description":        {"label": "Description", "type": "string"},
-    "asset_tags":         {"label": "Asset Tags", "type": "object"},
-    "kinds":              {"label": "Kinds", "type": "array", "items": {"type": "string"}},
-    "owners":             {"label": "Owners", "type": "array", "items": {"type": "string"}},
-    "deps":               {"label": "Deps", "type": "array", "items": {"type": "string"}}
+    "group_name":         {"description": "Dagster asset group name.", "label": "Group Name", "type": "string"},
+    "description":        {"description": "Asset description.", "label": "Description", "type": "string"},
+    "asset_tags":         {"description": "Additional key-value tags applied to the asset in the Dagster catalog.", "label": "Asset Tags", "type": "object"},
+    "kinds":              {"description": "Asset kinds for the Dagster catalog.", "label": "Kinds", "type": "array", "items": {"type": "string"}},
+    "owners":             {"description": "Asset owners.", "label": "Owners", "type": "array", "items": {"type": "string"}},
+    "deps":               {"description": "Lineage-only upstream asset keys (no data passed at runtime).", "label": "Deps", "type": "array", "items": {"type": "string"}}
   }
 }

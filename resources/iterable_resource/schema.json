@@ -4,7 +4,7 @@
   "category": "resource",
   "icon": "si:iterable",
   "attributes": {
-    "resource_key": {"label": "Resource Key", "type": "string", "required": false, "default": "iterable"},
+    "resource_key": {"description": "Resource key registered by IterableResourceComponent.", "label": "Resource Key", "type": "string", "required": false, "default": "iterable"},
     "api_key_env_var": {"label": "API Key Env Var", "type": "string", "required": false, "default": "ITERABLE_API_KEY"},
     "base_url": {"label": "Base URL", "type": "string", "required": false, "default": "https://api.iterable.com", "description": "https://api.eu.iterable.com for EU workspaces."},
     "request_timeout_seconds": {"label": "Request Timeout Seconds", "type": "integer", "required": false, "default": 30}

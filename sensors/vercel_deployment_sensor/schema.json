@@ -4,18 +4,18 @@
   "category": "sensor",
   "icon": "si:vercel",
   "attributes": {
-    "sensor_name": {"label": "Sensor Name", "type": "string", "required": true},
+    "sensor_name": {"description": "Unique sensor name.", "label": "Sensor Name", "type": "string", "required": true},
     "project_id": {"label": "Project ID", "type": "string", "required": false, "description": "Vercel project ID (prj_...). Set this OR project_name."},
     "project_name": {"label": "Project Name", "type": "string", "required": false, "description": "Vercel project slug (URL name)."},
-    "target": {"label": "Target", "type": "string", "required": false, "default": "production", "enum": ["production", "preview", "development", "any"]},
+    "target": {"description": "Deployment target: 'production' (default), 'preview', 'development', or 'any' (no filter).", "label": "Target", "type": "string", "required": false, "default": "production", "enum": ["production", "preview", "development", "any"]},
     "team_id": {"label": "Team ID", "type": "string", "required": false, "description": "Vercel team ID (team_...). Required for team-scoped projects."},
-    "api_token_env_var": {"label": "API Token Env Var", "type": "string", "required": false, "default": "VERCEL_API_TOKEN"},
-    "api_base_url": {"label": "API Base URL", "type": "string", "required": false, "default": "https://api.vercel.com"},
-    "job_name": {"label": "Job Name", "type": "string", "required": true},
-    "asset_key": {"label": "Asset Key", "type": "string", "required": false},
-    "asset_event_type": {"label": "Asset Event Type", "type": "string", "required": false, "default": "materialization", "enum": ["materialization", "observation"]},
-    "error_state_triggers_job": {"label": "Error State Triggers Job", "type": "boolean", "required": false, "default": false},
-    "minimum_interval_seconds": {"label": "Minimum Interval Seconds", "type": "integer", "required": false, "default": 60},
-    "default_status": {"label": "Default Status", "type": "string", "required": false, "default": "running", "enum": ["running", "stopped"]}
+    "api_token_env_var": {"description": "Env var holding a Vercel API token (create at https://vercel.com/account/tokens).", "label": "API Token Env Var", "type": "string", "required": false, "default": "VERCEL_API_TOKEN"},
+    "api_base_url": {"description": "Vercel API base URL (override for self-hosted proxies).", "label": "API Base URL", "type": "string", "required": false, "default": "https://api.vercel.com"},
+    "job_name": {"description": "Dagster job to trigger on terminal success.", "label": "Job Name", "type": "string", "required": true},
+    "asset_key": {"description": "Optional Dagster asset key. When set, emits an AssetMaterialization / AssetObservation. '/'-separated.", "label": "Asset Key", "type": "string", "required": false},
+    "asset_event_type": {"description": "'materialization' (default) or 'observation'. Use 'observation' when paired with vercel_deploy_trigger.", "label": "Asset Event Type", "type": "string", "required": false, "default": "materialization", "enum": ["materialization", "observation"]},
+    "error_state_triggers_job": {"description": "When true, ERROR deployments ALSO fire the job (with a tag) — useful for alert / rollback flows.", "label": "Error State Triggers Job", "type": "boolean", "required": false, "default": false},
+    "minimum_interval_seconds": {"description": "Seconds between polls.", "label": "Minimum Interval Seconds", "type": "integer", "required": false, "default": 60},
+    "default_status": {"description": "'running' or 'stopped'.", "label": "Default Status", "type": "string", "required": false, "default": "running", "enum": ["running", "stopped"]}
   }
 }

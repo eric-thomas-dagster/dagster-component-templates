@@ -99,6 +99,7 @@
       "description": "Dagster asset group name"
     },
     "description": {
+      "description": "Asset description shown in the Dagster catalog.",
       "type": "string",
       "label": "Description",
       "required": false
@@ -113,6 +114,7 @@
       "description": "Lineage-only upstream asset keys"
     },
     "owners": {
+      "description": "Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
       "type": "array",
       "items": {
         "type": "string"
@@ -121,12 +123,14 @@
       "required": false
     },
     "asset_tags": {
+      "description": "Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'}",
       "type": "object",
       "label": "Asset Tags",
       "required": false,
       "ui:widget": "key-value"
     },
     "kinds": {
+      "description": "Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from component name if not set.",
       "type": "array",
       "items": {
         "type": "string"
@@ -135,27 +139,32 @@
       "required": false
     },
     "freshness_max_lag_minutes": {
+      "description": "Maximum acceptable lag in minutes before the asset is considered stale. Defines a FreshnessPolicy.",
       "type": "integer",
       "label": "Freshness Max Lag (minutes)",
       "required": false
     },
     "freshness_cron": {
+      "description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
       "type": "string",
       "label": "Freshness Cron",
       "required": false,
       "x-dagster-widget": "cron"
     },
     "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
       "type": "integer",
       "label": "Retry Max Retries",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
       "type": "integer",
       "label": "Retry Delay (seconds)",
       "required": false
     },
     "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "label": "Retry Backoff",
       "required": false,
@@ -168,12 +177,14 @@
       "ui:widget": "select"
     },
     "include_preview_metadata": {
+      "description": "Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access.",
       "type": "boolean",
       "label": "Include Preview",
       "required": false,
       "default": false
     },
     "preview_rows": {
+      "description": "Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used.",
       "type": "integer",
       "label": "Preview Rows",
       "required": false,

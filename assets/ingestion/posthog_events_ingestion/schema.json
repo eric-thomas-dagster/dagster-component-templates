@@ -12,6 +12,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output asset name.",
       "label": "Asset Name",
       "type": "string",
       "required": true
@@ -23,12 +24,14 @@
       "description": "PostHog project ID (numeric)."
     },
     "api_host": {
+      "description": "PostHog API host. Use 'https://us.i.posthog.com' (default) for US Cloud, 'https://eu.i.posthog.com' for EU Cloud, or your self-hosted URL.",
       "label": "API Host",
       "type": "string",
       "required": false,
       "default": "https://us.i.posthog.com"
     },
     "api_key_env_var": {
+      "description": "Env var holding a PostHog personal API key with `query:read` scope.",
       "label": "API Key Env Var",
       "type": "string",
       "required": false,
@@ -41,6 +44,7 @@
       "description": "Filter by event name (e.g. '$pageview')."
     },
     "since_days": {
+      "description": "Fetch events from the last N days (max 90).",
       "label": "Since Days",
       "type": "integer",
       "required": false,
@@ -49,6 +53,7 @@
       "maximum": 90
     },
     "limit": {
+      "description": "Total row cap. Paginates until this limit or all events fetched.",
       "label": "Limit",
       "type": "integer",
       "required": false,
@@ -57,11 +62,13 @@
       "maximum": 10000
     },
     "description": {
+      "description": "Asset description.",
       "label": "Description",
       "type": "string",
       "required": false
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "label": "Group Name",
       "type": "string",
       "required": false,

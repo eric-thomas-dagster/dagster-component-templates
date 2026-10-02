@@ -11,6 +11,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
@@ -22,18 +23,21 @@
       "default": null
     },
     "credentials_path": {
+      "description": "Falls back to GOOGLE_APPLICATION_CREDENTIALS.",
       "type": "string",
       "label": "Credentials Path",
       "required": false,
       "default": null
     },
     "project_id": {
+      "description": "Billing project. Defaults to the SA's project.",
       "type": "string",
       "label": "Project ID",
       "required": false,
       "default": null
     },
     "location": {
+      "description": "BQ location (`US`, `EU`, etc.). Default: auto-detect.",
       "type": "string",
       "label": "Location",
       "required": false,
@@ -59,6 +63,7 @@
       "ui:widget": "select"
     },
     "query": {
+      "description": "SELECT statement that defines the table contents. Supports {placeholder} substitution from query_params.",
       "type": "string",
       "label": "Query",
       "required": true,
@@ -71,12 +76,14 @@
       "default": null
     },
     "table_options": {
+      "description": "OPTIONS clause k/v map (e.g. `{description: 'cleaned orders', labels: {tier: gold}}`).",
       "type": "object",
       "label": "Table Options",
       "required": false,
       "default": null
     },
     "partition_field": {
+      "description": "Column to partition the destination table by (e.g. 'order_date'). Adds PARTITION BY.",
       "type": "string",
       "label": "Partition Field",
       "required": false,
@@ -84,6 +91,7 @@
       "x-dagster-widget": "column"
     },
     "cluster_fields": {
+      "description": "Columns to cluster on (max 4). Adds CLUSTER BY.",
       "type": "array",
       "label": "Cluster Fields",
       "required": false,
@@ -92,6 +100,7 @@
       }
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "label": "Deps",
       "required": false,
@@ -100,6 +109,7 @@
       }
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
@@ -107,17 +117,20 @@
       "ui:widget": "textarea"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": null
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "label": "Owners",
       "required": false,

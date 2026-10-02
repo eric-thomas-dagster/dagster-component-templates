@@ -16,22 +16,26 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Upstream (Geo)DataFrame with a geometry column",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true
     },
     "geometry_column": {
+      "description": "Geometry column to inspect",
       "type": "string",
       "default": "geometry",
       "label": "Geometry Column",
       "x-dagster-widget": "column"
     },
     "metrics": {
+      "description": "Which metrics to compute. Subset of: area, length, centroid, bounds, geom_type, num_points, is_valid. Centroid adds centroid_x + centroid_y; bounds adds minx/miny/maxx/maxy.",
       "type": "array",
       "items": {
         "type": "string",
@@ -49,11 +53,13 @@
       "label": "Metrics"
     },
     "projected_crs": {
+      "description": "Projected CRS used for area / length math (gives real-world units). Default is Web Mercator. For survey-grade results pick the right UTM zone (e.g. EPSG:32610 for the US West Coast).",
       "type": "string",
       "default": "EPSG:3857",
       "label": "Projected CRS"
     },
     "area_unit": {
+      "description": "Unit for area: 'sq_meters' (default), 'sq_km', 'sq_miles', 'sq_feet'.",
       "type": "string",
       "enum": [
         "sq_meters",
@@ -65,6 +71,7 @@
       "label": "Area Unit"
     },
     "length_unit": {
+      "description": "Unit for length: 'meters' (default), 'km', 'miles', 'feet'.",
       "type": "string",
       "enum": [
         "meters",
@@ -76,6 +83,7 @@
       "label": "Length Unit"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name"
     }

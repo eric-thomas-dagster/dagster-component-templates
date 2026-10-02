@@ -11,6 +11,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
@@ -22,30 +23,35 @@
       "default": null
     },
     "credentials_path": {
+      "description": "Falls back to GOOGLE_APPLICATION_CREDENTIALS.",
       "type": "string",
       "label": "Credentials Path",
       "required": false,
       "default": null
     },
     "project_id": {
+      "description": "Billing project. Defaults to the SA's project.",
       "type": "string",
       "label": "Project ID",
       "required": false,
       "default": null
     },
     "location": {
+      "description": "BQ location. Default: auto-detect.",
       "type": "string",
       "label": "Location",
       "required": false,
       "default": null
     },
     "source_table_id": {
+      "description": "Fully-qualified BQ table id to extract. Mutually exclusive with source_query.",
       "type": "string",
       "label": "Source Table ID",
       "required": false,
       "default": null
     },
     "source_query": {
+      "description": "SELECT to export via EXPORT DATA. Supports {placeholder} substitution.",
       "type": "string",
       "label": "Source Query",
       "required": false,
@@ -79,30 +85,35 @@
       "ui:widget": "select"
     },
     "compression": {
+      "description": "Compression codec. parquet supports snappy/gzip/zstd; csv+jsonl support gzip; avro supports deflate/snappy.",
       "type": "string",
       "label": "Compression",
       "required": false,
       "default": null
     },
     "csv_field_delimiter": {
+      "description": "CSV-only: field delimiter (default ',').",
       "type": "string",
       "label": "CSV Field Delimiter",
       "required": false,
       "default": null
     },
     "csv_print_header": {
+      "description": "CSV-only: include the header row.",
       "type": "boolean",
       "label": "CSV Print Header",
       "required": false,
       "default": true
     },
     "overwrite": {
+      "description": "Allow overwriting existing GCS objects at the destination URI.",
       "type": "boolean",
       "label": "Overwrite",
       "required": false,
       "default": true
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "label": "Deps",
       "required": false,
@@ -111,6 +122,7 @@
       }
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
@@ -118,17 +130,20 @@
       "ui:widget": "textarea"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": null
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "label": "Owners",
       "required": false,

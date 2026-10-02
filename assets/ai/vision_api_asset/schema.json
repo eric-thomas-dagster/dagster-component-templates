@@ -11,11 +11,13 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Upstream DataFrame asset key.",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true
@@ -27,12 +29,14 @@
       "default": null
     },
     "credentials_path": {
+      "description": "Falls back to GOOGLE_APPLICATION_CREDENTIALS.",
       "type": "string",
       "label": "Credentials Path",
       "required": false,
       "default": null
     },
     "image_column": {
+      "description": "Column with image references (file path, gs:// URI, or http(s) URL).",
       "type": "string",
       "label": "Image Column",
       "required": true,
@@ -53,6 +57,7 @@
       "ui:widget": "select"
     },
     "features": {
+      "description": "One or more Vision feature types (e.g. ['LABEL_DETECTION', 'OBJECT_LOCALIZATION']).",
       "type": "array",
       "label": "Features",
       "required": true,
@@ -61,12 +66,14 @@
       }
     },
     "max_results": {
+      "description": "max_results per feature in the Vision request.",
       "type": "integer",
       "label": "Max Results",
       "required": false,
       "default": 10
     },
     "output_prefix": {
+      "description": "Column-name prefix for added analysis columns.",
       "type": "string",
       "label": "Output Prefix",
       "required": false,
@@ -85,6 +92,7 @@
       "default": 3
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
@@ -92,12 +100,14 @@
       "ui:widget": "textarea"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": null
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "label": "Deps",
       "required": false,
@@ -106,11 +116,13 @@
       }
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "label": "Owners",
       "required": false,

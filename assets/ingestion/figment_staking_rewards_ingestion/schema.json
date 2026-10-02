@@ -91,18 +91,21 @@
       "default": 20
     },
     "description": {
+      "description": "Asset description",
       "type": "string",
       "label": "Description",
       "required": false,
       "ui:widget": "code"
     },
     "group_name": {
+      "description": "Asset group for organization",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": "figment"
     },
     "owners": {
+      "description": "Asset owners -- list of team names or email addresses, e.g. ['team:finance', 'user@company.com']",
       "type": "array",
       "items": { "type": "string" },
       "label": "Owners",
@@ -110,6 +113,7 @@
       "ui:widget": "list"
     },
     "asset_tags": {
+      "description": "Additional key-value tags to apply to the asset",
       "type": "object",
       "label": "Asset Tags",
       "required": false,
@@ -124,6 +128,7 @@
       "ui:widget": "list"
     },
     "include_preview_metadata": {
+      "description": "Include sample data preview in metadata",
       "type": "boolean",
       "label": "Include Preview Metadata",
       "required": false,
@@ -131,6 +136,7 @@
       "ui:widget": "checkbox"
     },
     "preview_rows": {
+      "description": "Rows to include in the preview metadata",
       "type": "integer",
       "label": "Preview Rows",
       "required": false,

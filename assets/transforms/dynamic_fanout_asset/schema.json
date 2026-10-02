@@ -28,6 +28,7 @@
       "description": "Dagster asset group name"
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false
@@ -67,6 +68,7 @@
       "default": null
     },
     "deps": {
+      "description": "Optional list of upstream Dagster asset keys as lineage-only dependencies — declares graph edges without loading data through the IO manager. Use for assets whose materialization doesn't write a value to the IO manager (e.g. dbt models writing to an external warehouse). For value-loading upstreams use `upstream_asset_key` instead.",
       "type": "array",
       "items": {
         "type": "string"

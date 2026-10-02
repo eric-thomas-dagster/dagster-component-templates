@@ -11,16 +11,19 @@
   },
   "attributes": {
     "dag_module": {
+      "description": "Importable module containing the Airflow DAG.",
       "type": "string",
       "label": "Dag Module",
       "required": true
     },
     "dag_id": {
+      "description": "DAG ID variable name in that module (or fully-qualified attribute).",
       "type": "string",
       "label": "Dag Id",
       "required": true
     },
     "target": {
+      "description": "'job' (run as Dagster job) or 'asset' (assets per task).",
       "type": "string",
       "label": "Target",
       "required": true,

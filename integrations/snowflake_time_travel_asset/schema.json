@@ -108,26 +108,32 @@
       "description": "Query ID to time-travel BEFORE. Maps to `BEFORE(STATEMENT => '<query_id>')`."
     },
     "group_name": {"label": "Group Name", 
+      "description": "Dagster asset group name.",
       "type": "string",
       "required": false
     },
     "description": {"label": "Description", 
+      "description": "Asset description.",
       "type": "string",
       "required": false
     },
     "asset_tags": {"label": "Asset Tags", 
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object",
       "required": false
     },
     "kinds": {"label": "Kinds", 
+      "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "required": false
     },
     "owners": {"label": "Owners", 
+      "description": "Asset owners.",
       "type": "array",
       "required": false
     },
     "deps": {"label": "Deps", 
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "required": false
     },
@@ -137,10 +143,12 @@
       "description": "Max retries on query failure."
     },
     "retry_policy_delay_seconds": {"label": "Retry Policy Delay Seconds", 
+      "description": "Seconds between retries.",
       "type": "integer",
       "required": false
     },
     "retry_policy_backoff": {"label": "Retry Policy Backoff", 
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "required": false,
       "enum": [

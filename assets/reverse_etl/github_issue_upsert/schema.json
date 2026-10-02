@@ -15,6 +15,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
@@ -38,6 +39,7 @@
       "description": "Target repo in 'owner/name' form."
     },
     "resource_key": {
+      "description": "Resource key registered by GithubResourceComponent.",
       "type": "string",
       "label": "Resource Key",
       "required": false,
@@ -110,17 +112,20 @@
       "description": "Max upstream rows to process per run (safety cap)."
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": "github"
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
@@ -130,12 +135,14 @@
       "ui:widget": "list"
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false,
       "ui:widget": "key-value"
     },
     "kinds": {
+      "description": "Asset kinds (auto-includes 'github').",
       "type": "array",
       "items": {
         "type": "string"

@@ -58,6 +58,7 @@
       "ui:widget": "env_var"
     },
     "partition_column": {
+      "description": "Hive partition column name used when writing partitioned assets",
       "type": "string",
       "label": "Partition Column",
       "required": false,

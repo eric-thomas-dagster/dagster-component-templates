@@ -31,6 +31,7 @@
       "ui:widget": "env_var"
     },
     "connection_params": {
+      "description": "Weaviate connection parameters dict passed to weaviate.connect_to_custom()",
       "type": "string",
       "label": "Connection Params",
       "required": false

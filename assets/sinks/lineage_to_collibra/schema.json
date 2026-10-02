@@ -9,14 +9,14 @@
     "supports_partitions": false
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": false, "default": "lineage_to_collibra"},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "default": "lineage_graph"},
-    "catalog_url": {"type": "string", "label": "Catalog URL", "required": false, "default": "https://example.collibra.com"},
-    "api_token_env": {"type": "string", "label": "API Token Env Var", "required": false, "default": "COLLIBRA_API_TOKEN"},
-    "only_push_on_change": {"type": "boolean", "label": "Only Push On Change", "required": false, "default": true},
-    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "lineage"},
-    "description": {"type": "string", "label": "Description", "required": false, "default": null},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "default": null},
-    "asset_tags": {"type": "object", "label": "Asset Tags", "required": false, "default": null}
+    "asset_name": {"description": "Output sink asset name", "type": "string", "label": "Asset Name", "required": false, "default": "lineage_to_collibra"},
+    "upstream_asset_key": {"description": "Upstream asset emitting the canonical lineage payload (typically from lineage_graph_extractor).", "type": "string", "label": "Upstream Asset Key", "required": false, "default": "lineage_graph"},
+    "catalog_url": {"description": "Catalog endpoint base URL.", "type": "string", "label": "Catalog URL", "required": false, "default": "https://example.collibra.com"},
+    "api_token_env": {"description": "Env var holding the API token / OAuth bearer.", "type": "string", "label": "API Token Env Var", "required": false, "default": "COLLIBRA_API_TOKEN"},
+    "only_push_on_change": {"description": "If true, skip the catalog POST when the upstream payload_hash matches the last successfully pushed hash. Stored as asset metadata across runs.", "type": "boolean", "label": "Only Push On Change", "required": false, "default": true},
+    "group_name": {"description": "Dagster asset group name.", "type": "string", "label": "Group Name", "required": false, "default": "lineage"},
+    "description": {"description": "Asset description.", "type": "string", "label": "Description", "required": false, "default": null},
+    "owners": {"description": "Asset owners.", "type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "default": null},
+    "asset_tags": {"description": "Additional key-value tags applied to the asset in the Dagster catalog.", "type": "object", "label": "Asset Tags", "required": false, "default": null}
   }
 }

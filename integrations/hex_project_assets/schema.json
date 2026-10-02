@@ -11,21 +11,25 @@
   },
   "attributes": {
     "api_key_env_var": {
+      "description": "Env var with the Hex API key.",
       "type": "string",
       "label": "Api Key Env Var",
       "required": true
     },
     "project_id": {
+      "description": "Hex project UUID to run on materialization.",
       "type": "string",
       "label": "Project Id",
       "required": true
     },
     "asset_name": {
+      "description": "Dagster asset name to expose in the catalog.",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "group_name": {
+      "description": "Asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": true

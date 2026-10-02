@@ -85,6 +85,7 @@
       "description": "Dagster asset group name"
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false
@@ -117,6 +118,7 @@
       "ui:widget": "list"
     },
     "deps": {
+      "description": "Upstream Dagster asset keys.",
       "type": "array",
       "items": {
         "type": "string"

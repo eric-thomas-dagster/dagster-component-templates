@@ -55,41 +55,48 @@
   "name": "Redis Resource",
   "attributes": {
     "resource_key": {
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
       "type": "string",
       "label": "Resource Key",
       "required": false,
       "default": "redis_resource"
     },
     "host": {
+      "description": "Redis host (ignored if url_env_var is set)",
       "type": "string",
       "label": "Host",
       "required": false,
       "default": "localhost"
     },
     "port": {
+      "description": "Redis port (ignored if url_env_var is set)",
       "type": "integer",
       "label": "Port",
       "required": false,
       "default": 6379
     },
     "db": {
+      "description": "Redis logical database index",
       "type": "integer",
       "label": "Db",
       "required": false,
       "default": 0
     },
     "password_env_var": {
+      "description": "Environment variable holding the Redis password",
       "type": "string",
       "label": "Password Env Var",
       "required": false
     },
     "ssl": {
+      "description": "Enable TLS (use rediss:// in url for managed services)",
       "type": "boolean",
       "label": "Ssl",
       "required": false,
       "default": false
     },
     "url_env_var": {
+      "description": "Environment variable holding a full redis:// or rediss:// URL. When set, takes precedence over host/port/password.",
       "type": "string",
       "label": "Url Env Var",
       "required": false

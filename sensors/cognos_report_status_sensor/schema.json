@@ -5,11 +5,13 @@
   "icon": "Bolt",
   "attributes": {
     "sensor_name": {
+      "description": "Unique sensor name.",
       "type": "string",
       "label": "Sensor Name",
       "required": true
     },
     "report_id": {
+      "description": "Cognos report ID to watch.",
       "type": "string",
       "label": "Report ID",
       "required": true
@@ -21,11 +23,13 @@
       "default": null
     },
     "job_name": {
+      "description": "Job to trigger.",
       "type": "string",
       "label": "Job Name",
       "required": true
     },
     "resource_key": {
+      "description": "Resource key registered by CognosResourceComponent.",
       "type": "string",
       "label": "Resource Key",
       "required": false,

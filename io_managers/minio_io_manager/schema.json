@@ -53,6 +53,7 @@
       "default": "assets"
     },
     "partition_column": {
+      "description": "Column name used to scope per-partition Delta overwrites",
       "type": "string",
       "label": "Partition Column",
       "required": false,

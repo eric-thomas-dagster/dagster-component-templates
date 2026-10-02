@@ -11,6 +11,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Required when NOT using `wraps:`.",
       "type": "string",
       "label": "Asset Name",
       "required": true
@@ -28,11 +29,13 @@
       "description": "{kind: python, python: 'mod:fn'}."
     },
     "timeout_seconds": {
+      "description": "Kill compute if it exceeds this wall-clock time.",
       "type": "number",
       "label": "Timeout (seconds)",
       "required": true
     },
     "on_timeout": {
+      "description": "'fail' raises dg.Failure. 'warn' logs + returns None (rare).",
       "type": "string",
       "label": "On Timeout",
       "required": false,
@@ -50,16 +53,19 @@
       "description": "Shared cross-run counting key. Defaults to asset_name."
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
@@ -69,12 +75,14 @@
       "ui:widget": "list"
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false,
       "ui:widget": "key-value"
     },
     "kinds": {
+      "description": "Default: ['python', 'timeout'].",
       "type": "array",
       "items": {
         "type": "string"

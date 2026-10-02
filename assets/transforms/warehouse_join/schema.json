@@ -14,6 +14,7 @@
   },
   "attributes": {
     "asset_name": {"label": "Asset Name", 
+      "description": "Output Dagster asset name",
       "type": "string",
       "required": true
     },
@@ -24,6 +25,7 @@
       "type": "string"
     },
     "dialect": {"label": "Dialect", 
+      "description": "`f'SQL dialect: one of {sorted(_SUPPORTED_DIALECTS)}.'`",
       "type": "string",
       "required": true,
       "enum": [
@@ -39,18 +41,22 @@
       ]
     },
     "left_table": {"label": "Left Table", 
+      "description": "Left-side table name (aliased as _l in select_cols)",
       "type": "string",
       "required": true
     },
     "right_table": {"label": "Right Table", 
+      "description": "Right-side table name (aliased as _r in select_cols)",
       "type": "string",
       "required": true
     },
     "output_table": {"label": "Output Table", 
+      "description": "Destination table name",
       "type": "string",
       "required": true
     },
     "how": {"label": "How", 
+      "description": "`f'Join type: one of {sorted(_VALID_HOWS)}'`",
       "type": "string",
       "enum": [
         "inner",
@@ -71,18 +77,21 @@
       "x-dagster-widget": "columns"
     },
     "left_on": {"label": "Left On", 
+      "description": "Left join columns (when names differ)",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
     "right_on": {"label": "Right On", 
+      "description": "Right join columns (when names differ)",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
     "select_cols": {"label": "Select Cols", 
+      "description": "Explicit column projection. Use _l.col / _r.col to disambiguate. If unset, defaults to '_l.*, _r.*' (warehouse will error on duplicate column names).",
       "type": "array",
       "items": {
         "type": "string"
@@ -97,37 +106,45 @@
       "default": "replace"
     },
     "group_name": {"label": "Group Name", 
+      "description": "Dagster asset group name.",
       "type": "string"
     },
     "deps": {"label": "Deps", 
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
     "owners": {"label": "Owners", 
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
     "description": {"label": "Description", 
+      "description": "Asset description.",
       "type": "string"
     },
     "asset_tags": {"label": "Asset Tags", 
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object"
     },
     "kinds": {"label": "Kinds", 
+      "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
     "include_preview_metadata": {"label": "Include Preview Metadata", 
+      "description": "Include a preview of the output data in metadata (sample rows) for builder UIs.",
       "type": "boolean",
       "default": false
     },
     "preview_rows": {"label": "Preview Rows", 
+      "description": "Rows to include in the preview metadata when `include_preview_metadata` is True.",
       "type": "integer",
       "default": 25,
       "minimum": 1,

@@ -15,6 +15,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
@@ -32,6 +33,7 @@
       "description": "Inline source config (sql / csv / inline). Mutually exclusive with `upstream_asset_key`."
     },
     "resource_key": {
+      "description": "Resource key registered by PinterestAdsResourceComponent.",
       "type": "string",
       "label": "Resource Key",
       "required": false,
@@ -65,11 +67,11 @@
       "default": 50000,
       "description": "Max upstream rows per run (safety cap)."
     },
-    "group_name": { "type": "string", "label": "Group Name", "required": false },
-    "description": { "type": "string", "label": "Description", "required": false },
-    "owners": { "type": "array", "label": "Owners", "required": false },
-    "tags": { "type": "object", "label": "Tags", "required": false },
-    "kinds": { "type": "array", "label": "Kinds", "required": false }
+    "group_name": {"description": "Dagster asset group name.", "type": "string", "label": "Group Name", "required": false },
+    "description": {"description": "Asset description.", "type": "string", "label": "Description", "required": false },
+    "owners": {"description": "Asset owners.", "type": "array", "label": "Owners", "required": false },
+    "tags": {"description": "Catalog tags.", "type": "object", "label": "Tags", "required": false },
+    "kinds": {"description": "Asset kinds (auto-includes 'pinterest_ads').", "type": "array", "label": "Kinds", "required": false }
   },
   "tags": [
     "sink",

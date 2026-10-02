@@ -111,18 +111,21 @@
       "ui:widget": "select"
     },
     "group_name": {
+      "description": "Asset group.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": null
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
       "default": null
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "label": "Owners",
       "required": false,
@@ -132,6 +135,7 @@
       }
     },
     "asset_tags": {
+      "description": "Extra asset tags.",
       "type": "object",
       "label": "Asset Tags",
       "required": false,
@@ -151,18 +155,21 @@
       }
     },
     "freshness_max_lag_minutes": {
+      "description": "Maximum acceptable lag in minutes before the asset is considered stale. Defines a FreshnessPolicy.",
       "type": "integer",
       "label": "Freshness Max Lag Minutes",
       "required": false,
       "default": null
     },
     "freshness_cron": {
+      "description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
       "type": "string",
       "label": "Freshness Cron",
       "required": false,
       "default": null
     },
     "partition_type": {
+      "description": "'daily'\\|'weekly'\\|'monthly'\\|'hourly'\\|'static'\\|'dynamic'\\|'multi'\\|None",
       "type": "string",
       "label": "Partition Type",
       "required": false,
@@ -179,24 +186,28 @@
       "ui:widget": "select"
     },
     "partition_start": {
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
       "type": "string",
       "label": "Partition Start",
       "required": false,
       "default": null
     },
     "partition_values": {
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
       "type": "string",
       "label": "Partition Values",
       "required": false,
       "default": null
     },
     "dynamic_partition_name": {
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
       "type": "string",
       "label": "Dynamic Partition Name",
       "required": false,
       "default": null
     },
     "partition_dimensions": {
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "type": "array",
       "label": "Partition Dimensions",
       "required": false,
@@ -216,18 +227,21 @@
       }
     },
     "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy.",
       "type": "integer",
       "label": "Retry Max Retries",
       "required": false,
       "default": null
     },
     "retry_policy_delay_seconds": {
+      "description": "Seconds between retries.",
       "type": "integer",
       "label": "Retry Delay Seconds",
       "required": false,
       "default": null
     },
     "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "label": "Retry Backoff",
       "required": false,

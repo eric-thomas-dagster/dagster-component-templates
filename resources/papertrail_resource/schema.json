@@ -11,16 +11,19 @@
   },
   "attributes": {
     "papertrail_hostname": {
+      "description": "Papertrail hostname (e.g. 'logs1.papertrailapp.com').",
       "type": "string",
       "label": "Papertrail Hostname",
       "required": true
     },
     "papertrail_port": {
+      "description": "Papertrail port.",
       "type": "integer",
       "label": "Papertrail Port",
       "required": true
     },
     "resource_key": {
+      "description": "Dagster resource key.",
       "type": "string",
       "label": "Resource Key",
       "required": true

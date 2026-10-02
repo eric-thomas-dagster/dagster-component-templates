@@ -11,6 +11,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Dagster asset name. Required when NOT using `wraps:` (inherited from inner in wraps mode).",
       "type": "string",
       "label": "Asset Name",
       "required": true
@@ -67,16 +68,19 @@
       "description": "OPTIONAL. Cross-materialization circuit breaker. Shape: {threshold=5, observation_window_seconds=300, cooldown_seconds=60, key=null}. State persists per Python process."
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
@@ -86,12 +90,14 @@
       "ui:widget": "list"
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false,
       "ui:widget": "key-value"
     },
     "kinds": {
+      "description": "Asset kinds. Default: ['python', 'retry'].",
       "type": "array",
       "items": {
         "type": "string"
@@ -101,6 +107,7 @@
       "ui:widget": "list"
     },
     "partition_type": {
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned.",
       "type": "string",
       "label": "Partition Type",
       "required": false,
@@ -114,21 +121,25 @@
       ]
     },
     "partition_start": {
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
       "type": "string",
       "label": "Partition Start",
       "required": false
     },
     "partition_values": {
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
       "type": "string",
       "label": "Partition Values",
       "required": false
     },
     "dynamic_partition_name": {
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
       "type": "string",
       "label": "Dynamic Partition Name",
       "required": false
     },
     "partition_dimensions": {
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "type": "array",
       "items": {
         "type": "object"

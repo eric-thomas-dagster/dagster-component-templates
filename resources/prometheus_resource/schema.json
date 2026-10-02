@@ -11,16 +11,19 @@
   },
   "attributes": {
     "gateway": {
+      "description": "Prometheus pushgateway URL (e.g. 'http://prometheus-pushgateway:9091').",
       "type": "string",
       "label": "Gateway",
       "required": true
     },
     "timeout": {
+      "description": "Push timeout in seconds.",
       "type": "integer",
       "label": "Timeout",
       "required": true
     },
     "resource_key": {
+      "description": "Dagster resource key.",
       "type": "string",
       "label": "Resource Key",
       "required": true

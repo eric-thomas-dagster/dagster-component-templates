@@ -14,6 +14,7 @@
   ],
   "attributes": {
     "resource_key": {
+      "description": "Resource key. Other components reference it via this name.",
       "type": "string",
       "label": "Resource Key",
       "required": false,
@@ -66,12 +67,14 @@
       "description": "Zoho CRM REST API version."
     },
     "request_timeout_seconds": {
+      "description": "Per-request timeout in seconds.",
       "type": "integer",
       "label": "Request Timeout (seconds)",
       "required": false,
       "default": 60
     },
     "max_retries": {
+      "description": "Retry attempts on 429 / 5xx (exponential backoff) + one on 401 (token refresh).",
       "type": "integer",
       "label": "Max Retries",
       "required": false,

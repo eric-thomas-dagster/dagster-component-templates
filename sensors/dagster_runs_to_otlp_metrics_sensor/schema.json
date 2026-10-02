@@ -8,6 +8,7 @@
   },
   "attributes": {
     "sensor_name": {
+      "description": "Dagster sensor name.",
       "type": "string",
       "label": "Sensor Name",
       "required": true
@@ -25,23 +26,27 @@
       "required": false
     },
     "service_name": {
+      "description": "OTLP resource attribute `service.name`.",
       "type": "string",
       "label": "service.name",
       "default": "dagster",
       "required": false
     },
     "location_label": {
+      "description": "OTLP resource attribute `service.instance.id`.",
       "type": "string",
       "label": "service.instance.id",
       "default": "default",
       "required": false
     },
     "monitor_jobs": {
+      "description": "If set, only emit for these job names. None = all.",
       "type": "array",
       "label": "Monitor Jobs",
       "required": false
     },
     "default_status": {
+      "description": "STOPPED \\| RUNNING",
       "type": "string",
       "label": "Default Status",
       "enum": [

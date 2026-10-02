@@ -34,36 +34,42 @@
       "required": true
     },
     "database": {
+      "description": "Snowflake database (overrides connection default)",
       "type": "string",
       "label": "Database",
       "required": false,
       "default": null
     },
     "warehouse": {
+      "description": "Snowflake warehouse to use",
       "type": "string",
       "label": "Warehouse",
       "required": false,
       "default": null
     },
     "role": {
+      "description": "Snowflake role",
       "type": "string",
       "label": "Role",
       "required": false,
       "default": null
     },
     "account_env_var": {
+      "description": "Env var containing Snowflake account identifier",
       "type": "string",
       "label": "Account Env Var",
       "required": false,
       "default": "SNOWFLAKE_ACCOUNT"
     },
     "user_env_var": {
+      "description": "Env var containing Snowflake user",
       "type": "string",
       "label": "User Env Var",
       "required": false,
       "default": "SNOWFLAKE_USER"
     },
     "password_env_var": {
+      "description": "Env var containing Snowflake password",
       "type": "string",
       "label": "Password Env Var",
       "required": false,
@@ -113,18 +119,21 @@
       "ui:widget": "select"
     },
     "purge_stage": {
+      "description": "Delete staged files after successful COPY (recommended).",
       "type": "boolean",
       "label": "Purge Stage After Load",
       "required": false,
       "default": true
     },
     "group_name": {
+      "description": "Dagster asset group name",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": null
     },
     "owners": {
+      "description": "Asset owners",
       "type": "array",
       "items": {
         "type": "string"
@@ -134,12 +143,14 @@
       "ui:widget": "list"
     },
     "asset_tags": {
+      "description": "Additional asset tags",
       "type": "object",
       "label": "Asset Tags",
       "required": false,
       "ui:widget": "key-value"
     },
     "kinds": {
+      "description": "Asset kinds (default: ['snowflake', 'python'])",
       "type": "array",
       "items": {
         "type": "string"
@@ -149,11 +160,13 @@
       "ui:widget": "list"
     },
     "description": {
+      "description": "Asset description",
       "type": "string",
       "label": "Description",
       "required": false
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys",
       "type": "array",
       "items": {
         "type": "string"
@@ -162,16 +175,19 @@
       "required": false
     },
     "retry_policy_max_retries": {
+      "description": "Max retries on failure",
       "type": "integer",
       "label": "Retry Policy Max Retries",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "description": "Seconds between retries",
       "type": "integer",
       "label": "Retry Policy Delay Seconds",
       "required": false
     },
     "retry_policy_backoff": {
+      "description": "Backoff: 'linear' or 'exponential'",
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,

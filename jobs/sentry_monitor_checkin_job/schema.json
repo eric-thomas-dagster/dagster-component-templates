@@ -5,6 +5,7 @@
   "icon": "Clock",
   "attributes": {
     "job_name": {"label": "Job Name", 
+      "description": "Dagster job name.",
       "type": "string",
       "required": true
     },
@@ -15,6 +16,7 @@
       "x-dagster-widget": "cron"
     },
     "default_status": {"label": "Default Status", 
+      "description": "'STOPPED' or 'RUNNING' — controls the Dagster schedule's default status.",
       "type": "string",
       "required": false,
       "default": "stopped",
@@ -25,10 +27,12 @@
       "ui:widget": "select"
     },
     "tags": {"label": "Tags", 
+      "description": "Dagster job tags.",
       "type": "object",
       "required": false
     },
     "dsn_env_var": {"label": "Dsn Env Var", 
+      "description": "Env var holding the Sentry DSN.",
       "type": "string",
       "required": false,
       "default": "SENTRY_DSN"
@@ -39,10 +43,12 @@
       "description": "Stable slug identifying the Sentry monitor."
     },
     "environment": {"label": "Environment", 
+      "description": "Sentry environment tag (e.g. 'prod', 'staging').",
       "type": "string",
       "required": false
     },
     "release": {"label": "Release", 
+      "description": "Sentry release tag.",
       "type": "string",
       "required": false
     },
@@ -52,6 +58,7 @@
       "description": "Sentry monitor_config dict (schedule/checkin_margin/max_runtime/timezone). Auto-creates monitor on first check-in when set."
     },
     "fail_on_error": {"label": "Fail On Error", 
+      "description": "If True, the job step fails when the Sentry check-in raises. Default False for cron monitors — you don't want a Sentry outage to make your scheduler flap.",
       "type": "boolean",
       "required": false,
       "default": false

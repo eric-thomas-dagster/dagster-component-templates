@@ -30,7 +30,7 @@
     "kinds":              {"type": "array",  "label": "Kinds", "items": {"type": "string"},
                            "description": "Asset kinds. Default: ['llm', 'agent', 'pipeline']."},
     "tags":               {"type": "object", "label": "Tags", "description": "Additional tags for the emitted assets."},
-    "owners":             {"type": "array",  "label": "Owners", "items": {"type": "string"}},
+    "owners":             {"description": "Asset owners.", "type": "array",  "label": "Owners", "items": {"type": "string"}},
     "description":        {"type": "string", "label": "Description", "description": "Description on the emitted assets."},
 
     "partition_type":     {"type": "string", "label": "Partition Type",

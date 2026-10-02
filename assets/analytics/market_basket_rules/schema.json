@@ -16,65 +16,77 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Upstream asset key providing a DataFrame",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true
     },
     "basket_column": {
+      "description": "Column that identifies a basket (e.g. transaction_id).",
       "type": "string",
       "label": "Basket Column",
       "required": true,
       "x-dagster-widget": "column"
     },
     "item_column": {
+      "description": "Column with item names.",
       "type": "string",
       "label": "Item Column",
       "required": true,
       "x-dagster-widget": "column"
     },
     "min_support": {
+      "description": "Minimum support threshold.",
       "type": "number",
       "label": "Min Support",
       "required": true
     },
     "min_confidence": {
+      "description": "Minimum confidence for rules.",
       "type": "number",
       "label": "Min Confidence",
       "required": true
     },
     "metric": {
+      "description": "Sort metric: confidence, lift, support, etc.",
       "type": "string",
       "label": "Metric",
       "required": true
     },
     "include_preview_metadata": {
+      "description": "Include a preview of the output DataFrame in metadata (for builder UIs).",
       "type": "boolean",
       "label": "Include Preview Metadata",
       "default": false,
       "required": false
     },
     "preview_rows": {
+      "description": "Rows in the preview when include_preview_metadata=True.",
       "type": "integer",
       "label": "Preview Rows",
       "default": 25,
       "required": false
     },
     "group_name": {
+      "description": "Dagster asset group name",
       "type": "string",
       "label": "Group Name",
       "required": false
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
@@ -83,11 +95,13 @@
       "required": false
     },
     "asset_tags": {
+      "description": "Asset tags.",
       "type": "object",
       "label": "Asset Tags",
       "required": false
     },
     "kinds": {
+      "description": "Asset kinds.",
       "type": "array",
       "items": {
         "type": "string"
@@ -96,6 +110,7 @@
       "required": false
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys.",
       "type": "array",
       "items": {
         "type": "string"
@@ -104,11 +119,13 @@
       "required": false
     },
     "freshness_max_lag_minutes": {
+      "description": "Maximum acceptable lag in minutes before the asset is considered stale. Builds a FreshnessPolicy when set.",
       "type": "integer",
       "label": "Freshness Max Lag Minutes",
       "required": false
     },
     "freshness_cron": {
+      "description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
       "type": "string",
       "label": "Freshness Cron",
       "required": false,
@@ -121,6 +138,7 @@
       "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "partition_type": {
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned.",
       "type": "string",
       "label": "Partition Type",
       "required": false,
@@ -136,44 +154,52 @@
       "ui:widget": "select"
     },
     "partition_start": {
+      "description": "Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
       "type": "string",
       "label": "Partition Start",
       "required": false
     },
     "partition_date_column": {
+      "description": "Column used to filter the upstream DataFrame to the current date partition key.",
       "type": "string",
       "label": "Partition Date Column",
       "required": false,
       "x-dagster-widget": "column"
     },
     "partition_values": {
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'.",
       "type": "string",
       "label": "Partition Values",
       "required": false
     },
     "partition_static_dim": {
+      "description": "Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
       "type": "string",
       "label": "Partition Static Dim",
       "required": false,
       "x-dagster-widget": "column"
     },
     "partition_static_column": {
+      "description": "Column used to filter the upstream DataFrame to the current static partition value.",
       "type": "string",
       "label": "Partition Static Column",
       "required": false,
       "x-dagster-widget": "column"
     },
     "retry_policy_max_retries": {
+      "description": "Max retries on failure. Defines a RetryPolicy when set.",
       "type": "integer",
       "label": "Retry Policy Max Retries",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
       "type": "integer",
       "label": "Retry Policy Delay Seconds",
       "required": false
     },
     "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,

@@ -12,6 +12,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output asset name.",
       "label": "Asset Name",
       "type": "string",
       "required": true
@@ -29,30 +30,35 @@
       "description": "Sentry project slug."
     },
     "api_host": {
+      "description": "Sentry host. Use 'https://sentry.io' (default) for SaaS or your self-hosted URL.",
       "label": "API Host",
       "type": "string",
       "required": false,
       "default": "https://sentry.io"
     },
     "api_token_env_var": {
+      "description": "Env var holding the Sentry auth token (needs `project:read` scope).",
       "label": "API Token Env Var",
       "type": "string",
       "required": false,
       "default": "SENTRY_AUTH_TOKEN"
     },
     "query": {
+      "description": "Sentry search query. Examples: 'is:unresolved', 'is:resolved age:-24h', 'level:error'. See https://docs.sentry.io/product/sentry-basics/search/",
       "label": "Query",
       "type": "string",
       "required": false,
       "default": "is:unresolved"
     },
     "stats_period": {
+      "description": "Time range for the query (e.g. '24h', '7d', '30d'). None = default.",
       "label": "Stats Period",
       "type": "string",
       "required": false,
       "default": "24h"
     },
     "limit": {
+      "description": "Total row cap across paginated pages.",
       "label": "Limit",
       "type": "integer",
       "required": false,
@@ -61,11 +67,13 @@
       "maximum": 10000
     },
     "description": {
+      "description": "Asset description.",
       "label": "Description",
       "type": "string",
       "required": false
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "label": "Group Name",
       "type": "string",
       "required": false,

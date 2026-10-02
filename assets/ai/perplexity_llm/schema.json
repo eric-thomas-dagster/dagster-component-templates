@@ -11,22 +11,26 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Upstream DataFrame asset key.",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true
     },
     "api_key_env_var": {
+      "description": "Env var holding the Perplexity API key.",
       "type": "string",
       "label": "API Key Env Var",
       "required": false,
       "default": "PERPLEXITY_API_KEY"
     },
     "base_url": {
+      "description": "Perplexity OpenAI-compatible base URL. Override only for proxies.",
       "type": "string",
       "label": "Base URL",
       "required": false,
@@ -47,6 +51,7 @@
       "ui:widget": "textarea"
     },
     "user_prompt_template": {
+      "description": "Template with {column} placeholders. Mutually exclusive with input_column.",
       "type": "string",
       "label": "User Prompt Template",
       "required": false,
@@ -54,6 +59,7 @@
       "ui:widget": "textarea"
     },
     "input_column": {
+      "description": "Column whose value becomes the per-row prompt. Mutually exclusive with user_prompt_template.",
       "type": "string",
       "label": "Input Column",
       "required": false,
@@ -117,6 +123,7 @@
       "description": "Allowlist domains, or denylist with a '-' prefix, e.g. ['-reddit.com']. Max 20."
     },
     "search_recency_filter": {
+      "description": "Restrict search results to a recency window: 'day', 'week', 'month', or 'year'.",
       "type": "string",
       "label": "Search Recency Filter",
       "required": false,
@@ -130,12 +137,14 @@
       "ui:widget": "select"
     },
     "return_related_questions": {
+      "description": "Ask Perplexity to also return suggested follow-up questions (surfaced in metadata, not per row).",
       "type": "boolean",
       "label": "Return Related Questions",
       "required": false,
       "default": null
     },
     "rate_limit_delay": {
+      "description": "Seconds to sleep between rows. Raise this if you hit Perplexity's rate limits.",
       "type": "number",
       "label": "Rate Limit Delay",
       "required": false,
@@ -148,6 +157,7 @@
       "default": 3
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
@@ -155,12 +165,14 @@
       "ui:widget": "textarea"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": null
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "label": "Deps",
       "required": false,
@@ -169,11 +181,13 @@
       }
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "label": "Owners",
       "required": false,
@@ -182,6 +196,7 @@
       }
     },
     "partition_type": {
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned.",
       "type": "string",
       "label": "Partition Type",
       "required": false,
@@ -198,24 +213,28 @@
       "ui:widget": "select"
     },
     "partition_start": {
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
       "type": "string",
       "label": "Partition Start",
       "required": false,
       "default": null
     },
     "partition_values": {
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
       "type": "string",
       "label": "Partition Values",
       "required": false,
       "default": null
     },
     "dynamic_partition_name": {
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
       "type": "string",
       "label": "Dynamic Partition Name",
       "required": false,
       "default": null
     },
     "partition_dimensions": {
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "type": "array",
       "label": "Partition Dimensions",
       "required": false

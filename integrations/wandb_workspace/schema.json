@@ -50,6 +50,7 @@
       "description": "How many recent runs to fetch per project."
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false

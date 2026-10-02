@@ -14,6 +14,7 @@
   "icon": "si:iterable",
   "attributes": {
     "asset_name": {
+      "description": "Dagster asset name",
       "label": "Asset Name",
       "type": "string",
       "required": true
@@ -31,21 +32,25 @@
       "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."
     },
     "resource_key": {
+      "description": "IterableResourceComponent key (preferred).",
       "label": "Resource Key",
       "type": "string",
       "required": false
     },
     "api_key_env_var": {
+      "description": "Inline auth fallback.",
       "label": "API Key Env Var",
       "type": "string",
       "required": false
     },
     "base_url": {
+      "description": "Inline auth: Iterable API base URL (default https://api.iterable.com; use https://api.eu.iterable.com for EU).",
       "label": "Base URL",
       "type": "string",
       "required": false
     },
     "mode": {
+      "description": "`users` = bulk-upsert profiles; `events` = bulk-track events.",
       "label": "Mode",
       "type": "string",
       "enum": [
@@ -56,22 +61,26 @@
       "required": false
     },
     "fields_map": {
+      "description": "Explicit source_col -> iterable_field mapping. For users, fields other than userId/email land under dataFields; for events, everything except eventName/userId/email/campaignId lands under dataFields.",
       "label": "Fields Map",
       "type": "object",
       "required": false
     },
     "user_id_column": {
+      "description": "Column holding the userId (Iterable's primary id when different from email).",
       "label": "User ID Column",
       "type": "string",
       "required": false
     },
     "email_column": {
+      "description": "Column holding the email address.",
       "label": "Email Column",
       "type": "string",
       "required": false,
       "default": "email"
     },
     "prefer_user_id": {
+      "description": "For users mode: set preferUserId=true on each user object (Iterable disambiguates via userId when both are present).",
       "label": "Prefer User ID",
       "type": "boolean",
       "required": false,
@@ -84,11 +93,13 @@
       "description": "Required for mode='events'."
     },
     "campaign_id_column": {
+      "description": "For events mode: column with the campaignId (optional).",
       "label": "Campaign ID Column",
       "type": "string",
       "required": false
     },
     "data_field_columns": {
+      "description": "Legacy pass-through: which columns become dataFields (users) or event data (events). Default: all except identifier/event columns.",
       "label": "Data Field Columns",
       "type": "array",
       "items": {
@@ -115,16 +126,19 @@
       "default": 30
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "label": "Group Name",
       "type": "string",
       "required": false
     },
     "description": {
+      "description": "Asset description.",
       "label": "Description",
       "type": "string",
       "required": false
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "label": "Deps",
       "type": "array",
       "items": {
@@ -133,6 +147,7 @@
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "label": "Owners",
       "type": "array",
       "items": {
@@ -141,11 +156,13 @@
       "required": false
     },
     "asset_tags": {
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "label": "Asset Tags",
       "type": "object",
       "required": false
     },
     "kinds": {
+      "description": "Asset kinds for the Dagster catalog.",
       "label": "Kinds",
       "type": "array",
       "items": {
@@ -154,47 +171,56 @@
       "required": false
     },
     "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy.",
       "label": "Retry Policy Max Retries",
       "type": "integer",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "description": "Seconds between retries.",
       "label": "Retry Policy Delay Seconds",
       "type": "integer",
       "required": false
     },
     "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
       "label": "Retry Policy Backoff",
       "type": "string",
       "required": false,
       "default": "exponential"
     },
     "freshness_max_lag_minutes": {
+      "description": "Maximum acceptable lag in minutes before the asset is considered stale. Defines a FreshnessPolicy.",
       "label": "Freshness Max Lag Minutes",
       "type": "integer",
       "required": false
     },
     "freshness_cron": {
+      "description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
       "label": "Freshness Cron",
       "type": "string",
       "required": false
     },
     "partition_type": {
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned.",
       "label": "Partition Type",
       "type": "string",
       "required": false
     },
     "partition_start": {
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
       "label": "Partition Start",
       "type": "string",
       "required": false
     },
     "partition_values": {
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
       "label": "Partition Values",
       "type": "string",
       "required": false
     },
     "dynamic_partition_name": {
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
       "label": "Dynamic Partition Name",
       "type": "string",
       "required": false

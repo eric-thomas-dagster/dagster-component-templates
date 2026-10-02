@@ -15,6 +15,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name",
       "type": "string",
       "label": "Asset Name",
       "required": true
@@ -27,6 +28,7 @@
       "ui:widget": "env_var"
     },
     "database_type": {
+      "description": "Source database dialect: postgres / mysql / mssql / oracle / db2 / db2_iseries / snowflake / redshift. Use 'db2' for Db2 LUW / Cloud / Warehouse (catalog at SYSCAT.*); use 'db2_iseries' for Db2 for i / AS/400 / IBM i (catalog at QSYS2.*). Connect via db2_resource(system_type='iseries', library_list=[...]) for the i path.",
       "type": "string",
       "label": "Source Database Type",
       "required": true,
@@ -47,12 +49,12 @@
       "description": "Restrict to these object types (default: every type the dialect supports)",
       "required": false
     },
-    "group_name": {"type": "string", "label": "Group Name", "required": false},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "asset_tags": {"type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
-    "deps": {"type": "array", "items": {"type": "string"}, "label": "Deps", "required": false}
+    "group_name": {"description": "Dagster asset group name", "type": "string", "label": "Group Name", "required": false},
+    "description": {"description": "Asset description", "type": "string", "label": "Description", "required": false},
+    "owners": {"description": "Asset owners", "type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "asset_tags": {"description": "Additional asset tags", "type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"description": "Asset kinds (default: [database_type, 'inventory'])", "type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
+    "deps": {"description": "Lineage-only upstream asset keys", "type": "array", "items": {"type": "string"}, "label": "Deps", "required": false}
   },
   "tags": ["source", "metadata", "inventory", "migration", "warehouse", "schema"],
   "name": "Database Schema Inventory"

@@ -15,6 +15,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
@@ -71,30 +72,37 @@
       "required": false
     },
     "group_name": {"label": "Group Name", 
+      "description": "Dagster asset group name.",
       "type": "string",
       "required": false
     },
     "description": {"label": "Description", 
+      "description": "Asset description.",
       "type": "string",
       "required": false
     },
     "owners": {"label": "Owners", 
+      "description": "Asset owners.",
       "type": "array",
       "required": false
     },
     "asset_tags": {"label": "Asset Tags", 
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object",
       "required": false
     },
     "kinds": {"label": "Kinds", 
+      "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "required": false
     },
     "deps": {"label": "Deps", 
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "required": false
     },
     "partition_type": {"label": "Partition Type", 
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned.",
       "type": "string",
       "required": false,
       "enum": [
@@ -109,35 +117,43 @@
       "ui:widget": "select"
     },
     "partition_start": {"label": "Partition Start", 
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
       "type": "string",
       "required": false
     },
     "partition_values": {"label": "Partition Values", 
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
       "type": "string",
       "required": false
     },
     "dynamic_partition_name": {"label": "Dynamic Partition Name", 
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
       "type": "string",
       "required": false
     },
     "partition_dimensions": {"label": "Partition Dimensions", 
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "type": "array",
       "required": false
     },
     "freshness_max_lag_minutes": {"label": "Freshness Max Lag Minutes", 
+      "description": "Maximum acceptable lag in minutes before the asset is considered stale. Defines a FreshnessPolicy.",
       "type": "integer",
       "required": false
     },
     "freshness_cron": {"label": "Freshness Cron", 
+      "description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
       "type": "string",
       "required": false,
       "x-dagster-widget": "cron"
     },
     "retry_policy_max_retries": {"label": "Retry Policy Max Retries", 
+      "description": "Max retries on asset failure. Defines a RetryPolicy.",
       "type": "integer",
       "required": false
     },
     "retry_policy_delay_seconds": {"label": "Retry Policy Delay Seconds", 
+      "description": "Seconds between retries.",
       "type": "integer",
       "required": false
     },

@@ -41,23 +41,27 @@
   "name": "Apache CouchDB Resource",
   "attributes": {
     "resource_key": {
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
       "type": "string",
       "label": "Resource Key",
       "required": false,
       "default": "couchdb_resource"
     },
     "url": {
+      "description": "CouchDB server URL, e.g. 'http://localhost:5984'",
       "type": "string",
       "label": "Url",
       "required": true
     },
     "username": {
+      "description": "CouchDB username (leave empty for anonymous access)",
       "type": "string",
       "label": "Username",
       "required": false,
       "default": ""
     },
     "password_env_var": {
+      "description": "Environment variable holding the CouchDB password",
       "type": "string",
       "label": "Password Env Var",
       "required": false

@@ -13,6 +13,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Dagster asset name",
       "type": "string",
       "label": "Asset Name",
       "required": true
@@ -42,6 +43,7 @@
       "ui:widget": "select"
     },
     "select": {
+      "description": "`$select` columns, comma-separated.",
       "type": "string",
       "label": "$select",
       "required": false
@@ -54,21 +56,25 @@
       "ui:widget": "code"
     },
     "expand": {
+      "description": "`$expand` — comma-separated nested collections.",
       "type": "string",
       "label": "$expand",
       "required": false
     },
     "orderby": {
+      "description": "`$orderby` expression.",
       "type": "string",
       "label": "$orderby",
       "required": false
     },
     "top": {
+      "description": "`$top` — page size (server-driven paging usually overrides this; useful for testing).",
       "type": "integer",
       "label": "$top",
       "required": false
     },
     "extra_query": {
+      "description": "Additional `$<key>` query options, e.g. {`$inlinecount`: `allpages`}.",
       "type": "object",
       "label": "Extra Query Options",
       "required": false,
@@ -88,27 +94,32 @@
       "ui:widget": "select"
     },
     "auth_username_env_var": {
+      "description": "Env var with username (auth_type=basic).",
       "type": "string",
       "label": "Auth Username Env Var",
       "required": false
     },
     "auth_password_env_var": {
+      "description": "Env var with password (auth_type=basic).",
       "type": "string",
       "label": "Auth Password Env Var",
       "required": false
     },
     "auth_token_env_var": {
+      "description": "Env var with bearer token (auth_type=bearer).",
       "type": "string",
       "label": "Auth Token Env Var",
       "required": false
     },
     "extra_headers": {
+      "description": "Extra HTTP headers. Useful for SAP CSRF tokens, sap-client routing (`sap-client: 100`), or Datasphere `x-sap-cf-token`.",
       "type": "object",
       "label": "Extra Headers",
       "required": false,
       "ui:widget": "key-value"
     },
     "verify_ssl": {
+      "description": "Verify the server's TLS certificate. Set false for on-prem self-signed.",
       "type": "boolean",
       "label": "Verify SSL",
       "required": false,
@@ -116,30 +127,35 @@
       "ui:widget": "checkbox"
     },
     "max_pages": {
+      "description": "Safety cap on pagination follow-throughs (prevents runaway pulls).",
       "type": "integer",
       "label": "Max Pages",
       "required": false,
       "default": 1000
     },
     "timeout_seconds": {
+      "description": "Per-request timeout.",
       "type": "integer",
       "label": "Timeout (seconds)",
       "required": false,
       "default": 120
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
       "ui:widget": "code"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": "odata"
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
@@ -149,6 +165,7 @@
       "ui:widget": "list"
     },
     "asset_tags": {
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object",
       "label": "Asset Tags",
       "required": false,
@@ -165,17 +182,20 @@
       "ui:widget": "list"
     },
     "freshness_max_lag_minutes": {
+      "description": "Maximum acceptable lag in minutes before the asset is considered stale. Defines a FreshnessPolicy.",
       "type": "integer",
       "label": "Freshness Max Lag (minutes)",
       "required": false
     },
     "freshness_cron": {
+      "description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
       "type": "string",
       "label": "Freshness Cron",
       "required": false,
       "x-dagster-widget": "cron"
     },
     "include_preview_metadata": {
+      "description": "Include a preview of the output data in metadata (sample rows) for builder UIs.",
       "type": "boolean",
       "label": "Include Preview Metadata",
       "required": false,
@@ -183,12 +203,14 @@
       "ui:widget": "checkbox"
     },
     "preview_rows": {
+      "description": "Rows to include in the preview metadata when `include_preview_metadata` is True.",
       "type": "integer",
       "label": "Preview Rows",
       "required": false,
       "default": 25
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "items": {
         "type": "string"
@@ -198,6 +220,7 @@
       "ui:widget": "list"
     },
     "partition_type": {
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned.",
       "type": "string",
       "label": "Partition Type",
       "required": false,
@@ -213,31 +236,37 @@
       "ui:widget": "select"
     },
     "partition_start": {
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
       "type": "string",
       "label": "Partition Start",
       "required": false
     },
     "partition_values": {
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
       "type": "string",
       "label": "Partition Values",
       "required": false
     },
     "dynamic_partition_name": {
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
       "type": "string",
       "label": "Dynamic Partition Name",
       "required": false
     },
     "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy.",
       "type": "integer",
       "label": "Retry Policy Max Retries",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "description": "Seconds between retries.",
       "type": "integer",
       "label": "Retry Policy Delay Seconds",
       "required": false
     },
     "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,

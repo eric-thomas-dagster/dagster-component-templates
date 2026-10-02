@@ -157,6 +157,7 @@
       "default": null
     },
     "write_mode": {
+      "description": "Write mode: 'create' (fail if exists), 'replace' (drop and recreate), 'append' (add rows)",
       "type": "string",
       "label": "Write Mode",
       "required": false,
@@ -176,6 +177,7 @@
       "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "items": {
         "type": "string"
@@ -184,16 +186,19 @@
       "required": false
     },
     "retry_policy_max_retries": {
+      "description": "Max retries on failure. Defines a RetryPolicy when set.",
       "type": "integer",
       "label": "Retry Policy Max Retries",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
       "type": "integer",
       "label": "Retry Policy Delay Seconds",
       "required": false
     },
     "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,

@@ -8,11 +8,13 @@
   },
   "attributes": {
     "job_name": {
+      "description": "Dagster job name (e.g. synapse_pool_pause_nightly)",
       "type": "string",
       "label": "Job Name",
       "required": true
     },
     "action": {
+      "description": "'pause' \\| 'resume' \\| 'scale'. Scale requires `target_sku`.",
       "type": "string",
       "label": "Action",
       "required": false,
@@ -31,21 +33,25 @@
       "description": "DWU SKU when action=scale (e.g. DW100c, DW200c, DW500c)"
     },
     "subscription_id": {
+      "description": "Azure subscription ID",
       "type": "string",
       "label": "Subscription ID",
       "required": true
     },
     "resource_group_name": {
+      "description": "Resource group containing the workspace",
       "type": "string",
       "label": "Resource Group",
       "required": true
     },
     "workspace_name": {
+      "description": "Synapse workspace name",
       "type": "string",
       "label": "Workspace Name",
       "required": true
     },
     "sql_pool_name": {
+      "description": "Dedicated SQL pool name",
       "type": "string",
       "label": "SQL Pool Name",
       "required": true
@@ -77,6 +83,7 @@
       "x-dagster-widget": "cron"
     },
     "schedule_default_status": {
+      "description": "STOPPED \\| RUNNING",
       "type": "string",
       "label": "Schedule Default Status",
       "required": false,
@@ -87,6 +94,7 @@
       ]
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false,

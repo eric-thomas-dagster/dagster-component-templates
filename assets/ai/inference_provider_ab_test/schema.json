@@ -23,9 +23,9 @@
     "group_name":         {"type": "string", "label": "Group Name", "description": "Asset group. Default 'ab_test'."},
     "kinds":              {"type": "array",  "label": "Kinds", "items": {"type": "string"},
                            "description": "Asset kinds. Default: ['llm', 'ab-test']."},
-    "owners":             {"type": "array",  "label": "Owners", "items": {"type": "string"}},
+    "owners":             {"description": "Asset owners.", "type": "array",  "label": "Owners", "items": {"type": "string"}},
     "tags":               {"type": "object", "label": "Tags", "description": "Additional tags on the emitted assets."},
-    "description":        {"type": "string", "label": "Description"},
+    "description":        {"description": "Asset description.", "type": "string", "label": "Description"},
 
     "partition_type":     {"type": "string", "label": "Partition Type",
                            "enum": ["daily", "static", "dynamic"],

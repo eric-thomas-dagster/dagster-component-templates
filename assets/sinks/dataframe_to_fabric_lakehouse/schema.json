@@ -16,26 +16,31 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Asset key of upstream DataFrame",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true
     },
     "workspace_id": {
+      "description": "Fabric workspace ID (GUID)",
       "type": "string",
       "label": "Workspace ID",
       "required": true
     },
     "lakehouse_name": {
+      "description": "Lakehouse name (the .Lakehouse item in the workspace)",
       "type": "string",
       "label": "Lakehouse Name",
       "required": true
     },
     "write_mode": {
+      "description": "'overwrite' \\| 'append'. (Delta MERGE not yet supported here.)",
       "type": "string",
       "label": "Write Mode",
       "required": false,
@@ -64,18 +69,21 @@
       "default": null
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": null
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
       "default": null
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "items": {
         "type": "string"
@@ -85,6 +93,7 @@
       "default": null
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
@@ -94,6 +103,7 @@
       "default": null
     },
     "asset_tags": {
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object",
       "label": "Asset Tags",
       "required": false,

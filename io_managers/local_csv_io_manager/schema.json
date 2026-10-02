@@ -11,18 +11,21 @@
   },
   "attributes": {
     "resource_key": {
+      "description": "Dagster resource key for this IO manager. Use 'io_manager' to make it the default.",
       "type": "string",
       "label": "Resource Key",
       "default": "io_manager",
       "required": false
     },
     "base_dir": {
+      "description": "Local directory under which to store assets, e.g. '/tmp/dagster_data'.",
       "type": "string",
       "label": "Base Directory",
       "default": "dagster_storage",
       "required": false
     },
     "create_dir": {
+      "description": "Create base_dir if it doesn't exist.",
       "type": "boolean",
       "label": "Create Directory",
       "default": true,

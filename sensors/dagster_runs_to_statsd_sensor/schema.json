@@ -8,23 +8,27 @@
   },
   "attributes": {
     "sensor_name": {
+      "description": "Dagster sensor name.",
       "type": "string",
       "label": "Sensor Name",
       "required": true
     },
     "statsd_host": {
+      "description": "StatsD server host. For Datadog Agent on the same host, 127.0.0.1.",
       "type": "string",
       "label": "StatsD Host",
       "default": "127.0.0.1",
       "required": false
     },
     "statsd_port": {
+      "description": "StatsD UDP port (default 8125 for both statsd and Datadog Agent).",
       "type": "integer",
       "label": "StatsD Port",
       "default": 8125,
       "required": false
     },
     "metric_prefix": {
+      "description": "Prefix applied to every metric name (e.g. 'dagster.runs.total').",
       "type": "string",
       "label": "Metric Prefix",
       "default": "dagster",
@@ -50,6 +54,7 @@
       "required": false
     },
     "default_status": {
+      "description": "STOPPED \\| RUNNING",
       "type": "string",
       "label": "Default Status",
       "enum": [

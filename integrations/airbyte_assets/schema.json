@@ -11,21 +11,25 @@
   },
   "attributes": {
     "workspace_id": {
+      "description": "Airbyte Cloud workspace ID.",
       "type": "string",
       "label": "Workspace Id",
       "required": true
     },
     "client_id_env_var": {
+      "description": "Env var with the Airbyte client_id.",
       "type": "string",
       "label": "Client Id Env Var",
       "required": true
     },
     "client_secret_env_var": {
+      "description": "Env var with the Airbyte client_secret.",
       "type": "string",
       "label": "Client Secret Env Var",
       "required": true
     },
     "connection_filter": {
+      "description": "Optional list of connection_ids to include.",
       "type": "array",
       "label": "Connection Filter",
       "required": false,
@@ -34,6 +38,7 @@
       }
     },
     "group_name": {
+      "description": "Asset group for the imported connections.",
       "type": "string",
       "label": "Group Name",
       "required": true

@@ -26,9 +26,9 @@
     "prefilter_max_entries": {"label": "Prefilter Max Entries", "type": "integer", "required": false, "default": 40, "description": "Target number of components the LLM pre-filter keeps."},
     "available_resources": {"label": "Available Resources", "type": "array", "required": false, "description": "External resources / credentials configured in this environment. Components whose agent_hints.requires_resources include a resource NOT in this list get filtered out of the catalog before the planner sees them. Example: [snowflake_resource, database_connection] hides bigquery_query_asset, dataframe_to_bigquery, dataframe_to_databricks, etc. Default None = no filtering (all components in catalog are considered available)."},
     "fail_on_execution_error": {"label": "Fail On Execution Error", "type": "boolean", "required": false, "default": false},
-    "group_name": {"label": "Group Name", "type": "string", "required": false},
-    "owners": {"label": "Owners", "type": "array", "required": false},
-    "tags": {"label": "Tags", "type": "object", "required": false},
-    "kinds": {"label": "Kinds", "type": "array", "required": false}
+    "group_name": {"description": "Dagster asset group name.", "label": "Group Name", "type": "string", "required": false},
+    "owners": {"description": "Asset owners.", "label": "Owners", "type": "array", "required": false},
+    "tags": {"description": "Catalog tags.", "label": "Tags", "type": "object", "required": false},
+    "kinds": {"description": "Asset kinds for the Dagster catalog.", "label": "Kinds", "type": "array", "required": false}
   }
 }

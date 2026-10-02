@@ -16,16 +16,19 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Dagster asset name",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Upstream asset producing the DataFrame to write",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true
     },
     "catalog_type": {
+      "description": "'rest' (default) \\| 'glue' \\| 'hive' \\| 'hadoop' \\| 'sql'",
       "type": "string",
       "label": "Catalog Type",
       "required": false,
@@ -46,12 +49,14 @@
       "default": "default"
     },
     "catalog_properties": {
+      "description": "Catalog-specific config. ${ENV_VAR} expansion supported.",
       "type": "object",
       "label": "Catalog Properties",
       "required": false,
       "ui:widget": "key-value"
     },
     "namespace": {
+      "description": "Iceberg namespace",
       "type": "string",
       "label": "Namespace",
       "required": true
@@ -76,6 +81,7 @@
       "ui:widget": "code"
     },
     "skip_columns": {
+      "description": "Columns to drop from the DataFrame before writing (e.g. internal pandas cols).",
       "type": "array",
       "items": {
         "type": "string"
@@ -86,6 +92,7 @@
       "x-dagster-widget": "columns"
     },
     "schema_evolution": {
+      "description": "Allow Iceberg schema evolution if the DataFrame has new columns the table lacks. Use cautiously — Iceberg writers may fail if the table schema is locked.",
       "type": "boolean",
       "label": "Schema Evolution",
       "required": false,
@@ -93,18 +100,21 @@
       "ui:widget": "checkbox"
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
       "ui:widget": "code"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": "iceberg_sink"
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
@@ -114,12 +124,14 @@
       "ui:widget": "list"
     },
     "asset_tags": {
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object",
       "label": "Asset Tags",
       "required": false,
       "ui:widget": "key-value"
     },
     "kinds": {
+      "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "items": {
         "type": "string"
@@ -129,6 +141,7 @@
       "ui:widget": "list"
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "items": {
         "type": "string"
@@ -138,6 +151,7 @@
       "ui:widget": "list"
     },
     "partition_type": {
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned.",
       "type": "string",
       "label": "Partition Type",
       "required": false,
@@ -153,31 +167,37 @@
       "ui:widget": "select"
     },
     "partition_start": {
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
       "type": "string",
       "label": "Partition Start",
       "required": false
     },
     "partition_values": {
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
       "type": "string",
       "label": "Partition Values",
       "required": false
     },
     "dynamic_partition_name": {
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
       "type": "string",
       "label": "Dynamic Partition Name",
       "required": false
     },
     "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy.",
       "type": "integer",
       "label": "Retry Policy Max Retries",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "description": "Seconds between retries.",
       "type": "integer",
       "label": "Retry Policy Delay Seconds",
       "required": false
     },
     "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,

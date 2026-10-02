@@ -11,11 +11,13 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Upstream DataFrame asset key.",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true
@@ -27,6 +29,7 @@
       "default": null
     },
     "credentials_path": {
+      "description": "Falls back to GOOGLE_APPLICATION_CREDENTIALS.",
       "type": "string",
       "label": "Credentials Path",
       "required": false,
@@ -39,18 +42,21 @@
       "default": null
     },
     "location": {
+      "description": "Translation location ('global' or a region for custom models).",
       "type": "string",
       "label": "Location",
       "required": false,
       "default": "global"
     },
     "text_column": {
+      "description": "Column with text to translate.",
       "type": "string",
       "label": "Text Column",
       "required": true,
       "x-dagster-widget": "column"
     },
     "target_languages": {
+      "description": "ISO codes to translate INTO, e.g. ['es', 'fr', 'de']. One output column per target.",
       "type": "array",
       "label": "Target Languages",
       "required": true,
@@ -59,24 +65,28 @@
       }
     },
     "source_language": {
+      "description": "Source ISO code. If unset, the API auto-detects per row.",
       "type": "string",
       "label": "Source Language",
       "required": false,
       "default": null
     },
     "output_prefix": {
+      "description": "Output columns named e.g. text_es / text_fr / text_de.",
       "type": "string",
       "label": "Output Prefix",
       "required": false,
       "default": "text_"
     },
     "mime_type": {
+      "description": "text/plain or text/html.",
       "type": "string",
       "label": "MIME Type",
       "required": false,
       "default": "text/plain"
     },
     "batch_size": {
+      "description": "Texts per Translation request (max 1024 per call).",
       "type": "integer",
       "label": "Batch Size",
       "required": false,
@@ -95,6 +105,7 @@
       "default": 3
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
@@ -102,12 +113,14 @@
       "ui:widget": "textarea"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": null
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "label": "Deps",
       "required": false,
@@ -116,11 +129,13 @@
       }
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "label": "Owners",
       "required": false,

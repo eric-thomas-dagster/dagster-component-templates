@@ -15,6 +15,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
@@ -32,6 +33,7 @@
       "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."
     },
     "resource_key": {
+      "description": "Resource key registered by WorkableResourceComponent.",
       "type": "string",
       "label": "Resource Key",
       "required": false,
@@ -82,17 +84,20 @@
       "description": "Safety cap on total rows per run."
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": "workable"
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
@@ -102,12 +107,14 @@
       "ui:widget": "list"
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false,
       "ui:widget": "key-value"
     },
     "kinds": {
+      "description": "Asset kinds (auto-includes 'workable').",
       "type": "array",
       "items": {
         "type": "string"

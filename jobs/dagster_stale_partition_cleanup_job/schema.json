@@ -5,16 +5,19 @@
   "icon": "Trash",
   "attributes": {
     "job_name": {"label": "Job Name", 
+      "description": "Dagster job name",
       "type": "string",
       "required": true
     },
     "schedule": {"label": "Schedule", 
+      "description": "Cron schedule; default weekly Sunday at 6am.",
       "type": "string",
       "required": false,
       "default": "0 6 * * 0",
       "x-dagster-widget": "cron"
     },
     "default_status": {"label": "Default Status", 
+      "description": "STOPPED \\| RUNNING",
       "type": "string",
       "required": false,
       "default": "stopped",
@@ -24,6 +27,7 @@
       ]
     },
     "tags": {"label": "Tags", 
+      "description": "Dagster job tags",
       "type": "object",
       "required": false,
       "default": null
@@ -46,6 +50,7 @@
       "default": false
     },
     "max_stale_before_wipe": {"label": "Max Stale Before Wipe", 
+      "description": "Only wipe when at least this many stale partition keys are detected. Prevents wiping just because 1-2 partition keys got renamed.",
       "type": "integer",
       "required": false,
       "default": 100

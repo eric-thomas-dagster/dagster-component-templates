@@ -52,6 +52,7 @@
       "default": null
     },
     "policy_type": {
+      "description": "time_window: rolling window SLA. cron: deadline-based SLA.",
       "type": "string",
       "label": "Policy Type",
       "required": false,

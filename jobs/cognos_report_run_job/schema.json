@@ -5,6 +5,7 @@
   "icon": "PlayArrow",
   "attributes": {
     "job_name": {
+      "description": "Dagster job name.",
       "type": "string",
       "label": "Job Name",
       "required": true
@@ -57,6 +58,7 @@
       "default": 600
     },
     "resource_key": {
+      "description": "Resource key registered by CognosResourceComponent.",
       "type": "string",
       "label": "Resource Key",
       "required": false,
@@ -80,6 +82,7 @@
       "ui:widget": "select"
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Job Tags",
       "required": false

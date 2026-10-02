@@ -223,28 +223,33 @@
       "ui:widget": "key-value"
     },
     "include_preview_metadata": {
+      "description": "Include a preview of the output data in metadata (first 25 rows or a sample) for builder UIs.",
       "type": "boolean",
       "label": "Include Preview Metadata",
       "required": false,
       "default": false
     },
     "preview_rows": {
+      "description": "Rows to include in the preview metadata. For long DataFrames (>10x preview_rows), a random sample is used; otherwise head().",
       "type": "integer",
       "label": "Preview Rows",
       "required": false,
       "default": 25
     },
     "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
       "type": "integer",
       "label": "Retry Policy Max Retries",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
       "type": "integer",
       "label": "Retry Policy Delay Seconds",
       "required": false
     },
     "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,
@@ -257,6 +262,7 @@
       "ui:widget": "select"
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "items": {
         "type": "string"

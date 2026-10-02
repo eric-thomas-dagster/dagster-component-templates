@@ -99,6 +99,7 @@
       "description": "Dagster asset group name"
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false

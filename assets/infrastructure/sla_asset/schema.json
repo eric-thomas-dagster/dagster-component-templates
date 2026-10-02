@@ -11,6 +11,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Dagster asset name. Required when NOT using `wraps:` (inherited from inner component in wraps mode).",
       "type": "string",
       "label": "Asset Name",
       "required": true
@@ -34,6 +35,7 @@
       "description": "Compute > this = breach."
     },
     "on_breach": {
+      "description": "'warn' materializes + emits AssetObservation. 'fail' raises dg.Failure.",
       "type": "string",
       "label": "On Breach",
       "required": false,
@@ -51,6 +53,7 @@
       "description": "Count breaches in window; tag ESCALATED after N."
     },
     "escalate_window_seconds": {
+      "description": "Sliding window for breach counting (default 1 hour).",
       "type": "number",
       "label": "Escalate Window (seconds)",
       "required": false,
@@ -64,16 +67,19 @@
       "description": "Shared SLA key. Defaults to asset_name. Set explicitly to group multiple assets under one SLA budget."
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
@@ -83,12 +89,14 @@
       "ui:widget": "list"
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false,
       "ui:widget": "key-value"
     },
     "kinds": {
+      "description": "Asset kinds. Default: ['python', 'sla', 'observability'].",
       "type": "array",
       "items": {
         "type": "string"

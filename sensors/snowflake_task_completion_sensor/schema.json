@@ -11,93 +11,109 @@
   },
   "attributes": {
     "sensor_name": {
+      "description": "Unique sensor name.",
       "type": "string",
       "label": "Sensor Name",
       "required": true
     },
     "task_name": {
+      "description": "Snowflake task to watch.",
       "type": "string",
       "label": "Task Name",
       "required": true
     },
     "database": {
+      "description": "Snowflake database holding the task.",
       "type": "string",
       "label": "Database",
       "required": true
     },
     "asset_key": {
+      "description": "Optional Dagster asset key. When set, the sensor yields AssetMaterialization(asset_key=...) on each new SUCCESS row in TASK_HISTORY. Use '/' separators for nested keys.",
       "type": "string",
       "label": "Asset Key",
       "required": false,
       "default": null
     },
     "job_name": {
+      "description": "Optional Dagster job to trigger via RunRequest on each new SUCCESS. When unset, the sensor is observe-only (AssetMaterialization without RunRequest).",
       "type": "string",
       "label": "Job Name",
       "required": false,
       "default": null
     },
     "account_env_var": {
+      "description": "Env var with Snowflake account.",
       "type": "string",
       "label": "Account Env Var",
       "required": true,
       "ui:widget": "env_var"
     },
     "user_env_var": {
+      "description": "Env var with Snowflake username.",
       "type": "string",
       "label": "User Env Var",
       "required": true,
       "ui:widget": "env_var"
     },
     "password_env_var": {
+      "description": "Env var with Snowflake password.",
       "type": "string",
       "label": "Password Env Var",
       "required": false,
       "ui:widget": "env_var"
     },
     "pat_env_var": {
+      "description": "Env var with Snowflake PAT.",
       "type": "string",
       "label": "PAT Env Var",
       "required": false,
       "ui:widget": "env_var"
     },
     "private_key_path_env_var": {
+      "description": "Env var with RSA private key path.",
       "type": "string",
       "label": "Private Key Path Env Var",
       "required": false,
       "ui:widget": "env_var"
     },
     "private_key_passphrase_env_var": {
+      "description": "Env var with private-key passphrase.",
       "type": "string",
       "label": "Private Key Passphrase Env Var",
       "required": false,
       "ui:widget": "env_var"
     },
     "warehouse_env_var": {
+      "description": "Env var with Snowflake warehouse.",
       "type": "string",
       "label": "Warehouse Env Var",
       "required": false,
       "ui:widget": "env_var"
     },
     "role_env_var": {
+      "description": "Env var with Snowflake role.",
       "type": "string",
       "label": "Role Env Var",
       "required": false,
       "ui:widget": "env_var"
     },
     "minimum_interval_seconds": {
+      "description": "Seconds between polls.",
       "type": "integer",
       "label": "Minimum Interval Seconds",
       "required": false,
       "default": 60
     },
     "lookback_minutes": {
+      "description": "How far back to query TASK_HISTORY each tick. Should be ≥ poll interval.",
       "type": "integer",
       "label": "Lookback Minutes",
       "required": false,
       "default": 10
     },
     "default_status": {
+      "description": "'running' or 'stopped'.",
       "type": "string",
       "label": "Default Status",
       "required": false,

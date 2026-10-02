@@ -8,22 +8,26 @@
   },
   "attributes": {
     "resource_key": {
+      "description": "Dagster resource key",
       "type": "string",
       "label": "Resource Key",
       "required": false,
       "default": "newrelic"
     },
     "api_key_env_var": {
+      "description": "Env var holding the User API key",
       "type": "string",
       "label": "Api Key Env Var",
       "required": true
     },
     "account_id": {
+      "description": "New Relic Account ID",
       "type": "string",
       "label": "Account Id",
       "required": true
     },
     "region": {
+      "description": "'US' or 'EU'",
       "type": "string",
       "label": "Region",
       "required": false,

@@ -199,26 +199,31 @@
       "default": 25
     },
     "platform": {
+      "description": "Source e-commerce platform to standardize",
       "type": "string",
       "label": "Platform",
       "required": true
     },
     "resource_type": {
+      "description": "Type of e-commerce resource to standardize",
       "type": "string",
       "label": "Resource Type",
       "required": true
     },
     "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
       "type": "integer",
       "label": "Retry Policy Max Retries",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
       "type": "integer",
       "label": "Retry Policy Delay Seconds",
       "required": false
     },
     "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,
@@ -231,6 +236,7 @@
       "ui:widget": "select"
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "items": {
         "type": "string"

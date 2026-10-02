@@ -16,16 +16,19 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Upstream asset key providing a DataFrame",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true
     },
     "mode": {
+      "description": "Renaming mode: first_row / add_prefix / add_suffix / replace / mapping / mapping_from_column",
       "type": "string",
       "enum": [
         "first_row",
@@ -48,23 +51,28 @@
       "x-dagster-widget": "columns"
     },
     "prefix": {
+      "description": "For mode=add_prefix",
       "type": "string",
       "label": "Prefix"
     },
     "suffix": {
+      "description": "For mode=add_suffix",
       "type": "string",
       "label": "Suffix"
     },
     "pattern": {
+      "description": "For mode=replace (regex)",
       "type": "string",
       "label": "Pattern (regex)"
     },
     "replacement": {
+      "description": "For mode=replace (replacement string; backrefs supported)",
       "type": "string",
       "default": "",
       "label": "Replacement"
     },
     "mapping": {
+      "description": "For mode=mapping: explicit {old: new} dict",
       "type": "object",
       "additionalProperties": {
         "type": "string"
@@ -72,20 +80,24 @@
       "label": "Mapping"
     },
     "mapping_asset_key": {
+      "description": "For mode=mapping_from_column: secondary asset providing the rename pairs",
       "type": "string",
       "label": "Mapping Asset Key"
     },
     "mapping_key_column": {
+      "description": "For mode=mapping_from_column: column in mapping_asset_key with the OLD names",
       "type": "string",
       "label": "Mapping Key Column",
       "x-dagster-widget": "column"
     },
     "mapping_value_column": {
+      "description": "For mode=mapping_from_column: column in mapping_asset_key with the NEW names",
       "type": "string",
       "label": "Mapping Value Column",
       "x-dagster-widget": "column"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name"
     }

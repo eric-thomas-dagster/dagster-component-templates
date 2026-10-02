@@ -11,16 +11,19 @@
   },
   "attributes": {
     "webhook_url_env_var": {
+      "description": "Env var with the incoming-webhook URL.",
       "type": "string",
       "label": "Webhook Url Env Var",
       "required": true
     },
     "timeout_seconds": {
+      "description": "HTTP timeout.",
       "type": "integer",
       "label": "Timeout Seconds",
       "required": true
     },
     "resource_key": {
+      "description": "Dagster resource key.",
       "type": "string",
       "label": "Resource Key",
       "required": true

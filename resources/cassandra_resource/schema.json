@@ -56,40 +56,47 @@
   "name": "Apache Cassandra Resource",
   "attributes": {
     "resource_key": {
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
       "type": "string",
       "label": "Resource Key",
       "required": false,
       "default": "cassandra_resource"
     },
     "hosts": {
+      "description": "Comma-separated Cassandra contact points, e.g. 'host1,host2,host3'",
       "type": "string",
       "label": "Hosts",
       "required": true
     },
     "port": {
+      "description": "Cassandra native transport port",
       "type": "integer",
       "label": "Port",
       "required": false,
       "default": 9042
     },
     "keyspace": {
+      "description": "Default keyspace to connect to",
       "type": "string",
       "label": "Keyspace",
       "required": false,
       "default": ""
     },
     "username": {
+      "description": "Cassandra username (leave empty for unauthenticated access)",
       "type": "string",
       "label": "Username",
       "required": false,
       "default": ""
     },
     "password_env_var": {
+      "description": "Environment variable holding the Cassandra password",
       "type": "string",
       "label": "Password Env Var",
       "required": false
     },
     "ssl": {
+      "description": "Enable TLS using the system default SSL context",
       "type": "boolean",
       "label": "Ssl",
       "required": false,

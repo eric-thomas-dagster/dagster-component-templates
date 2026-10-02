@@ -11,22 +11,26 @@
   },
   "attributes": {
     "api_token_env_var": {
+      "description": "Env var containing the HCP Terraform API token",
       "type": "string",
       "label": "API Token Env Var",
       "required": true
     },
     "organization": {
+      "description": "HCP Terraform organization name",
       "type": "string",
       "label": "Organization",
       "required": true
     },
     "workspace_filter": {
+      "description": "Substring filter on workspace name",
       "type": "string",
       "label": "Workspace Filter",
       "required": false,
       "default": null
     },
     "exclude_workspaces": {
+      "description": "Workspace names to exclude",
       "type": "array",
       "label": "Exclude Workspaces",
       "required": false,
@@ -37,6 +41,7 @@
       "ui:widget": "list"
     },
     "tags": {
+      "description": "Only include workspaces with ALL these tags",
       "type": "array",
       "label": "Tags",
       "required": false,
@@ -60,6 +65,7 @@
       "default": null
     },
     "plan_only": {
+      "description": "Create plan-only runs (no apply)",
       "type": "boolean",
       "label": "Plan Only",
       "required": false,
@@ -90,6 +96,7 @@
       "default": 3600
     },
     "assets_by_workspace_name": {
+      "description": "Override AssetSpec for specific HCP Terraform workspaces by name",
       "type": "object",
       "label": "Assets By Workspace Name",
       "required": false,

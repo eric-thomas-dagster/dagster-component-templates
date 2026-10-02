@@ -11,11 +11,13 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "columns": {
+      "description": "Column names, in order.",
       "type": "array",
       "items": {
         "type": "string"
@@ -37,18 +39,22 @@
       "required": false
     },
     "group_name": {"label": "Group Name", 
+      "description": "Dagster asset group name.",
       "type": "string",
       "required": false
     },
     "description": {"label": "Description", 
+      "description": "Asset description.",
       "type": "string",
       "required": false
     },
     "owners": {"label": "Owners", 
+      "description": "Asset owners.",
       "type": "array",
       "required": false
     },
     "asset_tags": {"label": "Asset Tags", 
+      "description": "Extra asset tags.",
       "type": "object",
       "required": false
     },
@@ -58,14 +64,17 @@
       "required": false
     },
     "deps": {"label": "Deps", 
+      "description": "Lineage-only upstream asset keys.",
       "type": "array",
       "required": false
     },
     "freshness_max_lag_minutes": {"label": "Freshness Max Lag Minutes", 
+      "description": "Maximum acceptable lag in minutes before the asset is considered stale. Defines a FreshnessPolicy.",
       "type": "integer",
       "required": false
     },
     "freshness_cron": {"label": "Freshness Cron", 
+      "description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
       "type": "string",
       "required": false,
       "x-dagster-widget": "cron"

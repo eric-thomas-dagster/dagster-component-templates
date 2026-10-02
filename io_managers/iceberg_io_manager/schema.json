@@ -11,27 +11,32 @@
   },
   "attributes": {
     "resource_key": {
+      "description": "Dagster resource key. Use 'io_manager' to make this the default.",
       "type": "string",
       "label": "Resource Key",
       "default": "io_manager",
       "required": false
     },
     "catalog_name": {
+      "description": "Catalog name to load.",
       "type": "string",
       "label": "Catalog Name",
       "required": true
     },
     "namespace": {
+      "description": "Iceberg namespace (e.g. 'analytics').",
       "type": "string",
       "label": "Namespace",
       "required": true
     },
     "catalog_uri": {
+      "description": "REST/Hive catalog URI.",
       "type": "string",
       "label": "Catalog Uri",
       "required": false
     },
     "warehouse": {
+      "description": "Warehouse path (s3://, gs://, file://).",
       "type": "string",
       "label": "Warehouse",
       "required": false

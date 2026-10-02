@@ -20,18 +20,21 @@
       "default": true
     },
     "import_notebooks": {
+      "description": "Notebooks become materializable @assets -- materializing them runs the notebook job.",
       "type": "boolean",
       "label": "Import Notebooks",
       "required": false,
       "default": false
     },
     "import_pipelines": {
+      "description": "Data Pipelines become materializable @assets.",
       "type": "boolean",
       "label": "Import Data Pipelines",
       "required": false,
       "default": true
     },
     "import_dataflows": {
+      "description": "Dataflow Gen2 become materializable @assets.",
       "type": "boolean",
       "label": "Import Dataflows",
       "required": false,
@@ -50,24 +53,28 @@
       "default": false
     },
     "filter_by_name_pattern": {
+      "description": "Regex applied to Fabric item display names for inclusion.",
       "type": "string",
       "label": "Filter By Name (regex)",
       "required": false,
       "default": null
     },
     "exclude_name_pattern": {
+      "description": "Regex applied to Fabric item display names for exclusion.",
       "type": "string",
       "label": "Exclude Name (regex)",
       "required": false,
       "default": null
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": "fabric"
     },
     "upstream_asset_keys": {
+      "description": "Asset keys that all imported assets wait for (lineage-only).",
       "type": "array",
       "items": {
         "type": "string"

@@ -16,16 +16,19 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Upstream DataFrame with a geometry column",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true
     },
     "method": {
+      "description": "`f'Operation to apply per row. One of: {sorted(_VALID_METHODS)}.'`",
       "type": "string",
       "enum": [
         "centroid",
@@ -44,32 +47,38 @@
       "required": true
     },
     "geometry_column": {
+      "description": "Input geometry column. Accepts Shapely objects or WKT/GeoJSON strings.",
       "type": "string",
       "default": "geometry",
       "label": "Input Geometry Column",
       "x-dagster-widget": "column"
     },
     "output_column": {
+      "description": "Output column name. Defaults to overwriting the input geometry column in place.",
       "type": "string",
       "label": "Output Column (defaults to in-place)",
       "x-dagster-widget": "column"
     },
     "tolerance": {
+      "description": "Douglas-Peucker tolerance for `method=simplify`.",
       "type": "number",
       "default": 0.0001,
       "label": "Simplify Tolerance"
     },
     "buffer_distance": {
+      "description": "Buffer distance for `method=buffer` (CRS units).",
       "type": "number",
       "default": 0.0,
       "label": "Buffer Distance (CRS units)"
     },
     "precision_decimals": {
+      "description": "Decimal places to keep for `method=set_precision`.",
       "type": "integer",
       "default": 6,
       "label": "Set-precision Decimals"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name"
     }

@@ -11,16 +11,19 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Dagster asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "image": {
+      "description": "Container image (e.g. 'my-registry/my-job:v1').",
       "type": "string",
       "label": "Image",
       "required": true
     },
     "command": {
+      "description": "Override container command.",
       "type": "array",
       "label": "Command",
       "required": false,
@@ -29,31 +32,37 @@
       }
     },
     "namespace": {
+      "description": "Kubernetes namespace.",
       "type": "string",
       "label": "Namespace",
       "required": true
     },
     "env_vars": {
+      "description": "Env vars to inject.",
       "type": "object",
       "label": "Env Vars",
       "required": false
     },
     "cpu_limit": {
+      "description": "CPU limit (e.g. '1000m').",
       "type": "string",
       "label": "Cpu Limit",
       "required": false
     },
     "memory_limit": {
+      "description": "Memory limit (e.g. '2Gi').",
       "type": "string",
       "label": "Memory Limit",
       "required": false
     },
     "group_name": {
+      "description": "Asset group.",
       "type": "string",
       "label": "Group Name",
       "required": true
     },
     "deps": {
+      "description": "Upstream asset keys.",
       "type": "array",
       "label": "Deps",
       "required": false,

@@ -11,16 +11,19 @@
   },
   "attributes": {
     "asset_key": {
+      "description": "Dagster asset key (e.g. 'snowflake/procs/transform_customers').",
       "type": "string",
       "label": "Asset Key",
       "required": true
     },
     "procedure_name": {
+      "description": "Name of the stored procedure.",
       "type": "string",
       "label": "Procedure Name",
       "required": true
     },
     "database": {
+      "description": "Snowflake database holding the proc.",
       "type": "string",
       "label": "Database",
       "required": true
@@ -34,65 +37,76 @@
       "ui:widget": "list"
     },
     "account_env_var": {
+      "description": "Env var with Snowflake account.",
       "type": "string",
       "label": "Account Env Var",
       "required": true,
       "ui:widget": "env_var"
     },
     "user_env_var": {
+      "description": "Env var with Snowflake username.",
       "type": "string",
       "label": "User Env Var",
       "required": true,
       "ui:widget": "env_var"
     },
     "password_env_var": {
+      "description": "Env var with Snowflake password.",
       "type": "string",
       "label": "Password Env Var",
       "required": false,
       "ui:widget": "env_var"
     },
     "pat_env_var": {
+      "description": "Env var with Snowflake PAT.",
       "type": "string",
       "label": "PAT Env Var",
       "required": false,
       "ui:widget": "env_var"
     },
     "private_key_path_env_var": {
+      "description": "Env var with RSA private key path.",
       "type": "string",
       "label": "Private Key Path Env Var",
       "required": false,
       "ui:widget": "env_var"
     },
     "private_key_passphrase_env_var": {
+      "description": "Env var with private-key passphrase.",
       "type": "string",
       "label": "Private Key Passphrase Env Var",
       "required": false,
       "ui:widget": "env_var"
     },
     "warehouse_env_var": {
+      "description": "Env var with Snowflake warehouse.",
       "type": "string",
       "label": "Warehouse Env Var",
       "required": false,
       "ui:widget": "env_var"
     },
     "role_env_var": {
+      "description": "Env var with Snowflake role.",
       "type": "string",
       "label": "Role Env Var",
       "required": false,
       "ui:widget": "env_var"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": "snowflake"
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
@@ -102,12 +116,14 @@
       "ui:widget": "list"
     },
     "asset_tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Asset Tags",
       "required": false,
       "ui:widget": "key-value"
     },
     "kinds": {
+      "description": "Asset kinds (auto-includes 'snowflake').",
       "type": "array",
       "items": {
         "type": "string"
@@ -117,6 +133,7 @@
       "ui:widget": "list"
     },
     "deps": {
+      "description": "Upstream Dagster asset keys.",
       "type": "array",
       "items": {
         "type": "string"

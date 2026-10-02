@@ -39,24 +39,28 @@
   "name": "Memcached Resource",
   "attributes": {
     "resource_key": {
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
       "type": "string",
       "label": "Resource Key",
       "required": false,
       "default": "memcached_resource"
     },
     "host": {
+      "description": "Memcached host",
       "type": "string",
       "label": "Host",
       "required": false,
       "default": "localhost"
     },
     "port": {
+      "description": "Memcached port",
       "type": "integer",
       "label": "Port",
       "required": false,
       "default": 11211
     },
     "timeout_seconds": {
+      "description": "Connect + read/write timeout",
       "type": "number",
       "label": "Timeout Seconds",
       "required": false,

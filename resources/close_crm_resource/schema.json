@@ -36,6 +36,7 @@
       "description": "Close REST API base URL."
     },
     "request_timeout_seconds": {
+      "description": "Per-request timeout in seconds.",
       "type": "integer",
       "label": "Request Timeout (seconds)",
       "required": false,

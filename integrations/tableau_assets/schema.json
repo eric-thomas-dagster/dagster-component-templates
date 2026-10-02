@@ -11,26 +11,31 @@
   },
   "attributes": {
     "server_url": {
+      "description": "Tableau server URL (e.g. 'https://10ay.online.tableau.com').",
       "type": "string",
       "label": "Server Url",
       "required": true
     },
     "site_name": {
+      "description": "Tableau site name.",
       "type": "string",
       "label": "Site Name",
       "required": true
     },
     "token_name_env_var": {
+      "description": "Env var with PAT name.",
       "type": "string",
       "label": "Token Name Env Var",
       "required": true
     },
     "token_value_env_var": {
+      "description": "Env var with PAT value.",
       "type": "string",
       "label": "Token Value Env Var",
       "required": true
     },
     "online": {
+      "description": "Tableau Online (vs Server).",
       "type": "boolean",
       "label": "Online",
       "required": true

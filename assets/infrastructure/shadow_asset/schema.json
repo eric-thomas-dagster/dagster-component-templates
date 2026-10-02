@@ -11,6 +11,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Required when NOT using `wraps:`.",
       "type": "string",
       "label": "Asset Name",
       "required": true
@@ -41,16 +42,19 @@
       "description": "false (default) observes; true raises dg.Failure on mismatch."
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
@@ -60,12 +64,14 @@
       "ui:widget": "list"
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false,
       "ui:widget": "key-value"
     },
     "kinds": {
+      "description": "Default: ['python', 'shadow'].",
       "type": "array",
       "items": {
         "type": "string"

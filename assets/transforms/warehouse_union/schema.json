@@ -8,26 +8,27 @@
     "outputs": {"type": "asset_reference"}
   },
   "attributes": {
-    "asset_name":           {"label": "Asset Name", "type": "string", "required": true},
+    "asset_name":           {"description": "Output Dagster asset name", "label": "Asset Name", "type": "string", "required": true},
     "database_url":         {"label": "Database URL", "type": "string"},
     "database_url_env_var": {"label": "Database URL Env Var", "type": "string"},
     "dialect":              {"label": "Dialect", "type": "string", "required": true,
+                             "description": "`f'SQL dialect: one of {sorted(_SUPPORTED_DIALECTS)}.'`",
                              "enum": ["duckdb","postgres","postgresql","snowflake","bigquery","redshift","databricks","mssql","mysql"]},
     "upstream_tables":      {"label": "Upstream Tables", "type": "array", "items": {"type": "string"}, "required": true,
                              "description": "Tables to union — at least 2."},
-    "output_table":         {"label": "Output Table", "type": "string", "required": true},
+    "output_table":         {"description": "Destination table name", "label": "Output Table", "type": "string", "required": true},
     "distinct":             {"label": "Distinct", "type": "boolean", "default": false,
                              "description": "True → UNION (drop duplicates); false → UNION ALL"},
     "select_cols":          {"label": "Select Cols", "type": "array", "items": {"type": "string"},
                              "description": "Optional common projection across input schemas."},
-    "mode":                 {"label": "Mode", "type": "string", "enum": ["replace","create_if_not_exists"], "default": "replace"},
-    "group_name":           {"label": "Group Name", "type": "string"},
-    "deps":                 {"label": "Deps", "type": "array", "items": {"type": "string"}},
-    "owners":               {"label": "Owners", "type": "array", "items": {"type": "string"}},
-    "description":          {"label": "Description", "type": "string"},
-    "asset_tags":           {"label": "Asset Tags", "type": "object"},
-    "kinds":                {"label": "Kinds", "type": "array", "items": {"type": "string"}},
-    "include_preview_metadata": {"label": "Include Preview Metadata", "type": "boolean", "default": false},
-    "preview_rows":         {"label": "Preview Rows", "type": "integer", "default": 25, "minimum": 1, "maximum": 200}
+    "mode":                 {"description": "'replace' or 'create_if_not_exists'", "label": "Mode", "type": "string", "enum": ["replace","create_if_not_exists"], "default": "replace"},
+    "group_name":           {"description": "Dagster asset group name.", "label": "Group Name", "type": "string"},
+    "deps":                 {"description": "Lineage-only upstream asset keys (no data passed at runtime).", "label": "Deps", "type": "array", "items": {"type": "string"}},
+    "owners":               {"description": "Asset owners.", "label": "Owners", "type": "array", "items": {"type": "string"}},
+    "description":          {"description": "Asset description.", "label": "Description", "type": "string"},
+    "asset_tags":           {"description": "Additional key-value tags applied to the asset in the Dagster catalog.", "label": "Asset Tags", "type": "object"},
+    "kinds":                {"description": "Asset kinds for the Dagster catalog.", "label": "Kinds", "type": "array", "items": {"type": "string"}},
+    "include_preview_metadata": {"description": "Include a preview of the output data in metadata (sample rows) for builder UIs.", "label": "Include Preview Metadata", "type": "boolean", "default": false},
+    "preview_rows":         {"description": "Rows to include in the preview metadata when `include_preview_metadata` is True.", "label": "Preview Rows", "type": "integer", "default": 25, "minimum": 1, "maximum": 200}
   }
 }

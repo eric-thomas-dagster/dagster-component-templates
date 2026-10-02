@@ -14,6 +14,7 @@
   "icon": "si:klaviyo",
   "attributes": {
     "asset_name": {
+      "description": "Dagster asset name",
       "label": "Asset Name",
       "type": "string",
       "required": true
@@ -37,11 +38,13 @@
       "description": "KlaviyoResourceComponent key."
     },
     "api_key_env_var": {
+      "description": "Inline auth fallback.",
       "label": "API Key Env Var",
       "type": "string",
       "required": false
     },
     "api_revision": {
+      "description": "Inline auth: API revision date (Klaviyo pins behavior per date).",
       "label": "API Revision",
       "type": "string",
       "required": false
@@ -53,27 +56,32 @@
       "description": "Optional Klaviyo list id to add all profiles to."
     },
     "fields_map": {
+      "description": "Explicit source_col -> klaviyo_field mapping. Reserved fields (email, phone_number, external_id, first_name, last_name, organization, title, image, location) land at the top level; everything else is nested under `properties`.",
       "label": "Fields Map",
       "type": "object",
       "required": false
     },
     "email_column": {
+      "description": "Column with the user's email address (Klaviyo's primary identifier for most workflows).",
       "label": "Email Column",
       "type": "string",
       "required": false,
       "default": "email"
     },
     "phone_column": {
+      "description": "Column with the user's phone number (E.164 format).",
       "label": "Phone Column",
       "type": "string",
       "required": false
     },
     "external_id_column": {
+      "description": "Column with your customer id (Klaviyo secondary identifier).",
       "label": "External ID Column",
       "type": "string",
       "required": false
     },
     "property_columns": {
+      "description": "For legacy pass-through (no fields_map): which columns become Klaviyo custom properties. Default: all columns except the identifier columns.",
       "label": "Property Columns",
       "type": "array",
       "items": {
@@ -100,16 +108,19 @@
       "default": 30
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "label": "Group Name",
       "type": "string",
       "required": false
     },
     "description": {
+      "description": "Asset description.",
       "label": "Description",
       "type": "string",
       "required": false
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "label": "Deps",
       "type": "array",
       "items": {
@@ -118,6 +129,7 @@
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "label": "Owners",
       "type": "array",
       "items": {
@@ -126,11 +138,13 @@
       "required": false
     },
     "asset_tags": {
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "label": "Asset Tags",
       "type": "object",
       "required": false
     },
     "kinds": {
+      "description": "Asset kinds for the Dagster catalog.",
       "label": "Kinds",
       "type": "array",
       "items": {
@@ -139,47 +153,56 @@
       "required": false
     },
     "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy.",
       "label": "Retry Policy Max Retries",
       "type": "integer",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "description": "Seconds between retries.",
       "label": "Retry Policy Delay Seconds",
       "type": "integer",
       "required": false
     },
     "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
       "label": "Retry Policy Backoff",
       "type": "string",
       "required": false,
       "default": "exponential"
     },
     "freshness_max_lag_minutes": {
+      "description": "Maximum acceptable lag in minutes before the asset is considered stale. Defines a FreshnessPolicy.",
       "label": "Freshness Max Lag Minutes",
       "type": "integer",
       "required": false
     },
     "freshness_cron": {
+      "description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
       "label": "Freshness Cron",
       "type": "string",
       "required": false
     },
     "partition_type": {
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned.",
       "label": "Partition Type",
       "type": "string",
       "required": false
     },
     "partition_start": {
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
       "label": "Partition Start",
       "type": "string",
       "required": false
     },
     "partition_values": {
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
       "label": "Partition Values",
       "type": "string",
       "required": false
     },
     "dynamic_partition_name": {
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
       "label": "Dynamic Partition Name",
       "type": "string",
       "required": false

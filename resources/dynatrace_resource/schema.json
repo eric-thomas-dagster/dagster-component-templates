@@ -8,17 +8,20 @@
   },
   "attributes": {
     "resource_key": {
+      "description": "Dagster resource key",
       "type": "string",
       "label": "Resource Key",
       "required": false,
       "default": "dynatrace"
     },
     "environment_url": {
+      "description": "Dynatrace environment URL",
       "type": "string",
       "label": "Environment Url",
       "required": true
     },
     "api_token_env_var": {
+      "description": "Env var holding the API token",
       "type": "string",
       "label": "Api Token Env Var",
       "required": true

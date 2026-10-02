@@ -17,6 +17,7 @@
       "description": "Inclusion/exclusion filter against 'flow_name/deployment_name' strings."
     },
     "wait_for_result": {
+      "description": "Wait for each triggered flow run to reach a terminal state before materializing.",
       "type": "boolean",
       "label": "Wait For Result",
       "required": false,
@@ -40,6 +41,7 @@
       "default": true
     },
     "forward_termination": {
+      "description": "Cancel the Prefect flow run if the Dagster run is terminated while waiting — same mechanism as prefect_flow_run.forward_termination.",
       "type": "boolean",
       "label": "Forward Termination",
       "required": false,
@@ -73,23 +75,27 @@
       "description": "Master switch for Dagster-side scheduling. A deployment only gets a schedule if it's ALSO named in assets_by_name.<name>.schedule: true — never inferred from Prefect's own schedule state."
     },
     "group_name": {
+      "description": "Group name for all imported assets.",
       "type": "string",
       "label": "Group Name",
       "required": false
     },
     "asset_key_prefix": {
+      "description": "Key prefix used for all emitted AssetKeys.",
       "type": "array",
       "label": "Asset Key Prefix",
       "required": false,
       "default": ["prefect"]
     },
     "compute_kind": {
+      "description": "Compute kind tag for all imported assets.",
       "type": "string",
       "label": "Compute Kind",
       "required": false,
       "default": "prefect"
     },
     "poll_interval_seconds_sensor": {
+      "description": "Minimum seconds between polling-sensor evaluations. Only consulted when polling_sensor: true.",
       "type": "integer",
       "label": "Sensor Poll Interval Seconds",
       "required": false,
@@ -103,6 +109,7 @@
       "description": "Watch ALL discovered deployments for completions triggered outside Dagster and emit an AssetObservation on the matching asset."
     },
     "defs_state": {
+      "description": "State backend for cached workspace discovery. Local filesystem by default.",
       "type": "object",
       "label": "Defs State Config",
       "required": false

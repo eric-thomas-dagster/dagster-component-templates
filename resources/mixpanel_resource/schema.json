@@ -4,7 +4,7 @@
   "category": "resource",
   "icon": "si:mixpanel",
   "attributes": {
-    "resource_key": {"label": "Resource Key", "type": "string", "required": false, "default": "mixpanel"},
+    "resource_key": {"description": "Resource key registered by MixpanelResourceComponent.", "label": "Resource Key", "type": "string", "required": false, "default": "mixpanel"},
     "project_id": {"label": "Project ID", "type": "string", "required": true, "description": "Mixpanel project ID (required for /import)."},
     "project_token_env_var": {"label": "Project Token Env Var", "type": "string", "required": false, "default": "MIXPANEL_PROJECT_TOKEN"},
     "service_account_username_env_var": {"label": "Service Account Username Env Var", "type": "string", "required": false, "default": "MIXPANEL_SERVICE_ACCOUNT_USERNAME"},

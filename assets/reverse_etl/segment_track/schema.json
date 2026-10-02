@@ -14,6 +14,7 @@
   "icon": "si:segment",
   "attributes": {
     "asset_name": {
+      "description": "Dagster asset name",
       "label": "Asset Name",
       "type": "string",
       "required": true
@@ -31,11 +32,13 @@
       "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."
     },
     "resource_key": {
+      "description": "SegmentResourceComponent key.",
       "label": "Resource Key",
       "type": "string",
       "required": true
     },
     "mode": {
+      "description": "`identify` = set/update user traits; `track` = record events.",
       "label": "Mode",
       "type": "string",
       "enum": [
@@ -46,6 +49,7 @@
       "required": false
     },
     "user_id_column": {
+      "description": "Column with userId (preferred Segment identifier).",
       "label": "User ID Column",
       "type": "string",
       "required": false
@@ -63,6 +67,7 @@
       "description": "Required for mode='track' (or set default_event)."
     },
     "default_event": {
+      "description": "For track mode: fallback event name when column is null.",
       "label": "Default Event",
       "type": "string",
       "required": false
@@ -92,6 +97,7 @@
       "description": "Alias for traits_map/properties_map when only one is needed."
     },
     "property_columns": {
+      "description": "Legacy pass-through: which columns become traits/properties. Default: all except identifier/reserved.",
       "label": "Property Columns",
       "type": "array",
       "items": {
@@ -112,16 +118,19 @@
       "default": false
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "label": "Group Name",
       "type": "string",
       "required": false
     },
     "description": {
+      "description": "Asset description.",
       "label": "Description",
       "type": "string",
       "required": false
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "label": "Deps",
       "type": "array",
       "items": {
@@ -130,6 +139,7 @@
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "label": "Owners",
       "type": "array",
       "items": {
@@ -138,11 +148,13 @@
       "required": false
     },
     "asset_tags": {
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "label": "Asset Tags",
       "type": "object",
       "required": false
     },
     "kinds": {
+      "description": "Asset kinds for the Dagster catalog.",
       "label": "Kinds",
       "type": "array",
       "items": {
@@ -151,47 +163,56 @@
       "required": false
     },
     "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy.",
       "label": "Retry Policy Max Retries",
       "type": "integer",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "description": "Seconds between retries.",
       "label": "Retry Policy Delay Seconds",
       "type": "integer",
       "required": false
     },
     "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
       "label": "Retry Policy Backoff",
       "type": "string",
       "required": false,
       "default": "exponential"
     },
     "freshness_max_lag_minutes": {
+      "description": "Maximum acceptable lag in minutes before the asset is considered stale. Defines a FreshnessPolicy.",
       "label": "Freshness Max Lag Minutes",
       "type": "integer",
       "required": false
     },
     "freshness_cron": {
+      "description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
       "label": "Freshness Cron",
       "type": "string",
       "required": false
     },
     "partition_type": {
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned.",
       "label": "Partition Type",
       "type": "string",
       "required": false
     },
     "partition_start": {
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
       "label": "Partition Start",
       "type": "string",
       "required": false
     },
     "partition_values": {
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
       "label": "Partition Values",
       "type": "string",
       "required": false
     },
     "dynamic_partition_name": {
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
       "label": "Dynamic Partition Name",
       "type": "string",
       "required": false

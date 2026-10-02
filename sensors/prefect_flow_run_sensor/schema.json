@@ -17,12 +17,14 @@
       "description": "Dagster job launched per new flow run."
     },
     "flow_name": {
+      "description": "Only fire for runs of this flow name. Combined with deployment_name AND-style.",
       "type": "string",
       "label": "Flow Name Filter",
       "required": false,
       "default": null
     },
     "deployment_name": {
+      "description": "Only fire for runs of this deployment. Combined with flow_name AND-style.",
       "type": "string",
       "label": "Deployment Name Filter",
       "required": false,

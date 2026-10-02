@@ -15,6 +15,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name",
       "type": "string",
       "required": true,
       "label": "Asset Name"
@@ -51,6 +52,7 @@
       "description": "Step id whose frame is the asset's return value (default: last step)"
     },
     "output_type": {
+      "description": "'polars' (default) or 'pandas' — what the asset returns.",
       "type": "string",
       "label": "Output Type",
       "enum": [
@@ -60,43 +62,52 @@
       "default": "polars"
     },
     "streaming": {
+      "description": "Use polars streaming engine for the final collect.",
       "type": "boolean",
       "label": "Streaming",
       "default": false
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Asset Group"
     },
     "description": {"label": "Description", 
+      "description": "Asset description.",
       "type": "string"
     },
     "asset_tags": {"label": "Asset Tags", 
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object"
     },
     "kinds": {"label": "Kinds", 
+      "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
     "owners": {"label": "Owners", 
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
     "deps": {"label": "Deps", 
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
     "include_preview_metadata": {"label": "Include Preview Metadata", 
+      "description": "Include a preview of the output data in metadata (sample rows) for builder UIs.",
       "type": "boolean",
       "default": false
     },
     "preview_rows": {"label": "Preview Rows", 
+      "description": "Rows to include in the preview metadata when `include_preview_metadata` is True.",
       "type": "integer",
       "default": 25,
       "minimum": 1,

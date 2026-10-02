@@ -36,12 +36,14 @@
       "ui:widget": "env_var"
     },
     "request_timeout_seconds": {
+      "description": "Per-request timeout in seconds.",
       "type": "integer",
       "label": "Request Timeout Seconds",
       "required": false,
       "default": 60
     },
     "max_retries": {
+      "description": "Retry attempts on 429 (honors Retry-After) / 5xx.",
       "type": "integer",
       "label": "Max Retries",
       "required": false,

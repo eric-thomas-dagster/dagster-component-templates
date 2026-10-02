@@ -57,38 +57,45 @@
   "name": "MySQL Resource",
   "attributes": {
     "resource_key": {
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
       "type": "string",
       "label": "Resource Key",
       "required": false,
       "default": "mysql_resource"
     },
     "host": {
+      "description": "MySQL host",
       "type": "string",
       "label": "Host",
       "required": true
     },
     "port": {
+      "description": "MySQL port",
       "type": "integer",
       "label": "Port",
       "required": false,
       "default": 3306
     },
     "database": {
+      "description": "Database name",
       "type": "string",
       "label": "Database",
       "required": true
     },
     "username": {
+      "description": "Database username",
       "type": "string",
       "label": "Username",
       "required": true
     },
     "password_env_var": {
+      "description": "Environment variable holding the database password",
       "type": "string",
       "label": "Password Env Var",
       "required": false
     },
     "ssl_disabled": {
+      "description": "Disable TLS. Default False (TLS required); set True only for trusted local networks.",
       "type": "boolean",
       "label": "Ssl Disabled",
       "required": false,

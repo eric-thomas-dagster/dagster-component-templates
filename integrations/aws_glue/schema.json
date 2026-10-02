@@ -11,6 +11,7 @@
   },
   "attributes": {
     "region_name": {
+      "description": "AWS region (e.g., us-east-1)",
       "type": "string",
       "label": "Region Name",
       "required": true

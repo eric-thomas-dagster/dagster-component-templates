@@ -5,6 +5,7 @@
   "icon": "Plug",
   "attributes": {
     "resource_key": {
+      "description": "Resource key registered by StarburstResourceComponent.",
       "type": "string",
       "label": "Resource Key",
       "required": false,

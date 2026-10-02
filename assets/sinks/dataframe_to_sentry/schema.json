@@ -14,62 +14,75 @@
   "icon": "AlertCircle",
   "attributes": {
     "asset_name": {"label": "Asset Name", 
+      "description": "Output asset name (this asset is a sink and returns None).",
       "type": "string",
       "required": true
     },
     "upstream_asset_key": {"label": "Upstream Asset Key", 
+      "description": "Upstream DataFrame asset.",
       "type": "string",
       "required": true
     },
     "dsn_env_var": {"label": "Dsn Env Var", 
+      "description": "Env var holding the Sentry DSN. Format: 'https://<key>@sentry.io/<project_id>'.",
       "type": "string",
       "required": false,
       "default": "SENTRY_DSN"
     },
     "environment": {"label": "Environment", 
+      "description": "Sentry environment tag (e.g. 'prod', 'staging'). Defaults to whatever the SDK detects.",
       "type": "string",
       "required": false
     },
     "release": {"label": "Release", 
+      "description": "Sentry release tag. Common: your app version, git SHA, or Dagster asset partition.",
       "type": "string",
       "required": false
     },
     "message_column": {"label": "Message Column", 
+      "description": "Name of the column whose value becomes the event's message text.",
       "type": "string",
       "required": false,
       "default": "message",
       "x-dagster-widget": "column"
     },
     "level_column": {"label": "Level Column", 
+      "description": "Column supplying the Sentry level per row (one of debug\\|info\\|warning\\|error\\|fatal). Rows with an unknown value get default_level.",
       "type": "string",
       "required": false,
       "x-dagster-widget": "column"
     },
     "default_level": {"label": "Default Level", 
+      "description": "Level applied when level_column is None or the row's value is not a valid level.",
       "type": "string",
       "required": false,
       "default": "info"
     },
     "tag_columns": {"label": "Tag Columns", 
+      "description": "Columns to attach to each event as searchable tags in Sentry.",
       "type": "array",
       "required": false,
       "x-dagster-widget": "columns"
     },
     "extra_columns": {"label": "Extra Columns", 
+      "description": "Columns to attach as extra (non-indexed) context in each event.",
       "type": "array",
       "required": false,
       "x-dagster-widget": "columns"
     },
     "fingerprint_columns": {"label": "Fingerprint Columns", 
+      "description": "Columns to combine into the event fingerprint (drives Sentry grouping). Default is Sentry's automatic grouping.",
       "type": "array",
       "required": false,
       "x-dagster-widget": "columns"
     },
     "description": {"label": "Description", 
+      "description": "Asset description.",
       "type": "string",
       "required": false
     },
     "group_name": {"label": "Group Name", 
+      "description": "Dagster asset group name.",
       "type": "string",
       "required": false,
       "default": "sentry"

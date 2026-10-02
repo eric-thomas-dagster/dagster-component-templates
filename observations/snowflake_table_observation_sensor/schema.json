@@ -83,12 +83,14 @@
       "ui:widget": "resource-picker"
     },
     "include_preview_metadata": {
+      "description": "Run an extra `SELECT * LIMIT preview_rows` against the table and include the result as a markdown preview on the AssetObservation.",
       "type": "boolean",
       "label": "Include Preview Metadata",
       "required": false,
       "default": false
     },
     "preview_rows": {
+      "description": "Rows in the preview SELECT when include_preview_metadata=True.",
       "type": "integer",
       "label": "Preview Rows",
       "required": false,

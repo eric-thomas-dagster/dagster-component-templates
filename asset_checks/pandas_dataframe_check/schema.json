@@ -11,11 +11,13 @@
   },
   "attributes": {
     "asset_key": {
+      "description": "Asset key the check validates.",
       "type": "string",
       "label": "Asset Key",
       "required": true
     },
     "required_columns": {
+      "description": "Columns that must be present.",
       "type": "array",
       "label": "Required Columns",
       "required": true,
@@ -25,11 +27,13 @@
       "x-dagster-widget": "columns"
     },
     "column_types": {
+      "description": "Mapping of column → expected dtype name (e.g. 'int64', 'object').",
       "type": "object",
       "label": "Column Types",
       "required": false
     },
     "blocking": {
+      "description": "If True, fail blocks downstream assets.",
       "type": "boolean",
       "label": "Blocking",
       "required": true

@@ -73,11 +73,13 @@
       "default": "huggingface"
     },
     "description": {
+      "description": "Asset description shown in the Dagster catalog.",
       "type": "string",
       "label": "Description",
       "required": false
     },
     "owners": {
+      "description": "Asset owners — team names ('team:ml') or emails.",
       "type": "array",
       "items": {
         "type": "string"
@@ -87,12 +89,14 @@
       "ui:widget": "list"
     },
     "asset_tags": {
+      "description": "Key-value tags applied in the catalog.",
       "type": "object",
       "label": "Asset Tags",
       "required": false,
       "ui:widget": "key-value"
     },
     "kinds": {
+      "description": "Asset kinds (auto-includes 'huggingface').",
       "type": "array",
       "items": {
         "type": "string"
@@ -102,6 +106,7 @@
       "ui:widget": "list"
     },
     "deps": {
+      "description": "Upstream asset keys this asset depends on.",
       "type": "array",
       "items": {
         "type": "string"

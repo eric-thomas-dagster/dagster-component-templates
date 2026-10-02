@@ -23,9 +23,9 @@
     "database_name": {"type": "string", "label": "Database Name", "description": "OpenMetadata Database name under the service.", "required": false, "default": "default"},
     "verify_ssl": {"type": "boolean", "label": "Verify SSL", "description": "Verify OpenMetadata's TLS cert.", "required": false, "default": true},
     "only_push_on_change": {"type": "boolean", "label": "Only Push on Change", "description": "Skip the catalog POST when the upstream payload_hash matches the last successfully pushed hash.", "required": false, "default": true},
-    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "lineage"},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "label": "Owners", "required": false},
-    "asset_tags": {"type": "object", "label": "Tags", "required": false}
+    "group_name": {"description": "Dagster asset group name.", "type": "string", "label": "Group Name", "required": false, "default": "lineage"},
+    "description": {"description": "Asset description.", "type": "string", "label": "Description", "required": false},
+    "owners": {"description": "Asset owners.", "type": "array", "label": "Owners", "required": false},
+    "asset_tags": {"description": "Additional key-value tags applied to the asset in the Dagster catalog.", "type": "object", "label": "Tags", "required": false}
   }
 }

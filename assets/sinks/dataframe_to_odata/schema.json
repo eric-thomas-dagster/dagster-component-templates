@@ -16,26 +16,31 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Dagster asset name",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Upstream asset producing the DataFrame to write",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true
     },
     "service_url": {
+      "description": "Base service URL",
       "type": "string",
       "label": "Service URL",
       "required": true
     },
     "entity_set": {
+      "description": "Entity set to write to",
       "type": "string",
       "label": "Entity Set",
       "required": true
     },
     "odata_version": {
+      "description": "'v2' (default) or 'v4'.",
       "type": "string",
       "label": "OData Version",
       "required": false,
@@ -67,6 +72,7 @@
       "x-dagster-widget": "column"
     },
     "auth_type": {
+      "description": "'basic' \\| 'bearer' \\| 'none'",
       "type": "string",
       "label": "Auth Type",
       "required": false,
@@ -94,6 +100,7 @@
       "required": false
     },
     "extra_headers": {
+      "description": "Extra HTTP headers (sap-client, sap-language, ...).",
       "type": "object",
       "label": "Extra Headers",
       "required": false,
@@ -113,6 +120,7 @@
       "ui:widget": "checkbox"
     },
     "skip_columns": {
+      "description": "Columns to drop before serializing the row body (e.g. internal pandas columns).",
       "type": "array",
       "items": {
         "type": "string"
@@ -123,6 +131,7 @@
       "x-dagster-widget": "columns"
     },
     "batch_mode": {
+      "description": "Use OData $batch protocol — bundles many writes into one HTTP request. Supported by S/4HANA and SuccessFactors. NOT supported by all OData servers; leave off unless you're sure.",
       "type": "boolean",
       "label": "Batch Mode ($batch)",
       "required": false,
@@ -130,6 +139,7 @@
       "ui:widget": "checkbox"
     },
     "batch_size": {
+      "description": "$batch chunk size when batch_mode=true",
       "type": "integer",
       "label": "Batch Size",
       "required": false,
@@ -154,18 +164,21 @@
       "default": 120
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
       "ui:widget": "code"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": "odata_sink"
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
@@ -175,12 +188,14 @@
       "ui:widget": "list"
     },
     "asset_tags": {
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object",
       "label": "Asset Tags",
       "required": false,
       "ui:widget": "key-value"
     },
     "kinds": {
+      "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "items": {
         "type": "string"
@@ -190,6 +205,7 @@
       "ui:widget": "list"
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "items": {
         "type": "string"
@@ -199,6 +215,7 @@
       "ui:widget": "list"
     },
     "partition_type": {
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned.",
       "type": "string",
       "label": "Partition Type",
       "required": false,
@@ -214,31 +231,37 @@
       "ui:widget": "select"
     },
     "partition_start": {
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
       "type": "string",
       "label": "Partition Start",
       "required": false
     },
     "partition_values": {
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
       "type": "string",
       "label": "Partition Values",
       "required": false
     },
     "dynamic_partition_name": {
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
       "type": "string",
       "label": "Dynamic Partition Name",
       "required": false
     },
     "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy.",
       "type": "integer",
       "label": "Retry Policy Max Retries",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "description": "Seconds between retries.",
       "type": "integer",
       "label": "Retry Policy Delay Seconds",
       "required": false
     },
     "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,

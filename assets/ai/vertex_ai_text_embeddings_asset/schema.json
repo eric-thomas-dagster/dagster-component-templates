@@ -11,11 +11,13 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Upstream DataFrame asset key.",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true
@@ -27,30 +29,35 @@
       "default": null
     },
     "credentials_path": {
+      "description": "Falls back to GOOGLE_APPLICATION_CREDENTIALS.",
       "type": "string",
       "label": "Credentials Path",
       "required": false,
       "default": null
     },
     "project_id": {
+      "description": "GCP project. Defaults to the SA's project.",
       "type": "string",
       "label": "Project ID",
       "required": false,
       "default": null
     },
     "location": {
+      "description": "Vertex AI region.",
       "type": "string",
       "label": "Location",
       "required": false,
       "default": "us-central1"
     },
     "text_column": {
+      "description": "Column with the text to embed.",
       "type": "string",
       "label": "Text Column",
       "required": true,
       "x-dagster-widget": "column"
     },
     "output_column": {
+      "description": "Column name for the resulting embedding vector.",
       "type": "string",
       "label": "Output Column",
       "required": false,
@@ -58,6 +65,7 @@
       "x-dagster-widget": "column"
     },
     "model_name": {
+      "description": "Vertex text-embedding model. Common options: text-embedding-004 (default, 768-dim, English-strong), text-multilingual-embedding-002 (multilingual, 768-dim), gemini-embedding-001 (768-dim, latest), text-embedding-005.",
       "type": "string",
       "label": "Model Name",
       "required": false,
@@ -82,12 +90,14 @@
       "ui:widget": "select"
     },
     "output_dimensionality": {
+      "description": "If supported by the model, truncate embeddings to this many dims (e.g. 256 / 512 to save vector-store space).",
       "type": "integer",
       "label": "Output Dimensionality",
       "required": false,
       "default": null
     },
     "batch_size": {
+      "description": "Texts per Vertex request (max 250 for most models).",
       "type": "integer",
       "label": "Batch Size",
       "required": false,
@@ -106,6 +116,7 @@
       "default": 3
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
@@ -113,12 +124,14 @@
       "ui:widget": "textarea"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": null
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "label": "Deps",
       "required": false,
@@ -127,11 +140,13 @@
       }
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "label": "Owners",
       "required": false,

@@ -4,7 +4,7 @@
   "category": "resource",
   "icon": "si:klaviyo",
   "attributes": {
-    "resource_key": {"label": "Resource Key", "type": "string", "required": false, "default": "klaviyo"},
+    "resource_key": {"description": "Resource key registered by KlaviyoResourceComponent.", "label": "Resource Key", "type": "string", "required": false, "default": "klaviyo"},
     "api_key_env_var": {"label": "API Key Env Var", "type": "string", "required": false, "default": "KLAVIYO_API_KEY"},
     "api_revision": {"label": "API Revision", "type": "string", "required": false, "default": "2024-10-15", "description": "Klaviyo API revision date sent in the `revision` header."},
     "base_url": {"label": "Base URL", "type": "string", "required": false, "default": "https://a.klaviyo.com"},

@@ -167,23 +167,27 @@
       "default": false
     },
     "include_preview_metadata": {
+      "description": "Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access.",
       "type": "boolean",
       "label": "Include Preview Metadata",
       "required": false,
       "default": false
     },
     "preview_rows": {
+      "description": "Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used.",
       "type": "integer",
       "label": "Preview Rows",
       "required": false,
       "default": 25
     },
     "description": {
+      "description": "Asset description shown in the Dagster catalog.",
       "type": "string",
       "label": "Description",
       "required": false
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "items": {
         "type": "string"
@@ -192,16 +196,19 @@
       "required": false
     },
     "retry_policy_max_retries": {
+      "description": "Max retries on failure. Defines a RetryPolicy when set.",
       "type": "integer",
       "label": "Retry Policy Max Retries",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
       "type": "integer",
       "label": "Retry Policy Delay Seconds",
       "required": false
     },
     "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,

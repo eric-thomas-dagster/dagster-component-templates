@@ -11,6 +11,7 @@
   },
   "attributes": {
     "asset_key": {
+      "description": "Dagster asset key (e.g. 'hf/chat/summary').",
       "type": "string",
       "label": "Asset Key",
       "required": true
@@ -39,18 +40,21 @@
       "ui:widget": "env_var"
     },
     "temperature": {
+      "description": "Sampling temperature (0.0–2.0).",
       "type": "number",
       "label": "Temperature",
       "required": false,
       "default": null
     },
     "max_tokens": {
+      "description": "Max output tokens.",
       "type": "integer",
       "label": "Max Tokens",
       "required": false,
       "default": null
     },
     "top_p": {
+      "description": "Nucleus sampling top_p.",
       "type": "number",
       "label": "Top P",
       "required": false,
@@ -64,23 +68,27 @@
       "default": "https://router.huggingface.co/v1"
     },
     "extra_kwargs": {
+      "description": "Additional kwargs forwarded to chat.completions.create() (e.g. stop, response_format).",
       "type": "object",
       "label": "Extra Kwargs",
       "required": false,
       "ui:widget": "key-value"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": "huggingface"
     },
     "description": {
+      "description": "Asset description shown in the Dagster catalog.",
       "type": "string",
       "label": "Description",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
@@ -90,12 +98,14 @@
       "ui:widget": "list"
     },
     "asset_tags": {
+      "description": "Key-value catalog tags.",
       "type": "object",
       "label": "Asset Tags",
       "required": false,
       "ui:widget": "key-value"
     },
     "kinds": {
+      "description": "Asset kinds (auto-includes 'huggingface').",
       "type": "array",
       "items": {
         "type": "string"
@@ -105,6 +115,7 @@
       "ui:widget": "list"
     },
     "deps": {
+      "description": "Upstream asset keys this asset depends on.",
       "type": "array",
       "items": {
         "type": "string"

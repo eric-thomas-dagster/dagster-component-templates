@@ -5,17 +5,20 @@
   "icon": "si:odata",
   "attributes": {
     "resource_key": {
+      "description": "Dagster resource key",
       "type": "string",
       "label": "Resource Key",
       "required": false,
       "default": "odata"
     },
     "service_url": {
+      "description": "Base service URL, e.g. 'https://my300000.s4hana.cloud.sap/sap/opu/odata/sap/API_BUSINESS_PARTNER'",
       "type": "string",
       "label": "Service URL",
       "required": true
     },
     "odata_version": {
+      "description": "'v2' (default) or 'v4'.",
       "type": "string",
       "label": "OData Version",
       "required": false,
@@ -41,31 +44,37 @@
       "ui:widget": "select"
     },
     "auth_username_env_var": {
+      "description": "auth_type=basic",
       "type": "string",
       "label": "Auth Username Env Var",
       "required": false
     },
     "auth_password_env_var": {
+      "description": "auth_type=basic",
       "type": "string",
       "label": "Auth Password Env Var",
       "required": false
     },
     "auth_token_env_var": {
+      "description": "auth_type=bearer — env var holding the bearer token",
       "type": "string",
       "label": "Auth Token Env Var",
       "required": false
     },
     "oauth_resource_key": {
+      "description": "auth_type=oauth_resource — name of an `oauth_token_resource` registered in the project that provides fresh access tokens. The session() method will read from that resource on each call.",
       "type": "string",
       "label": "OAuth Resource Key",
       "required": false
     },
     "sap_client": {
+      "description": "Sets the `sap-client` header (e.g. '100'). Skip on HANA Cloud / non-SAP backends.",
       "type": "string",
       "label": "sap-client header",
       "required": false
     },
     "csrf_fetch_path": {
+      "description": "For write APIs that require a CSRF token: relative path to fetch with `x-csrf-token: fetch`. The token is cached on the session. Optional.",
       "type": "string",
       "label": "CSRF Fetch Path",
       "required": false

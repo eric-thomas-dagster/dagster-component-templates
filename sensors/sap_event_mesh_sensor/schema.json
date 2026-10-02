@@ -5,26 +5,31 @@
   "icon": "si:sap",
   "attributes": {
     "sensor_name": {
+      "description": "Unique Dagster sensor name",
       "type": "string",
       "label": "Sensor Name",
       "required": true
     },
     "messaging_host": {
+      "description": "Event Mesh REST endpoint (e.g. https://my-tenant.messaging.eu10.hana.ondemand.com)",
       "type": "string",
       "label": "Messaging Host",
       "required": true
     },
     "queue_name": {
+      "description": "Event Mesh queue to consume from",
       "type": "string",
       "label": "Queue Name",
       "required": true
     },
     "oauth_token_resource_key": {
+      "description": "Key of a registered oauth_token_resource (client_credentials via XSUAA)",
       "type": "string",
       "label": "OAuth Token Resource Key",
       "required": true
     },
     "peek": {
+      "description": "If true: peek (don't pop) — for read-only observation. If false: consume (pop).",
       "type": "boolean",
       "label": "Peek (don't pop)",
       "required": false,
@@ -32,6 +37,7 @@
       "ui:widget": "checkbox"
     },
     "batch_size": {
+      "description": "Messages per poll",
       "type": "integer",
       "label": "Batch Size",
       "required": false,
@@ -57,11 +63,13 @@
       "ui:widget": "checkbox"
     },
     "job_name": {
+      "description": "Job to run per message. Mutually exclusive with asset_selection.",
       "type": "string",
       "label": "Job Name",
       "required": false
     },
     "asset_selection": {
+      "description": "Assets to materialize per message. Use with dynamic_partition_name.",
       "type": "array",
       "items": {
         "type": "string"
@@ -71,17 +79,20 @@
       "ui:widget": "list"
     },
     "dynamic_partition_name": {
+      "description": "If set: each message registers a new dynamic partition + fires a RunRequest with that partition key.",
       "type": "string",
       "label": "Dynamic Partition Name",
       "required": false
     },
     "partition_key_template": {
+      "description": "Template for the dynamic partition key. Supports {message_id} + any top-level field of the message body. Default '{message_id}'.",
       "type": "string",
       "label": "Partition Key Template",
       "required": false,
       "default": "{message_id}"
     },
     "tags_template": {
+      "description": "Tags to attach to each RunRequest. Templates resolved like partition_key_template.",
       "type": "object",
       "label": "Tags Template",
       "required": false,

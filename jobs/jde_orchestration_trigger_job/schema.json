@@ -5,6 +5,7 @@
   "icon": "PlayArrow",
   "attributes": {
     "job_name": {
+      "description": "Dagster job name.",
       "type": "string",
       "label": "Job Name",
       "required": true
@@ -49,6 +50,7 @@
       "default": 1800
     },
     "resource_key": {
+      "description": "Resource key registered by JDEOrchestratorResourceComponent.",
       "type": "string",
       "label": "Resource Key",
       "required": false,
@@ -72,6 +74,7 @@
       ]
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Job Tags",
       "required": false

@@ -42,22 +42,26 @@
   "name": "Google Firestore Resource",
   "attributes": {
     "resource_key": {
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
       "type": "string",
       "label": "Resource Key",
       "required": false,
       "default": "firestore_resource"
     },
     "project": {
+      "description": "GCP project ID",
       "type": "string",
       "label": "Project",
       "required": true
     },
     "gcp_credentials_env_var": {
+      "description": "Environment variable holding service account JSON. Leave empty to use Application Default Credentials.",
       "type": "string",
       "label": "Gcp Credentials Env Var",
       "required": false
     },
     "database": {
+      "description": "Firestore database ID. '(default)' targets the default database.",
       "type": "string",
       "label": "Database",
       "required": false,

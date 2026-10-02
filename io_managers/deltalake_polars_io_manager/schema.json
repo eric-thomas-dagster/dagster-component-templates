@@ -11,16 +11,19 @@
   },
   "attributes": {
     "resource_key": {
+      "description": "Dagster resource key for this IO manager. Use 'io_manager' to make it the default.",
       "type": "string",
       "label": "Resource Key",
       "required": true
     },
     "root_uri": {
+      "description": "Root path for Delta tables, e.g. '/data/delta', 's3://bucket/delta', 'az://container/delta'",
       "type": "string",
       "label": "Root Uri",
       "required": true
     },
     "schema_name": {
+      "description": "Default schema (subdirectory) under root_uri",
       "type": "string",
       "label": "Schema Name",
       "required": false

@@ -17,11 +17,13 @@
       "description": "Fivetran-shape selector: by_name / by_pattern / exclude_by_name / exclude_by_pattern."
     },
     "group_name": {
+      "description": "Group name for all imported assets.",
       "type": "string",
       "label": "Group Name",
       "required": false
     },
     "asset_key_prefix": {
+      "description": "Key prefix used for all emitted AssetKeys.",
       "type": "array",
       "label": "Asset Key Prefix",
       "required": false,
@@ -31,12 +33,14 @@
       ]
     },
     "compute_kind": {
+      "description": "Compute kind tag for all imported assets.",
       "type": "string",
       "label": "Compute Kind",
       "required": false,
       "default": "jde"
     },
     "async_mode": {
+      "description": "If true, submit orchestrations with ``?asynchronous=true`` so AIS returns a jobId immediately. Pairs with ``wait_for_completion`` to poll the status endpoint until terminal.",
       "type": "boolean",
       "label": "Async Mode",
       "required": false,
@@ -44,6 +48,7 @@
       "ui:widget": "checkbox"
     },
     "wait_for_completion": {
+      "description": "When ``async_mode`` is true, block on the AIS status endpoint until the orchestration reaches a terminal state (SUCCESS/COMPLETED/FAILED/ERROR/CANCELED). Ignored in synchronous mode.",
       "type": "boolean",
       "label": "Wait for Completion",
       "required": false,
@@ -51,18 +56,21 @@
       "ui:widget": "checkbox"
     },
     "poll_interval_seconds": {
+      "description": "How often (in seconds) to poll the AIS job-status endpoint in async mode.",
       "type": "integer",
       "label": "Poll Interval (s)",
       "required": false,
       "default": 15
     },
     "timeout_seconds": {
+      "description": "Overall deadline (seconds) for both the initial POST and the async job-status polling loop.",
       "type": "integer",
       "label": "Timeout (s)",
       "required": false,
       "default": 1800
     },
     "defs_state": {
+      "description": "State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for prod runs against Dagster Cloud.",
       "type": "object",
       "label": "Defs State Config",
       "required": false

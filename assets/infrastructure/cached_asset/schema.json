@@ -11,6 +11,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Dagster asset name. Required when NOT using `wraps:` (inherited from inner in wraps mode).",
       "type": "string",
       "label": "Asset Name",
       "required": true
@@ -48,6 +49,7 @@
       "description": "Cache expires when file mtime older than this. Omit for no TTL."
     },
     "format": {
+      "description": "Cache file format: parquet \\| csv \\| json.",
       "type": "string",
       "label": "Format",
       "required": false,
@@ -66,16 +68,19 @@
       "description": "Optional `mod:fn` callable — result stringified + mixed into cache key. Perfect for config-driven invalidation."
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
@@ -85,12 +90,14 @@
       "ui:widget": "list"
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false,
       "ui:widget": "key-value"
     },
     "kinds": {
+      "description": "Asset kinds. Default: ['python', 'cache'].",
       "type": "array",
       "items": {
         "type": "string"

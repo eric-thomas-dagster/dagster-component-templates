@@ -44,6 +44,7 @@
       "description": "Prefix segments prepended to every emitted asset key. Final key = [...prefix, cube|process|chore, name]."
     },
     "compute_kind": {
+      "description": "Compute kind tag for all imported assets.",
       "type": "string",
       "label": "Compute Kind",
       "required": false,

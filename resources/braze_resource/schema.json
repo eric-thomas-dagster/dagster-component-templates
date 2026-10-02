@@ -4,10 +4,10 @@
   "category": "resource",
   "icon": "si:braze",
   "attributes": {
-    "resource_key": {"type": "string", "required": false, "default": "braze", "label": "Resource Key"},
-    "api_key_env_var": {"type": "string", "required": false, "default": "BRAZE_API_KEY", "label": "API Key Env Var"},
+    "resource_key": {"description": "Dagster resource key. Downstream components reference this.", "type": "string", "required": false, "default": "braze", "label": "Resource Key"},
+    "api_key_env_var": {"description": "Env var holding the Braze REST API key.", "type": "string", "required": false, "default": "BRAZE_API_KEY", "label": "API Key Env Var"},
     "rest_endpoint": {"type": "string", "required": true, "label": "REST Endpoint", "description": "Region-specific Braze REST URL (https://rest.iad-01.braze.com, https://rest.iad-02.braze.com, https://rest.fra-01.braze.com, ...)."},
-    "request_timeout_seconds": {"type": "integer", "required": false, "default": 30, "label": "Request Timeout Seconds"}
+    "request_timeout_seconds": {"description": "Per-request HTTP timeout (seconds).", "type": "integer", "required": false, "default": 30, "label": "Request Timeout Seconds"}
   },
   "tags": ["resource", "braze", "reverse-etl", "customer-engagement", "marketing-activation", "rest-api"],
   "name": "Braze Resource"

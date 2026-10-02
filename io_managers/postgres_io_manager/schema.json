@@ -62,12 +62,14 @@
       "ui:widget": "select"
     },
     "default_schema": {
+      "description": "Schema used when asset key has only one component",
       "type": "string",
       "label": "Default Schema",
       "required": false,
       "default": "public"
     },
     "partition_column": {
+      "description": "Column name used to scope per-partition DELETE+INSERT writes",
       "type": "string",
       "label": "Partition Column",
       "required": false,

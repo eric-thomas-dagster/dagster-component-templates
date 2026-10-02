@@ -11,6 +11,7 @@
   },
   "attributes": {
     "asset_key": {
+      "description": "Dagster asset key (e.g. 'hf/images/marketing_hero').",
       "type": "string",
       "label": "Asset Key",
       "required": true
@@ -47,6 +48,7 @@
       "default": "{asset}_{index}_{slug}.png"
     },
     "hf_token_env_var": {
+      "description": "Env var with HF token.",
       "type": "string",
       "label": "HF Token Env Var",
       "required": false,
@@ -61,17 +63,20 @@
       "ui:widget": "key-value"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": "huggingface"
     },
     "description": {
+      "description": "Asset description shown in the Dagster catalog.",
       "type": "string",
       "label": "Description",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
@@ -81,12 +86,14 @@
       "ui:widget": "list"
     },
     "asset_tags": {
+      "description": "Key-value catalog tags.",
       "type": "object",
       "label": "Asset Tags",
       "required": false,
       "ui:widget": "key-value"
     },
     "kinds": {
+      "description": "Asset kinds (auto-includes 'huggingface').",
       "type": "array",
       "items": {
         "type": "string"
@@ -96,6 +103,7 @@
       "ui:widget": "list"
     },
     "deps": {
+      "description": "Upstream asset keys this asset depends on.",
       "type": "array",
       "items": {
         "type": "string"

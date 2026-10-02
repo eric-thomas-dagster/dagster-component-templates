@@ -4,11 +4,11 @@
   "category": "jobs",
   "icon": "Upload",
   "attributes": {
-    "job_name": {"label": "Job Name", "type": "string", "required": true},
-    "schedule": {"label": "Schedule", "type": "string", "required": false, "default": "*/15 * * * *", "x-dagster-widget": "cron"},
-    "default_status": {"label": "Default Status", "type": "string", "required": false, "default": "stopped", "enum": ["stopped", "running"]},
-    "tags": {"label": "Tags", "type": "object", "required": false, "default": null},
-    "warehouse": {"type": "string", "label": "Warehouse Type", "required": true, "enum": ["snowflake", "bigquery", "postgres"]},
+    "job_name": {"description": "Dagster job name", "label": "Job Name", "type": "string", "required": true},
+    "schedule": {"description": "Cron schedule; default every 15min.", "label": "Schedule", "type": "string", "required": false, "default": "*/15 * * * *", "x-dagster-widget": "cron"},
+    "default_status": {"description": "STOPPED \\| RUNNING", "label": "Default Status", "type": "string", "required": false, "default": "stopped", "enum": ["stopped", "running"]},
+    "tags": {"description": "Dagster job tags", "label": "Tags", "type": "object", "required": false, "default": null},
+    "warehouse": {"description": "Target warehouse type: snowflake \\| bigquery \\| postgres", "type": "string", "label": "Warehouse Type", "required": true, "enum": ["snowflake", "bigquery", "postgres"]},
 
     "snowflake_account": {"label": "Snowflake Account", "type": "string", "required": false, "default": null},
     "snowflake_user": {"label": "Snowflake User", "type": "string", "required": false, "default": null},
@@ -20,10 +20,10 @@
     "bq_project": {"label": "Bq Project", "type": "string", "required": false, "default": null},
     "bq_dataset": {"label": "Bq Dataset", "type": "string", "required": false, "default": null},
 
-    "postgres_dsn_env": {"label": "Postgres Dsn Env", "type": "string", "required": false, "default": "POSTGRES_DSN"},
+    "postgres_dsn_env": {"description": "Env var with the Postgres DSN.", "label": "Postgres Dsn Env", "type": "string", "required": false, "default": "POSTGRES_DSN"},
     "postgres_schema": {"label": "Postgres Schema", "type": "string", "required": false, "default": "public"},
 
-    "table": {"label": "Table", "type": "string", "required": false, "default": "dagster_run_history"},
+    "table": {"description": "Target table name (case sensitivity per warehouse).", "label": "Table", "type": "string", "required": false, "default": "dagster_run_history"},
     "initial_lookback_hours": {"label": "Initial Lookback Hours", "type": "integer", "required": false, "default": 48},
     "batch_limit": {"label": "Batch Limit", "type": "integer", "required": false, "default": 1000}
   }

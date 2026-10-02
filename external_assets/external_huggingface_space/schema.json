@@ -10,14 +10,14 @@
     }
   },
   "attributes": {
-    "asset_key": { "type": "string", "label": "Asset Key", "required": true },
+    "asset_key": {"description": "Dagster asset key (e.g. 'hf/spaces/my_app').", "type": "string", "label": "Asset Key", "required": true },
     "space_id": { "type": "string", "label": "Space ID", "description": "HuggingFace Space id (e.g. 'my-org/my-app')", "required": true },
-    "group_name": { "type": "string", "label": "Group Name", "required": false, "default": "huggingface" },
-    "description": { "type": "string", "label": "Description", "required": false },
-    "owners": { "type": "array", "items": { "type": "string" }, "label": "Owners", "required": false, "ui:widget": "list" },
-    "tags": { "type": "object", "label": "Tags", "required": false, "ui:widget": "key-value" },
-    "kinds": { "type": "array", "items": { "type": "string" }, "label": "Kinds", "required": false, "ui:widget": "list" },
-    "deps": { "type": "array", "items": { "type": "string" }, "label": "Deps", "required": false, "ui:widget": "list" }
+    "group_name": {"description": "Dagster asset group name.", "type": "string", "label": "Group Name", "required": false, "default": "huggingface" },
+    "description": {"description": "Asset description.", "type": "string", "label": "Description", "required": false },
+    "owners": {"description": "Asset owners.", "type": "array", "items": { "type": "string" }, "label": "Owners", "required": false, "ui:widget": "list" },
+    "tags": {"description": "Catalog tags.", "type": "object", "label": "Tags", "required": false, "ui:widget": "key-value" },
+    "kinds": {"description": "Asset kinds (auto-includes 'huggingface').", "type": "array", "items": { "type": "string" }, "label": "Kinds", "required": false, "ui:widget": "list" },
+    "deps": {"description": "Upstream Dagster asset keys.", "type": "array", "items": { "type": "string" }, "label": "Deps", "required": false, "ui:widget": "list" }
   },
   "tags": ["external", "huggingface", "space", "asset-spec"],
   "name": "External HuggingFace Space Asset"

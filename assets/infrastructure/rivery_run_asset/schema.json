@@ -120,6 +120,7 @@
       "ui:widget": "list"
     },
     "description": {
+      "description": "Asset description shown in the Dagster catalog.",
       "type": "string",
       "label": "Description",
       "required": false
@@ -131,6 +132,7 @@
       "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "partition_type": {
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned.",
       "type": "string",
       "label": "Partition Type",
       "required": false,
@@ -146,44 +148,52 @@
       "ui:widget": "select"
     },
     "partition_start": {
+      "description": "Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
       "type": "string",
       "label": "Partition Start",
       "required": false
     },
     "partition_date_column": {
+      "description": "Column used to filter the upstream DataFrame to the current date partition key.",
       "type": "string",
       "label": "Partition Date Column",
       "required": false,
       "x-dagster-widget": "column"
     },
     "partition_values": {
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'.",
       "type": "string",
       "label": "Partition Values",
       "required": false
     },
     "partition_static_dim": {
+      "description": "Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
       "type": "string",
       "label": "Partition Static Dim",
       "required": false,
       "x-dagster-widget": "column"
     },
     "partition_static_column": {
+      "description": "Column used to filter the upstream DataFrame to the current static partition value.",
       "type": "string",
       "label": "Partition Static Column",
       "required": false,
       "x-dagster-widget": "column"
     },
     "retry_policy_max_retries": {
+      "description": "Max retries on failure. Defines a RetryPolicy when set.",
       "type": "integer",
       "label": "Retry Policy Max Retries",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
       "type": "integer",
       "label": "Retry Policy Delay Seconds",
       "required": false
     },
     "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,

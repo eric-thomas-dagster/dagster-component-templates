@@ -11,36 +11,43 @@
   },
   "attributes": {
     "resource_key": {
+      "description": "Dagster resource key.",
       "type": "string",
       "label": "Resource Key",
       "required": true
     },
     "host": {
+      "description": "ClickHouse host (no protocol).",
       "type": "string",
       "label": "Host",
       "required": true
     },
     "port": {
+      "description": "ClickHouse port (8443 HTTPS, 8123 HTTP).",
       "type": "integer",
       "label": "Port",
       "required": true
     },
     "username_env_var": {
+      "description": "Env var with username.",
       "type": "string",
       "label": "Username Env Var",
       "required": true
     },
     "password_env_var": {
+      "description": "Env var with password.",
       "type": "string",
       "label": "Password Env Var",
       "required": true
     },
     "database": {
+      "description": "ClickHouse database.",
       "type": "string",
       "label": "Database",
       "required": true
     },
     "secure": {
+      "description": "Use HTTPS.",
       "type": "boolean",
       "label": "Secure",
       "required": true

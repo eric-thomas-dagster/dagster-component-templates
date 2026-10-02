@@ -12,18 +12,21 @@
   },
   "attributes": {
     "include_preview_metadata": {
+      "description": "Include a preview of the data being written / produced in metadata, so builder UIs can show output shape without warehouse access.",
       "type": "boolean",
       "label": "Include Preview Metadata",
       "required": false,
       "default": false
     },
     "preview_rows": {
+      "description": "Rows in the preview when include_preview_metadata=True. Random sample if len > 10x preview_rows; else head.",
       "type": "integer",
       "label": "Preview Rows",
       "required": false,
       "default": 25
     },
     "partition_type": {
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', or None for unpartitioned. With a partition type set, the partition key is exposed via context.partition_key for use in filtering / templating.",
       "type": "string",
       "label": "Partition Type",
       "required": false,
@@ -39,21 +42,25 @@
       "ui:widget": "select"
     },
     "partition_start": {
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required when partition_type is set.",
       "type": "string",
       "label": "Partition Start",
       "required": false
     },
     "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
       "type": "integer",
       "label": "Retry Policy Max Retries",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
       "type": "integer",
       "label": "Retry Policy Delay Seconds",
       "required": false
     },
     "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,
@@ -66,16 +73,19 @@
       "ui:widget": "select"
     },
     "description": {
+      "description": "Asset description shown in the Dagster catalog.",
       "type": "string",
       "label": "Description",
       "required": false
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false
     },
     "owners": {
+      "description": "Asset owners — team names ('team:analytics') or email addresses.",
       "type": "array",
       "items": {
         "type": "string"
@@ -84,11 +94,13 @@
       "required": false
     },
     "asset_tags": {
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object",
       "label": "Asset Tags",
       "required": false
     },
     "kinds": {
+      "description": "Asset kinds for the catalog (e.g. ['snowflake', 'python']). Auto-inferred from component name when unset.",
       "type": "array",
       "items": {
         "type": "string"
@@ -97,11 +109,13 @@
       "required": false
     },
     "freshness_max_lag_minutes": {
+      "description": "Maximum acceptable lag in minutes before the asset is considered stale. Builds a FreshnessPolicy when set.",
       "type": "integer",
       "label": "Freshness Max Lag Minutes",
       "required": false
     },
     "freshness_cron": {
+      "description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
       "type": "string",
       "label": "Freshness Cron",
       "required": false,
@@ -114,6 +128,7 @@
       "description": "Column-level lineage: output column \u2192 list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "items": {
         "type": "string"
@@ -122,23 +137,27 @@
       "required": false
     },
     "partition_date_column": {
+      "description": "Column used to filter the upstream DataFrame to the current date partition key.",
       "type": "string",
       "label": "Partition Date Column",
       "required": false,
       "x-dagster-widget": "column"
     },
     "partition_values": {
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'.",
       "type": "string",
       "label": "Partition Values",
       "required": false
     },
     "partition_static_dim": {
+      "description": "Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
       "type": "string",
       "label": "Partition Static Dim",
       "required": false,
       "x-dagster-widget": "column"
     },
     "partition_static_column": {
+      "description": "Column used to filter the upstream DataFrame to the current static partition value.",
       "type": "string",
       "label": "Partition Static Column",
       "required": false,

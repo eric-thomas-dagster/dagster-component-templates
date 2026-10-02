@@ -100,6 +100,7 @@
       "description": "Upstream Dagster asset keys (lineage only \u2014 no data passed at runtime)"
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
@@ -107,14 +108,17 @@
       "label": "Owners"
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description"
     },
     "asset_tags": {
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object",
       "label": "Asset Tags"
     },
     "kinds": {
+      "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "items": {
         "type": "string"

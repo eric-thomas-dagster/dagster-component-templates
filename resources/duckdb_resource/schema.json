@@ -30,12 +30,14 @@
   "name": "DuckDB Resource",
   "attributes": {
     "resource_key": {
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
       "type": "string",
       "label": "Resource Key",
       "required": false,
       "default": "duckdb_resource"
     },
     "database": {
+      "description": "DuckDB database path for the LOCAL session. Use ':memory:' for ephemeral, or a file path for persistence. When `quack_remote:` is set, this is just the local proxy — actual writes go to the remote.",
       "type": "string",
       "label": "Database",
       "required": false,

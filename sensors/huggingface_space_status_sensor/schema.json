@@ -11,6 +11,7 @@
   },
   "attributes": {
     "sensor_name": {
+      "description": "Unique sensor name.",
       "type": "string",
       "label": "Sensor Name",
       "required": true
@@ -47,12 +48,14 @@
       "ui:widget": "env_var"
     },
     "minimum_interval_seconds": {
+      "description": "Seconds between Hub API polls.",
       "type": "integer",
       "label": "Minimum Interval Seconds",
       "required": false,
       "default": 60
     },
     "default_status": {
+      "description": "'running' or 'stopped'.",
       "type": "string",
       "label": "Default Status",
       "required": false,

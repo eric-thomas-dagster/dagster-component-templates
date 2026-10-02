@@ -113,6 +113,7 @@
       "default": "gong"
     },
     "owners": {
+      "description": "Asset owners — list of team names or email addresses",
       "type": "array",
       "items": {
         "type": "string"
@@ -122,6 +123,7 @@
       "ui:widget": "list"
     },
     "asset_tags": {
+      "description": "Additional key-value tags to apply to the asset",
       "type": "object",
       "label": "Asset Tags",
       "required": false,
@@ -138,6 +140,7 @@
       "ui:widget": "list"
     },
     "include_preview_metadata": {
+      "description": "Include sample data preview in metadata",
       "type": "boolean",
       "label": "Include Preview Metadata",
       "required": false,
@@ -145,12 +148,14 @@
       "ui:widget": "checkbox"
     },
     "preview_rows": {
+      "description": "Rows to include in the preview metadata",
       "type": "integer",
       "label": "Preview Rows",
       "required": false,
       "default": 10
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime)",
       "type": "array",
       "items": {
         "type": "string"

@@ -8,12 +8,14 @@
   },
   "attributes": {
     "resource_key": {
+      "description": "Dagster resource key",
       "type": "string",
       "label": "Resource Key",
       "required": false,
       "default": "fabric"
     },
     "workspace_id": {
+      "description": "Fabric workspace ID (GUID)",
       "type": "string",
       "label": "Workspace Id",
       "required": true,

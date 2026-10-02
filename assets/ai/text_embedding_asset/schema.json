@@ -14,6 +14,7 @@
   },
   "attributes": {
     "asset_name": {"label": "Asset Name", 
+      "description": "Output asset name.",
       "type": "string",
       "required": true
     },
@@ -23,6 +24,7 @@
       "description": "List of literal strings to embed."
     },
     "api_key_env_var": {"label": "API Key Env Var", 
+      "description": "Env var containing the API key.",
       "type": "string",
       "required": false,
       "default": "OPENAI_API_KEY"
@@ -38,38 +40,46 @@
       "description": "Only for text-embedding-3-* models."
     },
     "text_column": {"label": "Text Column", 
+      "description": "Column name for the source text.",
       "type": "string",
       "required": false,
       "default": "text",
       "x-dagster-widget": "column"
     },
     "embedding_column": {"label": "Embedding Column", 
+      "description": "Column name for the embedding vector.",
       "type": "string",
       "required": false,
       "default": "embedding",
       "x-dagster-widget": "column"
     },
     "group_name": {"label": "Group Name", 
+      "description": "Asset group name.",
       "type": "string",
       "required": false
     },
     "description": {"label": "Description", 
+      "description": "Asset description.",
       "type": "string",
       "required": false
     },
     "owners": {"label": "Owners", 
+      "description": "Asset owners.",
       "type": "array",
       "required": false
     },
     "tags": {"label": "Tags", 
+      "description": "Catalog tags.",
       "type": "object",
       "required": false
     },
     "kinds": {"label": "Kinds", 
+      "description": "Asset kinds (auto-includes 'ai', 'embedding').",
       "type": "array",
       "required": false
     },
     "deps": {"label": "Deps", 
+      "description": "Upstream Dagster asset keys.",
       "type": "array",
       "required": false
     }

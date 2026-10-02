@@ -5,12 +5,14 @@
   "icon": "si:apacheiceberg",
   "attributes": {
     "resource_key": {
+      "description": "Dagster resource key",
       "type": "string",
       "label": "Resource Key",
       "required": false,
       "default": "iceberg"
     },
     "catalog_type": {
+      "description": "'rest' \\| 'glue' \\| 'hive' \\| 'hadoop' \\| 'sql'",
       "type": "string",
       "label": "Catalog Type",
       "required": false,
@@ -25,12 +27,14 @@
       "ui:widget": "select"
     },
     "catalog_name": {
+      "description": "PyIceberg local catalog identifier",
       "type": "string",
       "label": "Catalog Name",
       "required": false,
       "default": "default"
     },
     "catalog_properties": {
+      "description": "Catalog-specific config. ${ENV_VAR} expansion supported.",
       "type": "object",
       "label": "Catalog Properties",
       "required": false,

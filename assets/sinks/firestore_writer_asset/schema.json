@@ -11,11 +11,13 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Upstream DataFrame asset key.",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true
@@ -27,6 +29,7 @@
       "default": null
     },
     "credentials_path": {
+      "description": "Falls back to GOOGLE_APPLICATION_CREDENTIALS.",
       "type": "string",
       "label": "Credentials Path",
       "required": false,
@@ -45,6 +48,7 @@
       "default": "(default)"
     },
     "collection": {
+      "description": "Collection path (e.g. 'customers' or 'tenants/acme/customers').",
       "type": "string",
       "label": "Collection",
       "required": true
@@ -72,6 +76,7 @@
       "ui:widget": "select"
     },
     "drop_id_column_from_body": {
+      "description": "If True (default), the id_column is omitted from the doc body when used as id.",
       "type": "boolean",
       "label": "Drop ID Column from Body",
       "required": false,
@@ -85,6 +90,7 @@
       "description": "Firestore commit batch size (max 500)."
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
@@ -92,12 +98,14 @@
       "ui:widget": "textarea"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": null
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "label": "Deps",
       "required": false,
@@ -106,11 +114,13 @@
       }
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "label": "Owners",
       "required": false,

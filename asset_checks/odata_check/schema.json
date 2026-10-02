@@ -5,26 +5,31 @@
   "icon": "si:odata",
   "attributes": {
     "asset_key": {
+      "description": "Asset key to attach this check to",
       "type": "string",
       "label": "Asset Key",
       "required": true
     },
     "check_name": {
+      "description": "Check name. Defaults to 'odata_reachable_<entity_set>'.",
       "type": "string",
       "label": "Check Name",
       "required": false
     },
     "service_url": {
+      "description": "Base OData service URL",
       "type": "string",
       "label": "Service URL",
       "required": true
     },
     "entity_set": {
+      "description": "Entity collection to probe",
       "type": "string",
       "label": "Entity Set",
       "required": true
     },
     "odata_version": {
+      "description": "'v2' or 'v4'",
       "type": "string",
       "label": "OData Version",
       "required": false,
@@ -36,22 +41,26 @@
       "ui:widget": "select"
     },
     "filter": {
+      "description": "`$filter` predicate (applied to the count query).",
       "type": "string",
       "label": "$filter",
       "required": false
     },
     "min_rows": {
+      "description": "Fail if fewer than this many rows match.",
       "type": "integer",
       "label": "Min Rows",
       "required": false,
       "default": 1
     },
     "max_rows": {
+      "description": "Optional — fail if more than this many rows match.",
       "type": "integer",
       "label": "Max Rows",
       "required": false
     },
     "expect_columns": {
+      "description": "If set, the response's first row must contain all these columns; otherwise WARN/FAIL.",
       "type": "array",
       "items": {
         "type": "string"
@@ -62,6 +71,7 @@
       "x-dagster-widget": "columns"
     },
     "auth_type": {
+      "description": "'basic' \\| 'bearer' \\| 'none'",
       "type": "string",
       "label": "Auth Type",
       "required": false,
@@ -108,6 +118,7 @@
       "default": 60
     },
     "severity": {
+      "description": "'ERROR' (default) or 'WARN' on failure",
       "type": "string",
       "label": "Severity",
       "required": false,

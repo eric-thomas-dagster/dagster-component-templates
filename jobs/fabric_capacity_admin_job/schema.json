@@ -8,11 +8,13 @@
   },
   "attributes": {
     "job_name": {
+      "description": "Dagster job name (e.g. fabric_capacity_pause_nightly)",
       "type": "string",
       "label": "Job Name",
       "required": true
     },
     "action": {
+      "description": "'suspend' (pause billing) \\| 'resume' \\| 'scale' (change SKU)",
       "type": "string",
       "label": "Action",
       "required": false,
@@ -24,22 +26,26 @@
       ]
     },
     "target_sku": {
+      "description": "Required when action='scale'. Fabric SKU like 'F2', 'F4', 'F8', 'F16', 'F32', 'F64', 'F128', 'F256'.",
       "type": "string",
       "label": "Target Sku",
       "required": false,
       "default": null
     },
     "subscription_id": {
+      "description": "Azure subscription ID",
       "type": "string",
       "label": "Subscription Id",
       "required": true
     },
     "resource_group_name": {
+      "description": "Resource group containing the capacity",
       "type": "string",
       "label": "Resource Group Name",
       "required": true
     },
     "capacity_name": {
+      "description": "Fabric capacity name",
       "type": "string",
       "label": "Capacity Name",
       "required": true
@@ -63,6 +69,7 @@
       "default": null
     },
     "schedule": {
+      "description": "Cron schedule (e.g. '0 19 * * *' for 7pm daily, '0 6 * * 1-5' for 6am weekdays)",
       "type": "string",
       "label": "Schedule",
       "required": false,
@@ -80,6 +87,7 @@
       ]
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false,

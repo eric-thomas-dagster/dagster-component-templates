@@ -16,6 +16,7 @@
   },
   "attributes": {
     "database_url_env_var": {
+      "description": "Env var with SQLAlchemy database URL",
       "type": "string",
       "label": "Database URL Env Var",
       "required": true

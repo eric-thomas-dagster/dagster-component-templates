@@ -16,11 +16,13 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Upstream asset key — DataFrame with one row per vertex",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true
@@ -57,6 +59,7 @@
       "x-dagster-widget": "column"
     },
     "output_type": {
+      "description": "'polygon' (closed ring; auto-closes) or 'line' (open polyline)",
       "type": "string",
       "enum": [
         "polygon",
@@ -66,22 +69,26 @@
       "label": "Output Type"
     },
     "geometry_column": {
+      "description": "Output column name for the built Shapely geometry",
       "type": "string",
       "default": "geometry",
       "label": "Output Geometry Column",
       "x-dagster-widget": "column"
     },
     "crs": {
+      "description": "Coordinate reference system the lat/lng values are in (default WGS84)",
       "type": "string",
       "default": "EPSG:4326",
       "label": "CRS"
     },
     "keep_first_attributes": {
+      "description": "Carry forward the first vertex's row attributes onto the output (False = drop all non-key columns)",
       "type": "boolean",
       "default": true,
       "label": "Keep First Attributes"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name"
     }

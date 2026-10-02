@@ -13,6 +13,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output asset name.",
       "type": "string",
       "label": "Asset Name",
       "required": true
@@ -24,18 +25,21 @@
       "default": null
     },
     "credentials_path": {
+      "description": "Falls back to GOOGLE_APPLICATION_CREDENTIALS.",
       "type": "string",
       "label": "Credentials Path",
       "required": false,
       "default": null
     },
     "project_id": {
+      "description": "Billing project. Defaults to the SA's project.",
       "type": "string",
       "label": "Project ID",
       "required": false,
       "default": null
     },
     "location": {
+      "description": "BQ location. Default: auto-detect.",
       "type": "string",
       "label": "Location",
       "required": false,
@@ -51,6 +55,7 @@
       "description": "GCS URIs (glob/wildcard supported)."
     },
     "destination_table_id": {
+      "description": "Fully-qualified destination, e.g. `my-project.raw.events`.",
       "type": "string",
       "label": "Destination Table ID",
       "required": true
@@ -62,6 +67,7 @@
       "default": "parquet"
     },
     "write_disposition": {
+      "description": "WRITE_TRUNCATE replaces table contents; WRITE_APPEND adds rows; WRITE_EMPTY fails if table has rows.",
       "type": "string",
       "label": "Write Disposition",
       "required": false,
@@ -80,6 +86,7 @@
       "default": "CREATE_IF_NEEDED"
     },
     "autodetect": {
+      "description": "Let BQ auto-detect the schema. Set False + provide `schema` for production-strength loads.",
       "type": "boolean",
       "label": "Autodetect",
       "required": false,
@@ -93,18 +100,21 @@
       "description": "Explicit schema [{name, type, mode?}, ...]. Used when autodetect=false."
     },
     "skip_leading_rows": {
+      "description": "CSV-only: skip N header rows.",
       "type": "integer",
       "label": "Skip Leading Rows",
       "required": false,
       "default": null
     },
     "csv_field_delimiter": {
+      "description": "CSV-only: field delimiter.",
       "type": "string",
       "label": "CSV Field Delimiter",
       "required": false,
       "default": null
     },
     "csv_quote": {
+      "description": "CSV-only: quote char.",
       "type": "string",
       "label": "CSV Quote",
       "required": false,
@@ -117,6 +127,7 @@
       "default": false
     },
     "partition_field": {
+      "description": "Date/timestamp column for partitioning.",
       "type": "string",
       "label": "Partition Field",
       "required": false,
@@ -141,6 +152,7 @@
       "ui:widget": "select"
     },
     "cluster_fields": {
+      "description": "Columns to cluster on (max 4).",
       "type": "array",
       "label": "Cluster Fields",
       "required": false,
@@ -149,6 +161,7 @@
       }
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "label": "Deps",
       "required": false,
@@ -157,6 +170,7 @@
       }
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
@@ -164,17 +178,20 @@
       "ui:widget": "textarea"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": null
     },
     "tags": {
+      "description": "Catalog tags.",
       "type": "object",
       "label": "Tags",
       "required": false
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "label": "Owners",
       "required": false,

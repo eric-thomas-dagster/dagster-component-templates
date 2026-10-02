@@ -106,11 +106,13 @@
       "default": true
     },
     "description": {"label": "Description", 
+      "description": "Asset description.",
       "type": "string",
       "required": false,
       "default": null
     },
     "owners": {"label": "Owners", 
+      "description": "Asset owners.",
       "type": "array",
       "required": false,
       "default": null

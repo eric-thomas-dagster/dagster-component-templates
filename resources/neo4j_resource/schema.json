@@ -47,28 +47,33 @@
   "name": "Neo4j Resource",
   "attributes": {
     "resource_key": {
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
       "type": "string",
       "label": "Resource Key",
       "required": false,
       "default": "neo4j_resource"
     },
     "uri": {
+      "description": "Neo4j connection URI, e.g. 'neo4j+s://abc123.databases.neo4j.io' or 'bolt://localhost:7687'",
       "type": "string",
       "label": "Uri",
       "required": true
     },
     "username": {
+      "description": "Neo4j username",
       "type": "string",
       "label": "Username",
       "required": false,
       "default": "neo4j"
     },
     "password_env_var": {
+      "description": "Env var holding the Neo4j password. Set this OR password.",
       "type": "string",
       "label": "Password Env Var",
       "required": true
     },
     "database": {
+      "description": "Default database name",
       "type": "string",
       "label": "Database",
       "required": false,

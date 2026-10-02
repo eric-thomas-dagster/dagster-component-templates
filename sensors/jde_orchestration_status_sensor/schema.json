@@ -5,6 +5,7 @@
   "icon": "Bolt",
   "attributes": {
     "sensor_name": {
+      "description": "Unique sensor name.",
       "type": "string",
       "label": "Sensor Name",
       "required": true
@@ -23,11 +24,13 @@
       "description": "States that trigger the downstream job."
     },
     "job_name": {
+      "description": "Job to trigger.",
       "type": "string",
       "label": "Job Name",
       "required": true
     },
     "resource_key": {
+      "description": "Resource key registered by JDEOrchestratorResourceComponent.",
       "type": "string",
       "label": "Resource Key",
       "required": false,

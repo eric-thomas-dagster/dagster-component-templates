@@ -13,11 +13,11 @@
     "feeds_dir": {"type": "string", "label": "Feeds Directory", "required": true, "description": "Path to the folder of feed configs (relative to component YAML dir, or absolute)."},
     "file_glob": {"type": "string", "label": "File Glob", "required": false, "default": "*.json,*.yaml,*.yml", "description": "Comma-separated glob patterns for feed files."},
     "spark_config": {"type": "object", "label": "Spark Config", "required": false, "description": "Base SparkConf options applied to every feed. Feed-level `spark_config` overlays.", "ui:widget": "key-value"},
-    "spark_app_name_prefix": {"type": "string", "label": "Spark App Name Prefix", "required": false, "default": "dagster-pyspark-feed"},
+    "spark_app_name_prefix": {"description": "Spark app name is `<prefix>-<feed_name>`.", "type": "string", "label": "Spark App Name Prefix", "required": false, "default": "dagster-pyspark-feed"},
     "checkpoint_dir": {"type": "string", "label": "Checkpoint Dir", "required": false, "description": "Directory for per-feed checkpoint JSON files."},
     "group_name": {"type": "string", "label": "Group Name", "required": false, "description": "Fallback group name (feed-level `group_name` overrides)."},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
-    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"}
+    "kinds": {"description": "Fallback asset kinds. Default: ['pyspark', 'spark'].", "type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
+    "tags": {"description": "Fallback catalog tags (feed-level tags overlay).", "type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"}
   },
   "tags": ["transformation", "pyspark", "spark", "feed", "multi-asset", "folder-scan"],
   "name": "PySpark Feed Orchestrator"

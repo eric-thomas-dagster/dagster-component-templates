@@ -13,6 +13,7 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Dagster asset name",
       "type": "string",
       "label": "Asset Name",
       "required": true
@@ -43,16 +44,19 @@
       "ui:widget": "select"
     },
     "auth_token_env_var": {
+      "description": "Env var with the PAT (auth_type=pat).",
       "type": "string",
       "label": "Auth Token Env Var",
       "required": false
     },
     "auth_username_env_var": {
+      "description": "Env var with username (auth_type=password).",
       "type": "string",
       "label": "Auth Username Env Var",
       "required": false
     },
     "auth_password_env_var": {
+      "description": "Env var with password (auth_type=password).",
       "type": "string",
       "label": "Auth Password Env Var",
       "required": false
@@ -70,24 +74,28 @@
       "ui:widget": "select"
     },
     "flight_port": {
+      "description": "Flight SQL port (only used when transport='flight').",
       "type": "integer",
       "label": "Flight Port",
       "required": false,
       "default": 32010
     },
     "page_size": {
+      "description": "Rows per page when paging REST `/job/<id>/results` (Dremio max 500).",
       "type": "integer",
       "label": "Page Size",
       "required": false,
       "default": 500
     },
     "poll_interval_seconds": {
+      "description": "Seconds between job-status polls.",
       "type": "number",
       "label": "Poll Interval (s)",
       "required": false,
       "default": 1.0
     },
     "poll_timeout_seconds": {
+      "description": "Hard cap on job-completion wait.",
       "type": "integer",
       "label": "Poll Timeout (s)",
       "required": false,
@@ -101,18 +109,21 @@
       "ui:widget": "checkbox"
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
       "ui:widget": "code"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": "dremio"
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
@@ -122,12 +133,14 @@
       "ui:widget": "list"
     },
     "asset_tags": {
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object",
       "label": "Asset Tags",
       "required": false,
       "ui:widget": "key-value"
     },
     "kinds": {
+      "description": "Defaults to ['dremio', 'sql'].",
       "type": "array",
       "items": {
         "type": "string"
@@ -137,17 +150,20 @@
       "ui:widget": "list"
     },
     "freshness_max_lag_minutes": {
+      "description": "Maximum acceptable lag in minutes before the asset is considered stale. Defines a FreshnessPolicy.",
       "type": "integer",
       "label": "Freshness Max Lag (minutes)",
       "required": false
     },
     "freshness_cron": {
+      "description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
       "type": "string",
       "label": "Freshness Cron",
       "required": false,
       "x-dagster-widget": "cron"
     },
     "include_preview_metadata": {
+      "description": "Include a preview of the output data in metadata (sample rows) for builder UIs.",
       "type": "boolean",
       "label": "Include Preview Metadata",
       "required": false,
@@ -155,12 +171,14 @@
       "ui:widget": "checkbox"
     },
     "preview_rows": {
+      "description": "Rows to include in the preview metadata when `include_preview_metadata` is True.",
       "type": "integer",
       "label": "Preview Rows",
       "required": false,
       "default": 25
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "items": {
         "type": "string"
@@ -170,6 +188,7 @@
       "ui:widget": "list"
     },
     "partition_type": {
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned.",
       "type": "string",
       "label": "Partition Type",
       "required": false,
@@ -185,31 +204,37 @@
       "ui:widget": "select"
     },
     "partition_start": {
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
       "type": "string",
       "label": "Partition Start",
       "required": false
     },
     "partition_values": {
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
       "type": "string",
       "label": "Partition Values",
       "required": false
     },
     "dynamic_partition_name": {
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
       "type": "string",
       "label": "Dynamic Partition Name",
       "required": false
     },
     "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy.",
       "type": "integer",
       "label": "Retry Policy Max Retries",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "description": "Seconds between retries.",
       "type": "integer",
       "label": "Retry Policy Delay Seconds",
       "required": false
     },
     "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "label": "Retry Policy Backoff",
       "required": false,

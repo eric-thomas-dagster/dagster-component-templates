@@ -10,7 +10,7 @@
     }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "asset_name": {"description": "Output Dagster asset name.", "type": "string", "label": "Asset Name", "required": true},
     "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "default": null},
     "layers": {
       "type": "array",
@@ -33,11 +33,11 @@
       "default": null,
       "description": "Optional 'mod:fn' receiving (context, all_results: list). Returns the asset's final value."
     },
-    "group_name": {"type": "string", "label": "Group Name", "required": false},
-    "description": {"type": "string", "label": "Description", "required": false},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+    "group_name": {"description": "Dagster asset group name.", "type": "string", "label": "Group Name", "required": false},
+    "description": {"description": "Asset description.", "type": "string", "label": "Description", "required": false},
+    "owners": {"description": "Asset owners.", "type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "tags": {"description": "Catalog tags.", "type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"description": "Asset kinds for the Dagster catalog.", "type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
   },
   "tags": ["task", "fan-out", "dynamic", "runtime-graph", "decorator", "infrastructure"],
   "name": "Task Asset"

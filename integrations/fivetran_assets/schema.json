@@ -11,21 +11,25 @@
   },
   "attributes": {
     "account_id": {
+      "description": "Fivetran account ID.",
       "type": "string",
       "label": "Account Id",
       "required": true
     },
     "api_key_env_var": {
+      "description": "Env var with the Fivetran API key.",
       "type": "string",
       "label": "Api Key Env Var",
       "required": true
     },
     "api_secret_env_var": {
+      "description": "Env var with the Fivetran API secret.",
       "type": "string",
       "label": "Api Secret Env Var",
       "required": true
     },
     "connector_filter": {
+      "description": "Optional list of connector_ids to include.",
       "type": "array",
       "label": "Connector Filter",
       "required": false,
@@ -34,6 +38,7 @@
       }
     },
     "group_name": {
+      "description": "Asset group.",
       "type": "string",
       "label": "Group Name",
       "required": true

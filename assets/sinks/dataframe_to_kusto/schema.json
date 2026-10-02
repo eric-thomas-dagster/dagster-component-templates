@@ -8,37 +8,44 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Dagster asset name",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Asset key of upstream DataFrame",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true
     },
     "cluster_url": {
+      "description": "ADX cluster URL",
       "type": "string",
       "label": "Cluster Url",
       "required": true
     },
     "database": {
+      "description": "ADX database name",
       "type": "string",
       "label": "Database",
       "required": true
     },
     "table": {
+      "description": "Target Kusto table (must already exist with matching schema)",
       "type": "string",
       "label": "Table",
       "required": true
     },
     "use_streaming_ingestion": {
+      "description": "If true, use streaming ingestion (low latency). Cluster must have streaming ingestion enabled. Otherwise uses queued ingestion (durable, default for batch workloads).",
       "type": "boolean",
       "label": "Use Streaming Ingestion",
       "required": false,
       "default": false
     },
     "if_exists": {
+      "description": "'append' (default) \\| 'replace' (drops table contents first via .clear)",
       "type": "string",
       "label": "If Exists",
       "required": false,
@@ -67,18 +74,21 @@
       "default": null
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": null
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
       "default": null
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "label": "Deps",
       "required": false,
@@ -88,6 +98,7 @@
       }
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "label": "Owners",
       "required": false,
@@ -97,12 +108,14 @@
       }
     },
     "asset_tags": {
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object",
       "label": "Asset Tags",
       "required": false,
       "default": null
     },
     "kinds": {
+      "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "label": "Kinds",
       "required": false,

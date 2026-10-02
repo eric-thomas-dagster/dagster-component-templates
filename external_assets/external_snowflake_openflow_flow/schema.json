@@ -7,15 +7,15 @@
     "outputs": { "type": "AssetSpec", "description": "Declare-only external asset" }
   },
   "attributes": {
-    "asset_key": { "type": "string", "label": "Asset Key", "required": true },
+    "asset_key": {"description": "Dagster asset key (e.g. 'snowflake/openflow/customer_sync').", "type": "string", "label": "Asset Key", "required": true },
     "flow_name": { "type": "string", "label": "Flow Name", "description": "OpenFlow process-group name", "required": true },
-    "runtime_id": { "type": "string", "label": "Runtime ID", "required": false, "default": null },
-    "group_name": { "type": "string", "label": "Group Name", "required": false, "default": "snowflake" },
-    "description": { "type": "string", "label": "Description", "required": false },
-    "owners": { "type": "array", "items": { "type": "string" }, "label": "Owners", "required": false, "ui:widget": "list" },
-    "tags": { "type": "object", "label": "Tags", "required": false, "ui:widget": "key-value" },
-    "kinds": { "type": "array", "items": { "type": "string" }, "label": "Kinds", "required": false, "ui:widget": "list" },
-    "deps": { "type": "array", "items": { "type": "string" }, "label": "Deps", "required": false, "ui:widget": "list" }
+    "runtime_id": {"description": "OpenFlow runtime id (optional metadata).", "type": "string", "label": "Runtime ID", "required": false, "default": null },
+    "group_name": {"description": "Dagster asset group name.", "type": "string", "label": "Group Name", "required": false, "default": "snowflake" },
+    "description": {"description": "Asset description.", "type": "string", "label": "Description", "required": false },
+    "owners": {"description": "Asset owners.", "type": "array", "items": { "type": "string" }, "label": "Owners", "required": false, "ui:widget": "list" },
+    "tags": {"description": "Catalog tags.", "type": "object", "label": "Tags", "required": false, "ui:widget": "key-value" },
+    "kinds": {"description": "Asset kinds (auto-includes 'snowflake', 'openflow').", "type": "array", "items": { "type": "string" }, "label": "Kinds", "required": false, "ui:widget": "list" },
+    "deps": {"description": "Upstream Dagster asset keys.", "type": "array", "items": { "type": "string" }, "label": "Deps", "required": false, "ui:widget": "list" }
   },
   "tags": ["external", "snowflake", "openflow", "asset-spec"],
   "name": "External Snowflake OpenFlow Flow Asset"

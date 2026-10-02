@@ -11,11 +11,13 @@
   },
   "attributes": {
     "sensor_name": {
+      "description": "Unique sensor name.",
       "type": "string",
       "label": "Sensor Name",
       "required": true
     },
     "asset_keys": {
+      "description": "Slash-separated asset keys to materialize when an event matches.",
       "type": "array",
       "items": {
         "type": "string"
@@ -24,12 +26,14 @@
       "required": true
     },
     "minimum_interval_seconds": {
+      "description": "Minimum seconds between sensor evaluations.",
       "type": "integer",
       "label": "Minimum Interval Seconds",
       "default": 60,
       "required": false
     },
     "default_status": {
+      "description": "'RUNNING' or 'STOPPED'.",
       "type": "string",
       "label": "Default Status",
       "default": "stopped",
@@ -40,11 +44,13 @@
       "required": false
     },
     "feed_url": {
+      "description": "RSS or Atom feed URL.",
       "type": "string",
       "label": "Feed Url",
       "required": true
     },
     "max_entries_per_tick": {
+      "description": "Cap entries emitted per evaluation.",
       "type": "integer",
       "label": "Max Entries Per Tick",
       "required": true

@@ -15,24 +15,26 @@
     }
   },
   "attributes": {
-    "asset_name": { "type": "string", "label": "Asset Name", "required": true },
-    "upstream_asset_key": { "type": "string", "label": "Upstream Asset Key", "required": true },
+    "asset_name": {"description": "Output Dagster asset name", "type": "string", "label": "Asset Name", "required": true },
+    "upstream_asset_key": {"description": "Upstream asset key (DataFrame in)", "type": "string", "label": "Upstream Asset Key", "required": true },
     "script": { "type": "string", "label": "R Script", "required": true, "description": "R script body. Reads `df`, must assign `out_df`." },
     "backend": {
+      "description": "`f'Execution backend. One of: {list(_VALID_BACKENDS)}.'`",
       "type": "string",
       "enum": ["rpy2", "rscript"],
       "default": "rscript",
       "label": "Backend"
     },
-    "rscript_executable": { "type": "string", "default": "Rscript", "label": "Rscript Binary Path" },
+    "rscript_executable": {"description": "Path to the `Rscript` binary (only used when backend='rscript').", "type": "string", "default": "Rscript", "label": "Rscript Binary Path" },
     "intermediate_format": {
+      "description": "On-disk format for the DataFrame handoff to/from R: 'parquet' (requires arrow R pkg) or 'csv'.",
       "type": "string",
       "enum": ["parquet", "csv"],
       "default": "parquet",
       "label": "Handoff Format (rscript backend)"
     },
-    "r_packages": { "type": "array", "items": {"type": "string"}, "label": "R Packages To Install" },
-    "timeout_seconds": { "type": "integer", "default": 300, "label": "Rscript Timeout (seconds)" },
-    "group_name": { "type": "string", "label": "Group Name" }
+    "r_packages": {"description": "R packages to ensure are installed before running the script. Pre-install in your runtime image for production.", "type": "array", "items": {"type": "string"}, "label": "R Packages To Install" },
+    "timeout_seconds": {"description": "Max seconds the R subprocess may run (rscript backend only).", "type": "integer", "default": 300, "label": "Rscript Timeout (seconds)" },
+    "group_name": {"description": "Dagster asset group name.", "type": "string", "label": "Group Name" }
   }
 }

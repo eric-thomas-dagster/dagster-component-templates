@@ -11,26 +11,31 @@
   },
   "attributes": {
     "asset_key": {
+      "description": "Asset key the schema validates.",
       "type": "string",
       "label": "Asset Key",
       "required": true
     },
     "schema_module": {
+      "description": "Importable module containing the Pandera schema, e.g. 'mypkg.schemas'.",
       "type": "string",
       "label": "Schema Module",
       "required": true
     },
     "schema_name": {
+      "description": "Name of the DataFrameSchema variable in that module.",
       "type": "string",
       "label": "Schema Name",
       "required": true
     },
     "blocking": {
+      "description": "If True, schema failures block downstream materializations.",
       "type": "boolean",
       "label": "Blocking",
       "required": true
     },
     "description": {
+      "description": "Asset-check description.",
       "type": "string",
       "label": "Description",
       "required": false

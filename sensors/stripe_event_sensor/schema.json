@@ -11,11 +11,13 @@
   },
   "attributes": {
     "sensor_name": {
+      "description": "Unique sensor name.",
       "type": "string",
       "label": "Sensor Name",
       "required": true
     },
     "asset_keys": {
+      "description": "Slash-separated asset keys to materialize when an event matches.",
       "type": "array",
       "items": {
         "type": "string"
@@ -24,12 +26,14 @@
       "required": true
     },
     "minimum_interval_seconds": {
+      "description": "Minimum seconds between sensor evaluations.",
       "type": "integer",
       "label": "Minimum Interval Seconds",
       "default": 60,
       "required": false
     },
     "default_status": {
+      "description": "'RUNNING' or 'STOPPED'.",
       "type": "string",
       "label": "Default Status",
       "default": "stopped",
@@ -40,16 +44,19 @@
       "required": false
     },
     "api_key_env_var": {
+      "description": "Env var with the Stripe secret key.",
       "type": "string",
       "label": "Api Key Env Var",
       "required": true
     },
     "event_types": {
+      "description": "Stripe event types to listen for.",
       "type": "array",
       "label": "Event Types",
       "required": true
     },
     "limit_per_tick": {
+      "description": "Max events per evaluation.",
       "type": "integer",
       "label": "Limit Per Tick",
       "required": true

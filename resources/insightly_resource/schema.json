@@ -15,6 +15,7 @@
   ],
   "attributes": {
     "resource_key": {
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
       "type": "string",
       "label": "Resource Key",
       "required": false,
@@ -35,6 +36,7 @@
       "description": "Insightly pod identifier, from your account's API Settings page (directly under your API key), e.g. 'na1'."
     },
     "request_timeout_seconds": {
+      "description": "Per-request timeout in seconds.",
       "type": "integer",
       "label": "Request Timeout (seconds)",
       "required": false,

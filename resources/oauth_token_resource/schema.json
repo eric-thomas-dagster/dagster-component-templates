@@ -5,12 +5,14 @@
   "icon": "si:oauth",
   "attributes": {
     "resource_key": {
+      "description": "Dagster resource key",
       "type": "string",
       "label": "Resource Key",
       "required": false,
       "default": "oauth_token"
     },
     "token_endpoint": {
+      "description": "OAuth token URL (e.g. https://api.ariba.com/v2/oauth/token)",
       "type": "string",
       "label": "Token Endpoint URL",
       "required": true
@@ -39,16 +41,19 @@
       "required": false
     },
     "refresh_token_env_var": {
+      "description": "grant_type=refresh_token",
       "type": "string",
       "label": "Refresh Token Env Var",
       "required": false
     },
     "username_env_var": {
+      "description": "grant_type=password",
       "type": "string",
       "label": "Username Env Var",
       "required": false
     },
     "password_env_var": {
+      "description": "grant_type=password",
       "type": "string",
       "label": "Password Env Var",
       "required": false
@@ -60,16 +65,19 @@
       "required": false
     },
     "refresh_writeback_file": {
+      "description": "Simpler alternative: write the new refresh token to this file path. Useful for k8s persistent-volume scenarios.",
       "type": "string",
       "label": "Refresh Writeback File Path",
       "required": false
     },
     "scope": {
+      "description": "OAuth scope string (space-separated)",
       "type": "string",
       "label": "OAuth Scope",
       "required": false
     },
     "audience": {
+      "description": "Auth0-style audience parameter",
       "type": "string",
       "label": "OAuth Audience",
       "required": false
@@ -87,6 +95,7 @@
       "ui:widget": "select"
     },
     "extra_form_params": {
+      "description": "Additional form fields to include in the token request (vendor-specific).",
       "type": "object",
       "label": "Extra Form Params",
       "required": false,

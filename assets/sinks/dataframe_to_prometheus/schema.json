@@ -8,31 +8,37 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Dagster asset name",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Asset key of upstream DataFrame",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true
     },
     "pushgateway_url": {
+      "description": "Pushgateway URL, e.g. 'http://localhost:9091' or env-var-driven",
       "type": "string",
       "label": "Pushgateway Url",
       "required": true
     },
     "job": {
+      "description": "Prometheus job name (identifies the source group on the pushgateway)",
       "type": "string",
       "label": "Job",
       "required": true
     },
     "metric_name": {
+      "description": "Metric name (e.g. 'orders_total')",
       "type": "string",
       "label": "Metric Name",
       "required": true
     },
     "metric_type": {
+      "description": "'gauge' (default) \\| 'counter'. Counters can only go up; use gauge for arbitrary values.",
       "type": "string",
       "label": "Metric Type",
       "required": false,
@@ -43,18 +49,21 @@
       ]
     },
     "metric_help": {
+      "description": "Metric HELP text (description shown in Prometheus UI)",
       "type": "string",
       "label": "Metric Help",
       "required": false,
       "default": null
     },
     "value_column": {
+      "description": "DataFrame column containing the metric value (must be numeric)",
       "type": "string",
       "label": "Value Column",
       "required": true,
       "x-dagster-widget": "column"
     },
     "label_columns": {
+      "description": "Columns whose values become Prometheus labels on each metric sample",
       "type": "array",
       "label": "Label Columns",
       "required": false,
@@ -65,6 +74,7 @@
       "x-dagster-widget": "columns"
     },
     "grouping_key_columns": {
+      "description": "Columns whose values become the pushgateway 'grouping_key'. Pushes with the same job + grouping_key replace prior pushes (Prometheus replaces the entire group). Default: empty group.",
       "type": "array",
       "label": "Grouping Key Columns",
       "required": false,
@@ -81,18 +91,21 @@
       "default": null
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": null
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
       "default": null
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "label": "Deps",
       "required": false,
@@ -102,6 +115,7 @@
       }
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "label": "Owners",
       "required": false,
@@ -111,12 +125,14 @@
       }
     },
     "asset_tags": {
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object",
       "label": "Asset Tags",
       "required": false,
       "default": null
     },
     "kinds": {
+      "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "label": "Kinds",
       "required": false,

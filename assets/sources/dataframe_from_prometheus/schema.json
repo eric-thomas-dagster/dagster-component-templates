@@ -8,39 +8,46 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "server_url": {
+      "description": "Prometheus base URL (no trailing slash), e.g. 'https://prometheus.demo.do.prometheus.io', 'https://my-managed-prometheus.eastus.prometheus.monitor.azure.com', 'http://localhost:9090'",
       "type": "string",
       "label": "Server Url",
       "required": true
     },
     "query": {
+      "description": "PromQL query, e.g. 'rate(http_requests_total[5m])' or 'up{job=\"node\"}'",
       "type": "string",
       "label": "Query",
       "required": true
     },
     "range_query": {
+      "description": "False (default): instant query at time 'now' (single value per series). True: range query (returns a time series per matching series).",
       "type": "boolean",
       "label": "Range Query",
       "required": false,
       "default": false
     },
     "range_seconds": {
+      "description": "Range duration in seconds (only used when range_query=true). Default: last hour.",
       "type": "integer",
       "label": "Range Seconds",
       "required": false,
       "default": 3600
     },
     "step_seconds": {
+      "description": "Step (sample interval) in seconds for range queries. Default: 60s.",
       "type": "integer",
       "label": "Step Seconds",
       "required": false,
       "default": 60
     },
     "bearer_token_env_var": {
+      "description": "Env var holding a Bearer token for Authorization header. Required for Azure Managed Prometheus, Grafana Cloud, and any auth-protected server. For Azure Managed Prometheus: az account get-access-token --resource https://prometheus.monitor.azure.com",
       "type": "string",
       "label": "Bearer Token Env Var",
       "required": false,
@@ -59,24 +66,28 @@
       "default": null
     },
     "extra_headers": {
+      "description": "Optional headers (e.g. X-Scope-OrgID for Cortex/Mimir tenants)",
       "type": "object",
       "label": "Extra Headers",
       "required": false,
       "default": null
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name",
       "required": false,
       "default": null
     },
     "description": {
+      "description": "Asset description.",
       "type": "string",
       "label": "Description",
       "required": false,
       "default": null
     },
     "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "label": "Deps",
       "required": false,
@@ -86,6 +97,7 @@
       }
     },
     "owners": {
+      "description": "Asset owners.",
       "type": "array",
       "label": "Owners",
       "required": false,
@@ -95,12 +107,14 @@
       }
     },
     "asset_tags": {
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object",
       "label": "Asset Tags",
       "required": false,
       "default": null
     },
     "kinds": {
+      "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "label": "Kinds",
       "required": false,

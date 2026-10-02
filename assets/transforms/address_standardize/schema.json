@@ -16,22 +16,26 @@
   },
   "attributes": {
     "asset_name": {
+      "description": "Output Dagster asset name",
       "type": "string",
       "label": "Asset Name",
       "required": true
     },
     "upstream_asset_key": {
+      "description": "Upstream asset key (DataFrame)",
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true
     },
     "address_column": {
+      "description": "Column containing the raw address string (one address per row).",
       "type": "string",
       "label": "Address Column",
       "required": true,
       "x-dagster-widget": "column"
     },
     "provider": {
+      "description": "`f'Parser provider. One of: {list(_VALID_PROVIDERS)}.'`",
       "type": "string",
       "enum": [
         "libpostal",
@@ -44,36 +48,43 @@
       "required": true
     },
     "api_key_env_var": {
+      "description": "Env var for the provider's API key (geoapify). Ignored for libpostal / regex.",
       "type": "string",
       "default": "GEOAPIFY_API_KEY",
       "label": "API Key Env Var (geoapify)"
     },
     "user_agent": {
+      "description": "User-Agent header sent to Nominatim. Must be unique per app per ToS.",
       "type": "string",
       "default": "dagster-address-standardize",
       "label": "User-Agent (nominatim)"
     },
     "output_prefix": {
+      "description": "Prefix for emitted component columns (addr_house_number, addr_road, ...).",
       "type": "string",
       "default": "addr_",
       "label": "Output Column Prefix"
     },
     "keep_original": {
+      "description": "Keep the original address column in the output.",
       "type": "boolean",
       "default": true,
       "label": "Keep Original Address Column"
     },
     "rate_limit_seconds": {
+      "description": "Per-row delay for API-rate-limited providers (Nominatim defaults to 1.0).",
       "type": "number",
       "default": 1.0,
       "label": "Per-Row Rate Limit (seconds)"
     },
     "timeout_seconds": {
+      "description": "HTTP timeout per request for API providers.",
       "type": "integer",
       "default": 10,
       "label": "HTTP Timeout (seconds)"
     },
     "group_name": {
+      "description": "Dagster asset group name.",
       "type": "string",
       "label": "Group Name"
     }

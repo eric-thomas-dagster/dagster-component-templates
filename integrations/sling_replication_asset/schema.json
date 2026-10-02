@@ -11,16 +11,19 @@
   },
   "attributes": {
     "replication_config_path": {
+      "description": "Path to a Sling replication YAML file (relative to project root, or absolute).",
       "type": "string",
       "label": "Replication Config Path",
       "required": true
     },
     "group_name": {
+      "description": "Asset group applied to every stream in the replication.",
       "type": "string",
       "label": "Group Name",
       "required": true
     },
     "name": {
+      "description": "Op name for the replication run.",
       "type": "string",
       "label": "Name",
       "required": true

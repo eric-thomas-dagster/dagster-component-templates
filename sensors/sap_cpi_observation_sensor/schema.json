@@ -5,31 +5,37 @@
   "icon": "si:sap",
   "attributes": {
     "sensor_name": {
+      "description": "Unique Dagster sensor name",
       "type": "string",
       "label": "Sensor Name",
       "required": true
     },
     "tmn_host": {
+      "description": "Integration Suite Tenant Management Node URL (e.g. https://<tenant>.it-cpi<n>.cfapps.<region>.hana.ondemand.com)",
       "type": "string",
       "label": "TMN Host",
       "required": true
     },
     "iflow_id": {
+      "description": "iFlow IntegrationFlow ID to observe. Leave empty to observe ALL iFlows on the tenant.",
       "type": "string",
       "label": "IntegrationFlow ID",
       "required": false
     },
     "asset_key": {
+      "description": "Dagster asset key to emit observations for (slash-delimited)",
       "type": "string",
       "label": "Asset Key",
       "required": true
     },
     "oauth_token_resource_key": {
+      "description": "Key of a registered oauth_token_resource",
       "type": "string",
       "label": "OAuth Token Resource Key",
       "required": true
     },
     "only_statuses": {
+      "description": "Filter to specific MPL statuses: COMPLETED, FAILED, RETRY, etc. Default: all.",
       "type": "array",
       "items": {
         "type": "string"
@@ -51,6 +57,7 @@
       "default": 60
     },
     "batch_size": {
+      "description": "Max MPLs per poll",
       "type": "integer",
       "label": "Batch Size",
       "required": false,

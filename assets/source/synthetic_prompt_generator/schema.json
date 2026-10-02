@@ -105,15 +105,15 @@
       "default": false,
       "description": "Mode E: pepper adversarial / under-specified variants (every 3rd) for downstream robustness / eval flows."
     },
-    "description": {"label": "Description", "type": "string"},
-    "group_name": {"label": "Group Name", "type": "string", "default": "prompts"},
+    "description": {"description": "Asset description.", "label": "Description", "type": "string"},
+    "group_name": {"description": "Dagster asset group name.", "label": "Group Name", "type": "string", "default": "prompts"},
     "kinds": {"label": "Kinds", 
       "type": "array",
       "items": {"type": "string"},
       "description": "Asset kinds. Default: ['prompt', 'synthetic']."
     },
-    "tags": {"label": "Tags", "type": "object", "additionalProperties": {"type": "string"}},
-    "owners": {"label": "Owners", "type": "array", "items": {"type": "string"}},
-    "deps": {"label": "Deps", "type": "array", "items": {"type": "string"}}
+    "tags": {"description": "Catalog tags.", "label": "Tags", "type": "object", "additionalProperties": {"type": "string"}},
+    "owners": {"description": "Asset owners.", "label": "Owners", "type": "array", "items": {"type": "string"}},
+    "deps": {"description": "Lineage-only upstream asset keys (no data passed at runtime).", "label": "Deps", "type": "array", "items": {"type": "string"}}
   }
 }

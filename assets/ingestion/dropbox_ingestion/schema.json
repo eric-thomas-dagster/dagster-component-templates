@@ -324,6 +324,11 @@
                 "token": "motherduck_token"
               }
             }
+          },
+          "bigquery": {
+            "credential_format": "json_blob",
+            "description": "Paste the full GCP service-account key JSON (GCP Console -> IAM & Admin -> Service Accounts -> your account -> Keys -> Add Key -> JSON). Used verbatim -- dlt's GcpServiceAccountCredentials parses a raw JSON string directly, so no connection-string assembly happens here.",
+            "placeholder": "{\n  \"type\": \"service_account\",\n  \"project_id\": \"...\",\n  \"private_key\": \"...\",\n  \"client_email\": \"...\"\n}"
           }
         },
         "related_env_var_field": "destination_credentials_env_var"

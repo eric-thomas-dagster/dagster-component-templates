@@ -11,6 +11,10 @@
    `child_map` key entirely (confirmed against dagster_dbt's own identical
    workaround) -- include_exposures/include_metrics/include_semantic_models
    must still find their children by walking `depends_on.nodes` instead.
+5. `_patch_sqlglot_column_lineage_compat`: a shim for dagster-io/dagster#34098
+   (unmerged as of writing; also submitted as dagster-io/internal#27143).
+   Applies once, is idempotent on repeat calls/module reloads, and no-ops
+   once the installed dagster-dbt already has the real fix.
 """
 import dagster as dg
 import pytest
@@ -272,3 +276,52 @@ def test_include_exposures_still_works_against_a_fusion_shaped_manifest(mod, com
     exposures = exposures_md.value if hasattr(exposures_md, "value") else exposures_md
     assert len(exposures) == 1
     assert exposures[0]["name"] == "my_dashboard"
+
+
+def test_sqlglot_lineage_patch_applies_and_is_idempotent(mod):
+    import dagster_dbt.core.dbt_cli_event as cli_event_mod
+    import dagster_dbt.core.dbt_event_iterator as iterator_mod
+
+    # The module fixture already imported this component once (patching at
+    # module-load time), so by the time this test runs the patch should
+    # already be in place -- confirm that, then confirm calling it again
+    # (simulating a second component instance loading in the same process)
+    # is a safe no-op rather than crashing or double-wrapping.
+    assert getattr(
+        cli_event_mod._build_column_lineage_metadata,
+        "_is_sqlglot_lineage_compat_patch",
+        False,
+    )
+    assert cli_event_mod._build_column_lineage_metadata is iterator_mod._build_column_lineage_metadata
+
+    mod._patch_sqlglot_column_lineage_compat()
+    mod._patch_sqlglot_column_lineage_compat()
+
+    assert getattr(
+        cli_event_mod._build_column_lineage_metadata,
+        "_is_sqlglot_lineage_compat_patch",
+        False,
+    )
+
+
+def test_sqlglot_lineage_patch_no_ops_once_upstream_is_fixed(mod, monkeypatch):
+    import dagster_dbt.core.dbt_cli_event as cli_event_mod
+    import dagster_dbt.core.dbt_event_iterator as iterator_mod
+
+    def _already_fixed_upstream(*args, **kwargs):
+        """Stand-in for a hypothetical future dagster-dbt release that
+        already contains the real fix -- its source text would include
+        `optimized_node_sql`, same as our patched version does."""
+        optimized_node_sql = None  # noqa: F841
+        return {}
+
+    monkeypatch.setattr(cli_event_mod, "_build_column_lineage_metadata", _already_fixed_upstream)
+    monkeypatch.setattr(iterator_mod, "_build_column_lineage_metadata", _already_fixed_upstream)
+
+    mod._patch_sqlglot_column_lineage_compat()
+
+    # Must still be the exact function we set above -- the shim should have
+    # detected the upstream fix (via the `optimized_node_sql` marker in its
+    # source) and left it alone rather than wrapping it again.
+    assert cli_event_mod._build_column_lineage_metadata is _already_fixed_upstream
+    assert iterator_mod._build_column_lineage_metadata is _already_fixed_upstream

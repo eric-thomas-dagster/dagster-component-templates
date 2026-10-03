@@ -828,10 +828,101 @@ def _build_external_package_deps_map(
     return out
 
 
+def _patch_sqlglot_column_lineage_compat() -> None:
+    """Shim for dagster-io/dagster#34098 (unmerged as of writing).
+
+    dagster-dbt pins ``sqlglot[rs]<28.1.0`` because sqlglot 28.1 changed its
+    optimizer so that an already-optimized AST's CTE/join aliases can be
+    plain strings, which crashes ``sqlglot.lineage()`` (``AttributeError:
+    'str' object has no attribute 'copy'``) when the AST is passed to it
+    directly -- which is what dagster-dbt's ``_build_column_lineage_metadata``
+    does. The fix is one line: serialize the optimized AST back to SQL text
+    first, so sqlglot reparses it into the Expression-based form `lineage()`
+    expects. Verified independently (not just trusted from the PR) that this
+    produces IDENTICAL lineage output to the unpatched behavior on sqlglot
+    28.0 for a representative CTE+join query -- this is a compatibility
+    shim, not a behavior change.
+
+    This matters beyond just "no longer crashes": sqlglot 30.0.0 added CTE
+    lineage memoization (several-hundred-x faster on wide dbt models with
+    many columns, since dagster-dbt calls ``lineage()`` once per column
+    against the same compiled SQL) -- but dagster-dbt's own version pin
+    blocks installing sqlglot 30.x at all. If your project overrides that
+    pin (e.g. ``[tool.uv] override-dependencies = ["sqlglot>=30.0.0"]``),
+    this patch is what keeps column lineage working on the newer sqlglot
+    instead of crashing.
+
+    Safe to call repeatedly / on any dagster-dbt version: it inspects the
+    installed function's actual source and no-ops if the real fix is
+    already present (i.e. once dagster-dbt ships #34098 or an equivalent,
+    this shim stops doing anything -- delete it at that point rather than
+    leaving dead code).
+    """
+    import inspect
+    import re
+
+    import dagster_dbt.core.dbt_cli_event as _cli_event_mod
+    import dagster_dbt.core.dbt_event_iterator as _iterator_mod
+
+    original_fn = _cli_event_mod._build_column_lineage_metadata
+
+    # A prior call to this function (this process, or a re-import) already
+    # installed our patched function -- it carries this marker attribute
+    # instead of real source, so check that first and never re-inspect it
+    # via `inspect.getsource` (which raises OSError on an exec()-built
+    # function with a synthetic filename).
+    if getattr(original_fn, "_is_sqlglot_lineage_compat_patch", False):
+        return
+
+    try:
+        src = inspect.getsource(original_fn)
+    except OSError:
+        # Some other patch (ours from a different load, or a third party's)
+        # already replaced this with a function we can't introspect. Don't
+        # guess -- leave it alone rather than risk stacking patches.
+        return
+
+    if "optimized_node_sql" in src:
+        return  # upstream already fixed this -- nothing to patch
+
+    marker = "    # 2. Retrieve the column names from the current node."
+    if marker not in src:
+        dg.get_dagster_logger().warning(
+            "enriched_dbt_project: sqlglot column-lineage compat shim could not find "
+            "its expected anchor in the installed dagster-dbt's "
+            "_build_column_lineage_metadata (dagster-dbt version may have changed this "
+            "function's internals). Skipping the patch -- column lineage on sqlglot "
+            ">=28.1 may crash. See dagster-io/dagster#34098."
+        )
+        return
+
+    patched_src = src.replace(
+        marker,
+        "    optimized_node_sql = optimized_node_ast.sql(dialect=sql_dialect)\n" + marker,
+        1,
+    )
+    patched_src = re.sub(r"(\bsql=)optimized_node_ast\b", r"\1optimized_node_sql", patched_src)
+
+    namespace = dict(original_fn.__globals__)
+    exec(compile(patched_src, "<sqlglot_column_lineage_compat_patch>", "exec"), namespace)
+    patched_fn = namespace["_build_column_lineage_metadata"]
+    patched_fn._is_sqlglot_lineage_compat_patch = True
+
+    _cli_event_mod._build_column_lineage_metadata = patched_fn
+    _iterator_mod._build_column_lineage_metadata = patched_fn
+    dg.get_dagster_logger().info(
+        "enriched_dbt_project: applied sqlglot column-lineage compat shim "
+        "(dagster-io/dagster#34098) -- column lineage now works on sqlglot >=28.1, "
+        "including the 30.x CTE-memoization speedup if your project allows that version."
+    )
+
+
 try:
     from dagster_dbt.components.dbt_project.component import (
         DbtProjectComponent as _DbtProjectComponent,
     )
+
+    _patch_sqlglot_column_lineage_compat()
 
     @dataclass
     class EnrichedDbtProjectComponent(_DbtProjectComponent):

@@ -221,6 +221,36 @@ outside Dagster's visibility (an external system with no corresponding
 Dagster asset) and dbt's own `lag_tolerance` config is the only signal
 available at all.
 
+## sqlglot column-lineage compat shim (temporary)
+
+dagster-dbt pins `sqlglot[rs]<28.1.0` because that release's optimizer
+change crashes column-lineage generation for CTE/join queries
+(`AttributeError: 'str' object has no attribute 'copy'`). This component
+patches the fix in automatically at import time (serializing the
+optimized AST to SQL before the `lineage()` call — verified to produce
+identical lineage output to the unpatched behavior, not just a guess at
+compatibility) so column lineage keeps working even if your project
+overrides dagster-dbt's pin.
+
+**This alone doesn't give you a newer sqlglot** — dagster-dbt's own
+dependency metadata still caps it at `<28.1.0`, and that's enforced at
+install time, before this component ever runs. To actually get onto
+sqlglot 30.x (which adds lineage CTE memoization — a real speedup for
+wide dbt models with many columns, since lineage is computed once per
+column against the same compiled SQL), your project needs to override
+the pin itself, e.g. with `uv`:
+
+```toml
+[tool.uv]
+override-dependencies = ["sqlglot>=30.0.0"]
+```
+
+This is tracked upstream as [dagster-io/dagster#34098](https://github.com/dagster-io/dagster/pull/34098)
+(community PR, unmerged) and as an internal PR landing the same fix
+through our own process. Once either ships in a `dagster-dbt` release,
+this shim detects the real fix is present and no-ops — delete it at that
+point rather than leaving dead code around.
+
 ## Related
 
 - **[`EnrichedDbtCloudWorkspaceComponent`](../enriched_dbt_cloud_workspace/README.md)** — same enrichment vocabulary for dbt Cloud

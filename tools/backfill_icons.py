@@ -91,12 +91,15 @@ VENDOR_ICONS: list[tuple[str, str]] = [
     ("firebase", "si:firebase"),
     ("googlebigquery", "si:googlebigquery"),
     ("google",   "si:googlecloud"),
+    ("dataform", "si:googlecloud"),   # Google Cloud Dataform
     ("adls",     "si:microsoftazure"),
     ("synapse",  "si:microsoftazure"),
     ("azuresql", "si:microsoftazure"),
     ("azure_",   "si:microsoftazure"),
     ("_azure",   "si:microsoftazure"),
     ("azure",    "si:microsoftazure"),
+    ("fabric",   "si:microsoftazure"),   # Microsoft Fabric (no dedicated SI mark yet)
+    ("key_vault", "si:microsoftazure"),  # Azure Key Vault
     ("microsoft", "si:microsoftazure"),
 
     # ─── Databases ──────────────────────────────────────────────────
@@ -109,6 +112,7 @@ VENDOR_ICONS: list[tuple[str, str]] = [
     ("mysql",     "si:mysql"),
     ("mariadb",   "si:mariadb"),
     ("oracle",    "si:oracle"),
+    ("jde",       "si:oracle"),   # JD Edwards EnterpriseOne is an Oracle product
     ("mssql",     "si:microsoftsqlserver"),
     ("db2",       "si:ibm"),
     ("mongodb",   "si:mongodb"),
@@ -123,6 +127,7 @@ VENDOR_ICONS: list[tuple[str, str]] = [
     ("duckdb",    "si:duckdb"),
     ("sqlite",    "si:sqlite"),
     ("influxdb",  "si:influxdb"),
+    ("timescaledb", "si:timescale"),  # compound word; must precede "timescale" below
     ("timescale", "si:timescale"),
     ("cockroach", "si:cockroachlabs"),
     ("apachedoris", "si:apache"),   # apachedoris slug missing; fall back to apache mark
@@ -197,6 +202,7 @@ VENDOR_ICONS: list[tuple[str, str]] = [
     ("opentelemetry", "si:opentelemetry"),
     ("otel",      "si:opentelemetry"),
     ("otlp",      "si:opentelemetry"),
+    ("dynatrace", "si:dynatrace"),
     ("sentry",    "si:sentry"),
     ("posthog",   "si:posthog"),
 
@@ -216,6 +222,7 @@ VENDOR_ICONS: list[tuple[str, str]] = [
 
     # ─── SaaS / apps ────────────────────────────────────────────────
     ("slack",     "si:slack"),
+    ("msteams",   "si:microsoftteams"),  # compound word; "teams" alone wouldn't match it
     ("teams",     "si:microsoftteams"),
     ("discord",   "si:discord"),
     ("github",    "si:github"),
@@ -228,10 +235,16 @@ VENDOR_ICONS: list[tuple[str, str]] = [
     ("twilio",    "si:twilio"),
     ("sendgrid",  "si:twilio"),
     ("salesforce", "si:salesforce"),
+    ("marketo",   "si:marketo"),
     ("hubspot",   "si:hubspot"),
     ("shopify",   "si:shopify"),
     ("airtable",  "si:airtable"),
     ("zapier",    "si:zapier"),
+    # Must precede the bare "linear" entry below: linear_regression_model
+    # is an ML component, not Linear.app, but "linear" alone matches it
+    # (word-boundary on "_" either side). No vendor/favicon for this one
+    # -- falls through to the "analytics" category default (BarChart2).
+    ("linear_regression", None),
     ("linear",    "si:linear"),
     ("zendesk",   "si:zendesk"),
     ("intercom",  "si:intercom"),
@@ -262,11 +275,30 @@ VENDOR_ICONS: list[tuple[str, str]] = [
     ("sap",       "si:sap"),
     ("dynamics",  "si:microsoft"),
     ("msgraph",   "si:microsoft"),
+    ("servicenow", None),              # no SI
+    ("cognos",    None),               # IBM Cognos -- no SI; favicon fallback
+    ("tm1",       None),               # IBM Planning Analytics/TM1 -- no SI
+    ("qlik",      None),               # no SI (covers Compose + Replicate)
+    ("starburst", None),               # no SI
 
     # ─── Payments / finance ─────────────────────────────────────────
     ("plaid",     None),              # no SI
     ("quickbooks", "si:quickbooks"),
     ("xero",      "si:xero"),
+    ("payscale",  None),              # no SI
+
+    # ─── Billing / customer success (mostly no SI marks) ────────────
+    ("chargebee", None),
+    ("recurly",   None),
+    ("zuora",     None),
+    ("churnzero", None),
+    ("gainsight", None),
+    ("insightly", None),
+    ("totango",   None),
+    ("vitally",   None),
+    ("copper",    None),               # Copper CRM
+    ("zocdoc",    None),
+    ("papertrail", None),              # SolarWinds Papertrail -- no SI
 
     # ─── Container / package ────────────────────────────────────────
     ("apache",    "si:apache"),
@@ -331,6 +363,23 @@ VENDOR_FAVICONS: dict[str, str] = {
     "starrocks":     "starrocks.io",
     "nats":          "nats.io",
     "ibm":           "ibm.com",
+    "servicenow":    "servicenow.com",
+    "cognos":        "ibm.com",
+    "tm1":           "ibm.com",
+    "qlik":          "qlik.com",
+    "starburst":     "starburst.io",
+    "payscale":      "payscale.com",
+    "chargebee":     "chargebee.com",
+    "recurly":       "recurly.com",
+    "zuora":         "zuora.com",
+    "churnzero":     "churnzero.net",
+    "gainsight":     "gainsight.com",
+    "insightly":     "insightly.com",
+    "totango":       "totango.com",
+    "vitally":       "vitally.io",
+    "copper":        "copper.com",
+    "zocdoc":        "zocdoc.com",
+    "papertrail":    "papertrailapp.com",
 }
 
 
@@ -392,11 +441,13 @@ def should_replace(current: str | None, proposed: str | None, override: bool) ->
         return True
     if override:
         return current != proposed
-    # Keep existing si: icons — those are curated. Upgrade generic
-    # Lucide icons to si: vendor icons when we find a match.
-    if current.startswith("si:"):
+    # Keep existing si:/favicon: icons — those are curated. Upgrade a
+    # generic Lucide icon to either vendor tier (si: or favicon:) when
+    # we find a match; favicon: was previously never applied here even
+    # though it's an intentional tier of the same resolution order.
+    if current.startswith("si:") or current.startswith("favicon:"):
         return False
-    if proposed.startswith("si:"):
+    if proposed.startswith("si:") or proposed.startswith("favicon:"):
         return current != proposed
     return False   # both are Lucide; leave existing alone
 
